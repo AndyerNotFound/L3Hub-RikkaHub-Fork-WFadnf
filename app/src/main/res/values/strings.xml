@@ -1938,4 +1938,6 @@
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_api_key_add">Add key</string>
   <string name="chat_message_usage_empty">No usage data yet</string>
+  <string name="stats_page_token_distribution">Token distribution</string>
+  <string name="chat_page_worldbook_injected">%1$d worldbook entries injected</string>
 </resources>

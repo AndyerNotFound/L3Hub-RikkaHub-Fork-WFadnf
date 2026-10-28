@@ -57,6 +57,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -210,6 +213,7 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                             EmptyUsageCard(modifier = Modifier.padding(horizontal = 8.dp))
                         } else {
                             UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+                            UsagePieCard(models = usage.models, modifier = Modifier.padding(horizontal = 8.dp))
                             UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
                             RankingCard(
                                 title = stringResource(R.string.stats_page_by_model),
@@ -722,6 +726,114 @@ private fun UsageColumnChart(
 }
 
 /** 单色横向条形排行，条长按第一名缩放，右侧标出用量和占比 */
+@Composable
+private fun UsagePieCard(models: List<ModelUsageItem>, modifier: Modifier = Modifier) {
+    val otherLabel = stringResource(R.string.stats_page_other)
+    val unknownLabel = stringResource(R.string.stats_page_unknown_model)
+    val rows = remember(models, otherLabel, unknownLabel) {
+        val sorted = models
+            .map { (it.name ?: unknownLabel) to it.totalTokens }
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+        if (sorted.size <= RANKING_LIMIT) {
+            sorted
+        } else {
+            sorted.take(RANKING_LIMIT - 1) + (otherLabel to sorted.drop(RANKING_LIMIT - 1).sumOf { it.second })
+        }
+    }
+    if (rows.isEmpty()) return
+
+    val total = rows.sumOf { it.second }.coerceAtLeast(1)
+    val colors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.error,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.outline,
+    )
+
+    Card(modifier = modifier.fillMaxWidth(), colors = CustomColors.cardColorsOnSurfaceContainer) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.stats_page_token_distribution),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Box(
+                    modifier = Modifier.size(132.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val stroke = 18.dp.toPx()
+                        var start = -90f
+                        rows.forEachIndexed { index, row ->
+                            val sweep = row.second.toFloat() / total * 360f
+                            drawArc(
+                                color = colors[index % colors.size],
+                                startAngle = start + 1.5f,
+                                sweepAngle = (sweep - 3f).coerceAtLeast(1f),
+                                useCenter = false,
+                                style = Stroke(width = stroke, cap = StrokeCap.Butt),
+                            )
+                            start += sweep
+                        }
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = formatTokens(total),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "Token",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    rows.forEachIndexed { index, (label, tokens) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(colors[index % colors.size]),
+                            )
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = "${"%.0f".format(tokens * 100.0 / total)}%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier: Modifier = Modifier) {
     val otherLabel = stringResource(R.string.stats_page_other)

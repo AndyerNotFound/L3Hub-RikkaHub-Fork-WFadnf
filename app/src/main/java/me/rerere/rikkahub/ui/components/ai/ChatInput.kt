@@ -141,6 +141,9 @@ fun ChatInput(
     chatModel: Model?,
     // 当前会话已占用的上下文 token(最近一次回复的真实用量)
     contextTokens: Int? = null,
+    usageTokenSpeed: Float? = null,
+    generationDurationMillis: Long? = null,
+    injectedLorebookCount: Int = 0,
     onShowUsage: () -> Unit = {},
     hazeState: HazeState,
     modifier: Modifier = Modifier,
@@ -256,6 +259,14 @@ fun ChatInput(
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
             )
+            if (injectedLorebookCount > 0) {
+                Text(
+                    text = stringResource(R.string.chat_page_worldbook_injected, injectedLorebookCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
                 when (settings.displaySetting.contextMeterStyle) {
                     ContextMeterStyle.BAR -> ContextUsageMeter(
@@ -273,6 +284,8 @@ fun ChatInput(
                         onShowUsage = onShowUsage,
                         modifier = Modifier.padding(horizontal = 4.dp),
                         provider = chatModel.findProvider(settings.providers),
+                        tokenSpeed = usageTokenSpeed,
+                        generationDurationMillis = generationDurationMillis,
                     )
 
                     ContextMeterStyle.OFF -> Unit

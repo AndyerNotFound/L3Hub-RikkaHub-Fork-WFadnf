@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.extractContextForMatching
 import me.rerere.rikkahub.data.model.isTriggered
+import kotlin.uuid.Uuid
 
 /**
  * 提示词注入转换器
@@ -39,6 +40,7 @@ internal fun transformMessages(
     lorebooks: List<Lorebook>,
 ): List<UIMessage> {
     // 收集所有需要注入的内容
+    val lorebookInjections = collectLorebookInjections(messages, assistant, lorebooks)
     val injections = collectInjections(
         messages = messages,
         assistant = assistant,
@@ -50,13 +52,52 @@ internal fun transformMessages(
         return messages
     }
 
-    // 按位置和优先级分组
-    val byPosition = injections
-        .sortedByDescending { it.priority }
+    // 世界书是动态触发的：放在系统提示词里的保持原位，其余统一放到最后一条消息之前。
+    // 这样上面的系统提示词和历史消息保持稳定，能尽可能命中提示词缓存。
+    val lorebookIds = lorebookInjections.mapTo(mutableSetOf()) { it.id }
+    val stablePositions = setOf(
+        InjectionPosition.BEFORE_SYSTEM_PROMPT,
+        InjectionPosition.AFTER_SYSTEM_PROMPT,
+    )
+    val tailInjections = injections.filter {
+        it.id in lorebookIds && it.position !in stablePositions
+    }
+    val tailIds = tailInjections.mapTo(mutableSetOf()) { it.id }
+    val positioned = injections.filterNot { it.id in tailIds }
+
+    // 按位置和优先级分组。排序必须稳定，保证同样的触发结果生成同样的前缀，方便命中缓存
+    val byPosition = positioned
+        .sortedWith(
+            compareByDescending<PromptInjection> { it.priority }
+                .thenBy { it.name }
+                .thenBy { it.id.toString() }
+        )
         .groupBy { it.position }
 
     // 应用注入
-    return applyInjections(messages, byPosition)
+    val result = applyInjections(
+        messages = messages,
+        byPosition = byPosition,
+        lorebookIds = lorebookIds,
+    )
+    if (tailInjections.isEmpty()) return result
+
+    val tailMessages = createMergedInjectionMessages(
+        tailInjections.sortedWith(
+            compareByDescending<PromptInjection> { it.priority }
+                .thenBy { it.name }
+                .thenBy { it.id.toString() }
+        ),
+        lorebookIds,
+    )
+    // 放在最后一条消息之前：上面的历史保持不动，最新一条用户消息仍然在最后
+    var insertIndex = (result.size - 1).coerceAtLeast(0)
+    insertIndex = findSafeInsertIndex(result, insertIndex)
+    tailMessages.forEach { message ->
+        result.add(insertIndex, message)
+        insertIndex++
+    }
+    return result
 }
 
 /**
@@ -76,24 +117,32 @@ internal fun collectInjections(
         .forEach { injections.add(it) }
 
     // 2. 获取关联的 Lorebook 中被触发的 RegexInjection
+    injections.addAll(collectLorebookInjections(messages, assistant, lorebooks))
+
+    return injections
+}
+
+/**
+ * 当前上下文触发的世界书条目。单独抽出来是为了在提示里标出注入数量。
+ */
+internal fun collectLorebookInjections(
+    messages: List<UIMessage>,
+    assistant: Assistant,
+    lorebooks: List<Lorebook>,
+): List<PromptInjection.RegexInjection> {
     val enabledLorebooks = lorebooks.filter {
         it.enabled && assistant.lorebookIds.contains(it.id)
     }
-    if (enabledLorebooks.isNotEmpty()) {
-        // 提取上下文用于匹配（只取非 SYSTEM 消息）
-        val nonSystemMessages = messages.filter { it.role != MessageRole.SYSTEM }
+    if (enabledLorebooks.isEmpty()) return emptyList()
 
-        enabledLorebooks.forEach { lorebook ->
-            lorebook.entries
-                .filter { entry ->
-                    val context = extractContextForMatching(nonSystemMessages, entry.scanDepth)
-                    entry.isTriggered(context)
-                }
-                .forEach { injections.add(it) }
+    // 提取上下文用于匹配（只取非 SYSTEM 消息）
+    val nonSystemMessages = messages.filter { it.role != MessageRole.SYSTEM }
+    return enabledLorebooks.flatMap { lorebook ->
+        lorebook.entries.filter { entry ->
+            val context = extractContextForMatching(nonSystemMessages, entry.scanDepth)
+            entry.isTriggered(context)
         }
     }
-
-    return injections
 }
 
 /**
@@ -101,7 +150,8 @@ internal fun collectInjections(
  */
 internal fun applyInjections(
     messages: List<UIMessage>,
-    byPosition: Map<InjectionPosition, List<PromptInjection>>
+    byPosition: Map<InjectionPosition, List<PromptInjection>>,
+    lorebookIds: Set<Uuid> = emptySet(),
 ): List<UIMessage> {
     val result = messages.toMutableList()
 
@@ -111,9 +161,9 @@ internal fun applyInjections(
     // 处理 BEFORE_SYSTEM_PROMPT 和 AFTER_SYSTEM_PROMPT
     if (systemIndex >= 0) {
         val beforeContent = byPosition[InjectionPosition.BEFORE_SYSTEM_PROMPT]
-            ?.joinToString("\n") { it.content } ?: ""
+            ?.let { injectionContent(it, lorebookIds) } ?: ""
         val afterContent = byPosition[InjectionPosition.AFTER_SYSTEM_PROMPT]
-            ?.joinToString("\n") { it.content } ?: ""
+            ?.let { injectionContent(it, lorebookIds) } ?: ""
 
         if (beforeContent.isNotEmpty() || afterContent.isNotEmpty()) {
             val systemMessage = result[systemIndex]
@@ -141,9 +191,9 @@ internal fun applyInjections(
     } else {
         // 没有系统消息时，创建一个新的系统消息
         val beforeContent = byPosition[InjectionPosition.BEFORE_SYSTEM_PROMPT]
-            ?.joinToString("\n") { it.content } ?: ""
+            ?.let { injectionContent(it, lorebookIds) } ?: ""
         val afterContent = byPosition[InjectionPosition.AFTER_SYSTEM_PROMPT]
-            ?.joinToString("\n") { it.content } ?: ""
+            ?.let { injectionContent(it, lorebookIds) } ?: ""
 
         val combinedContent = buildString {
             if (beforeContent.isNotEmpty()) {
@@ -167,7 +217,7 @@ internal fun applyInjections(
         var insertIndex = result.indexOfFirst { it.role == MessageRole.USER }
             .takeIf { it >= 0 } ?: result.size
         insertIndex = findSafeInsertIndex(result, insertIndex)
-        createMergedInjectionMessages(topInjections).forEach { message ->
+        createMergedInjectionMessages(topInjections, lorebookIds).forEach { message ->
             result.add(insertIndex, message)
             insertIndex++
         }
@@ -178,7 +228,7 @@ internal fun applyInjections(
     if (!bottomInjections.isNullOrEmpty()) {
         var insertIndex = (result.size - 1).coerceAtLeast(0)
         insertIndex = findSafeInsertIndex(result, insertIndex)
-        createMergedInjectionMessages(bottomInjections).forEach { message ->
+        createMergedInjectionMessages(bottomInjections, lorebookIds).forEach { message ->
             result.add(insertIndex, message)
             insertIndex++
         }
@@ -195,7 +245,7 @@ internal fun applyInjections(
             // depth=1 表示在最后一条消息之前，depth=2 表示在倒数第二条之前...
             var insertIndex = (result.size - depth.coerceAtLeast(1)).coerceIn(0, result.size)
             insertIndex = findSafeInsertIndex(result, insertIndex)
-            createMergedInjectionMessages(injections).forEach { message ->
+            createMergedInjectionMessages(injections, lorebookIds).forEach { message ->
                 result.add(insertIndex, message)
                 insertIndex++
             }
@@ -209,11 +259,27 @@ internal fun applyInjections(
  * 将同一 role 的注入合并成消息列表
  * 按 role 分组后合并内容，返回合并后的消息列表
  */
-private fun createMergedInjectionMessages(injections: List<PromptInjection>): List<UIMessage> {
+private fun injectionContent(
+    injections: List<PromptInjection>,
+    lorebookIds: Set<Uuid>,
+): String {
+    val lorebookCount = injections.count { it.id in lorebookIds }
+    val body = injections.joinToString("\n") { it.content }
+    return if (lorebookCount > 0) {
+        "【已注入世界书 $lorebookCount 条】\n$body"
+    } else {
+        body
+    }
+}
+
+private fun createMergedInjectionMessages(
+    injections: List<PromptInjection>,
+    lorebookIds: Set<Uuid> = emptySet(),
+): List<UIMessage> {
     return injections
         .groupBy { it.role }
         .map { (role, grouped) ->
-            val mergedContent = grouped.joinToString("\n") { it.content }
+            val mergedContent = injectionContent(grouped, lorebookIds)
             when (role) {
                 MessageRole.ASSISTANT -> UIMessage.assistant(mergedContent)
                 else -> UIMessage.user(mergedContent)

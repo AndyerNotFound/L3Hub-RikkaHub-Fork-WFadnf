@@ -209,6 +209,12 @@ fun ConversationUsageDetails(
     }
 }
 
+/** 最近一次请求的输出速度，和 Usage 看板里的 tok/s 一致 */
+fun UIMessage.usageTokenSpeed(): Float? {
+    val usage = usage ?: return null
+    return nerdStats(usage).tps
+}
+
 private data class UsageSegment(val label: String, val tokens: Int, val color: Color)
 
 /**

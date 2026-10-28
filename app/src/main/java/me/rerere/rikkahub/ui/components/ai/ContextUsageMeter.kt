@@ -42,6 +42,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.contextUsageFraction
 import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.utils.formatNumber
+import me.rerere.rikkahub.utils.toFixed
 import kotlin.math.roundToInt
 
 /** 占用超过门限的这个比例后, 进度条转为提醒色 */
@@ -195,6 +196,8 @@ fun ContextUsageRing(
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
     provider: ProviderSetting? = null,
+    tokenSpeed: Float? = null,
+    generationDurationMillis: Long? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -290,6 +293,36 @@ fun ContextUsageRing(
                     limit = maxTokens,
                     color = mainColor,
                 )
+            }
+            if (tokenSpeed != null || generationDurationMillis != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (tokenSpeed != null) {
+                        Text(
+                            text = "${tokenSpeed.toFixed(1)} tok/s",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (tokenSpeed != null && generationDurationMillis != null) {
+                        Text(
+                            text = "·",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (generationDurationMillis != null) {
+                        Text(
+                            text = "${(generationDurationMillis / 1000f).toFixed(1)}s",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             if (limitReached) {
                 Text(

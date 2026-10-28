@@ -1940,4 +1940,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_api_key_add">添加 Key</string>
   <string name="chat_message_usage_empty">暂无用量数据</string>
+  <string name="stats_page_token_distribution">Token 分布</string>
+  <string name="chat_page_worldbook_injected">已注入世界书 %1$d 条</string>
 </resources>

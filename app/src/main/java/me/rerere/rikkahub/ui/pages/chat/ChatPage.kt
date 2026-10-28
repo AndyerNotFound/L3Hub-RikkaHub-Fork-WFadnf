@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.WindowInsets
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import dev.chrisbanes.haze.HazeState
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,6 +58,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -350,6 +353,46 @@ private fun ChatPageContent(
     val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
     val contextLimitMessage = stringResource(R.string.chat_page_context_limit_reached)
 
+    // Usage 看板里的最近一次请求速度
+    val lastUsageMessage = remember(conversation.currentMessages) {
+        conversation.currentMessages.lastOrNull { it.usage != null }
+    }
+    val usageTokenSpeed = remember(lastUsageMessage) { lastUsageMessage?.usageTokenSpeed() }
+    val lorebookInjectionCount = remember(conversation.currentMessages, assistant.lorebookIds, setting.lorebooks) {
+        collectLorebookInjections(conversation.currentMessages, assistant, setting.lorebooks).size
+    }
+
+    // 独立计时器：从本轮开始生成到结束，按本地时钟计算，不用 API 返回的耗时
+    var generationStartedAt by remember { mutableStateOf<Long?>(null) }
+    var generationDurationMs by remember { mutableStateOf<Long?>(null) }
+    var timerNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(loadingJob != null) {
+        if (loadingJob != null) {
+            if (generationStartedAt == null) {
+                val now = System.currentTimeMillis()
+                generationStartedAt = now
+                timerNow = now
+            }
+        } else {
+            generationStartedAt?.let { start ->
+                generationDurationMs = (System.currentTimeMillis() - start).coerceAtLeast(0L)
+                generationStartedAt = null
+            }
+        }
+    }
+
+    LaunchedEffect(generationStartedAt) {
+        while (generationStartedAt != null) {
+            timerNow = System.currentTimeMillis()
+            delay(500)
+        }
+    }
+
+    val generationDurationMillis = generationStartedAt?.let {
+        (timerNow - it).coerceAtLeast(0L)
+    } ?: generationDurationMs
+
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
     val submitInput: () -> Unit = {
@@ -447,6 +490,9 @@ private fun ChatPageContent(
                     assistant = assistant,
                     chatModel = currentChatModel,
                     contextTokens = contextTokens,
+                    usageTokenSpeed = usageTokenSpeed,
+                    generationDurationMillis = generationDurationMillis,
+                    injectedLorebookCount = lorebookInjectionCount,
                     onShowUsage = { showUsageSheet = true },
                     hazeState = hazeState,
                     completionProviders = completionProviders,
