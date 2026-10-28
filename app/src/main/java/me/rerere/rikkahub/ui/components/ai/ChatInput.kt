@@ -229,7 +229,6 @@ fun ChatInput(
     Surface(
         color = Color.Transparent,
         modifier = Modifier
-            .offset(y = -liftedBy)
             .drawWithCache {
             val brush = Brush.verticalGradient(
                 colors = listOf(scrimColor.copy(alpha = 0f), scrimColor),
@@ -244,7 +243,7 @@ fun ChatInput(
                 .imePadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 8.dp)
-                .padding(bottom = 8.dp),
+                .padding(bottom = 8.dp + liftedBy),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MessageQueuePanel(
@@ -697,10 +696,12 @@ private fun TextInputRow(
             )
         }
 
+        val maxFieldHeight = with(density) { (lineHeightPx * 5f).toDp() } + 24.dp
         TextField(
             state = state.textContent,
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxFieldHeight)
                 .testTag("chat_input")
                 .onSizeChanged { size ->
                     fieldHeight = size.height

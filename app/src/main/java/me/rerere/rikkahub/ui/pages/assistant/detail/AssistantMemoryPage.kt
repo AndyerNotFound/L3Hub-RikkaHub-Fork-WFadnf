@@ -54,6 +54,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
+import me.rerere.ai.provider.ModelType
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
@@ -182,6 +187,16 @@ private fun MemorySettingsTab(
     var showAutoCompressTargetDialog by remember(assistant.id) { mutableStateOf(false) }
     var autoCompressTargetInput by remember(assistant.id) { mutableStateOf("") }
     var autoCompressTargetMode by remember(assistant.id) { mutableStateOf(assistant.autoCompressTarget) }
+    val settings = LocalSettings.current
+    val dreamingModelState = rememberModelListState(
+        modelId = assistant.dreamingModelId,
+        providers = settings.providers,
+        type = ModelType.CHAT,
+    )
+    ModelListSheet(
+        state = dreamingModelState,
+        onSelect = { onUpdateAssistant(assistant.copy(dreamingModelId = it.id)) },
+    )
 
     if (showTimeReminderIntervalDialog) {
         val interval = timeReminderIntervalInput.toIntOrNull()?.takeIf { it > 0 }
@@ -376,6 +391,31 @@ private fun MemorySettingsTab(
                 enabled = assistant.enableMemory,
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream)) },
+            )
+            item(
+                onClick = { dreamingModelState.open() },
+                headlineContent = { Text(stringResource(R.string.assistant_page_dreaming_model)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_dreaming_model_desc)) },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = dreamingModelState.currentModel?.displayName
+                                ?: stringResource(R.string.assistant_page_dreaming_model_follow_global),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        if (assistant.dreamingModelId != null) {
+                            IconButton(
+                                onClick = { onUpdateAssistant(assistant.copy(dreamingModelId = null)) },
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Cancel01,
+                                    contentDescription = stringResource(R.string.assistant_page_dreaming_model_follow_global),
+                                )
+                            }
+                        }
+                    }
+                },
             )
             switchItem(
                 checked = assistant.enableRecentChatsReference,

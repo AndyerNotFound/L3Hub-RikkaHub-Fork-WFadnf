@@ -328,7 +328,8 @@ internal fun FilesPicker(
                                 val contextTokens = remember(conversation.messageNodes) {
                                     conversation.lastContextTokens()
                                 }
-                                val contextLength = chatModel?.contextLength?.takeIf { it > 0 }
+                                val contextLength = chatModel?.maxContextTokens?.takeIf { it > 0 }
+                                    ?: chatModel?.contextLength?.takeIf { it > 0 }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),

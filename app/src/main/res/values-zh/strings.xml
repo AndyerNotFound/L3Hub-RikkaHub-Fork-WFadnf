@@ -1900,4 +1900,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_empty_slogan_title">新对话标语</string>
   <string name="setting_display_page_empty_slogan_desc">新对话界面中央显示在助手头像下方的一句话，留空使用默认文案</string>
   <string name="chat_empty_default_slogan">今天想聊点什么？</string>
+  <string name="assistant_page_dreaming_model">Dreaming 模型</string>
+  <string name="assistant_page_dreaming_model_desc">后台整理记忆（Dreaming）时使用的模型，需要支持工具调用；不设置时跟随全局模型设置</string>
+  <string name="assistant_page_dreaming_model_follow_global">跟随全局</string>
 </resources>

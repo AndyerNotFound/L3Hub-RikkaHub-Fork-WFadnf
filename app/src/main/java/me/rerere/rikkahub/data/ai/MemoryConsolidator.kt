@@ -296,7 +296,8 @@ private fun Settings.consolidationModel(
     assistant: Assistant,
 ): Pair<Model, ReasoningLevel>? {
     fun toolModel(id: Uuid?) = id?.let { findModelById(it) }?.takeIf { ModelAbility.TOOL in it.abilities }
-    val (model, reasoningLevel) = toolModel(memoryModelId)?.let { it to memoryModelReasoningLevel }
+    val (model, reasoningLevel) = toolModel(assistant.dreamingModelId)?.let { it to memoryModelReasoningLevel }
+        ?: toolModel(memoryModelId)?.let { it to memoryModelReasoningLevel }
         ?: toolModel(fastModelId)?.let { it to fastModelReasoningLevel }
         ?: (conversation?.let { getChatModelOf(it) } ?: findModelById(assistant.chatModelId ?: chatModelId))
             ?.let { it to fastModelReasoningLevel }
