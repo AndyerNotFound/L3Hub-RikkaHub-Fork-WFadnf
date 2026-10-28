@@ -64,6 +64,8 @@ data class Settings(
     val providerGroupAssignments: Map<String, String> = emptyMap(),
     // 按接口域名单独给某个提供商设置代理: host -> proxyUrl
     val providerProxies: Map<String, String> = emptyMap(),
+    val providerProxyUsernames: Map<String, String> = emptyMap(),
+    val providerProxyPasswords: Map<String, String> = emptyMap(),
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),

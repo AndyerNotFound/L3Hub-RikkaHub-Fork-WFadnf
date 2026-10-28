@@ -37,16 +37,29 @@ class SettingsProxyAuthenticator(
     private val settingsStore: SettingsStore,
 ) : OkHttpAuthenticator {
     override fun authenticate(route: Route?, response: Response): Request? {
-        val setting = settingsStore.settingsFlow.value.networkSetting
-        val configuredProxy = setting.proxyUrl.toProxyOrNull() ?: return null
+        val settings = settingsStore.settingsFlow.value
+        val host = route?.address?.url?.host
+        val providerProxyUrl = host?.let { settings.providerProxies[it] }
+        val proxyUrl = providerProxyUrl ?: settings.networkSetting.proxyUrl
+        val configuredProxy = proxyUrl.toProxyOrNull() ?: return null
         if (configuredProxy.type() != Proxy.Type.HTTP || route?.proxy != configuredProxy) return null
-        if (setting.proxyUsername.isEmpty()) return null
+        val username = if (providerProxyUrl != null) {
+            host?.let { settings.providerProxyUsernames[it] }.orEmpty()
+        } else {
+            settings.networkSetting.proxyUsername
+        }
+        val password = if (providerProxyUrl != null) {
+            host?.let { settings.providerProxyPasswords[it] }.orEmpty()
+        } else {
+            settings.networkSetting.proxyPassword
+        }
+        if (username.isEmpty()) return null
         if (response.request.header("Proxy-Authorization") != null) return null
 
         return response.request.newBuilder()
             .header(
                 "Proxy-Authorization",
-                Credentials.basic(setting.proxyUsername, setting.proxyPassword, Charsets.UTF_8),
+                Credentials.basic(username, password, Charsets.UTF_8),
             )
             .build()
     }
@@ -56,15 +69,32 @@ class SettingsSocks5Authenticator(
     private val settingsStore: SettingsStore,
 ) : java.net.Authenticator() {
     override fun getPasswordAuthentication(): PasswordAuthentication? {
-        val setting = settingsStore.settingsFlow.value.networkSetting
+        val settings = settingsStore.settingsFlow.value
+        if (!requestingProtocol.equals("SOCKS5", ignoreCase = true)) return null
+        val requestedHost = requestingHost?.removeSurrounding("[", "]")
+
+        settings.providerProxies.forEach { (host, url) ->
+            val proxy = url.toProxyOrNull() ?: return@forEach
+            if (proxy.type() != Proxy.Type.SOCKS) return@forEach
+            val address = proxy.address() as? InetSocketAddress ?: return@forEach
+            if (requestingPort != address.port) return@forEach
+            if (!requestedHost.equals(address.hostString.removeSurrounding("[", "]"), ignoreCase = true)) {
+                return@forEach
+            }
+            val username = settings.providerProxyUsernames[host].orEmpty()
+            if (username.isEmpty()) return@forEach
+            return PasswordAuthentication(
+                username,
+                settings.providerProxyPasswords[host].orEmpty().toCharArray(),
+            )
+        }
+
+        val setting = settings.networkSetting
         val configuredProxy = setting.proxyUrl.toProxyOrNull() ?: return null
         val proxyAddress = configuredProxy.address() as? InetSocketAddress ?: return null
         if (configuredProxy.type() != Proxy.Type.SOCKS) return null
         if (setting.proxyUsername.isEmpty()) return null
-        if (!requestingProtocol.equals("SOCKS5", ignoreCase = true)) return null
         if (requestingPort != proxyAddress.port) return null
-
-        val requestedHost = requestingHost?.removeSurrounding("[", "]")
         val configuredHost = proxyAddress.hostString.removeSurrounding("[", "]")
         if (!requestedHost.equals(configuredHost, ignoreCase = true)) return null
 

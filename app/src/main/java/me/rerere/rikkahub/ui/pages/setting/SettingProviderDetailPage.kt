@@ -315,6 +315,17 @@ private fun SettingProviderConfigPage(
     var showProxyDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var proxyInput by remember { mutableStateOf("") }
+    var proxyUsername by remember { mutableStateOf("") }
+    var proxyPassword by remember { mutableStateOf("") }
+
+    fun deleteGroup(name: String) {
+        vm.updateSettings { latest ->
+            latest.copy(
+                providerGroups = latest.providerGroups - name,
+                providerGroupAssignments = latest.providerGroupAssignments.filterValues { it != name },
+            )
+        }
+    }
 
     fun assignGroup(name: String?) {
         vm.updateSettings { latest ->
@@ -364,7 +375,17 @@ private fun SettingProviderConfigPage(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = group == name, onClick = null)
-                            Text(name)
+                            Text(
+                                text = name,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = { deleteGroup(name) }) {
+                                Icon(
+                                    imageVector = HugeIcons.Delete01,
+                                    contentDescription = stringResource(R.string.setting_provider_group_delete),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                     OutlinedTextField(
@@ -406,7 +427,21 @@ private fun SettingProviderConfigPage(
                     OutlinedTextField(
                         value = proxyInput,
                         onValueChange = { proxyInput = it },
-                        placeholder = { Text("http://127.0.0.1:7890") },
+                        placeholder = { Text("http://127.0.0.1:7890 / socks5://127.0.0.1:1080") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = proxyUsername,
+                        onValueChange = { proxyUsername = it },
+                        label = { Text(stringResource(R.string.setting_provider_proxy_username)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = proxyPassword,
+                        onValueChange = { proxyPassword = it },
+                        label = { Text(stringResource(R.string.setting_provider_proxy_password)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -414,10 +449,15 @@ private fun SettingProviderConfigPage(
                         TextButton(
                             onClick = {
                                 vm.updateSettings { latest ->
-                                    latest.copy(
-                                        providerProxies = proxyHost?.let { latest.providerProxies - it }
-                                            ?: latest.providerProxies
-                                    )
+                                    if (proxyHost == null) {
+                                        latest
+                                    } else {
+                                        latest.copy(
+                                            providerProxies = latest.providerProxies - proxyHost,
+                                            providerProxyUsernames = latest.providerProxyUsernames - proxyHost,
+                                            providerProxyPasswords = latest.providerProxyPasswords - proxyHost,
+                                        )
+                                    }
                                 }
                                 showProxyDialog = false
                             },
@@ -438,7 +478,17 @@ private fun SettingProviderConfigPage(
                                         latest.providerProxies - host
                                     } else {
                                         latest.providerProxies + (host to proxyInput.trim())
-                                    }
+                                    },
+                                    providerProxyUsernames = if (proxyInput.isBlank() || proxyUsername.isBlank()) {
+                                        latest.providerProxyUsernames - host
+                                    } else {
+                                        latest.providerProxyUsernames + (host to proxyUsername.trim())
+                                    },
+                                    providerProxyPasswords = if (proxyInput.isBlank() || proxyPassword.isBlank()) {
+                                        latest.providerProxyPasswords - host
+                                    } else {
+                                        latest.providerProxyPasswords + (host to proxyPassword)
+                                    },
                                 )
                             }
                         }
@@ -492,6 +542,8 @@ private fun SettingProviderConfigPage(
                 item(
                     onClick = {
                         proxyInput = proxyUrl.orEmpty()
+                        proxyUsername = proxyHost?.let { settings.providerProxyUsernames[it] }.orEmpty()
+                        proxyPassword = proxyHost?.let { settings.providerProxyPasswords[it] }.orEmpty()
                         showProxyDialog = true
                     },
                     headlineContent = { Text(stringResource(R.string.setting_provider_proxy_title)) },

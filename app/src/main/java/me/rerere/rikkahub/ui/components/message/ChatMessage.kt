@@ -189,25 +189,42 @@ fun ChatMessage(
                 )
             }
         }
+        val appSettings = LocalSettings.current
         val translation = message.translation
         var showTranslationPage by remember(message.id) { mutableStateOf(false) }
-        val swipeModifier = if (translation != null) {
-            Modifier.pointerInput(message.id, translation) {
-                var drag = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { drag = 0f },
-                    onHorizontalDrag = { change, amount ->
-                        change.consume()
-                        drag += amount
-                    },
-                    onDragEnd = {
-                        if (drag < -60f) showTranslationPage = true
-                        else if (drag > 60f) showTranslationPage = false
-                    },
-                )
+        var translating by remember(message.id) { mutableStateOf(false) }
+        LaunchedEffect(translation) {
+            if (translation != null) {
+                translating = false
+                showTranslationPage = true
             }
-        } else {
-            Modifier
+        }
+        val swipeModifier = Modifier.pointerInput(message.id, translation) {
+            var drag = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { drag = 0f },
+                onHorizontalDrag = { change, amount ->
+                    change.consume()
+                    drag += amount
+                },
+                onDragEnd = {
+                    when {
+                        drag < -60f -> {
+                            if (translation != null) {
+                                showTranslationPage = true
+                            } else if (onTranslate != null && !translating) {
+                                translating = true
+                                onTranslate(
+                                    message,
+                                    Locale.forLanguageTag(appSettings.translateTargetLanguage),
+                                )
+                            }
+                        }
+
+                        drag > 60f -> showTranslationPage = false
+                    }
+                },
+            )
         }
         CompositionLocalProvider(
             LocalTextStyle provides textStyle,
@@ -243,7 +260,14 @@ fun ChatMessage(
                             )
                         }
                     } else {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = if (message.role == MessageRole.USER) {
+                                Alignment.End
+                            } else {
+                                Alignment.Start
+                            },
+                        ) {
                             MessagePartsBlock(
                                 assistant = assistant,
                                 role = message.role,
@@ -260,24 +284,32 @@ fun ChatMessage(
                     }
                 }
             }
-            if (translation != null) {
-                Text(
-                    text = stringResource(
-                        if (showTranslationPage) {
-                            R.string.chat_message_translation_show_original
-                        } else {
-                            R.string.chat_message_translation_show_translation
+            Text(
+                text = stringResource(
+                    when {
+                        translating -> R.string.chat_message_translation_translating
+                        translation == null -> R.string.chat_message_translation_swipe
+                        showTranslationPage -> R.string.chat_message_translation_show_original
+                        else -> R.string.chat_message_translation_show_translation
+                    }
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable {
+                        when {
+                            translation != null -> showTranslationPage = !showTranslationPage
+                            onTranslate != null && !translating -> {
+                                translating = true
+                                onTranslate(
+                                    message,
+                                    Locale.forLanguageTag(appSettings.translateTargetLanguage),
+                                )
+                            }
                         }
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clickable {
-                            showTranslationPage = !showTranslationPage
-                        }
-                        .padding(horizontal = 12.dp, vertical = 2.dp),
-                )
-            }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+            )
         }
 
         val showActions = if (lastMessage) {

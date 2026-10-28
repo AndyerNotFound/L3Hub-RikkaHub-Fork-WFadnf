@@ -393,27 +393,10 @@ fun ChatInput(
                     if (singleLine) {
                         var fieldHeight by remember { mutableIntStateOf(0) }
                         var oneLineHeight by remember { mutableIntStateOf(0) }
-                        var stacked by remember { mutableStateOf(false) }
-                        val density = LocalDensity.current
-                        val bodyLineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-                        val lineHeightPx = with(density) {
-                            runCatching { bodyLineHeight.toPx() }.getOrDefault(24.dp.toPx())
-                        }
-                        val fieldPaddingPx = with(density) { 20.dp.toPx() }
-                        LaunchedEffect(fieldHeight, oneLineHeight, state.textContent.text.isEmpty()) {
-                            if (fieldHeight <= 0) return@LaunchedEffect
-                            // 从别的页面返回时输入框是带着文本重建的，拿不到空文本时的单行高度，用字高估算
-                            val effectiveOneLineHeight = if (oneLineHeight > 0) {
-                                oneLineHeight.toFloat()
-                            } else {
-                                lineHeightPx + fieldPaddingPx
-                            }
-                            val lines = (fieldHeight - effectiveOneLineHeight) / lineHeightPx + 1f
-                            if (!stacked && lines >= 2.2f) {
-                                stacked = true
-                            } else if (stacked && (state.textContent.text.isEmpty() || lines <= 1.1f)) {
-                                stacked = false
-                            }
+                        var stacked by remember { mutableStateOf(state.textContent.text.isNotEmpty()) }
+                        // 有内容时直接锁定「文字在上、按钮在下」的布局，避免测量误差来回切换
+                        LaunchedEffect(state.textContent.text.isNotEmpty()) {
+                            stacked = state.textContent.text.isNotEmpty()
                         }
                         val leadingActions: @Composable () -> Unit = {
                             ActionIconButton(onClick = onMoreClick) {
