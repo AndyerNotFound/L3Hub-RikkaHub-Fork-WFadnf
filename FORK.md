@@ -184,6 +184,25 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 `files/workspaces/` 不参与备份：工作区文件可能很大，且更换设备后 proot 路径会变，按需自行导出。
 
+## 自动压缩（fork 新增）
+
+助手 → 记忆 → 「自动压缩」：
+
+| 项 | 说明 |
+|---|---|
+| 触发阈值 | `WARN` 或 `MAX`，取模型上配置的两个上下文门限 |
+| 压缩后保留 | 按消息条数或 token 数；token 按字符估算（CJK 约 1 字 1 token，其它约 4 字符 1 token） |
+| 触发时机 | 每次发送消息后、生成本轮回复之前，用 `Conversation.lastContextTokens()` 与门限比较 |
+| 效果 | 与手动压缩完全一致：调用同一个压缩请求，在原位置插入 `isContextCheckpoint` 摘要消息 |
+| 界面 | 不弹浮窗，复用生成中的加载球与 `processingStatus`，显示「正在压缩……」 |
+
+实现位置：
+
+- `data/model/AutoCompress.kt`：阈值/目标枚举、`keepRecentMessagesForTokens`
+- `Assistant` 新增 `autoCompress`、`autoCompressThreshold`、`autoCompressTarget`、`autoCompressTargetValue`
+- `ChatService.autoCompressIfNeeded`：在 `sendQueuedMessage` 的 job 里、写入用户消息之前执行；`compressConversation` 与它共用 `compressSession`
+- 开启自动压缩后，MAX 拦截（`sendMessage` / `dispatchNextQueuedMessage`）先放行，由这一轮生成前的压缩处理；压缩失败只记日志，不阻塞回复
+
 ## 性能：只出的那个包按 release 方式编译
 
 `app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.l3hub.wfadnf.debug`）

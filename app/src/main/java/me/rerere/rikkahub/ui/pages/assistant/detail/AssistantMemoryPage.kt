@@ -7,10 +7,12 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Settings03
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,7 +29,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -38,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -51,6 +58,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.AutoCompressTarget
+import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
 import me.rerere.rikkahub.data.model.memoryTitleOf
@@ -169,6 +178,10 @@ private fun MemorySettingsTab(
 ) {
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
+    var showAutoCompressThresholdDialog by remember(assistant.id) { mutableStateOf(false) }
+    var showAutoCompressTargetDialog by remember(assistant.id) { mutableStateOf(false) }
+    var autoCompressTargetInput by remember(assistant.id) { mutableStateOf("") }
+    var autoCompressTargetMode by remember(assistant.id) { mutableStateOf(assistant.autoCompressTarget) }
 
     if (showTimeReminderIntervalDialog) {
         val interval = timeReminderIntervalInput.toIntOrNull()?.takeIf { it > 0 }
@@ -201,6 +214,117 @@ private fun MemorySettingsTab(
             },
             dismissButton = {
                 TextButton(onClick = { showTimeReminderIntervalDialog = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
+
+    if (showAutoCompressThresholdDialog) {
+        AlertDialog(
+            onDismissRequest = { showAutoCompressThresholdDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
+            text = {
+                Column {
+                    AutoCompressThreshold.entries.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onUpdateAssistant(assistant.copy(autoCompressThreshold = option))
+                                    showAutoCompressThresholdDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = assistant.autoCompressThreshold == option,
+                                onClick = null,
+                            )
+                            Text(
+                                text = option.name,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAutoCompressThresholdDialog = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
+
+    if (showAutoCompressTargetDialog) {
+        val parsed = autoCompressTargetInput.toIntOrNull()
+        val minValue = if (autoCompressTargetMode == AutoCompressTarget.MESSAGES) 1 else 100
+        val valid = parsed != null && parsed >= minValue
+        AlertDialog(
+            onDismissRequest = { showAutoCompressTargetDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        AutoCompressTarget.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = autoCompressTargetMode == mode,
+                                onClick = {
+                                    autoCompressTargetMode = mode
+                                    val current = autoCompressTargetInput.toIntOrNull() ?: 0
+                                    autoCompressTargetInput = when (mode) {
+                                        AutoCompressTarget.MESSAGES ->
+                                            if (current in 1..200) current.toString() else "8"
+                                        AutoCompressTarget.TOKENS ->
+                                            if (current >= 1000) current.toString() else "16000"
+                                    }
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index, AutoCompressTarget.entries.size),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (mode == AutoCompressTarget.MESSAGES) {
+                                            R.string.assistant_page_memory_auto_compress_mode_messages
+                                        } else {
+                                            R.string.assistant_page_memory_auto_compress_mode_tokens
+                                        }
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    TextField(
+                        value = autoCompressTargetInput,
+                        onValueChange = { autoCompressTargetInput = it },
+                        label = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target_label)) },
+                        isError = !valid,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = valid,
+                    onClick = {
+                        parsed?.let {
+                            onUpdateAssistant(
+                                assistant.copy(
+                                    autoCompressTarget = autoCompressTargetMode,
+                                    autoCompressTargetValue = it,
+                                )
+                            )
+                        }
+                        showAutoCompressTargetDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAutoCompressTargetDialog = false }) {
                     Text(stringResource(R.string.assistant_page_cancel))
                 }
             },
@@ -265,6 +389,60 @@ private fun MemorySettingsTab(
                 supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_recent_chats)) },
             )
+        }
+
+        CardGroup {
+            switchItem(
+                checked = assistant.autoCompress,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            autoCompress = it
+                        )
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
+            )
+            if (assistant.autoCompress) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
+                    supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },
+                    trailingContent = {
+                        Text(
+                            text = assistant.autoCompressThreshold.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onClick = { showAutoCompressThresholdDialog = true },
+                )
+                item(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target)) },
+                    supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target_desc)) },
+                    trailingContent = {
+                        Text(
+                            text = when (assistant.autoCompressTarget) {
+                                AutoCompressTarget.MESSAGES -> stringResource(
+                                    R.string.assistant_page_memory_auto_compress_messages,
+                                    assistant.autoCompressTargetValue,
+                                )
+                                AutoCompressTarget.TOKENS -> stringResource(
+                                    R.string.assistant_page_memory_auto_compress_tokens,
+                                    assistant.autoCompressTargetValue,
+                                )
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onClick = {
+                        autoCompressTargetMode = assistant.autoCompressTarget
+                        autoCompressTargetInput = assistant.autoCompressTargetValue.toString()
+                        showAutoCompressTargetDialog = true
+                    },
+                )
+            }
         }
 
         CardGroup {

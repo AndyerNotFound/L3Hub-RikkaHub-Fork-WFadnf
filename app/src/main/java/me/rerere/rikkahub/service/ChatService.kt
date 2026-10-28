@@ -53,6 +53,8 @@ import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.AutoCompressTarget
+import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
@@ -64,6 +66,8 @@ import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.getStoredAssistantOf
 import me.rerere.rikkahub.data.model.insertContextCheckpoint
+import me.rerere.rikkahub.data.model.keepRecentMessagesForTokens
+import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.model.isAwaitingToolApproval
 import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
@@ -406,7 +410,7 @@ class ChatService(
         if (content.isEmptyInputMessage()) return
         val session = sessionManager.getOrCreate(conversationId)
         synchronized(session) {
-            if (session.maxContextReached()) {
+            if (session.maxContextReached() && !autoCompressEnabled(session)) {
                 reportContextLimit(conversationId)
                 return
             }
@@ -458,7 +462,10 @@ class ChatService(
             // A pending tool approval is still part of the current turn.
             if (session.getJob() != null || session.state.value.isAwaitingToolApproval) return null
             // 队列里还有消息但已经到达 MAX: 暂停队列, 压缩上下文后可以手动恢复
-            if (session.messageQueue.state.value.messages.isNotEmpty() && session.maxContextReached()) {
+            if (session.messageQueue.state.value.messages.isNotEmpty() &&
+                session.maxContextReached() &&
+                !autoCompressEnabled(session)
+            ) {
                 session.messageQueue.pause()
                 reportContextLimit(conversationId)
                 return null
@@ -480,6 +487,7 @@ class ChatService(
             try {
                 ensureInitialized(session)
                 finishInterruptedPendingTools(session)
+                autoCompressIfNeeded(session)
 
                 val assistant = settingsStore.awaitLoaded().getStoredAssistantOf(session.state.value)
                 val processedContent = queued.parts.replaceUserRegexes(assistant)
@@ -872,53 +880,108 @@ class ChatService(
         withLoadedSession<Unit>(conversationId) { session ->
             // 生成中的回复还没写完，压缩不到它，检查点也不能插到它前面
             check(!session.isGenerating) { context.getString(R.string.chat_page_compress_blocked_generating) }
-
-            val conversation = session.state.value
-            val nodes = conversation.messageNodes
-            val checkpointIndex = nodes.indexOfLast { it.currentMessage.isContextCheckpoint }
-            // 压缩范围是 (checkpointIndex, endIndex)，之后的节点原样保留
-            val endIndex = nodes.size - keepRecentMessages.coerceAtLeast(0)
-            // 上一个检查点之后没有可压缩的消息
-            if (endIndex <= checkpointIndex + 1) {
-                throw IllegalStateException(
-                    context.getString(
-                        if (keepRecentMessages > 0) {
-                            R.string.chat_page_compress_not_enough_messages
-                        } else {
-                            R.string.chat_page_compress_nothing_to_compress
-                        }
-                    )
-                )
-            }
-            // 未完成的工具调用没有结果，请求会被服务端拒绝；压到检查点之前也再不会执行。
-            // 保留区里的不发给压缩请求，压缩后照常留在检查点之后，不用检查
-            check(nodes.subList(checkpointIndex + 1, endIndex).none { node ->
-                node.currentMessage.getTools().any { it.isPending || it.canResumeExecution }
-            }) { context.getString(R.string.chat_page_compress_handle_pending_tools) }
-
-            // 必须和对话用同一个模型、同一套请求组装，才能命中提示词缓存
-            val turn = requestFactory.createContext(settingsStore.awaitLoaded(), conversation)
-            val summary = requestFactory.generateCompressionSummary(
-                turn = turn,
-                messages = conversation.currentMessages.take(endIndex),
-                compressPrompt = buildCompressPrompt(
-                    additionalPrompt = additionalPrompt,
-                    locale = Locale.getDefault().displayName,
-                ),
-            )
-
-            // 原消息原样保留，摘要插在压缩范围的最后一条消息之后。摘要生成期间对话可能已变化，
-            // 因此按节点定位插入到最新状态。
-            session.update { latest ->
-                check(!session.isGenerating) { context.getString(R.string.chat_page_compress_blocked_generating) }
-                val updated = latest.insertContextCheckpoint(
-                    afterNodeId = nodes[endIndex - 1].id,
-                    summary = summary,
-                ) ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_conversation_changed))
-                updated.copy(chatSuggestions = emptyList())
-            }
-            session.flush()
+            compressSession(session, additionalPrompt, keepRecentMessages, requireIdle = true)
         }
+    }
+
+    /**
+     * 自动压缩：上下文占用到 WARN/MAX 门限时，在生成本轮回复之前先压缩一次。
+     *
+     * 生成中的加载球复用 [ConversationSession.processingStatus]，显示「正在压缩……」，不弹浮窗。
+     * 插入检查点后 [Conversation.lastContextTokens] 会返回 null，同一轮不会重复触发。
+     */
+    private suspend fun autoCompressIfNeeded(session: ConversationSession) {
+        val settings = settingsStore.awaitLoaded()
+        val conversation = session.state.value
+        val assistant = settings.getAssistantOf(conversation)
+        if (!assistant.autoCompress) return
+
+        val model = settings.getChatModelOf(conversation) ?: return
+        val used = conversation.lastContextTokens() ?: return
+        val limit = when (assistant.autoCompressThreshold) {
+            AutoCompressThreshold.WARN -> model.warnContextTokens
+            AutoCompressThreshold.MAX -> model.maxContextTokens
+        } ?: return
+        if (used < limit) return
+
+        val keep = when (assistant.autoCompressTarget) {
+            AutoCompressTarget.MESSAGES -> assistant.autoCompressTargetValue
+            AutoCompressTarget.TOKENS -> conversation.keepRecentMessagesForTokens(assistant.autoCompressTargetValue)
+        }.coerceIn(0, (conversation.messageNodes.size - 1).coerceAtLeast(0))
+
+        Log.i(TAG, "autoCompress: conversation=${session.id} used=$used limit=$limit keep=$keep")
+        session.processingStatus.value = context.getString(R.string.chat_page_compressing)
+        try {
+            compressSession(session, additionalPrompt = "", keepRecentMessages = keep, requireIdle = false)
+        } catch (e: Exception) {
+            // 压缩失败不阻塞本轮生成：可能是没有可压缩的消息或还有未完成的工具调用
+            Log.w(TAG, "autoCompress: failed", e)
+        } finally {
+            session.processingStatus.value = null
+        }
+    }
+
+    /** 自动压缩是否开启；MAX 拦截在开启时先放行，由本轮生成前的自动压缩处理 */
+    private fun autoCompressEnabled(session: ConversationSession): Boolean =
+        settingsStore.settingsFlow.value.getAssistantOf(session.state.value).autoCompress
+
+    private suspend fun compressSession(
+        session: ConversationSession,
+        additionalPrompt: String,
+        keepRecentMessages: Int,
+        requireIdle: Boolean,
+    ) {
+        if (requireIdle) {
+            check(!session.isGenerating) { context.getString(R.string.chat_page_compress_blocked_generating) }
+        }
+
+        val conversation = session.state.value
+        val nodes = conversation.messageNodes
+        val checkpointIndex = nodes.indexOfLast { it.currentMessage.isContextCheckpoint }
+        // 压缩范围是 (checkpointIndex, endIndex)，之后的节点原样保留
+        val endIndex = nodes.size - keepRecentMessages.coerceAtLeast(0)
+        // 上一个检查点之后没有可压缩的消息
+        if (endIndex <= checkpointIndex + 1) {
+            throw IllegalStateException(
+                context.getString(
+                    if (keepRecentMessages > 0) {
+                        R.string.chat_page_compress_not_enough_messages
+                    } else {
+                        R.string.chat_page_compress_nothing_to_compress
+                    }
+                )
+            )
+        }
+        // 未完成的工具调用没有结果，请求会被服务端拒绝；压到检查点之前也再不会执行。
+        // 保留区里的不发给压缩请求，压缩后照常留在检查点之后，不用检查
+        check(nodes.subList(checkpointIndex + 1, endIndex).none { node ->
+            node.currentMessage.getTools().any { it.isPending || it.canResumeExecution }
+        }) { context.getString(R.string.chat_page_compress_handle_pending_tools) }
+
+        // 必须和对话用同一个模型、同一套请求组装，才能命中提示词缓存
+        val turn = requestFactory.createContext(settingsStore.awaitLoaded(), conversation)
+        val summary = requestFactory.generateCompressionSummary(
+            turn = turn,
+            messages = conversation.currentMessages.take(endIndex),
+            compressPrompt = buildCompressPrompt(
+                additionalPrompt = additionalPrompt,
+                locale = Locale.getDefault().displayName,
+            ),
+        )
+
+        // 原消息原样保留，摘要插在压缩范围的最后一条消息之后。摘要生成期间对话可能已变化，
+        // 因此按节点定位插入到最新状态。
+        session.update { latest ->
+            if (requireIdle) {
+                check(!session.isGenerating) { context.getString(R.string.chat_page_compress_blocked_generating) }
+            }
+            val updated = latest.insertContextCheckpoint(
+                afterNodeId = nodes[endIndex - 1].id,
+                summary = summary,
+            ) ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_conversation_changed))
+            updated.copy(chatSuggestions = emptyList())
+        }
+        session.flush()
     }
 
     // ---- 聊天页配置 ----

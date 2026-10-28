@@ -259,7 +259,7 @@
   <string name="chat_page_compress_context">压缩历史</string>
   <string name="chat_page_compress_context_desc">将对话压缩为摘要以节省令牌</string>
   <string name="chat_page_compress_context_title">压缩对话历史</string>
-  <string name="chat_page_compressing">正在压缩...</string>
+  <string name="chat_page_compressing">正在压缩……</string>
   <string name="chat_page_context_limit_reached">上下文已达上限，请压缩历史或新建对话</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
@@ -1832,4 +1832,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_state_completed">已完成</string>
   <string name="task_tree_state_failed">失败</string>
   <string name="task_tree_sub_agent">子代理</string>
+
+  <string name="assistant_page_memory_auto_compress">自动压缩</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文占用到达门限时，先生成摘要压缩历史再回复，效果与手动压缩一致</string>
+  <string name="assistant_page_memory_auto_compress_threshold">触发阈值</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 是预警线，MAX 是硬上限</string>
+  <string name="assistant_page_memory_auto_compress_target">压缩后保留</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">最近多少上下文不参与压缩</string>
+  <string name="assistant_page_memory_auto_compress_messages">%1$d 条消息</string>
+  <string name="assistant_page_memory_auto_compress_tokens">%1$d tokens</string>
+  <string name="assistant_page_memory_auto_compress_mode_messages">消息数</string>
+  <string name="assistant_page_memory_auto_compress_mode_tokens">Token 数</string>
+  <string name="assistant_page_memory_auto_compress_target_label">保留最近</string>
 </resources>

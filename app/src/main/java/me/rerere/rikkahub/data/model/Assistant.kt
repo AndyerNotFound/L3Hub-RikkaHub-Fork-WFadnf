@@ -32,6 +32,11 @@ data class Assistant(
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val autoConsolidateMemory: Boolean = true, // 对话停下来后在后台自动整理记忆; 关闭后只能手动整理
+    // 上下文到达门限后自动压缩，效果与手动压缩一致（插入检查点摘要）
+    val autoCompress: Boolean = false,
+    val autoCompressThreshold: AutoCompressThreshold = AutoCompressThreshold.WARN,
+    val autoCompressTarget: AutoCompressTarget = AutoCompressTarget.MESSAGES,
+    val autoCompressTargetValue: Int = 8, // 按条数时保留的消息条数；按 token 时保留的 token 数
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),

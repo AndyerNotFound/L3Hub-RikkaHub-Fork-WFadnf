@@ -1830,4 +1830,16 @@
   <string name="task_tree_state_completed">Done</string>
   <string name="task_tree_state_failed">Failed</string>
   <string name="task_tree_sub_agent">Sub-agent</string>
+
+  <string name="assistant_page_memory_auto_compress">Auto-compress</string>
+  <string name="assistant_page_memory_auto_compress_desc">Compress the history with a checkpoint summary before replying once context usage reaches the threshold; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_threshold">Trigger threshold</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the soft warning line, MAX is the hard limit</string>
+  <string name="assistant_page_memory_auto_compress_target">Keep after compressing</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">How much recent context stays outside the compression range</string>
+  <string name="assistant_page_memory_auto_compress_messages">%1$d messages</string>
+  <string name="assistant_page_memory_auto_compress_tokens">%1$d tokens</string>
+  <string name="assistant_page_memory_auto_compress_mode_messages">Messages</string>
+  <string name="assistant_page_memory_auto_compress_mode_tokens">Tokens</string>
+  <string name="assistant_page_memory_auto_compress_target_label">Keep recent</string>
 </resources>
