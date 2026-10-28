@@ -39,6 +39,8 @@ import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.InputLayoutStyle
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
@@ -244,29 +246,50 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
 
             item {
                 CardGroup {
-                    switchItem(
-                        checked = displaySetting.enableBlurEffect,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableBlurEffect = it)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_background_effect_desc)) },
+                    formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_background_effect_title)) },
-                    )
-                    if (displaySetting.enableBlurEffect) {
-                        formItem(
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_background_effect_type)) },
-                        ) {
-                            ConnectedChoiceButtons(
-                                options = BackgroundEffectType.entries,
-                                selected = displaySetting.backgroundEffectType,
-                                onSelect = { updateDisplaySetting(displaySetting.copy(backgroundEffectType = it)) },
-                            ) { type, selected ->
-                                ConnectedChoiceLabel(
-                                    text = when (type) {
-                                        BackgroundEffectType.BLUR -> stringResource(R.string.setting_display_page_background_effect_blur)
-                                        BackgroundEffectType.GLASS -> stringResource(R.string.setting_display_page_background_effect_glass)
-                                    },
-                                    selected = selected,
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_background_effect_desc)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = BackgroundEffectType.entries,
+                            selected = displaySetting.effectiveBackgroundEffect,
+                            onSelect = { type ->
+                                updateDisplaySetting(
+                                    displaySetting.copy(
+                                        backgroundEffectType = type,
+                                        enableBlurEffect = type != BackgroundEffectType.OFF,
+                                    )
                                 )
-                            }
+                            },
+                        ) { type, selected ->
+                            ConnectedChoiceLabel(
+                                text = when (type) {
+                                    BackgroundEffectType.OFF -> stringResource(R.string.setting_display_page_background_effect_off)
+                                    BackgroundEffectType.BLUR -> stringResource(R.string.setting_display_page_background_effect_blur)
+                                    BackgroundEffectType.GLASS -> stringResource(R.string.setting_display_page_background_effect_glass)
+                                },
+                                selected = selected,
+                            )
+                        }
+                    }
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_input_layout_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_input_layout_desc)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = InputLayoutStyle.entries,
+                            selected = displaySetting.inputLayoutStyle,
+                            onSelect = { layout ->
+                                updateDisplaySetting(displaySetting.copy(inputLayoutStyle = layout))
+                            },
+                        ) { layout, selected ->
+                            ConnectedChoiceLabel(
+                                text = when (layout) {
+                                    InputLayoutStyle.SINGLE -> stringResource(R.string.setting_display_page_input_layout_single)
+                                    InputLayoutStyle.DOUBLE -> stringResource(R.string.setting_display_page_input_layout_double)
+                                },
+                                selected = selected,
+                            )
                         }
                     }
                     switchItem(

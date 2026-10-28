@@ -118,11 +118,23 @@ enum class ChatFontFamily {
 
 @Serializable
 enum class BackgroundEffectType {
+    @SerialName("off")
+    OFF,
+
     @SerialName("blur")
     BLUR,
 
     @SerialName("glass")
     GLASS,
+}
+
+@Serializable
+enum class InputLayoutStyle {
+    @SerialName("single")
+    SINGLE,
+
+    @SerialName("double")
+    DOUBLE,
 }
 
 @Serializable
@@ -182,6 +194,7 @@ data class DisplaySetting(
     val enableQuoteHighlight: Boolean = false,
     val enableBlurEffect: Boolean = false,
     val backgroundEffectType: BackgroundEffectType = BackgroundEffectType.BLUR,
+    val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val chatCustomFontPath: String = "",
     val chatCustomFontName: String = "",
@@ -214,3 +227,6 @@ data class BackupReminderConfig(
     val intervalDays: Int = 7,
     val lastBackupTime: Long = 0L,
 )
+
+val DisplaySetting.effectiveBackgroundEffect: BackgroundEffectType
+    get() = if (enableBlurEffect) backgroundEffectType else BackgroundEffectType.OFF

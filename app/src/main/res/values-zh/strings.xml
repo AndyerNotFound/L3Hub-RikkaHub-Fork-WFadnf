@@ -534,6 +534,7 @@
   <string name="reasoning_off">关闭</string>
   <string name="reasoning_off_desc">关闭推理功能，模型将直接回答问题。</string>
   <string name="reasoning_picker_hint">并非所有模型都支持深度调整。请参考模型和提供商文档。</string>
+  <string name="reasoning_picker_model">模型</string>
   <string name="reasoning_picker_title">调整思考深度</string>
   <string name="reasoning_xhigh">超高</string>
   <string name="regenerate">重新生成</string>
@@ -1372,11 +1373,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_compatibility_mode">兼容模式</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
-  <string name="setting_display_page_background_effect_title">输入栏背景效果</string>
-  <string name="setting_display_page_background_effect_desc">为聊天输入栏启用模糊或玻璃效果</string>
+  <string name="setting_display_page_background_effect_title">全局特效</string>
+  <string name="setting_display_page_background_effect_desc">让输入栏、消息气泡和顶栏按钮跟随模糊或玻璃效果</string>
   <string name="setting_display_page_background_effect_type">背景效果类型</string>
   <string name="setting_display_page_background_effect_blur">模糊</string>
   <string name="setting_display_page_background_effect_glass">玻璃</string>
+  <string name="setting_display_page_background_effect_off">关闭</string>
+  <string name="setting_display_page_input_layout_title">输入框表现</string>
+  <string name="setting_display_page_input_layout_desc">单行会把模型选择收进思考强度菜单，输入相关按钮排在同一行</string>
+  <string name="setting_display_page_input_layout_single">单行</string>
+  <string name="setting_display_page_input_layout_double">双行</string>
   <string name="safe_mode_enter_app">进入应用</string>
   <string name="theme_name_claude">Claude</string>
   <string name="workspace_terminal_tab">终端 %1$d</string>

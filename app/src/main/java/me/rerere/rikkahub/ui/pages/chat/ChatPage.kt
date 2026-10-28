@@ -1,5 +1,17 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import dev.chrisbanes.haze.HazeState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -340,6 +352,7 @@ private fun ChatPageContent(
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
+    val backgroundHazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
@@ -368,10 +381,16 @@ private fun ChatPageContent(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
     ) {
-        AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
+        AssistantBackground(
+            setting = setting,
+            modifier = Modifier
+                .hazeSource(hazeState)
+                .hazeSource(backgroundHazeState),
+        )
         Scaffold(
             topBar = {
                 TopBar(
+                    hazeState = backgroundHazeState,
                     settings = setting,
                     assistant = assistant,
                     chatModel = currentChatModel,
@@ -486,6 +505,7 @@ private fun ChatPageContent(
                 previewMode = previewMode,
                 settings = setting,
                 hazeState = hazeState,
+                bubbleHazeState = backgroundHazeState,
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
@@ -667,6 +687,7 @@ private fun ChatFilesPickerSheet(
 
 @Composable
 private fun TopBar(
+    hazeState: HazeState,
     settings: Settings,
     assistant: Assistant,
     chatModel: Model?,
@@ -689,12 +710,29 @@ private fun TopBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
             if (!bigScreen) {
-                IconButton(
+                val navShape = CircleShape
+                val navColor = MaterialTheme.colorScheme.surfaceContainerLow
+                Surface(
                     onClick = {
                         scope.launch { drawerState.open() }
-                    }
+                    },
+                    modifier = Modifier
+                        .padding(start = 12.dp)
+                        .size(40.dp)
+                        .clip(navShape)
+                        .background(navColor)
+                        .chatInputHaze(
+                            hazeState = hazeState,
+                            displaySetting = settings.displaySetting,
+                            containerColor = navColor,
+                            shape = navShape,
+                        ),
+                    shape = navShape,
+                    color = Color.Transparent,
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         },
@@ -733,26 +771,41 @@ private fun TopBar(
             }
         },
         actions = {
-            IconButton(
-                onClick = onShowTaskTree,
+            val pillShape = RoundedCornerShape(50)
+            val pillColor = MaterialTheme.colorScheme.surfaceContainerLow
+            Row(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clip(pillShape)
+                    .background(pillColor)
+                    .chatInputHaze(
+                        hazeState = hazeState,
+                        displaySetting = settings.displaySetting,
+                        containerColor = pillColor,
+                        shape = pillShape,
+                    )
+                    .padding(horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(HugeIcons.Flowchart01, stringResource(R.string.chat_task_tree_button))
-            }
-
-            IconButton(
-                onClick = {
-                    onClickMenu()
+                IconButton(onClick = onShowTaskTree, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        HugeIcons.Flowchart01,
+                        stringResource(R.string.chat_task_tree_button),
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
-            ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
-            }
 
-            IconButton(
-                onClick = {
-                    onNewChat()
+                IconButton(onClick = { onClickMenu() }, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                        "Chat Options",
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
-            ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
+
+                IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
+                    Icon(HugeIcons.MessageAdd01, "New Message", modifier = Modifier.size(20.dp))
+                }
             }
         },
     )

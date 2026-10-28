@@ -18,6 +18,7 @@ import dev.chrisbanes.haze.glass.hazeGlass
 import dev.chrisbanes.haze.glass.material3.Material3
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 /**
@@ -32,8 +33,9 @@ internal fun Modifier.chatInputHaze(
     containerColor: Color,
     shape: RoundedCornerShape,
 ): Modifier {
-    if (!displaySetting.enableBlurEffect) return this
-    return when (displaySetting.backgroundEffectType) {
+    return when (displaySetting.effectiveBackgroundEffect) {
+        BackgroundEffectType.OFF -> this
+
         BackgroundEffectType.BLUR -> hazeBlur(
             input = HazeInput.Sources(hazeState),
             style = HazeBlurStyle.Material3 {

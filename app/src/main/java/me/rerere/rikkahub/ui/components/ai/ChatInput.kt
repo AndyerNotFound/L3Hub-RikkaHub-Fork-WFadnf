@@ -30,7 +30,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -94,7 +98,10 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ContextMeterStyle
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -277,7 +284,7 @@ fun ChatInput(
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                color = if (settings.displaySetting.enableBlurEffect) Color.Transparent else containerColor,
+                color = if (settings.displaySetting.effectiveBackgroundEffect != BackgroundEffectType.OFF) Color.Transparent else containerColor,
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -297,55 +304,11 @@ fun ChatInput(
                         MediaFileInputRow(state = state)
                     }
 
-                    TextInputRow(
-                        state = state,
-                        assistant = assistant,
-                        completionProviders = completionProviders,
-                        onSendMessage = { sendMessage() },
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            // Model Picker
-                            ModelSelectorButton(
-                                state = modelListState,
-                                onlyIcon = true,
-                                modifier = Modifier,
-                            )
-
-                            // Reasoning
-                            if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                ReasoningButton(
-                                    reasoningLevel = assistant.reasoningLevel,
-                                    onUpdateReasoningLevel = {
-                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                    },
-                                    onlyIcon = true,
-                                )
-                            }
-
-                        }
-
-                        ActionIconButton(
-                            onClick = onMoreClick
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Add01,
-                                contentDescription = stringResource(R.string.more_options)
-                            )
-                        }
-
+                    val singleLine = settings.displaySetting.inputLayoutStyle == InputLayoutStyle.SINGLE
+                    val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
+                        settings.getQuickMessagesOfAssistant(assistant)
+                    }
+                    val asrButton: @Composable () -> Unit = {
                         if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
                             AsrButton(
                                 state = asrState,
@@ -370,7 +333,8 @@ fun ChatInput(
                                 }
                             )
                         }
-
+                    }
+                    val interjectButton: @Composable () -> Unit = {
                         if (loading && settings.enableMessageQueue && !state.isEmpty()) {
                             ActionIconButton(onClick = onInterjectClick) {
                                 Icon(
@@ -379,11 +343,11 @@ fun ChatInput(
                                 )
                             }
                         }
-
+                    }
+                    val sendButton: @Composable () -> Unit = {
                         if (loading) {
                             KeepScreenOn()
                         }
-
                         AnimatedVisibility(
                             visible = !asrState.isRecording,
                             enter = fadeIn() + scaleIn(),
@@ -395,6 +359,96 @@ fun ChatInput(
                                 onClick = { sendMessage() },
                                 onLongClick = { sendMessageWithoutAnswer() },
                             )
+                        }
+                    }
+                    val reasoningButton: @Composable () -> Unit = {
+                        if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+                            ReasoningButton(
+                                reasoningLevel = assistant.reasoningLevel,
+                                onUpdateReasoningLevel = {
+                                    onUpdateAssistant(assistant.copy(reasoningLevel = it))
+                                },
+                                onlyIcon = true,
+                                modelName = if (singleLine) chatModel.displayName else null,
+                                onOpenModelList = if (singleLine) {
+                                    { modelListState.open() }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
+                    }
+
+                    if (singleLine) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            ActionIconButton(onClick = onMoreClick) {
+                                Icon(
+                                    imageVector = HugeIcons.Add01,
+                                    contentDescription = stringResource(R.string.more_options),
+                                )
+                            }
+                            if (quickMessages.isNotEmpty()) {
+                                QuickMessageButton(quickMessages = quickMessages, state = state)
+                            }
+                            TextInputRow(
+                                state = state,
+                                assistant = assistant,
+                                completionProviders = completionProviders,
+                                onSendMessage = { sendMessage() },
+                                modifier = Modifier.weight(1f),
+                                showQuickMessageButton = false,
+                                fullscreenOnOverflow = true,
+                            )
+                            asrButton()
+                            interjectButton()
+                            reasoningButton()
+                            sendButton()
+                        }
+                    } else {
+                        TextInputRow(
+                            state = state,
+                            assistant = assistant,
+                            completionProviders = completionProviders,
+                            onSendMessage = { sendMessage() },
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                ModelSelectorButton(
+                                    state = modelListState,
+                                    onlyIcon = true,
+                                    modifier = Modifier,
+                                )
+                                reasoningButton()
+                            }
+
+                            ActionIconButton(onClick = onMoreClick) {
+                                Icon(
+                                    imageVector = HugeIcons.Add01,
+                                    contentDescription = stringResource(R.string.more_options),
+                                )
+                            }
+
+                            asrButton()
+                            interjectButton()
+                            sendButton()
                         }
                     }
                 }
@@ -481,6 +535,9 @@ private fun TextInputRow(
     assistant: Assistant,
     completionProviders: List<ChatCompletionProvider>,
     onSendMessage: () -> Unit,
+    modifier: Modifier = Modifier,
+    showQuickMessageButton: Boolean = true,
+    fullscreenOnOverflow: Boolean = false,
 ) {
     val settings = LocalSettings.current
     val filesManager: FilesManager = koinInject()
@@ -491,7 +548,7 @@ private fun TextInputRow(
     var isEditingReasoning by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (state.isEditing()) {
@@ -523,6 +580,13 @@ private fun TextInputRow(
 
         var isFocused by remember { mutableStateOf(false) }
         var isFullScreen by remember { mutableStateOf(false) }
+        var fieldHeight by remember { mutableIntStateOf(0) }
+        var oneLineHeight by remember { mutableIntStateOf(0) }
+        val density = LocalDensity.current
+        val lineHeightPx = with(density) {
+            MaterialTheme.typography.bodyLarge.lineHeight.let { if (it.isSp) it.toPx() else 24.dp.toPx() }
+        }
+        val inputOverflowed = oneLineHeight > 0 && fieldHeight >= oneLineHeight + lineHeightPx * 3.5f
         var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
         val receiveContentListener = remember(
             settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
@@ -615,6 +679,12 @@ private fun TextInputRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("chat_input")
+                .onSizeChanged { size ->
+                    fieldHeight = size.height
+                    if (state.textContent.text.isEmpty()) {
+                        oneLineHeight = size.height
+                    }
+                }
                 .contentReceiver(receiveContentListener)
                 .onFocusChanged {
                     isFocused = it.isFocused
@@ -644,7 +714,7 @@ private fun TextInputRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (isFocused) {
+                    if (if (fullscreenOnOverflow) inputOverflowed else isFocused) {
                         IconButton(
                             onClick = {
                                 isFullScreen = !isFullScreen
@@ -654,7 +724,7 @@ private fun TextInputRow(
                     }
                 }
             },
-            leadingIcon = if (quickMessages.isNotEmpty()) {
+            leadingIcon = if (showQuickMessageButton && quickMessages.isNotEmpty()) {
                 {
                     QuickMessageButton(quickMessages = quickMessages, state = state)
                 }

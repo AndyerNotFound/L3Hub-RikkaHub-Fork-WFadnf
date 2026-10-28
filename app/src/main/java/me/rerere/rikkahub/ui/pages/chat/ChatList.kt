@@ -156,6 +156,7 @@ fun ChatList(
                 conversation = conversation,
                 settings = settings,
                 hazeState = hazeState,
+                bubbleHazeState = bubbleHazeState,
                 onJumpToMessage = onJumpToMessage,
                 animatedVisibilityScope = this@AnimatedContent,
             )
@@ -168,6 +169,7 @@ fun ChatList(
                 processingStatus = processingStatus,
                 settings = settings,
                 hazeState = hazeState,
+                bubbleHazeState = bubbleHazeState,
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
@@ -217,6 +219,7 @@ private fun ChatListNormal(
     processingStatus: String? = null,
     settings: Settings,
     hazeState: HazeState,
+    bubbleHazeState: HazeState? = null,
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
@@ -392,6 +395,7 @@ private fun ChatListNormal(
                             onClearTranslation = onClearTranslation,
                             onToolApproval = onToolApproval,
                             onToolAnswer = onToolAnswer,
+                            hazeState = bubbleHazeState,
                             lastMessage = index == lastMessageIndex,
                         )
                     }
@@ -628,6 +632,7 @@ private fun ChatListPreview(
     conversation: Conversation,
     settings: Settings,
     hazeState: HazeState,
+    bubbleHazeState: HazeState? = null,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onJumpToMessage: (Int) -> Unit
 ) {

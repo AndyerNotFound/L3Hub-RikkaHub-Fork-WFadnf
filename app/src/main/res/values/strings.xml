@@ -540,6 +540,7 @@
   <string name="reasoning_off">Off</string>
   <string name="reasoning_off_desc">Turn off reasoning functionality, the model will directly answer questions.</string>
   <string name="reasoning_picker_hint">Not all models support depth adjustment. Refer to the model and provider documentation.</string>
+  <string name="reasoning_picker_model">Model</string>
   <string name="reasoning_picker_title">Adjust Thinking Depth</string>
   <string name="reasoning_xhigh">XHigh</string>
   <string name="regenerate">Regenerate</string>
@@ -1377,11 +1378,16 @@
   <string name="workspace_detail_compatibility_mode">Compatibility mode</string>
   <string name="workspace_detail_compatibility_mode_desc">Try enabling this if the terminal fails to start. It may reduce performance. Applies to new terminal tabs and subsequent commands.</string>
   <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
-  <string name="setting_display_page_background_effect_title">Input bar background effect</string>
-  <string name="setting_display_page_background_effect_desc">Enable a blur or glass effect on the chat input bar</string>
+  <string name="setting_display_page_background_effect_title">Global effects</string>
+  <string name="setting_display_page_background_effect_desc">Apply blur or glass to the input bar, message bubbles and top bar buttons</string>
   <string name="setting_display_page_background_effect_type">Background effect type</string>
   <string name="setting_display_page_background_effect_blur">Blur</string>
   <string name="setting_display_page_background_effect_glass">Glass</string>
+  <string name="setting_display_page_background_effect_off">Off</string>
+  <string name="setting_display_page_input_layout_title">Input layout</string>
+  <string name="setting_display_page_input_layout_desc">Single line moves the model picker into the reasoning sheet and keeps input actions in one row</string>
+  <string name="setting_display_page_input_layout_single">Single line</string>
+  <string name="setting_display_page_input_layout_double">Double line</string>
   <string name="skills_page_search_placeholder">Search skills</string>
   <string name="skills_page_search_no_result">No matching skills</string>
   <string name="assistant_page_local_tools_chart_display_title">Chart Display</string>

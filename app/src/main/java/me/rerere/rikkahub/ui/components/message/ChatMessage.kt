@@ -1,5 +1,10 @@
 package me.rerere.rikkahub.ui.components.message
 
+import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import dev.chrisbanes.haze.HazeState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -125,6 +130,7 @@ fun ChatMessage(
     onClearTranslation: (UIMessage) -> Unit = {},
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    hazeState: HazeState? = null,
 ) {
     val message = node.messages[node.selectIndex]
     if (message.isContextCheckpoint) {
@@ -478,6 +484,7 @@ private fun MessagePartsBlock(
                                 ChatMessageBubble(
                                     role = role,
                                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                    hazeState = hazeState,
                                     onClick = { onUserMessageClick?.invoke() },
                                     // 用户气泡不占满整行，和助手的回复错开
                                     modifier = Modifier
@@ -498,6 +505,7 @@ private fun MessagePartsBlock(
                                     ChatMessageBubble(
                                         role = role,
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                        hazeState = hazeState,
                                         modifier = Modifier.animateContentSize(),
                                     ) {
                                         MarkdownBlock(
@@ -627,6 +635,7 @@ private val BubblePressedCorner = 12.dp
 private fun ChatMessageBubble(
     role: MessageRole,
     color: Color,
+    hazeState: HazeState? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -639,11 +648,31 @@ private fun ChatMessageBubble(
     } else {
         RoundedCornerShape(topStart = BubbleTailCorner, topEnd = corner, bottomEnd = corner, bottomStart = corner)
     }
+    val displaySetting = LocalSettings.current.displaySetting
+    val effect = displaySetting.effectiveBackgroundEffect
+    val useEffect = hazeState != null && effect != BackgroundEffectType.OFF
+    val hazeModifier = if (useEffect && hazeState != null) {
+        Modifier.chatInputHaze(
+            hazeState = hazeState,
+            displaySetting = displaySetting,
+            containerColor = color,
+            shape = shape,
+        )
+    } else {
+        Modifier
+    }
+    val bubbleColor = when {
+        !useEffect -> color
+        effect == BackgroundEffectType.BLUR -> color.copy(alpha = 0.55f)
+        else -> Color.Transparent
+    }
     val contentColor = contentColorFor(color)
     Box(
         modifier = modifier
+            .then(if (useEffect) Modifier.graphicsLayer(shape = shape, clip = true) else Modifier)
             .clipDrawing(shape)
-            .background(color)
+            .background(bubbleColor)
+            .then(hazeModifier)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick)
