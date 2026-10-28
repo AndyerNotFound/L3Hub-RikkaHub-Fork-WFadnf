@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -23,6 +24,7 @@ import me.rerere.rikkahub.data.db.AppDatabaseFactory
 import me.rerere.rikkahub.data.db.SQLiteConfiguration
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.MediaCreationFiles
+import me.rerere.rikkahub.utils.AppLanguage
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -49,7 +51,11 @@ class BackupManager(
             val settings = settingsStore.awaitLoaded()
             ZipOutputStream(FileOutputStream(archive)).use { zip ->
                 zip.putNextEntry(ZipEntry("settings.json"))
-                val settingsJson = json.encodeSettings(settings, settingsStore.launchCountFlow.first())
+                val settingsJson = json.encodeSettings(
+                    settings = settings,
+                    launchCount = settingsStore.launchCountFlow.first(),
+                    appLanguageTag = AppLanguage.currentTag(context),
+                )
                 zip.write(settingsJson.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
                 if (includeDatabase) {
@@ -155,7 +161,11 @@ class BackupManager(
                         // Persist the migrated value once, including generated IDs, for restart/retry consistency.
                         PendingRestore.writeDurably(
                             settingsFile,
-                            json.encodeSettings(settings, json.launchCountOf(rewritten))
+                            json.encodeSettings(
+                                settings = settings,
+                                launchCount = json.launchCountOf(rewritten),
+                                appLanguageTag = json.appLanguageTagOf(rewritten).orEmpty(),
+                            )
                         )
                     }
                     currentCoroutineContext().ensureActive()
@@ -195,15 +205,29 @@ class BackupManager(
 
         // 启动次数不在 Settings 里，备份文件里仍放在 settings.json 的这个字段，和旧备份保持一致
         private const val LAUNCH_COUNT_KEY = "launchCount"
+        // L3Hub 的语言选择存在 SharedPreferences 里，不随 Settings 走，备份时单独带上
+        private const val APP_LANGUAGE_KEY = "appLanguageTag"
 
-        private fun Json.encodeSettings(settings: Settings, launchCount: Int): String {
-            val fields = encodeToJsonElement(settings).jsonObject + (LAUNCH_COUNT_KEY to JsonPrimitive(launchCount))
+        private fun Json.encodeSettings(
+            settings: Settings,
+            launchCount: Int,
+            appLanguageTag: String,
+        ): String {
+            val fields = (encodeToJsonElement(settings).jsonObject + (LAUNCH_COUNT_KEY to JsonPrimitive(launchCount)))
+                .toMutableMap()
+            if (appLanguageTag.isNotBlank()) {
+                fields[APP_LANGUAGE_KEY] = JsonPrimitive(appLanguageTag)
+            }
             return encodeToString(JsonObject(fields))
         }
 
         // 更早的备份没有这个字段，按 0 恢复，和它还在 Settings 里时的默认值一致
         private fun Json.launchCountOf(settingsJson: String): Int =
             parseToJsonElement(settingsJson).jsonObject[LAUNCH_COUNT_KEY]?.jsonPrimitive?.intOrNull ?: 0
+
+        private fun Json.appLanguageTagOf(settingsJson: String): String? =
+            parseToJsonElement(settingsJson).jsonObject[APP_LANGUAGE_KEY]
+                ?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
 
         private fun pendingRestore(context: Context) = PendingRestore(
             root = File(context.noBackupFilesDir, "backup-restore"),
@@ -219,6 +243,7 @@ class BackupManager(
                     settings = json.decodeFromString<Settings>(settingsJson),
                     launchCount = json.launchCountOf(settingsJson),
                 )
+                json.appLanguageTagOf(settingsJson)?.let { tag -> AppLanguage.setTag(context, tag) }
             }
         }
     }

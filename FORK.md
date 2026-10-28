@@ -172,6 +172,18 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 - 数据库升到 v33，新增 `parent_conversation_id` / `sub_agent_task` / `sub_agent_state` 三列，走 Room 自动迁移
 - 预览版限制：子代理是同步执行的，父回合会等它跑完；子代理如果调用需要用户审批的工具（`ask_user`、需要审批的 MCP 工具），当前会直接判定失败并在任务树里标红
 
+## 备份覆盖范围（fork 备注）
+
+备份包结构：`settings.json` + 数据库快照 + `upload/`、`images/`、`skills/`、`fonts/`、`media_creation/`。
+
+L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化（`encodeDefaults = true`），包括：
+消息队列开关、MAX 拦截、上下文预警与门限、主题/调色板、SSH 工作区配置、助手上的子代理开关与本地工具。
+
+`app_language` 不在 `Settings` 里（`attachBaseContext` 要同步读，只能放 SharedPreferences），
+所以备份时单独写进 `settings.json` 的 `appLanguageTag` 字段，恢复时在 `applyPendingRestore` 里回写 SharedPreferences。
+
+`files/workspaces/` 不参与备份：工作区文件可能很大，且更换设备后 proot 路径会变，按需自行导出。
+
 ## 性能：只出的那个包按 release 方式编译
 
 `app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.l3hub.wfadnf.debug`）
