@@ -24,6 +24,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -371,6 +372,7 @@ private fun ChatPageContent(
     val backgroundHazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
+    var showUsageSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
         setting = setting,
@@ -444,15 +446,7 @@ private fun ChatPageContent(
                     assistant = assistant,
                     chatModel = currentChatModel,
                     contextTokens = contextTokens,
-                    onToggleContextMeterDisplay = {
-                        vm.updateSettings { settings ->
-                            settings.copy(
-                                displaySetting = settings.displaySetting.copy(
-                                    contextMeterAbsolute = !settings.displaySetting.contextMeterAbsolute
-                                )
-                            )
-                        }
-                    },
+                    onShowUsage = { showUsageSheet = true },
                     hazeState = hazeState,
                     completionProviders = completionProviders,
                     onCancelClick = {
@@ -612,6 +606,27 @@ private fun ChatPageContent(
                     }
                 },
             )
+        }
+
+        if (showUsageSheet) {
+            ModalBottomSheet(onDismissRequest = { showUsageSheet = false }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_message_usage_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    ConversationUsageDetails(
+                        messages = conversation.currentMessages,
+                        contextLength = currentChatModel?.contextLength?.takeIf { it > 0 },
+                    )
+                }
+            }
         }
 
         if (showTaskTree) {

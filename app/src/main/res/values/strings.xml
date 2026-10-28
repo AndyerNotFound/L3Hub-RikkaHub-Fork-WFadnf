@@ -1937,4 +1937,5 @@
   <string name="setting_provider_page_api_key_multi_desc">Add multiple keys; failed requests automatically fail over to the next one</string>
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_api_key_add">Add key</string>
+  <string name="chat_message_usage_empty">No usage data yet</string>
 </resources>

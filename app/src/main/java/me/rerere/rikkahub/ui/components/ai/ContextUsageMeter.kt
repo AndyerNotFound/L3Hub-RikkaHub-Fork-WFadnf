@@ -54,15 +54,15 @@ private const val ALERT_FRACTION = 0.8f
  * - WARN 条填满 = 到达性能最佳点, 之后回复质量可能开始下滑
  * - MAX 条填满 = 到达性能骤降点, 此时禁止继续发送消息
  *
- * 点按整块区域在百分比和绝对值(数字/数字)之间切换。
+ * 同时显示绝对值(数字/数字)和百分比，百分比不封顶，可以超过 100%。
+ * 点按整块区域打开会话的 Usage 看板。
  */
 @Composable
 fun ContextUsageMeter(
     tokens: Int?,
     warnTokens: Int?,
     maxTokens: Int?,
-    showAbsolute: Boolean,
-    onToggleDisplay: () -> Unit,
+    onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (warnTokens == null && maxTokens == null) return
@@ -74,7 +74,7 @@ fun ContextUsageMeter(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onToggleDisplay)
+            .clickable(onClick = onShowUsage)
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -83,7 +83,6 @@ fun ContextUsageMeter(
                 label = stringResource(R.string.chat_page_context_meter_warn),
                 used = used,
                 limit = warnTokens,
-                showAbsolute = showAbsolute,
                 hardLimit = false,
             )
         }
@@ -92,7 +91,6 @@ fun ContextUsageMeter(
                 label = stringResource(R.string.chat_page_context_meter_max),
                 used = used,
                 limit = maxTokens,
-                showAbsolute = showAbsolute,
                 hardLimit = true,
             )
         }
@@ -111,7 +109,6 @@ private fun ContextMeterRow(
     label: String,
     used: Int,
     limit: Int,
-    showAbsolute: Boolean,
     hardLimit: Boolean,
 ) {
     val fraction = contextUsageFraction(used, limit)
@@ -153,24 +150,32 @@ private fun ContextMeterRow(
             )
         }
         Text(
-            text = if (showAbsolute) {
-                stringResource(
-                    R.string.chat_page_context_meter_absolute,
-                    used.formatNumber(),
-                    limit.formatNumber(),
-                )
-            } else {
-                "${(fraction * 100).roundToInt()}%"
-            },
+            text = contextMeterText(used, limit),
             style = MaterialTheme.typography.labelMedium,
             fontFamily = FontFamily.Monospace,
             color = textColor,
             textAlign = TextAlign.End,
             maxLines = 1,
-            modifier = Modifier.widthIn(min = 56.dp),
+            modifier = Modifier.widthIn(min = 128.dp),
         )
     }
 }
+
+@Composable
+private fun contextMeterText(used: Int, limit: Int): String {
+    val percent = contextPercentValue(used, limit)
+    return stringResource(
+        R.string.chat_page_context_meter_absolute,
+        used.formatNumber(),
+        limit.formatNumber(),
+    ) + " · $percent%"
+}
+
+private fun contextPercent(used: Int, limit: Int?): String =
+    "${contextPercentValue(used, limit)}%"
+
+private fun contextPercentValue(used: Int, limit: Int?): Int =
+    if (limit != null && limit > 0) (used.toFloat() / limit * 100).roundToInt() else 0
 
 @Composable
 private fun contextMeterColor(fraction: Float, hardLimit: Boolean): Color {
@@ -187,8 +192,7 @@ fun ContextUsageRing(
     tokens: Int?,
     warnTokens: Int?,
     maxTokens: Int?,
-    showAbsolute: Boolean,
-    onToggleDisplay: () -> Unit,
+    onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
     provider: ProviderSetting? = null,
 ) {
@@ -215,7 +219,7 @@ fun ContextUsageRing(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onToggleDisplay)
+            .clickable(onClick = onShowUsage)
             .padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -258,7 +262,7 @@ fun ContextUsageRing(
                 }
             }
             Text(
-                text = "${(mainFraction * 100).roundToInt()}%",
+                text = contextPercent(used, maxTokens ?: warnTokens),
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
@@ -276,7 +280,6 @@ fun ContextUsageRing(
                     label = "WARN",
                     used = used,
                     limit = warnTokens,
-                    showAbsolute = showAbsolute,
                     color = warnColor,
                 )
             }
@@ -285,7 +288,6 @@ fun ContextUsageRing(
                     label = "MAX",
                     used = used,
                     limit = maxTokens,
-                    showAbsolute = showAbsolute,
                     color = mainColor,
                 )
             }
@@ -311,19 +313,10 @@ private fun RingValueRow(
     label: String,
     used: Int,
     limit: Int,
-    showAbsolute: Boolean,
     color: Color,
 ) {
     val fraction = contextUsageFraction(used, limit)
-    val text = if (showAbsolute) {
-        stringResource(
-            R.string.chat_page_context_meter_absolute,
-            used.formatNumber(),
-            limit.formatNumber(),
-        )
-    } else {
-        "${(fraction * 100).roundToInt()}%"
-    }
+    val text = contextMeterText(used, limit)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -351,22 +344,19 @@ private fun ContextUsageMeterPreview() {
                 tokens = 62_000,
                 warnTokens = 64_000,
                 maxTokens = 200_000,
-                showAbsolute = false,
-                onToggleDisplay = {},
+                onShowUsage = {},
             )
             ContextUsageMeter(
                 tokens = 62_000,
                 warnTokens = 64_000,
                 maxTokens = 200_000,
-                showAbsolute = true,
-                onToggleDisplay = {},
+                onShowUsage = {},
             )
             ContextUsageMeter(
                 tokens = 210_000,
                 warnTokens = 64_000,
                 maxTokens = 200_000,
-                showAbsolute = true,
-                onToggleDisplay = {},
+                onShowUsage = {},
             )
         }
     }

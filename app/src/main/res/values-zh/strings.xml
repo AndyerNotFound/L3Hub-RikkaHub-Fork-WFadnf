@@ -1939,4 +1939,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_api_key_multi_desc">可以填多个 Key，用加号继续添加；请求失败会自动切换到下一个</string>
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_api_key_add">添加 Key</string>
+  <string name="chat_message_usage_empty">暂无用量数据</string>
 </resources>

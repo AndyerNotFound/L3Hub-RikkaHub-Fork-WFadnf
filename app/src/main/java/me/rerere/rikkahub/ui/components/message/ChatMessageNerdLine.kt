@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.core.sum
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Layers01
@@ -150,6 +151,60 @@ private fun UsageDetails(stats: NerdStats, contextLength: Int?) {
         }
         if (stats.tps != null) UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${stats.tps.toFixed(1)} tok/s")
         if (stats.durationMillis != null) UsageDetailRow(stringResource(R.string.chat_message_usage_duration), "${(stats.durationMillis / 1000f).toFixed(1)}s")
+    }
+}
+
+/**
+ * 会话 Usage 看板：上下文取最近一次请求，其余数字按整段会话累计。
+ */
+@Composable
+fun ConversationUsageDetails(
+    messages: List<UIMessage>,
+    contextLength: Int?,
+    modifier: Modifier = Modifier,
+) {
+    val usageMessages = messages.filter { it.usage != null }
+    if (usageMessages.isEmpty()) {
+        Text(
+            text = stringResource(R.string.chat_message_usage_empty),
+            color = LocalContentColor.current.copy(alpha = 0.7f),
+            modifier = modifier,
+        )
+        return
+    }
+
+    val lastMessage = usageMessages.last()
+    val lastStats = remember(lastMessage) { lastMessage.nerdStats(lastMessage.usage!!) }
+    val total = usageMessages.fold<TokenUsage?>(null) { acc, message -> acc.sum(message.usage) }
+        ?: TokenUsage()
+    val steps = usageMessages.sumOf { it.stepCount ?: 1 }
+    val durations = usageMessages.mapNotNull { it.usageDurationMillis() }
+    val durationMillis = durations.takeIf { it.isNotEmpty() }?.sum()
+    val tps = durationMillis?.takeIf { it > 0 }?.let {
+        total.completionTokens.toFloat() / it * 1000
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.padding(vertical = 4.dp),
+    ) {
+        ContextUsageBar(
+            lastUsage = lastStats.lastUsage,
+            contextLength = contextLength,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        UsageDetailRow(stringResource(R.string.chat_message_usage_step_count), steps.toString())
+        UsageDetailRow(stringResource(R.string.chat_message_usage_total_input), total.promptTokens.exact())
+        if (total.cachedTokens > 0) {
+            UsageDetailRow(stringResource(R.string.chat_message_usage_total_cached), total.cachedTokens.exact())
+        }
+        UsageDetailRow(stringResource(R.string.chat_message_usage_total_output), total.completionTokens.exact())
+        if (tps != null) {
+            UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${tps.toFixed(1)} tok/s")
+        }
+        if (durationMillis != null) {
+            UsageDetailRow(stringResource(R.string.chat_message_usage_duration), "${(durationMillis / 1000f).toFixed(1)}s")
+        }
     }
 }
 
@@ -300,15 +355,17 @@ private data class NerdStats(
     val tps: Float?,
 )
 
+// 旧消息没有记录生成耗时，退回用创建到完成的总时长估算
+private fun UIMessage.usageDurationMillis(): Long? = finishedAt?.let { finishedAt ->
+    generationTimeMs ?: Duration.between(
+        createdAt.toJavaLocalDateTime(),
+        finishedAt.toJavaLocalDateTime()
+    ).toMillis()
+}?.takeIf { it > 0 }
+
 private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
     val last = lastRequestUsage() ?: usage
-    // 旧消息没有记录生成耗时，退回用创建到完成的总时长估算
-    val durationMillis = finishedAt?.let { finishedAt ->
-        generationTimeMs ?: Duration.between(
-            createdAt.toJavaLocalDateTime(),
-            finishedAt.toJavaLocalDateTime()
-        ).toMillis()
-    }?.takeIf { it > 0 }
+    val durationMillis = usageDurationMillis()
     return NerdStats(
         total = usage,
         lastUsage = last,

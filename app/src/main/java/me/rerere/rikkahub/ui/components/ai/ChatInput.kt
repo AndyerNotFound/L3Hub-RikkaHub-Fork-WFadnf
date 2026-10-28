@@ -141,7 +141,7 @@ fun ChatInput(
     chatModel: Model?,
     // 当前会话已占用的上下文 token(最近一次回复的真实用量)
     contextTokens: Int? = null,
-    onToggleContextMeterDisplay: () -> Unit = {},
+    onShowUsage: () -> Unit = {},
     hazeState: HazeState,
     modifier: Modifier = Modifier,
     completionProviders: List<ChatCompletionProvider> = emptyList(),
@@ -262,8 +262,7 @@ fun ChatInput(
                         tokens = contextTokens,
                         warnTokens = chatModel.warnContextTokens,
                         maxTokens = chatModel.maxContextTokens,
-                        showAbsolute = settings.displaySetting.contextMeterAbsolute,
-                        onToggleDisplay = onToggleContextMeterDisplay,
+                        onShowUsage = onShowUsage,
                         modifier = Modifier.padding(horizontal = 4.dp),
                     )
 
@@ -271,8 +270,7 @@ fun ChatInput(
                         tokens = contextTokens,
                         warnTokens = chatModel.warnContextTokens,
                         maxTokens = chatModel.maxContextTokens,
-                        showAbsolute = settings.displaySetting.contextMeterAbsolute,
-                        onToggleDisplay = onToggleContextMeterDisplay,
+                        onShowUsage = onShowUsage,
                         modifier = Modifier.padding(horizontal = 4.dp),
                         provider = chatModel.findProvider(settings.providers),
                     )
