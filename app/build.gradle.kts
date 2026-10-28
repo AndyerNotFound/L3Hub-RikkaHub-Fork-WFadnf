@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.rikkahub.fork"
+        applicationId = "com.rikkahub.l3hub.wfadnf"
         minSdk = 26
         targetSdk = 37
         versionCode = 194

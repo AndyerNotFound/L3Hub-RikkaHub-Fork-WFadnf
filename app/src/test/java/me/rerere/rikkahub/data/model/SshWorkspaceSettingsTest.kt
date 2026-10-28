@@ -7,8 +7,8 @@ import org.junit.Test
 class SshWorkspaceSettingsTest {
     private val settings = SshWorkspaceSettings(
         host = "example.com",
-        username = "root",
-        remoteDir = "/root/projects",
+        username = "deploy",
+        remoteDir = "/srv/app",
         encryptedPassword = "pw:ok",
         encryptedPrivateKey = "key:ok",
         encryptedPassphrase = "pass:ok",
@@ -39,7 +39,7 @@ class SshWorkspaceSettingsTest {
     fun `keeps connection settings untouched`() {
         val cleaned = settings.dropUndecryptableSecrets { false }
         assertEquals("example.com", cleaned.host)
-        assertEquals("root", cleaned.username)
-        assertEquals("/root/projects", cleaned.remoteDir)
+        assertEquals("deploy", cleaned.username)
+        assertEquals("/srv/app", cleaned.remoteDir)
     }
 }

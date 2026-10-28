@@ -6,13 +6,13 @@ import org.junit.Test
 import java.io.File
 
 class BackupPathsTest {
-    private val filesDir = File("/data/user/0/com.rikkahub.fork/files")
+    private val filesDir = File("/data/user/0/com.rikkahub.l3hub.wfadnf/files")
 
     @Test
     fun `rewrites attachments from another package`() {
         val json = """{"background":"file:///data/user/0/me.rerere.rikkahub/files/upload/a.png"}"""
         assertEquals(
-            """{"background":"file:///data/user/0/com.rikkahub.fork/files/upload/a.png"}""",
+            """{"background":"file:///data/user/0/com.rikkahub.l3hub.wfadnf/files/upload/a.png"}""",
             BackupPaths.rewrite(json, filesDir),
         )
     }
@@ -20,7 +20,7 @@ class BackupPathsTest {
     @Test
     fun `rewrites legacy data-data paths`() {
         assertEquals(
-            "file:///data/user/0/com.rikkahub.fork/files/upload/a.jpg",
+            "file:///data/user/0/com.rikkahub.l3hub.wfadnf/files/upload/a.jpg",
             BackupPaths.rewrite("file:///data/data/me.rerere.rikkahub.debug/files/upload/a.jpg", filesDir),
         )
     }
@@ -28,7 +28,7 @@ class BackupPathsTest {
     @Test
     fun `rewrites bare paths used by fonts`() {
         assertEquals(
-            "/data/user/0/com.rikkahub.fork/files/fonts/my.ttf",
+            "/data/user/0/com.rikkahub.l3hub.wfadnf/files/fonts/my.ttf",
             BackupPaths.rewrite("/data/user/0/me.rerere.rikkahub/files/fonts/my.ttf", filesDir),
         )
     }

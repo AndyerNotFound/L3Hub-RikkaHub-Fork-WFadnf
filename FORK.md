@@ -1,6 +1,6 @@
 # Fork Notes
 
-本仓库是 [RikkaHub](https://github.com/rikkahub/rikkahub) 的二次改造版，目标是**与原版共存**（同一台设备上两个应用并排安装）。
+本仓库是 [RikkaHub](https://github.com/rikkahub/rikkahub) 的二次改造版，对外名称 **L3Hub**，目标是**与原版共存**（同一台设备上两个应用并排安装）。
 
 ## 共存原理
 
@@ -9,7 +9,7 @@ Android 用 `applicationId` 识别应用，不是 Kotlin 包名：
 | | 值 | 说明 |
 |---|---|---|
 | `namespace` | `me.rerere.rikkahub` | 保留，547 个文件的 import 不用动 |
-| `applicationId` | `com.rikkahub.fork` | 改这一个，系统就视为独立应用 |
+| `applicationId` | `com.rikkahub.l3hub.wfadnf` | 与上游不同，系统视为独立应用 |
 
 - 不同 applicationId + 自己的签名 → 可以共存
 - 同一 applicationId + 不同签名 → `INSTALL_FAILED_UPDATE_INCOMPATIBLE`
@@ -18,7 +18,7 @@ Android 用 `applicationId` 识别应用，不是 Kotlin 包名：
 ## 本仓库相对上游的改动
 
 1. `app/build.gradle.kts`
-   - `applicationId` → `com.rikkahub.fork`（**上线前改成你自己的**）
+   - `applicationId` → `com.rikkahub.l3hub.wfadnf`
    - 移除 Firebase：`google.services` / `firebase.crashlytics` 两个插件 + bom/analytics/crashlytics 三个依赖
    - 新增 `buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")`
 2. `build.gradle.kts`：移除两个 Firebase 插件声明
@@ -158,7 +158,7 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 
 ## 性能：只出的那个包按 release 方式编译
 
-`app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.fork.debug`）
+`app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.l3hub.wfadnf.debug`）
 和 debug 签名都不变，所以还是覆盖安装、数据不丢。非调试包在安装时会被 ART 做 AOT 编译，也不加载调试钩子，
 启动和滚动明显快于调试构建，体积也从 57 MB 降到 42 MB。
 
@@ -171,26 +171,27 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
   改成一条 `exec` 一次性问出哪些子项是目录，服务器不允许 exec 时退回逐个 stat
 - `Conversation.lastContextTokens()` 流式输出每个 token 都会调用，改成不再复制整个消息列表
 
-## 你还要做的
+## 还要做的
 
-1. **applicationId**：`app/build.gradle.kts` 里换成你自己的（上架必须全局唯一）
-2. **签名**：在 `local.properties`（已 gitignore）加四项，之后所有版本都用同一个 keystore，否则无法覆盖升级
+1. **签名**：在 `local.properties`（已 gitignore）加四项，之后所有版本都用同一个 keystore，否则无法覆盖升级
    ```properties
    storeFile=/absolute/path/to/your.keystore
    storePassword=...
    keyAlias=...
    keyPassword=...
    ```
-3. **品牌**：`res/values/strings.xml` 的 `app_name`、应用图标、`ui/pages/setting/SettingAboutPage.kt` 里的 GitHub / Discord 链接
-4. **可选：深链和 action 改名**（两版共存时，外部应用触发这些会弹选择器）
+2. **图标与链接**：`app_name` 已改为 L3Hub，应用图标仍是上游素材；`ui/pages/setting/SettingAboutPage.kt` 里的 GitHub / Discord 链接也仍指向上游
+3. **可选：深链和 action 改名**（两版共存时，外部应用触发这些会弹选择器）
    - `AndroidManifest.xml` 的 `rikkahub://` scheme → 你的 scheme，同步改 `res/xml/shortcuts.xml`
    - `AndroidManifest.xml` 与 `RouteActivity.kt` 里的 `me.rerere.rikkahub.action.*`
-5. **构建**
+4. **构建**
    ```bash
    ANDROID_HOME=/opt/android-sdk ./gradlew :app:assembleGithubDebug
    ```
 
 ## 验证记录
+
+> 下列数据产生于 applicationId 仍为 `com.rikkahub.fork` 时；改名为 `com.rikkahub.l3hub.wfadnf` 后尚未重新出包验证。
 
 ```
 ./gradlew :app:assembleGithubDebug -x :web:buildWebUi   # BUILD SUCCESSFUL
