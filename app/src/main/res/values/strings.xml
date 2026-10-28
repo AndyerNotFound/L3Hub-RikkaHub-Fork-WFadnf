@@ -1842,4 +1842,12 @@
   <string name="assistant_page_memory_auto_compress_mode_messages">Messages</string>
   <string name="assistant_page_memory_auto_compress_mode_tokens">Tokens</string>
   <string name="assistant_page_memory_auto_compress_target_label">Keep recent</string>
+
+  <string name="about_page_fork_note">A fork of RikkaHub</string>
+  <string name="about_page_upstream">Upstream project</string>
+  <string name="setting_display_page_show_context_meter_title">Context meter</string>
+  <string name="setting_display_page_show_context_meter_desc">Show the context usage meter above the input box</string>
+
+  <string name="task_tree_expand">Expand</string>
+  <string name="task_tree_collapse">Collapse</string>
 </resources>

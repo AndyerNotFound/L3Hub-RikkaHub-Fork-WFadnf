@@ -203,6 +203,14 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 - `ChatService.autoCompressIfNeeded`：在 `sendQueuedMessage` 的 job 里、写入用户消息之前执行；`compressConversation` 与它共用 `compressSession`
 - 开启自动压缩后，MAX 拦截（`sendMessage` / `dispatchNextQueuedMessage`）先放行，由这一轮生成前的压缩处理；压缩失败只记日志，不阻塞回复
 
+## 品牌与界面调整（fork）
+
+- 应用图标：上游 mipmap 各密度 PNG（`ic_launcher` / `_background` / `_foreground`）整体反色，原版是深底白兔，现在是浅底黑兔；`ic_launcher_monochrome` 保持原样（主题图标靠 alpha 取形，反色会变透明）
+- 关于页：标题改为 L3Hub，注明基于 RikkaHub；链接改为本 fork 仓库与 LICENSE，另保留「上游项目」指向 `rikkahub/rikkahub`
+- 模型编辑：删掉「上下文长度」整段，上下文窗口只保留 WARN / MAX 两个预警门限
+- 界面偏好：新增「上下文预警进度条」开关（`DisplaySetting.showContextMeter`），关闭后输入框上方的进度条整行隐藏
+- 任务树：工具调用改为等宽字体代码块，输入按 JSON 格式化、shell 输出拆出 exit code 与 stdout，长内容折叠，可逐条展开
+
 ## 性能：只出的那个包按 release 方式编译
 
 `app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.l3hub.wfadnf.debug`）

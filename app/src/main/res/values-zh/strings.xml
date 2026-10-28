@@ -1844,4 +1844,12 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_memory_auto_compress_mode_messages">消息数</string>
   <string name="assistant_page_memory_auto_compress_mode_tokens">Token 数</string>
   <string name="assistant_page_memory_auto_compress_target_label">保留最近</string>
+
+  <string name="about_page_fork_note">基于 RikkaHub 的二次改造版</string>
+  <string name="about_page_upstream">上游项目</string>
+  <string name="setting_display_page_show_context_meter_title">上下文预警进度条</string>
+  <string name="setting_display_page_show_context_meter_desc">在输入框上方显示上下文占用进度条</string>
+
+  <string name="task_tree_expand">展开</string>
+  <string name="task_tree_collapse">收起</string>
 </resources>

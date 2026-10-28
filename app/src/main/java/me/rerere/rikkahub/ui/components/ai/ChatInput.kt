@@ -259,7 +259,7 @@ fun ChatInput(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    if (chatModel != null) {
+                    if (chatModel != null && settings.displaySetting.showContextMeter) {
                         ContextUsageMeter(
                             tokens = contextTokens,
                             warnTokens = chatModel.warnContextTokens,
