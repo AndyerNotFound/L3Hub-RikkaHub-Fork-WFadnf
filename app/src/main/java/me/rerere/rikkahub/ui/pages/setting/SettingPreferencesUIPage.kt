@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -148,6 +149,20 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                     )
                     formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_desc)) },
+                    ) {
+                        OutlinedTextField(
+                            value = displaySetting.emptyChatSlogan,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(emptyChatSlogan = it))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(stringResource(R.string.chat_empty_default_slogan)) },
+                            singleLine = true,
+                        )
+                    }
+                    formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
                         trailingContent = { CardGroupValue("${(displaySetting.bubbleOpacity * 100).roundToInt()}%") },
                     ) {
@@ -156,8 +171,8 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             onValueChange = {
                                 updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
                             },
-                            valueRange = 0.1f..1.0f,
-                            steps = 8,
+                            valueRange = 0f..1.0f,
+                            steps = 19,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }

@@ -197,6 +197,10 @@ data class DisplaySetting(
     val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
     val showToolCallOutput: Boolean = true,
     val uiCornerRadius: Int = 24,
+    // 模糊特效下气泡/输入框/顶栏的底色不透明度
+    val blurOpacity: Float = 0.45f,
+    // 新对话界面中央的自定义标语
+    val emptyChatSlogan: String = "",
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val chatCustomFontPath: String = "",
     val chatCustomFontName: String = "",

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -158,6 +159,8 @@ fun ChatInput(
     onStartVoiceMode: (() -> Unit)? = null,
     voiceState: VoiceSessionState = VoiceSessionState(),
     onStopVoiceMode: () -> Unit = {},
+    // 新对话界面把输入框整体上移，放到屏幕中心偏下
+    liftedBy: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val toaster = LocalToaster.current
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -225,7 +228,9 @@ fun ChatInput(
     val imeInsets = WindowInsets.ime
     Surface(
         color = Color.Transparent,
-        modifier = Modifier.drawWithCache {
+        modifier = Modifier
+            .offset(y = -liftedBy)
+            .drawWithCache {
             val brush = Brush.verticalGradient(
                 colors = listOf(scrimColor.copy(alpha = 0f), scrimColor),
                 startY = 0f,
@@ -286,7 +291,11 @@ fun ChatInput(
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                color = if (settings.displaySetting.effectiveBackgroundEffect != BackgroundEffectType.OFF) Color.Transparent else containerColor,
+                color = when (settings.displaySetting.effectiveBackgroundEffect) {
+                    BackgroundEffectType.OFF -> containerColor
+                    BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
+                    BackgroundEffectType.GLASS -> Color.Transparent
+                },
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -386,7 +395,7 @@ fun ChatInput(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             ActionIconButton(onClick = onMoreClick) {

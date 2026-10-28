@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ui
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -74,6 +75,7 @@ fun <T> ChainOfThought(
     cardColors: CardColors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ),
+    border: BorderStroke? = null,
     steps: List<T>,
     collapsedVisibleCount: Int = 2,
     collapsedAdaptiveWidth: Boolean = false,
@@ -87,6 +89,7 @@ fun <T> ChainOfThought(
         modifier = modifier,
         colors = cardColors,
         shape = RoundedCornerShape(20.dp),
+        border = border,
     ) {
         Column(
             modifier = Modifier

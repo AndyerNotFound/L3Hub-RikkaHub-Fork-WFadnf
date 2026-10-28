@@ -11,7 +11,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -428,13 +430,40 @@ private fun MessagePartsBlock(
                     } else {
                         maxOf(COLLAPSED_VISIBLE_STEPS, block.steps.size - firstPendingIndex)
                     }
+                    val chainEffect = settings.displaySetting.effectiveBackgroundEffect
+                    val chainShape = RoundedCornerShape(20.dp)
+                    val chainBaseColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ChainOfThought(
-                        modifier = Modifier.animateContentSize(),
+                        modifier = Modifier
+                            .animateContentSize()
+                            .then(
+                                if (chainEffect != BackgroundEffectType.OFF && hazeState != null) {
+                                    Modifier
+                                        .clip(chainShape)
+                                        .chatInputHaze(
+                                            hazeState = hazeState,
+                                            displaySetting = settings.displaySetting,
+                                            containerColor = chainBaseColor,
+                                            shape = chainShape,
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         steps = block.steps,
                         collapsedVisibleCount = collapsedVisibleCount,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
+                        border = if (chainEffect == BackgroundEffectType.BLUR) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        } else {
+                            null
+                        },
                         cardColors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
+                            containerColor = when (chainEffect) {
+                                BackgroundEffectType.OFF -> chainBaseColor.copy(alpha = settings.displaySetting.bubbleOpacity)
+                                BackgroundEffectType.BLUR -> chainBaseColor.copy(alpha = settings.displaySetting.blurOpacity)
+                                BackgroundEffectType.GLASS -> Color.Transparent
+                            },
                         ),
                     ) { step ->
                         when (step) {
@@ -667,7 +696,7 @@ private fun ChatMessageBubble(
     }
     val bubbleColor = when {
         !useEffect -> color
-        effect == BackgroundEffectType.BLUR -> color.copy(alpha = 0.55f)
+        effect == BackgroundEffectType.BLUR -> color.copy(alpha = displaySetting.blurOpacity)
         else -> Color.Transparent
     }
     val contentColor = contentColorFor(color)
@@ -676,6 +705,17 @@ private fun ChatMessageBubble(
             .then(if (useEffect) Modifier.graphicsLayer(shape = shape, clip = true) else Modifier)
             .clipDrawing(shape)
             .background(bubbleColor)
+            .then(
+                if (effect == BackgroundEffectType.BLUR) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                },
+            )
             .then(hazeModifier)
             .then(
                 if (onClick != null) {

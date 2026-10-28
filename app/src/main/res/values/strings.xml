@@ -1893,4 +1893,9 @@
   <string name="stats_page_exporting">Exporting…</string>
   <string name="stats_page_export_done">Saved to %1$s</string>
   <string name="stats_page_export_failed">Export failed: %1$s</string>
+  <string name="setting_display_page_blur_opacity_title">Blur opacity</string>
+  <string name="setting_display_page_blur_opacity_desc">Tint strength of bubbles, input and top bar buttons under the blur effect; lower is more transparent</string>
+  <string name="setting_display_page_empty_slogan_title">New chat slogan</string>
+  <string name="setting_display_page_empty_slogan_desc">A line shown under the assistant avatar on a new chat. Leave blank for the default</string>
+  <string name="chat_empty_default_slogan">What’s on your mind?</string>
 </resources>

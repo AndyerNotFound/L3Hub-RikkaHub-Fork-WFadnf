@@ -272,6 +272,24 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     }
+                    if (displaySetting.effectiveBackgroundEffect == BackgroundEffectType.BLUR) {
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_blur_opacity_title)) },
+                            supportingContent = { Text(stringResource(R.string.setting_display_page_blur_opacity_desc)) },
+                            trailingContent = {
+                                CardGroupValue("${(displaySetting.blurOpacity * 100).roundToInt()}%")
+                            },
+                        ) {
+                            Slider(
+                                value = displaySetting.blurOpacity,
+                                onValueChange = {
+                                    updateDisplaySetting(displaySetting.copy(blurOpacity = it))
+                                },
+                                valueRange = 0f..1f,
+                                steps = 19,
+                            )
+                        }
+                    }
                     formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_input_layout_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_input_layout_desc)) },

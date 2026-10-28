@@ -1895,4 +1895,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="stats_page_exporting">正在导出…</string>
   <string name="stats_page_export_done">已保存到 %1$s</string>
   <string name="stats_page_export_failed">导出失败：%1$s</string>
+  <string name="setting_display_page_blur_opacity_title">模糊不透明度</string>
+  <string name="setting_display_page_blur_opacity_desc">模糊特效下气泡、输入框和顶栏按钮的底色浓度，越低越通透</string>
+  <string name="setting_display_page_empty_slogan_title">新对话标语</string>
+  <string name="setting_display_page_empty_slogan_desc">新对话界面中央显示在助手头像下方的一句话，留空使用默认文案</string>
+  <string name="chat_empty_default_slogan">今天想聊点什么？</string>
 </resources>

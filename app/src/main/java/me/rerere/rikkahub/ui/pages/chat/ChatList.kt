@@ -143,6 +143,7 @@ fun ChatList(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
+    emptyHero: (@Composable () -> Unit)? = null,
 ) {
     AnimatedContent(
         targetState = previewMode,
@@ -187,6 +188,7 @@ fun ChatList(
                 onToolAnswer = onToolAnswer,
                 onToggleFavorite = onToggleFavorite,
                 onConversationSystemPromptChange = onConversationSystemPromptChange,
+                emptyHero = emptyHero,
             )
         }
     }
@@ -237,6 +239,7 @@ private fun ChatListNormal(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
+    emptyHero: (@Composable () -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
@@ -549,6 +552,16 @@ private fun ChatListNormal(
                 scope = scope,
                 state = state
             )
+
+            if (conversation.currentMessages.isEmpty() && emptyHero != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(bottom = 32.dp)
+                ) {
+                    emptyHero()
+                }
+            }
 
             // Suggestion
             if (conversation.chatSuggestions.isNotEmpty() && !captureProgress) {

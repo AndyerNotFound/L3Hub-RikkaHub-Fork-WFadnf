@@ -14,10 +14,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Arrangement
+import me.rerere.rikkahub.ui.context.LocalSettings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -502,6 +507,7 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
+                    liftedBy = if (conversation.currentMessages.isEmpty()) 150.dp else 0.dp,
                 )
             },
             containerColor = Color.Transparent,
@@ -569,6 +575,17 @@ private fun ChatPageContent(
                 },
                 onConversationSystemPromptChange = { newPrompt ->
                     vm.updateConversationSystemPrompt(newPrompt)
+                },
+                emptyHero = if (conversation.currentMessages.isEmpty()) {
+                    {
+                        EmptyChatHero(
+                            assistant = assistant,
+                            slogan = setting.displaySetting.emptyChatSlogan,
+                            hazeState = backgroundHazeState,
+                        )
+                    }
+                } else {
+                    null
                 },
             )
         }
@@ -715,6 +732,17 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
+    val effect = settings.displaySetting.effectiveBackgroundEffect
+    fun effectColor(base: Color): Color = when (effect) {
+        BackgroundEffectType.OFF -> base
+        BackgroundEffectType.BLUR -> base.copy(alpha = settings.displaySetting.blurOpacity)
+        BackgroundEffectType.GLASS -> Color.Transparent
+    }
+    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    } else {
+        null
+    }
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -730,7 +758,14 @@ private fun TopBar(
                         .padding(start = 12.dp)
                         .size(40.dp)
                         .clip(navShape)
-                        .background(navColor)
+                        .background(effectColor(navColor))
+                        .then(
+                            if (effectBorder != null) {
+                                Modifier.border(effectBorder, navShape)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .chatInputHaze(
                             hazeState = hazeState,
                             displaySetting = settings.displaySetting,
@@ -787,7 +822,14 @@ private fun TopBar(
                 modifier = Modifier
                     .padding(end = 8.dp)
                     .clip(pillShape)
-                    .background(pillColor)
+                    .background(effectColor(pillColor))
+                    .then(
+                        if (effectBorder != null) {
+                            Modifier.border(effectBorder, pillShape)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .chatInputHaze(
                         hazeState = hazeState,
                         displaySetting = settings.displaySetting,
@@ -853,6 +895,67 @@ private fun TopBar(
                     Text(stringResource(R.string.chat_page_cancel))
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun EmptyChatHero(
+    assistant: Assistant,
+    slogan: String,
+    hazeState: HazeState,
+) {
+    val settings = LocalSettings.current
+    val effect = settings.displaySetting.effectiveBackgroundEffect
+    val shape = RoundedCornerShape(28.dp)
+    val baseColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = when (effect) {
+        BackgroundEffectType.OFF -> Color.Transparent
+        BackgroundEffectType.BLUR -> baseColor.copy(alpha = settings.displaySetting.blurOpacity)
+        BackgroundEffectType.GLASS -> Color.Transparent
+    }
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 40.dp)
+            .clip(shape)
+            .background(containerColor)
+            .then(
+                if (effect == BackgroundEffectType.BLUR) {
+                    Modifier.border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        shape,
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (effect != BackgroundEffectType.OFF) {
+                    Modifier.chatInputHaze(
+                        hazeState = hazeState,
+                        displaySetting = settings.displaySetting,
+                        containerColor = baseColor,
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 28.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        UIAvatar(
+            name = assistant.name,
+            value = assistant.avatar,
+            avatarSize = 88.dp,
+            shape = CircleShape,
+        )
+        Text(
+            text = slogan.ifBlank { stringResource(R.string.chat_empty_default_slogan) },
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
