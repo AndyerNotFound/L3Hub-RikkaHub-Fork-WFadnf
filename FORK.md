@@ -191,7 +191,7 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 | 项 | 说明 |
 |---|---|
 | 触发阈值 | `WARN` 或 `MAX`，取模型上配置的两个上下文门限 |
-| 压缩后保留 | 按消息条数或 token 数；token 按字符估算（CJK 约 1 字 1 token，其它约 4 字符 1 token） |
+| 压缩后保留 | 按消息条数或 token 数；token 按字符估算（CJK 约 1 字 1 token，其它约 4 字符 1 token），只数最后一个检查点之后的内容，工具输入输出也算 |
 | 触发时机 | 每次发送消息后、生成本轮回复之前，用 `Conversation.lastContextTokens()` 与门限比较；用量缺失时退回按可见内容估算 |
 | 上下文已满 | 到达 MAX 后确认发送会先弹窗，确认后压缩再发送；保留条数超过检查点之后剩余的消息时自动收缩 |
 | 效果 | 与手动压缩完全一致：调用同一个压缩请求，在原位置插入 `isContextCheckpoint` 摘要消息 |
@@ -210,6 +210,7 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 - 关于页：标题改为 L3Hub，注明基于 RikkaHub；链接改为本 fork 仓库与 LICENSE，另保留「上游项目」指向 `rikkahub/rikkahub`
 - 模型编辑：删掉「上下文长度」整段，上下文窗口只保留 WARN / MAX 两个预警门限
 - 界面偏好：新增「上下文预警进度条」开关（`DisplaySetting.showContextMeter`），关闭后输入框上方的进度条整行隐藏
+- 压缩检查点：分隔线默认折叠时露出两行摘要预览，展开可看完整摘要并编辑/删除
 - 任务树：工具调用改为等宽字体代码块，输入按 JSON 格式化、shell 输出拆出 exit code 与 stdout，长内容折叠，可逐条展开
 
 ## 性能：只出的那个包按 release 方式编译

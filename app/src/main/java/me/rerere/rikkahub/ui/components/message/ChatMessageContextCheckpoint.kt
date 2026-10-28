@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
@@ -38,7 +39,7 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 
 /**
  * 压缩检查点：分隔线上方的消息仍可查看，但不再发送给模型，由这里的摘要代替。
- * 默认折叠，避免长摘要打断历史消息的阅读。
+ * 默认折叠，只露出一小段摘要预览，避免长摘要打断历史消息的阅读。
  */
 @Composable
 fun ChatMessageContextCheckpoint(
@@ -81,6 +82,17 @@ fun ChatMessageContextCheckpoint(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+
+        if (!expanded) {
+            Text(
+                text = message.toText().trim(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
 
         AnimatedVisibility(
