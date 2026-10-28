@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsets
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
@@ -140,6 +143,13 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    LaunchedEffect(imeVisible) {
+        if (!imeVisible) {
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     // Handle back press when drawer is open
     BackHandler(enabled = drawerState.isOpen) {

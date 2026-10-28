@@ -1835,6 +1835,7 @@
   <string name="task_tree_empty">No sub-agent tasks yet. Turn on the Dispatch sub-agent tool in the assistant local tools and mark another assistant as a sub-agent</string>
   <string name="task_tree_open">Open conversation</string>
   <string name="task_tree_tools">Tool calls</string>
+  <string name="task_tree_tools_count">%1$d tools · %2$d sub-agents</string>
   <string name="task_tree_no_tools">No tool calls</string>
   <string name="task_tree_state_running">Running</string>
   <string name="task_tree_state_completed">Done</string>

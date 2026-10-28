@@ -439,6 +439,9 @@ private class ChainOfThoughtScopeImpl(
                                 )
                             }
                         }
+                        .animateContentSize(
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                        )
                         .padding(start = 32.dp, top = 4.dp, bottom = 8.dp)
                 ) {
                     content()

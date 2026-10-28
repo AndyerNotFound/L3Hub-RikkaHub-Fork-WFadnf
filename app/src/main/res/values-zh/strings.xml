@@ -1837,6 +1837,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_empty">还没有子代理任务。先在助手的本地工具里打开「派发子代理」，并把另一个助手设为子代理</string>
   <string name="task_tree_open">打开会话</string>
   <string name="task_tree_tools">工具调用</string>
+  <string name="task_tree_tools_count">工具 %1$d · 子代理 %2$d</string>
   <string name="task_tree_no_tools">没有工具调用</string>
   <string name="task_tree_state_running">进行中</string>
   <string name="task_tree_state_completed">已完成</string>

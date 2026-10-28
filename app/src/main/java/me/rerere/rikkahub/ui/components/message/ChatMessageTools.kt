@@ -139,7 +139,9 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val displaySetting = LocalSettings.current.displaySetting
     var showResult by remember { mutableStateOf(false) }
     var showDenyDialog by remember { mutableStateOf(false) }
-    var expanded by remember(tool.toolCallId) { mutableStateOf(displaySetting.showToolCallOutput) }
+    var expanded by remember(tool.toolCallId, displaySetting.showToolCallOutput) {
+        mutableStateOf(displaySetting.showToolCallOutput)
+    }
     val isPending = tool.isPending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()

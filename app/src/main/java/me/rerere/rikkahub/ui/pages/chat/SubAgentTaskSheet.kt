@@ -1,24 +1,27 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +68,7 @@ private data class TaskNode(
 )
 
 private const val MAX_TREE_DEPTH = 6
+private val RailStep = 14.dp
 
 @Composable
 fun SubAgentTaskSheet(
@@ -103,10 +109,10 @@ fun SubAgentTaskSheet(
             } else {
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 560.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     item(key = "root") {
-                        TaskTreeNode(
+                        AgentBranch(
                             node = root,
                             prefix = emptyList(),
                             isLast = true,
@@ -136,13 +142,13 @@ private suspend fun loadTree(
 }
 
 /**
- * 一个代理节点：标题行 + 工具叶子 + 子代理。
+ * 一个代理分支：代理卡片 + 它调用的工具 + 它派发的子代理。
  *
- * [prefix] 记录每一层祖先是否还有后续兄弟，用于绘制竖向的连接线；
- * 根节点不画连接线，只显示一个圆点。
+ * [prefix] 逐层记录祖先后面是否还有兄弟节点，用来决定连接线画到哪里；
+ * 同一个代理的工具和子代理都挂在它下面，缩进对齐。
  */
 @Composable
-private fun TaskTreeNode(
+private fun AgentBranch(
     node: TaskNode,
     prefix: List<Boolean>,
     isLast: Boolean,
@@ -157,43 +163,60 @@ private fun TaskTreeNode(
             message.parts.filterIsInstance<UIMessagePart.Tool>()
         }
     }
+    val children = node.children
     val assistantName = assistantNames[conversation.assistantId].orEmpty()
     val isSubAgent = conversation.parentConversationId != null
-    val subAgentLabel = stringResource(R.string.task_tree_sub_agent)
-    val hasChildren = tools.isNotEmpty() || node.children.isNotEmpty()
+    val hasChildren = tools.isNotEmpty() || children.isNotEmpty()
+    val childPrefix = prefix + !isLast
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = hasChildren) { expanded = !expanded }
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TreeGuide(prefix = prefix, isLast = isLast, isRoot = isRoot)
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            TreeRail(prefix = prefix, isLast = isLast, isRoot = isRoot)
             Surface(
+                onClick = { if (hasChildren) expanded = !expanded },
+                enabled = hasChildren,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 3.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = if (isRoot) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 },
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.weight(1f),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = buildString {
-                                if (isSubAgent) append(subAgentLabel).append(" · ")
-                                append(assistantName.ifBlank { "?" })
-                            },
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            if (isSubAgent) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(6.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.task_tree_sub_agent),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = assistantName.ifBlank { "?" },
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                         Text(
                             text = conversation.title.ifBlank { conversation.subAgentTask.orEmpty() },
                             style = MaterialTheme.typography.bodySmall,
@@ -201,12 +224,25 @@ private fun TaskTreeNode(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        if (hasChildren) {
+                            Text(
+                                text = stringResource(
+                                    R.string.task_tree_tools_count,
+                                    tools.size,
+                                    children.size,
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
                     }
                     StateBadge(state = conversation.subAgentState)
                     if (hasChildren) {
                         Icon(
                             imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                            contentDescription = null,
+                            contentDescription = stringResource(
+                                if (expanded) R.string.task_tree_collapse else R.string.task_tree_expand
+                            ),
                             modifier = Modifier
                                 .padding(start = 6.dp)
                                 .size(16.dp),
@@ -219,44 +255,35 @@ private fun TaskTreeNode(
 
         if (expanded) {
             tools.forEachIndexed { index, tool ->
-                val lastTool = index == tools.lastIndex && node.children.isEmpty()
                 ToolLeaf(
                     tool = tool,
-                    prefix = prefix + isLast,
-                    isLast = lastTool,
+                    prefix = childPrefix,
+                    isLast = children.isEmpty() && index == tools.lastIndex,
                 )
             }
-            node.children.forEachIndexed { index, child ->
-                TaskTreeNode(
+            children.forEachIndexed { index, child ->
+                AgentBranch(
                     node = child,
-                    prefix = prefix + isLast,
-                    isLast = index == node.children.lastIndex,
+                    prefix = childPrefix,
+                    isLast = index == children.lastIndex,
                     isRoot = false,
                     assistantNames = assistantNames,
                     onOpen = onOpen,
                 )
             }
-            if (tools.isEmpty() && node.children.isEmpty() && isSubAgent) {
-                Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                    TreeGuide(prefix = prefix + isLast, isLast = true, isRoot = false)
-                    Text(
-                        text = stringResource(R.string.task_tree_no_tools),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            if (tools.isEmpty() && children.isEmpty() && isSubAgent) {
+                NoToolsRow(prefix = childPrefix)
             }
             if (isSubAgent) {
-                Row(
-                    modifier = Modifier
-                        .padding(start = (prefix.size + 1) * 14.dp)
-                        .clickable { onOpen(conversation.id) }
-                        .padding(vertical = 2.dp),
-                ) {
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    TreeRail(prefix = childPrefix, isLast = true, isRoot = false)
                     Text(
                         text = stringResource(R.string.task_tree_open),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { onOpen(conversation.id) }
+                            .padding(vertical = 6.dp),
                     )
                 }
             }
@@ -264,26 +291,45 @@ private fun TaskTreeNode(
     }
 }
 
-/** 连接线 + 分支符，等宽字体保证每一层的竖线对齐 */
 @Composable
-private fun TreeGuide(prefix: List<Boolean>, isLast: Boolean, isRoot: Boolean) {
-    val text = buildString {
-        prefix.forEach { hasNext ->
-            if (hasNext) append("│  ") else append("   ")
+private fun NoToolsRow(prefix: List<Boolean>) {
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        TreeRail(prefix = prefix, isLast = true, isRoot = false)
+        Text(
+            text = stringResource(R.string.task_tree_no_tools),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 4.dp),
+        )
+    }
+}
+
+/** 连接线：每个祖先一列竖线，末端画一个拐角接到内容 */
+@Composable
+private fun TreeRail(prefix: List<Boolean>, isLast: Boolean, isRoot: Boolean) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant
+    Canvas(
+        modifier = Modifier
+            .width(RailStep * (prefix.size + 1))
+            .fillMaxHeight()
+    ) {
+        val step = RailStep.toPx()
+        val midY = size.height / 2f
+        val stroke = 1.dp.toPx()
+        prefix.forEachIndexed { index, hasNext ->
+            if (hasNext) {
+                val x = index * step + step / 2f
+                drawLine(lineColor, Offset(x, 0f), Offset(x, size.height), stroke)
+            }
         }
-        when {
-            isRoot -> append("● ")
-            isLast -> append("└─ ")
-            else -> append("├─ ")
+        val x = prefix.size * step + step / 2f
+        if (isRoot) {
+            drawCircle(lineColor, radius = 2.5.dp.toPx(), center = Offset(x, midY))
+        } else {
+            drawLine(lineColor, Offset(x, 0f), Offset(x, if (isLast) midY else size.height), stroke)
+            drawLine(lineColor, Offset(x, midY), Offset(x + step * 0.55f, midY), stroke)
         }
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        fontFamily = FontFamily.Monospace,
-        color = MaterialTheme.colorScheme.outlineVariant,
-        maxLines = 1,
-    )
 }
 
 @Composable
@@ -297,57 +343,72 @@ private fun ToolLeaf(
     val output = remember(tool.output) { formatToolOutput(tool.output) }
     val running = !tool.isExecuted
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        TreeRail(prefix = prefix, isLast = isLast, isRoot = false)
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { open = !open }
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .weight(1f)
+                .padding(vertical = 2.dp)
         ) {
-            TreeGuide(prefix = prefix, isLast = isLast, isRoot = false)
-            Icon(
-                imageVector = HugeIcons.Tools,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .size(14.dp),
-                tint = MaterialTheme.colorScheme.secondary,
-            )
-            Text(
-                text = tool.toolName,
-                style = MaterialTheme.typography.labelMedium,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = stringResource(
-                    if (running) R.string.task_tree_state_running else R.string.task_tree_state_completed
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (open) {
-            Column(
-                modifier = Modifier.padding(start = (prefix.size + 1) * 14.dp, bottom = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Surface(
+                onClick = { open = !open },
+                color = Color.Transparent,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                if (input.isNotBlank()) {
-                    CodeBlock(text = input, maxLines = 12)
-                }
-                if (output.isNotBlank()) {
-                    CodeBlock(text = output, maxLines = 16, emphasized = true)
-                }
-                if (input.isBlank() && output.isBlank()) {
-                    Text(
-                        text = stringResource(R.string.task_tree_no_tools),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Tools,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.secondary,
                     )
+                    Text(
+                        text = tool.toolName,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(
+                            if (running) R.string.task_tree_state_running else R.string.task_tree_state_completed
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    )
+                    Icon(
+                        imageVector = if (open) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.outline,
+                    )
+                }
+            }
+            if (open) {
+                Column(
+                    modifier = Modifier.padding(start = 8.dp, top = 2.dp, bottom = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (input.isNotBlank()) {
+                        CodeBlock(text = input, maxLines = 12)
+                    }
+                    if (output.isNotBlank()) {
+                        CodeBlock(text = output, maxLines = 16, emphasized = true)
+                    }
+                    if (input.isBlank() && output.isBlank()) {
+                        Text(
+                            text = stringResource(R.string.task_tree_no_tools),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -412,10 +473,10 @@ private fun StateBadge(state: String?) {
         SUB_AGENT_STATE_FAILED -> stringResource(R.string.task_tree_state_failed) to MaterialTheme.colorScheme.error
         else -> return
     }
+    Spacer(Modifier.width(6.dp))
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
         color = color,
-        modifier = Modifier.padding(start = 8.dp),
     )
 }
