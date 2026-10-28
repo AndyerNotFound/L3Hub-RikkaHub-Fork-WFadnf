@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,8 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -19,14 +24,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.contextUsageFraction
 import me.rerere.rikkahub.data.model.isContextLimitReached
@@ -168,6 +178,159 @@ private fun contextMeterColor(fraction: Float, hardLimit: Boolean): Color {
         fraction >= 1f -> if (hardLimit) colors.error else colors.tertiary
         fraction >= ALERT_FRACTION -> colors.tertiary
         else -> colors.primary
+    }
+}
+
+@Composable
+fun ContextUsageRing(
+    tokens: Int?,
+    warnTokens: Int?,
+    maxTokens: Int?,
+    showAbsolute: Boolean,
+    onToggleDisplay: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (warnTokens == null && maxTokens == null) return
+
+    val used = (tokens ?: 0).coerceAtLeast(0)
+    val warnFraction = warnTokens?.let { contextUsageFraction(used, it) }
+    val maxFraction = maxTokens?.let { contextUsageFraction(used, it) }
+    val mainFraction = (maxFraction ?: warnFraction ?: 0f).coerceIn(0f, 1f)
+    val limitReached = isContextLimitReached(tokens, maxTokens)
+    val animatedMain by animateFloatAsState(
+        targetValue = mainFraction,
+        label = "contextRingMain",
+    )
+    val animatedWarn by animateFloatAsState(
+        targetValue = (warnFraction ?: 0f).coerceIn(0f, 1f),
+        label = "contextRingWarn",
+    )
+    val mainColor = contextMeterColor(mainFraction, maxTokens != null)
+    val warnColor = contextMeterColor(warnFraction ?: 0f, false)
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onToggleDisplay)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            if (warnTokens != null) {
+                RingValueRow(
+                    label = "WARN",
+                    used = used,
+                    limit = warnTokens,
+                    showAbsolute = showAbsolute,
+                    color = warnColor,
+                )
+            }
+            if (maxTokens != null) {
+                RingValueRow(
+                    label = "MAX",
+                    used = used,
+                    limit = maxTokens,
+                    showAbsolute = showAbsolute,
+                    color = mainColor,
+                )
+            }
+            if (limitReached) {
+                Text(
+                    text = stringResource(R.string.chat_page_context_limit_reached),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(
+            modifier = Modifier.size(46.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = 4.dp.toPx()
+                val warnStroke = 2.dp.toPx()
+                val outerRadius = (size.minDimension - stroke) / 2
+                val center = Offset(size.width / 2f, size.height / 2f)
+
+                drawCircle(color = trackColor, radius = outerRadius, style = Stroke(stroke))
+                drawArc(
+                    color = mainColor,
+                    startAngle = -90f,
+                    sweepAngle = animatedMain * 360f,
+                    useCenter = false,
+                    topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+                    size = Size(outerRadius * 2, outerRadius * 2),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+
+                if (warnTokens != null && maxTokens != null) {
+                    val innerRadius = outerRadius - stroke / 2f - 1.dp.toPx() - warnStroke / 2f
+                    if (innerRadius > 0f) {
+                        drawCircle(color = trackColor.copy(alpha = 0.6f), radius = innerRadius, style = Stroke(warnStroke))
+                        drawArc(
+                            color = warnColor,
+                            startAngle = -90f,
+                            sweepAngle = animatedWarn * 360f,
+                            useCenter = false,
+                            topLeft = Offset(center.x - innerRadius, center.y - innerRadius),
+                            size = Size(innerRadius * 2, innerRadius * 2),
+                            style = Stroke(width = warnStroke, cap = StrokeCap.Round),
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "${(mainFraction * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                color = mainColor,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RingValueRow(
+    label: String,
+    used: Int,
+    limit: Int,
+    showAbsolute: Boolean,
+    color: Color,
+) {
+    val fraction = contextUsageFraction(used, limit)
+    val text = if (showAbsolute) {
+        stringResource(
+            R.string.chat_page_context_meter_absolute,
+            used.formatNumber(),
+            limit.formatNumber(),
+        )
+    } else {
+        "${(fraction * 100).roundToInt()}%"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = if (fraction >= ALERT_FRACTION) color else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -1865,4 +1865,21 @@
   <string name="chat_page_stats">Stats</string>
   <string name="setting_page_profile">Profile</string>
   <string name="setting_page_profile_desc">Tap to edit nickname, tap the avatar to change it</string>
+
+  <string name="chat_page_week_this">This week</string>
+  <string name="chat_page_week_last">Last week</string>
+  <string name="chat_page_week_range">%1$s – %2$s</string>
+  <string name="setting_display_page_context_meter_style_off">Off</string>
+  <string name="setting_display_page_context_meter_style_bar">Bar</string>
+  <string name="setting_display_page_context_meter_style_ring">Ring</string>
+  <string name="setting_display_page_context_meter_style_title">Context meter style</string>
+  <string name="setting_display_page_context_meter_style_desc">Show the context usage above the input box as a bar or a ring</string>
+  <string name="stats_page_export">Export</string>
+  <string name="stats_page_export_title">Export statistics</string>
+  <string name="stats_page_export_image">Long image</string>
+  <string name="stats_page_export_pdf">PDF</string>
+  <string name="stats_page_export_cancel">Cancel</string>
+  <string name="stats_page_exporting">Exporting…</string>
+  <string name="stats_page_export_done">Saved to %1$s</string>
+  <string name="stats_page_export_failed">Export failed: %1$s</string>
 </resources>

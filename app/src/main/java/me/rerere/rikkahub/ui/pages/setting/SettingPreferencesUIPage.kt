@@ -51,6 +51,7 @@ import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
+import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FileUtils
@@ -59,6 +60,7 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -188,12 +190,29 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                     )
-                    switchItem(
-                        checked = displaySetting.showContextMeter,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showContextMeter = it)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_context_meter_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_context_meter_title)) },
-                    )
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_context_meter_style_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_context_meter_style_desc)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = ContextMeterStyle.entries,
+                            selected = displaySetting.contextMeterStyle,
+                            onSelect = { style ->
+                                updateDisplaySetting(displaySetting.copy(contextMeterStyle = style))
+                            },
+                        ) { style, selected ->
+                            ConnectedChoiceLabel(
+                                text = stringResource(
+                                    when (style) {
+                                        ContextMeterStyle.OFF -> R.string.setting_display_page_context_meter_style_off
+                                        ContextMeterStyle.BAR -> R.string.setting_display_page_context_meter_style_bar
+                                        ContextMeterStyle.RING -> R.string.setting_display_page_context_meter_style_ring
+                                    }
+                                ),
+                                selected = selected,
+                            )
+                        }
+                    }
                 }
             }
 

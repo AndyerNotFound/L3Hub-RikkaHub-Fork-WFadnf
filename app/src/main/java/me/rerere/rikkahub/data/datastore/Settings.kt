@@ -135,6 +135,13 @@ enum class ConversationSortOrder {
 }
 
 @Serializable
+enum class ContextMeterStyle {
+    OFF,
+    BAR,
+    RING,
+}
+
+@Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
@@ -145,8 +152,8 @@ data class DisplaySetting(
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
     val showTokenUsage: Boolean = true,
-    // 输入框上方的上下文预警进度条
-    val showContextMeter: Boolean = true,
+    // 输入框上方的上下文预警样式
+    val contextMeterStyle: ContextMeterStyle = ContextMeterStyle.BAR,
     // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
     val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,

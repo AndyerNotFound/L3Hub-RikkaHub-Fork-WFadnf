@@ -34,8 +34,10 @@ import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.toLocalString
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import kotlin.uuid.Uuid
 
 class ChatDrawerVM(
@@ -95,17 +97,17 @@ class ChatDrawerVM(
                                 }
 
                                 else -> {
-                                    // 日期分组跟随排序依据：按创建时间排序时以创建日期分组
-                                    val afterDate = after.conversation.sortDate(sortOrder)
+                                    // 按周分组（周一开始），减少列表里过密的日期标题
+                                    val afterWeek = after.conversation.sortDate(sortOrder).weekStart()
                                     val sameGroup = before != null &&
                                         !before.conversation.isPinned &&
-                                        before.conversation.sortDate(sortOrder) == afterDate
+                                        before.conversation.sortDate(sortOrder).weekStart() == afterWeek
                                     if (sameGroup) {
                                         null
                                     } else {
                                         ConversationListItem.DateHeader(
-                                            date = afterDate,
-                                            label = getDateLabel(afterDate),
+                                            date = afterWeek,
+                                            label = getWeekLabel(afterWeek),
                                             sortOrder = sortOrder,
                                         )
                                     }
@@ -187,13 +189,23 @@ class ChatDrawerVM(
         return instant.atZone(ZoneId.systemDefault()).toLocalDate()
     }
 
-    private fun getDateLabel(date: LocalDate): String {
-        val today = LocalDate.now()
-        val yesterday = today.minusDays(1)
-        return when (date) {
-            today -> context.getString(R.string.chat_page_today)
-            yesterday -> context.getString(R.string.chat_page_yesterday)
-            else -> date.toLocalString(date.year != today.year)
+    private fun LocalDate.weekStart(): LocalDate =
+        with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    private fun getWeekLabel(start: LocalDate): String {
+        val thisWeek = LocalDate.now().weekStart()
+        return when (start) {
+            thisWeek -> context.getString(R.string.chat_page_week_this)
+            thisWeek.minusWeeks(1) -> context.getString(R.string.chat_page_week_last)
+            else -> {
+                val end = start.plusDays(6)
+                val includeYear = start.year != thisWeek.year
+                context.getString(
+                    R.string.chat_page_week_range,
+                    start.toLocalString(includeYear),
+                    end.toLocalString(includeYear),
+                )
+            }
         }
     }
 }

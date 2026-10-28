@@ -93,6 +93,7 @@ import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
@@ -240,6 +241,29 @@ fun ChatInput(
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
             )
+            if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
+                when (settings.displaySetting.contextMeterStyle) {
+                    ContextMeterStyle.BAR -> ContextUsageMeter(
+                        tokens = contextTokens,
+                        warnTokens = chatModel.warnContextTokens,
+                        maxTokens = chatModel.maxContextTokens,
+                        showAbsolute = settings.displaySetting.contextMeterAbsolute,
+                        onToggleDisplay = onToggleContextMeterDisplay,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+
+                    ContextMeterStyle.RING -> ContextUsageRing(
+                        tokens = contextTokens,
+                        warnTokens = chatModel.warnContextTokens,
+                        maxTokens = chatModel.maxContextTokens,
+                        showAbsolute = settings.displaySetting.contextMeterAbsolute,
+                        onToggleDisplay = onToggleContextMeterDisplay,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+
+                    ContextMeterStyle.OFF -> Unit
+                }
+            }
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -259,16 +283,6 @@ fun ChatInput(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    if (chatModel != null && settings.displaySetting.showContextMeter) {
-                        ContextUsageMeter(
-                            tokens = contextTokens,
-                            warnTokens = chatModel.warnContextTokens,
-                            maxTokens = chatModel.maxContextTokens,
-                            showAbsolute = settings.displaySetting.contextMeterAbsolute,
-                            onToggleDisplay = onToggleContextMeterDisplay,
-                            modifier = Modifier.padding(horizontal = 4.dp),
-                        )
-                    }
                     if (voiceState.phase != VoicePhase.Off) {
                         VoiceModeRow(
                             state = voiceState,

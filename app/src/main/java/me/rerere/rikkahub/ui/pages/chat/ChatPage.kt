@@ -3,13 +3,8 @@ package me.rerere.rikkahub.ui.pages.chat
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListState
@@ -45,12 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -165,21 +156,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
-    var avatarFlight by remember { mutableStateOf<Rect?>(null) }
-    val openSettingsFromDrawer: (Rect) -> Unit = { rect ->
-        if (isBigScreen) {
-            navController.navigate(Screen.Setting)
-        } else {
-            avatarFlight = rect
-            scope.launch { drawerState.close() }
-        }
-    }
-    LaunchedEffect(avatarFlight) {
-        if (avatarFlight != null) {
-            delay(360)
-            navController.navigate(Screen.Setting)
-            avatarFlight = null
-        }
+    val openSettingsFromDrawer: () -> Unit = {
+        if (!isBigScreen) scope.launch { drawerState.close() }
+        navController.navigate(Screen.Setting)
     }
     val startNewChat: () -> Unit = {
         if (!isBigScreen) scope.launch { drawerState.close() }
@@ -308,44 +287,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
-    avatarFlight?.let { rect ->
-        FlyingAvatarOverlay(
-            avatar = setting.displaySetting.userAvatar,
-            name = setting.displaySetting.userNickname.ifBlank {
-                stringResource(R.string.user_default_name)
-            },
-            start = rect,
-        )
-    }
-    }
-}
-
-@Composable
-private fun FlyingAvatarOverlay(
-    avatar: Avatar,
-    name: String,
-    start: Rect,
-) {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        progress.animateTo(1f, tween(durationMillis = 340, easing = FastOutSlowInEasing))
-    }
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val density = LocalDensity.current
-        val targetX = with(density) { (maxWidth - 52.dp).toPx() } / 2f
-        val targetY = with(density) { 96.dp.toPx() }
-        val x = start.left + (targetX - start.left) * progress.value
-        val y = start.top + (targetY - start.top) * progress.value
-        UIAvatar(
-            name = name,
-            value = avatar,
-            avatarSize = (52f + 36f * progress.value).dp,
-            modifier = Modifier
-                .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
-                .graphicsLayer {
-                    alpha = (1f - (progress.value * progress.value * 0.85f)).coerceIn(0f, 1f)
-                },
-        )
     }
 }
 

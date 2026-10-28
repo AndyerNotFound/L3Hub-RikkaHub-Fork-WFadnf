@@ -1867,4 +1867,21 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_stats">统计</string>
   <string name="setting_page_profile">个人资料</string>
   <string name="setting_page_profile_desc">点击修改昵称，点头像更换头像</string>
+
+  <string name="chat_page_week_this">本周</string>
+  <string name="chat_page_week_last">上周</string>
+  <string name="chat_page_week_range">%1$s – %2$s</string>
+  <string name="setting_display_page_context_meter_style_off">关闭</string>
+  <string name="setting_display_page_context_meter_style_bar">条状</string>
+  <string name="setting_display_page_context_meter_style_ring">环状</string>
+  <string name="setting_display_page_context_meter_style_title">上下文预警样式</string>
+  <string name="setting_display_page_context_meter_style_desc">在输入框上方以条状或环状显示上下文占用</string>
+  <string name="stats_page_export">导出</string>
+  <string name="stats_page_export_title">导出统计</string>
+  <string name="stats_page_export_image">长图</string>
+  <string name="stats_page_export_pdf">PDF</string>
+  <string name="stats_page_export_cancel">取消</string>
+  <string name="stats_page_exporting">正在导出…</string>
+  <string name="stats_page_export_done">已保存到 %1$s</string>
+  <string name="stats_page_export_failed">导出失败：%1$s</string>
 </resources>

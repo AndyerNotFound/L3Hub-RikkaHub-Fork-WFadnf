@@ -45,9 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -115,7 +112,7 @@ fun ChatDrawerContent(
     settings: Settings,
     current: Conversation,
     onNewChat: () -> Unit = {},
-    onOpenSettings: (Rect) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -717,9 +714,8 @@ private fun DrawerBottomBar(
     avatar: Avatar,
     name: String,
     onNewChat: () -> Unit,
-    onOpenSettings: (Rect) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
-    var avatarBounds by remember { mutableStateOf(Rect.Zero) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -761,10 +757,7 @@ private fun DrawerBottomBar(
             name = name,
             value = avatar,
             avatarSize = 52.dp,
-            modifier = Modifier.onGloballyPositioned { coordinates ->
-                avatarBounds = coordinates.boundsInRoot()
-            },
-            onClick = { onOpenSettings(avatarBounds) },
+            onClick = onOpenSettings,
         )
     }
 }
