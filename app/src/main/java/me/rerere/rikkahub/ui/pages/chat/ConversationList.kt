@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
 import me.rerere.hugeicons.stroke.Pin
@@ -10,6 +12,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +94,8 @@ fun ColumnScope.ConversationList(
     onMoveToFolder: (Conversation) -> Unit = {}
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
+    // 按日期折叠：记下收起的日期分组
+    var collapsedDates by remember { mutableStateOf(emptySet<LocalDate>()) }
     // 列表顶部若放了 header，会话项在 LazyColumn 中的位置要往后挪一位
     val headerCount = if (header != null) 1 else 0
 
@@ -150,10 +155,35 @@ fun ColumnScope.ConversationList(
                 }
             }
         ) { index ->
+            // 已经收起的日期分组不渲染下面的会话
+            var sectionDate: LocalDate? = null
+            for (i in index - 1 downTo 0) {
+                when (val previous = conversations.itemSnapshotList.items.getOrNull(i)) {
+                    is ConversationListItem.DateHeader -> {
+                        sectionDate = previous.date
+                        break
+                    }
+
+                    is ConversationListItem.PinnedHeader -> break
+                    else -> Unit
+                }
+            }
+            if (sectionDate != null && sectionDate in collapsedDates) {
+                return@items
+            }
+
             when (val item = conversations[index]) {
                 is ConversationListItem.DateHeader -> {
                     DateHeaderItem(
                         label = item.label,
+                        collapsed = item.date in collapsedDates,
+                        onToggle = {
+                            collapsedDates = if (item.date in collapsedDates) {
+                                collapsedDates - item.date
+                            } else {
+                                collapsedDates + item.date
+                            }
+                        },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -190,12 +220,15 @@ fun ColumnScope.ConversationList(
 @Composable
 private fun DateHeaderItem(
     label: String,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable(onClick = onToggle)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -204,6 +237,13 @@ private fun DateHeaderItem(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
     }
 }

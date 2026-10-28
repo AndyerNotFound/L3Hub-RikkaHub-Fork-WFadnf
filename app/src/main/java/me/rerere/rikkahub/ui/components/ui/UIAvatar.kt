@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -97,6 +98,7 @@ fun UIAvatar(
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     shape: Shape = rememberAvatarShape(loading),
+    avatarSize: Dp = 32.dp,
     onUpdate: ((Avatar) -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -126,7 +128,7 @@ fun UIAvatar(
         uri?.let(launchImageCrop)
     }
 
-    Box(modifier = modifier.then(Modifier.size(32.dp))) {
+    Box(modifier = modifier.then(Modifier.size(avatarSize))) {
         Surface(
             shape = shape,
             modifier = Modifier.fillMaxSize(),

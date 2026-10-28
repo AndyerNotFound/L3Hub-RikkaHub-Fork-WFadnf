@@ -1863,4 +1863,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_preferences_notification_battery_optimization_granted">已在白名单中，后台运行不受电池优化限制</string>
   <string name="chat_message_expand_earlier_steps">展开前面的 %1$d 步</string>
   <string name="chat_message_collapse_earlier_steps">收起前面的 %1$d 步</string>
+
+  <string name="chat_page_stats">统计</string>
+  <string name="setting_page_profile">个人资料</string>
+  <string name="setting_page_profile_desc">点击修改昵称，点头像更换头像</string>
 </resources>

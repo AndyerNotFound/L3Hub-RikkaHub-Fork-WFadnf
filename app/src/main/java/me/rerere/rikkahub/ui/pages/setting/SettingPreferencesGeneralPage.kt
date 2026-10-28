@@ -19,6 +19,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -88,6 +90,71 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                var showNicknameDialog by remember { mutableStateOf(false) }
+                var nicknameDraft by remember(displaySetting.userNickname) {
+                    mutableStateOf(displaySetting.userNickname)
+                }
+                CardGroup {
+                    item(
+                        onClick = {
+                            nicknameDraft = displaySetting.userNickname
+                            showNicknameDialog = true
+                        },
+                        leadingContent = {
+                            UIAvatar(
+                                name = displaySetting.userNickname.ifBlank {
+                                    stringResource(R.string.user_default_name)
+                                },
+                                value = displaySetting.userAvatar,
+                                avatarSize = 40.dp,
+                                onUpdate = { avatar ->
+                                    updateDisplaySetting(displaySetting.copy(userAvatar = avatar))
+                                },
+                            )
+                        },
+                        headlineContent = {
+                            Text(
+                                text = displaySetting.userNickname.ifBlank {
+                                    stringResource(R.string.user_default_name)
+                                }
+                            )
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_profile_desc)) },
+                    )
+                }
+                if (showNicknameDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showNicknameDialog = false },
+                        title = { Text(stringResource(R.string.chat_page_edit_nickname)) },
+                        text = {
+                            OutlinedTextField(
+                                value = nicknameDraft,
+                                onValueChange = { nicknameDraft = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                placeholder = { Text(stringResource(R.string.chat_page_nickname_placeholder)) },
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    updateDisplaySetting(displaySetting.copy(userNickname = nicknameDraft.trim()))
+                                    showNicknameDialog = false
+                                }
+                            ) {
+                                Text(stringResource(R.string.chat_page_save))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showNicknameDialog = false }) {
+                                Text(stringResource(R.string.chat_page_cancel))
+                            }
+                        },
+                    )
+                }
+            }
+
             item {
                 var languageTag by remember { mutableStateOf(AppLanguage.currentTag(context)) }
                 var showLanguageDialog by remember { mutableStateOf(false) }

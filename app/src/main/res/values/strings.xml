@@ -1861,4 +1861,8 @@
   <string name="setting_page_preferences_notification_battery_optimization_granted">Already exempted, background work is not limited by battery optimization</string>
   <string name="chat_message_expand_earlier_steps">Show %1$d earlier steps</string>
   <string name="chat_message_collapse_earlier_steps">Hide %1$d earlier steps</string>
+
+  <string name="chat_page_stats">Stats</string>
+  <string name="setting_page_profile">Profile</string>
+  <string name="setting_page_profile_desc">Tap to edit nickname, tap the avatar to change it</string>
 </resources>

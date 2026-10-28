@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,6 +45,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -79,6 +84,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -108,6 +114,8 @@ fun ChatDrawerContent(
     vm: ChatVM,
     settings: Settings,
     current: Conversation,
+    onNewChat: () -> Unit = {},
+    onOpenSettings: (Rect) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -165,9 +173,6 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
-    // Menu popup 状态
-    var showMenuPopup by remember { mutableStateOf(false) }
-
     val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
     var updateChecksEnabled by remember(updateCheckDisabledUntil) {
         mutableStateOf(updateCheckDisabledUntil <= System.currentTimeMillis())
@@ -202,63 +207,6 @@ fun ChatDrawerContent(
                 settings = settings,
                 onClick = { navController.navigate(Screen.Backup) },
             )
-
-            // 用户头像和昵称自定义区域
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                UIAvatar(
-                    name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
-                    value = settings.displaySetting.userAvatar,
-                    onUpdate = { newAvatar ->
-                        vm.updateSettings {
-                            it.copy(
-                                displaySetting = it.displaySetting.copy(
-                                    userAvatar = newAvatar
-                                )
-                            )
-                        }
-                    },
-                    modifier = Modifier.size(50.dp),
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable {
-                                nicknameEditState.open(settings.displaySetting.userNickname)
-                            }
-                        )
-
-                        Icon(
-                            imageVector = HugeIcons.PencilEdit01,
-                            contentDescription = "Edit",
-                            modifier = Modifier
-                                .onClick {
-                                    nicknameEditState.open(settings.displaySetting.userNickname)
-                                }
-                                .size(LocalTextStyle.current.fontSize.toDp())
-                        )
-                    }
-                    Greeting(
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-            }
 
             DrawerActions(navController = navController)
 
@@ -376,91 +324,12 @@ fun ChatDrawerContent(
                 }
             )
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-            ) {
-                DrawerAction(
-                    icon = {
-                        Icon(
-                            imageVector = HugeIcons.LookTop,
-                            contentDescription = stringResource(R.string.assistant_page_title)
-                        )
-                    },
-                    label = {
-                        Text(stringResource(R.string.assistant_page_title))
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Assistant)
-                    },
-                )
-
-                Box {
-                    DrawerAction(
-                        icon = {
-                            Icon(HugeIcons.Sparkles, "Menu")
-                        },
-                        label = {
-                            Text(stringResource(R.string.menu))
-                        },
-                        onClick = {
-                            showMenuPopup = true
-                        },
-                    )
-                    DropdownMenu(
-                        expanded = showMenuPopup,
-                        onDismissRequest = { showMenuPopup = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_menu_image_generation)) },
-                            leadingIcon = { Icon(HugeIcons.Image02, null) },
-                            onClick = {
-                                showMenuPopup = false
-                                navController.navigate(Screen.ImageGen)
-                            }
-                        )
-                    }
-                }
-
-                DrawerAction(
-                    icon = {
-                        Icon(HugeIcons.InLove, stringResource(R.string.favorite_page_title))
-                    },
-                    label = {
-                        Text(stringResource(R.string.favorite_page_title))
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Favorite)
-                    },
-                )
-
-                DrawerAction(
-                    icon = {
-                        Icon(HugeIcons.ChartColumn, "统计数据")
-                    },
-                    label = {
-                        Text("统计数据")
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Stats)
-                    },
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                DrawerAction(
-                    icon = {
-                        Icon(HugeIcons.Settings03, null)
-                    },
-                    label = { Text(stringResource(R.string.settings)) },
-                    onClick = {
-                        navController.navigate(Screen.Setting)
-                    },
-                )
-            }
+            DrawerBottomBar(
+                avatar = settings.displaySetting.userAvatar,
+                name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
+                onNewChat = onNewChat,
+                onOpenSettings = onOpenSettings,
+            )
         }
     }
 
@@ -762,6 +631,24 @@ private fun DrawerActions(navController: Navigator) {
             text = stringResource(R.string.chat_page_menu_ai_translator),
             onClick = { navController.navigate(Screen.Translator) },
         )
+
+        DrawerEntry(
+            icon = HugeIcons.LookTop,
+            text = stringResource(R.string.assistant_page_title),
+            onClick = { navController.navigate(Screen.Assistant) },
+        )
+
+        DrawerEntry(
+            icon = HugeIcons.InLove,
+            text = stringResource(R.string.favorite_page_title),
+            onClick = { navController.navigate(Screen.Favorite) },
+        )
+
+        DrawerEntry(
+            icon = HugeIcons.ChartColumn,
+            text = stringResource(R.string.chat_page_stats),
+            onClick = { navController.navigate(Screen.Stats) },
+        )
     }
 }
 
@@ -825,6 +712,63 @@ private fun DrawerEntry(
 }
 
 // 后台正在整理当前助手的记忆，点开是记忆页
+@Composable
+private fun DrawerBottomBar(
+    avatar: Avatar,
+    name: String,
+    onNewChat: () -> Unit,
+    onOpenSettings: (Rect) -> Unit,
+) {
+    var avatarBounds by remember { mutableStateOf(Rect.Zero) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Surface(
+            onClick = onNewChat,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.PencilEdit01,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = stringResource(R.string.chat_page_new_chat),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        UIAvatar(
+            name = name,
+            value = avatar,
+            avatarSize = 52.dp,
+            modifier = Modifier.onGloballyPositioned { coordinates ->
+                avatarBounds = coordinates.boundsInRoot()
+            },
+            onClick = { onOpenSettings(avatarBounds) },
+        )
+    }
+}
+
 @Composable
 private fun MemoryDreamingEntry(onClick: () -> Unit) {
     Surface(
