@@ -1918,4 +1918,20 @@
   <string name="setting_provider_proxy_password">Proxy password (optional)</string>
   <string name="chat_message_translation_swipe">Swipe left to translate</string>
   <string name="chat_message_translation_translating">Translating…</string>
+  <string name="app_lock_locked_title">App locked</string>
+  <string name="app_lock_locked_desc">Verify your screen lock to continue</string>
+  <string name="app_lock_unlock">Unlock</string>
+  <string name="app_lock_confirm_title">Unlock L3Hub</string>
+  <string name="app_lock_confirm_desc">Verify your screen lock to continue</string>
+  <string name="setting_app_lock_title">Privacy</string>
+  <string name="setting_app_lock_switch">App lock</string>
+  <string name="setting_app_lock_desc">Require your device screen lock after the app has been in the background</string>
+  <string name="setting_app_lock_timeout">Lock after leaving</string>
+  <string name="setting_app_lock_timeout_desc">Lock when the app stays in the background longer than this</string>
+  <string name="setting_app_lock_immediately">Immediately</string>
+  <string name="setting_app_lock_minutes">%d min</string>
+  <string name="setting_network_ca_title">Custom CA certificates</string>
+  <string name="setting_network_ca_installed">Trusted for self-signed HTTPS</string>
+  <string name="setting_network_ca_import">Import CA certificate</string>
+  <string name="setting_network_ca_import_desc">Supports PEM/DER .crt/.cer/.pem; all provider requests will additionally trust these CAs</string>
 </resources>

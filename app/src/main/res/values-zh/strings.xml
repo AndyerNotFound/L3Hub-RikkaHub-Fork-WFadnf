@@ -1920,4 +1920,20 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_proxy_password">代理密码（可选）</string>
   <string name="chat_message_translation_swipe">左滑翻译</string>
   <string name="chat_message_translation_translating">翻译中…</string>
+  <string name="app_lock_locked_title">应用已锁定</string>
+  <string name="app_lock_locked_desc">验证手机锁屏密码后继续使用</string>
+  <string name="app_lock_unlock">解锁</string>
+  <string name="app_lock_confirm_title">解锁 L3Hub</string>
+  <string name="app_lock_confirm_desc">验证手机锁屏密码后继续使用</string>
+  <string name="setting_app_lock_title">隐私</string>
+  <string name="setting_app_lock_switch">应用锁</string>
+  <string name="setting_app_lock_desc">离开应用超过设定时间后，需要验证手机锁屏密码才能进入</string>
+  <string name="setting_app_lock_timeout">离开后锁定</string>
+  <string name="setting_app_lock_timeout_desc">在后台停留超过该时间后锁定，选择“立即”则每次离开都锁</string>
+  <string name="setting_app_lock_immediately">立即</string>
+  <string name="setting_app_lock_minutes">%d 分钟</string>
+  <string name="setting_network_ca_title">自定义 CA 证书</string>
+  <string name="setting_network_ca_installed">已信任，用于自签 HTTPS</string>
+  <string name="setting_network_ca_import">导入 CA 证书</string>
+  <string name="setting_network_ca_import_desc">支持 PEM/DER 格式的 .crt/.cer/.pem；导入后所有提供商请求会额外信任这些 CA</string>
 </resources>

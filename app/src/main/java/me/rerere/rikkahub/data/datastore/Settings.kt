@@ -66,6 +66,11 @@ data class Settings(
     val providerProxies: Map<String, String> = emptyMap(),
     val providerProxyUsernames: Map<String, String> = emptyMap(),
     val providerProxyPasswords: Map<String, String> = emptyMap(),
+    // 应用锁：离开指定时间后要求验证锁屏密码
+    val appLockEnabled: Boolean = false,
+    val appLockTimeoutMinutes: Int = 5,
+    // 额外信任的自签 CA（PEM 文本）
+    val customCaCertificates: List<String> = emptyList(),
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),

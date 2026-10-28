@@ -54,6 +54,14 @@ import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import me.rerere.hugeicons.stroke.Delete01
+import java.io.ByteArrayInputStream
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -91,6 +99,28 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val toaster = LocalToaster.current
+    val context = LocalContext.current
+    val caImporter = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val bytes = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            }.getOrNull()
+            val pem = bytes?.let { certificateToPem(it) }
+            if (pem == null) {
+                toaster.show("无法读取证书文件", type = ToastType.Error)
+            } else {
+                vm.updateSettings { latest ->
+                    if (pem in latest.customCaCertificates) {
+                        latest
+                    } else {
+                        latest.copy(customCaCertificates = latest.customCaCertificates + pem)
+                    }
+                }
+            }
+        }
+    }
     var proxyTesting by remember { mutableStateOf(false) }
 
     fun updateUserAgent(value: String) {
@@ -381,6 +411,64 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
             }
+            item {
+                CardGroup(title = { Text(stringResource(R.string.setting_network_ca_title)) }) {
+                    settings.customCaCertificates.forEachIndexed { index, pem ->
+                        item(
+                            headlineContent = { Text(certificateLabel(pem, index)) },
+                            supportingContent = { Text(stringResource(R.string.setting_network_ca_installed)) },
+                            trailingContent = {
+                                IconButton(
+                                    onClick = {
+                                        vm.updateSettings { latest ->
+                                            latest.copy(
+                                                customCaCertificates = latest.customCaCertificates - pem
+                                            )
+                                        }
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Delete01,
+                                        contentDescription = null,
+                                    )
+                                }
+                            },
+                        )
+                    }
+                    item(
+                        onClick = { caImporter.launch("*/*") },
+                        headlineContent = { Text(stringResource(R.string.setting_network_ca_import)) },
+                        supportingContent = { Text(stringResource(R.string.setting_network_ca_import_desc)) },
+                    )
+                }
+            }
         }
     }
 }
+
+private fun certificateToPem(bytes: ByteArray): String? {
+    val text = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull()
+    if (text != null && "BEGIN CERTIFICATE" in text) return text
+    return runCatching {
+        val certificate = CertificateFactory.getInstance("X.509")
+            .generateCertificate(ByteArrayInputStream(bytes))
+        buildString {
+            appendLine("-----BEGIN CERTIFICATE-----")
+            appendLine(Base64.encodeToString(certificate.encoded, Base64.NO_WRAP))
+            append("-----END CERTIFICATE-----")
+        }
+    }.getOrNull()
+}
+
+private fun certificateLabel(pem: String, index: Int): String = runCatching {
+    CertificateFactory.getInstance("X.509")
+        .generateCertificate(ByteArrayInputStream(pem.toByteArray())) as X509Certificate
+}.getOrNull()
+    ?.subjectX500Principal
+    ?.name
+    ?.let { name ->
+        name.split(",")
+            .firstOrNull { it.trim().startsWith("CN=") }
+            ?.substringAfter("CN=")
+    }
+    ?: "CA ${index + 1}"

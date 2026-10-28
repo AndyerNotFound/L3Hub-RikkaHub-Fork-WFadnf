@@ -801,7 +801,8 @@ private fun ChatMessageBubble(
     }
     val bubbleColor = when {
         !useEffect -> color
-        effect == BackgroundEffectType.BLUR -> color.copy(alpha = displaySetting.blurOpacity)
+        // color 已经带了气泡不透明度，模糊模式下不要再乘一次模糊不透明度
+        effect == BackgroundEffectType.BLUR -> color
         else -> Color.Transparent
     }
     val contentColor = contentColorFor(color)

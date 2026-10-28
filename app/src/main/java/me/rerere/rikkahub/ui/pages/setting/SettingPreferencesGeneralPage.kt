@@ -430,6 +430,42 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
             }
+
+            item {
+                CardGroup(title = { Text(stringResource(R.string.setting_app_lock_title)) }) {
+                    switchItem(
+                        checked = settings.appLockEnabled,
+                        onCheckedChange = { enabled ->
+                            vm.updateSettings { it.copy(appLockEnabled = enabled) }
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_app_lock_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_app_lock_switch)) },
+                    )
+                    if (settings.appLockEnabled) {
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_app_lock_timeout)) },
+                            supportingContent = { Text(stringResource(R.string.setting_app_lock_timeout_desc)) },
+                        ) {
+                            ConnectedChoiceButtons(
+                                options = listOf(0, 1, 5, 15),
+                                selected = settings.appLockTimeoutMinutes,
+                                onSelect = { minutes ->
+                                    vm.updateSettings { it.copy(appLockTimeoutMinutes = minutes) }
+                                },
+                            ) { minutes, selected ->
+                                ConnectedChoiceLabel(
+                                    text = if (minutes == 0) {
+                                        stringResource(R.string.setting_app_lock_immediately)
+                                    } else {
+                                        stringResource(R.string.setting_app_lock_minutes, minutes)
+                                    },
+                                    selected = selected,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

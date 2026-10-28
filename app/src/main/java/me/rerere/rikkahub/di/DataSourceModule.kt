@@ -33,6 +33,7 @@ import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.data.remote.RikkaHubAPI
 import me.rerere.rikkahub.data.remote.SettingsProxyAuthenticator
+import me.rerere.rikkahub.data.remote.SettingsTrustManager
 import me.rerere.rikkahub.data.remote.SettingsProxySelector
 import me.rerere.rikkahub.data.remote.SettingsSocks5Authenticator
 import me.rerere.rikkahub.data.remote.SponsorAPI
@@ -181,9 +182,11 @@ val dataSourceModule = module {
             )
         )
         lateinit var client: OkHttpClient
+        val trustManager = SettingsTrustManager(settingsStore)
         client = OkHttpClient.Builder()
             .proxySelector(SettingsProxySelector(settingsStore))
             .proxyAuthenticator(SettingsProxyAuthenticator(settingsStore))
+            .sslSocketFactory(trustManager.sslContext.socketFactory, trustManager)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.MINUTES)
             .writeTimeout(120, TimeUnit.SECONDS)
