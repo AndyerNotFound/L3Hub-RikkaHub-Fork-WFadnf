@@ -17,6 +17,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -390,13 +391,24 @@ fun ChatInput(
                     }
 
                     if (singleLine) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
+                        var fieldHeight by remember { mutableIntStateOf(0) }
+                        var oneLineHeight by remember { mutableIntStateOf(0) }
+                        var stacked by remember { mutableStateOf(false) }
+                        val density = LocalDensity.current
+                        val bodyLineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+                        val lineHeightPx = with(density) {
+                            runCatching { bodyLineHeight.toPx() }.getOrDefault(24.dp.toPx())
+                        }
+                        LaunchedEffect(fieldHeight, oneLineHeight, state.textContent.text.isEmpty()) {
+                            if (oneLineHeight <= 0) return@LaunchedEffect
+                            val lines = (fieldHeight - oneLineHeight) / lineHeightPx + 1f
+                            if (!stacked && lines >= 2.2f) {
+                                stacked = true
+                            } else if (stacked && (state.textContent.text.isEmpty() || lines <= 1.1f)) {
+                                stacked = false
+                            }
+                        }
+                        val leadingActions: @Composable () -> Unit = {
                             ActionIconButton(onClick = onMoreClick) {
                                 Icon(
                                     imageVector = HugeIcons.Add01,
@@ -406,15 +418,8 @@ fun ChatInput(
                             if (quickMessages.isNotEmpty()) {
                                 QuickMessageButton(quickMessages = quickMessages, state = state)
                             }
-                            TextInputRow(
-                                state = state,
-                                assistant = assistant,
-                                completionProviders = completionProviders,
-                                onSendMessage = { sendMessage() },
-                                modifier = Modifier.weight(1f),
-                                showQuickMessageButton = false,
-                                fullscreenOnOverflow = true,
-                            )
+                        }
+                        val trailingActions: @Composable () -> Unit = {
                             asrButton()
                             interjectButton()
                             if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
@@ -426,6 +431,59 @@ fun ChatInput(
                                 )
                             }
                             sendButton()
+                        }
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            TextInputRow(
+                                state = state,
+                                assistant = assistant,
+                                completionProviders = completionProviders,
+                                onSendMessage = { sendMessage() },
+                                modifier = Modifier.fillMaxWidth(),
+                                showQuickMessageButton = false,
+                                fullscreenOnOverflow = true,
+                                contentPadding = PaddingValues(
+                                    start = if (stacked) 4.dp else 74.dp,
+                                    end = if (stacked) 4.dp else 134.dp,
+                                    bottom = if (stacked) 44.dp else 0.dp,
+                                ),
+                                onMeasure = { height, oneLine ->
+                                    fieldHeight = height
+                                    oneLineHeight = oneLine
+                                },
+                            )
+                            if (!stacked) {
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    leadingActions()
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    trailingActions()
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    leadingActions()
+                                    Spacer(Modifier.weight(1f))
+                                    trailingActions()
+                                }
+                            }
                         }
                     } else {
                         TextInputRow(
@@ -555,6 +613,8 @@ private fun TextInputRow(
     modifier: Modifier = Modifier,
     showQuickMessageButton: Boolean = true,
     fullscreenOnOverflow: Boolean = false,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
     val filesManager: FilesManager = koinInject()
@@ -701,6 +761,7 @@ private fun TextInputRow(
             state = state.textContent,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(contentPadding)
                 .heightIn(max = maxFieldHeight)
                 .testTag("chat_input")
                 .onSizeChanged { size ->
@@ -708,6 +769,7 @@ private fun TextInputRow(
                     if (state.textContent.text.isEmpty()) {
                         oneLineHeight = size.height
                     }
+                    onMeasure?.invoke(fieldHeight, oneLineHeight)
                 }
                 .contentReceiver(receiveContentListener)
                 .onFocusChanged {
