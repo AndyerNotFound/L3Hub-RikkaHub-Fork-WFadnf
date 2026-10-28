@@ -1850,4 +1850,9 @@
 
   <string name="task_tree_expand">Expand</string>
   <string name="task_tree_collapse">Collapse</string>
+
+  <string name="chat_page_compress_before_send_title">Context limit reached</string>
+  <string name="chat_page_compress_before_send_desc">The conversation history will be compressed automatically before this message is sent.</string>
+  <string name="chat_page_compress_and_send">Compress and send</string>
+  <string name="chat_page_auto_compress_failed">Auto-compress failed</string>
 </resources>

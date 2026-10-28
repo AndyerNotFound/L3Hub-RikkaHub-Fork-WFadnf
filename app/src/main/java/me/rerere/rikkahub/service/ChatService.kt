@@ -66,6 +66,7 @@ import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.getStoredAssistantOf
 import me.rerere.rikkahub.data.model.insertContextCheckpoint
+import me.rerere.rikkahub.data.model.estimateContextTokens
 import me.rerere.rikkahub.data.model.keepRecentMessagesForTokens
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.model.isAwaitingToolApproval
@@ -897,25 +898,44 @@ class ChatService(
         if (!assistant.autoCompress) return
 
         val model = settings.getChatModelOf(conversation) ?: return
-        val used = conversation.lastContextTokens() ?: return
         val limit = when (assistant.autoCompressThreshold) {
             AutoCompressThreshold.WARN -> model.warnContextTokens
             AutoCompressThreshold.MAX -> model.maxContextTokens
         } ?: return
-        if (used < limit) return
 
+        // 真实用量偶尔缺失（回复没写入 usage、压缩后还没开始下一轮），退回按字符估算；
+        // 估算只数检查点之后的可见内容，不含系统提示词与工具定义，作为兜底下限使用
+        val used = conversation.lastContextTokens()
+        val estimated = conversation.estimateContextTokens()
+        if ((used ?: 0) < limit && estimated < limit) {
+            Log.d(TAG, "autoCompress: skip used=$used estimated=$estimated limit=$limit")
+            return
+        }
+
+        // 保留条数不能超过检查点之后剩下的消息，否则压缩范围为空
+        val checkpointIndex = conversation.messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
+        val compressible = conversation.messageNodes.size - checkpointIndex - 1
+        if (compressible < 2) {
+            Log.d(TAG, "autoCompress: nothing to compress, compressible=$compressible")
+            return
+        }
         val keep = when (assistant.autoCompressTarget) {
             AutoCompressTarget.MESSAGES -> assistant.autoCompressTargetValue
             AutoCompressTarget.TOKENS -> conversation.keepRecentMessagesForTokens(assistant.autoCompressTargetValue)
-        }.coerceIn(0, (conversation.messageNodes.size - 1).coerceAtLeast(0))
+        }.coerceIn(0, compressible - 1)
 
-        Log.i(TAG, "autoCompress: conversation=${session.id} used=$used limit=$limit keep=$keep")
+        Log.i(TAG, "autoCompress: conversation=${session.id} used=$used estimated=$estimated limit=$limit keep=$keep")
         session.processingStatus.value = context.getString(R.string.chat_page_compressing)
         try {
             compressSession(session, additionalPrompt = "", keepRecentMessages = keep, requireIdle = false)
+            Log.i(TAG, "autoCompress: compressed conversation=${session.id}")
         } catch (e: Exception) {
-            // 压缩失败不阻塞本轮生成：可能是没有可压缩的消息或还有未完成的工具调用
             Log.w(TAG, "autoCompress: failed", e)
+            addError(
+                error = e,
+                conversationId = session.id,
+                title = context.getString(R.string.chat_page_auto_compress_failed),
+            )
         } finally {
             session.processingStatus.value = null
         }

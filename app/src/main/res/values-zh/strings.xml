@@ -1852,4 +1852,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
 
   <string name="task_tree_expand">展开</string>
   <string name="task_tree_collapse">收起</string>
+
+  <string name="chat_page_compress_before_send_title">上下文已满</string>
+  <string name="chat_page_compress_before_send_desc">这条消息会先自动压缩对话历史，压缩完成后自动发送。</string>
+  <string name="chat_page_compress_and_send">压缩并发送</string>
+  <string name="chat_page_auto_compress_failed">自动压缩失败</string>
 </resources>

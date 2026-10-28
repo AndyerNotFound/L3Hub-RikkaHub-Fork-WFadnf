@@ -40,6 +40,29 @@ private fun estimateMessageTokens(message: me.rerere.ai.ui.UIMessage): Int = est
     message.parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
 )
 
+/** 压缩检查点之后的上下文 token 估算；压缩前的老消息已经不会再发出去，不计入 */
+fun Conversation.estimateContextTokens(): Int {
+    val checkpointIndex = messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
+    val nodes = if (checkpointIndex >= 0) messageNodes.drop(checkpointIndex) else messageNodes
+    var total = 0
+    nodes.forEach { node ->
+        val message = node.messages.getOrNull(node.selectIndex) ?: return@forEach
+        message.parts.forEach { part ->
+            when (part) {
+                is UIMessagePart.Text -> total += estimateTokens(part.text)
+                is UIMessagePart.Tool -> {
+                    total += estimateTokens(part.toolName) + estimateTokens(part.input)
+                    part.output.filterIsInstance<UIMessagePart.Text>()
+                        .forEach { total += estimateTokens(it.text) }
+                }
+                else -> Unit
+            }
+        }
+        total += 4
+    }
+    return total
+}
+
 internal fun estimateTokens(text: String): Int {
     if (text.isEmpty()) return 0
     var cjk = 0

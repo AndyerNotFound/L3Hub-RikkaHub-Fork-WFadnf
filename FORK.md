@@ -192,7 +192,8 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 |---|---|
 | 触发阈值 | `WARN` 或 `MAX`，取模型上配置的两个上下文门限 |
 | 压缩后保留 | 按消息条数或 token 数；token 按字符估算（CJK 约 1 字 1 token，其它约 4 字符 1 token） |
-| 触发时机 | 每次发送消息后、生成本轮回复之前，用 `Conversation.lastContextTokens()` 与门限比较 |
+| 触发时机 | 每次发送消息后、生成本轮回复之前，用 `Conversation.lastContextTokens()` 与门限比较；用量缺失时退回按可见内容估算 |
+| 上下文已满 | 到达 MAX 后确认发送会先弹窗，确认后压缩再发送；保留条数超过检查点之后剩余的消息时自动收缩 |
 | 效果 | 与手动压缩完全一致：调用同一个压缩请求，在原位置插入 `isContextCheckpoint` 摘要消息 |
 | 界面 | 不弹浮窗，复用生成中的加载球与 `processingStatus`，显示「正在压缩……」 |
 

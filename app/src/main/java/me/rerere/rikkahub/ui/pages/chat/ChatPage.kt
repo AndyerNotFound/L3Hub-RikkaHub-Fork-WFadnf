@@ -298,6 +298,24 @@ private fun ChatPageContent(
     val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
     val contextLimitMessage = stringResource(R.string.chat_page_context_limit_reached)
 
+    // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
+    var showCompressAndSendDialog by remember { mutableStateOf(false) }
+    val submitInput: () -> Unit = {
+        if (inputState.isEditing()) {
+            vm.handleMessageEdit(
+                parts = inputState.getContents(),
+                messageId = inputState.editingMessage!!,
+            )
+        } else {
+            vm.handleMessageSend(inputState.getContents())
+            scope.launch {
+                delay(100.milliseconds)
+                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+            }
+        }
+        inputState.clearInput()
+    }
+
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -388,23 +406,15 @@ private fun ChatPageContent(
                             toaster.show("请先选择模型", type = ToastType.Error)
                             return@ChatInput
                         }
+                        if (contextLimitBlocksSend && assistant.autoCompress) {
+                            showCompressAndSendDialog = true
+                            return@ChatInput
+                        }
                         if (contextLimitReached) {
                             toaster.show(contextLimitMessage, type = ToastType.Error)
                             if (contextLimitBlocksSend) return@ChatInput
                         }
-                        if (inputState.isEditing()) {
-                            vm.handleMessageEdit(
-                                parts = inputState.getContents(),
-                                messageId = inputState.editingMessage!!,
-                            )
-                        } else {
-                            vm.handleMessageSend(inputState.getContents())
-                            scope.launch {
-                                delay(100.milliseconds)
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        }
-                        inputState.clearInput()
+                        submitInput()
                     },
                     onInterjectClick = {
                         if (contextLimitReached) {
@@ -507,6 +517,29 @@ private fun ChatPageContent(
                 },
                 onConversationSystemPromptChange = { newPrompt ->
                     vm.updateConversationSystemPrompt(newPrompt)
+                },
+            )
+        }
+
+        if (showCompressAndSendDialog) {
+            AlertDialog(
+                onDismissRequest = { showCompressAndSendDialog = false },
+                title = { Text(stringResource(R.string.chat_page_compress_before_send_title)) },
+                text = { Text(stringResource(R.string.chat_page_compress_before_send_desc)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showCompressAndSendDialog = false
+                            submitInput()
+                        }
+                    ) {
+                        Text(stringResource(R.string.chat_page_compress_and_send))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCompressAndSendDialog = false }) {
+                        Text(stringResource(R.string.assistant_page_cancel))
+                    }
                 },
             )
         }
