@@ -407,7 +407,14 @@ fun ChatInput(
                             )
                             asrButton()
                             interjectButton()
-                            reasoningButton()
+                            if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+                                reasoningButton()
+                            } else {
+                                ModelSelectorButton(
+                                    state = modelListState,
+                                    onlyIcon = true,
+                                )
+                            }
                             sendButton()
                         }
                     } else {
