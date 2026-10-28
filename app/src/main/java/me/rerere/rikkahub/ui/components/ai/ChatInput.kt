@@ -583,9 +583,13 @@ private fun TextInputRow(
         var fieldHeight by remember { mutableIntStateOf(0) }
         var oneLineHeight by remember { mutableIntStateOf(0) }
         val density = LocalDensity.current
+        val bodyLineHeight = MaterialTheme.typography.bodyLarge.lineHeight
         val lineHeightPx = with(density) {
-            runCatching { MaterialTheme.typography.bodyLarge.lineHeight.toPx() }
-                .getOrDefault(24.dp.toPx())
+            try {
+                bodyLineHeight.toPx()
+            } catch (_: Exception) {
+                24.dp.toPx()
+            }
         }
         val inputOverflowed = oneLineHeight > 0 && fieldHeight >= oneLineHeight + lineHeightPx * 3.5f
         var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
