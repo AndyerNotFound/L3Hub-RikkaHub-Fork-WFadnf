@@ -84,6 +84,8 @@ fun ColumnScope.ConversationList(
     conversations: LazyPagingItems<ConversationListItem>,
     conversationJobs: Collection<Uuid>,
     listState: LazyListState,
+    collapsedDates: Set<LocalDate> = emptySet(),
+    onToggleDate: (LocalDate) -> Unit = {},
     modifier: Modifier = Modifier,
     header: (@Composable () -> Unit)? = null,
     onClick: (Conversation) -> Unit = {},
@@ -94,8 +96,6 @@ fun ColumnScope.ConversationList(
     onMoveToFolder: (Conversation) -> Unit = {}
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
-    // 按日期折叠：记下收起的日期分组
-    var collapsedDates by remember { mutableStateOf(emptySet<LocalDate>()) }
     // 列表顶部若放了 header，会话项在 LazyColumn 中的位置要往后挪一位
     val headerCount = if (header != null) 1 else 0
 
@@ -183,13 +183,7 @@ fun ColumnScope.ConversationList(
                     DateHeaderItem(
                         label = item.label,
                         collapsed = item.date in collapsedDates,
-                        onToggle = {
-                            collapsedDates = if (item.date in collapsedDates) {
-                                collapsedDates - item.date
-                            } else {
-                                collapsedDates + item.date
-                            }
-                        },
+                        onToggle = { onToggleDate(item.date) },
                         modifier = Modifier.animateItem()
                     )
                 }

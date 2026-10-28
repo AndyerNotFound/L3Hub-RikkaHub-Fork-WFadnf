@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
@@ -61,6 +62,10 @@ class ChatDrawerVM(
     // 当前选中的文件夹筛选，null 表示「未归类」视图
     private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
     val selectedFolderId: StateFlow<Uuid?> = _selectedFolderId.asStateFlow()
+
+    // 收起的日期分组。放在 activity 级 VM 里，切换会话、关闭侧栏后不会被重置
+    private val _collapsedDates = MutableStateFlow<Set<LocalDate>>(emptySet())
+    val collapsedDates: StateFlow<Set<LocalDate>> = _collapsedDates.asStateFlow()
 
     // 当前助手的文件夹列表（Room Flow，增删改自动刷新）
     val folders: StateFlow<List<Folder>> = assistantIdFlow
@@ -138,6 +143,12 @@ class ChatDrawerVM(
 
     fun selectFolder(folderId: Uuid?) {
         _selectedFolderId.value = folderId
+    }
+
+    fun toggleDateCollapsed(date: LocalDate) {
+        _collapsedDates.update { dates ->
+            if (date in dates) dates - date else dates + date
+        }
     }
 
     fun createFolder(name: String) {

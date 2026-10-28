@@ -128,6 +128,7 @@ fun ChatDrawerContent(
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     val memoryDreaming by drawerVm.memoryDreaming.collectAsStateWithLifecycle()
+    val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
     val conversationListState = rememberLazyListState(
         initialFirstVisibleItemIndex = drawerVm.scrollIndex,
         initialFirstVisibleItemScrollOffset = drawerVm.scrollOffset,
@@ -261,6 +262,8 @@ fun ChatDrawerContent(
                 conversations = conversations,
                 conversationJobs = conversationJobs.keys,
                 listState = conversationListState,
+                collapsedDates = collapsedDates,
+                onToggleDate = drawerVm::toggleDateCollapsed,
                 header = if (scrollableHeader) drawerHeader else null,
                 modifier = Modifier
                     .fillMaxWidth()
