@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
@@ -116,6 +116,7 @@ import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -200,16 +201,27 @@ fun ChatMessage(
             }
         }
         val swipeModifier = Modifier.pointerInput(message.id, translation) {
-            var drag = 0f
-            detectHorizontalDragGestures(
-                onDragStart = { drag = 0f },
-                onHorizontalDrag = { change, amount ->
-                    change.consume()
-                    drag += amount
+            var totalX = 0f
+            var totalY = 0f
+            val triggerDistance = 96.dp.toPx()
+            detectDragGestures(
+                onDragStart = {
+                    totalX = 0f
+                    totalY = 0f
+                },
+                onDrag = { change, amount ->
+                    totalX += amount.x
+                    totalY += amount.y
+                    // 只吞掉明确横向的拖动，纵向滚动仍然交给列表
+                    if (abs(totalX) > abs(totalY) * 1.8f) {
+                        change.consume()
+                    }
                 },
                 onDragEnd = {
-                    when {
-                        drag < -60f -> {
+                    val isHorizontalSwipe = abs(totalX) >= triggerDistance &&
+                        abs(totalX) > abs(totalY) * 1.8f
+                    if (isHorizontalSwipe) {
+                        if (totalX < 0) {
                             if (translation != null) {
                                 showTranslationPage = true
                             } else if (onTranslate != null && !translating) {
@@ -219,10 +231,14 @@ fun ChatMessage(
                                     Locale.forLanguageTag(appSettings.translateTargetLanguage),
                                 )
                             }
+                        } else {
+                            showTranslationPage = false
                         }
-
-                        drag > 60f -> showTranslationPage = false
                     }
+                },
+                onDragCancel = {
+                    totalX = 0f
+                    totalY = 0f
                 },
             )
         }
