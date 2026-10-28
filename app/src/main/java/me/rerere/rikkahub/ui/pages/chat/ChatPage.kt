@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.WindowInsets
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
@@ -507,7 +508,7 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
-                    liftedBy = if (conversation.currentMessages.isEmpty() && !imeVisible) 210.dp else 0.dp,
+                    liftedBy = if (conversation.currentMessages.isEmpty() && !WindowInsets.isImeVisible) 210.dp else 0.dp,
                 )
             },
             containerColor = Color.Transparent,

@@ -404,7 +404,7 @@ fun ChatInput(
                             if (fieldHeight <= 0) return@LaunchedEffect
                             // 从别的页面返回时输入框是带着文本重建的，拿不到空文本时的单行高度，用字高估算
                             val effectiveOneLineHeight = if (oneLineHeight > 0) {
-                                oneLineHeight
+                                oneLineHeight.toFloat()
                             } else {
                                 lineHeightPx + fieldPaddingPx
                             }

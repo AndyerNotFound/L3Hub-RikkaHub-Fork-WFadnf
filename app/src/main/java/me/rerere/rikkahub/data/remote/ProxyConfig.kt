@@ -79,7 +79,7 @@ class SettingsProxySelector(
     override fun select(uri: URI): List<Proxy> {
         val settings = settingsStore.settingsFlow.value
         // 提供商单独配置的代理优先于全局代理
-        settings.providerProxies[uri.host].toProxyOrNull()?.let { proxy ->
+        settings.providerProxies[uri.host]?.toProxyOrNull()?.let { proxy ->
             return listOf(proxy)
         }
         settings.networkSetting.proxyUrl.toProxyOrNull()?.let { proxy ->
