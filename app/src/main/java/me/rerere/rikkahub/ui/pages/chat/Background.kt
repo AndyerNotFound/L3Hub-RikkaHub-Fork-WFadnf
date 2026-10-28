@@ -7,6 +7,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
@@ -24,6 +27,7 @@ fun AssistantBackground(setting: Settings, modifier: Modifier) {
         val backgroundColor = MaterialTheme.colorScheme.background
         val backgroundOpacity = assistant.backgroundOpacity.coerceIn(0f, 1f)
         Box(modifier = modifier) {
+            val blurRadius = (assistant.backgroundBlur.coerceIn(0f, 1f) * 24f).dp
             AsyncImage(
                 model = assistant.background,
                 contentDescription = null,
@@ -31,6 +35,13 @@ fun AssistantBackground(setting: Settings, modifier: Modifier) {
                 modifier = Modifier
                     .fillMaxSize()
                     .alpha(backgroundOpacity)
+                    .then(
+                        if (blurRadius > 0.dp) {
+                            Modifier.blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                        } else {
+                            Modifier
+                        }
+                    )
             )
 
             // 全屏渐变遮罩

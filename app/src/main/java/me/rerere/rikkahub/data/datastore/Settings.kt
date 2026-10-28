@@ -59,6 +59,11 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
+    // 手动维护的提供商分组（有序）与 提供商ID -> 分组名 的映射
+    val providerGroups: List<String> = emptyList(),
+    val providerGroupAssignments: Map<String, String> = emptyMap(),
+    // 按接口域名单独给某个提供商设置代理: host -> proxyUrl
+    val providerProxies: Map<String, String> = emptyMap(),
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),

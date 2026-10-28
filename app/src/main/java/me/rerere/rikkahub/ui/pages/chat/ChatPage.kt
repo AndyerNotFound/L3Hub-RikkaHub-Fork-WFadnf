@@ -507,7 +507,7 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
-                    liftedBy = if (conversation.currentMessages.isEmpty()) 210.dp else 0.dp,
+                    liftedBy = if (conversation.currentMessages.isEmpty() && !imeVisible) 210.dp else 0.dp,
                 )
             },
             containerColor = Color.Transparent,

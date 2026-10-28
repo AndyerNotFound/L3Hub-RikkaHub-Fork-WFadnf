@@ -517,6 +517,27 @@ internal fun AssistantBasicContent(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_background_blur)) },
+                    supportingContent = { Text(stringResource(R.string.assistant_page_background_blur_desc)) },
+                    trailingContent = {
+                        Text(
+                            text = "${(assistant.backgroundBlur.coerceIn(0f, 1f) * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                ) {
+                    Slider(
+                        value = assistant.backgroundBlur.coerceIn(0f, 1f),
+                        onValueChange = {
+                            onUpdate(assistant.copy(backgroundBlur = it))
+                        },
+                        valueRange = 0f..1f,
+                        steps = 19,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }

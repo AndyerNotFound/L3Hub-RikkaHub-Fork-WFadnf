@@ -34,6 +34,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -260,6 +262,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                     ProviderDetailTab.CONFIG -> {
                         SettingProviderConfigPage(
                             provider = provider,
+                            vm = vm,
                             onEdit = {
                                 onEdit(it)
                                 toaster.show(
@@ -295,12 +298,163 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
 @Composable
 private fun SettingProviderConfigPage(
     provider: ProviderSetting,
+    vm: SettingVM,
     onEdit: (ProviderSetting) -> Unit,
     onDelete: () -> Unit
 ) {
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
+
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val providerId = provider.id.toString()
+    val group = settings.providerGroupAssignments[providerId]
+    val proxyHost = provider.proxyHost()
+    val proxyUrl = proxyHost?.let { settings.providerProxies[it] }
+    var showGroupDialog by remember { mutableStateOf(false) }
+    var showProxyDialog by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
+    var proxyInput by remember { mutableStateOf("") }
+
+    fun assignGroup(name: String?) {
+        vm.updateSettings { latest ->
+            latest.copy(
+                providerGroups = if (name != null && name !in latest.providerGroups) {
+                    latest.providerGroups + name
+                } else {
+                    latest.providerGroups
+                },
+                providerGroupAssignments = if (name == null) {
+                    latest.providerGroupAssignments - providerId
+                } else {
+                    latest.providerGroupAssignments + (providerId to name)
+                },
+            )
+        }
+    }
+
+    if (showGroupDialog) {
+        AlertDialog(
+            onDismissRequest = { showGroupDialog = false },
+            title = { Text(stringResource(R.string.setting_provider_group_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                assignGroup(null)
+                                showGroupDialog = false
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = group == null, onClick = null)
+                        Text(stringResource(R.string.setting_provider_group_none))
+                    }
+                    settings.providerGroups.forEach { name ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    assignGroup(name)
+                                    showGroupDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = group == name, onClick = null)
+                            Text(name)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = newGroupName,
+                        onValueChange = { newGroupName = it },
+                        label = { Text(stringResource(R.string.setting_provider_group_new)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = newGroupName.isNotBlank(),
+                    onClick = {
+                        assignGroup(newGroupName.trim())
+                        newGroupName = ""
+                        showGroupDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.setting_provider_group_create))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGroupDialog = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
+
+    if (showProxyDialog) {
+        AlertDialog(
+            onDismissRequest = { showProxyDialog = false },
+            title = { Text(stringResource(R.string.setting_provider_proxy_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.setting_provider_proxy_desc))
+                    OutlinedTextField(
+                        value = proxyInput,
+                        onValueChange = { proxyInput = it },
+                        placeholder = { Text("http://127.0.0.1:7890") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (proxyUrl != null) {
+                        TextButton(
+                            onClick = {
+                                vm.updateSettings { latest ->
+                                    latest.copy(
+                                        providerProxies = proxyHost?.let { latest.providerProxies - it }
+                                            ?: latest.providerProxies
+                                    )
+                                }
+                                showProxyDialog = false
+                            },
+                        ) {
+                            Text(stringResource(R.string.setting_provider_proxy_clear))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val host = proxyHost
+                        if (host != null) {
+                            vm.updateSettings { latest ->
+                                latest.copy(
+                                    providerProxies = if (proxyInput.isBlank()) {
+                                        latest.providerProxies - host
+                                    } else {
+                                        latest.providerProxies + (host to proxyInput.trim())
+                                    }
+                                )
+                            }
+                        }
+                        showProxyDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showProxyDialog = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -326,6 +480,26 @@ private fun SettingProviderConfigPage(
                     internalProvider = it
                 }
             )
+
+            CardGroup {
+                item(
+                    onClick = { showGroupDialog = true },
+                    headlineContent = { Text(stringResource(R.string.setting_provider_group_title)) },
+                    supportingContent = {
+                        Text(group ?: stringResource(R.string.setting_provider_group_none))
+                    },
+                )
+                item(
+                    onClick = {
+                        proxyInput = proxyUrl.orEmpty()
+                        showProxyDialog = true
+                    },
+                    headlineContent = { Text(stringResource(R.string.setting_provider_proxy_title)) },
+                    supportingContent = {
+                        Text(proxyUrl ?: stringResource(R.string.setting_provider_proxy_desc_short))
+                    },
+                )
+            }
 
             // 账号类的额度查询写死在 Provider 里，没有这一项
             (internalProvider as? ProviderSetting.ApiKey)?.let { apiKeyProvider ->
@@ -1671,3 +1845,16 @@ private fun ProviderOverrideSettings(
         }
     }
 }
+
+private fun ProviderSetting.proxyHost(): String? = when (this) {
+    is ProviderSetting.OpenAI -> baseUrl.hostOf()
+    is ProviderSetting.Google -> baseUrl.hostOf()
+    is ProviderSetting.Claude -> baseUrl.hostOf()
+    is ProviderSetting.ChatGPT -> "chatgpt.com"
+    is ProviderSetting.Grok -> "api.x.ai"
+    else -> null
+}
+
+private fun String.hostOf(): String? = runCatching { java.net.URI(this).host }
+    .getOrNull()
+    ?.takeIf { it.isNotBlank() }

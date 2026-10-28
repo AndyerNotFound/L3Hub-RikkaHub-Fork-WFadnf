@@ -399,9 +399,16 @@ fun ChatInput(
                         val lineHeightPx = with(density) {
                             runCatching { bodyLineHeight.toPx() }.getOrDefault(24.dp.toPx())
                         }
+                        val fieldPaddingPx = with(density) { 20.dp.toPx() }
                         LaunchedEffect(fieldHeight, oneLineHeight, state.textContent.text.isEmpty()) {
-                            if (oneLineHeight <= 0) return@LaunchedEffect
-                            val lines = (fieldHeight - oneLineHeight) / lineHeightPx + 1f
+                            if (fieldHeight <= 0) return@LaunchedEffect
+                            // 从别的页面返回时输入框是带着文本重建的，拿不到空文本时的单行高度，用字高估算
+                            val effectiveOneLineHeight = if (oneLineHeight > 0) {
+                                oneLineHeight
+                            } else {
+                                lineHeightPx + fieldPaddingPx
+                            }
+                            val lines = (fieldHeight - effectiveOneLineHeight) / lineHeightPx + 1f
                             if (!stacked && lines >= 2.2f) {
                                 stacked = true
                             } else if (stacked && (state.textContent.text.isEmpty() || lines <= 1.1f)) {

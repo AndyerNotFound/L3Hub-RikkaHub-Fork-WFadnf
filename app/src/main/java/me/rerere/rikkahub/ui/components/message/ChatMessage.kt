@@ -5,7 +5,13 @@ import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -183,27 +189,93 @@ fun ChatMessage(
                 )
             }
         }
+        val translation = message.translation
+        var showTranslationPage by remember(message.id) { mutableStateOf(false) }
+        val swipeModifier = if (translation != null) {
+            Modifier.pointerInput(message.id, translation) {
+                var drag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { drag = 0f },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        drag += amount
+                    },
+                    onDragEnd = {
+                        if (drag < -60f) showTranslationPage = true
+                        else if (drag > 60f) showTranslationPage = false
+                    },
+                )
+            }
+        } else {
+            Modifier
+        }
         CompositionLocalProvider(
             LocalTextStyle provides textStyle,
             LocalWorkspaceId provides assistant?.workspaceId?.toString(),
         ) {
-            MessagePartsBlock(
-                assistant = assistant,
-                role = message.role,
-                parts = message.parts,
-                annotations = message.annotations,
-                loading = loading,
-                model = model,
-                onToolApproval = onToolApproval,
-                onToolAnswer = onToolAnswer,
-                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                hazeState = hazeState,
-            )
-
-            message.translation?.let { translation ->
-                CollapsibleTranslationText(
-                    content = translation,
-                    onClickCitation = {}
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(swipeModifier)
+            ) {
+                AnimatedContent(
+                    targetState = showTranslationPage && translation != null,
+                    transitionSpec = {
+                        if (targetState) {
+                            (slideInHorizontally { it } + fadeIn()) togetherWith
+                                (slideOutHorizontally { -it } + fadeOut())
+                        } else {
+                            (slideInHorizontally { -it } + fadeIn()) togetherWith
+                                (slideOutHorizontally { it } + fadeOut())
+                        }
+                    },
+                    label = "messageTranslationPage",
+                ) { translated ->
+                    if (translated && translation != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            MarkdownBlock(
+                                content = translation,
+                                onClickCitation = {},
+                            )
+                        }
+                    } else {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            MessagePartsBlock(
+                                assistant = assistant,
+                                role = message.role,
+                                parts = message.parts,
+                                annotations = message.annotations,
+                                loading = loading,
+                                model = model,
+                                onToolApproval = onToolApproval,
+                                onToolAnswer = onToolAnswer,
+                                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                hazeState = hazeState,
+                            )
+                        }
+                    }
+                }
+            }
+            if (translation != null) {
+                Text(
+                    text = stringResource(
+                        if (showTranslationPage) {
+                            R.string.chat_message_translation_show_original
+                        } else {
+                            R.string.chat_message_translation_show_translation
+                        }
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clickable {
+                            showTranslationPage = !showTranslationPage
+                        }
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
                 )
             }
         }

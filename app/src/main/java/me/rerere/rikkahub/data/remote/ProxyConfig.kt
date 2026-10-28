@@ -77,7 +77,12 @@ class SettingsProxySelector(
     private val systemProxySelector: ProxySelector? = ProxySelector.getDefault(),
 ) : ProxySelector() {
     override fun select(uri: URI): List<Proxy> {
-        settingsStore.settingsFlow.value.networkSetting.proxyUrl.toProxyOrNull()?.let { proxy ->
+        val settings = settingsStore.settingsFlow.value
+        // 提供商单独配置的代理优先于全局代理
+        settings.providerProxies[uri.host].toProxyOrNull()?.let { proxy ->
+            return listOf(proxy)
+        }
+        settings.networkSetting.proxyUrl.toProxyOrNull()?.let { proxy ->
             return listOf(proxy)
         }
         return runCatching { systemProxySelector?.select(uri) }

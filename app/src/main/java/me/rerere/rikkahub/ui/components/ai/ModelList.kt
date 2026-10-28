@@ -102,6 +102,8 @@ class ModelListState internal constructor(
     modelId: Uuid?,
     providers: List<ProviderSetting>,
     type: ModelType,
+    groups: List<String> = emptyList(),
+    assignments: Map<String, String> = emptyMap(),
 ) {
     var modelId by mutableStateOf(modelId)
         private set
@@ -115,13 +117,31 @@ class ModelListState internal constructor(
     var visible by mutableStateOf(false)
         private set
 
+    var groups by mutableStateOf(groups)
+        private set
+
+    var assignments by mutableStateOf(assignments)
+        private set
+
     val currentModel: Model?
         get() = modelId?.let { providers.findModelById(it) }
 
     val filteredProviders: List<ProviderSetting>
-        get() = providers.fastFilter { provider ->
-            provider.enabled && provider.models.fastAny { model -> model.type == type }
+        get() {
+            val rank = groups.withIndex().associate { (index, name) -> name to index }
+            return providers.fastFilter { provider ->
+                provider.enabled && provider.models.fastAny { model -> model.type == type }
+            }.sortedBy { provider ->
+                val group = assignments[provider.id.toString()]
+                when {
+                    group == null -> groups.size + 1
+                    rank[group] != null -> rank.getValue(group)
+                    else -> groups.size
+                }
+            }
         }
+
+    fun groupOf(provider: ProviderSetting): String? = assignments[provider.id.toString()]
 
     fun open() {
         visible = true
@@ -135,10 +155,14 @@ class ModelListState internal constructor(
         modelId: Uuid?,
         providers: List<ProviderSetting>,
         type: ModelType,
+        groups: List<String> = this.groups,
+        assignments: Map<String, String> = this.assignments,
     ) {
         this.modelId = modelId
         this.providers = providers
         this.type = type
+        this.groups = groups
+        this.assignments = assignments
     }
 }
 
@@ -148,6 +172,7 @@ fun rememberModelListState(
     providers: List<ProviderSetting>,
     type: ModelType,
 ): ModelListState {
+    val settings = me.rerere.rikkahub.ui.context.LocalSettings.current
     return remember {
         ModelListState(
             modelId = modelId,
@@ -159,6 +184,8 @@ fun rememberModelListState(
             modelId = modelId,
             providers = providers,
             type = type,
+            groups = settings.providerGroups,
+            assignments = settings.providerGroupAssignments,
         )
     }
 }
@@ -646,8 +673,13 @@ private fun ColumnScope.ModelList(
                         tint = MaterialTheme.colorScheme.primary,
                     )
 
+                    val groupName = settings.value.providerGroupAssignments[providerSetting.id.toString()]
                     Text(
-                        text = providerSetting.name,
+                        text = if (groupName.isNullOrBlank()) {
+                            providerSetting.name
+                        } else {
+                            "${providerSetting.name} · $groupName"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )

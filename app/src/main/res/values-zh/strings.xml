@@ -1903,4 +1903,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_dreaming_model">Dreaming 模型</string>
   <string name="assistant_page_dreaming_model_desc">后台整理记忆（Dreaming）时使用的模型，需要支持工具调用；不设置时跟随全局模型设置</string>
   <string name="assistant_page_dreaming_model_follow_global">跟随全局</string>
+  <string name="setting_provider_group_title">分组</string>
+  <string name="setting_provider_group_none">未分组</string>
+  <string name="setting_provider_group_new">新建分组</string>
+  <string name="setting_provider_group_create">新建并归入</string>
+  <string name="setting_provider_proxy_title">网络代理</string>
+  <string name="setting_provider_proxy_desc">为这个提供商的接口域名单独设置代理，例如 http://127.0.0.1:7890；留空则使用全局代理</string>
+  <string name="setting_provider_proxy_desc_short">跟随全局代理</string>
+  <string name="setting_provider_proxy_clear">清除该提供商的代理</string>
+  <string name="assistant_page_background_blur">背景模糊</string>
+  <string name="assistant_page_background_blur_desc">对聊天背景图做模糊处理，不影响界面元素</string>
+  <string name="chat_message_translation_show_translation">左滑查看翻译</string>
+  <string name="chat_message_translation_show_original">右滑返回原文</string>
 </resources>
