@@ -27,7 +27,10 @@ enum class ReasoningLevel(
     XHIGH(16_000, "xhigh"),
 
     @SerialName("max")
-    MAX(32_000, "max");
+    MAX(32_000, "max"),
+
+    @SerialName("ultra")
+    ULTRA(64_000, "max");
 
     val isEnabled: Boolean
         get() = this != OFF

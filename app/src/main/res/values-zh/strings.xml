@@ -1942,4 +1942,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_usage_empty">暂无用量数据</string>
   <string name="stats_page_token_distribution">Token 分布</string>
   <string name="chat_page_worldbook_injected">已注入世界书 %1$d 条</string>
+  <string name="reasoning_ultra">Ultra</string>
+  <string name="setting_display_page_use_l3hub_reasoning_title">使用L3Hub思考强度图标</string>
+  <string name="setting_display_page_use_l3hub_reasoning_desc">将思考强度的小灯泡换成 OALMHXMU 字母，并把滑块换成圆形滑块。</string>
+  <string name="chat_page_export_xml">XML</string>
+  <string name="chat_page_export_xml_desc">导出保留原始标记符号的 XML 文本</string>
 </resources>

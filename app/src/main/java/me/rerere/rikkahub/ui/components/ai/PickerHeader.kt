@@ -128,6 +128,7 @@ internal fun PickerHero(
     index: Int,
     icon: ImageVector,
     containerColor: Color,
+    letter: String? = null,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -169,18 +170,27 @@ internal fun PickerHero(
         contentAlignment = Alignment.Center,
     ) {
         AnimatedContent(
-            targetState = icon,
+            targetState = letter ?: icon,
             transitionSpec = {
                 (fadeIn(iconEffectsSpec) + scaleIn(iconSpatialSpec, initialScale = 0.6f)) togetherWith
                     (fadeOut(iconEffectsSpec) + scaleOut(iconSpatialSpec, targetScale = 0.6f))
             },
-        ) { icon ->
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = animatedContentColor,
-            )
+        ) { content ->
+            if (content is String) {
+                Text(
+                    text = content,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = animatedContentColor,
+                )
+            } else {
+                Icon(
+                    imageVector = content as ImageVector,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = animatedContentColor,
+                )
+            }
         }
     }
 }

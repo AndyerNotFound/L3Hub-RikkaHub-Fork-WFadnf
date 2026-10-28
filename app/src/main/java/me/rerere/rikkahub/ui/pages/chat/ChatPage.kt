@@ -90,7 +90,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
-import me.rerere.hugeicons.stroke.MessageAdd01
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
@@ -919,7 +919,7 @@ private fun TopBar(
                 }
 
                 IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
-                    Icon(HugeIcons.MessageAdd01, "New Message", modifier = Modifier.size(20.dp))
+                    Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(20.dp))
                 }
             }
         },

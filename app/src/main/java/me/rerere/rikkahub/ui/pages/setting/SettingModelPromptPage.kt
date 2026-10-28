@@ -79,6 +79,7 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                             onUpdateReasoningLevel = {
                                 vm.updateSettings { latest -> latest.copy(translateThinkingBudget = it.budgetTokens) }
                             },
+                            useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
                     },
                 )

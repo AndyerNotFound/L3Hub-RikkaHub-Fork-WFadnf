@@ -1,5 +1,22 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +81,7 @@ fun ReasoningButton(
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
     modelName: String? = null,
     onOpenModelList: (() -> Unit)? = null,
+    useL3HubStyle: Boolean = false,
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
@@ -74,6 +92,7 @@ fun ReasoningButton(
             onUpdateReasoningLevel = onUpdateReasoningLevel,
             modelName = modelName,
             onOpenModelList = onOpenModelList,
+            useL3HubStyle = useL3HubStyle,
         )
     }
 
@@ -91,7 +110,15 @@ fun ReasoningButton(
                 modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(reasoningLevel.icon(), null)
+                if (useL3HubStyle) {
+                    Text(
+                        text = reasoningLevel.letter(),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                } else {
+                    Icon(reasoningLevel.icon(), null)
+                }
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))
         }
@@ -105,6 +132,7 @@ fun ReasoningPicker(
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
     modelName: String? = null,
     onOpenModelList: (() -> Unit)? = null,
+    useL3HubStyle: Boolean = false,
 ) {
     val currentIndex = levels.indexOf(reasoningLevel).coerceAtLeast(0)
     val sliderState = remember {
@@ -186,6 +214,7 @@ fun ReasoningPicker(
                     shapes = levelShapes,
                     index = levels.indexOf(previewLevel),
                     icon = previewLevel.icon(),
+                    letter = if (useL3HubStyle) previewLevel.letter() else null,
                     containerColor = when {
                         !previewLevel.isEnabled -> MaterialTheme.colorScheme.surfaceContainerHighest
                         previewLevel >= ReasoningLevel.HIGH -> MaterialTheme.colorScheme.primary
@@ -199,31 +228,40 @@ fun ReasoningPicker(
                 )
             }
 
-            Slider(
-                state = sliderState,
-                onValueChange = { sliderState.value = it },
-                onValueChangeFinished = {
-                    val snappedIndex = sliderState.value.roundToInt().coerceIn(0, levelCount - 1)
-                    sliderState.value = snappedIndex.toFloat()
-                    onUpdateReasoningLevel(levels[snappedIndex])
-                },
-                modifier = Modifier.fillMaxWidth(),
-                interactionSource = interactionSource,
-                thumb = {
-                    SliderDefaults.Thumb(
-                        interactionSource = interactionSource,
-                        isVertical = false,
-                        thumbSize = DpSize(4.dp, 52.dp),
-                    )
-                },
-                track = { sliderState ->
-                    SliderDefaults.Track(
-                        sliderState = sliderState,
-                        trackCornerSize = 12.dp,
-                        modifier = Modifier.height(40.dp),
-                    )
-                }
-            )
+            if (useL3HubStyle) {
+                CircularReasoningSlider(
+                    level = previewLevel,
+                    onPreview = { sliderState.value = levels.indexOf(it).toFloat() },
+                    onCommit = { onUpdateReasoningLevel(it) },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            } else {
+                Slider(
+                    state = sliderState,
+                    onValueChange = { sliderState.value = it },
+                    onValueChangeFinished = {
+                        val snappedIndex = sliderState.value.roundToInt().coerceIn(0, levelCount - 1)
+                        sliderState.value = snappedIndex.toFloat()
+                        onUpdateReasoningLevel(levels[snappedIndex])
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    interactionSource = interactionSource,
+                    thumb = {
+                        SliderDefaults.Thumb(
+                            interactionSource = interactionSource,
+                            isVertical = false,
+                            thumbSize = DpSize(4.dp, 52.dp),
+                        )
+                    },
+                    track = { sliderState ->
+                        SliderDefaults.Track(
+                            sliderState = sliderState,
+                            trackCornerSize = 12.dp,
+                            modifier = Modifier.height(40.dp),
+                        )
+                    }
+                )
+            }
         }
     }
 }
@@ -236,6 +274,7 @@ private fun ReasoningLevel.icon(): ImageVector = when (this) {
     ReasoningLevel.HIGH -> ReasoningHigh
     ReasoningLevel.XHIGH -> ReasoningHigh
     ReasoningLevel.MAX -> ReasoningHigh
+    ReasoningLevel.ULTRA -> ReasoningHigh
 }
 
 private fun ReasoningLevel.shape(): RoundedPolygon = when (this) {
@@ -246,6 +285,7 @@ private fun ReasoningLevel.shape(): RoundedPolygon = when (this) {
     ReasoningLevel.HIGH -> MaterialShapes.Cookie9Sided
     ReasoningLevel.XHIGH -> MaterialShapes.Cookie12Sided
     ReasoningLevel.MAX -> MaterialShapes.SoftBurst
+    ReasoningLevel.ULTRA -> MaterialShapes.Circle
 }
 
 @Composable
@@ -257,6 +297,163 @@ private fun ReasoningLevel.label(): String = when (this) {
     ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
     ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
     ReasoningLevel.MAX -> stringResource(R.string.reasoning_max)
+    ReasoningLevel.ULTRA -> stringResource(R.string.reasoning_ultra)
+}
+
+private fun ReasoningLevel.letter(): String = when (this) {
+    ReasoningLevel.OFF -> "O"
+    ReasoningLevel.AUTO -> "A"
+    ReasoningLevel.LOW -> "L"
+    ReasoningLevel.MEDIUM -> "M"
+    ReasoningLevel.HIGH -> "H"
+    ReasoningLevel.XHIGH -> "X"
+    ReasoningLevel.MAX -> "M"
+    ReasoningLevel.ULTRA -> "U"
+}
+
+private const val CIRCLE_START_ANGLE = 135f
+private const val CIRCLE_SWEEP_ANGLE = 270f
+
+@Composable
+private fun CircularReasoningSlider(
+    level: ReasoningLevel,
+    onPreview: (ReasoningLevel) -> Unit,
+    onCommit: (ReasoningLevel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val textMeasurer = rememberTextMeasurer()
+    var previewIndex by remember { mutableIntStateOf(levels.indexOf(level).coerceAtLeast(0)) }
+    LaunchedEffect(level) {
+        previewIndex = levels.indexOf(level).coerceAtLeast(0)
+    }
+
+    val primary = MaterialTheme.colorScheme.primary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+
+    fun indexAt(position: Offset, canvasSize: Size): Int {
+        val center = Offset(canvasSize.width / 2f, canvasSize.height / 2f)
+        val angle = Math.toDegrees(
+            atan2((position.y - center.y).toDouble(), (position.x - center.x).toDouble())
+        ).toFloat()
+        val relative = ((angle - CIRCLE_START_ANGLE) % 360f + 360f) % 360f
+        if (relative > CIRCLE_SWEEP_ANGLE) {
+            val pastEnd = relative - CIRCLE_SWEEP_ANGLE
+            return if (pastEnd < (360f - CIRCLE_SWEEP_ANGLE) / 2f) levels.lastIndex else 0
+        }
+        return (relative / CIRCLE_SWEEP_ANGLE * levels.lastIndex)
+            .roundToInt()
+            .coerceIn(0, levels.lastIndex)
+    }
+
+    fun select(index: Int, commit: Boolean) {
+        if (index != previewIndex) {
+            previewIndex = index
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            onPreview(levels[index])
+        }
+        if (commit) onCommit(levels[index])
+    }
+
+    Box(modifier = modifier.size(260.dp), contentAlignment = Alignment.Center) {
+        Canvas(
+            modifier = Modifier
+                .size(260.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        select(
+                            index = indexAt(offset, Size(size.width.toFloat(), size.height.toFloat())),
+                            commit = true,
+                        )
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            select(
+                                index = indexAt(offset, Size(size.width.toFloat(), size.height.toFloat())),
+                                commit = false,
+                            )
+                        },
+                        onDrag = { change, _ ->
+                            select(
+                                index = indexAt(change.position, Size(size.width.toFloat(), size.height.toFloat())),
+                                commit = false,
+                            )
+                        },
+                        onDragEnd = { onCommit(levels[previewIndex]) },
+                        onDragCancel = { onCommit(levels[previewIndex]) },
+                    )
+                }
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = size.minDimension * 0.34f
+            val stroke = 14.dp.toPx()
+            val arcTopLeft = Offset(center.x - radius, center.y - radius)
+            val arcSize = Size(radius * 2, radius * 2)
+            drawArc(
+                color = trackColor,
+                startAngle = CIRCLE_START_ANGLE,
+                sweepAngle = CIRCLE_SWEEP_ANGLE,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+            val progress = previewIndex.toFloat() / levels.lastIndex
+            drawArc(
+                color = primary,
+                startAngle = CIRCLE_START_ANGLE,
+                sweepAngle = CIRCLE_SWEEP_ANGLE * progress,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+            levels.forEachIndexed { index, item ->
+                val angle = Math.toRadians(
+                    (CIRCLE_START_ANGLE + CIRCLE_SWEEP_ANGLE * index / levels.lastIndex).toDouble()
+                )
+                val point = Offset(
+                    center.x + cos(angle).toFloat() * (radius + stroke * 1.4f),
+                    center.y + sin(angle).toFloat() * (radius + stroke * 1.4f),
+                )
+                val layout = textMeasurer.measure(
+                    text = AnnotatedString(item.letter()),
+                    style = labelStyle.copy(color = if (index == previewIndex) primary else labelColor),
+                )
+                drawText(
+                    textLayoutResult = layout,
+                    topLeft = point - Offset(layout.size.width / 2f, layout.size.height / 2f),
+                )
+            }
+            val thumbAngle = Math.toRadians(
+                (CIRCLE_START_ANGLE + CIRCLE_SWEEP_ANGLE * progress).toDouble()
+            )
+            val thumbCenter = Offset(
+                center.x + cos(thumbAngle).toFloat() * radius,
+                center.y + sin(thumbAngle).toFloat() * radius,
+            )
+            drawCircle(color = primary, radius = 9.dp.toPx(), center = thumbCenter)
+            drawCircle(color = onPrimary, radius = 3.dp.toPx(), center = thumbCenter)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = levels[previewIndex].letter(),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = primary,
+            )
+            Text(
+                text = levels[previewIndex].label(),
+                style = MaterialTheme.typography.labelMedium,
+                color = labelColor,
+            )
+        }
+    }
 }
 
 @Composable

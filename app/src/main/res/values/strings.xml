@@ -1940,4 +1940,9 @@
   <string name="chat_message_usage_empty">No usage data yet</string>
   <string name="stats_page_token_distribution">Token distribution</string>
   <string name="chat_page_worldbook_injected">%1$d worldbook entries injected</string>
+  <string name="reasoning_ultra">Ultra</string>
+  <string name="setting_display_page_use_l3hub_reasoning_title">Use L3Hub reasoning icons</string>
+  <string name="setting_display_page_use_l3hub_reasoning_desc">Replace the thinking icon with OALMHXMU letters and use a circular slider.</string>
+  <string name="chat_page_export_xml">XML</string>
+  <string name="chat_page_export_xml_desc">Export XML text preserving raw markup symbols</string>
 </resources>

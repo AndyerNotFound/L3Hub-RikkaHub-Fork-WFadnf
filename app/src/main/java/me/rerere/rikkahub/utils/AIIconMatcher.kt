@@ -1,9 +1,18 @@
 package me.rerere.rikkahub.utils
 
+import android.content.Context
+
+private var assetIconNamesCache: List<String>? = null
+
+fun loadAIIconNames(context: Context): List<String> {
+    assetIconNamesCache?.let { return it }
+    return context.assets.list("icons").orEmpty().toList().also { assetIconNamesCache = it }
+}
+
 private val iconCache = mutableMapOf<String, String>()
 
 // https://lobehub.com/zh/icons
-fun computeAIIconByName(name: String): String? {
+fun computeAIIconByName(name: String, availableIcons: List<String> = emptyList()): String? {
     iconCache[name]?.let { return it }
 
     val lowerName = name.lowercase()
@@ -53,6 +62,34 @@ fun computeAIIconByName(name: String): String? {
         PATTERN_LONGCAT.containsMatchIn(lowerName) -> "longcat-color.svg"
         PATTERN_ELEVENLABS.containsMatchIn(lowerName) -> "elevenlabs.svg"
         PATTERN_FISH_AUDIO.containsMatchIn(lowerName) -> "fish-audio.svg"
+        PATTERN_ERNIE.containsMatchIn(lowerName) -> "wenxin.svg"
+        PATTERN_NOVA.containsMatchIn(lowerName) -> "nova.svg"
+        PATTERN_PHI.containsMatchIn(lowerName) -> "microsoft.svg"
+        PATTERN_SOLAR.containsMatchIn(lowerName) -> "upstage.svg"
+        PATTERN_JAMBA.containsMatchIn(lowerName) -> "ai21.svg"
+        PATTERN_DBRX.containsMatchIn(lowerName) -> "dbrx.svg"
+        PATTERN_LLAVA.containsMatchIn(lowerName) -> "llava.svg"
+        PATTERN_HERMES.containsMatchIn(lowerName) -> "nousresearch.svg"
+        PATTERN_DOLPHIN.containsMatchIn(lowerName) -> "dolphin.svg"
+        PATTERN_AYA.containsMatchIn(lowerName) -> "aya.svg"
+        PATTERN_GRANITE.containsMatchIn(lowerName) -> "ibm.svg"
+        PATTERN_SNOWFLAKE.containsMatchIn(lowerName) -> "snowflake.svg"
+        PATTERN_SPARK.containsMatchIn(lowerName) -> "spark.svg"
+        PATTERN_BAICHUAN.containsMatchIn(lowerName) -> "baichuan.svg"
+        PATTERN_SENSENOVA.containsMatchIn(lowerName) -> "sensenova.svg"
+        PATTERN_SKYWORK.containsMatchIn(lowerName) -> "skywork.svg"
+        PATTERN_TIANGONG.containsMatchIn(lowerName) -> "tiangong.svg"
+        PATTERN_YUANBAO.containsMatchIn(lowerName) -> "yuanbao.svg"
+        PATTERN_XUANYUAN.containsMatchIn(lowerName) -> "xuanyuan.svg"
+        PATTERN_PALM.containsMatchIn(lowerName) -> "palm.svg"
+        PATTERN_SORA.containsMatchIn(lowerName) -> "sora.svg"
+        PATTERN_CODEX.containsMatchIn(lowerName) -> "codex.svg"
+        PATTERN_YI.containsMatchIn(lowerName) -> "yi.svg"
+        PATTERN_MISTRAL_VARIANT.containsMatchIn(lowerName) -> "mistral-color.svg"
+        PATTERN_NEMOTRON.containsMatchIn(lowerName) -> "nvidia-color.svg"
+        PATTERN_ARCEE.containsMatchIn(lowerName) -> "arcee.svg"
+        PATTERN_INFLECTION.containsMatchIn(lowerName) -> "inflection.svg"
+        PATTERN_AZURE.containsMatchIn(lowerName) -> "azure.svg"
         PATTERN_RIKKAHUB.containsMatchIn(lowerName) -> "rikkahub.svg"
         PATTERN_SEARCH_LINKUP.containsMatchIn(lowerName) -> "linkup.png"
         PATTERN_SEARCH_BING.containsMatchIn(lowerName) -> "bing.png"
@@ -66,8 +103,44 @@ fun computeAIIconByName(name: String): String? {
         else -> null
     }
 
-    result?.let { iconCache[name] = it }
-    return result
+    val icon = result ?: matchIconByAssetName(lowerName, availableIcons)
+    icon?.let { iconCache[name] = it }
+    return icon
+}
+
+private val GENERIC_ICON_NAMES = setOf(
+    "api", "app", "chat", "new", "text", "color", "brand", "cloud", "code", "coder",
+    "model", "bot", "lab", "labs", "data", "dev", "web", "tool", "image", "video",
+    "audio", "search", "dark", "light", "open", "free", "beta", "pro", "max", "mini",
+    "plus", "base", "tech", "one", "two", "top", "hub", "mcp", "sdk", "the", "and",
+)
+
+private fun matchIconByAssetName(name: String, availableIcons: List<String>): String? {
+    if (availableIcons.isEmpty()) return null
+    val words = name.split(Regex("[^a-z0-9]+"))
+        .filter { it.length >= 3 && it !in GENERIC_ICON_NAMES }
+        .toSet()
+    if (words.isEmpty()) return null
+
+    val candidates = availableIcons.mapNotNull { file ->
+        if (!file.endsWith(".svg") && !file.endsWith(".png")) return@mapNotNull null
+        val base = file.substringBeforeLast('.')
+            .removeSuffix("-color")
+            .removeSuffix("-brand")
+            .removeSuffix("-text")
+        if (base.length < 3 || base in GENERIC_ICON_NAMES || base.startsWith("dark-")) {
+            null
+        } else {
+            base to file
+        }
+    }
+
+    candidates.firstOrNull { (base, _) -> base in words }?.let { return it.second }
+    // 长名字才做包含匹配，避免 ace 这类短名字误伤 space
+    return candidates
+        .filter { (base, _) -> base.length >= 5 && name.contains(base) }
+        .maxByOrNull { it.first.length }
+        ?.second
 }
 
 private val PATTERN_RIKKAHUB = Regex("rikka|auto")
@@ -126,3 +199,32 @@ private val PATTERN_SEARCH_METASO = Regex("metaso|秘塔")
 private val PATTERN_SEARCH_FIRECRAWL = Regex("firecrawl")
 private val PATTERN_SEARCH_JINA = Regex("jina")
 private val PATTERN_SEARCH_SEARXNG = Regex("searxng")
+
+private val PATTERN_ERNIE = Regex("ernie|wenxin|文心|baidu")
+private val PATTERN_NOVA = Regex("\\bnova\\b|amazon|bedrock|\\baws\\b")
+private val PATTERN_PHI = Regex("\\bphi\\b|phi-|microsoft")
+private val PATTERN_SOLAR = Regex("\\bsolar\\b|upstage")
+private val PATTERN_JAMBA = Regex("jamba|ai21")
+private val PATTERN_DBRX = Regex("dbrx|databricks")
+private val PATTERN_LLAVA = Regex("llava")
+private val PATTERN_HERMES = Regex("hermes|nous")
+private val PATTERN_DOLPHIN = Regex("dolphin")
+private val PATTERN_AYA = Regex("\\baya\\b")
+private val PATTERN_GRANITE = Regex("granite|\\bibm\\b")
+private val PATTERN_SNOWFLAKE = Regex("snowflake|arctic")
+private val PATTERN_SPARK = Regex("spark|讯飞|iflytek")
+private val PATTERN_BAICHUAN = Regex("baichuan|百川")
+private val PATTERN_SENSENOVA = Regex("sensenova|商汤")
+private val PATTERN_SKYWORK = Regex("skywork|天工")
+private val PATTERN_TIANGONG = Regex("tiangong")
+private val PATTERN_YUANBAO = Regex("yuanbao|元宝")
+private val PATTERN_XUANYUAN = Regex("xuanyuan|轩辕")
+private val PATTERN_PALM = Regex("\\bpalm\\b")
+private val PATTERN_SORA = Regex("\\bsora\\b")
+private val PATTERN_CODEX = Regex("codex")
+private val PATTERN_YI = Regex("(^|[^a-z0-9])yi([^a-z0-9]|$)|零一")
+private val PATTERN_MISTRAL_VARIANT = Regex("codestral|magistral|devstral|ministral|pixtral")
+private val PATTERN_NEMOTRON = Regex("nemotron")
+private val PATTERN_ARCEE = Regex("arcee")
+private val PATTERN_INFLECTION = Regex("inflection|\\bpi\\b")
+private val PATTERN_AZURE = Regex("azure")

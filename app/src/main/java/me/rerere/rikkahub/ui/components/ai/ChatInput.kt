@@ -399,6 +399,7 @@ fun ChatInput(
                                 } else {
                                     null
                                 },
+                                useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                             )
                         }
                     }

@@ -20,6 +20,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.computeAIIconByName
+import me.rerere.rikkahub.utils.loadAIIconNames
 import me.rerere.rikkahub.utils.toCssHex
 
 @Composable
@@ -64,7 +65,9 @@ fun AutoAIIcon(
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
 ) {
-    val path = remember(name) { computeAIIconByName(name) } ?: run {
+    val context = LocalContext.current
+    val iconNames = remember(context) { loadAIIconNames(context) }
+    val path = remember(name, iconNames) { computeAIIconByName(name, iconNames) } ?: run {
         TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
         return
     }

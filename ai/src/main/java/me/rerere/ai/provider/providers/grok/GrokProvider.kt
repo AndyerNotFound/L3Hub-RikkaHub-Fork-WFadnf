@@ -75,7 +75,8 @@ private fun grokEffort(level: ReasoningLevel, modelId: String): String? {
         ReasoningLevel.LOW -> "low"
         ReasoningLevel.MEDIUM -> "medium"
         ReasoningLevel.HIGH -> "high"
-        ReasoningLevel.XHIGH, ReasoningLevel.MAX -> if (modelId == "grok-4.6") "xhigh" else "high"
+        ReasoningLevel.XHIGH, ReasoningLevel.MAX, ReasoningLevel.ULTRA ->
+            if (modelId == "grok-4.6") "xhigh" else "high"
     }
 }
 

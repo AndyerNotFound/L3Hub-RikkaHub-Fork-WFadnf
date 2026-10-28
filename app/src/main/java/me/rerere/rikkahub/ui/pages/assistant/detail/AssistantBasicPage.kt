@@ -46,6 +46,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -245,7 +246,8 @@ internal fun AssistantBasicContent(
                         reasoningLevel = assistant.reasoningLevel,
                         onUpdateReasoningLevel = { level ->
                             onUpdate(assistant.copy(reasoningLevel = level))
-                        }
+                        },
+                        useL3HubStyle = LocalSettings.current.displaySetting.useL3HubReasoningStyle,
                     )
                 },
             )

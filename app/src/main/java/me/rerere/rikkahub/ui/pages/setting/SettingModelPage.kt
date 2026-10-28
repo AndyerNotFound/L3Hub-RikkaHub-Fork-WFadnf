@@ -191,6 +191,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                             onUpdateReasoningLevel = {
                                 vm.updateSettings { latest -> latest.copy(fastModelReasoningLevel = it) }
                             },
+                            useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
                     },
                 )
@@ -236,6 +237,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                                 onUpdateReasoningLevel = {
                                     vm.updateSettings { latest -> latest.copy(memoryModelReasoningLevel = it) }
                                 },
+                                useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                             )
                         },
                     )

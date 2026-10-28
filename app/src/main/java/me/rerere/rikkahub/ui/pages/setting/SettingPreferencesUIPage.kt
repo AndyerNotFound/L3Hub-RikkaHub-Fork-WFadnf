@@ -200,6 +200,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
                     )
                     switchItem(
+                        checked = displaySetting.useL3HubReasoningStyle,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(useL3HubReasoningStyle = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_title)) },
+                    )
+                    switchItem(
                         checked = displaySetting.showTokenUsage,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
