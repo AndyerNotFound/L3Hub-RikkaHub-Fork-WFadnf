@@ -126,6 +126,7 @@ fun ChatList(
     previewMode: Boolean,
     settings: Settings,
     hazeState: HazeState,
+    bubbleHazeState: HazeState? = null,
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
     onClearAllErrors: () -> Unit = {},

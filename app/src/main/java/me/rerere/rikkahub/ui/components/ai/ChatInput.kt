@@ -79,7 +79,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSp
 import androidx.compose.ui.window.DialogProperties
 import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
@@ -585,7 +584,8 @@ private fun TextInputRow(
         var oneLineHeight by remember { mutableIntStateOf(0) }
         val density = LocalDensity.current
         val lineHeightPx = with(density) {
-            MaterialTheme.typography.bodyLarge.lineHeight.let { if (it.isSp) it.toPx() else 24.dp.toPx() }
+            runCatching { MaterialTheme.typography.bodyLarge.lineHeight.toPx() }
+                .getOrDefault(24.dp.toPx())
         }
         val inputOverflowed = oneLineHeight > 0 && fieldHeight >= oneLineHeight + lineHeightPx * 3.5f
         var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
