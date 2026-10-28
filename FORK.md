@@ -156,6 +156,22 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 - 清掉后界面如实显示"未填写"，并提示"已保存的凭据不可用，请重新填写"
 - 保存时不再沿用解不开的密文；没有可用凭据时直接提示，不再去连服务器
 
+## 子代理（Sub-Agent，fork 新增）
+
+三处配合使用，形成一个最小的多代理协作：
+
+1. **助手 → 基础**：打开「设为子代理」，这个助手才会出现在别的助手的派发列表里
+2. **助手 → 本地工具**：打开「派发子代理」，主助手拿到 `dispatch_sub_agent` 工具，参数为 `assistant`（子代理名称）和 `task`（自包含的任务描述）
+3. **聊天页右上角**：任务树按钮，展开当前会话下所有子代理会话，以及每个会话里执行过的工具调用与输出
+
+实现要点：
+
+- 子代理跑在独立会话里，会话带 `parentConversationId`，挂在父会话下面，不占用主对话上下文
+- 子代理最多嵌套 4 层，超过后工具直接返回提示；不能把任务派发给自己
+- 子代理会话不出现在会话列表与搜索里（`parent_conversation_id = ''` 过滤），只能从任务树进入
+- 数据库升到 v33，新增 `parent_conversation_id` / `sub_agent_task` / `sub_agent_state` 三列，走 Room 自动迁移
+- 预览版限制：子代理是同步执行的，父回合会等它跑完；子代理如果调用需要用户审批的工具（`ask_user`、需要审批的 MCP 工具），当前会直接判定失败并在任务树里标红
+
 ## 性能：只出的那个包按 release 方式编译
 
 `app/build.gradle.kts` 里把 debug 变体改成 `isDebuggable = false`，包名（`com.rikkahub.l3hub.wfadnf.debug`）

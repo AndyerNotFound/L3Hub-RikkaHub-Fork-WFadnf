@@ -3,6 +3,7 @@ package me.rerere.rikkahub.di
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.ChatRequestFactory
+import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.event.AppEventBus
@@ -29,7 +30,15 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get())
+        SubAgentRunner(
+            settingsStore = get(),
+            conversationRepository = get(),
+            requestFactory = { get() },
+        )
+    }
+
+    single {
+        LocalTools(get(), get(), get(), get(), get())
     }
 
     single {

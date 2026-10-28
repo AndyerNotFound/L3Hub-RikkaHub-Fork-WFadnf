@@ -170,6 +170,18 @@ internal fun AssistantBasicContent(
                     singleLine = true,
                 )
             }
+            switchItem(
+                checked = assistant.isSubAgent,
+                onCheckedChange = {
+                    onUpdate(
+                        assistant.copy(
+                            isSubAgent = it
+                        )
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_sub_agent_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_sub_agent)) },
+            )
             formItem(
                 headlineContent = { Text(stringResource(R.string.assistant_page_tags)) },
             ) {

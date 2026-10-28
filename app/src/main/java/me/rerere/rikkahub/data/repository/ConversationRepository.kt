@@ -394,6 +394,9 @@ class ConversationRepository(
             workspaceCwd = conversation.workspaceCwd ?: "",
             folderId = conversation.folderId?.toString() ?: "",
             config = conversation.config?.let { JsonInstant.encodeToString(it) } ?: "",
+            parentConversationId = conversation.parentConversationId?.toString() ?: "",
+            subAgentTask = conversation.subAgentTask ?: "",
+            subAgentState = conversation.subAgentState ?: "",
         )
     }
 
@@ -416,8 +419,16 @@ class ConversationRepository(
             workspaceCwd = conversationEntity.workspaceCwd.ifEmpty { null },
             folderId = conversationEntity.folderId.ifEmpty { null }?.let { Uuid.parse(it) },
             config = conversationEntity.config.ifEmpty { null }?.let { JsonInstant.decodeFromString(it) },
+            parentConversationId = conversationEntity.parentConversationId.ifEmpty { null }?.let { Uuid.parse(it) },
+            subAgentTask = conversationEntity.subAgentTask.ifEmpty { null },
+            subAgentState = conversationEntity.subAgentState.ifEmpty { null },
         )
     }
+
+    suspend fun getChildConversations(parentId: Uuid): List<Conversation> =
+        conversationDAO.getChildrenOf(parentId.toString()).map { entity ->
+            conversationEntityToConversation(entity, loadMessageNodes(entity.id))
+        }
 
     fun getPinnedConversations(): Flow<List<Conversation>> {
         return conversationDAO

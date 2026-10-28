@@ -50,6 +50,7 @@ class ChatToolFactory(
         assistant: Assistant,
         model: Model,
         workspaceCwd: String? = null,
+        conversationId: Uuid? = null,
     ): List<Tool> {
         val workspaceTools = createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd)
         val tools = buildList {
@@ -59,7 +60,13 @@ class ChatToolFactory(
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))
             }
-            addAll(localTools.getTools(assistant.localTools))
+            addAll(
+                localTools.getTools(
+                    options = assistant.localTools,
+                    conversationId = conversationId,
+                    assistants = settings.assistants,
+                )
+            )
             if (assistant.enableRecentChatsReference) {
                 addAll(createConversationTools(conversationRepository, assistant.id))
             }

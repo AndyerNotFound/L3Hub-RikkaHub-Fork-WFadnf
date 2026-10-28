@@ -58,6 +58,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
@@ -300,6 +301,7 @@ private fun ChatPageContent(
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
+    var showTaskTree by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
         setting = setting,
@@ -345,7 +347,8 @@ private fun ChatPageContent(
                     },
                     onUpdateTitle = {
                         vm.updateTitle(it)
-                    }
+                    },
+                    onShowTaskTree = { showTaskTree = true },
                 )
             },
             bottomBar = {
@@ -508,6 +511,17 @@ private fun ChatPageContent(
             )
         }
 
+        if (showTaskTree) {
+            SubAgentTaskSheet(
+                conversationId = conversation.id,
+                onDismiss = { showTaskTree = false },
+                onOpenConversation = { id ->
+                    showTaskTree = false
+                    navigateToChatPage(navController, chatId = id)
+                },
+            )
+        }
+
         if (showFilesSheet) {
             ChatFilesPickerSheet(
                 inputState = inputState,
@@ -607,7 +621,8 @@ private fun TopBar(
     previewMode: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
-    onUpdateTitle: (String) -> Unit
+    onUpdateTitle: (String) -> Unit,
+    onShowTaskTree: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -663,6 +678,12 @@ private fun TopBar(
             }
         },
         actions = {
+            IconButton(
+                onClick = onShowTaskTree,
+            ) {
+                Icon(HugeIcons.Flowchart01, stringResource(R.string.chat_task_tree_button))
+            }
+
             IconButton(
                 onClick = {
                     onClickMenu()

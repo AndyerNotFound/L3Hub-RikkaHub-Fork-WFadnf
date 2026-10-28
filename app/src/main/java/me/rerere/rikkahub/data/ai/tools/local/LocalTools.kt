@@ -2,15 +2,19 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
 import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.tts.provider.TTSManager
+import kotlin.uuid.Uuid
 
 class LocalTools(
     private val context: Context,
     private val eventBus: AppEventBus,
     private val ttsManager: TTSManager,
     private val settingsStore: SettingsStore,
+    private val subAgentRunner: SubAgentRunner,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -30,7 +34,11 @@ class LocalTools(
 
     val chartDisplayTool by lazy { buildChartDisplayTool() }
 
-    fun getTools(options: List<LocalToolOption>): List<Tool> {
+    fun getTools(
+        options: List<LocalToolOption>,
+        conversationId: Uuid? = null,
+        assistants: List<Assistant> = emptyList(),
+    ): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
             tools.add(javascriptTool)
@@ -56,6 +64,12 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ChartDisplay)) {
             tools.add(chartDisplayTool)
+        }
+        if (options.contains(LocalToolOption.SubAgent) && conversationId != null) {
+            val subAgents = assistants.filter { it.isSubAgent }
+            if (subAgents.isNotEmpty()) {
+                tools.add(buildSubAgentTool(conversationId, subAgents, subAgentRunner))
+            }
         }
         return tools
     }

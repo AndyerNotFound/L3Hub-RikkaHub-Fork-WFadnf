@@ -1817,4 +1817,19 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_memory_model">记忆整理模型</string>
   <string name="setting_model_page_memory_model_desc">用于在后台将对话整理为长期记忆的模型；未设置时使用快速模型</string>
   <string name="setting_model_page_memory_model_follow_fast">跟随快速模型</string>
+
+  <string name="assistant_page_sub_agent">设为子代理</string>
+  <string name="assistant_page_sub_agent_desc">其他助手可以通过 dispatch_sub_agent 工具把任务派发给它。子代理在独立会话里运行，不共享当前上下文</string>
+  <string name="assistant_page_local_tools_sub_agent_title">派发子代理</string>
+  <string name="assistant_page_local_tools_sub_agent_desc">允许 AI 把自成一体的任务交给标记为子代理的助手执行并等待结果</string>
+  <string name="chat_task_tree_button">任务树</string>
+  <string name="task_tree_title">任务树</string>
+  <string name="task_tree_empty">还没有子代理任务。先在助手的本地工具里打开「派发子代理」，并把另一个助手设为子代理</string>
+  <string name="task_tree_open">打开会话</string>
+  <string name="task_tree_tools">工具调用</string>
+  <string name="task_tree_no_tools">没有工具调用</string>
+  <string name="task_tree_state_running">进行中</string>
+  <string name="task_tree_state_completed">已完成</string>
+  <string name="task_tree_state_failed">失败</string>
+  <string name="task_tree_sub_agent">子代理</string>
 </resources>

@@ -1815,4 +1815,19 @@
   <string name="setting_model_page_memory_model">Memory Consolidation Model</string>
   <string name="setting_model_page_memory_model_desc">Model used to organize conversations into long-term memory in the background; uses the fast model when not set</string>
   <string name="setting_model_page_memory_model_follow_fast">Same as fast model</string>
+
+  <string name="assistant_page_sub_agent">Set as sub-agent</string>
+  <string name="assistant_page_sub_agent_desc">Other assistants can dispatch tasks to this one via the dispatch_sub_agent tool. The sub-agent runs in its own conversation and does not share the current context</string>
+  <string name="assistant_page_local_tools_sub_agent_title">Dispatch sub-agent</string>
+  <string name="assistant_page_local_tools_sub_agent_desc">Let the AI hand self-contained tasks to assistants marked as sub-agent and wait for their results</string>
+  <string name="chat_task_tree_button">Task tree</string>
+  <string name="task_tree_title">Task tree</string>
+  <string name="task_tree_empty">No sub-agent tasks yet. Turn on the Dispatch sub-agent tool in the assistant local tools and mark another assistant as a sub-agent</string>
+  <string name="task_tree_open">Open conversation</string>
+  <string name="task_tree_tools">Tool calls</string>
+  <string name="task_tree_no_tools">No tool calls</string>
+  <string name="task_tree_state_running">Running</string>
+  <string name="task_tree_state_completed">Done</string>
+  <string name="task_tree_state_failed">Failed</string>
+  <string name="task_tree_sub_agent">Sub-agent</string>
 </resources>

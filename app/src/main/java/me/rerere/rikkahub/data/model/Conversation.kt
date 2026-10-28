@@ -36,6 +36,10 @@ data class Conversation(
     val workspaceCwd: String? = null,
     // 所属文件夹（助手内分组），null 表示未归入任何文件夹
     val folderId: Uuid? = null,
+    // 子代理会话：由父会话的 dispatch_sub_agent 工具创建
+    val parentConversationId: Uuid? = null,
+    val subAgentTask: String? = null,
+    val subAgentState: String? = null,
     @Transient
     val newConversation: Boolean = false
 ) {

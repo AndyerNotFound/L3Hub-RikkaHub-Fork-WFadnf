@@ -18,6 +18,8 @@ data class Assistant(
     val id: Uuid = Uuid.random(),
     val chatModelId: Uuid? = null, // 如果为null, 使用全局默认模型
     val name: String = "",
+    // 标记为子代理：允许父会话通过 dispatch_sub_agent 把任务派发进来
+    val isSubAgent: Boolean = false,
     val avatar: Avatar = Avatar.Dummy,
     val useAssistantAvatar: Boolean = false, // 使用助手头像替代模型头像
     val tags: List<Uuid> = emptyList(),

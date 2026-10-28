@@ -29,6 +29,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.ChartLineData01
 import me.rerere.hugeicons.stroke.ClipboardPaste
+import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.JavaScript
 import me.rerere.hugeicons.stroke.MessageQuestion
@@ -221,6 +222,12 @@ private fun AssistantLocalToolContent(
                 icon = HugeIcons.ChartLineData01,
                 title = R.string.assistant_page_local_tools_chart_display_title,
                 description = R.string.assistant_page_local_tools_chart_display_desc,
+            )
+            toolItem(
+                option = LocalToolOption.SubAgent,
+                icon = HugeIcons.Flowchart01,
+                title = R.string.assistant_page_local_tools_sub_agent_title,
+                description = R.string.assistant_page_local_tools_sub_agent_desc,
             )
         }
     }

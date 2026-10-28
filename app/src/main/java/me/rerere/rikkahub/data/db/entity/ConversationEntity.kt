@@ -34,4 +34,10 @@ data class ConversationEntity(
     val folderId: String = "",
     @ColumnInfo("config", defaultValue = "")
     val config: String = "",
+    @ColumnInfo("parent_conversation_id", defaultValue = "")
+    val parentConversationId: String = "",
+    @ColumnInfo("sub_agent_task", defaultValue = "")
+    val subAgentTask: String = "",
+    @ColumnInfo("sub_agent_state", defaultValue = "")
+    val subAgentState: String = "",
 )
