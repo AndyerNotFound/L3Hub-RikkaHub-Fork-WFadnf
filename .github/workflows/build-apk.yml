@@ -19,8 +19,6 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
-
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -38,6 +36,9 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Build
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           chmod +x gradlew tools/build-apk.sh
           ./tools/build-apk.sh
