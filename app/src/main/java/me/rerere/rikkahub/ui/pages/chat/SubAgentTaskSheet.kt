@@ -310,7 +310,7 @@ private fun TreeRail(prefix: List<Boolean>, isLast: Boolean, isRoot: Boolean) {
     val lineColor = MaterialTheme.colorScheme.outlineVariant
     Canvas(
         modifier = Modifier
-            .width(RailStep * (prefix.size + 1))
+            .width(RailStep * (prefix.size + 1).toFloat())
             .fillMaxHeight()
     ) {
         val step = RailStep.toPx()
