@@ -219,6 +219,26 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup {
                     switchItem(
+                        checked = displaySetting.showToolCallOutput,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showToolCallOutput = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_title)) },
+                    )
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_ui_corner_radius_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius)) },
+                    ) {
+                        Slider(
+                            value = displaySetting.uiCornerRadius.toFloat(),
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(uiCornerRadius = it.roundToInt()))
+                            },
+                            valueRange = 0f..32f,
+                            steps = 31,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    switchItem(
                         checked = displaySetting.showThinkingContent,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },

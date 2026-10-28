@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.context.LocalSettings
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -243,7 +245,8 @@ fun ChatDrawerContent(
     }
 
     ModalDrawerSheet(
-        modifier = Modifier.width(300.dp)
+        modifier = Modifier.width(300.dp),
+        drawerShape = RoundedCornerShape(LocalSettings.current.displaySetting.uiCornerRadius.dp),
     ) {
         Column(
             modifier = Modifier.padding(8.dp),

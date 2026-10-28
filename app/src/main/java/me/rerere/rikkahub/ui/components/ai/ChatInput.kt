@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -102,6 +103,7 @@ import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -163,13 +165,7 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    val themeShape = MaterialTheme.shapes.largeIncreased
-    val containerShape = RoundedCornerShape(
-        topStart = themeShape.topStart,
-        topEnd = themeShape.topEnd,
-        bottomEnd = themeShape.bottomEnd,
-        bottomStart = themeShape.bottomStart,
-    )
+    val containerShape = RoundedCornerShape(settings.displaySetting.uiCornerRadius.dp)
     val modelListState = rememberModelListState(
         modelId = chatModel?.id,
         providers = settings.providers,
@@ -186,6 +182,11 @@ fun ChatInput(
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
         if (loading && state.isEmpty()) onCancelClick() else onLongSendClick()
+    }
+
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible) {
+        if (!imeVisible) focusManager.clearFocus()
     }
 
     val asr = LocalASRState.current
@@ -266,6 +267,7 @@ fun ChatInput(
                         showAbsolute = settings.displaySetting.contextMeterAbsolute,
                         onToggleDisplay = onToggleContextMeterDisplay,
                         modifier = Modifier.padding(horizontal = 4.dp),
+                        provider = chatModel.findProvider(settings.providers),
                     )
 
                     ContextMeterStyle.OFF -> Unit

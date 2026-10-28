@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.contextUsageFraction
 import me.rerere.rikkahub.data.model.isContextLimitReached
@@ -189,6 +190,7 @@ fun ContextUsageRing(
     showAbsolute: Boolean,
     onToggleDisplay: () -> Unit,
     modifier: Modifier = Modifier,
+    provider: ProviderSetting? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -215,40 +217,9 @@ fun ContextUsageRing(
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onToggleDisplay)
             .padding(horizontal = 8.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            if (warnTokens != null) {
-                RingValueRow(
-                    label = "WARN",
-                    used = used,
-                    limit = warnTokens,
-                    showAbsolute = showAbsolute,
-                    color = warnColor,
-                )
-            }
-            if (maxTokens != null) {
-                RingValueRow(
-                    label = "MAX",
-                    used = used,
-                    limit = maxTokens,
-                    showAbsolute = showAbsolute,
-                    color = mainColor,
-                )
-            }
-            if (limitReached) {
-                Text(
-                    text = stringResource(R.string.chat_page_context_limit_reached),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-        Spacer(Modifier.width(10.dp))
         Box(
             modifier = Modifier.size(46.dp),
             contentAlignment = Alignment.Center,
@@ -293,6 +264,43 @@ fun ContextUsageRing(
                 fontFamily = FontFamily.Monospace,
                 color = mainColor,
                 maxLines = 1,
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            if (warnTokens != null) {
+                RingValueRow(
+                    label = "WARN",
+                    used = used,
+                    limit = warnTokens,
+                    showAbsolute = showAbsolute,
+                    color = warnColor,
+                )
+            }
+            if (maxTokens != null) {
+                RingValueRow(
+                    label = "MAX",
+                    used = used,
+                    limit = maxTokens,
+                    showAbsolute = showAbsolute,
+                    color = mainColor,
+                )
+            }
+            if (limitReached) {
+                Text(
+                    text = stringResource(R.string.chat_page_context_limit_reached),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        if (provider != null) {
+            ProviderQuotaText(
+                providerSetting = provider,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }

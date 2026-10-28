@@ -644,11 +644,13 @@ private fun ChatMessageBubble(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressProgress by animatePressProgress(interactionSource)
-    val corner = lerp(BubbleCorner, BubblePressedCorner, pressProgress)
+    val radius = LocalSettings.current.displaySetting.uiCornerRadius.dp
+    val corner = lerp(radius, minOf(radius, BubblePressedCorner), pressProgress)
+    val tail = minOf(BubbleTailCorner, radius * 0.25f)
     val shape = if (role == MessageRole.USER) {
-        RoundedCornerShape(topStart = corner, topEnd = BubbleTailCorner, bottomEnd = corner, bottomStart = corner)
+        RoundedCornerShape(topStart = corner, topEnd = tail, bottomEnd = corner, bottomStart = corner)
     } else {
-        RoundedCornerShape(topStart = BubbleTailCorner, topEnd = corner, bottomEnd = corner, bottomStart = corner)
+        RoundedCornerShape(topStart = tail, topEnd = corner, bottomEnd = corner, bottomStart = corner)
     }
     val displaySetting = LocalSettings.current.displaySetting
     val effect = displaySetting.effectiveBackgroundEffect

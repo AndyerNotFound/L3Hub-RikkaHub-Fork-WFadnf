@@ -195,6 +195,8 @@ data class DisplaySetting(
     val enableBlurEffect: Boolean = false,
     val backgroundEffectType: BackgroundEffectType = BackgroundEffectType.BLUR,
     val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
+    val showToolCallOutput: Boolean = true,
+    val uiCornerRadius: Int = 24,
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val chatCustomFontPath: String = "",
     val chatCustomFontName: String = "",

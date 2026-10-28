@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,6 +47,11 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
+
+/**
+ * 外层 ChainOfThought 是否处于「全部折叠」状态，供步骤内部（如思考块）联动收起。
+ */
+val LocalChainOfThoughtCollapsed = compositionLocalOf { false }
 
 /**
  * 以时间线/步骤卡片的形式展示一组思考过程。
@@ -143,6 +150,9 @@ fun <T> ChainOfThought(
             val lineColor = MaterialTheme.colorScheme.outlineVariant
             // 每个步骤只绘制自己的连线分段并在节点处留空，
             // 避免使用离屏合成 + BlendMode.Clear（离屏层过大时部分设备会退化，节点区域被清成黑块）。
+            CompositionLocalProvider(
+                LocalChainOfThoughtCollapsed provides (canCollapse && !expanded)
+            ) {
             Column {
                 visibleSteps.fastForEachIndexed { index, step ->
                     val isFirst = index == 0
@@ -156,6 +166,7 @@ fun <T> ChainOfThought(
                     }
                     scope.content(step)
                 }
+            }
             }
         }
     }

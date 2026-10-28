@@ -710,6 +710,10 @@
   <string name="setting_display_page_show_model_name_desc">是否在聊天消息中显示模型名称</string>
   <string name="setting_display_page_show_model_name_title">显示模型名称</string>
   <string name="setting_display_page_show_thinking_content_desc">是否在生成过程中默认展开并显示思考过程</string>
+  <string name="setting_display_page_show_tool_call_output_title">显示 ToolCall 输出</string>
+  <string name="setting_display_page_show_tool_call_output_desc">开启后任何工具调用默认展开结果，包括 MCP、本地工具等</string>
+  <string name="setting_display_page_ui_corner_radius_title">UI 圆角</string>
+  <string name="setting_display_page_ui_corner_radius_desc">%1$d dp，应用于聊天气泡、输入框和侧边栏</string>
   <string name="setting_display_page_show_thinking_content_title">显示思考内容</string>
   <string name="setting_display_page_show_token_usage_desc">显示token用量和消息数量</string>
   <string name="setting_display_page_show_token_usage_title">显示Token和上下文统计</string>

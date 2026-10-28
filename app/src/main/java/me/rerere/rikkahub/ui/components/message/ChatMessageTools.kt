@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
+import me.rerere.rikkahub.ui.context.LocalSettings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -135,9 +136,10 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         )
     }
 
+    val displaySetting = LocalSettings.current.displaySetting
     var showResult by remember { mutableStateOf(false) }
     var showDenyDialog by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(true) }
+    var expanded by remember(tool.toolCallId) { mutableStateOf(displaySetting.showToolCallOutput) }
     val isPending = tool.isPending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
