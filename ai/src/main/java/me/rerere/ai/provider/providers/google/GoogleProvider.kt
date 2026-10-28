@@ -407,7 +407,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                                     else -> put("thinkingLevel", "high") // HIGH, XHIGH
                                 }
                             } else {
-                                put("thinkingBudget", params.reasoningLevel.budgetTokens)
+                                // Gemini 2.5 的预算上限是 32768，Ultra 的 64k 需要收敛到上限
+                                put("thinkingBudget", params.reasoningLevel.budgetTokens.coerceAtMost(32_768))
                             }
                         }
                     }
