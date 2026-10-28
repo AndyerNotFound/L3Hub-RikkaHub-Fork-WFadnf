@@ -176,7 +176,7 @@ fun ConversationUsageDetails(
 
     val lastMessage = usageMessages.last()
     val lastStats = remember(lastMessage) { lastMessage.nerdStats(lastMessage.usage!!) }
-    val total = usageMessages.fold<TokenUsage?>(null) { acc, message -> acc.sum(message.usage) }
+    val total = usageMessages.fold(null as TokenUsage?) { acc, message -> acc.sum(message.usage) }
         ?: TokenUsage()
     val steps = usageMessages.sumOf { it.stepCount ?: 1 }
     val durations = usageMessages.mapNotNull { it.usageDurationMillis() }

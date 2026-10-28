@@ -79,7 +79,7 @@ internal fun transformMessages(
         messages = messages,
         byPosition = byPosition,
         lorebookIds = lorebookIds,
-    )
+    ).toMutableList()
     if (tailInjections.isEmpty()) return result
 
     val tailMessages = createMergedInjectionMessages(
