@@ -41,7 +41,12 @@ private val ALLOWED_MIME_TYPES = setOf(
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/epub+zip"
+    "application/epub+zip",
+    // 视频与安装包/压缩包
+    "video/mp4", "video/webm", "video/quicktime", "video/x-matroska", "video/x-msvideo",
+    "application/vnd.android.package-archive",
+    "application/zip", "application/x-7z-compressed", "application/x-rar-compressed",
+    "application/gzip", "application/x-tar"
 )
 
 private val ALLOWED_FILE_EXTENSIONS = setOf(
@@ -53,7 +58,10 @@ private val ALLOWED_FILE_EXTENSIONS = setOf(
     "c", "h", "cpp", "cc", "cxx", "hpp", "hh", "hxx",
     "rs", "cs", "markdown", "mdx",
     "toml", "ini", "env", "gradle", "kts", "properties",
-    "proto", "graphql", "gql", "yml", "yaml"
+    "proto", "graphql", "gql", "yml", "yaml",
+    "mp4", "webm", "mkv", "mov", "avi", "m4v",
+    "apk", "apks", "xapk", "aab",
+    "zip", "7z", "rar", "tar", "gz"
 )
 
 fun isAllowedFileType(fileName: String, mime: String): Boolean {

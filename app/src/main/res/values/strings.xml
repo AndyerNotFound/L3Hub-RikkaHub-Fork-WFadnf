@@ -1934,4 +1934,7 @@
   <string name="setting_network_ca_installed">Trusted for self-signed HTTPS</string>
   <string name="setting_network_ca_import">Import CA certificate</string>
   <string name="setting_network_ca_import_desc">Supports PEM/DER .crt/.cer/.pem; all provider requests will additionally trust these CAs</string>
+  <string name="setting_provider_page_api_key_multi_desc">Add multiple keys; failed requests automatically fail over to the next one</string>
+  <string name="setting_provider_page_api_key_number">API Key %d</string>
+  <string name="setting_provider_page_api_key_add">Add key</string>
 </resources>

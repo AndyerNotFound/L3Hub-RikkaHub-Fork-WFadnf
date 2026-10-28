@@ -74,6 +74,8 @@ data class Settings(
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     val assistantTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
+    // 同时启用的搜索引擎 id；为空时只用 searchServiceSelected 指向的那个
+    val enabledSearchServiceIds: Set<String> = emptySet(),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
     val mcpServers: List<McpServerConfig> = emptyList(),

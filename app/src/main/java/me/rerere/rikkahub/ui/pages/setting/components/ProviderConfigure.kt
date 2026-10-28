@@ -5,6 +5,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import kotlin.uuid.Uuid
+import me.rerere.hugeicons.stroke.Delete01
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -294,15 +301,82 @@ private fun CardGroupScope.nameItem(
 )
 
 private fun CardGroupScope.apiKeyItem(
+    providerId: Uuid,
     apiKey: String,
     onValueChange: (String) -> Unit,
-) = textFieldItem(
-    label = R.string.setting_provider_page_api_key,
-    value = apiKey,
-    onValueChange = { onValueChange(it.trim()) },
-    secret = true,
-    maxLines = 3,
-)
+) = formItem(
+    headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
+    supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
+) {
+    val keys = remember(providerId) {
+        apiKey.split(Regex("[\\n,]"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .ifEmpty { listOf("") }
+            .toMutableStateList()
+    }
+
+    fun emit() {
+        onValueChange(keys.map { it.trim() }.filter { it.isNotBlank() }.joinToString("\n"))
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        keys.forEachIndexed { index, key ->
+            var visible by remember(providerId, index) { mutableStateOf(false) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = {
+                        keys[index] = it
+                        emit()
+                    },
+                    modifier = Modifier.weight(1f),
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.setting_provider_page_api_key_number,
+                                index + 1,
+                            )
+                        )
+                    },
+                    singleLine = true,
+                    visualTransformation = if (visible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { visible = !visible }) {
+                            Icon(
+                                imageVector = if (visible) HugeIcons.ViewOff else HugeIcons.View,
+                                contentDescription = null,
+                            )
+                        }
+                    },
+                )
+                if (keys.size > 1) {
+                    IconButton(
+                        onClick = {
+                            keys.removeAt(index)
+                            emit()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Delete01,
+                            contentDescription = null,
+                        )
+                    }
+                }
+            }
+        }
+        TextButton(onClick = { keys.add("") }) {
+            Text(stringResource(R.string.setting_provider_page_api_key_add))
+        }
+    }
+}
 
 @Composable
 private fun ProviderConfigureOpenAI(
@@ -314,7 +388,7 @@ private fun ProviderConfigureOpenAI(
 
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+        apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
             value = provider.baseUrl,
@@ -512,7 +586,7 @@ private fun ProviderConfigureClaude(
 ) {
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+        apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
             value = provider.baseUrl,
@@ -586,7 +660,7 @@ private fun ProviderConfigureGoogle(
     CardGroup {
         nameItem(provider, onEdit)
         if (!useServiceAccount) {
-            apiKeyItem(provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+            apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
         }
         if (!provider.vertexAI) {
             textFieldItem(

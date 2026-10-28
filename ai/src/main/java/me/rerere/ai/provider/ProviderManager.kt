@@ -21,9 +21,9 @@ class ProviderManager(
 
     init {
         // 注册默认Provider
-        registerProvider("openai", OpenAIProvider(client, context))
-        registerProvider("google", GoogleProvider(client, context))
-        registerProvider("claude", ClaudeProvider(client, context))
+        registerProvider("openai", KeyFailoverProvider(OpenAIProvider(client, context)))
+        registerProvider("google", KeyFailoverProvider(GoogleProvider(client, context)))
+        registerProvider("claude", KeyFailoverProvider(ClaudeProvider(client, context)))
         registerProvider("chatgpt", ChatGPTProvider(client, accountCredentials))
         registerProvider("grok", GrokProvider(client, accountCredentials))
     }

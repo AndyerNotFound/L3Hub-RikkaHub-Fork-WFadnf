@@ -194,13 +194,18 @@ fun ChatMessage(
         val translation = message.translation
         var showTranslationPage by remember(message.id) { mutableStateOf(false) }
         var translating by remember(message.id) { mutableStateOf(false) }
+        // 只有本次会话里从“无译文”变成“有译文”时才自动翻到译文页；
+        // 从别的页面回来时消息本身就带着译文，应该留在原文
+        var previousTranslation by remember(message.id) { mutableStateOf(translation) }
         LaunchedEffect(translation) {
-            if (translation != null) {
+            if (translation != null && translation != previousTranslation) {
                 translating = false
                 showTranslationPage = true
             }
+            previousTranslation = translation
         }
-        val swipeModifier = Modifier.pointerInput(message.id, translation) {
+        // 只负责查看已有译文，不靠横滑触发翻译
+        val swipeModifier = if (translation == null) Modifier else Modifier.pointerInput(message.id, translation) {
             var totalX = 0f
             var totalY = 0f
             val triggerDistance = 96.dp.toPx()
@@ -222,15 +227,7 @@ fun ChatMessage(
                         abs(totalX) > abs(totalY) * 1.8f
                     if (isHorizontalSwipe) {
                         if (totalX < 0) {
-                            if (translation != null) {
-                                showTranslationPage = true
-                            } else if (onTranslate != null && !translating) {
-                                translating = true
-                                onTranslate(
-                                    message,
-                                    Locale.forLanguageTag(appSettings.translateTargetLanguage),
-                                )
-                            }
+                            showTranslationPage = true
                         } else {
                             showTranslationPage = false
                         }

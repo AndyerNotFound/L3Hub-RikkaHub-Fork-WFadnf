@@ -11,6 +11,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.toLocalString
+import me.rerere.search.SearchResult
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
 import java.time.LocalDate
@@ -18,6 +19,15 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 fun createSearchTools(settings: Settings): Set<Tool> {
+    val selectedOptions = settings.searchServices.getOrElse(
+        index = settings.searchServiceSelected,
+        defaultValue = { SearchServiceOptions.DEFAULT },
+    )
+    // 勾选了多个引擎时全部查询；一个都没勾时沿用当前默认引擎
+    val activeOptions = settings.searchServices
+        .filter { it.id.toString() in settings.enabledSearchServiceIds }
+        .ifEmpty { listOf(selectedOptions) }
+
     return buildSet {
         add(
             Tool(
@@ -53,22 +63,26 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     The population is about 2.1 million. [citation,example.com](abc123) [citation,example2.com](def456)
                     """.trimIndent(),
                 parameters = {
-                    val options = settings.searchServices.getOrElse(
-                        index = settings.searchServiceSelected,
-                        defaultValue = { SearchServiceOptions.DEFAULT })
-                    val service = SearchService.getService(options)
-                    service.parameters(options)
+                    val options = activeOptions.first()
+                    SearchService.getService(options).parameters(options)
                 },
                 execute = {
-                    val options = settings.searchServices.getOrElse(
-                        index = settings.searchServiceSelected,
-                        defaultValue = { SearchServiceOptions.DEFAULT })
-                    val service = SearchService.getService(options)
-                    val result = service.search(
-                        params = it.jsonObject,
-                        commonOptions = settings.searchCommonOptions,
-                        serviceOptions = options,
-                    ).getOrThrow().copy(retrievedAt = Clock.System.now().toString())
+                    var firstError: Throwable? = null
+                    val successes = activeOptions.mapNotNull { options ->
+                        runCatching {
+                            SearchService.getService(options).search(
+                                params = it.jsonObject,
+                                commonOptions = settings.searchCommonOptions,
+                                serviceOptions = options,
+                            ).getOrThrow()
+                        }.onFailure { error -> if (firstError == null) firstError = error }
+                            .getOrNull()
+                    }
+                    if (successes.isEmpty()) {
+                        throw firstError ?: IllegalStateException("No search service available")
+                    }
+                    val result = mergeSearchResults(successes)
+                        .copy(retrievedAt = Clock.System.now().toString())
                     val results =
                         JsonInstantPretty.encodeToJsonElement(result).jsonObject.let { json ->
                             val map = json.toMutableMap()
@@ -86,11 +100,12 @@ fun createSearchTools(settings: Settings): Set<Tool> {
             )
         )
 
-        val options = settings.searchServices.getOrElse(
-            index = settings.searchServiceSelected,
-            defaultValue = { SearchServiceOptions.DEFAULT })
-        val service = SearchService.getService(options)
-        if (service.scrapingParameters(options) != null) {
+        val scrapeOptions = activeOptions.firstOrNull { options ->
+            SearchService.getService(options).scrapingParameters(options) != null
+        }
+        if (scrapeOptions != null) {
+            val options = scrapeOptions
+            val service = SearchService.getService(options)
             add(
                 Tool(
                     name = "scrape_web",
@@ -101,17 +116,9 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                         Avoid using it for common questions unless the user asks.
                         """.trimIndent(),
                     parameters = {
-                        val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
-                            defaultValue = { SearchServiceOptions.DEFAULT })
-                        val service = SearchService.getService(options)
                         service.scrapingParameters(options)
                     },
                     execute = {
-                        val options = settings.searchServices.getOrElse(
-                            index = settings.searchServiceSelected,
-                            defaultValue = { SearchServiceOptions.DEFAULT })
-                        val service = SearchService.getService(options)
                         val result = service.scrape(
                             params = it.jsonObject,
                             commonOptions = settings.searchCommonOptions,
@@ -123,4 +130,13 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                 ))
         }
     }
+}
+
+private fun mergeSearchResults(results: List<SearchResult>): SearchResult {
+    val items = results.flatMap { it.items }.distinctBy { it.url }
+    val images = results.flatMap { it.images }.distinct()
+    val answer = results.mapNotNull { it.answer?.takeIf(String::isNotBlank) }
+        .joinToString("\n\n")
+        .ifBlank { null }
+    return SearchResult(answer = answer, items = items, images = images)
 }
