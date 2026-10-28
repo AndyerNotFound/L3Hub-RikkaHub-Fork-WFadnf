@@ -76,6 +76,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
@@ -328,8 +329,7 @@ internal fun FilesPicker(
                                 val contextTokens = remember(conversation.messageNodes) {
                                     conversation.lastContextTokens()
                                 }
-                                val contextLength = chatModel?.maxContextTokens?.takeIf { it > 0 }
-                                    ?: chatModel?.contextLength?.takeIf { it > 0 }
+                                val contextLength = chatModel?.effectiveContextWindow
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),

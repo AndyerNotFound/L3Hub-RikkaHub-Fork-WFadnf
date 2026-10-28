@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.WindowInsets
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.draw.clip
@@ -623,7 +624,7 @@ private fun ChatPageContent(
                     )
                     ConversationUsageDetails(
                         messages = conversation.currentMessages,
-                        contextLength = currentChatModel?.contextLength?.takeIf { it > 0 },
+                        contextLength = currentChatModel?.effectiveContextWindow,
                     )
                 }
             }

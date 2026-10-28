@@ -50,6 +50,7 @@ import me.rerere.hugeicons.stroke.Repeat
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
@@ -75,7 +76,7 @@ fun ChatMessageNerdLine(
     val stats = remember(message) { message.nerdStats(usage) }
     // 消息里的模型快照不带上下文窗口，只能从设置里按 ID 找；模型被删了就不显示窗口大小
     val contextLength = remember(settings.providers, message.modelId) {
-        settings.findModelById(message.modelId)?.contextLength?.takeIf { it > 0 }
+        settings.findModelById(message.modelId)?.effectiveContextWindow
     }
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
