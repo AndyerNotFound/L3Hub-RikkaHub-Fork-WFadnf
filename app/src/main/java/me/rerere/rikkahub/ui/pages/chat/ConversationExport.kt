@@ -435,7 +435,7 @@ private fun exportToXml(
 
     fun attr(value: String): String = value
         .replace("&", "&amp;")
-        .replace(""", "&quot;")
+        .replace("'", "&apos;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
 
@@ -449,14 +449,14 @@ private fun exportToXml(
             is UIMessagePart.Video -> builder.appendLine("$indent<video>${cdata(part.url)}</video>")
             is UIMessagePart.Audio -> builder.appendLine("$indent<audio>${cdata(part.url)}</audio>")
             is UIMessagePart.Document -> builder.appendLine(
-                "$indent<document name="${attr(part.fileName)}" mime="${attr(part.mime)}">${cdata(part.url)}</document>"
+                "$indent<document name=\"${attr(part.fileName)}\" mime=\"${attr(part.mime)}\">${cdata(part.url)}</document>"
             )
             is UIMessagePart.Reasoning -> if (options.includeReasoning) {
                 builder.appendLine("$indent<reasoning>${cdata(part.reasoning)}</reasoning>")
             }
             is UIMessagePart.Tool -> {
                 builder.appendLine(
-                    "$indent<tool name="${attr(part.toolName)}" call-id="${attr(part.toolCallId)}">"
+                    "$indent<tool name=\"${attr(part.toolName)}\" call-id=\"${attr(part.toolCallId)}\">"
                 )
                 builder.appendLine("$indent  <input>${cdata(part.input)}</input>")
                 if (part.output.isNotEmpty()) {
@@ -468,7 +468,7 @@ private fun exportToXml(
             }
             is UIMessagePart.ServerTool -> {
                 builder.appendLine(
-                    "$indent<server-tool name="${attr(part.toolName)}" call-id="${attr(part.toolCallId)}" status="${part.status}">"
+                    "$indent<server-tool name=\"${attr(part.toolName)}\" call-id=\"${attr(part.toolCallId)}\" status=\"${part.status}\">"
                 )
                 part.input?.let {
                     builder.appendLine("$indent  <input>${cdata(it.toString())}</input>")
@@ -483,15 +483,15 @@ private fun exportToXml(
     }
 
     val sb = StringBuilder()
-    sb.appendLine("""<?xml version="1.0" encoding="UTF-8"?>""")
+    sb.appendLine("<?xml version='1.0' encoding='UTF-8'?>")
     sb.appendLine(
-        """<conversation title="${attr(conversation.title)}" exported-at="${attr(LocalDateTime.now().toLocalString())}">"""
+        "<conversation title='${attr(conversation.title)}' exported-at='${attr(LocalDateTime.now().toLocalString())}'>"
     )
     messages.forEach { message ->
         val model = message.modelSnapshot?.displayName
             ?: message.modelId?.toString().orEmpty()
         sb.appendLine(
-            """  <message role="${message.role.name.lowercase()}" created-at="${attr(message.createdAt.toString())}" model="${attr(model)}">"""
+            "  <message role='${message.role.name.lowercase()}' created-at='${attr(message.createdAt.toString())}' model='${attr(model)}'>"
         )
         message.parts.forEach { part -> appendPart(sb, part, "    ") }
         sb.appendLine("  </message>")
