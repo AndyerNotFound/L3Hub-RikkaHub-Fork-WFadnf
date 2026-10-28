@@ -32,6 +32,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -58,7 +59,6 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ui.toast.ToastType
 import kotlinx.coroutines.launch
@@ -552,26 +552,28 @@ private fun ColorPickerRow(
     color: Color,
     onColorChange: (Color) -> Unit,
 ) {
-    val hsl = remember(color) {
-        FloatArray(3).also { ColorUtils.colorToHSL(color.toArgb(), it) }
-    }
-    var hue by remember(color) { mutableFloatStateOf(hsl[0]) }
-    var saturation by remember(color) { mutableFloatStateOf(hsl[1]) }
-    var lightness by remember(color) { mutableFloatStateOf(hsl[2]) }
-    var hslCode by remember(color) { mutableStateOf(formatHslCode(hsl[0], hsl[1], hsl[2])) }
-    var hslCodeError by remember(color) { mutableStateOf(false) }
+    var mode by remember { mutableStateOf(ColorPickerMode.HSV) }
+    val argb = color.toArgb()
+    val hsv = remember(argb) { FloatArray(3).also { android.graphics.Color.colorToHSV(argb, it) } }
+    val hue = hsv[0]
+    val saturation = hsv[1] * 100f
+    val value = hsv[2] * 100f
+    val red = android.graphics.Color.red(argb).toFloat()
+    val green = android.graphics.Color.green(argb).toFloat()
+    val blue = android.graphics.Color.blue(argb).toFloat()
 
-    fun updateColor(newHue: Float, newSaturation: Float, newLightness: Float) {
-        hue = newHue
-        saturation = newSaturation
-        lightness = newLightness
-        hslCode = formatHslCode(newHue, newSaturation, newLightness)
-        hslCodeError = false
-        onColorChange(Color(ColorUtils.HSLToColor(floatArrayOf(newHue, newSaturation, newLightness))))
+    var code by remember(argb, mode) {
+        mutableStateOf(
+            when (mode) {
+                ColorPickerMode.HSV -> formatHsvCode(hue, saturation, value)
+                ColorPickerMode.RGB -> formatRgbCode(red, green, blue)
+            }
+        )
     }
+    var codeError by remember { mutableStateOf(false) }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -585,62 +587,88 @@ private fun ColorPickerRow(
                 drawCircle(color = color)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("H", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
-                    Slider(
-                        value = hue,
-                        onValueChange = {
-                            updateColor(it, saturation, lightness)
-                        },
-                        valueRange = 0f..360f,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("S", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
-                    Slider(
-                        value = saturation,
-                        onValueChange = {
-                            updateColor(hue, it, lightness)
-                        },
-                        valueRange = 0f..1f,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("L", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(16.dp))
-                    Slider(
-                        value = lightness,
-                        onValueChange = {
-                            updateColor(hue, saturation, it)
-                        },
-                        valueRange = 0f..1f,
-                        modifier = Modifier.weight(1f),
-                    )
+                when (mode) {
+                    ColorPickerMode.HSV -> {
+                        ChannelSlider("H", hue, 0f..360f) {
+                            onColorChange(Color(android.graphics.Color.HSVToColor(floatArrayOf(it, hsv[1], hsv[2]))))
+                        }
+                        ChannelSlider("S", saturation, 0f..100f) {
+                            onColorChange(Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, it / 100f, hsv[2]))))
+                        }
+                        ChannelSlider("V", value, 0f..100f) {
+                            onColorChange(Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, hsv[1], it / 100f))))
+                        }
+                    }
+
+                    ColorPickerMode.RGB -> {
+                        ChannelSlider("R", red, 0f..255f) {
+                            onColorChange(
+                                Color(
+                                    android.graphics.Color.rgb(it.roundToInt(), green.roundToInt(), blue.roundToInt())
+                                )
+                            )
+                        }
+                        ChannelSlider("G", green, 0f..255f) {
+                            onColorChange(
+                                Color(
+                                    android.graphics.Color.rgb(red.roundToInt(), it.roundToInt(), blue.roundToInt())
+                                )
+                            )
+                        }
+                        ChannelSlider("B", blue, 0f..255f) {
+                            onColorChange(
+                                Color(
+                                    android.graphics.Color.rgb(red.roundToInt(), green.roundToInt(), it.roundToInt())
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = mode == ColorPickerMode.HSV,
+                onClick = { mode = ColorPickerMode.HSV },
+                label = { Text("HSV") },
+            )
+            FilterChip(
+                selected = mode == ColorPickerMode.RGB,
+                onClick = { mode = ColorPickerMode.RGB },
+                label = { Text("RGB") },
+            )
+        }
+
         OutlinedTextField(
-            value = hslCode,
-            onValueChange = { value ->
-                hslCode = value
-                val parsedHsl = parseHslCode(value)
-                hslCodeError = parsedHsl == null
-                if (parsedHsl != null) {
-                    hue = parsedHsl[0]
-                    saturation = parsedHsl[1]
-                    lightness = parsedHsl[2]
-                    onColorChange(Color(ColorUtils.HSLToColor(parsedHsl)))
-                }
+            value = code,
+            onValueChange = { input ->
+                code = input
+                val parsed = parseColorCode(input, mode)
+                codeError = parsed == null
+                parsed?.let(onColorChange)
             },
-            label = { Text("HSL") },
-            placeholder = { Text("hsl(267 36% 48%)") },
+            label = { Text(mode.name) },
+            placeholder = {
+                Text(
+                    when (mode) {
+                        ColorPickerMode.HSV -> "hsv(200 43% 48%)"
+                        ColorPickerMode.RGB -> "rgb(70 110 122)"
+                    }
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            isError = hslCodeError,
-            supportingText = if (hslCodeError) {
-                { Text("Use hsl(267 36% 48%)") }
+            isError = codeError,
+            supportingText = if (codeError) {
+                {
+                    Text(
+                        when (mode) {
+                            ColorPickerMode.HSV -> "Use hsv(200 43% 48%) or #466E7A"
+                            ColorPickerMode.RGB -> "Use rgb(70 110 122) or #466E7A"
+                        }
+                    )
+                }
             } else {
                 null
             },
@@ -648,37 +676,73 @@ private fun ColorPickerRow(
     }
 }
 
-private val hslNumberRegex = Regex("""[-+]?\d*\.?\d+""")
+private enum class ColorPickerMode { HSV, RGB }
 
-private fun parseHslCode(value: String): FloatArray? {
-    val values = buildList {
-        for (match in hslNumberRegex.findAll(value)) {
+@Composable
+private fun ChannelSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(16.dp),
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = range,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+private val colorNumberRegex = Regex("""[-+]?\d*\.?\d+""")
+
+/** 支持 rgb()/hsv() 三个数值，也支持 #RRGGBB */
+private fun parseColorCode(value: String, mode: ColorPickerMode): Color? {
+    val hex = value.trim().removePrefix("#")
+    if (hex.length == 6 && hex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+        return hex.toLongOrNull(16)?.let { Color(0xFF000000.toInt() or it.toInt()) }
+    }
+
+    val numbers = buildList {
+        for (match in colorNumberRegex.findAll(value)) {
             add(match.value.toFloatOrNull() ?: return null)
             if (size == 3) break
         }
     }
+    if (numbers.size != 3) return null
 
-    if (values.size != 3) return null
+    return when (mode) {
+        ColorPickerMode.HSV -> Color(
+            android.graphics.Color.HSVToColor(
+                floatArrayOf(
+                    numbers[0].coerceIn(0f, 360f),
+                    (numbers[1] / 100f).coerceIn(0f, 1f),
+                    (numbers[2] / 100f).coerceIn(0f, 1f),
+                )
+            )
+        )
 
-    val hue = values[0].coerceIn(0f, 360f)
-    val saturation = parseHslPercentOrFraction(values[1]) ?: return null
-    val lightness = parseHslPercentOrFraction(values[2]) ?: return null
-
-    return floatArrayOf(hue, saturation, lightness)
-}
-
-private fun parseHslPercentOrFraction(value: Float): Float? {
-    if (!value.isFinite()) return null
-    return if (value > 1f) {
-        (value / 100f).coerceIn(0f, 1f)
-    } else {
-        value.coerceIn(0f, 1f)
+        ColorPickerMode.RGB -> Color(
+            android.graphics.Color.rgb(
+                numbers[0].coerceIn(0f, 255f).roundToInt(),
+                numbers[1].coerceIn(0f, 255f).roundToInt(),
+                numbers[2].coerceIn(0f, 255f).roundToInt(),
+            )
+        )
     }
 }
 
-private fun formatHslCode(hue: Float, saturation: Float, lightness: Float): String {
-    return "hsl(${hue.roundToInt()} ${(saturation * 100).roundToInt()}% ${(lightness * 100).roundToInt()}%)"
-}
+private fun formatHsvCode(hue: Float, saturation: Float, value: Float): String =
+    "hsv(${hue.roundToInt()} ${saturation.roundToInt()}% ${value.roundToInt()}%)"
+
+private fun formatRgbCode(red: Float, green: Float, blue: Float): String =
+    "rgb(${red.roundToInt()} ${green.roundToInt()} ${blue.roundToInt()})"
 
 @Composable
 private fun ThemePreview(theme: CustomTheme) {

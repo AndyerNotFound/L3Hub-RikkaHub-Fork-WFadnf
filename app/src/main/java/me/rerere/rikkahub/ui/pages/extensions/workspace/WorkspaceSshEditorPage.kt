@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AlertCircle
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.FileImport
@@ -63,6 +64,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.workspace.ssh.SshAuthType
+import me.rerere.workspace.ssh.SshRemoteDirIssue
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.ByteArrayOutputStream
@@ -172,6 +174,13 @@ fun WorkspaceSshEditorPage(id: String?) {
 
             item {
                 CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_auth)) }) {
+                    if (state.savedCredentialsLost) {
+                        item(
+                            leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
+                            headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost)) },
+                            supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc)) },
+                        )
+                    }
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_auth_method)) }) {
                         val options = listOf(
                             SshAuthType.PASSWORD to stringResource(R.string.workspace_ssh_editor_password),
@@ -255,6 +264,15 @@ fun WorkspaceSshEditorPage(id: String?) {
                     formItem(
                         headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir)) },
                         supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir_desc)) },
+                        trailingContent = state.probeResult?.homeDir
+                            ?.takeIf { it != state.remoteDir }
+                            ?.let { home ->
+                                {
+                                    TextButton(onClick = { vm.update { it.copy(remoteDir = home) } }) {
+                                        Text(stringResource(R.string.workspace_ssh_editor_use_home))
+                                    }
+                                }
+                            },
                     ) {
                         OutlinedTextField(
                             enabled = editable,
@@ -311,6 +329,7 @@ fun WorkspaceSshEditorPage(id: String?) {
         val message = when (error) {
             is SshEditorError.Resource -> stringResource(error.id)
             is SshEditorError.Message -> error.text
+            is SshEditorError.MessageArgs -> stringResource(error.id, error.arg)
         }
         AlertDialog(
             onDismissRequest = vm::dismissError,
@@ -408,7 +427,19 @@ private fun ProbeSection(
                                 state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
                                     stringResource(R.string.workspace_ssh_editor_home_dir, result.homeDir)
                                 result.remoteDirExists -> state.remoteDir
-                                else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
+                                else -> when (result.remoteDirIssue) {
+                                    SshRemoteDirIssue.PERMISSION_DENIED -> stringResource(
+                                        R.string.workspace_ssh_editor_dir_denied,
+                                        state.remoteDir,
+                                    )
+
+                                    SshRemoteDirIssue.NOT_A_DIRECTORY -> stringResource(
+                                        R.string.workspace_ssh_editor_dir_not_directory,
+                                        state.remoteDir,
+                                    )
+
+                                    else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
+                                }
                             }
                         )
                     },

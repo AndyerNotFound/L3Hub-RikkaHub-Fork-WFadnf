@@ -37,6 +37,9 @@ object SecretCipher {
         return cipher.doFinal(bytes, IV_SIZE, bytes.size - IV_SIZE).toString(Charsets.UTF_8)
     }
 
+    /** 密文能否用本机的密钥解开; 换设备或换包名恢复备份后旧密文解不开 */
+    fun canDecrypt(value: String): Boolean = runCatching { decrypt(value) }.isSuccess
+
     @Synchronized
     private fun secretKey(): SecretKey {
         val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }

@@ -12,8 +12,10 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.model.SavedSshSecrets
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
+import me.rerere.rikkahub.data.model.dropUndecryptableSecrets
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.SecretCipher
 import me.rerere.workspace.RootfsInstallProgress
@@ -101,6 +103,29 @@ class WorkspaceRepository(
         return runInterruptible(Dispatchers.IO) {
             sshPool.probe(draft.toSettings(previous).toConnectionConfig())
         }
+    }
+
+    /**
+     * 已保存的凭据在当前设备上能否解密。解不开的密文 (回到另一台设备或另一个包名的备份)
+     * 会被顺手清掉, 免得每次连接都在解密这一步失败。
+     */
+    suspend fun usableSavedSecrets(id: String): SavedSshSecrets = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext SavedSshSecrets()
+        val settings = workspace.sshSettings() ?: return@withContext SavedSshSecrets()
+        val cleaned = settings.dropUndecryptableSecrets(SecretCipher::canDecrypt)
+        if (cleaned != settings) {
+            dao.upsert(
+                workspace.copy(
+                    sshConfig = JsonInstant.encodeToString(cleaned),
+                    updatedAt = System.currentTimeMillis(),
+                )
+            )
+        }
+        SavedSshSecrets(
+            hasPassword = cleaned.encryptedPassword != null,
+            hasPrivateKey = cleaned.encryptedPrivateKey != null,
+            unusable = cleaned != settings,
+        )
     }
 
     /** 新建 ([id] 为 null) 或更新 SSH 工作区 */
@@ -409,6 +434,8 @@ class WorkspaceRepository(
         require(username.isNotBlank()) { "Username is required" }
         require(port in 1..65535) { "Invalid port: $port" }
         val keepPrivateKey = privateKey.isBlank()
+        // 解不开的旧密文不能沿用, 否则保存后连接仍然报同样的错
+        val usable = previous?.dropUndecryptableSecrets(SecretCipher::canDecrypt)
         return SshWorkspaceSettings(
             host = host.trim(),
             port = port,
@@ -417,20 +444,20 @@ class WorkspaceRepository(
             remoteDir = remoteDir,
             hostKey = hostKey,
             encryptedPassword = if (authType == SshAuthType.PASSWORD) {
-                password.takeIf { it.isNotEmpty() }?.let(SecretCipher::encrypt) ?: previous?.encryptedPassword
+                password.takeIf { it.isNotEmpty() }?.let(SecretCipher::encrypt) ?: usable?.encryptedPassword
             } else {
                 null
             },
             encryptedPrivateKey = if (authType == SshAuthType.PRIVATE_KEY) {
                 privateKey.takeIf { it.isNotBlank() }?.let { SecretCipher.encrypt(it.trim()) }
-                    ?: previous?.encryptedPrivateKey
+                    ?: usable?.encryptedPrivateKey
             } else {
                 null
             },
             encryptedPassphrase = when {
                 authType != SshAuthType.PRIVATE_KEY -> null
                 passphrase.isNotEmpty() -> SecretCipher.encrypt(passphrase)
-                keepPrivateKey -> previous?.encryptedPassphrase
+                keepPrivateKey -> usable?.encryptedPassphrase
                 else -> null
             },
         )

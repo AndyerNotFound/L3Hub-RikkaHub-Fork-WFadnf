@@ -65,6 +65,8 @@ import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.getStoredAssistantOf
 import me.rerere.rikkahub.data.model.insertContextCheckpoint
 import me.rerere.rikkahub.data.model.isAwaitingToolApproval
+import me.rerere.rikkahub.data.model.isContextLimitReached
+import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.replaceUserRegexes
 import me.rerere.rikkahub.data.model.selectBranch
@@ -376,10 +378,52 @@ class ChatService(
         dispatchNextQueuedMessage(conversationId)
     }
 
-    fun sendMessage(conversationId: Uuid, content: List<UIMessagePart>, answer: Boolean = true) {
+    /** 当前会话是否已经到达模型的 MAX 上下文门限 */
+    private fun ConversationSession.maxContextReached(): Boolean {
+        val conversation = state.value
+        val model = settingsStore.settingsFlow.value.getChatModelOf(conversation)
+        if (model?.enforceMaxContext == false) return false
+        return isContextLimitReached(conversation.lastContextTokens(), model?.maxContextTokens)
+    }
+
+    private fun reportContextLimit(conversationId: Uuid) {
+        addError(
+            error = IllegalStateException(context.getString(R.string.chat_page_context_limit_reached)),
+            conversationId = conversationId,
+            title = context.getString(R.string.error_title_operation),
+        )
+    }
+
+    /**
+     * @param interject 强制插话：不等当前回复结束，直接打断并把这条消息插到队首
+     */
+    fun sendMessage(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+        interject: Boolean = false,
+    ) {
         if (content.isEmptyInputMessage()) return
         val session = sessionManager.getOrCreate(conversationId)
         synchronized(session) {
+            if (session.maxContextReached()) {
+                reportContextLimit(conversationId)
+                return
+            }
+            // 关掉消息队列后，生成期间发送的消息等价于插话
+            val queueEnabled = settingsStore.settingsFlow.value.enableMessageQueue
+            if (interject || (!queueEnabled && session.getJob() != null)) {
+                session.messageQueue.enqueueFirst(content, answer)
+                session.messageQueue.resume()
+                val job = session.getJob()
+                if (job != null) {
+                    // 取消后 onSessionGenerationFinished 会立刻派发队首
+                    job.cancel()
+                } else {
+                    dispatchNextQueuedMessage(conversationId)
+                }
+                return
+            }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
             session.messageQueue.enqueue(content, answer)
             dispatchNextQueuedMessage(conversationId)
@@ -398,6 +442,9 @@ class ChatService(
             check(!session.state.value.isAwaitingToolApproval) {
                 context.getString(R.string.chat_page_voice_tools_before_resume)
             }
+            check(!session.maxContextReached()) {
+                context.getString(R.string.chat_page_context_limit_reached)
+            }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
             session.messageQueue.enqueue(listOf(UIMessagePart.Text(text)), reply = reply)
             dispatchNextQueuedMessage(conversationId)
@@ -410,6 +457,12 @@ class ChatService(
         synchronized(session) {
             // A pending tool approval is still part of the current turn.
             if (session.getJob() != null || session.state.value.isAwaitingToolApproval) return null
+            // 队列里还有消息但已经到达 MAX: 暂停队列, 压缩上下文后可以手动恢复
+            if (session.messageQueue.state.value.messages.isNotEmpty() && session.maxContextReached()) {
+                session.messageQueue.pause()
+                reportContextLimit(conversationId)
+                return null
+            }
             val next = session.messageQueue.takeNext() ?: return null
             session.submittingMessage = next
             return sendQueuedMessage(session, next)

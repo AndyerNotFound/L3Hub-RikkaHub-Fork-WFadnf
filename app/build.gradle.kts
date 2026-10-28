@@ -9,8 +9,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
-    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.baselineprofile)
 }
 
@@ -23,17 +21,14 @@ android {
     }
 
     defaultConfig {
-        applicationId = "me.rerere.rikkahub"
+        applicationId = "com.rikkahub.fork"
         minSdk = 26
         targetSdk = 37
         versionCode = 194
         versionName = "3.1.1"
+        buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
     }
 
     splits {
@@ -43,8 +38,9 @@ android {
             val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
             isEnable = !isBuildingBundle
             reset()
-            include("arm64-v8a", "x86_64")
-            isUniversalApk = true
+            // fork 只出真机用的一个包：每次构建只产出一个 APK，也不再额外打 universal
+            include("arm64-v8a")
+            isUniversalApk = false
         }
     }
 
@@ -84,6 +80,14 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            // fork 日常只装这一个包：按 release 的方式编译（关调试、开 R8），
+            // 否则 Compose 的调试构建在真机上滚动和流式输出会明显掉帧。
+            // 包名和签名不变，可以直接覆盖安装。
+            isDebuggable = false
+            // R8 本机一次要 8 分钟, 日常构建先不开; 需要时把下面两行打开, 或交给 CI 出包
+            // optimization {
+            //     enable = true
+            // }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
@@ -219,11 +223,6 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.material3.adaptive.navigation3)
-
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)

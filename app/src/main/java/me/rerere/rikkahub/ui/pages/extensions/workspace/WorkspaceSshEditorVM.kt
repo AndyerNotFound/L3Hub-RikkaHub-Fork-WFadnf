@@ -9,8 +9,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.model.SavedSshSecrets
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.ssh.SshAuthFailedException
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshHostKey
 import me.rerere.workspace.ssh.SshHostKeyChangedException
@@ -31,6 +33,8 @@ class WorkspaceSshEditorVM(
             viewModelScope.launch {
                 val workspace = repository.getById(id)
                 val settings = workspace?.sshSettings()
+                // 恢复备份或换机后 Keystore 密钥变了, 旧密文解不开, 这里顺便清掉
+                val secrets = runCatching { repository.usableSavedSecrets(id) }.getOrDefault(SavedSshSecrets())
                 _state.update { state ->
                     if (workspace == null || settings == null) {
                         state.copy(
@@ -47,8 +51,9 @@ class WorkspaceSshEditorVM(
                             authType = settings.authType,
                             remoteDir = settings.remoteDir,
                             hostKey = settings.hostKey,
-                            hasSavedPassword = settings.encryptedPassword != null,
-                            hasSavedPrivateKey = settings.encryptedPrivateKey != null,
+                            hasSavedPassword = secrets.hasPassword,
+                            hasSavedPrivateKey = secrets.hasPrivateKey,
+                            savedCredentialsLost = secrets.unusable,
                         )
                     }
                 }
@@ -108,6 +113,10 @@ class WorkspaceSshEditorVM(
             _state.update { it.copy(error = SshEditorError.Resource(R.string.workspace_ssh_editor_missing_fields)) }
             return
         }
+        current.missingCredentialError()?.let { error ->
+            _state.update { it.copy(error = error) }
+            return
+        }
         _state.update { it.copy(testing = true, error = null, saveAnywayDraft = null) }
         viewModelScope.launch {
             try {
@@ -121,6 +130,26 @@ class WorkspaceSshEditorVM(
             } catch (e: SshUnknownHostKeyException) {
                 _state.update {
                     it.copy(testing = false, pendingHostKey = PendingHostKey(draft, e.hostKey, null, saveAfter))
+                }
+            } catch (e: SshAuthFailedException) {
+                val fingerprint = e.fingerprint
+                _state.update {
+                    it.copy(
+                        testing = false,
+                        probeResult = null,
+                        error = when {
+                            fingerprint != null -> SshEditorError.MessageArgs(
+                                R.string.workspace_ssh_editor_auth_failed_key_fingerprint,
+                                fingerprint,
+                            )
+
+                            current.authType == SshAuthType.PASSWORD ->
+                                SshEditorError.Resource(R.string.workspace_ssh_editor_auth_failed_password)
+
+                            else -> SshEditorError.Resource(R.string.workspace_ssh_editor_auth_failed_key)
+                        },
+                        saveAnywayDraft = draft.takeIf { saveAfter },
+                    )
                 }
             } catch (e: SshHostKeyChangedException) {
                 _state.update {
@@ -164,6 +193,22 @@ class WorkspaceSshEditorVM(
         }
     }
 
+    /** 没有任何可用凭据时连服务器也只会被打回, 直接提示重新填写 */
+    private fun WorkspaceSshEditorState.missingCredentialError(): SshEditorError? = when {
+        authType == SshAuthType.PASSWORD && password.isEmpty() && !hasSavedPassword ->
+            SshEditorError.Resource(R.string.workspace_ssh_editor_missing_password)
+
+        authType == SshAuthType.PRIVATE_KEY && privateKey.isBlank() && !hasSavedPrivateKey ->
+            SshEditorError.Resource(R.string.workspace_ssh_editor_missing_private_key)
+
+        // 多半是把公钥或文件路径填进了私钥框, 提前说清楚, 不用连一次服务器
+        authType == SshAuthType.PRIVATE_KEY && privateKey.isNotBlank() &&
+            !privateKey.contains("PRIVATE KEY") ->
+            SshEditorError.Resource(R.string.workspace_ssh_editor_key_not_private)
+
+        else -> null
+    }
+
     private fun WorkspaceSshEditorState.toDraftOrNull(): SshWorkspaceDraft? {
         val port = port.trim().toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
         if (host.isBlank() || username.isBlank()) return null
@@ -197,6 +242,8 @@ data class WorkspaceSshEditorState(
     // 编辑已有工作区时, 已保存的凭据可以留空沿用
     val hasSavedPassword: Boolean = false,
     val hasSavedPrivateKey: Boolean = false,
+    /** 记录里有凭据但解不开 (恢复备份或换机), 已清掉, 需要重新填写 */
+    val savedCredentialsLost: Boolean = false,
     val testing: Boolean = false,
     val saving: Boolean = false,
     val probeResult: SshProbeResult? = null,
@@ -218,6 +265,9 @@ sealed interface SshEditorError {
     data class Resource(@StringRes val id: Int) : SshEditorError
 
     data class Message(val text: String) : SshEditorError
+
+    /** 带一个参数的字符串资源, 例如公钥指纹 */
+    data class MessageArgs(@StringRes val id: Int, val arg: String) : SshEditorError
 }
 
 /** 等待用户确认的主机密钥, 属于 [draft] 这份配置; [expected] 不为空表示和之前信任的不一致 */

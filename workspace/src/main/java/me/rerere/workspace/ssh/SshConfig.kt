@@ -48,17 +48,37 @@ data class SshConnectionConfig(
         "SshConnectionConfig(address=$address, authType=$authType, remoteDir=$remoteDir, hostKey=${hostKey?.fingerprint})"
 }
 
+/** 测试连接时远程工作目录的问题; 连接本身是通的, 只是这个目录用不了 */
+enum class SshRemoteDirIssue {
+    NOT_FOUND,
+    NOT_A_DIRECTORY,
+    PERMISSION_DENIED,
+    UNKNOWN,
+}
+
 /** 测试连接的结果 */
 data class SshProbeResult(
     val hostKey: SshHostKey,
     val homeDir: String,
     val shell: String,
     val remoteDirExists: Boolean,
+    /** [remoteDirExists] 为 false 时说明原因 */
+    val remoteDirIssue: SshRemoteDirIssue? = null,
 )
 
 /** 服务器的主机密钥尚未被信任, 需要用户确认 [hostKey] 的指纹 */
 class SshUnknownHostKeyException(val hostKey: SshHostKey) :
     IOException("Unknown SSH host key ${hostKey.type} ${hostKey.fingerprint}")
+
+/**
+ * 服务器拒绝了这组凭据。密码错、公钥没写进 authorized_keys、~/.ssh 权限过宽都会走到这里,
+ * 所以要能区分于"连不上"。指纹用来和服务器上的 authorized_keys 对照。
+ */
+class SshAuthFailedException(
+    val fingerprint: String?,
+    address: String,
+    cause: Throwable? = null,
+) : IOException("SSH authentication failed: $address", cause)
 
 /** 服务器的主机密钥与已信任的不一致, 可能遭遇中间人攻击, 也可能是服务器重装过 */
 class SshHostKeyChangedException(val expected: SshHostKey, val actual: SshHostKey) :

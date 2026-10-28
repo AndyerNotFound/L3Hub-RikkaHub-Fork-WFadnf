@@ -68,6 +68,8 @@ import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.isContextLimitReached
+import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
@@ -288,6 +290,13 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     val workspaceRepository: WorkspaceRepository = koinInject()
 
+    // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
+    val contextTokens = remember(conversation.messageNodes) { conversation.lastContextTokens() }
+    val contextLimitReached = isContextLimitReached(contextTokens, currentChatModel?.maxContextTokens)
+    // 模型可以关掉强制拦截，此时只在发送时提醒一次
+    val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
+    val contextLimitMessage = stringResource(R.string.chat_page_context_limit_reached)
+
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -356,6 +365,16 @@ private fun ChatPageContent(
                     settings = setting,
                     assistant = assistant,
                     chatModel = currentChatModel,
+                    contextTokens = contextTokens,
+                    onToggleContextMeterDisplay = {
+                        vm.updateSettings { settings ->
+                            settings.copy(
+                                displaySetting = settings.displaySetting.copy(
+                                    contextMeterAbsolute = !settings.displaySetting.contextMeterAbsolute
+                                )
+                            )
+                        }
+                    },
                     hazeState = hazeState,
                     completionProviders = completionProviders,
                     onCancelClick = {
@@ -365,6 +384,10 @@ private fun ChatPageContent(
                         if (currentChatModel == null) {
                             toaster.show("请先选择模型", type = ToastType.Error)
                             return@ChatInput
+                        }
+                        if (contextLimitReached) {
+                            toaster.show(contextLimitMessage, type = ToastType.Error)
+                            if (contextLimitBlocksSend) return@ChatInput
                         }
                         if (inputState.isEditing()) {
                             vm.handleMessageEdit(
@@ -380,7 +403,23 @@ private fun ChatPageContent(
                         }
                         inputState.clearInput()
                     },
+                    onInterjectClick = {
+                        if (contextLimitReached) {
+                            toaster.show(contextLimitMessage, type = ToastType.Error)
+                            if (contextLimitBlocksSend) return@ChatInput
+                        }
+                        vm.handleMessageSend(inputState.getContents(), interject = true)
+                        inputState.clearInput()
+                        scope.launch {
+                            delay(100.milliseconds)
+                            chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                        }
+                    },
                     onLongSendClick = {
+                        if (contextLimitReached) {
+                            toaster.show(contextLimitMessage, type = ToastType.Error)
+                            if (contextLimitBlocksSend) return@ChatInput
+                        }
                         if (inputState.isEditing()) {
                             vm.handleMessageEdit(
                                 parts = inputState.getContents(),

@@ -55,6 +55,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -107,6 +108,7 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.account.preserveCredential
+import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
@@ -659,6 +661,11 @@ private fun ModelSettingsForm(
                                 onUpdateContextLength = {
                                     onModelChange(model.copy(contextLength = it))
                                 }
+                            )
+
+                            ModelContextThresholdFields(
+                                model = model,
+                                onModelChange = onModelChange,
                             )
                         }
                     }
@@ -1213,6 +1220,129 @@ private fun ModelContextLengthSelector(
             isError = (customText.toIntOrNull() ?: 0) <= 0,
         )
     }
+}
+
+@Composable
+private fun ModelContextThresholdFields(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+) {
+    val warn = model.warnContextTokens
+    val max = model.maxContextTokens
+    val invalid = warn != null && max != null && warn >= max
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.setting_provider_page_context_thresholds),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            if (!model.contextThresholdsAuto) {
+                TextButton(
+                    onClick = {
+                        val preset = ContextThresholdPresets.resolve(model.modelId)
+                        onModelChange(
+                            model.copy(
+                                warnContextTokens = preset.warn,
+                                maxContextTokens = preset.max,
+                                contextThresholdsAuto = true,
+                            )
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.setting_provider_page_context_threshold_use_preset))
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ContextThresholdField(
+                value = warn,
+                label = stringResource(R.string.setting_provider_page_context_warn),
+                isError = invalid,
+                onValueChange = {
+                    onModelChange(model.copy(warnContextTokens = it, contextThresholdsAuto = false))
+                },
+                modifier = Modifier.weight(1f),
+            )
+            ContextThresholdField(
+                value = max,
+                label = stringResource(R.string.setting_provider_page_context_max),
+                isError = invalid,
+                onValueChange = {
+                    onModelChange(model.copy(maxContextTokens = it, contextThresholdsAuto = false))
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Text(
+            text = if (invalid) {
+                stringResource(R.string.setting_provider_page_context_threshold_invalid)
+            } else {
+                stringResource(R.string.setting_provider_page_context_threshold_hint)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = if (invalid) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.setting_provider_page_context_block),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = stringResource(R.string.setting_provider_page_context_block_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = model.enforceMaxContext,
+                onCheckedChange = { onModelChange(model.copy(enforceMaxContext = it)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ContextThresholdField(
+    value: Int?,
+    label: String,
+    isError: Boolean,
+    onValueChange: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // 输入过程中允许为空, 只有合法的正整数才写回模型
+    var text by remember(value) { mutableStateOf(value?.toString() ?: "") }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            val digits = input.filter { it.isDigit() }
+            text = digits
+            onValueChange(digits.toIntOrNull()?.takeIf { it > 0 })
+        },
+        modifier = modifier,
+        label = { Text(label) },
+        suffix = { Text("tokens") },
+        placeholder = { Text("-") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        isError = isError,
+    )
 }
 
 @Composable

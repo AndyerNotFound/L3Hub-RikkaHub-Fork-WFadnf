@@ -1,14 +1,25 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,8 +27,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,12 +46,15 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.AppLanguage
+import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var ttsPlaybackSpeed by remember(settings.defaultTTSPlaybackSpeed) {
         mutableFloatStateOf(settings.defaultTTSPlaybackSpeed)
@@ -73,6 +89,39 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
+                var languageTag by remember { mutableStateOf(AppLanguage.currentTag(context)) }
+                var showLanguageDialog by remember { mutableStateOf(false) }
+                CardGroup {
+                    item(
+                        onClick = { showLanguageDialog = true },
+                        trailingContent = {
+                            CardGroupValue(
+                                if (languageTag.isBlank()) {
+                                    stringResource(R.string.setting_page_language_system)
+                                } else {
+                                    AppLanguage.displayName(languageTag)
+                                }
+                            )
+                        },
+                    ) {
+                        Text(stringResource(R.string.setting_page_language))
+                    }
+                }
+                if (showLanguageDialog) {
+                    LanguagePickerDialog(
+                        selected = languageTag,
+                        onSelect = { tag ->
+                            AppLanguage.setTag(context, tag)
+                            languageTag = tag
+                            showLanguageDialog = false
+                            context.getActivity()?.recreate()
+                        },
+                        onDismiss = { showLanguageDialog = false },
+                    )
+                }
+            }
+
+            item {
                 var createNewConversationOnStart by rememberSharedPreferenceBoolean(
                     "create_new_conversation_on_start",
                     true
@@ -89,6 +138,14 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(sendOnEnter = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_title)) },
+                    )
+                    switchItem(
+                        checked = settings.enableMessageQueue,
+                        onCheckedChange = { enabled ->
+                            vm.updateSettings { it.copy(enableMessageQueue = enabled) }
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_message_queue_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_message_queue_title)) },
                     )
                 }
             }
@@ -267,4 +324,44 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
             }
         }
     }
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    selected: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_page_language)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                (listOf("") + AppLanguage.supportedTags).forEach { tag ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(tag) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = tag == selected, onClick = { onSelect(tag) })
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (tag.isBlank()) {
+                                stringResource(R.string.setting_page_language_system)
+                            } else {
+                                AppLanguage.displayName(tag)
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
 }

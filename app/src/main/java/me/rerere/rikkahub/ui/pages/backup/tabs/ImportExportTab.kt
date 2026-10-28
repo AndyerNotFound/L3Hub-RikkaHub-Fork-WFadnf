@@ -100,6 +100,32 @@ fun ImportExportTab(
         uri?.let { sourceUri ->
             scope.launch {
                 isRestoring = true
+                if (importType == "markdown") {
+                    runCatching {
+                        val text = context.contentResolver
+                            .openInputStream(sourceUri)
+                            ?.bufferedReader()
+                            ?.use { it.readText() }
+                            ?: error("Cannot read file")
+                        val result = vm.importMarkdown(text)
+                        toaster.show(
+                            context.getString(
+                                R.string.backup_page_markdown_import_success,
+                                result.title,
+                                result.count,
+                            ),
+                            type = ToastType.Success
+                        )
+                    }.onFailure { e ->
+                        e.printStackTrace()
+                        toaster.show(
+                            context.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                            type = ToastType.Error
+                        )
+                    }
+                    isRestoring = false
+                    return@launch
+                }
                 runCatching {
                     when (importType) {
                         "local" -> {
@@ -240,6 +266,20 @@ fun ImportExportTab(
         CardGroup(
             title = { Text(stringResource(R.string.backup_page_import_from_other_app)) },
         ) {
+            item(
+                onClick = if (!isRestoring) {
+                    {
+                        importType = "markdown"
+                        openDocumentLauncher.launch(arrayOf("*/*"))
+                    }
+                } else null,
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_markdown)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_markdown_desc)) },
+                leadingContent = {
+                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "markdown")
+                },
+            )
+
             item(
                 onClick = if (!isRestoring) {
                     {

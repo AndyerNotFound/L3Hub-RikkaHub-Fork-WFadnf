@@ -15,6 +15,7 @@ import me.rerere.workspace.StreamWriter
 import me.rerere.workspace.WorkspaceCommandResult
 import java.io.Closeable
 import java.io.IOException
+import java.security.MessageDigest
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
 import java.util.Base64
@@ -196,6 +197,28 @@ internal class SshConnection private constructor(
         disconnect()
     }
 
+    /**
+     * 探测远程工作目录。目录不存在或没权限只作为提示返回, 不让整个测试连接失败:
+     * 连得上但目录填错是最常见的情况, 用户需要先看到连接本身是通的。
+     */
+    private fun probeRemoteDir(remoteDir: String): Pair<Boolean, SshRemoteDirIssue?> {
+        if (!remoteDir.startsWith("/")) return false to SshRemoteDirIssue.NOT_FOUND
+        return try {
+            val attrs = sftp { it.statOrNull(remoteDir) }
+            when {
+                attrs == null -> false to SshRemoteDirIssue.NOT_FOUND
+                attrs.isDir -> true to null
+                else -> false to SshRemoteDirIssue.NOT_A_DIRECTORY
+            }
+        } catch (e: SftpException) {
+            false to when (e.id) {
+                ChannelSftp.SSH_FX_NO_SUCH_FILE -> SshRemoteDirIssue.NOT_FOUND
+                ChannelSftp.SSH_FX_PERMISSION_DENIED -> SshRemoteDirIssue.PERMISSION_DENIED
+                else -> SshRemoteDirIssue.UNKNOWN
+            }
+        }
+    }
+
     private fun detectShell(): String {
         val result = exec("command -v bash", SHELL_DETECT_TIMEOUT_MS)
         // 用户的 rc 文件可能会往 stdout 打印内容, 只认最后一个绝对路径
@@ -241,6 +264,7 @@ internal class SshConnection private constructor(
                 }
             }
 
+            val keyFingerprint = if (config.authType == SshAuthType.PRIVATE_KEY) privateKeyFingerprint(jsch) else null
             val hostKeys = TrustedHostKeyRepository(config.hostKey)
             val session = jsch.getSession(config.username, config.host, config.port).apply {
                 setHostKeyRepository(hostKeys)
@@ -261,6 +285,10 @@ internal class SshConnection private constructor(
                 session.connect(CONNECT_TIMEOUT_MS)
             } catch (e: JSchException) {
                 hostKeys.rejection?.let { throw it }
+                // 主机密钥没问题时, "Auth fail" 只可能是服务器拒绝了这组凭据
+                if (e.message?.startsWith("Auth fail") == true) {
+                    throw SshAuthFailedException(keyFingerprint, config.address, e)
+                }
                 throw IOException("SSH connection to ${config.address} failed: ${e.message}", e)
             }
             val hostKey = hostKeys.presented ?: run {
@@ -270,19 +298,27 @@ internal class SshConnection private constructor(
             return SshConnection(config, session, hostKey, channelTimeoutMillis)
         }
 
+        /** 私钥对应公钥的 SHA256 指纹, 用户可以和服务器上 authorized_keys 的条目对照 */
+        private fun privateKeyFingerprint(jsch: JSch): String? = runCatching {
+            jsch.identityRepository.identities.firstOrNull()?.publicKeyBlob
+        }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { blob ->
+            val digest = MessageDigest.getInstance("SHA-256").digest(blob)
+            "SHA256:" + Base64.getEncoder().withoutPadding().encodeToString(digest)
+        }
+
         /** 用一条临时连接验证配置, 并取回远程环境的基本信息 */
         fun probe(config: SshConnectionConfig): SshProbeResult {
             // 被取消时放弃等待, 之后建好的连接直接关掉
             val connection = awaitInterruptibly({ open(config) }, onAbandoned = { it.close() })
             return connection.use {
                 val remoteDir = config.remoteDir.trim()
+                val (exists, issue) = connection.probeRemoteDir(remoteDir)
                 SshProbeResult(
                     hostKey = connection.hostKey,
                     homeDir = connection.homeDir,
                     shell = connection.shell,
-                    remoteDirExists = remoteDir.startsWith("/") && connection.sftp { sftp ->
-                        sftp.statOrNull(remoteDir)?.isDir == true
-                    },
+                    remoteDirExists = exists,
+                    remoteDirIssue = issue,
                 )
             }
         }

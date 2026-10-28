@@ -25,6 +25,25 @@ data class SshWorkspaceSettings(
     val encryptedPassphrase: String? = null,
 )
 
+/**
+ * 丢掉解不开的凭据。Keystore 密钥跟着设备和安装走, 恢复备份或换机后旧密文永远解不开,
+ * 留着只会让界面显示"已保存"、让连接报错, 不如清掉让用户重新填写。
+ */
+fun SshWorkspaceSettings.dropUndecryptableSecrets(canDecrypt: (String) -> Boolean): SshWorkspaceSettings =
+    copy(
+        encryptedPassword = encryptedPassword?.takeIf(canDecrypt),
+        encryptedPrivateKey = encryptedPrivateKey?.takeIf(canDecrypt),
+        encryptedPassphrase = encryptedPassphrase?.takeIf(canDecrypt),
+    )
+
+/** 已保存的凭据在当前设备上还能不能用 */
+data class SavedSshSecrets(
+    val hasPassword: Boolean = false,
+    val hasPrivateKey: Boolean = false,
+    /** 存在解不开的旧密文, 已从记录里清掉 */
+    val unusable: Boolean = false,
+)
+
 /** SSH 工作区编辑表单。凭据为明文; 编辑已有工作区时留空表示沿用已保存的值 */
 data class SshWorkspaceDraft(
     val name: String,

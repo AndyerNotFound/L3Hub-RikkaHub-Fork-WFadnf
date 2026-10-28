@@ -45,6 +45,8 @@ data class Settings(
     val memoryModelReasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
     val imageGenerationModelId: Uuid = Uuid.random(),
     val enableAutoTitle: Boolean = true,
+    // 生成过程中发送的消息是否进入队列排队; 关闭后直接打断当前回复立即发送
+    val enableMessageQueue: Boolean = true,
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
     val translateModeId: Uuid = Uuid.random(),
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
@@ -143,6 +145,8 @@ data class DisplaySetting(
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
     val showTokenUsage: Boolean = true,
+    // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
+    val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,
     val autoCloseThinking: Boolean = true,
     val updateCheckDisabledUntilEpochMillis: Long = 0L,

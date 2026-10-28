@@ -15,13 +15,16 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
+import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
-import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
-import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
-import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.S3Sync
+import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
+import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
+import me.rerere.rikkahub.data.sync.importer.MarkdownChatImporter
+import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
+import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.utils.UiState
 import java.io.File
 
@@ -106,6 +109,23 @@ class BackupVM(
             file,
             settings.value.webDavConfig.copy(items = localBackupItems.value),
         )
+    }
+
+    /** 从 Markdown 聊天记录新建一个会话，不覆盖任何已有数据 */
+    suspend fun importMarkdown(text: String): MarkdownImportResult = withContext(Dispatchers.IO) {
+        val parsed = MarkdownChatImporter.parse(text)
+        require(parsed.messages.isNotEmpty()) { "No chat messages found in this file" }
+        val title = parsed.title.ifBlank {
+            parsed.messages.first().toText().trim().take(40).ifBlank { "Markdown import" }
+        }
+        conversationRepository.insertConversation(
+            Conversation(
+                assistantId = settings.value.assistantId,
+                title = title,
+                messageNodes = parsed.messages.map { it.toMessageNode() },
+            )
+        )
+        MarkdownImportResult(title = title, count = parsed.messages.size)
     }
 
     suspend fun restoreFromChatBox(file: File): ChatboxRestoreResult = withContext(Dispatchers.IO) {
@@ -242,3 +262,5 @@ data class ChatboxRestoreResult(
     val skippedForkMessages: Int,
     val skippedSessions: Int,
 )
+
+data class MarkdownImportResult(val title: String, val count: Int)

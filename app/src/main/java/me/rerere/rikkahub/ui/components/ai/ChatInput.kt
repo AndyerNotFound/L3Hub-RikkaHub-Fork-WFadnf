@@ -90,6 +90,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
+import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -125,6 +126,9 @@ fun ChatInput(
     // 会话视角下的助手和模型：会话开始后以会话上固定的配置为准
     assistant: Assistant,
     chatModel: Model?,
+    // 当前会话已占用的上下文 token(最近一次回复的真实用量)
+    contextTokens: Int? = null,
+    onToggleContextMeterDisplay: () -> Unit = {},
     hazeState: HazeState,
     modifier: Modifier = Modifier,
     completionProviders: List<ChatCompletionProvider> = emptyList(),
@@ -134,6 +138,8 @@ fun ChatInput(
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
+    // 强制插话：打断当前回复，立刻发送输入框里的内容
+    onInterjectClick: () -> Unit = {},
     messageQueue: MessageQueueState = MessageQueueState(),
     onRemoveQueuedMessage: (Uuid) -> Unit = {},
     onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
@@ -253,6 +259,16 @@ fun ChatInput(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    if (chatModel != null) {
+                        ContextUsageMeter(
+                            tokens = contextTokens,
+                            warnTokens = chatModel.warnContextTokens,
+                            maxTokens = chatModel.maxContextTokens,
+                            showAbsolute = settings.displaySetting.contextMeterAbsolute,
+                            onToggleDisplay = onToggleContextMeterDisplay,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                    }
                     if (voiceState.phase != VoicePhase.Off) {
                         VoiceModeRow(
                             state = voiceState,
@@ -339,6 +355,15 @@ fun ChatInput(
                                     }
                                 }
                             )
+                        }
+
+                        if (loading && settings.enableMessageQueue && !state.isEmpty()) {
+                            ActionIconButton(onClick = onInterjectClick) {
+                                Icon(
+                                    imageVector = HugeIcons.MessageAdd01,
+                                    contentDescription = stringResource(R.string.chat_page_interject),
+                                )
+                            }
                         }
 
                         if (loading) {

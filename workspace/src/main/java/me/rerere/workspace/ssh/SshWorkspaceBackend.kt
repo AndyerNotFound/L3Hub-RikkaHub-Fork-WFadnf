@@ -36,21 +36,51 @@ class SshWorkspaceBackend(
 
     override fun listFiles(area: WorkspaceStorageArea, path: String): List<WorkspaceFileEntry> {
         val dir = resolve(area, path)
-        return withSftp(area, retry = true) { sftp ->
-            val attrs = sftp.requireStat(dir, path)
-            require(attrs.isDir) { "Path is not a directory: $path" }
-            sftp.ls(dir.sftpQuote())
-                .filter { it.filename != "." && it.filename != ".." }
-                .map { entry ->
-                    val child = dir.child(entry.filename)
-                    // 指向目录的软链按目录展示, 和本地文件浏览器的行为一致
-                    val isDirectory = entry.attrs.isDir ||
-                        entry.attrs.isLink && sftp.statOrNull(child)?.isDir == true
-                    entry.attrs.toEntry(relativePath(area, child), entry.filename, isDirectory)
-                }
-                .sortedWith(compareBy<WorkspaceFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
-                .take(workspaceConfig.maxListEntries)
+        // ls 内部会先 stat 目标目录, 这里不再多 stat 一次
+        val entries = try {
+            withSftp(area, retry = true) { sftp ->
+                sftp.ls(dir.sftpQuote()).filter { it.filename != "." && it.filename != ".." }
+            }
+        } catch (e: SftpException) {
+            throw e.wrap(path)
         }
+        val linkedDirs = linkedDirectories(area, dir, entries)
+        return entries
+            .map { entry ->
+                val child = dir.child(entry.filename)
+                // 指向目录的软链按目录展示, 和本地文件浏览器的行为一致
+                val isDirectory = entry.attrs.isDir || entry.filename in linkedDirs
+                entry.attrs.toEntry(relativePath(area, child), entry.filename, isDirectory)
+            }
+            .sortedWith(compareBy<WorkspaceFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            .take(workspaceConfig.maxListEntries)
+    }
+
+    /**
+     * 软链接要 stat 才知道指向的是不是目录。目录里链接多时 (如 /usr/bin) 逐个 stat 就是成百上千次往返,
+     * 一条 shell 命令能一次问完; 服务器不允许 exec 或输出被截断时再退回逐个 stat。
+     */
+    private fun linkedDirectories(
+        area: WorkspaceStorageArea,
+        dir: String,
+        entries: List<ChannelSftp.LsEntry>,
+    ): Set<String> {
+        val links = entries.filter { it.attrs.isLink && !it.attrs.isDir }.map { it.filename }
+        if (links.isEmpty()) return emptySet()
+        scanDirectories(dir)?.let { found -> return links.filterTo(mutableSetOf()) { it in found } }
+        return withSftp(area, retry = true) { sftp ->
+            links.filterTo(mutableSetOf()) { name -> sftp.statOrNull(dir.child(name))?.isDir == true }
+        }
+    }
+
+    /** 一次 exec 列出目录下的子目录名; 不支持 shell 或输出被截断时返回 null */
+    private fun scanDirectories(dir: String): Set<String>? {
+        val command = "cd ${dir.shellQuote()} 2>/dev/null || exit 1; " +
+            "for f in * .[!.]*; do [ -d \"\$f\" ] && printf '%s\\0' \"\$f\"; done"
+        val result = runCatching { pool.use(id, config, retry = true) { it.exec(command, SCAN_TIMEOUT_MS) } }
+            .getOrNull() ?: return null
+        if (result.exitCode != 0 || result.truncated) return null
+        return result.stdout.split('\u0000').filter { it.isNotEmpty() }.toSet()
     }
 
     override fun readText(path: String): String {
@@ -222,6 +252,8 @@ class SshWorkspaceBackend(
         path.removePrefix(areaRoot(area)).trimStart('/')
 
     companion object {
+        private const val SCAN_TIMEOUT_MS = 10_000L
+
         /** 不需要连接即可得到的目录约定, 供界面展示路径使用 */
         fun layoutOf(remoteDir: String): WorkspaceLayout {
             val workspaceDir = normalizeAbsolute(remoteDir)

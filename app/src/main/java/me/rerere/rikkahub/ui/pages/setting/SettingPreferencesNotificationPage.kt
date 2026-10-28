@@ -66,7 +66,8 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val updateChecksEnabled =
-        displaySetting.updateCheckDisabledUntilEpochMillis <= System.currentTimeMillis()
+        BuildConfig.UPDATE_CHECK_ENABLED &&
+            displaySetting.updateCheckDisabledUntilEpochMillis <= System.currentTimeMillis()
 
     val permissionState = rememberPermissionState(
         permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setOf(
@@ -111,7 +112,7 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Play 版由商店负责更新，不提供更新提醒
-            if (!BuildConfig.IS_PLAY_STORE) {
+            if (BuildConfig.UPDATE_CHECK_ENABLED && !BuildConfig.IS_PLAY_STORE) {
                 item {
                     CardGroup {
                         item(

@@ -157,9 +157,11 @@ data class MessageNode(
  * 之后又插入了压缩检查点的话，记录的占用已经过时，同样返回 null。
  */
 fun Conversation.lastContextTokens(): Int? {
-    val messages = currentMessages
-    val message = messages.lastOrNull { it.role == MessageRole.ASSISTANT } ?: return null
-    val checkpoint = messages.lastOrNull { it.isContextCheckpoint }
+    // 流式输出时每来一个 token 都会调用这里, 所以不构造 currentMessages 那份完整副本
+    fun MessageNode.selected(): UIMessage = messages[selectIndex]
+    val message = messageNodes.asReversed().firstOrNull { it.selected().role == MessageRole.ASSISTANT }
+        ?.selected() ?: return null
+    val checkpoint = messageNodes.asReversed().firstOrNull { it.selected().isContextCheckpoint }?.selected()
     if (checkpoint != null && checkpoint.createdAt > message.createdAt) return null
     return message.contextTokens()
 }

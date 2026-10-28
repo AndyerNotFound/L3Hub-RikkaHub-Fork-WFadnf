@@ -19,6 +19,14 @@ data class Model(
     val providerOverwrite: ProviderSetting? = null,
     // 上下文窗口大小(token)
     val contextLength: Int = 1_000_000,
+    // 上下文预警门限(token), null 表示不启用该门限
+    // WARN: 性能最佳点, 超过后开始提醒; MAX: 性能骤降点, 到达后禁止继续发送消息
+    val warnContextTokens: Int? = null,
+    val maxContextTokens: Int? = null,
+    // 到达 MAX 时是否强制阻止发送; 关闭后只提醒, 仍然可以发送
+    val enforceMaxContext: Boolean = true,
+    // 还没手动设置过门限时, 按模型名自动填预设
+    val contextThresholdsAuto: Boolean = true,
 )
 
 @Serializable
@@ -57,6 +65,3 @@ sealed class BuiltInTools {
     @SerialName("image_generation")
     data object ImageGeneration : BuiltInTools()
 }
-
-
-
