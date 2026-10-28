@@ -117,11 +117,13 @@ fun ColumnScope.ConversationList(
     LazyColumn(
         state = listState,
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.Top,
     ) {
         if (header != null) {
             item(key = "header", contentType = "header") {
-                header()
+                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                    header()
+                }
             }
         }
 
@@ -155,24 +157,28 @@ fun ColumnScope.ConversationList(
                 }
             }
         ) { index ->
-            // 已经收起的日期分组不渲染下面的会话
-            var sectionDate: LocalDate? = null
-            for (i in index - 1 downTo 0) {
-                when (val previous = conversations.itemSnapshotList.items.getOrNull(i)) {
-                    is ConversationListItem.DateHeader -> {
-                        sectionDate = previous.date
-                        break
-                    }
+            val item = conversations[index]
+            // 已经收起的日期分组不渲染下面的会话；标题本身始终显示
+            if (item is ConversationListItem.Item) {
+                var sectionDate: LocalDate? = null
+                for (i in index - 1 downTo 0) {
+                    when (val previous = conversations.itemSnapshotList.items.getOrNull(i)) {
+                        is ConversationListItem.DateHeader -> {
+                            sectionDate = previous.date
+                            break
+                        }
 
-                    is ConversationListItem.PinnedHeader -> break
-                    else -> Unit
+                        is ConversationListItem.PinnedHeader -> break
+                        else -> Unit
+                    }
+                }
+                if (sectionDate != null && sectionDate in collapsedDates) {
+                    return@items
                 }
             }
-            if (sectionDate != null && sectionDate in collapsedDates) {
-                return@items
-            }
 
-            when (val item = conversations[index]) {
+            Box(modifier = Modifier.padding(bottom = 8.dp)) {
+            when (item) {
                 is ConversationListItem.DateHeader -> {
                     DateHeaderItem(
                         label = item.label,
@@ -212,6 +218,7 @@ fun ColumnScope.ConversationList(
                 null -> {
                     // Placeholder for loading state
                 }
+            }
             }
         }
     }

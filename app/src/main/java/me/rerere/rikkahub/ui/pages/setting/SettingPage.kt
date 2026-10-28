@@ -19,7 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +76,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -93,7 +94,6 @@ import org.koin.compose.koinInject
 
 @Composable
 fun SettingPage(vm: SettingVM = koinViewModel()) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val launchCount by vm.launchCount.collectAsStateWithLifecycle()
@@ -127,18 +127,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(text = stringResource(R.string.settings))
                 },
                 navigationIcon = {
                     BackButton()
                 },
-                scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors
             )
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { innerPadding ->
         LazyColumn(
@@ -146,6 +144,34 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item("profile") {
+                val nickname = settings.displaySetting.userNickname.ifBlank {
+                    stringResource(R.string.user_default_name)
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    UIAvatar(
+                        name = nickname,
+                        value = settings.displaySetting.userAvatar,
+                        avatarSize = 88.dp,
+                        onUpdate = { avatar ->
+                            vm.updateSettings {
+                                it.copy(displaySetting = it.displaySetting.copy(userAvatar = avatar))
+                            }
+                        },
+                    )
+                    Text(
+                        text = nickname,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+
             if (settings.isNotConfigured()) {
                 item {
                     ProviderConfigWarningCard(

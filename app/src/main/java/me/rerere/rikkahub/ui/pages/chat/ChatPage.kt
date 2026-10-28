@@ -339,7 +339,7 @@ private fun FlyingAvatarOverlay(
         UIAvatar(
             name = name,
             value = avatar,
-            avatarSize = 52.dp,
+            avatarSize = (52f + 36f * progress.value).dp,
             modifier = Modifier
                 .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
                 .graphicsLayer {

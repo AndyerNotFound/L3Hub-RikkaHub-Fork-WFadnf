@@ -379,11 +379,18 @@ private fun MessagePartsBlock(
     val lastBodyIndex = groupedParts.indexOfLast { block ->
         block is MessagePartBlock.ContentBlock && (block.part as? UIMessagePart.Text)?.text?.isNotBlank() == true
     }
-    val hiddenBlocks = if (!loading && lastBodyIndex > 1) {
+    val blocksBeforeBody = if (!loading && role == MessageRole.ASSISTANT && lastBodyIndex > 0) {
         groupedParts.subList(0, lastBodyIndex)
     } else {
         emptyList()
     }
+    // 只有纯思考块时交给原版折叠；带工具调用的循环链整体再折一层
+    val hasToolChain = blocksBeforeBody.any { block ->
+        block is MessagePartBlock.ThinkingBlock && block.steps.any { step ->
+            step is ThinkingStep.ToolStep || step is ThinkingStep.ServerToolStep
+        }
+    }
+    val hiddenBlocks = if (lastBodyIndex > 1 || hasToolChain) blocksBeforeBody else emptyList()
     // 等待审批的工具不能藏起来，否则用户看不到审批按钮
     val hiddenPendingTool = hiddenBlocks.any { block ->
         block is MessagePartBlock.ThinkingBlock && block.steps.any { it is ThinkingStep.ToolStep && it.tool.isPending }
