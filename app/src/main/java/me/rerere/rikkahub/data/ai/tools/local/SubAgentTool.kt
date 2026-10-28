@@ -30,7 +30,8 @@ internal fun buildSubAgentTool(
     return Tool(
         name = SUB_AGENT_TOOL_NAME,
         description = """
-            把一项自成一体的任务派发给子代理，子代理在独立上下文里执行完再返回结果，不会占用当前对话的上下文。
+            把一项自成一体的任务派发给子代理，子代理在后台的独立上下文里执行，不会占用当前对话的上下文。
+            派发后立即返回，不会阻塞当前回合；子代理完成后结果会在下一次请求模型时回传到当前会话。
             任务描述里要写清背景、目标、约束和期望的输出格式，子代理看不到当前对话。
             可用子代理：
             $catalog
@@ -59,7 +60,7 @@ internal fun buildSubAgentTool(
                 task.isEmpty() -> "缺少参数 task"
                 subAgents.none { it.name.equals(target, ignoreCase = true) || it.id.toString() == target } ->
                     "没有名为「$target」的子代理，可用：${subAgents.joinToString { it.name }}"
-                else -> runner.run(conversationId, target, task)
+                else -> runner.dispatch(conversationId, target, task)
             }
             listOf(UIMessagePart.Text(result))
         },

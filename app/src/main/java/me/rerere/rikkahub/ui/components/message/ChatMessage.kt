@@ -72,6 +72,8 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
@@ -282,6 +284,43 @@ fun ChatMessage(
     }
 }
 
+// 最后一段正文之前的步骤整体折叠时显示的开关
+@Composable
+private fun EarlierStepsToggle(
+    collapsed: Boolean,
+    count: Int,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onToggle)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                if (collapsed) {
+                    R.string.chat_message_expand_earlier_steps
+                } else {
+                    R.string.chat_message_collapse_earlier_steps
+                },
+                count,
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 // 思考链折叠时默认保留的尾部步骤数
 private const val COLLAPSED_VISIBLE_STEPS = 2
 
@@ -336,7 +375,33 @@ private fun MessagePartsBlock(
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
     val groupedParts = remember(parts) { parts.groupMessageParts() }
-    groupedParts.fastForEach { block ->
+    // 最后一段正文之前的内容整体再折叠一层；展开后思考和工具仍按原来的方式折叠
+    val lastBodyIndex = groupedParts.indexOfLast { block ->
+        block is MessagePartBlock.ContentBlock && (block.part as? UIMessagePart.Text)?.text?.isNotBlank() == true
+    }
+    val hiddenBlocks = if (!loading && lastBodyIndex > 1) {
+        groupedParts.subList(0, lastBodyIndex)
+    } else {
+        emptyList()
+    }
+    // 等待审批的工具不能藏起来，否则用户看不到审批按钮
+    val hiddenPendingTool = hiddenBlocks.any { block ->
+        block is MessagePartBlock.ThinkingBlock && block.steps.any { it is ThinkingStep.ToolStep && it.tool.isPending }
+    }
+    val collapsibleCount = if (hiddenPendingTool) 0 else hiddenBlocks.size
+    var showEarlierSteps by remember(parts) { mutableStateOf(false) }
+
+    if (collapsibleCount > 0) {
+        EarlierStepsToggle(
+            collapsed = !showEarlierSteps,
+            count = collapsibleCount,
+            onToggle = { showEarlierSteps = !showEarlierSteps },
+        )
+    }
+    groupedParts.fastForEachIndexed { index, block ->
+        if (collapsibleCount > 0 && !showEarlierSteps && index < collapsibleCount) {
+            return@fastForEachIndexed
+        }
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {

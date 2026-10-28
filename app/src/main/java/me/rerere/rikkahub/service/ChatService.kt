@@ -44,6 +44,7 @@ import me.rerere.rikkahub.data.ai.ConversationMetaGenerator
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
@@ -118,6 +119,7 @@ class ChatService(
     private val memoryConsolidationScheduler: MemoryConsolidationScheduler,
     private val translationHandler: TranslationHandler,
     private val metaGenerator: ConversationMetaGenerator,
+    private val subAgentRunner: SubAgentRunner,
     val mcpManager: McpManager,
     private val filesManager: FilesManager,
     private val folderRepository: FolderRepository,
@@ -489,6 +491,20 @@ class ChatService(
                 ensureInitialized(session)
                 finishInterruptedPendingTools(session)
                 autoCompressIfNeeded(session)
+                // 上一轮结束后才跑完的子代理，先作为一条消息接在历史里再发这条消息
+                val pendingSubAgentResults = subAgentRunner.takeResults(conversationId)
+                if (pendingSubAgentResults.isNotEmpty()) {
+                    session.update { latest ->
+                        latest.copy(
+                            messageNodes = latest.messageNodes + pendingSubAgentResults.map { result ->
+                                UIMessage(
+                                    role = MessageRole.USER,
+                                    parts = listOf(UIMessagePart.Text(result)),
+                                ).toMessageNode()
+                            }
+                        )
+                    }
+                }
 
                 val assistant = settingsStore.awaitLoaded().getStoredAssistantOf(session.state.value)
                 val processedContent = queued.parts.replaceUserRegexes(assistant)
@@ -684,7 +700,30 @@ class ChatService(
             }
             warnIfToolsUnavailable(turn, conversationId)
 
-            val (request, hooks) = requestFactory.createAgent(turn, history, session.processingStatus)
+            val (request, hooks) = requestFactory.createAgent(
+                turn = turn,
+                messages = history,
+                processingStatus = session.processingStatus,
+                pendingInjections = {
+                    val results = subAgentRunner.takeResults(conversationId)
+                    if (results.isEmpty()) {
+                        emptyList()
+                    } else {
+                        val messages = results.map { result ->
+                            UIMessage(
+                                role = MessageRole.USER,
+                                parts = listOf(UIMessagePart.Text(result)),
+                            )
+                        }
+                        // 同时落到会话里，任务树和后续回合都能看到这次回传
+                        session.update { latest ->
+                            latest.copy(messageNodes = latest.messageNodes + messages.map { it.toMessageNode() })
+                        }
+                        session.flush()
+                        messages
+                    }
+                },
+            )
             var finishReason: AgentFinishReason? = null
             try {
                 runAgent(request, hooks).flowOn(Dispatchers.IO).collect { event ->

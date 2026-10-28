@@ -1855,4 +1855,10 @@
   <string name="chat_page_compress_before_send_desc">The conversation history will be compressed automatically before this message is sent.</string>
   <string name="chat_page_compress_and_send">Compress and send</string>
   <string name="chat_page_auto_compress_failed">Auto-compress failed</string>
+
+  <string name="setting_page_preferences_notification_battery_optimization">Ignore battery optimizations</string>
+  <string name="setting_page_preferences_notification_battery_optimization_desc">Keep the app running in the background so generation and sub-agents are not interrupted</string>
+  <string name="setting_page_preferences_notification_battery_optimization_granted">Already exempted, background work is not limited by battery optimization</string>
+  <string name="chat_message_expand_earlier_steps">Show %1$d earlier steps</string>
+  <string name="chat_message_collapse_earlier_steps">Hide %1$d earlier steps</string>
 </resources>

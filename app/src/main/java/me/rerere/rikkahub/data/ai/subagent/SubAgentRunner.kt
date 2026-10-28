@@ -1,7 +1,12 @@
 package me.rerere.rikkahub.data.ai.subagent
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import me.rerere.ai.agent.AgentEvent
@@ -36,7 +41,14 @@ class SubAgentRunner(
     private val conversationRepository: ConversationRepository,
     private val requestFactory: () -> ChatRequestFactory,
 ) {
-    suspend fun run(
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mutex = Mutex()
+
+    // 跑完的子代理结果，等父会话下一次请求模型时取走
+    private val pendingResults = mutableMapOf<Uuid, MutableList<String>>()
+
+    /** 派发到后台执行，立即返回；结果进 [pendingResults]，由父会话的请求循环取回 */
+    suspend fun dispatch(
         parentConversationId: Uuid,
         target: String,
         task: String,
@@ -61,6 +73,25 @@ class SubAgentRunner(
             return "子代理层级已达上限（$MAX_DEPTH 层），请直接在当前会话完成任务。"
         }
 
+        scope.launch {
+            val result = runResolved(parent, candidate, task)
+            mutex.withLock {
+                pendingResults.getOrPut(parentConversationId) { mutableListOf() }.add(result)
+            }
+        }
+        return "子代理「${candidate.name}」已在后台开始执行，完成后结果会自动回传到当前会话。"
+    }
+
+    /** 取走已经跑完、还没回传给父会话的结果 */
+    suspend fun takeResults(parentConversationId: Uuid): List<String> = mutex.withLock {
+        pendingResults.remove(parentConversationId).orEmpty()
+    }
+
+    private suspend fun runResolved(
+        parent: Conversation,
+        candidate: Assistant,
+        task: String,
+    ): String {
         val conversation = Conversation(
             assistantId = candidate.id,
             title = task.trim().lineSequence().firstOrNull()?.take(40)?.ifBlank { "子代理任务" }
@@ -75,12 +106,13 @@ class SubAgentRunner(
                     )
                 )
             ),
-            parentConversationId = parentConversationId,
+            parentConversationId = parent.id,
             subAgentTask = task,
             subAgentState = SUB_AGENT_STATE_RUNNING,
         )
         conversationRepository.insertConversation(conversation)
 
+        val settings = settingsStore.awaitLoaded()
         var latest = conversation
         var lastSaveAt = 0L
         var completed = false

@@ -128,7 +128,9 @@ class ChatRequestFactory(
         turn: ChatTurnContext,
         messages: List<UIMessage>,
         processingStatus: MutableStateFlow<String?>,
+        pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
     ): Pair<AgentRequest, AgentHooks> {
+        val injectedMessages = mutableListOf<UIMessage>()
         val request = AgentRequest(
             provider = usageRecorder.wrap(
                 providerManager.getProviderByType(turn.providerSetting),
@@ -143,7 +145,14 @@ class ChatRequestFactory(
         val hooks = object : AgentHooks {
             override suspend fun prepareStep(messages: List<UIMessage>): StepRequest {
                 Log.i(TAG, "prepareStep: ${turn.model.id}")
-                return buildStep(turn, messages, processingStatus)
+                // 子代理回传等外部消息在每一步请求前取一次，取到后这一步之后的步骤也要继续带上
+                injectedMessages += pendingInjections()
+                val step = buildStep(turn, messages, processingStatus)
+                return if (injectedMessages.isEmpty()) {
+                    step
+                } else {
+                    step.copy(messages = step.messages + injectedMessages)
+                }
             }
 
             override suspend fun previewStep(message: UIMessage, newPartsFrom: Int) =

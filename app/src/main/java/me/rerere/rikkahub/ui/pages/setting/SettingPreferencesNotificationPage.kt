@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -88,6 +89,25 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
         context.startActivity(
             Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri())
         )
+    }
+
+    val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    var ignoringBatteryOptimizations by remember {
+        mutableStateOf(powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true)
+    }
+    LifecycleResumeEffect(Unit) {
+        ignoringBatteryOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+        onPauseOrDispose {}
+    }
+
+    fun requestIgnoreBatteryOptimizations() {
+        // 有的系统没有这个弹窗，退回电池优化列表页
+        val intent = Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            "package:${context.packageName}".toUri(),
+        )
+        runCatching { context.startActivity(intent) }
+            .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
     }
 
     Scaffold(
@@ -185,6 +205,28 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
+                    item(
+                        onClick = {
+                            if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_battery_optimization)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (ignoringBatteryOptimizations) {
+                                        R.string.setting_page_preferences_notification_battery_optimization_granted
+                                    } else {
+                                        R.string.setting_page_preferences_notification_battery_optimization_desc
+                                    }
+                                )
+                            )
+                        },
+                        trailingContent = if (ignoringBatteryOptimizations) {
+                            null
+                        } else {
+                            { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
+                        },
+                    )
                 }
             }
         }
