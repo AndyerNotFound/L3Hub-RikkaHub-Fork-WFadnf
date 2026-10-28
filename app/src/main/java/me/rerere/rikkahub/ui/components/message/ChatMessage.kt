@@ -284,11 +284,11 @@ fun ChatMessage(
                     }
                 }
             }
+            if (translation != null || translating) {
             Text(
                 text = stringResource(
                     when {
                         translating -> R.string.chat_message_translation_translating
-                        translation == null -> R.string.chat_message_translation_swipe
                         showTranslationPage -> R.string.chat_message_translation_show_original
                         else -> R.string.chat_message_translation_show_translation
                     }
@@ -310,6 +310,7 @@ fun ChatMessage(
                     }
                     .padding(horizontal = 12.dp, vertical = 2.dp),
             )
+            }
         }
 
         val showActions = if (lastMessage) {
