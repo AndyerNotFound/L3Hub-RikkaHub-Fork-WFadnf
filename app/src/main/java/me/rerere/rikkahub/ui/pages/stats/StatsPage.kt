@@ -1,5 +1,20 @@
 package me.rerere.rikkahub.ui.pages.stats
 
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import me.rerere.ui.toast.ToastType
+import me.rerere.rikkahub.ui.context.LocalToaster
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -88,6 +103,37 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
     val range by vm.range.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+    val scope = rememberCoroutineScope()
+    val graphicsLayer = rememberGraphicsLayer()
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+
+    fun export(pdf: Boolean) {
+        showExportDialog = false
+        if (exporting) return
+        exporting = true
+        scope.launch {
+            runCatching {
+                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                withContext(Dispatchers.IO) {
+                    if (pdf) exportStatsPdf(context, bitmap) else exportStatsImage(context, bitmap)
+                }
+            }.onSuccess { path ->
+                toaster.show(
+                    context.getString(R.string.stats_page_export_done, path),
+                    type = ToastType.Success,
+                )
+            }.onFailure { error ->
+                toaster.show(
+                    context.getString(R.string.stats_page_export_failed, error.message ?: "unknown"),
+                    type = ToastType.Error,
+                )
+            }
+            exporting = false
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -97,6 +143,24 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
+                actions = {
+                    IconButton(
+                        onClick = { showExportDialog = true },
+                        enabled = !stats.isLoading && !exporting,
+                    ) {
+                        if (exporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = HugeIcons.Download04,
+                                contentDescription = stringResource(R.string.stats_page_export),
+                            )
+                        }
+                    }
+                },
             )
         },
         containerColor = CustomColors.topBarColors.containerColor,
@@ -111,43 +175,42 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                 CircularProgressIndicator()
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = padding + PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
             ) {
-                item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawWithContent {
+                            graphicsLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(graphicsLayer)
+                        }
+                        .background(CustomColors.topBarColors.containerColor)
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     HeatmapCard(
                         requestsPerDay = stats.requestsPerDay,
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
-                }
-                item {
                     StatsGrid(
                         stats = stats,
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
-                }
-                item {
                     UsageHeader(
                         range = range,
                         onRangeChange = vm::setRange,
                         modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 16.dp),
                     )
-                }
-                usage?.let { usage ->
-                    if (usage.totals.promptTokens + usage.totals.completionTokens == 0L) {
-                        item {
+                    usage?.let { usage ->
+                        if (usage.totals.promptTokens + usage.totals.completionTokens == 0L) {
                             EmptyUsageCard(modifier = Modifier.padding(horizontal = 8.dp))
-                        }
-                    } else {
-                        item {
+                        } else {
                             UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
-                        }
-                        item {
                             UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
-                        }
-                        item {
                             RankingCard(
                                 title = stringResource(R.string.stats_page_by_model),
                                 items = usage.models.map { model ->
@@ -155,8 +218,6 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             )
-                        }
-                        item {
                             RankingCard(
                                 title = stringResource(R.string.stats_page_by_source),
                                 items = usage.sources.map { source -> sourceLabel(source) to source.totalTokens },
@@ -167,6 +228,35 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                 }
             }
         }
+    }
+
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text(stringResource(R.string.stats_page_export_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = { export(pdf = false) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.stats_page_export_image))
+                    }
+                    TextButton(
+                        onClick = { export(pdf = true) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.stats_page_export_pdf))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text(stringResource(R.string.stats_page_export_cancel))
+                }
+            },
+        )
     }
 }
 

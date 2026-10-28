@@ -56,7 +56,8 @@ private fun writePdf(bitmap: Bitmap, output: OutputStream) {
     val pageCount = ceil(scaledHeight.toFloat() / pageHeight).toInt().coerceAtLeast(1)
     val paint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    PdfDocument().use { document ->
+    val document = PdfDocument()
+    try {
         for (index in 0 until pageCount) {
             val page = document.startPage(
                 PdfDocument.PageInfo.Builder(pageWidth, pageHeight, index + 1).create()
@@ -74,6 +75,8 @@ private fun writePdf(bitmap: Bitmap, output: OutputStream) {
             document.finishPage(page)
         }
         document.writeTo(output)
+    } finally {
+        document.close()
     }
 }
 
