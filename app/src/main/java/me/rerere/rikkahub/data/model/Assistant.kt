@@ -38,6 +38,8 @@ data class Assistant(
     val autoCompressThreshold: AutoCompressThreshold = AutoCompressThreshold.WARN,
     val autoCompressTarget: AutoCompressTarget = AutoCompressTarget.MESSAGES,
     val autoCompressTargetValue: Int = 8, // 按条数时保留的消息条数；按 token 时保留的 token 数
+    // 模型循环中请求上下文超限时，压缩后继续本轮生成
+    val autoCompressLoop: Boolean = false,
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),

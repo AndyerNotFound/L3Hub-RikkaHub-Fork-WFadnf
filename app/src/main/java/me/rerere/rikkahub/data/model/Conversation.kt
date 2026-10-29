@@ -176,15 +176,40 @@ fun Conversation.lastContextTokens(): Int? {
     return null
 }
 
-/** 在 [afterNodeId] 节点之后插入压缩检查点；该节点已不存在时返回 null。 */
-internal fun Conversation.insertContextCheckpoint(afterNodeId: Uuid, summary: String): Conversation? {
+/**
+ * 在 [afterNodeId] 节点之后插入压缩检查点；该节点已不存在时返回 null。
+ *
+ * [truncateNodeId] 不为空时，把这条消息当前选中的版本只保留从 [keepPartsFrom] 开始的 part：
+ * 被截掉的前半段已经写进摘要，保留的后半段继续留在检查点之后。
+ */
+internal fun Conversation.insertContextCheckpoint(
+    afterNodeId: Uuid,
+    summary: String,
+    truncateNodeId: Uuid? = null,
+    keepPartsFrom: Int = 0,
+): Conversation? {
     val index = messageNodes.indexOfFirst { it.id == afterNodeId }
     if (index == -1) return null
+    val nodes = messageNodes.toMutableList()
+    if (truncateNodeId != null && keepPartsFrom > 0) {
+        val truncateIndex = nodes.indexOfFirst { it.id == truncateNodeId }
+        if (truncateIndex == -1) return null
+        val node = nodes[truncateIndex]
+        val message = node.currentMessage
+        if (keepPartsFrom >= message.parts.size) return null
+        nodes[truncateIndex] = node.copy(
+            messages = node.messages.mapIndexed { messageIndex, item ->
+                if (messageIndex == node.selectIndex) {
+                    item.copy(parts = item.parts.drop(keepPartsFrom))
+                } else {
+                    item
+                }
+            },
+        )
+    }
     val checkpoint = UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode()
-    return copy(
-        messageNodes =
-        messageNodes.subList(0, index + 1) + checkpoint + messageNodes.subList(index + 1, messageNodes.size),
-    )
+    nodes.add(index + 1, checkpoint)
+    return copy(messageNodes = nodes)
 }
 
 /** 有工具调用在等待用户审批：这一轮还没结束，排队的消息要等审批完成后再发 */

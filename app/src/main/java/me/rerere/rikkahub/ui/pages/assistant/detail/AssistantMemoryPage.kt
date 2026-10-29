@@ -445,6 +445,16 @@ private fun MemorySettingsTab(
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
             )
             if (assistant.autoCompress) {
+                switchItem(
+                    checked = assistant.autoCompressLoop,
+                    onCheckedChange = {
+                        onUpdateAssistant(assistant.copy(autoCompressLoop = it))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.assistant_page_memory_auto_compress_loop_desc))
+                    },
+                    headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_loop)) },
+                )
                 item(
                     headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
                     supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },

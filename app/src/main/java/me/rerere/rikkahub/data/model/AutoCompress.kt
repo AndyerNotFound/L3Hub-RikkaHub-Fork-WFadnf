@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.model
 
 import kotlinx.serialization.Serializable
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 
@@ -19,26 +20,73 @@ enum class AutoCompressTarget {
 }
 
 /**
- * 从对话末尾往前数，保留 [targetTokens] 上下的最近消息，返回保留的消息条数。
+ * 压缩后保留的起点。
+ *
+ * [nodeIndex] 之前的消息全部压进摘要；[partIndex] 大于 0 时，[nodeIndex] 这条消息只保留
+ * 从该 part 开始的后缀（思考、正文、工具调用等 part 的边界），避免为了凑 token 数整条丢弃。
+ */
+data class ContextTrim(val nodeIndex: Int, val partIndex: Int = 0)
+
+private const val MESSAGE_TOKEN_OVERHEAD = 4
+
+/**
+ * 从对话末尾往前累计，找出离 [targetTokens] 最近的 part 边界。
  *
  * 只统计最后一个压缩检查点之后的消息：检查点之前的内容已经由摘要代替，不会发给模型。
  * token 数按字符粗略估算（CJK 一字约一 token，其它约四字符一 token），
  * 只用来决定压缩范围，不要求精确。
  */
-fun Conversation.keepRecentMessagesForTokens(targetTokens: Int): Int {
-    if (targetTokens <= 0 || messageNodes.isEmpty()) return 0
+fun Conversation.keepRecentContextForTokens(targetTokens: Int): ContextTrim {
+    if (targetTokens <= 0 || messageNodes.isEmpty()) return ContextTrim(messageNodes.size)
+
     var used = 0
-    var kept = 0
-    for (node in messageNodes.asReversed()) {
-        val message = node.messages.getOrNull(node.selectIndex) ?: continue
-        // 到检查点为止：再往前的内容不在上下文里
+    var keptAny = false
+    var index = messageNodes.lastIndex
+    while (index >= 0) {
+        val node = messageNodes[index]
+        val message = node.messages.getOrNull(node.selectIndex)
+        if (message == null) {
+            index--
+            continue
+        }
         if (message.isContextCheckpoint) break
-        val cost = estimateMessageTokens(message)
-        if (kept > 0 && used + cost > targetTokens) break
-        used += cost
-        kept += 1
+
+        val partTokens = message.parts.map(::estimatePartTokens)
+        val messageTokens = MESSAGE_TOKEN_OVERHEAD + partTokens.sum()
+        if (used + messageTokens <= targetTokens) {
+            used += messageTokens
+            keptAny = true
+            index--
+            continue
+        }
+
+        // 用户消息不拆，宁可整条保留或整条压掉；附件和文本拆开容易破坏语义。
+        // 最新一条消息必须保留，否则刚发出的问题会被压进摘要、模型看不到。
+        if (message.role == MessageRole.USER || message.parts.isEmpty()) {
+            return ContextTrim(if (keptAny) index + 1 else index)
+        }
+
+        // 这条消息放不下：在它的 part 边界里挑一个估算值最接近目标的
+        var best = if (keptAny) ContextTrim(index + 1) else ContextTrim(index)
+        var bestDiff = if (keptAny) {
+            kotlin.math.abs(targetTokens - used)
+        } else {
+            kotlin.math.abs(targetTokens - (used + messageTokens))
+        }
+        var suffixTokens = 0
+        for (partIndex in message.parts.indices.reversed()) {
+            suffixTokens += partTokens[partIndex]
+            val estimate = used + MESSAGE_TOKEN_OVERHEAD + suffixTokens
+            val diff = kotlin.math.abs(targetTokens - estimate)
+            if (diff < bestDiff || (diff == bestDiff && estimate <= targetTokens)) {
+                best = ContextTrim(index, partIndex)
+                bestDiff = diff
+            }
+            if (estimate >= targetTokens) break
+        }
+        return best
     }
-    return kept
+    return ContextTrim(index + 1)
 }
 
 /** 压缩检查点之后的上下文 token 估算；压缩前的老消息已经不会再发出去，不计入 */
@@ -51,20 +99,18 @@ fun Conversation.estimateContextTokens(): Int {
 }
 
 /** 单条消息的 token 估算，工具调用的输入输出也算在内 */
-internal fun estimateMessageTokens(message: UIMessage): Int {
-    var total = 4
-    message.parts.forEach { part ->
-        when (part) {
-            is UIMessagePart.Text -> total += estimateTokens(part.text)
-            is UIMessagePart.Tool -> {
-                total += estimateTokens(part.toolName) + estimateTokens(part.input)
-                part.output.filterIsInstance<UIMessagePart.Text>()
-                    .forEach { total += estimateTokens(it.text) }
-            }
-            else -> Unit
-        }
-    }
-    return total
+internal fun estimateMessageTokens(message: UIMessage): Int =
+    MESSAGE_TOKEN_OVERHEAD + message.parts.sumOf(::estimatePartTokens)
+
+/** 单个 part 的 token 估算，用来决定消息内部的截断位置 */
+internal fun estimatePartTokens(part: UIMessagePart): Int = when (part) {
+    is UIMessagePart.Text -> estimateTokens(part.text)
+    is UIMessagePart.Tool ->
+        estimateTokens(part.toolName) +
+            estimateTokens(part.input) +
+            part.output.filterIsInstance<UIMessagePart.Text>().sumOf { estimateTokens(it.text) }
+
+    else -> 0
 }
 
 internal fun estimateTokens(text: String): Int {

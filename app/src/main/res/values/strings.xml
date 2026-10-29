@@ -895,7 +895,7 @@
   <string name="setting_page_search_title">Search Service</string>
   <string name="setting_page_share">Share</string>
   <string name="setting_page_share_desc">Share this app with friends</string>
-  <string name="setting_page_share_text">RikkaHub - Open Source Android AI Assistant\n\nWebsite: https://rikka-ai.com/</string>
+  <string name="setting_page_share_text">L3Hub - Open-source Android AI assistant (RikkaHub fork)\n\nProject: https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf</string>
   <string name="setting_page_sponsor_alert_confirm">Donate</string>
   <string name="setting_page_sponsor_alert_desc">You have launched the app over 100 times! If you enjoy using it, please consider supporting the developer.</string>
   <string name="setting_page_sponsor_alert_dismiss">Not Now</string>
@@ -1850,10 +1850,12 @@
 
   <string name="assistant_page_memory_auto_compress">Auto-compress</string>
   <string name="assistant_page_memory_auto_compress_desc">Compress the history with a checkpoint summary before replying once context usage reaches the threshold; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_loop">Loop compression</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">When a request exceeds the context limit during the model tool loop, compress automatically and continue the current turn</string>
   <string name="assistant_page_memory_auto_compress_threshold">Trigger threshold</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the soft warning line, MAX is the hard limit</string>
   <string name="assistant_page_memory_auto_compress_target">Keep after compressing</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">How much recent context stays outside the compression range</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">How much recent context stays outside the compression range; token mode cuts at thinking, text and tool-call boundaries</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d messages</string>
   <string name="assistant_page_memory_auto_compress_tokens">%1$d tokens</string>
   <string name="assistant_page_memory_auto_compress_mode_messages">Messages</string>

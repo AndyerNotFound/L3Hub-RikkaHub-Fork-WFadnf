@@ -863,7 +863,7 @@
   <string name="setting_page_search_title">搜索服务</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP给朋友</string>
-  <string name="setting_page_share_text">RikkaHub - 开源安卓AI助手\n\n官网: https://rikka-ai.com/</string>
+  <string name="setting_page_share_text">L3Hub - 开源安卓 AI 助手（RikkaHub 分支）\n\n项目地址：https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf</string>
   <string name="setting_page_sponsor_alert_confirm">捐赠</string>
   <string name="setting_page_sponsor_alert_desc">您已启动应用超过100次！如果您喜欢使用它，请考虑支持开发者。</string>
   <string name="setting_page_sponsor_alert_dismiss">暂不</string>
@@ -1852,10 +1852,12 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
 
   <string name="assistant_page_memory_auto_compress">自动压缩</string>
   <string name="assistant_page_memory_auto_compress_desc">上下文占用到达门限时，先生成摘要压缩历史再回复，效果与手动压缩一致</string>
+  <string name="assistant_page_memory_auto_compress_loop">循环压缩</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">模型循环中请求超出上下文上限时，自动压缩后继续本轮生成</string>
   <string name="assistant_page_memory_auto_compress_threshold">触发阈值</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 是预警线，MAX 是硬上限</string>
   <string name="assistant_page_memory_auto_compress_target">压缩后保留</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">最近多少上下文不参与压缩</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">最近多少上下文不参与压缩；按 Token 时会落在思考、正文、工具调用的边界上</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d 条消息</string>
   <string name="assistant_page_memory_auto_compress_tokens">%1$d tokens</string>
   <string name="assistant_page_memory_auto_compress_mode_messages">消息数</string>
