@@ -1,8 +1,12 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -31,64 +35,80 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun SettingPreferencesThemePage(vm: SettingVM = koinViewModel()) {
+fun SettingPreferencesThemePage(embedded: Boolean = false, vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var amoledDarkMode by rememberAmoledDarkMode()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
 
-    Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = {
-                    Text(stringResource(R.string.setting_page_preferences_theme))
-                },
-                navigationIcon = {
-                    BackButton()
-                },
-                scrollBehavior = scrollBehavior,
-                colors = CustomColors.topBarColors
-            )
-        },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor
-    ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    
+
+    val content: @Composable () -> Unit = {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                CardGroup {
-                    switchItem(
-                        checked = settings.dynamicColor,
-                        onCheckedChange = { vm.updateSettings { latest -> latest.copy(dynamicColor = it) } },
-                        supportingContent = { Text(stringResource(R.string.setting_page_dynamic_color_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_dynamic_color)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingTheme) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_theme_setting)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_theme_setting_desc)) },
-                        trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                    )
-                    switchItem(
-                        checked = amoledDarkMode,
-                        onCheckedChange = { amoledDarkMode = it },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_title)) },
-                    )
-                    switchItem(
-                        checked = settings.displaySetting.terminalStyle,
-                        onCheckedChange = { enabled ->
-                            vm.updateSettings {
-                                it.copy(displaySetting = it.displaySetting.copy(terminalStyle = enabled))
-                            }
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_terminal_style_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_terminal_style)) },
-                    )
-                }
+            CardGroup {
+                switchItem(
+                    checked = settings.dynamicColor,
+                    onCheckedChange = { vm.updateSettings { latest -> latest.copy(dynamicColor = it) } },
+                    supportingContent = { Text(stringResource(R.string.setting_page_dynamic_color_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_page_dynamic_color)) },
+                )
+                item(
+                    onClick = { navController.navigate(Screen.SettingTheme) },
+                    headlineContent = { Text(stringResource(R.string.setting_page_theme_setting)) },
+                    supportingContent = { Text(stringResource(R.string.setting_page_theme_setting_desc)) },
+                    trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                )
+                switchItem(
+                    checked = amoledDarkMode,
+                    onCheckedChange = { amoledDarkMode = it },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_title)) },
+                )
+                switchItem(
+                    checked = settings.displaySetting.terminalStyle,
+                    onCheckedChange = { enabled ->
+                        vm.updateSettings {
+                            it.copy(displaySetting = it.displaySetting.copy(terminalStyle = enabled))
+                        }
+                    },
+                    supportingContent = { Text(stringResource(R.string.setting_terminal_style_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_terminal_style)) },
+                )
+            }
+
+        }
+    }
+    if (embedded) {
+        content()
+    } else {
+        Scaffold(
+            topBar = {
+                LargeFlexibleTopAppBar(
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_theme))
+                    },
+                    navigationIcon = {
+                        BackButton()
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = CustomColors.topBarColors
+                )
+            },
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = CustomColors.topBarColors.containerColor
+        ) { contentPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(contentPadding),
+            ) {
+                content()
             }
         }
     }

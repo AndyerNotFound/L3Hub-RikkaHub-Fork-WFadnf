@@ -78,7 +78,7 @@ import java.util.concurrent.TimeUnit
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
 
 @Composable
-fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
+fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koinViewModel()) {
     val httpClient = koinInject<OkHttpClient>()
     val settings by vm.settings.collectAsStateWithLifecycle()
     var userAgent by remember(settings.networkSetting.userAgent) {
@@ -298,204 +298,215 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         )
     }
 
-    Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.setting_page_preferences_network)) },
-                navigationIcon = { BackButton() },
-                scrollBehavior = scrollBehavior,
-                colors = CustomColors.topBarColors,
-            )
-        },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor,
-    ) { contentPadding ->
-        LazyColumn(
+    
+
+    val content: @Composable () -> Unit = {
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .imePadding(),
-            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                CardGroup {
-                    switchItem(
-                        checked = settings.networkSetting.enableAutoRetry,
-                        onCheckedChange = { enabled ->
-                            updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
+            CardGroup {
+                switchItem(
+                    checked = settings.networkSetting.enableAutoRetry,
+                    onCheckedChange = { enabled ->
+                        updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_page_preferences_network_auto_retry))
+                    },
+                )
+                if (settings.networkSetting.enableAutoRetry) {
+                    formItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_count))
                         },
                         supportingContent = {
-                            Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc))
                         },
-                        headlineContent = {
-                            Text(stringResource(R.string.setting_page_preferences_network_auto_retry))
-                        },
-                    )
-                    if (settings.networkSetting.enableAutoRetry) {
-                        formItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_count))
+                    ) {
+                        NumberSlider(
+                            value = settings.networkSetting.retryMaxCount,
+                            onValueChange = { count ->
+                                updateNetworkSetting { it.copy(retryMaxCount = count) }
                             },
-                            supportingContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc))
-                            },
-                        ) {
-                            NumberSlider(
-                                value = settings.networkSetting.retryMaxCount,
-                                onValueChange = { count ->
-                                    updateNetworkSetting { it.copy(retryMaxCount = count) }
-                                },
-                                valueRange = 0..64,
-                            )
-                        }
-                        formItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_interval))
-                            },
-                            supportingContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc))
-                            },
-                        ) {
-                            NumberSlider(
-                                value = settings.networkSetting.retryIntervalSeconds,
-                                onValueChange = { seconds ->
-                                    updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
-                                },
-                                valueRange = 1..60,
-                                suffix = "s",
-                            )
-                        }
-                        formItem(
-                            headlineContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_codes))
-                            },
-                            supportingContent = {
-                                Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc))
-                            },
-                        ) {
-                            RetryErrorCodePicker(
-                                selected = settings.networkSetting.retryErrorCodes,
-                                onValueChange = { codes ->
-                                    updateNetworkSetting { it.copy(retryErrorCodes = codes) }
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                CardGroup(
-                    title = {
-                        Text(stringResource(R.string.setting_page_preferences_network_user_agent))
-                    },
-                ) {
-                    formItem {
-                        OutlinedTextField(
-                            value = userAgent,
-                            onValueChange = ::updateUserAgent,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(defaultUserAgent) },
-                            supportingText = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_page_preferences_network_user_agent_desc,
-                                        defaultUserAgent,
-                                    )
-                                )
-                            },
-                            singleLine = true,
+                            valueRange = 0..64,
                         )
-                        TextButton(
-                            onClick = { updateUserAgent("") },
-                            modifier = Modifier.align(Alignment.End),
-                            enabled = userAgent.isNotEmpty(),
-                        ) {
-                            Text(stringResource(R.string.setting_model_page_reset_to_default))
-                        }
+                    }
+                    formItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_interval))
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc))
+                        },
+                    ) {
+                        NumberSlider(
+                            value = settings.networkSetting.retryIntervalSeconds,
+                            onValueChange = { seconds ->
+                                updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
+                            },
+                            valueRange = 1..60,
+                            suffix = "s",
+                        )
+                    }
+                    formItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_codes))
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc))
+                        },
+                    ) {
+                        RetryErrorCodePicker(
+                            selected = settings.networkSetting.retryErrorCodes,
+                            onValueChange = { codes ->
+                                updateNetworkSetting { it.copy(retryErrorCodes = codes) }
+                            },
+                        )
                     }
                 }
             }
-            item {
-                CardGroup(
-                    title = {
-                        Text(stringResource(R.string.setting_page_preferences_network_proxy))
-                    },
-                ) {
-                    item(
-                        onClick = {
-                            proxyUrlDraft = proxyUrl
-                            proxyUsernameDraft = proxyUsername
-                            proxyPasswordDraft = proxyPassword
-                            proxyPasswordVisible = false
-                            proxyDialogVisible = true
-                        },
-                        headlineContent = {
-                            Text(stringResource(R.string.setting_page_config))
-                        },
-                        supportingContent = {
+
+            CardGroup(
+                title = {
+                    Text(stringResource(R.string.setting_page_preferences_network_user_agent))
+                },
+            ) {
+                formItem {
+                    OutlinedTextField(
+                        value = userAgent,
+                        onValueChange = ::updateUserAgent,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(defaultUserAgent) },
+                        supportingText = {
                             Text(
-                                if (proxyUrl.isBlank()) {
-                                    stringResource(
-                                        R.string.setting_page_preferences_network_proxy_desc
-                                    )
-                                } else {
-                                    proxyUrl
-                                }
+                                stringResource(
+                                    R.string.setting_page_preferences_network_user_agent_desc,
+                                    defaultUserAgent,
+                                )
                             )
                         },
-                        trailingContent = {
-                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                        },
+                        singleLine = true,
                     )
+                    TextButton(
+                        onClick = { updateUserAgent("") },
+                        modifier = Modifier.align(Alignment.End),
+                        enabled = userAgent.isNotEmpty(),
+                    ) {
+                        Text(stringResource(R.string.setting_model_page_reset_to_default))
+                    }
+                }
+            }
+
+            CardGroup(
+                title = {
+                    Text(stringResource(R.string.setting_page_preferences_network_proxy))
+                },
+            ) {
+                item(
+                    onClick = {
+                        proxyUrlDraft = proxyUrl
+                        proxyUsernameDraft = proxyUsername
+                        proxyPasswordDraft = proxyPassword
+                        proxyPasswordVisible = false
+                        proxyDialogVisible = true
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_page_config))
+                    },
+                    supportingContent = {
+                        Text(
+                            if (proxyUrl.isBlank()) {
+                                stringResource(
+                                    R.string.setting_page_preferences_network_proxy_desc
+                                )
+                            } else {
+                                proxyUrl
+                            }
+                        )
+                    },
+                    trailingContent = {
+                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                    },
+                )
+                item(
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_provider_page_test_connection))
+                    },
+                    trailingContent = {
+                        FilledTonalButton(
+                            onClick = ::testProxy,
+                            enabled = proxyUrl.toProxyOrNull() != null && !proxyTesting,
+                        ) {
+                            if (proxyTesting) {
+                                LoadingIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                Text(stringResource(R.string.setting_provider_page_test))
+                            }
+                        }
+                    },
+                )
+            }
+
+            CardGroup(title = { Text(stringResource(R.string.setting_network_ca_title)) }) {
+                settings.customCaCertificates.forEachIndexed { index, pem ->
                     item(
-                        headlineContent = {
-                            Text(stringResource(R.string.setting_provider_page_test_connection))
-                        },
+                        headlineContent = { Text(certificateLabel(pem, index)) },
+                        supportingContent = { Text(stringResource(R.string.setting_network_ca_installed)) },
                         trailingContent = {
-                            FilledTonalButton(
-                                onClick = ::testProxy,
-                                enabled = proxyUrl.toProxyOrNull() != null && !proxyTesting,
+                            IconButton(
+                                onClick = {
+                                    vm.updateSettings { latest ->
+                                        latest.copy(
+                                            customCaCertificates = latest.customCaCertificates - pem
+                                        )
+                                    }
+                                },
                             ) {
-                                if (proxyTesting) {
-                                    LoadingIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    Text(stringResource(R.string.setting_provider_page_test))
-                                }
+                                Icon(
+                                    imageVector = HugeIcons.Delete01,
+                                    contentDescription = null,
+                                )
                             }
                         },
                     )
                 }
+                item(
+                    onClick = { caImporter.launch("*/*") },
+                    headlineContent = { Text(stringResource(R.string.setting_network_ca_import)) },
+                    supportingContent = { Text(stringResource(R.string.setting_network_ca_import_desc)) },
+                )
             }
-            item {
-                CardGroup(title = { Text(stringResource(R.string.setting_network_ca_title)) }) {
-                    settings.customCaCertificates.forEachIndexed { index, pem ->
-                        item(
-                            headlineContent = { Text(certificateLabel(pem, index)) },
-                            supportingContent = { Text(stringResource(R.string.setting_network_ca_installed)) },
-                            trailingContent = {
-                                IconButton(
-                                    onClick = {
-                                        vm.updateSettings { latest ->
-                                            latest.copy(
-                                                customCaCertificates = latest.customCaCertificates - pem
-                                            )
-                                        }
-                                    },
-                                ) {
-                                    Icon(
-                                        imageVector = HugeIcons.Delete01,
-                                        contentDescription = null,
-                                    )
-                                }
-                            },
-                        )
-                    }
-                    item(
-                        onClick = { caImporter.launch("*/*") },
-                        headlineContent = { Text(stringResource(R.string.setting_network_ca_import)) },
-                        supportingContent = { Text(stringResource(R.string.setting_network_ca_import_desc)) },
-                    )
-                }
+
+        }
+    }
+    if (embedded) {
+        content()
+    } else {
+        Scaffold(
+            topBar = {
+                LargeFlexibleTopAppBar(
+                    title = { Text(stringResource(R.string.setting_page_preferences_network)) },
+                    navigationIcon = { BackButton() },
+                    scrollBehavior = scrollBehavior,
+                    colors = CustomColors.topBarColors,
+                )
+            },
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = CustomColors.topBarColors.containerColor,
+        ) { contentPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(contentPadding),
+            ) {
+                content()
             }
         }
     }

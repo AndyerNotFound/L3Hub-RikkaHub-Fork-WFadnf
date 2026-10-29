@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -54,7 +56,7 @@ private val UPDATE_PAUSE_DAY_OPTIONS = listOf(7, 14, 21)
 private const val MILLIS_PER_DAY = 24 * 60 * 60 * 1_000L
 
 @Composable
-fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
+fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var showUpdatePauseDialog by remember { mutableStateOf(false) }
@@ -110,26 +112,14 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
             .onFailure { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
     }
 
-    Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = {
-                    Text(stringResource(R.string.setting_page_preferences_notification))
-                },
-                navigationIcon = {
-                    BackButton()
-                },
-                scrollBehavior = scrollBehavior,
-                colors = CustomColors.topBarColors
-            )
-        },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor
-    ) { contentPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    
+
+    val content: @Composable () -> Unit = {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Play 版由商店负责更新，不提供更新提醒
             if (BuildConfig.UPDATE_CHECK_ENABLED && !BuildConfig.IS_PLAY_STORE) {
@@ -161,133 +151,103 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
-            item {
-                CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_notification_background_generation)) }) {
+
+            CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_notification_background_generation)) }) {
+                switchItem(
+                    checked = displaySetting.enableNotificationOnMessageGeneration,
+                    onCheckedChange = {
+                        if (it && !permissionState.allPermissionsGranted) {
+                            permissionState.requestPermissions()
+                        }
+                        updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
+                    },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
+                )
+                if (displaySetting.enableNotificationOnMessageGeneration) {
                     switchItem(
-                        checked = displaySetting.enableNotificationOnMessageGeneration,
+                        checked = displaySetting.enableLiveUpdateNotification,
                         onCheckedChange = {
-                            if (it && !permissionState.allPermissionsGranted) {
-                                permissionState.requestPermissions()
-                            }
-                            updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
+                            updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
                         },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
                     )
-                    if (displaySetting.enableNotificationOnMessageGeneration) {
-                        switchItem(
-                            checked = displaySetting.enableLiveUpdateNotification,
-                            onCheckedChange = {
-                                updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
-                            },
-                            supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
-                        )
-                    }
-                    switchItem(
-                        checked = displaySetting.enableFloatingChatWindow,
-                        onCheckedChange = {
-                            if (it && !canDrawOverlays) requestOverlayPermission()
-                            updateDisplaySetting(displaySetting.copy(enableFloatingChatWindow = it))
-                        },
-                        supportingContent = {
-                            Text(stringResource(R.string.setting_page_preferences_notification_floating_window_desc))
-                        },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window)) },
-                    )
-                    if (displaySetting.enableFloatingChatWindow && !canDrawOverlays) {
-                        item(
-                            onClick = ::requestOverlayPermission,
-                            headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission)) },
-                            supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc)) },
-                            trailingContent = {
-                                Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                            },
-                        )
-                    }
+                }
+                switchItem(
+                    checked = displaySetting.enableFloatingChatWindow,
+                    onCheckedChange = {
+                        if (it && !canDrawOverlays) requestOverlayPermission()
+                        updateDisplaySetting(displaySetting.copy(enableFloatingChatWindow = it))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_page_preferences_notification_floating_window_desc))
+                    },
+                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window)) },
+                )
+                if (displaySetting.enableFloatingChatWindow && !canDrawOverlays) {
                     item(
-                        onClick = {
-                            if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
-                        },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_battery_optimization)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(
-                                    if (ignoringBatteryOptimizations) {
-                                        R.string.setting_page_preferences_notification_battery_optimization_granted
-                                    } else {
-                                        R.string.setting_page_preferences_notification_battery_optimization_desc
-                                    }
-                                )
-                            )
-                        },
-                        trailingContent = if (ignoringBatteryOptimizations) {
-                            null
-                        } else {
-                            { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
+                        onClick = ::requestOverlayPermission,
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc)) },
+                        trailingContent = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         },
                     )
                 }
+                item(
+                    onClick = {
+                        if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
+                    },
+                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_battery_optimization)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                if (ignoringBatteryOptimizations) {
+                                    R.string.setting_page_preferences_notification_battery_optimization_granted
+                                } else {
+                                    R.string.setting_page_preferences_notification_battery_optimization_desc
+                                }
+                            )
+                        )
+                    },
+                    trailingContent = if (ignoringBatteryOptimizations) {
+                        null
+                    } else {
+                        { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
+                    },
+                )
             }
+
         }
     }
-
-    if (showUpdatePauseDialog) {
-        AlertDialog(
-            onDismissRequest = { showUpdatePauseDialog = false },
-            title = { Text(stringResource(R.string.setting_update_reminder_pause_title)) },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(stringResource(R.string.setting_update_reminder_pause_description))
-                    ConnectedChoiceButtons(
-                        options = UPDATE_PAUSE_DAY_OPTIONS,
-                        selected = selectedUpdatePauseDays,
-                        onSelect = { selectedUpdatePauseDays = it },
-                        // 对话框底色和默认的按钮底色一样，换一个能分开的
-                        containerColor = MaterialTheme.colorScheme.surfaceBright,
-                    ) { days, selected ->
-                        ConnectedChoiceLabel(
-                            text = stringResource(R.string.setting_update_reminder_pause_days, days),
-                            selected = selected,
-                        )
-                    }
-                    if (!updateChecksEnabled) {
-                        TextButton(
-                            onClick = {
-                                updateDisplaySetting(
-                                    displaySetting.copy(updateCheckDisabledUntilEpochMillis = 0L)
-                                )
-                                showUpdatePauseDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.setting_update_reminder_resume_now))
-                        }
-                    }
-                }
+    if (embedded) {
+        content()
+    } else {
+        Scaffold(
+            topBar = {
+                LargeFlexibleTopAppBar(
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_notification))
+                    },
+                    navigationIcon = {
+                        BackButton()
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = CustomColors.topBarColors
+                )
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        updateDisplaySetting(
-                            displaySetting.copy(
-                                updateCheckDisabledUntilEpochMillis =
-                                    System.currentTimeMillis() + selectedUpdatePauseDays * MILLIS_PER_DAY,
-                            )
-                        )
-                        showUpdatePauseDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUpdatePauseDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = CustomColors.topBarColors.containerColor
+        ) { contentPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(contentPadding),
+            ) {
+                content()
+            }
+        }
     }
 }
