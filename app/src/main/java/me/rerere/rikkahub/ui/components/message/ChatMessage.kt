@@ -812,12 +812,7 @@ private fun ChatMessageBubble(
     } else {
         Modifier
     }
-    val bubbleColor = when {
-        !useEffect -> color
-        // color 已经带了气泡不透明度，模糊模式下不要再乘一次模糊不透明度
-        effect == BackgroundEffectType.BLUR -> color
-        else -> Color.Transparent
-    }
+    val bubbleColor = if (useEffect) Color.Transparent else color
     val contentColor = contentColorFor(color)
     Box(
         modifier = modifier

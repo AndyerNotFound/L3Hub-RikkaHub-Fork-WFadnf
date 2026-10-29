@@ -36,12 +36,17 @@ internal fun Modifier.chatInputHaze(
     return when (displaySetting.effectiveBackgroundEffect) {
         BackgroundEffectType.OFF -> this
 
-        BackgroundEffectType.BLUR -> hazeBlur(
-            input = HazeInput.Sources(hazeState),
-            style = HazeBlurStyle.Material3 {
-                blurRadius(12.dp)
-            },
-        )
+        BackgroundEffectType.BLUR -> {
+            val tint = containerColor.copy(
+                alpha = containerColor.alpha * displaySetting.blurOpacity,
+            )
+            hazeBlur(
+                input = HazeInput.Sources(hazeState),
+                style = HazeBlurStyle.Material3(containerColor = tint) {
+                    blurRadius(12.dp)
+                },
+            )
+        }
 
         BackgroundEffectType.GLASS -> {
             val darkMode = LocalDarkMode.current
@@ -49,7 +54,9 @@ internal fun Modifier.chatInputHaze(
                 input = HazeInput.Sources(hazeState),
                 style = GlassStyle.Material3(
                     containerColor = containerColor,
-                    tint = containerColor.copy(alpha = 0.3f),
+                    tint = containerColor.copy(
+                        alpha = containerColor.alpha * displaySetting.blurOpacity,
+                    ),
                 ) {
                     appearanceResponse(dark = darkMode)
                     // Keep background text from competing with the input text.

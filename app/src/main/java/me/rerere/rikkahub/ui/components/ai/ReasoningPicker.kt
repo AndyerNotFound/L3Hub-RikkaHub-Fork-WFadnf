@@ -4,18 +4,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -150,10 +146,12 @@ fun ReasoningPicker(
         sliderState.value = currentIndex.toFloat()
     }
 
-    LaunchedEffect(sliderState) {
-        snapshotFlow { sliderState.value.roundToInt() }
-            .drop(1)
-            .collect { hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick) }
+    LaunchedEffect(sliderState, useL3HubStyle) {
+        if (!useL3HubStyle) {
+            snapshotFlow { sliderState.value.roundToInt() }
+                .drop(1)
+                .collect { hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick) }
+        }
     }
 
     ModalBottomSheet(
@@ -228,7 +226,7 @@ fun ReasoningPicker(
             }
 
             if (useL3HubStyle) {
-                CircularReasoningSlider(
+                LinearReasoningSlider(
                     level = previewLevel,
                     onPreview = { sliderState.value = levels.indexOf(it).toFloat() },
                     onCommit = { onUpdateReasoningLevel(it) },
@@ -310,11 +308,8 @@ private fun ReasoningLevel.letter(): String = when (this) {
     ReasoningLevel.ULTRA -> "U"
 }
 
-private const val CIRCLE_START_ANGLE = 135f
-private const val CIRCLE_SWEEP_ANGLE = 270f
-
 @Composable
-private fun CircularReasoningSlider(
+private fun LinearReasoningSlider(
     level: ReasoningLevel,
     onPreview: (ReasoningLevel) -> Unit,
     onCommit: (ReasoningLevel) -> Unit,
@@ -331,127 +326,105 @@ private fun CircularReasoningSlider(
     val onPrimary = MaterialTheme.colorScheme.onPrimary
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-
-    fun indexAt(position: Offset, canvasSize: Size): Int {
-        val center = Offset(canvasSize.width / 2f, canvasSize.height / 2f)
-        val angle = Math.toDegrees(
-            atan2((position.y - center.y).toDouble(), (position.x - center.x).toDouble())
-        ).toFloat()
-        val relative = ((angle - CIRCLE_START_ANGLE) % 360f + 360f) % 360f
-        if (relative > CIRCLE_SWEEP_ANGLE) {
-            val pastEnd = relative - CIRCLE_SWEEP_ANGLE
-            return if (pastEnd < (360f - CIRCLE_SWEEP_ANGLE) / 2f) levels.lastIndex else 0
-        }
-        return (relative / CIRCLE_SWEEP_ANGLE * levels.lastIndex)
-            .roundToInt()
-            .coerceIn(0, levels.lastIndex)
-    }
+    val disabledThumbColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val disabledThumbContent = MaterialTheme.colorScheme.onSurfaceVariant
+    val letterStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+    val thumbLetterStyle = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
 
     fun select(index: Int, commit: Boolean) {
-        if (index != previewIndex) {
-            previewIndex = index
+        val safeIndex = index.coerceIn(0, levels.lastIndex)
+        if (safeIndex != previewIndex) {
+            previewIndex = safeIndex
             hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
-            onPreview(levels[index])
+            onPreview(levels[safeIndex])
         }
-        if (commit) onCommit(levels[index])
+        if (commit) onCommit(levels[safeIndex])
     }
 
-    Box(modifier = modifier.size(260.dp), contentAlignment = Alignment.Center) {
-        Canvas(
-            modifier = Modifier
-                .size(260.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        select(
-                            index = indexAt(offset, Size(size.width.toFloat(), size.height.toFloat())),
-                            commit = true,
-                        )
-                    }
+    fun indexAt(x: Float, width: Int, start: Float): Int {
+        val end = width - start
+        if (end <= start) return previewIndex
+        val fraction = ((x - start) / (end - start)).coerceIn(0f, 1f)
+        return (fraction * levels.lastIndex).roundToInt()
+    }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    select(indexAt(offset.x, size.width, 20.dp.toPx()), commit = true)
                 }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            select(
-                                index = indexAt(offset, Size(size.width.toFloat(), size.height.toFloat())),
-                                commit = false,
-                            )
-                        },
-                        onDrag = { change, _ ->
-                            select(
-                                index = indexAt(change.position, Size(size.width.toFloat(), size.height.toFloat())),
-                                commit = false,
-                            )
-                        },
-                        onDragEnd = { onCommit(levels[previewIndex]) },
-                        onDragCancel = { onCommit(levels[previewIndex]) },
-                    )
-                }
-        ) {
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = size.minDimension * 0.34f
-            val stroke = 14.dp.toPx()
-            val arcTopLeft = Offset(center.x - radius, center.y - radius)
-            val arcSize = Size(radius * 2, radius * 2)
-            drawArc(
-                color = trackColor,
-                startAngle = CIRCLE_START_ANGLE,
-                sweepAngle = CIRCLE_SWEEP_ANGLE,
-                useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-            val progress = previewIndex.toFloat() / levels.lastIndex
-            drawArc(
-                color = primary,
-                startAngle = CIRCLE_START_ANGLE,
-                sweepAngle = CIRCLE_SWEEP_ANGLE * progress,
-                useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-            levels.forEachIndexed { index, item ->
-                val angle = Math.toRadians(
-                    (CIRCLE_START_ANGLE + CIRCLE_SWEEP_ANGLE * index / levels.lastIndex).toDouble()
-                )
-                val point = Offset(
-                    center.x + cos(angle).toFloat() * (radius + stroke * 1.4f),
-                    center.y + sin(angle).toFloat() * (radius + stroke * 1.4f),
-                )
-                val layout = textMeasurer.measure(
-                    text = AnnotatedString(item.letter()),
-                    style = labelStyle.copy(color = if (index == previewIndex) primary else labelColor),
-                )
-                drawText(
-                    textLayoutResult = layout,
-                    topLeft = point - Offset(layout.size.width / 2f, layout.size.height / 2f),
-                )
             }
-            val thumbAngle = Math.toRadians(
-                (CIRCLE_START_ANGLE + CIRCLE_SWEEP_ANGLE * progress).toDouble()
-            )
-            val thumbCenter = Offset(
-                center.x + cos(thumbAngle).toFloat() * radius,
-                center.y + sin(thumbAngle).toFloat() * radius,
-            )
-            drawCircle(color = primary, radius = 9.dp.toPx(), center = thumbCenter)
-            drawCircle(color = onPrimary, radius = 3.dp.toPx(), center = thumbCenter)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = levels[previewIndex].letter(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        select(indexAt(offset.x, size.width, 20.dp.toPx()), commit = false)
+                    },
+                    onDrag = { change, _ ->
+                        select(indexAt(change.position.x, size.width, 20.dp.toPx()), commit = false)
+                    },
+                    onDragEnd = { onCommit(levels[previewIndex]) },
+                    onDragCancel = { onCommit(levels[previewIndex]) },
+                )
+            },
+    ) {
+        val inset = 20.dp.toPx()
+        val trackHeight = 10.dp.toPx()
+        val trackY = 24.dp.toPx()
+        val trackLeft = inset
+        val trackWidth = (size.width - inset * 2f).coerceAtLeast(0f)
+        val progress = previewIndex.toFloat() / levels.lastIndex
+        val cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+
+        drawRoundRect(
+            color = trackColor,
+            topLeft = Offset(trackLeft, trackY - trackHeight / 2f),
+            size = Size(trackWidth, trackHeight),
+            cornerRadius = cornerRadius,
+        )
+        if (progress > 0f) {
+            drawRoundRect(
                 color = primary,
-            )
-            Text(
-                text = levels[previewIndex].label(),
-                style = MaterialTheme.typography.labelMedium,
-                color = labelColor,
+                topLeft = Offset(trackLeft, trackY - trackHeight / 2f),
+                size = Size(trackWidth * progress, trackHeight),
+                cornerRadius = cornerRadius,
             )
         }
+
+        levels.forEachIndexed { index, item ->
+            val x = trackLeft + trackWidth * index / levels.lastIndex
+            val active = index == previewIndex
+            val label = textMeasurer.measure(
+                text = AnnotatedString(item.letter()),
+                style = letterStyle.copy(color = if (active) primary else labelColor),
+            )
+            drawText(
+                textLayoutResult = label,
+                topLeft = Offset(
+                    x = x - label.size.width / 2f,
+                    y = trackY + trackHeight / 2f + 10.dp.toPx(),
+                ),
+            )
+        }
+
+        val thumbX = trackLeft + trackWidth * progress
+        val thumbRadius = 15.dp.toPx()
+        val thumbColor = if (levels[previewIndex].isEnabled) primary else disabledThumbColor
+        val thumbContentColor = if (levels[previewIndex].isEnabled) onPrimary else disabledThumbContent
+        drawCircle(color = thumbColor, radius = thumbRadius, center = Offset(thumbX, trackY))
+        val thumbLetter = textMeasurer.measure(
+            text = AnnotatedString(levels[previewIndex].letter()),
+            style = thumbLetterStyle.copy(color = thumbContentColor),
+        )
+        drawText(
+            textLayoutResult = thumbLetter,
+            topLeft = Offset(
+                x = thumbX - thumbLetter.size.width / 2f,
+                y = trackY - thumbLetter.size.height / 2f,
+            ),
+        )
     }
 }
 
