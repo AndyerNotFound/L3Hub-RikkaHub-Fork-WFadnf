@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.TerminalPalette
 import kotlin.math.roundToInt
@@ -47,7 +45,6 @@ fun ChatScrollHandle(
 ) {
     val settings = LocalSettings.current
     val terminal = settings.displaySetting.terminalStyle
-    val scope = rememberCoroutineScope()
 
     var dragging by remember { mutableStateOf(false) }
     var idleVisible by remember { mutableStateOf(false) }
@@ -130,7 +127,7 @@ fun ChatScrollHandle(
                             val lastIndex = currentTotal.value - 1
                             if (lastIndex >= 0) {
                                 val target = (dragFraction * lastIndex).roundToInt().coerceIn(0, lastIndex)
-                                scope.launch { state.scrollToItem(target) }
+                                state.requestScrollToItem(target)
                             }
                         },
                     )
