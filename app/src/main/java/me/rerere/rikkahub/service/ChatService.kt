@@ -78,6 +78,7 @@ import me.rerere.rikkahub.data.model.keepRecentContextForTokens
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.replaceUserRegexes
+import me.rerere.rikkahub.data.model.resolveAutoCompressTrim
 import me.rerere.rikkahub.data.model.selectBranch
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.model.withAssistantUpdate
@@ -999,7 +1000,8 @@ class ChatService(
         val tools = message.getTools()
         if (tools.isEmpty() || tools.any { !it.isExecuted }) return
         val limit = turn.model.autoCompressLimit(turn.assistant.autoCompressThreshold) ?: return
-        val systemPrompt = if (turn.assistant.allowConversationSystemPrompt) {
+        val systemPrompt = if (turn.assistant.allowConversationSystemPrompt &&
+            !turn.conversationSystemPrompt.isNullOrBlank()) {
             turn.conversationSystemPrompt.orEmpty()
         } else {
             turn.assistant.systemPrompt
@@ -1062,37 +1064,13 @@ class ChatService(
             return false
         }
 
-        // 保留区不能吃掉检查点之后的全部消息，否则压缩范围为空
-        val checkpointIndex = conversation.messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
-        val compressible = conversation.messageNodes.size - checkpointIndex - 1
-        if (compressible < 1) {
-            Log.d(TAG, "autoCompress: nothing to compress, compressible=$compressible")
-            return false
-        }
-        val preferredTrim = if (keepTailNodes != null) {
-            ContextTrim((conversation.messageNodes.size - keepTailNodes).coerceAtLeast(checkpointIndex + 1))
-        } else {
-            when (assistant.autoCompressTarget) {
-                AutoCompressTarget.MESSAGES ->
-                    ContextTrim(conversation.messageNodes.size - assistant.autoCompressTargetValue)
-
-                AutoCompressTarget.TOKENS ->
-                    conversation.keepRecentContextForTokens(assistant.autoCompressTargetValue)
-            }
-        }
-        // 循环压缩没有可保留的尾条空间时，退化为压缩全部历史；继续放弃会让整轮直接报错
-        val trim = if (force && keepTailNodes != null && preferredTrim.nodeIndex <= checkpointIndex + 1) {
-            ContextTrim(conversation.messageNodes.size)
-        } else {
-            preferredTrim
-        }
-        val onlyCheckpointTail = trim.nodeIndex == checkpointIndex + 1
-        if (trim.nodeIndex < checkpointIndex + 1 ||
-            trim.nodeIndex > conversation.messageNodes.size ||
-            trim.nodeIndex == 0 ||
-            (onlyCheckpointTail && trim.partIndex == 0)
-        ) {
-            Log.d(TAG, "autoCompress: trim out of range, trim=$trim compressible=$compressible")
+        val trim = conversation.resolveAutoCompressTrim(
+            target = assistant.autoCompressTarget,
+            targetValue = assistant.autoCompressTargetValue,
+            keepTailNodes = keepTailNodes,
+            force = force,
+        ) ?: run {
+            Log.d(TAG, "autoCompress: no compressible range")
             return false
         }
 

@@ -193,20 +193,22 @@ internal fun Conversation.insertContextCheckpoint(
     val nodes = messageNodes.toMutableList()
     if (truncateNodeId != null && keepPartsFrom > 0) {
         val truncateIndex = nodes.indexOfFirst { it.id == truncateNodeId }
-        if (truncateIndex == -1) return null
-        val node = nodes[truncateIndex]
-        val message = node.currentMessage
-        // partIndex 已经越过末尾时保留整条消息，仍然插入检查点，避免整次压缩失败
-        if (keepPartsFrom < message.parts.size) {
-            nodes[truncateIndex] = node.copy(
-                messages = node.messages.mapIndexed { messageIndex, item ->
-                    if (messageIndex == node.selectIndex) {
-                        item.copy(parts = item.parts.drop(keepPartsFrom))
-                    } else {
-                        item
-                    }
-                },
-            )
+        // 目标节点已经变化时不再截断，但检查点仍然插入；整次压缩不应因此失败
+        if (truncateIndex != -1) {
+            val node = nodes[truncateIndex]
+            val message = node.currentMessage
+            // partIndex 已经越过末尾时保留整条消息
+            if (keepPartsFrom < message.parts.size) {
+                nodes[truncateIndex] = node.copy(
+                    messages = node.messages.mapIndexed { messageIndex, item ->
+                        if (messageIndex == node.selectIndex) {
+                            item.copy(parts = item.parts.drop(keepPartsFrom))
+                        } else {
+                            item
+                        }
+                    },
+                )
+            }
         }
     }
     val checkpoint = UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode()

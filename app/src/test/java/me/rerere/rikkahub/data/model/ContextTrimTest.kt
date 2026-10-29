@@ -54,6 +54,22 @@ class ContextTrimTest {
     }
 
     @Test
+    fun `reasoning parts participate in split boundary selection`() {
+        val nodes = listOf(
+            UIMessage.user("a".repeat(400)).toMessageNode(),
+            message(
+                UIMessagePart.Reasoning(reasoning = "思".repeat(400)),
+                text('c', 400),
+            ).toMessageNode(),
+        )
+        val conversation = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
+
+        val trim = conversation.keepRecentContextForTokens(150)
+
+        assertEquals(ContextTrim(nodeIndex = 1, partIndex = 1), trim)
+    }
+
+    @Test
     fun `reasoning parts count toward context tokens`() {
         val reasoning = UIMessagePart.Reasoning(reasoning = "思".repeat(400))
         val tokens = estimateMessageTokens(message(reasoning))

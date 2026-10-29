@@ -154,3 +154,42 @@ fun Model.autoCompressLimit(threshold: AutoCompressThreshold): Int? {
         AutoCompressThreshold.MAX -> max ?: warn ?: legacy
     }
 }
+
+/**
+ * 计算自动压缩的截断点。返回值已经过范围校验：null 表示没有可压缩的消息。
+ *
+ * 循环压缩（[force] && [keepTailNodes]）优先保留末尾那条正在生成的回复；如果检查点之后
+ * 只有这一条，继续保留会让压缩范围为空，此时退化为压缩全部历史，避免整轮直接失败。
+ */
+internal fun Conversation.resolveAutoCompressTrim(
+    target: AutoCompressTarget,
+    targetValue: Int,
+    keepTailNodes: Int?,
+    force: Boolean,
+): ContextTrim? {
+    val checkpointIndex = messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
+    if (messageNodes.size - checkpointIndex - 1 < 1) return null
+
+    val preferred = if (keepTailNodes != null) {
+        ContextTrim((messageNodes.size - keepTailNodes).coerceAtLeast(checkpointIndex + 1))
+    } else {
+        when (target) {
+            AutoCompressTarget.MESSAGES -> ContextTrim(messageNodes.size - targetValue)
+            AutoCompressTarget.TOKENS -> keepRecentContextForTokens(targetValue)
+        }
+    }
+    val trim = if (force && keepTailNodes != null && preferred.nodeIndex <= checkpointIndex + 1) {
+        ContextTrim(messageNodes.size)
+    } else {
+        preferred
+    }
+    val onlyCheckpointTail = trim.nodeIndex == checkpointIndex + 1
+    if (trim.nodeIndex < checkpointIndex + 1 ||
+        trim.nodeIndex > messageNodes.size ||
+        trim.nodeIndex == 0 ||
+        (onlyCheckpointTail && trim.partIndex == 0)
+    ) {
+        return null
+    }
+    return trim
+}
