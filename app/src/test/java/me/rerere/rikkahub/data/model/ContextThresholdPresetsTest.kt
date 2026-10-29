@@ -10,7 +10,7 @@ class ContextThresholdPresetsTest {
     @Test
     fun `matches the documented presets`() {
         assertEquals(262_144 to 327_680, preset("kimi-k3").pair())
-        assertEquals(172_032 to 221_184, preset("deepseek-v4.1").pair())
+        assertEquals(458_752 to 524_288, preset("deepseek-v4.1").pair())
         assertEquals(196_608 to 262_144, preset("deepseek-v4").pair())
         assertEquals(131_072 to 131_072, preset("deepseek-v3.2").pair())
         assertEquals(147_456 to 221_184, preset("glm-5-flash").pair())
