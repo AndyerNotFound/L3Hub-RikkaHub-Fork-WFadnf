@@ -45,6 +45,7 @@ import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Github
+import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
@@ -202,6 +203,40 @@ fun SettingAboutPage() {
                             headlineContent = { Text(stringResource(R.string.about_page_system)) },
                         )
                     }
+                }
+
+                item {
+                    val containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    CardGroup {
+                        item(
+                            onClick = { context.openUrl("https://github.com/re-ovo") },
+                            leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
+                            supportingContent = { Text("re-ovo (RE) · https://github.com/re-ovo") },
+                            headlineContent = { Text(stringResource(R.string.about_page_original_author)) },
+                        )
+                        item(
+                            onClick = { context.openUrl("https://rikka-ai.com") },
+                            leadingContent = { CardGroupIcon(HugeIcons.Earth, containerColor = containerColor, contentColor = contentColor) },
+                            supportingContent = { Text("RikkaHub · https://rikka-ai.com") },
+                            headlineContent = { Text(stringResource(R.string.about_page_original_project)) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingDonate) },
+                            leadingContent = { CardGroupIcon(HugeIcons.InLove, containerColor = containerColor, contentColor = contentColor) },
+                            supportingContent = { Text(stringResource(R.string.about_page_sponsor_desc)) },
+                            headlineContent = { Text(stringResource(R.string.about_page_sponsor)) },
+                        )
+                    }
+                }
+
+                item {
+                    Text(
+                        text = stringResource(R.string.about_page_attribution),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
                 }
 
                 item {

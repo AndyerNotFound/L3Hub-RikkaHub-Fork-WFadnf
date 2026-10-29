@@ -560,9 +560,14 @@ private fun ChatListNormal(
 
             val captureProgress = LocalScrollCaptureInProgress.current
 
-            ChatScrollHandle(
+            MessageNavBars(
+                messageCount = conversation.messageNodes.size,
+                firstMessageItemIndex = if (settings.displaySetting.terminalStyle) 1 else 0,
                 state = state,
-                modifier = Modifier.align(Alignment.CenterEnd),
+                onLeft = settings.displaySetting.messageJumperOnLeft,
+                modifier = Modifier.align(
+                    if (settings.displaySetting.messageJumperOnLeft) Alignment.CenterStart else Alignment.CenterEnd
+                ),
             )
 
             // 消息快速跳转

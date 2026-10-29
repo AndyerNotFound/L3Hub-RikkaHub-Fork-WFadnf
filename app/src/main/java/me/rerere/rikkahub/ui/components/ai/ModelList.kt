@@ -362,6 +362,9 @@ fun ModelListSheet(
         }
     }
 
+    val settingsStore = koinInject<SettingsStore>()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+
     ModalBottomSheet(
         onDismissRequest = {
             state.close()
@@ -375,17 +378,35 @@ fun ModelListSheet(
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            ModelList(
+            ModelPickerTwoPane(
                 currentModel = state.modelId,
                 providers = state.filteredProviders,
                 modelType = state.type,
+                groups = settings.providerGroups,
+                assignments = settings.providerGroupAssignments,
+                favoriteIds = settings.favoriteModels.toSet(),
                 onSelect = {
                     onSelect(it)
                     dismiss()
                 },
-                onDismiss = {
-                    dismiss()
-                }
+                onReorderGroups = { ordered ->
+                    coroutineScope.launch {
+                        settingsStore.update { it.copy(providerGroups = ordered) }
+                    }
+                },
+                onToggleFavorite = { modelId ->
+                    coroutineScope.launch {
+                        settingsStore.update { current ->
+                            current.copy(
+                                favoriteModels = if (modelId in current.favoriteModels) {
+                                    current.favoriteModels - modelId
+                                } else {
+                                    current.favoriteModels + modelId
+                                }
+                            )
+                        }
+                    }
+                },
             )
         }
     }

@@ -25,11 +25,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
@@ -94,9 +97,11 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
+import coil3.compose.AsyncImage
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
@@ -590,6 +595,18 @@ private fun MessagePartsBlock(
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
                 }
             }
+    }
+
+    // 用户消息里的图片/文件统一收进气泡里的矩形卡片，文本再长也不会把它们挤没
+    if (role == MessageRole.USER && !settings.displaySetting.terminalStyle) {
+        UserMessageContent(
+            parts = parts,
+            assistant = assistant,
+            onClick = onUserMessageClick,
+            onClickCitation = handleClickCitation,
+            hazeState = hazeState,
+        )
+        return
     }
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
@@ -1217,6 +1234,160 @@ private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 用户消息：附件和文本放在同一个气泡里，附件用和输入框预览一样的矩形卡片。
+ * 超过三个时只画前三个，第三个后面标出还剩几个。
+ */
+@Composable
+private fun UserMessageContent(
+    parts: List<UIMessagePart>,
+    assistant: Assistant?,
+    onClick: (() -> Unit)?,
+    onClickCitation: (String) -> Unit,
+    hazeState: HazeState?,
+) {
+    val settings = LocalSettings.current.displaySetting
+    val attachments = remember(parts) {
+        parts.filter {
+            it is UIMessagePart.Image ||
+                it is UIMessagePart.Document ||
+                it is UIMessagePart.Video ||
+                it is UIMessagePart.Audio
+        }
+    }
+    val texts = remember(parts) {
+        parts.filterIsInstance<UIMessagePart.Text>().filter { it.text.isNotBlank() }
+    }
+    if (attachments.isEmpty() && texts.isEmpty()) return
+
+    ChatMessageBubble(
+        role = MessageRole.USER,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.bubbleOpacity),
+        hazeState = hazeState,
+        onClick = { onClick?.invoke() },
+        modifier = Modifier
+            .padding(start = 24.dp)
+            .animateContentSize(),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (attachments.isNotEmpty()) {
+                UserAttachmentTiles(attachments = attachments)
+            }
+            texts.forEach { text ->
+                CollapsibleUserMessageText(
+                    text = text.text,
+                    assistant = assistant,
+                    onClickCitation = onClickCitation,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserAttachmentTiles(attachments: List<UIMessagePart>) {
+    val context = LocalContext.current
+    val visible = attachments.take(3)
+    val hiddenCount = (attachments.size - visible.size).coerceAtLeast(0)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        visible.forEachIndexed { index, part ->
+            val more = if (index == visible.lastIndex) hiddenCount else 0
+            UserAttachmentTile(
+                part = part,
+                moreCount = more,
+                onClick = {
+                    val url = when (part) {
+                        is UIMessagePart.Image -> part.url
+                        is UIMessagePart.Document -> part.url
+                        is UIMessagePart.Video -> part.url
+                        is UIMessagePart.Audio -> part.url
+                        else -> null
+                    }
+                    if (!url.isNullOrBlank()) context.openLocalFile(url)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserAttachmentTile(
+    part: UIMessagePart,
+    moreCount: Int,
+    onClick: () -> Unit,
+) {
+    val partUrl = when (part) {
+        is UIMessagePart.Image -> part.url
+        is UIMessagePart.Document -> part.url
+        is UIMessagePart.Video -> part.url
+        is UIMessagePart.Audio -> part.url
+        else -> ""
+    }
+    val title = when (part) {
+        is UIMessagePart.Document -> part.fileName.ifBlank { partUrl.substringAfterLast('/') }
+        else -> partUrl.substringAfterLast('/').ifBlank {
+            when (part) {
+                is UIMessagePart.Image -> "image"
+                is UIMessagePart.Video -> "video"
+                is UIMessagePart.Audio -> "audio"
+                else -> "file"
+            }
+        }
+    }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+    ) {
+        Row(
+            modifier = Modifier
+                .height(44.dp)
+                .padding(start = 8.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (part) {
+                    is UIMessagePart.Image -> AsyncImage(
+                        model = part.url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    is UIMessagePart.Video -> Icon(HugeIcons.Video01, null, Modifier.size(18.dp))
+                    is UIMessagePart.Audio -> Icon(HugeIcons.MusicNote03, null, Modifier.size(18.dp))
+                    else -> Icon(HugeIcons.Files02, null, Modifier.size(18.dp))
+                }
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 180.dp),
+            )
+            if (moreCount > 0) {
+                Text(
+                    text = "+$moreCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }

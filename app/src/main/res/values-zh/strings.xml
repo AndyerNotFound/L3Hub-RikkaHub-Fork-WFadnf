@@ -2012,6 +2012,13 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="heartbeat_page_prompt_placeholder">例如：看看现在几点，说点什么</string>
   <string name="heartbeat_page_model_title">心跳模型</string>
   <string name="heartbeat_page_model_desc">仅闹钟（未选择模型）</string>
-  <string name="setting_display_page_input_padding_title">输入框内边距</string>
-  <string name="setting_display_page_input_padding_desc">输入框内部元素距边框 %1$d dp；调小可以让内部圆角更贴合</string>
+  <string name="setting_display_page_input_padding_title">输入框左右内边距</string>
+  <string name="setting_display_page_input_padding_desc">输入框内容距左右边框 %1$d dp；调小可以让内部圆角更贴合</string>
+  <string name="model_list_search">搜索模型</string>
+  <string name="model_list_reorder_groups">分组排序</string>
+  <string name="about_page_original_author">原作者</string>
+  <string name="about_page_original_project">原版软件</string>
+  <string name="about_page_sponsor">赞助原作者</string>
+  <string name="about_page_sponsor_desc">打开赞助页面，支持原作者 re-ovo (RE)</string>
+  <string name="about_page_attribution">本应用是 RikkaHub 的非官方修改版，原作者的署名与版权归 re-ovo (RE) 所有，修改部分由 fork 维护者负责。如果喜欢，请支持原作者。</string>
 </resources>

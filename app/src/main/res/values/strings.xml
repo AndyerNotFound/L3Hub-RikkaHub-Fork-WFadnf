@@ -2010,6 +2010,13 @@
   <string name="heartbeat_page_prompt_placeholder">e.g. look at the clock and say something</string>
   <string name="heartbeat_page_model_title">Heartbeat model</string>
   <string name="heartbeat_page_model_desc">Alarm only (no model selected)</string>
-  <string name="setting_display_page_input_padding_title">Input padding</string>
-  <string name="setting_display_page_input_padding_desc">Inset of the input card (%1$d dp); smaller values keep inner corners tighter</string>
+  <string name="setting_display_page_input_padding_title">Input side padding</string>
+  <string name="setting_display_page_input_padding_desc">Inset of the input card sides (%1$d dp); smaller values keep inner corners tighter</string>
+  <string name="model_list_search">Search models</string>
+  <string name="model_list_reorder_groups">Reorder groups</string>
+  <string name="about_page_original_author">Original author</string>
+  <string name="about_page_original_project">Original project</string>
+  <string name="about_page_sponsor">Sponsor the original author</string>
+  <string name="about_page_sponsor_desc">Open the sponsor page and support re-ovo (RE)</string>
+  <string name="about_page_attribution">This app is an unofficial fork of RikkaHub. All credit and copyright for the original work belong to re-ovo (RE); changes in this fork are maintained by the fork author. If you enjoy it, please support the original author.</string>
 </resources>

@@ -367,7 +367,7 @@ fun ChatInput(
                 Column(
                     modifier = Modifier.padding(
                         horizontal = settings.displaySetting.inputPadding.dp,
-                        vertical = (settings.displaySetting.inputPadding / 2).dp,
+                        vertical = 4.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
