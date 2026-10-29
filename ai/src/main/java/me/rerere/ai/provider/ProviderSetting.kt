@@ -98,6 +98,8 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override var apiKey: String = "",
+        // 用户手动关掉的 Key，仍然留在 apiKey 里，随时可以重新启用
+        override var disabledApiKeys: List<String> = emptyList(),
         override var baseUrl: String = "https://api.openai.com/v1",
         var chatCompletionsPath: String = "/chat/completions",
         var useResponseApi: Boolean = false,
@@ -143,6 +145,7 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override var apiKey: String = "",
+        override var disabledApiKeys: List<String> = emptyList(),
         override var baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
         var vertexAI: Boolean = false,
         var useServiceAccount: Boolean = false,
@@ -190,6 +193,7 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override var apiKey: String = "",
+        override var disabledApiKeys: List<String> = emptyList(),
         override var baseUrl: String = "https://api.anthropic.com/v1",
         var promptCaching: Boolean = false,
         var promptCacheTtl: ClaudePromptCacheTtl = ClaudePromptCacheTtl.FIVE_MINUTES,
@@ -223,6 +227,7 @@ sealed class ProviderSetting {
     @Serializable
     sealed class ApiKey : ProviderSetting() {
         abstract val apiKey: String
+        abstract val disabledApiKeys: List<String>
         abstract val baseUrl: String
 
         /** 用户自定义的额度查询 */

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
+import me.rerere.rikkahub.data.ai.heartbeat.HeartbeatScheduler
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
@@ -59,6 +60,7 @@ const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 const val MEDIA_CREATION_NOTIFICATION_CHANNEL_ID = "media_creation"
 const val MEMORY_DREAM_NOTIFICATION_CHANNEL_ID = "memory_dream"
+const val HEARTBEAT_NOTIFICATION_CHANNEL_ID = "heartbeat"
 
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
@@ -121,6 +123,8 @@ class RikkaHubApp : Application() {
         resumeMediaCreations()
         resumeMemoryConsolidation()
 
+        startHeartbeat()
+
         // Increment launch count
         incrementLaunchCount()
 
@@ -149,6 +153,16 @@ class RikkaHubApp : Application() {
                 get<MemoryConsolidationScheduler>().resumePending()
             }.onFailure {
                 Log.e(TAG, "resumeMemoryConsolidation failed", it)
+            }
+        }
+    }
+
+    private fun startHeartbeat() {
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                get<HeartbeatScheduler>().start()
+            }.onFailure {
+                Log.e(TAG, "startHeartbeat failed", it)
             }
         }
     }
@@ -307,6 +321,12 @@ class RikkaHubApp : Application() {
             .setShowBadge(false)
             .build()
         notificationManager.createNotificationChannel(memoryDreamChannel)
+
+        val heartbeatChannel = NotificationChannelCompat
+            .Builder(HEARTBEAT_NOTIFICATION_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+            .setName(getString(R.string.notification_channel_heartbeat))
+            .build()
+        notificationManager.createNotificationChannel(heartbeatChannel)
     }
 
     override fun onTerminate() {

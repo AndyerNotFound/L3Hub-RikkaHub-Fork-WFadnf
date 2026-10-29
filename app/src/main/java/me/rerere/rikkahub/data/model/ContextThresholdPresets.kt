@@ -35,7 +35,7 @@ object ContextThresholdPresets {
         }
         deepSeekVersion.find(id)?.groupValues?.get(1)?.toDoubleOrNull()?.let { version ->
             return when {
-                version >= 4.1 -> Preset(172_032, 221_184)
+                version >= 4.1 -> Preset(458_752, 524_288)
                 version >= 4.0 -> Preset(196_608, 262_144)
                 version >= 3.0 -> Preset(131_072, 131_072)
                 else -> fallback

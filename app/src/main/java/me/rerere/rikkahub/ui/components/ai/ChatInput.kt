@@ -511,8 +511,8 @@ fun ChatInput(
                                 showQuickMessageButton = false,
                                 fullscreenOnOverflow = true,
                                 contentPadding = PaddingValues(
-                                    start = if (stacked) 4.dp else 74.dp,
-                                    end = if (stacked) 4.dp else 134.dp,
+                                    start = if (stacked) 4.dp else 70.dp,
+                                    end = if (stacked) 4.dp else 130.dp,
                                     bottom = if (stacked) 44.dp else 0.dp,
                                 ),
                                 onMeasure = { height, oneLine ->
@@ -523,8 +523,7 @@ fun ChatInput(
                             if (!stacked) {
                                 Row(
                                     modifier = Modifier
-                                        .align(Alignment.CenterStart)
-                                        .padding(start = 4.dp),
+                                        .align(Alignment.CenterStart),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
@@ -532,8 +531,7 @@ fun ChatInput(
                                 }
                                 Row(
                                     modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .padding(end = 4.dp),
+                                        .align(Alignment.CenterEnd),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
@@ -544,7 +542,7 @@ fun ChatInput(
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
                                         .fillMaxWidth()
-                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                        .padding(vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
@@ -711,6 +709,12 @@ private fun TextInputRow(
     }
 
     var isEditingReasoning by remember { mutableStateOf(false) }
+    // 卡片内部整体内缩 8dp，内层圆角要跟着收 8dp 才和外框同心
+    val innerShape = if (terminalStyle) {
+        RoundedCornerShape(2.dp)
+    } else {
+        RoundedCornerShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -718,7 +722,7 @@ private fun TextInputRow(
     ) {
         if (state.isEditing()) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = innerShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Row(

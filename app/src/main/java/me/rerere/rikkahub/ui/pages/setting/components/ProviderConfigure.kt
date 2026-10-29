@@ -16,6 +16,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -303,7 +304,8 @@ private fun CardGroupScope.nameItem(
 private fun CardGroupScope.apiKeyItem(
     providerId: Uuid,
     apiKey: String,
-    onValueChange: (String) -> Unit,
+    disabledApiKeys: List<String>,
+    onValueChange: (apiKey: String, disabledApiKeys: List<String>) -> Unit,
 ) = formItem(
     headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
     supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
@@ -315,9 +317,14 @@ private fun CardGroupScope.apiKeyItem(
             .ifEmpty { listOf("") }
             .toMutableStateList()
     }
+    // 关掉的 Key 存在 provider 上，按内容匹配而不是按位置，改 Key 文本也不会错位
+    var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
 
     fun emit() {
-        onValueChange(keys.map { it.trim() }.filter { it.isNotBlank() }.joinToString("\n"))
+        onValueChange(
+            keys.map { it.trim() }.filter { it.isNotBlank() }.joinToString("\n"),
+            disabled,
+        )
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -357,10 +364,21 @@ private fun CardGroupScope.apiKeyItem(
                         }
                     },
                 )
+                if (key.isNotBlank()) {
+                    Switch(
+                        checked = key !in disabled,
+                        onCheckedChange = { enabled ->
+                            disabled = if (enabled) disabled - key else disabled + key
+                            emit()
+                        },
+                    )
+                }
                 if (keys.size > 1) {
                     IconButton(
                         onClick = {
+                            val removed = keys[index]
                             keys.removeAt(index)
+                            if (removed.isNotBlank()) disabled = disabled - removed
                             emit()
                         }
                     ) {
@@ -388,7 +406,9 @@ private fun ProviderConfigureOpenAI(
 
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
+            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+        }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
             value = provider.baseUrl,
@@ -586,7 +606,9 @@ private fun ProviderConfigureClaude(
 ) {
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
+            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+        }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
             value = provider.baseUrl,
@@ -660,7 +682,9 @@ private fun ProviderConfigureGoogle(
     CardGroup {
         nameItem(provider, onEdit)
         if (!useServiceAccount) {
-            apiKeyItem(provider.id, provider.apiKey) { onEdit(provider.copy(apiKey = it)) }
+            apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
+                onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+            }
         }
         if (!provider.vertexAI) {
             textFieldItem(

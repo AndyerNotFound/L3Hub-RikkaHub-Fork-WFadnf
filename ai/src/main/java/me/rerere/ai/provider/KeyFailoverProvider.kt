@@ -18,11 +18,23 @@ class KeyFailoverProvider<T : ProviderSetting>(
     private val counter = AtomicInteger(0)
 
     private fun keysOf(setting: ProviderSetting): List<String> {
-        val raw = (setting as? ProviderSetting.ApiKey)?.apiKey ?: return emptyList()
-        return raw.split(Regex("[\\s,]+"))
+        val provider = setting as? ProviderSetting.ApiKey ?: return emptyList()
+        val disabled = provider.disabledApiKeys.toSet()
+        return provider.apiKey.split(Regex("[\\s,]+"))
             .map { it.trim() }
-            .filter { it.isNotEmpty() }
+            .filter { it.isNotEmpty() && it !in disabled }
             .distinct()
+    }
+
+    /**
+     * 只剩一个可用 Key 时也要把它换回去：apiKey 里可能存着多行 Key，
+     * 直接下发等于把整串当成一个 Key 发出去。
+     */
+    private fun singleKeySetting(setting: T, keys: List<String>): T = when {
+        keys.size == 1 -> withKey(setting, keys[0])
+        keys.isEmpty() && setting is ProviderSetting.ApiKey && setting.apiKey.isNotBlank() ->
+            throw IllegalStateException("All API keys are disabled")
+        else -> setting
     }
 
     private fun order(keys: List<String>): List<String> {
@@ -45,7 +57,7 @@ class KeyFailoverProvider<T : ProviderSetting>(
         params: TextGenerationParams,
     ): TextGenerationResult {
         val keys = keysOf(providerSetting)
-        if (keys.size <= 1) return delegate.generateText(providerSetting, messages, params)
+        if (keys.size <= 1) return delegate.generateText(singleKeySetting(providerSetting, keys), messages, params)
 
         var lastError: Throwable? = null
         order(keys).forEach { key ->
@@ -65,7 +77,7 @@ class KeyFailoverProvider<T : ProviderSetting>(
         params: TextGenerationParams,
     ): Flow<StreamChunk> {
         val keys = keysOf(providerSetting)
-        if (keys.size <= 1) return delegate.streamText(providerSetting, messages, params)
+        if (keys.size <= 1) return delegate.streamText(singleKeySetting(providerSetting, keys), messages, params)
 
         return flow {
             var lastError: Throwable? = null
@@ -90,7 +102,7 @@ class KeyFailoverProvider<T : ProviderSetting>(
 
     override suspend fun getQuota(providerSetting: T): ProviderQuota? {
         val keys = keysOf(providerSetting)
-        if (keys.size <= 1) return delegate.getQuota(providerSetting)
+        if (keys.size <= 1) return delegate.getQuota(singleKeySetting(providerSetting, keys))
 
         val results = keys.map { key ->
             runCatching { delegate.getQuota(withKey(providerSetting, key)) }
@@ -108,7 +120,7 @@ class KeyFailoverProvider<T : ProviderSetting>(
 
     override suspend fun listModels(providerSetting: T): List<Model> {
         val keys = keysOf(providerSetting)
-        if (keys.size <= 1) return delegate.listModels(providerSetting)
+        if (keys.size <= 1) return delegate.listModels(singleKeySetting(providerSetting, keys))
 
         var lastError: Throwable? = null
         keys.forEach { key ->

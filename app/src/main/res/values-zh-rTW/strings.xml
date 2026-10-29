@@ -1824,4 +1824,22 @@
   <string name="setting_model_page_memory_model">記憶整理模型</string>
   <string name="setting_model_page_memory_model_desc">用於在背景將對話整理為長期記憶的模型；未設定時會使用快速模型</string>
   <string name="setting_model_page_memory_model_follow_fast">跟隨快速模型</string>
+  <string name="chat_page_shortcuts">快捷入口</string>
+  <string name="notification_channel_heartbeat">心跳</string>
+  <string name="chat_page_heartbeat_conversation_title">心跳 · %1$s</string>
+  <string name="assistant_page_tab_heartbeat">心跳</string>
+  <string name="assistant_detail_heartbeat_desc">定時主動說話，也可以只當鬧鐘</string>
+  <string name="heartbeat_page_enable_title">啟用心跳</string>
+  <string name="heartbeat_page_enable_desc">到點讓助手主動說話；沒選模型時只發通知</string>
+  <string name="heartbeat_page_interval_title">間隔時間</string>
+  <string name="heartbeat_page_interval_desc">兩次心跳之間至少隔多少分鐘</string>
+  <string name="heartbeat_page_hours_title">活躍時間段</string>
+  <string name="heartbeat_page_hours_desc">只在這個時間段內觸發，支援跨夜</string>
+  <string name="heartbeat_page_hours_start">開始</string>
+  <string name="heartbeat_page_hours_end">結束</string>
+  <string name="heartbeat_page_prompt_title">心跳提示詞</string>
+  <string name="heartbeat_page_prompt_desc">到點發給助手的內容</string>
+  <string name="heartbeat_page_prompt_placeholder">例如：看看現在幾點，說點什麼</string>
+  <string name="heartbeat_page_model_title">心跳模型</string>
+  <string name="heartbeat_page_model_desc">僅鬧鐘（未選擇模型）</string>
 </resources>

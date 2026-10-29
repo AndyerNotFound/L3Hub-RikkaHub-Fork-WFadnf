@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -60,6 +62,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
@@ -96,6 +100,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
+import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -613,48 +618,80 @@ fun ChatDrawerContent(
 
 @Composable
 private fun DrawerActions(navController: Navigator) {
+    // 上方这几行入口可以整体收起，给会话列表腾地方
+    var collapsed by rememberSharedPreferenceBoolean("drawer_actions_collapsed", false)
     Column {
-        // 历史记录入口，行尾是搜索入口
-        DrawerEntry(
-            icon = HugeIcons.TransactionHistory,
-            text = stringResource(R.string.chat_page_history),
-            onClick = { navController.navigate(Screen.History) },
-            trailingIcon = HugeIcons.Search01,
-            trailingDescription = stringResource(R.string.chat_page_search_chats),
-            onTrailingClick = { navController.navigate(Screen.MessageSearch) },
-        )
+        Surface(
+            onClick = { collapsed = !collapsed },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = Color.Transparent,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_page_shortcuts),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        AnimatedVisibility(visible = !collapsed) {
+            Column {
+                // 历史记录入口，行尾是搜索入口
+                DrawerEntry(
+                    icon = HugeIcons.TransactionHistory,
+                    text = stringResource(R.string.chat_page_history),
+                    onClick = { navController.navigate(Screen.History) },
+                    trailingIcon = HugeIcons.Search01,
+                    trailingDescription = stringResource(R.string.chat_page_search_chats),
+                    onTrailingClick = { navController.navigate(Screen.MessageSearch) },
+                )
 
-        // 媒体创作入口
-        DrawerEntry(
-            icon = HugeIcons.ImageToVideo,
-            text = stringResource(R.string.media_creation_title),
-            onClick = { navController.navigate(Screen.MediaCreationSessions) },
-        )
+                // 媒体创作入口
+                DrawerEntry(
+                    icon = HugeIcons.ImageToVideo,
+                    text = stringResource(R.string.media_creation_title),
+                    onClick = { navController.navigate(Screen.MediaCreationSessions) },
+                )
 
-        // 翻译入口
-        DrawerEntry(
-            icon = HugeIcons.LanguageCircle,
-            text = stringResource(R.string.chat_page_menu_ai_translator),
-            onClick = { navController.navigate(Screen.Translator) },
-        )
+                // 翻译入口
+                DrawerEntry(
+                    icon = HugeIcons.LanguageCircle,
+                    text = stringResource(R.string.chat_page_menu_ai_translator),
+                    onClick = { navController.navigate(Screen.Translator) },
+                )
 
-        DrawerEntry(
-            icon = HugeIcons.LookTop,
-            text = stringResource(R.string.assistant_page_title),
-            onClick = { navController.navigate(Screen.Assistant) },
-        )
+                DrawerEntry(
+                    icon = HugeIcons.LookTop,
+                    text = stringResource(R.string.assistant_page_title),
+                    onClick = { navController.navigate(Screen.Assistant) },
+                )
 
-        DrawerEntry(
-            icon = HugeIcons.InLove,
-            text = stringResource(R.string.favorite_page_title),
-            onClick = { navController.navigate(Screen.Favorite) },
-        )
+                DrawerEntry(
+                    icon = HugeIcons.InLove,
+                    text = stringResource(R.string.favorite_page_title),
+                    onClick = { navController.navigate(Screen.Favorite) },
+                )
 
-        DrawerEntry(
-            icon = HugeIcons.ChartColumn,
-            text = stringResource(R.string.chat_page_stats),
-            onClick = { navController.navigate(Screen.Stats) },
-        )
+                DrawerEntry(
+                    icon = HugeIcons.ChartColumn,
+                    text = stringResource(R.string.chat_page_stats),
+                    onClick = { navController.navigate(Screen.Stats) },
+                )
+            }
+        }
     }
 }
 

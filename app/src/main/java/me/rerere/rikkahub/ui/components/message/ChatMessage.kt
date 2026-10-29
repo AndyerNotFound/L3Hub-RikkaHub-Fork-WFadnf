@@ -598,31 +598,27 @@ private fun MessagePartsBlock(
     val lastBodyIndex = groupedParts.indexOfLast { block ->
         block is MessagePartBlock.ContentBlock && (block.part as? UIMessagePart.Text)?.text?.isNotBlank() == true
     }
-    val blocksBeforeBody = if (!loading && role == MessageRole.ASSISTANT && lastBodyIndex > 0) {
-        groupedParts.subList(0, lastBodyIndex)
-    } else {
-        emptyList()
-    }
-    // 正文之前的思考/工具内容整体再折叠一层；单个纯思考链也统一走这层折叠
-    val hasToolChain = blocksBeforeBody.any { block ->
-        block is MessagePartBlock.ThinkingBlock && block.steps.any { step ->
-            step is ThinkingStep.ToolStep || step is ThinkingStep.ServerToolStep
+    // 流式过程中也参与折叠：正在输出的正文留在外面，之前的思考和工具先收起来
+    val blocksBeforeBody = if (role == MessageRole.ASSISTANT) {
+        when {
+            lastBodyIndex > 0 -> groupedParts.subList(0, lastBodyIndex)
+            // 还没有正文（只有一段思考或一次工具调用）时整段内容都参与折叠
+            lastBodyIndex<= 0 && groupedParts.isNotEmpty() &&
+                groupedParts.none { it is MessagePartBlock.ContentBlock } -> groupedParts
+            else -> emptyList()
         }
-    }
-    // 单一的纯思考链也走和循环链相同的外层折叠，不再退回原版内联形态
-    val onlyThinkingBeforeBody = blocksBeforeBody.isNotEmpty() &&
-        blocksBeforeBody.all { it is MessagePartBlock.ThinkingBlock }
-    val hiddenBlocks = if (lastBodyIndex > 1 || hasToolChain || onlyThinkingBeforeBody) {
-        blocksBeforeBody
     } else {
         emptyList()
     }
+    // 正文之前的思考/工具内容整体再折叠一层；单个纯思考链或单张工具卡也走这层折叠
+    val hiddenBlocks = blocksBeforeBody
     // 等待审批的工具不能藏起来，否则用户看不到审批按钮
     val hiddenPendingTool = hiddenBlocks.any { block ->
         block is MessagePartBlock.ThinkingBlock && block.steps.any { it is ThinkingStep.ToolStep && it.tool.isPending }
     }
     val collapsibleCount = if (hiddenPendingTool) 0 else hiddenBlocks.size
-    var showEarlierSteps by remember(parts) { mutableStateOf(false) }
+    // 不能按 parts 记住：流式时每个 chunk 都会重建列表，展开状态会被重置
+    var showEarlierSteps by remember { mutableStateOf(false) }
 
     if (collapsibleCount > 0) {
         EarlierStepsToggle(

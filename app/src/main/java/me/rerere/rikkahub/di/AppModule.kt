@@ -3,6 +3,7 @@ package me.rerere.rikkahub.di
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.ChatRequestFactory
+import me.rerere.rikkahub.data.ai.heartbeat.HeartbeatScheduler
 import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
@@ -31,6 +32,16 @@ val appModule = module {
 
     single {
         SubAgentRunner(
+            settingsStore = get(),
+            conversationRepository = get(),
+            chatServiceProvider = { get() },
+        )
+    }
+
+    single {
+        HeartbeatScheduler(
+            context = get(),
+            scope = get(),
             settingsStore = get(),
             conversationRepository = get(),
             chatServiceProvider = { get() },

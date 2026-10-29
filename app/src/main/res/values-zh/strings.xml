@@ -1994,4 +1994,22 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_use_l3hub_reasoning_desc">将思考强度图标换成颜色指示（Off 灰，Auto 到 Ultra 由绿变红），并把滑块换成带圆形滑钮的条形滑块。</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">导出保留原始标记符号的 XML 文本</string>
+  <string name="chat_page_shortcuts">快捷入口</string>
+  <string name="notification_channel_heartbeat">心跳</string>
+  <string name="chat_page_heartbeat_conversation_title">心跳 · %1$s</string>
+  <string name="assistant_page_tab_heartbeat">心跳</string>
+  <string name="assistant_detail_heartbeat_desc">定时主动说话，也可以只当闹钟</string>
+  <string name="heartbeat_page_enable_title">启用心跳</string>
+  <string name="heartbeat_page_enable_desc">到点让助手主动说话；没选模型时只发通知</string>
+  <string name="heartbeat_page_interval_title">间隔时间</string>
+  <string name="heartbeat_page_interval_desc">两次心跳之间至少隔多少分钟</string>
+  <string name="heartbeat_page_hours_title">活跃时间段</string>
+  <string name="heartbeat_page_hours_desc">只在这个时间段内触发，支持跨夜</string>
+  <string name="heartbeat_page_hours_start">开始</string>
+  <string name="heartbeat_page_hours_end">结束</string>
+  <string name="heartbeat_page_prompt_title">心跳提示词</string>
+  <string name="heartbeat_page_prompt_desc">到点发给助手的内容</string>
+  <string name="heartbeat_page_prompt_placeholder">例如：看看现在几点，说点什么</string>
+  <string name="heartbeat_page_model_title">心跳模型</string>
+  <string name="heartbeat_page_model_desc">仅闹钟（未选择模型）</string>
 </resources>

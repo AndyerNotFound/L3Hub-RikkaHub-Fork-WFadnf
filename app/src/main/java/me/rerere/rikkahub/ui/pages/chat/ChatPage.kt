@@ -1278,14 +1278,38 @@ private fun TopBar(
                     }
 
                     if (chatModel != null) {
-                        Box(
+                        // 模型 + 供应商两个图标并成一个胶囊，高度和右侧按钮组一致
+                        val modelPillShape = if (terminal) RoundedCornerShape(2.dp) else RoundedCornerShape(50)
+                        val modelPillColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        val provider = chatModel.findProvider(settings.providers)
+                        Row(
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable(onClick = onShowModelPicker),
-                            contentAlignment = Alignment.Center,
+                                .height(40.dp)
+                                .appButtonShadow(modelPillShape, 2.dp)
+                                .clip(modelPillShape)
+                                .background(effectColor(modelPillColor))
+                                .then(
+                                    if (effectBorder != null) {
+                                        Modifier.border(effectBorder, modelPillShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .chatInputHaze(
+                                    hazeState = hazeState,
+                                    displaySetting = settings.displaySetting,
+                                    containerColor = modelPillColor,
+                                    shape = modelPillShape,
+                                )
+                                .clickable(onClick = onShowModelPicker)
+                                .padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             AutoAIIcon(name = chatModel.modelId, color = Color.Transparent)
+                            if (provider != null) {
+                                AutoAIIcon(name = provider.name, color = Color.Transparent)
+                            }
                         }
                     }
                 }

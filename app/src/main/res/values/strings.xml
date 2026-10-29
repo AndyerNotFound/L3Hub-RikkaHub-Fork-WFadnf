@@ -1992,4 +1992,22 @@
   <string name="setting_display_page_use_l3hub_reasoning_desc">Use a colour indicator (gray when off, green to red from Auto to Ultra) and a bar slider with a round thumb.</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">Export XML text preserving raw markup symbols</string>
+  <string name="chat_page_shortcuts">Shortcuts</string>
+  <string name="notification_channel_heartbeat">Heartbeat</string>
+  <string name="chat_page_heartbeat_conversation_title">Heartbeat · %1$s</string>
+  <string name="assistant_page_tab_heartbeat">Heartbeat</string>
+  <string name="assistant_detail_heartbeat_desc">Periodic self-initiated messages, or a plain alarm</string>
+  <string name="heartbeat_page_enable_title">Enable heartbeat</string>
+  <string name="heartbeat_page_enable_desc">Let the assistant speak up on schedule; without a model it only posts a notification</string>
+  <string name="heartbeat_page_interval_title">Interval</string>
+  <string name="heartbeat_page_interval_desc">Minimum minutes between two heartbeats</string>
+  <string name="heartbeat_page_hours_title">Active hours</string>
+  <string name="heartbeat_page_hours_desc">Only fires inside this window; crossing midnight is allowed</string>
+  <string name="heartbeat_page_hours_start">Start</string>
+  <string name="heartbeat_page_hours_end">End</string>
+  <string name="heartbeat_page_prompt_title">Heartbeat prompt</string>
+  <string name="heartbeat_page_prompt_desc">What to send to the assistant when the heartbeat fires</string>
+  <string name="heartbeat_page_prompt_placeholder">e.g. look at the clock and say something</string>
+  <string name="heartbeat_page_model_title">Heartbeat model</string>
+  <string name="heartbeat_page_model_desc">Alarm only (no model selected)</string>
 </resources>

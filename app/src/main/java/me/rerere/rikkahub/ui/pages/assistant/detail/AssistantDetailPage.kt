@@ -43,6 +43,7 @@ import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Message02
@@ -168,6 +169,12 @@ fun AssistantDetailPage(id: String) {
                         leadingContent = { CardGroupIcon(HugeIcons.Wrench01, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.assistant_detail_local_tools_desc)) },
                         headlineContent = { Text(stringResource(R.string.assistant_page_tab_local_tools)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.AssistantHeartbeat(id)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Clock01, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_heartbeat_desc)) },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_heartbeat)) },
                     )
                 }
             }
