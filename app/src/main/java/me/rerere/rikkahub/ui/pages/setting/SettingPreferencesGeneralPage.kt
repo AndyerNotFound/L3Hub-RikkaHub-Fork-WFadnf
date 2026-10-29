@@ -48,6 +48,7 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.terminal.RadioButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.getActivity
@@ -340,13 +341,12 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             headlineContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_threshold_title)) },
                             trailingContent = { CardGroupValue("${displaySetting.pasteLongTextThreshold}") },
                         ) {
-                            Slider(
-                                value = displaySetting.pasteLongTextThreshold.toFloat(),
+                            NumberSlider(
+                                value = displaySetting.pasteLongTextThreshold,
                                 onValueChange = {
-                                    updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it.toInt()))
+                                    updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it))
                                 },
-                                valueRange = 100f..10000f,
-                                modifier = Modifier.fillMaxWidth(),
+                                valueRange = 100..10_000,
                             )
                         }
                     }

@@ -1842,4 +1842,6 @@
   <string name="heartbeat_page_prompt_placeholder">例如：看看現在幾點，說點什麼</string>
   <string name="heartbeat_page_model_title">心跳模型</string>
   <string name="heartbeat_page_model_desc">僅鬧鐘（未選擇模型）</string>
+  <string name="setting_display_page_input_padding_title">輸入框內邊距</string>
+  <string name="setting_display_page_input_padding_desc">輸入框內部元素距邊框 %1$d dp；調小可以讓內部圓角更貼合</string>
 </resources>

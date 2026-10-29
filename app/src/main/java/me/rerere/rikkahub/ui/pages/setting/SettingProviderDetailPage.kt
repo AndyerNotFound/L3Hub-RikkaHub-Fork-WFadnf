@@ -42,6 +42,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -1450,6 +1451,20 @@ private fun ModelContextThresholdFields(
                 modifier = Modifier.weight(1f),
             )
         }
+        ContextThresholdPresetRow(
+            label = stringResource(R.string.setting_provider_page_context_warn),
+            selected = warn,
+            onSelect = { value ->
+                onModelChange(model.copy(warnContextTokens = value, contextThresholdsAuto = false))
+            },
+        )
+        ContextThresholdPresetRow(
+            label = stringResource(R.string.setting_provider_page_context_max),
+            selected = max,
+            onSelect = { value ->
+                onModelChange(model.copy(maxContextTokens = value, contextThresholdsAuto = false))
+            },
+        )
         Text(
             text = if (invalid) {
                 stringResource(R.string.setting_provider_page_context_threshold_invalid)
@@ -1483,6 +1498,53 @@ private fun ModelContextThresholdFields(
                 checked = model.enforceMaxContext,
                 onCheckedChange = { onModelChange(model.copy(enforceMaxContext = it)) },
             )
+        }
+    }
+}
+
+/** WARN / MAX 的常用门限，点一下直接填进去 */
+private val CONTEXT_THRESHOLD_PRESETS = listOf(
+    32_768,
+    65_536,
+    131_072,
+    196_608,
+    262_144,
+    393_216,
+    458_752,
+    524_288,
+    786_432,
+    1_048_576,
+)
+
+@Composable
+private fun ContextThresholdPresetRow(
+    label: String,
+    selected: Int?,
+    onSelect: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            CONTEXT_THRESHOLD_PRESETS.forEach { value ->
+                FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelect(value) },
+                    label = {
+                        Text(
+                            text = value.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                    shape = MaterialTheme.shapes.small,
+                )
+            }
         }
     }
 }

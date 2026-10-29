@@ -331,7 +331,7 @@ internal fun Settings.retryPolicy(): RetryPolicy {
         .mapNotNull { it.trim().toIntOrNull() }
         .toSet()
     return RetryPolicy(
-        maxRetries = network.retryMaxCount.coerceIn(0, 10),
+        maxRetries = network.retryMaxCount.coerceIn(0, 64),
         initialDelay = network.retryIntervalSeconds.coerceIn(1, 60).seconds,
         exponentialBackoff = false,
         retryOn = { error ->

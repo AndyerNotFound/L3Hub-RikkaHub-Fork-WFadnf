@@ -222,6 +222,8 @@ data class DisplaySetting(
     val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
     val showToolCallOutput: Boolean = true,
     val uiCornerRadius: Int = 24,
+    // 输入框卡片的内边距，和圆角一起决定内部元素是否和外框同心
+    val inputPadding: Int = 8,
     // 模糊特效下气泡/输入框/顶栏的底色不透明度
     val blurOpacity: Float = 0.45f,
     // 新对话界面中央的自定义标语

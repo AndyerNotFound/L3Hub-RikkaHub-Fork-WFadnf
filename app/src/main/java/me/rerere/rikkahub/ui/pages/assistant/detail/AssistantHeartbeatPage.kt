@@ -33,6 +33,7 @@ import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -103,13 +104,13 @@ fun AssistantHeartbeatPage(id: String) {
                         CardGroupValue(text = "${heartbeat.intervalMinutes} min")
                     },
                 ) {
-                    Slider(
-                        value = heartbeat.intervalMinutes.toFloat(),
+                    NumberSlider(
+                        value = heartbeat.intervalMinutes,
                         onValueChange = { value ->
-                            update { it.copy(intervalMinutes = value.roundToInt().coerceAtLeast(1)) }
+                            update { it.copy(intervalMinutes = value) }
                         },
-                        valueRange = 5f..720f,
-                        modifier = Modifier.fillMaxWidth(),
+                        valueRange = 5..720,
+                        suffix = "min",
                     )
                 }
                 formItem(

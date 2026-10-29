@@ -4,6 +4,7 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -59,6 +61,7 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.toast.ToastType
@@ -124,9 +127,6 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         }
     }
     var proxyTesting by remember { mutableStateOf(false) }
-    var retryCountDialogVisible by remember { mutableStateOf(false) }
-    var retryIntervalDialogVisible by remember { mutableStateOf(false) }
-    var retryCodesDialogVisible by remember { mutableStateOf(false) }
 
     fun updateNetworkSetting(transform: (NetworkSetting) -> NetworkSetting) {
         vm.updateSettings {
@@ -298,46 +298,6 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         )
     }
 
-    if (retryCountDialogVisible) {
-        RetryValueDialog(
-            title = stringResource(R.string.setting_page_preferences_network_retry_count),
-            initialValue = settings.networkSetting.retryMaxCount.toString(),
-            keyboardType = KeyboardType.Number,
-            onDismiss = { retryCountDialogVisible = false },
-        ) { value ->
-            value.toIntOrNull()?.let { count ->
-                updateNetworkSetting { it.copy(retryMaxCount = count.coerceIn(0, 10)) }
-            }
-            retryCountDialogVisible = false
-        }
-    }
-
-    if (retryIntervalDialogVisible) {
-        RetryValueDialog(
-            title = stringResource(R.string.setting_page_preferences_network_retry_interval),
-            initialValue = settings.networkSetting.retryIntervalSeconds.toString(),
-            keyboardType = KeyboardType.Number,
-            onDismiss = { retryIntervalDialogVisible = false },
-        ) { value ->
-            value.toIntOrNull()?.let { seconds ->
-                updateNetworkSetting { it.copy(retryIntervalSeconds = seconds.coerceIn(1, 60)) }
-            }
-            retryIntervalDialogVisible = false
-        }
-    }
-
-    if (retryCodesDialogVisible) {
-        RetryValueDialog(
-            title = stringResource(R.string.setting_page_preferences_network_retry_codes),
-            initialValue = settings.networkSetting.retryErrorCodes,
-            keyboardType = KeyboardType.Text,
-            onDismiss = { retryCodesDialogVisible = false },
-        ) { value ->
-            updateNetworkSetting { it.copy(retryErrorCodes = value.trim()) }
-            retryCodesDialogVisible = false
-        }
-    }
-
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -372,59 +332,54 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     if (settings.networkSetting.enableAutoRetry) {
-                        item(
+                        formItem(
                             headlineContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_count))
                             },
                             supportingContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc))
                             },
-                            trailingContent = {
-                                Text(
-                                    text = stringResource(
-                                        R.string.setting_page_preferences_network_retry_count_value,
-                                        settings.networkSetting.retryMaxCount,
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            onClick = { retryCountDialogVisible = true },
-                        )
-                        item(
+                        ) {
+                            NumberSlider(
+                                value = settings.networkSetting.retryMaxCount,
+                                onValueChange = { count ->
+                                    updateNetworkSetting { it.copy(retryMaxCount = count) }
+                                },
+                                valueRange = 0..64,
+                            )
+                        }
+                        formItem(
                             headlineContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_interval))
                             },
                             supportingContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc))
                             },
-                            trailingContent = {
-                                Text(
-                                    text = stringResource(
-                                        R.string.setting_page_preferences_network_retry_interval_value,
-                                        settings.networkSetting.retryIntervalSeconds,
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            onClick = { retryIntervalDialogVisible = true },
-                        )
-                        item(
+                        ) {
+                            NumberSlider(
+                                value = settings.networkSetting.retryIntervalSeconds,
+                                onValueChange = { seconds ->
+                                    updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
+                                },
+                                valueRange = 1..60,
+                                suffix = "s",
+                            )
+                        }
+                        formItem(
                             headlineContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_codes))
                             },
                             supportingContent = {
                                 Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc))
                             },
-                            trailingContent = {
-                                Text(
-                                    text = settings.networkSetting.retryErrorCodes.ifBlank {
-                                        stringResource(R.string.setting_page_preferences_network_retry_codes_default)
-                                    },
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            onClick = { retryCodesDialogVisible = true },
-                        )
+                        ) {
+                            RetryErrorCodePicker(
+                                selected = settings.networkSetting.retryErrorCodes,
+                                onValueChange = { codes ->
+                                    updateNetworkSetting { it.copy(retryErrorCodes = codes) }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -605,4 +560,53 @@ private fun RetryValueDialog(
             }
         },
     )
+}
+
+/** 常见的可重试状态码，点选后按逗号拼起来存 */
+private val RETRY_ERROR_CODE_PRESETS = listOf(
+    408,
+    409,
+    425,
+    429,
+    500,
+    502,
+    503,
+    504,
+    520,
+    522,
+    524,
+    529,
+)
+
+@Composable
+private fun RetryErrorCodePicker(
+    selected: String,
+    onValueChange: (String) -> Unit,
+) {
+    val codes = remember(selected) {
+        selected.split(',', '，', ';', '；', ' ', '\n')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .toSet()
+    }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        RETRY_ERROR_CODE_PRESETS.forEach { code ->
+            FilterChip(
+                selected = code in codes,
+                onClick = {
+                    val next = if (code in codes) codes - code else codes + code
+                    onValueChange(next.sorted().joinToString(","))
+                },
+                label = {
+                    Text(
+                        text = code.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                shape = MaterialTheme.shapes.small,
+            )
+        }
+    }
 }

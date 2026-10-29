@@ -365,7 +365,10 @@ fun ChatInput(
                 },
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(
+                        horizontal = settings.displaySetting.inputPadding.dp,
+                        vertical = (settings.displaySetting.inputPadding / 2).dp,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     if (terminalStyle) {
@@ -713,7 +716,9 @@ private fun TextInputRow(
     val innerShape = if (terminalStyle) {
         RoundedCornerShape(2.dp)
     } else {
-        RoundedCornerShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
+        RoundedCornerShape(
+            (settings.displaySetting.uiCornerRadius - settings.displaySetting.inputPadding).coerceAtLeast(2).dp
+        )
     }
 
     Column(
@@ -907,7 +912,10 @@ private fun TextInputRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (if (fullscreenOnOverflow) inputOverflowed else isFocused) {
+                    // 只要有内容就给全屏按钮，不必等超出三行
+                    if (state.textContent.text.isNotEmpty() ||
+                        (if (fullscreenOnOverflow) inputOverflowed else isFocused)
+                    ) {
                         IconButton(
                             onClick = {
                                 isFullScreen = !isFullScreen

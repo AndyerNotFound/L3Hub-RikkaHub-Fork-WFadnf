@@ -260,6 +260,27 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_input_padding_title)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_display_page_input_padding_desc,
+                                    displaySetting.inputPadding,
+                                )
+                            )
+                        },
+                    ) {
+                        Slider(
+                            value = displaySetting.inputPadding.toFloat(),
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
+                            },
+                            valueRange = 0f..16f,
+                            steps = 15,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     switchItem(
                         checked = displaySetting.showThinkingContent,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
@@ -376,11 +397,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                     ) {
                         Slider(
                             value = displaySetting.fontSizeRatio,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                            onValueChange = { ratio ->
+                                val snapped = (ratio * 20f).roundToInt() / 20f
+                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = snapped))
                             },
                             valueRange = 0.5f..2f,
-                            steps = 11,
+                            steps = 29,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         // 预览放在凹下去的底色里，和设置项本身区分开
