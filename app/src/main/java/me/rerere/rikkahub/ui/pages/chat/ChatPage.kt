@@ -80,6 +80,8 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
@@ -125,7 +127,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
-import java.time.ZoneId
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 
@@ -380,9 +381,8 @@ private fun ChatPageContent(
             if (generationStartedAt == null) {
                 val now = System.currentTimeMillis()
                 val messageStart = streamingMessage?.createdAt
-                    ?.atZone(ZoneId.systemDefault())
-                    ?.toInstant()
-                    ?.toEpochMilli()
+                    ?.toInstant(TimeZone.currentSystemDefault())
+                    ?.toEpochMilliseconds()
                 generationStartedAt = messageStart?.coerceAtMost(now) ?: now
                 timerNow = now
             }
@@ -834,6 +834,7 @@ private fun TopBar(
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+        title = {},
         navigationIcon = {
             if (!bigScreen) {
                 val navShape = CircleShape
