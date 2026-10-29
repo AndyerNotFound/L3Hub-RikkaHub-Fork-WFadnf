@@ -132,8 +132,8 @@ internal fun FilesPicker(
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
 
-    val boundWorkspace = remember(workspaces, assistant.workspaceId) {
-        workspaces.find { it.id == assistant.workspaceId?.toString() }
+    val boundWorkspace = remember(workspaces, assistant.primaryWorkspaceId) {
+        workspaces.find { it.id == assistant.primaryWorkspaceId?.toString() }
     }
     val showCwd = boundWorkspace != null && boundWorkspace.shellStatus == WorkspaceShellStatus.READY.name
     var showCwdSheet by remember { mutableStateOf(false) }
@@ -393,9 +393,13 @@ private fun WorkspacePickerListItem(
     onNavigateToManage: () -> Unit,
 ) {
     var showSheet by remember { mutableStateOf(false) }
-    val boundWorkspace = remember(workspaces, assistant.workspaceId) {
-        workspaces.find { it.id == assistant.workspaceId?.toString() }
+    val selectedIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+    val boundWorkspaces = remember(workspaces, selectedIds) {
+        workspaces.filter { it.id in selectedIds }
     }
+    val boundWorkspace = boundWorkspaces.firstOrNull {
+        it.id == assistant.primaryWorkspaceId?.toString()
+    } ?: boundWorkspaces.firstOrNull()
 
     SegmentedListItem(
         onClick = { showSheet = true },
@@ -408,7 +412,11 @@ private fun WorkspacePickerListItem(
         },
         supportingContent = {
             Text(
-                text = boundWorkspace?.name ?: stringResource(R.string.assistant_page_workspace_unbound),
+                text = when {
+                    boundWorkspaces.isEmpty() -> stringResource(R.string.assistant_page_workspace_unbound)
+                    boundWorkspaces.size == 1 -> boundWorkspaces.first().name
+                    else -> stringResource(R.string.workspace_selected_count, boundWorkspaces.size)
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -443,13 +451,18 @@ private fun WorkspacePickerListItem(
         WorkspaceSelectSheet(
             assistant = assistant,
             workspaces = workspaces,
-            onSelect = { workspaceId ->
-                val newId = workspaceId?.let { Uuid.parse(it) }
-                if (newId != assistant.workspaceId) {
-                    // 会话的工作目录随工作区一并重置
-                    onUpdateAssistant(assistant.copy(workspaceId = newId))
-                }
-                showSheet = false
+            onSelect = { workspaceIds ->
+                val newIds = workspaceIds.mapNotNull { id ->
+                    runCatching { Uuid.parse(id) }.getOrNull()
+                }.toSet()
+                val newPrimary = assistant.primaryWorkspaceId?.takeIf { it in newIds }
+                    ?: newIds.firstOrNull()
+                onUpdateAssistant(
+                    assistant.copy(
+                        workspaceIds = newIds,
+                        workspaceId = newPrimary,
+                    )
+                )
             },
             onManage = {
                 showSheet = false

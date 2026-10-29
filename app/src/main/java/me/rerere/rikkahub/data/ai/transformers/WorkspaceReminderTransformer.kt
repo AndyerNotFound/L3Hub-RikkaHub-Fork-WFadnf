@@ -33,28 +33,63 @@ class WorkspaceReminderTransformer(
         ctx: TransformerContext,
         messages: List<UIMessage>,
     ): List<UIMessage> {
-        val workspaceId = ctx.assistant.workspaceId?.toString() ?: return messages
-        val workspace = workspaceRepository.getById(workspaceId) ?: return messages
-        // 与 ChatToolFactory.createWorkspaceToolsIfReady 保持一致: 仅在 shell 就绪时注入
-        if (workspace.shellStatus != WorkspaceShellStatus.READY.name) return messages
-        val layout = workspaceRepository.layout(workspaceId) ?: return messages
+        val workspaceIds = ctx.assistant.allWorkspaceIds.map { it.toString() }
+        if (workspaceIds.isEmpty()) return messages
 
-        val prompt = if (workspace.isSsh()) {
-            val environment = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
-                // shell 探测需要连接, 失败时不再读发行版, 以免再等一次超时
-                RemoteEnvironment(shell = workspaceRepository.shell(workspaceId), distro = readDistroName(workspaceId))
-            }.getOrElse { e ->
-                Log.w("WorkspaceReminder", "Workspace unreachable: $workspaceId", e)
-                return messages.withPrompt(buildUnreachablePrompt(workspace, layout, e))
+        val prompts = buildList {
+            workspaceIds.forEach { workspaceId ->
+                val workspace = workspaceRepository.getById(workspaceId) ?: return@forEach
+                // 与 ChatToolFactory 保持一致: 仅在 shell 就绪时注入
+                if (workspace.shellStatus != WorkspaceShellStatus.READY.name) return@forEach
+                val layout = workspaceRepository.layout(workspaceId) ?: return@forEach
+
+                val prompt = if (workspace.isSsh()) {
+                    val environment = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
+                        // shell 探测需要连接, 失败时不再读发行版, 以免再等一次超时
+                        RemoteEnvironment(
+                            shell = workspaceRepository.shell(workspaceId),
+                            distro = readDistroName(workspaceId),
+                        )
+                    }.getOrElse { e ->
+                        Log.w("WorkspaceReminder", "Workspace unreachable: $workspaceId", e)
+                        add(workspace to buildUnreachablePrompt(workspace, layout, e))
+                        return@forEach
+                    }
+                    buildSshWorkspacePrompt(
+                        workspace = workspace,
+                        layout = layout,
+                        shell = environment.shell,
+                        distro = environment.distro,
+                        cwd = ctx.workspaceCwd,
+                    )
+                } else {
+                    buildWorkspacePrompt(
+                        workspace = workspace,
+                        shell = workspaceRepository.shell(workspaceId),
+                        distro = readDistroName(workspaceId),
+                        cwd = ctx.workspaceCwd,
+                    ) + buildAgentsPrompt(workspaceId, ctx.workspaceCwd)
+                }
+                add(workspace to prompt)
             }
-            buildSshWorkspacePrompt(workspace, layout, environment.shell, environment.distro, ctx.workspaceCwd)
-        } else {
-            buildWorkspacePrompt(
-                workspace = workspace,
-                shell = workspaceRepository.shell(workspaceId),
-                distro = readDistroName(workspaceId),
-                cwd = ctx.workspaceCwd,
-            ) + buildAgentsPrompt(workspaceId, ctx.workspaceCwd)
+        }
+        if (prompts.isEmpty()) return messages
+
+        val prompt = buildString {
+            if (prompts.size > 1) {
+                appendLine("<workspaces>")
+                appendLine("The assistant is bound to multiple workspaces. Pass `workspace` to workspace_* tools with one of:")
+                prompts.forEach { (workspace, _) ->
+                    appendLine("- ${workspace.name} (${workspace.id})")
+                }
+                appendLine("If `workspace` is omitted, \"${prompts.first().first.name}\" is used.")
+                appendLine("</workspaces>")
+                appendLine()
+            }
+            prompts.forEachIndexed { index, (_, block) ->
+                if (index > 0) appendLine()
+                append(block)
+            }
         }
         return messages.withPrompt(prompt)
     }

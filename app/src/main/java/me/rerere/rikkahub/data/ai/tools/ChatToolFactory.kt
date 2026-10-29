@@ -17,7 +17,6 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.data.skills.SkillManager
-import me.rerere.workspace.WorkspaceShellStatus
 import java.io.File
 import kotlin.uuid.Uuid
 
@@ -52,7 +51,11 @@ class ChatToolFactory(
         workspaceCwd: String? = null,
         conversationId: Uuid? = null,
     ): List<Tool> {
-        val workspaceTools = createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd)
+        val workspaceTools = createWorkspaceTools(
+            workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
+            workspaceRepository = workspaceRepository,
+            cwd = workspaceCwd,
+        )
         val tools = buildList {
             if (assistant.enableMemory) {
                 addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
@@ -102,8 +105,9 @@ class ChatToolFactory(
         }
         // 过长的输出存成文件让模型用 shell 按需读取；没有 shell 时模型读不到文件，只能原样返回。
         // 文件放在本机, 只有本地 Rootfs 挂载了 /tool_outputs, 远程工作区同样读不到
-        val canReadToolOutputs = workspaceTools.isNotEmpty() &&
-            assistant.workspaceId?.let { workspaceRepository.getById(it.toString()) }?.capabilities()?.rootfs == true
+        val canReadToolOutputs = workspaceTools.isNotEmpty() && assistant.allWorkspaceIds.any { workspaceId ->
+            workspaceRepository.getById(workspaceId.toString())?.capabilities()?.rootfs == true
+        }
         return if (canReadToolOutputs) tools.map(::withOutputTruncation) else tools
     }
 
@@ -136,18 +140,5 @@ class ChatToolFactory(
                 }
             )
         ) + output.filter { it !is UIMessagePart.Text }
-    }
-
-    private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
-        if (workspaceId.isNullOrBlank()) return emptyList()
-        val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()
-        if (workspace.shellStatus != WorkspaceShellStatus.READY.name) {
-            Log.d(
-                TAG,
-                "createWorkspaceToolsIfReady: skip workspace tools, workspace=$workspaceId, status=${workspace.shellStatus}"
-            )
-            return emptyList()
-        }
-        return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
     }
 }

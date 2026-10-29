@@ -425,16 +425,14 @@ private fun ChatPageContent(
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
 
-    val completionProviders = remember(assistant.workspaceId, conversation.workspaceCwd, workspaceRepository) {
-        assistant.workspaceId?.let { workspaceId ->
-            listOf(
-                WorkspaceCompletionProvider(
-                    workspaceId = workspaceId.toString(),
-                    repository = workspaceRepository,
-                    currentCwd = conversation.workspaceCwd,
-                )
+    val completionProviders = remember(assistant.allWorkspaceIds, conversation.workspaceCwd, workspaceRepository) {
+        assistant.allWorkspaceIds.map { workspaceId ->
+            WorkspaceCompletionProvider(
+                workspaceId = workspaceId.toString(),
+                repository = workspaceRepository,
+                currentCwd = conversation.workspaceCwd,
             )
-        }.orEmpty()
+        }
     }
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)

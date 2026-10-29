@@ -50,7 +50,8 @@ data class Assistant(
     val mcpServers: Set<Uuid> = emptySet(),
     val localTools: List<LocalToolOption> = listOf(LocalToolOption.TimeInfo),
     val enableWebSearch: Boolean = false, // 网络搜索开关(每个助手独立)
-    val workspaceId: Uuid? = null,
+    val workspaceId: Uuid? = null, // 主工作区，保持旧数据兼容
+    val workspaceIds: Set<Uuid> = emptySet(), // 可同时绑定的工作区
     val background: String? = null, // 聊天页背景图地址(本地文件 URI 或网络 URL), 为 null 时无背景
     val backgroundOpacity: Float = 1.0f, // 背景图不透明度(0~1)
     val backgroundBlur: Float = 0f, // 背景图模糊半径比例(0~1)
@@ -61,7 +62,17 @@ data class Assistant(
     val enableTimeReminder: Boolean = false, // 时间间隔提醒注入
     val timeReminderIntervalMinutes: Int = 60, // 时间提醒间隔（分钟，至少 1 分钟）
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
-)
+) {
+    /** 主工作区在前，兼容只写过 [workspaceId] 的旧助手。 */
+    val allWorkspaceIds: Set<Uuid>
+        get() = buildSet {
+            workspaceId?.let { add(it) }
+            addAll(workspaceIds)
+        }
+
+    val primaryWorkspaceId: Uuid?
+        get() = workspaceId ?: workspaceIds.firstOrNull()
+}
 
 @Serializable
 data class QuickMessage(

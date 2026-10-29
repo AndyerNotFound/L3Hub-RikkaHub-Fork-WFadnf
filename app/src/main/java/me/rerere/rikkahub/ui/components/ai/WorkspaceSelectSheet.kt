@@ -2,10 +2,12 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -16,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Codesandbox
-import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
@@ -38,10 +40,11 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 internal fun WorkspaceSelectSheet(
     assistant: Assistant,
     workspaces: List<WorkspaceEntity>,
-    onSelect: (String?) -> Unit,
+    onSelect: (Set<String>) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val selectedIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
@@ -61,6 +64,12 @@ internal fun WorkspaceSelectSheet(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(vertical = 8.dp),
             )
+            Text(
+                text = stringResource(R.string.workspace_multi_select_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
 
             Column(
                 modifier = Modifier
@@ -71,16 +80,30 @@ internal fun WorkspaceSelectSheet(
                 // 不绑定
                 WorkspaceSelectRow(
                     title = stringResource(R.string.workspace_no_binding),
-                    selected = assistant.workspaceId == null,
-                    onClick = { onSelect(null) },
+                    selected = selectedIds.isEmpty(),
+                    onClick = { onSelect(emptySet()) },
                 )
                 workspaces.forEach { workspace ->
+                    val selected = workspace.id in selectedIds
                     WorkspaceSelectRow(
                         title = workspace.name,
                         status = workspace.statusLabel(),
-                        selected = workspace.id == assistant.workspaceId?.toString(),
-                        onClick = { onSelect(workspace.id) },
+                        selected = selected,
+                        onClick = {
+                            onSelect(
+                                if (selected) selectedIds - workspace.id else selectedIds + workspace.id
+                            )
+                        },
                     )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.workspace_done))
                 }
             }
 
@@ -139,15 +162,9 @@ private fun WorkspaceSelectRow(
                 )
             }
         },
-        trailingContent = if (selected) {
-            {
-                Icon(
-                    imageVector = HugeIcons.Tick02,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        } else null,
+        trailingContent = {
+            Checkbox(checked = selected, onCheckedChange = null)
+        },
         colors = ListItemDefaults.colors(
             containerColor = if (selected) {
                 MaterialTheme.colorScheme.surfaceContainerHigh

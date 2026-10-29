@@ -83,6 +83,10 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         json(NETWORK_SETTING, Settings::networkSetting) { copy(networkSetting = it) },
         plain(DEVELOPER_MODE, Settings::developerMode) { copy(developerMode = it) },
 
+        // 应用锁
+        plain(APP_LOCK_ENABLED, Settings::appLockEnabled) { copy(appLockEnabled = it) },
+        plain(APP_LOCK_TIMEOUT, Settings::appLockTimeoutMinutes) { copy(appLockTimeoutMinutes = it) },
+
         // 模型选择
         json(FAVORITE_MODELS, Settings::favoriteModels) { copy(favoriteModels = it) },
         uuid(SELECT_MODEL, Settings::chatModelId) { copy(chatModelId = it) },

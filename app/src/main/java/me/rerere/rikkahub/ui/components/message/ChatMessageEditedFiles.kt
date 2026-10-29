@@ -57,7 +57,7 @@ internal fun EditedFilesList(
     parts: List<UIMessagePart>,
     assistant: Assistant?,
 ) {
-    val workspaceId = assistant?.workspaceId?.toString() ?: return
+    val workspaceId = assistant?.primaryWorkspaceId?.toString() ?: return
     val editedFiles = remember(parts) {
         parts.filterIsInstance<UIMessagePart.Tool>()
             .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }

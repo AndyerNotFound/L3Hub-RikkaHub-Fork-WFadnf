@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,14 +55,17 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -110,6 +114,7 @@ import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
+import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.urlDecode
 import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
@@ -240,7 +245,7 @@ fun ChatMessage(
         }
         CompositionLocalProvider(
             LocalTextStyle provides textStyle,
-            LocalWorkspaceId provides assistant?.workspaceId?.toString(),
+            LocalWorkspaceId provides assistant?.primaryWorkspaceId?.toString(),
         ) {
             Box(
                 modifier = Modifier
@@ -643,13 +648,10 @@ private fun MessagePartsBlock(
                                         .padding(start = 24.dp)
                                         .animateContentSize(),
                                 ) {
-                                    MarkdownBlock(
-                                        content = part.text.replaceRegexes(
-                                            assistant = assistant,
-                                            scope = AssistantAffectScope.USER,
-                                            visual = true,
-                                        ),
-                                        onClickCitation = handleClickCitation
+                                    CollapsibleUserMessageText(
+                                        text = part.text,
+                                        assistant = assistant,
+                                        onClickCitation = handleClickCitation,
                                     )
                                 }
                             } else {
@@ -773,6 +775,73 @@ private fun MessagePartsBlock(
     // Annotations (always rendered at the end)
     if (annotations.isNotEmpty()) {
         ChatMessageCitations(annotations = annotations)
+    }
+}
+
+private const val USER_MESSAGE_COLLAPSED_LINES = 3
+
+@Composable
+private fun CollapsibleUserMessageText(
+    text: String,
+    assistant: Assistant?,
+    onClickCitation: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val explicitLineCount = remember(text) { text.trimEnd().lineSequence().count() }
+    var expanded by remember(text) { mutableStateOf(false) }
+    var measuredOverflow by remember(text) { mutableStateOf(false) }
+    val lineHeight = LocalTextStyle.current.lineHeight.toDp()
+    val collapsedHeight = (if (lineHeight.value > 0f) lineHeight else 20.dp) *
+        USER_MESSAGE_COLLAPSED_LINES.toFloat()
+    val collapsedHeightPx = with(LocalDensity.current) { collapsedHeight.toPx() }
+    val collapsible = explicitLineCount > USER_MESSAGE_COLLAPSED_LINES || measuredOverflow
+    val clipped = collapsible && !expanded
+
+    Column(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .then(
+                    if (clipped) {
+                        Modifier
+                            .heightIn(max = collapsedHeight)
+                            .clipToBounds()
+                    } else {
+                        Modifier
+                    }
+                )
+                .onSizeChanged { size ->
+                    if (!measuredOverflow && size.height > collapsedHeightPx) {
+                        measuredOverflow = true
+                    }
+                }
+        ) {
+            MarkdownBlock(
+                content = text.replaceRegexes(
+                    assistant = assistant,
+                    scope = AssistantAffectScope.USER,
+                    visual = true,
+                ),
+                onClickCitation = onClickCitation,
+            )
+        }
+        if (collapsible) {
+            Text(
+                text = stringResource(
+                    if (expanded) {
+                        R.string.chat_message_collapse_content
+                    } else {
+                        R.string.chat_message_expand_content
+                    }
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalContentColor.current.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+            )
+        }
     }
 }
 

@@ -1161,7 +1161,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_gradient_background">渐变背景</string>
   <string name="assistant_page_gradient_background_desc">在聊天页面使用动态渐变背景</string>
   <string name="assistant_page_workspace">工作区</string>
-  <string name="assistant_page_workspace_desc">绑定后，Agent 可以使用此工作区的文件和沙盒功能</string>
+  <string name="assistant_page_workspace_desc">绑定后，Agent 可以使用所选工作区的文件和沙盒功能</string>
   <string name="assistant_page_workspace_unbound">未绑定</string>
   <string name="workspace_page_title">工作区</string>
   <string name="workspace_page_create">创建工作区</string>
@@ -1218,6 +1218,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="extensions_page_workspace_desc">管理可由Agent访问的本地工作目录</string>
   <string name="workspace_select">选择工作区</string>
   <string name="workspace_no_binding">未绑定</string>
+  <string name="workspace_selected_count">已选择 %1$d 个工作区</string>
+  <string name="workspace_multi_select_hint">可多选；助手可以同时使用所有已选工作区。</string>
+  <string name="workspace_done">完成</string>
   <string name="workspace_manage">管理工作区</string>
   <string name="workspace_detail">工作空间详情</string>
   <string name="workspace_terminal">工作空间终端</string>
@@ -1875,6 +1878,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_preferences_notification_battery_optimization">请求电池优化白名单</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">让应用在后台保持运行，避免生成和子代理被系统中断</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">已在白名单中，后台运行不受电池优化限制</string>
+  <string name="chat_message_expand_content">展开</string>
+  <string name="chat_message_collapse_content">收起</string>
   <string name="chat_message_expand_earlier_steps">展开前面的 %1$d 步</string>
   <string name="chat_message_collapse_earlier_steps">收起前面的 %1$d 步</string>
 

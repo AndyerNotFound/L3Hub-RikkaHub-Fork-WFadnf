@@ -1178,7 +1178,7 @@
   <string name="assistant_page_gradient_background">Gradient Background</string>
   <string name="assistant_page_gradient_background_desc">Use a dynamic gradient background on the chat page</string>
   <string name="assistant_page_workspace">Workspace</string>
-  <string name="assistant_page_workspace_desc">After binding, the Agent can use this workspace\'s files and sandbox capabilities</string>
+  <string name="assistant_page_workspace_desc">After binding, the Agent can use the selected workspaces\' files and sandbox capabilities</string>
   <string name="assistant_page_workspace_unbound">Not bound</string>
   <string name="workspace_page_title">Workspace</string>
   <string name="workspace_page_create">Create Workspace</string>
@@ -1242,6 +1242,9 @@
   <string name="extensions_page_workspace_desc">Manage local working directories accessible by Agent</string>
   <string name="workspace_select">Select Workspace</string>
   <string name="workspace_no_binding">No binding</string>
+  <string name="workspace_selected_count">%1$d workspaces selected</string>
+  <string name="workspace_multi_select_hint">Select multiple workspaces; the assistant can use all of them.</string>
+  <string name="workspace_done">Done</string>
   <string name="workspace_manage">Manage Workspaces</string>
   <string name="workspace_detail">Workspace Details</string>
   <string name="workspace_terminal">Workspace Terminal</string>
@@ -1873,6 +1876,8 @@
   <string name="setting_page_preferences_notification_battery_optimization">Ignore battery optimizations</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">Keep the app running in the background so generation and sub-agents are not interrupted</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">Already exempted, background work is not limited by battery optimization</string>
+  <string name="chat_message_expand_content">Expand</string>
+  <string name="chat_message_collapse_content">Collapse</string>
   <string name="chat_message_expand_earlier_steps">Show %1$d earlier steps</string>
   <string name="chat_message_collapse_earlier_steps">Hide %1$d earlier steps</string>
 

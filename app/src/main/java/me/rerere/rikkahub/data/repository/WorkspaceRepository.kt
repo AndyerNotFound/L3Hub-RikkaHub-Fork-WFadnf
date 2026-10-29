@@ -386,10 +386,23 @@ class WorkspaceRepository(
         settingsStore.update { settings ->
             settings.copy(
                 assistants = settings.assistants.map { assistant ->
-                    if (assistant.workspaceId?.toString() == workspaceId) {
-                        assistant.copy(workspaceId = null)
-                    } else {
+                    if (assistant.allWorkspaceIds.none { it.toString() == workspaceId }) {
                         assistant
+                    } else {
+                        val removedId = runCatching { Uuid.parse(workspaceId) }.getOrNull()
+                        val remaining = if (removedId != null) {
+                            assistant.workspaceIds - removedId
+                        } else {
+                            assistant.workspaceIds
+                        }
+                        assistant.copy(
+                            workspaceIds = remaining,
+                            workspaceId = if (assistant.workspaceId?.toString() == workspaceId) {
+                                remaining.firstOrNull()
+                            } else {
+                                assistant.workspaceId
+                            },
+                        )
                     }
                 }
             )

@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -39,13 +40,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ModelField
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ai.WorkspaceSelectSheet
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.TagsInput
@@ -54,7 +58,6 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toFixed
-import me.rerere.ui.components.Select
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
@@ -117,6 +120,8 @@ internal fun AssistantBasicContent(
         providers = providers,
         type = ModelType.CHAT,
     )
+    var showWorkspaceSheet by remember { mutableStateOf(false) }
+    val navController = LocalNavController.current
     ModelListSheet(
         state = modelListState,
         onSelect = { onUpdate(assistant.copy(chatModelId = it.id)) },
@@ -198,22 +203,22 @@ internal fun AssistantBasicContent(
                 headlineContent = { Text(stringResource(R.string.assistant_page_workspace)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_workspace_desc)) },
             ) {
-                val selectedWorkspace = workspaces.find { it.id == assistant.workspaceId?.toString() }
-                Select(
-                    options = listOf<WorkspaceEntity?>(null) + workspaces,
-                    selectedOption = selectedWorkspace,
-                    onOptionSelected = { workspace ->
-                        onUpdate(
-                            assistant.copy(
-                                workspaceId = workspace?.id?.let { Uuid.parse(it) }
-                            )
-                        )
-                    },
+                val selectedWorkspaceIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+                val selectedWorkspaceCount = workspaces.count { it.id in selectedWorkspaceIds }
+                OutlinedButton(
+                    onClick = { showWorkspaceSheet = true },
                     modifier = Modifier.fillMaxWidth(),
-                    optionToString = { workspace ->
-                        workspace?.name ?: stringResource(R.string.workspace_no_binding)
-                    },
-                )
+                ) {
+                    Text(
+                        text = when {
+                            selectedWorkspaceCount == 0 -> stringResource(R.string.workspace_no_binding)
+                            selectedWorkspaceCount == 1 -> workspaces.first {
+                                it.id in selectedWorkspaceIds
+                            }.name
+                            else -> stringResource(R.string.workspace_selected_count, selectedWorkspaceCount)
+                        }
+                    )
+                }
             }
             switchItem(
                 checked = assistant.useAssistantAvatar,
@@ -542,5 +547,21 @@ internal fun AssistantBasicContent(
                 }
             }
         }
+    }
+    if (showWorkspaceSheet) {
+        WorkspaceSelectSheet(
+            assistant = assistant,
+            workspaces = workspaces,
+            onSelect = { ids ->
+                val parsed = ids.mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }.toSet()
+                val primary = assistant.primaryWorkspaceId?.takeIf { it in parsed } ?: parsed.firstOrNull()
+                onUpdate(assistant.copy(workspaceIds = parsed, workspaceId = primary))
+            },
+            onManage = {
+                showWorkspaceSheet = false
+                navController.navigate(Screen.Workspaces)
+            },
+            onDismiss = { showWorkspaceSheet = false },
+        )
     }
 }
