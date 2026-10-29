@@ -53,11 +53,11 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.ReaderException
 import com.google.zxing.common.HybridBinarizer
+import kotlinx.coroutines.awaitCancellation
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.terminal.IconButton
-import kotlinx.coroutines.awaitCancellation
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 

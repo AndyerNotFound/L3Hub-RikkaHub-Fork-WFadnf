@@ -56,6 +56,9 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
@@ -82,9 +85,6 @@ import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 private val themeJson = Json {
     ignoreUnknownKeys = true

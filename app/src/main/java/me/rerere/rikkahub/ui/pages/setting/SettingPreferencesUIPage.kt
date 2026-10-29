@@ -40,6 +40,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
@@ -63,11 +66,8 @@ import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
-import kotlin.math.roundToInt
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {

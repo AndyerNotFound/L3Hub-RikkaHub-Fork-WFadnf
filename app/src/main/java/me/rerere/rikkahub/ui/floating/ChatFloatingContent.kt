@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert01
@@ -85,8 +87,6 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 // 和 Material3 LoadingIndicator 的参数一致；放宽 visibilityThreshold 让低阻尼弹簧在间隔内结束
 private val MorphSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 200f, visibilityThreshold = 0.1f)

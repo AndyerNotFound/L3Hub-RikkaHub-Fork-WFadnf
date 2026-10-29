@@ -129,8 +129,8 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
-import kotlin.uuid.Uuid
 import java.io.File
+import kotlin.uuid.Uuid
 
 private const val MAX_PICKED_IMAGES = 8
 

@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import me.rerere.common.android.Logging
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Bug01
@@ -63,7 +64,6 @@ import org.koin.androidx.compose.koinViewModel
 import kotlin.random.Random
 import kotlin.random.nextInt
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.launch
 
 private enum class DebugTab(
     override val icon: ImageVector,

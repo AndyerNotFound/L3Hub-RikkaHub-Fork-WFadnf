@@ -61,9 +61,9 @@ import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
-import kotlin.uuid.Uuid
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.uuid.Uuid
 
 @Composable
 fun SearchPage(vm: SearchVM = koinViewModel()) {

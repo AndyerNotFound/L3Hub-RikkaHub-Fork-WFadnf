@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.ModelType
@@ -49,7 +50,6 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 
 @Composable
 fun ProviderConnectionTester(

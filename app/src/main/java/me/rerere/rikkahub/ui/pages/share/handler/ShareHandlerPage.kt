@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.terminal.Card
@@ -33,7 +34,6 @@ import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
-import kotlinx.coroutines.launch
 
 @Composable
 fun ShareHandlerPage(text: String, image: String?) {

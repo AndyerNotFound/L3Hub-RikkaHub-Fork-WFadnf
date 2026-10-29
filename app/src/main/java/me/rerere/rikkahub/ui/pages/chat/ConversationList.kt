@@ -63,9 +63,9 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
-import kotlin.uuid.Uuid
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.uuid.Uuid
 
 /**
  * Represents different types of items in the conversation list

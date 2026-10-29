@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
@@ -54,7 +55,6 @@ import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.utils.Emoji
 import me.rerere.rikkahub.utils.EmojiData
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 
 @Preview
 @Composable

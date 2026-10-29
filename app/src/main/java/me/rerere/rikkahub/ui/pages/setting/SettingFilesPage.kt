@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clean
 import me.rerere.hugeicons.stroke.Delete01
@@ -86,7 +87,6 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.TimeUnit
 

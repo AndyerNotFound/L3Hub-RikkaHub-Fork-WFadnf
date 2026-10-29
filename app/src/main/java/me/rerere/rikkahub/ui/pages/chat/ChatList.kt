@@ -80,6 +80,9 @@ import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -109,9 +112,6 @@ import me.rerere.ui.components.ListSelectableItem
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"

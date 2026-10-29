@@ -29,6 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Folder01
@@ -41,8 +43,6 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.compose.koinInject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.util.concurrent.CancellationException
 
 @Composable

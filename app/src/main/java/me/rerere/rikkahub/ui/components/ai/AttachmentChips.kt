@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -52,7 +53,6 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.ui.sketch.SketchDialog
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun MediaFileInputRow(

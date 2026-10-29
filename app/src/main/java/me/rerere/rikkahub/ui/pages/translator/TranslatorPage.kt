@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDataTransferVertical
@@ -88,7 +89,6 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.getText
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable

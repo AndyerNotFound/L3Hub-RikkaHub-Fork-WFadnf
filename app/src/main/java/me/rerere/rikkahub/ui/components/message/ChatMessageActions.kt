@@ -34,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
+import kotlinx.coroutines.delay
+import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -63,8 +65,6 @@ import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.ui.components.RikkaConfirmDialog
-import kotlinx.coroutines.delay
-import kotlinx.datetime.toJavaLocalDateTime
 import java.util.Locale
 
 @Composable

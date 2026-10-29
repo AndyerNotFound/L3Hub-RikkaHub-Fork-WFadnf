@@ -63,6 +63,8 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.CheckList
@@ -89,8 +91,6 @@ import me.rerere.ui.toast.ToasterState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 
 /**
  * 一个媒体创作会话：一条时间线，最新的记录在最下面，紧挨着输入区，上一轮的产出可以直接放回输入区继续用。

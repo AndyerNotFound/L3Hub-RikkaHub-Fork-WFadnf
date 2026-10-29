@@ -37,6 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.bettertext.highlight.LocalCodeHighlighter
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
@@ -60,9 +63,6 @@ import me.rerere.search.SearchServiceOptions
 import me.rerere.ui.components.FormItem
 import org.koin.androidx.compose.koinViewModel
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 @Composable
 fun SettingSearchDetailPage(

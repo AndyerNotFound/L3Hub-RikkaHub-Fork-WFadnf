@@ -41,7 +41,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.Tag as DataTag
 import me.rerere.rikkahub.ui.components.ai.ModelField
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
@@ -63,6 +62,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.model.Tag as DataTag
 
 @Composable
 fun AssistantBasicPage(id: String) {

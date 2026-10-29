@@ -53,6 +53,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
+import kotlinx.coroutines.flow.flowOf
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -62,7 +63,6 @@ import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
-import kotlinx.coroutines.flow.flowOf
 
 @Composable
 fun WorkspaceTerminalPage(id: String) {

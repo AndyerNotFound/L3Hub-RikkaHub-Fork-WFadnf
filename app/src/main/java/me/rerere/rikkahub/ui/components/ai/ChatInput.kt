@@ -85,6 +85,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collectLatest
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -132,8 +134,6 @@ import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.collectLatest
 
 /** 上下文预警进度条左右滑动的最小位移(px)，小于这个值当作点击 */
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import kotlinx.coroutines.Job
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
@@ -88,7 +89,6 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.Job
 
 // 顺序决定切换方向：往后是进入下一级，往前是返回
 private enum class FilesPickerPage {

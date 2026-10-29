@@ -34,6 +34,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
@@ -73,17 +78,12 @@ import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.ui.toast.ToastType
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.koin.compose.koinInject
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.math.roundToInt
 import kotlin.reflect.KClass
 import kotlin.time.toJavaInstant
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 @Composable
 fun ProviderConfigure(

@@ -59,8 +59,8 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.terminal.TextButton
 import org.koin.compose.koinInject
-import kotlin.math.abs
 import java.security.MessageDigest
+import kotlin.math.abs
 
 @Composable
 fun TextAvatar(

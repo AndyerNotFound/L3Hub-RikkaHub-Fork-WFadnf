@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import coil3.compose.rememberAsyncImagePainter
 import com.jvziyaoyao.scale.image.pager.ImagePager
 import com.jvziyaoyao.scale.zoomable.pager.rememberZoomablePagerState
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
@@ -30,7 +31,6 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
-import kotlinx.coroutines.launch
 
 @Composable
 fun ImagePreviewDialog(

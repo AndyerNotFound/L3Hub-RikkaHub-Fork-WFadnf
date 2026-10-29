@@ -76,6 +76,10 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.ImageGenSize
 import me.rerere.common.android.appTempFolder
@@ -110,12 +114,8 @@ import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import kotlin.uuid.Uuid
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.uuid.Uuid
 
 @Composable
 fun ImageGenPage(

@@ -44,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.datastore.Settings
@@ -58,7 +59,6 @@ import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
 import org.koin.android.ext.android.inject
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.launch
 
 class SafeModeActivity : ComponentActivity() {
     private val settingsStore by inject<SettingsStore>()
