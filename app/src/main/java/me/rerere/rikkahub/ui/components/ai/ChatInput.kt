@@ -603,7 +603,7 @@ private fun SendButton(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .appButtonShadow(CircleShape, 3.dp),
+                .appButtonShadow(CircleShape, 2.dp),
             shape = CircleShape,
             color = containerColor,
             content = {},

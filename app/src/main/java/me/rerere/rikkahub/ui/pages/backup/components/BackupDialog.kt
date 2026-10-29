@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.backup.components
 
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource

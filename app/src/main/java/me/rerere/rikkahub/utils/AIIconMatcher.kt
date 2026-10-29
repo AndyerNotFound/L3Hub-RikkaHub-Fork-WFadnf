@@ -103,9 +103,17 @@ fun computeAIIconByName(name: String, availableIcons: List<String> = emptyList()
         else -> null
     }
 
-    val icon = result ?: matchIconByAssetName(lowerName, availableIcons)
+    val icon = (result ?: matchIconByAssetName(lowerName, availableIcons))
+        ?.let { preferColorIcon(it, availableIcons) }
     icon?.let { iconCache[name] = it }
     return icon
+}
+
+/** 同一图标存在彩色版本时优先使用彩色版本。 */
+private fun preferColorIcon(icon: String, availableIcons: List<String>): String {
+    if (availableIcons.isEmpty() || icon.contains("-color.")) return icon
+    val colorIcon = icon.substringBeforeLast('.') + "-color.svg"
+    return if (colorIcon in availableIcons) colorIcon else icon
 }
 
 private val GENERIC_ICON_NAMES = setOf(

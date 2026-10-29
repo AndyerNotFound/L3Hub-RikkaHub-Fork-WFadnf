@@ -846,7 +846,7 @@ private fun TopBar(
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(40.dp)
-                        .appButtonShadow(navShape, 3.dp)
+                        .appButtonShadow(navShape, 2.dp)
                         .clip(navShape)
                         .background(effectColor(navColor))
                         .then(
@@ -884,7 +884,7 @@ private fun TopBar(
                 }
                 Row(
                     modifier = Modifier
-                        .appButtonShadow(pillShape, 3.dp)
+                        .appButtonShadow(pillShape, 2.dp)
                         .clip(pillShape)
                         .background(effectColor(pillColor))
                         .then(

@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,7 +26,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
@@ -403,6 +406,49 @@ internal fun FilesPicker(
 }
 
 @Composable
+private fun WorkspaceActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    workspaces: List<WorkspaceEntity>,
+    onNavigate: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = {
+                if (workspaces.size == 1) {
+                    onNavigate(workspaces.first().id)
+                } else {
+                    expanded = true
+                }
+            },
+        ) {
+            Icon(imageVector = icon, contentDescription = contentDescription)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            workspaces.forEach { workspace ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = workspace.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onNavigate(workspace.id)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun WorkspacePickerListItem(
     assistant: Assistant,
     workspaces: List<WorkspaceEntity>,
@@ -417,9 +463,6 @@ private fun WorkspacePickerListItem(
     val boundWorkspaces = remember(workspaces, selectedIds) {
         workspaces.filter { it.id in selectedIds }
     }
-    val boundWorkspace = boundWorkspaces.firstOrNull {
-        it.id == assistant.primaryWorkspaceId?.toString()
-    } ?: boundWorkspaces.firstOrNull()
 
     SegmentedListItem(
         onClick = { showSheet = true },
@@ -445,20 +488,21 @@ private fun WorkspacePickerListItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (boundWorkspace != null) {
-                    IconButton(onClick = { onNavigateToDetail(boundWorkspace.id) }) {
-                        Icon(
-                            imageVector = HugeIcons.Settings02,
-                            contentDescription = stringResource(R.string.workspace_detail),
+                if (boundWorkspaces.isNotEmpty()) {
+                    WorkspaceActionButton(
+                        icon = HugeIcons.Settings02,
+                        contentDescription = stringResource(R.string.workspace_detail),
+                        workspaces = boundWorkspaces,
+                        onNavigate = onNavigateToDetail,
+                    )
+                    val terminalWorkspaces = boundWorkspaces.filter { it.supportsTerminal() }
+                    if (terminalWorkspaces.isNotEmpty()) {
+                        WorkspaceActionButton(
+                            icon = HugeIcons.ComputerTerminal01,
+                            contentDescription = stringResource(R.string.workspace_terminal),
+                            workspaces = terminalWorkspaces,
+                            onNavigate = onNavigateToTerminal,
                         )
-                    }
-                    if (boundWorkspace.supportsTerminal()) {
-                        IconButton(onClick = { onNavigateToTerminal(boundWorkspace.id) }) {
-                            Icon(
-                                imageVector = HugeIcons.ComputerTerminal01,
-                                contentDescription = stringResource(R.string.workspace_terminal),
-                            )
-                        }
                     }
                 }
             }
