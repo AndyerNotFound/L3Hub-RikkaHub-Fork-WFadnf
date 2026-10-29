@@ -712,13 +712,11 @@ private fun TextInputRow(
     }
 
     var isEditingReasoning by remember { mutableStateOf(false) }
-    // 卡片内部整体内缩 8dp，内层圆角要跟着收 8dp 才和外框同心
+    // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = if (terminalStyle) {
         RoundedCornerShape(2.dp)
     } else {
-        RoundedCornerShape(
-            (settings.displaySetting.uiCornerRadius - settings.displaySetting.inputPadding).coerceAtLeast(2).dp
-        )
+        RoundedCornerShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     }
 
     Column(

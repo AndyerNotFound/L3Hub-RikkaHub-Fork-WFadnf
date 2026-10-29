@@ -198,6 +198,8 @@ data class DisplaySetting(
     val updateCheckDisabledUntilEpochMillis: Long = 0L,
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
+    // 消息导航横条单独控制左右，和上面的跳转按钮互不影响
+    val messageNavOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = true,

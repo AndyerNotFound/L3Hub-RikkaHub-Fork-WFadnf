@@ -80,6 +80,7 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -1375,6 +1376,23 @@ private fun UserAttachmentTile(
                     is UIMessagePart.Audio -> Icon(HugeIcons.MusicNote03, null, Modifier.size(18.dp))
                     else -> Icon(HugeIcons.Files02, null, Modifier.size(18.dp))
                 }
+                if (moreCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.55f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "+$moreCount",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                            ),
+                            color = Color.White,
+                        )
+                    }
+                }
             }
             Text(
                 text = title,
@@ -1383,13 +1401,6 @@ private fun UserAttachmentTile(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 180.dp),
             )
-            if (moreCount > 0) {
-                Text(
-                    text = "+$moreCount",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
         }
     }
 }

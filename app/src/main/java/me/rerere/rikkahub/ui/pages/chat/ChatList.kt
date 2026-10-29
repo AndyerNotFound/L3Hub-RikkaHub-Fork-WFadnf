@@ -564,9 +564,9 @@ private fun ChatListNormal(
                 messageCount = conversation.messageNodes.size,
                 firstMessageItemIndex = if (settings.displaySetting.terminalStyle) 1 else 0,
                 state = state,
-                onLeft = settings.displaySetting.messageJumperOnLeft,
+                onLeft = settings.displaySetting.messageNavOnLeft,
                 modifier = Modifier.align(
-                    if (settings.displaySetting.messageJumperOnLeft) Alignment.CenterStart else Alignment.CenterEnd
+                    if (settings.displaySetting.messageNavOnLeft) Alignment.CenterStart else Alignment.CenterEnd
                 ),
             )
 

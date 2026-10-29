@@ -12,6 +12,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import kotlinx.coroutines.flow.drop
 import me.rerere.ai.core.ReasoningLevel
@@ -105,7 +108,9 @@ fun ReasoningButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier
+                    .height(24.dp)
+                    .widthIn(min = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (useL3HubStyle) {
@@ -115,7 +120,18 @@ fun ReasoningButton(
                             .background(reasoningLevel.indicatorColor(), CircleShape),
                     )
                 } else {
-                    Icon(reasoningLevel.icon(), null)
+                    // 强度用粗体文字标出来，颜色跟档位对应
+                    Text(
+                        text = reasoningLevel.badgeText(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            lineHeight = 10.sp,
+                        ),
+                        color = reasoningLevel.indicatorColor(),
+                        maxLines = 1,
+                    )
                 }
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))
@@ -300,6 +316,17 @@ private fun ReasoningLevel.label(): String = when (this) {
     ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
     ReasoningLevel.MAX -> stringResource(R.string.reasoning_max)
     ReasoningLevel.ULTRA -> stringResource(R.string.reasoning_ultra)
+}
+
+private fun ReasoningLevel.badgeText(): String = when (this) {
+    ReasoningLevel.OFF -> "OFF"
+    ReasoningLevel.AUTO -> "AUTO"
+    ReasoningLevel.LOW -> "LOW"
+    ReasoningLevel.MEDIUM -> "MED"
+    ReasoningLevel.HIGH -> "HIGH"
+    ReasoningLevel.XHIGH -> "XHIGH"
+    ReasoningLevel.MAX -> "MAX"
+    ReasoningLevel.ULTRA -> "ULTRA"
 }
 
 private fun ReasoningLevel.letter(): String = when (this) {
