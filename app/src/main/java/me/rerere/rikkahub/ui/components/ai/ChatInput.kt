@@ -127,6 +127,7 @@ import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
@@ -178,12 +179,17 @@ fun ChatInput(
     applyWindowInsets: Boolean = true,
 ) {
     val toaster = LocalToaster.current
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val terminalStyle = settings.displaySetting.terminalStyle
+    val containerColor = if (terminalStyle) TerminalPalette.Surface else MaterialTheme.colorScheme.surfaceContainerLow
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    val containerShape = RoundedCornerShape(settings.displaySetting.uiCornerRadius.dp)
+    val containerShape = if (terminalStyle) {
+        RoundedCornerShape(2.dp)
+    } else {
+        RoundedCornerShape(settings.displaySetting.uiCornerRadius.dp)
+    }
     val modelListState = rememberModelListState(
         modelId = chatModel?.id,
         providers = settings.providers,
@@ -328,19 +334,36 @@ fun ChatInput(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(containerShape)
-                    .chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = settings.displaySetting,
-                        containerColor = containerColor,
-                        shape = containerShape,
+                    .then(
+                        if (terminalStyle) {
+                            Modifier
+                        } else {
+                            Modifier.chatInputHaze(
+                                hazeState = hazeState,
+                                displaySetting = settings.displaySetting,
+                                containerColor = containerColor,
+                                shape = containerShape,
+                            )
+                        }
                     ),
                 shape = containerShape,
                 tonalElevation = 0.dp,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                color = when (settings.displaySetting.effectiveBackgroundEffect) {
-                    BackgroundEffectType.OFF -> containerColor
-                    BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
-                    BackgroundEffectType.GLASS -> Color.Transparent
+                border = BorderStroke(
+                    1.dp,
+                    if (terminalStyle) {
+                        TerminalPalette.Border
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    },
+                ),
+                color = if (terminalStyle) {
+                    TerminalPalette.Surface
+                } else {
+                    when (settings.displaySetting.effectiveBackgroundEffect) {
+                        BackgroundEffectType.OFF -> containerColor
+                        BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
+                        BackgroundEffectType.GLASS -> Color.Transparent
+                    }
                 },
             ) {
                 Column(
@@ -658,6 +681,7 @@ private fun TextInputRow(
     onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
+    val terminalStyle = settings.displaySetting.terminalStyle
     val filesManager: FilesManager = koinInject()
     val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
         settings.getQuickMessagesOfAssistant(assistant)
@@ -816,9 +840,24 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = MaterialTheme.shapes.largeIncreased,
+            shape = if (terminalStyle) RoundedCornerShape(0.dp) else MaterialTheme.shapes.largeIncreased,
             placeholder = {
-                Text(stringResource(R.string.chat_input_placeholder))
+                Text(
+                    stringResource(
+                        if (terminalStyle) R.string.chat_input_placeholder_terminal else R.string.chat_input_placeholder
+                    )
+                )
+            },
+            prefix = if (terminalStyle) {
+                {
+                    Text(
+                        text = ">",
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = TerminalPalette.Green,
+                    )
+                }
+            } else {
+                null
             },
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(

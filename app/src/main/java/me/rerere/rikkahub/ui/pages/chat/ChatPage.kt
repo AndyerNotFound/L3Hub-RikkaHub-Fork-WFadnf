@@ -33,6 +33,7 @@ import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Arrangement
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
@@ -130,6 +131,8 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.TerminalPalette
+import me.rerere.rikkahub.ui.theme.TerminalTheme
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
@@ -554,16 +557,23 @@ private fun ChatPageContent(
         )
     }
 
+    TerminalTheme(enabled = setting.displaySetting.terminalStyle) {
     Surface(
-        color = MaterialTheme.colorScheme.background,
+        color = if (setting.displaySetting.terminalStyle) {
+            TerminalPalette.Background
+        } else {
+            MaterialTheme.colorScheme.background
+        },
         modifier = Modifier.fillMaxSize()
     ) {
-        AssistantBackground(
-            setting = setting,
-            modifier = Modifier
-                .hazeSource(hazeState)
-                .hazeSource(backgroundHazeState),
-        )
+        if (!setting.displaySetting.terminalStyle) {
+            AssistantBackground(
+                setting = setting,
+                modifier = Modifier
+                    .hazeSource(hazeState)
+                    .hazeSource(backgroundHazeState),
+            )
+        }
         Scaffold(
             topBar = {
                 TopBar(
@@ -743,6 +753,7 @@ private fun ChatPageContent(
             )
         }
     }
+    }
 }
 
 @Composable
@@ -848,12 +859,17 @@ private fun TopBar(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val effect = settings.displaySetting.effectiveBackgroundEffect
-    fun effectColor(base: Color): Color = when (effect) {
-        BackgroundEffectType.OFF -> base
-        BackgroundEffectType.BLUR -> base.copy(alpha = settings.displaySetting.blurOpacity)
-        BackgroundEffectType.GLASS -> Color.Transparent
+    val terminal = settings.displaySetting.terminalStyle
+    fun effectColor(base: Color): Color = if (terminal) {
+        base
+    } else {
+        when (effect) {
+            BackgroundEffectType.OFF -> base
+            BackgroundEffectType.BLUR -> base.copy(alpha = settings.displaySetting.blurOpacity)
+            BackgroundEffectType.GLASS -> Color.Transparent
+        }
     }
-    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
+    val effectBorder = if (!terminal && effect == BackgroundEffectType.BLUR) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     } else {
         null
@@ -864,7 +880,7 @@ private fun TopBar(
         title = {},
         navigationIcon = {
             if (!bigScreen) {
-                val navShape = CircleShape
+                val navShape = if (terminal) RoundedCornerShape(2.dp) else CircleShape
                 val navColor = MaterialTheme.colorScheme.surfaceContainerLow
                 Surface(
                     onClick = {
@@ -899,7 +915,7 @@ private fun TopBar(
             }
         },
         actions = {
-            val pillShape = RoundedCornerShape(50)
+            val pillShape = if (terminal) RoundedCornerShape(2.dp) else RoundedCornerShape(50)
             val pillColor = MaterialTheme.colorScheme.surfaceContainerLow
             Row(
                 modifier = Modifier.padding(end = 8.dp),
@@ -993,12 +1009,49 @@ private fun EmptyChatContent(
 }
 
 @Composable
+private fun TerminalEmptyChatHero(assistant: Assistant) {
+    val shape = RoundedCornerShape(2.dp)
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .clip(shape)
+            .background(TerminalPalette.Surface)
+            .border(1.dp, TerminalPalette.Border, shape)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "L3HUB :: TERMINAL",
+            style = MaterialTheme.typography.titleMedium,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.Green,
+        )
+        Text(
+            text = "session ready · ${assistant.name.ifBlank { "assistant" }}",
+            style = MaterialTheme.typography.bodySmall,
+            color = TerminalPalette.GreenDim,
+        )
+        Text(
+            text = "> waiting for input_",
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.Green,
+        )
+    }
+}
+
+@Composable
 private fun EmptyChatHero(
     assistant: Assistant,
     slogan: String,
     hazeState: HazeState,
 ) {
     val settings = LocalSettings.current
+    if (settings.displaySetting.terminalStyle) {
+        TerminalEmptyChatHero(assistant = assistant)
+        return
+    }
     val effect = settings.displaySetting.effectiveBackgroundEffect
     val shape = RoundedCornerShape(28.dp)
     val baseColor = MaterialTheme.colorScheme.surfaceContainerLow

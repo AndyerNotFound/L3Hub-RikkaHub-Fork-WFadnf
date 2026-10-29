@@ -225,6 +225,7 @@
   <string name="chain_of_thought_collapse">收起</string>
   <string name="chain_of_thought_show_more_steps">再显示 %d 步</string>
   <string name="chat_input_placeholder">输入消息与AI聊天</string>
+  <string name="chat_input_placeholder_terminal">输入命令…</string>
   <string name="chat_input_unsupported_file_type">不支持的文件类型：%s</string>
   <string name="chat_input_file_read_failed">文件读取失败：%s</string>
   <string name="chat_message_add_favorite">添加收藏</string>
@@ -655,6 +656,8 @@
   <string name="setting_asr_page_edit_provider">编辑ASR提供商</string>
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主题中使用纯黑背景，适合 AMOLED 屏幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
+  <string name="setting_terminal_style">终端风格</string>
+  <string name="setting_terminal_style_desc">使用等宽字体、黑色背景和命令行提示符显示会话</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自动折叠思考内容</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自动折叠思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助手消息生成完成后自动播放TTS</string>

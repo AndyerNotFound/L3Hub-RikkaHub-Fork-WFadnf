@@ -224,6 +224,8 @@ data class DisplaySetting(
     val blurOpacity: Float = 0.45f,
     // 新对话界面中央的自定义标语
     val emptyChatSlogan: String = "",
+    // 终端风格会话界面：等宽字体、深色背景和命令行提示符
+    val terminalStyle: Boolean = false,
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val chatCustomFontPath: String = "",
     val chatCustomFontName: String = "",

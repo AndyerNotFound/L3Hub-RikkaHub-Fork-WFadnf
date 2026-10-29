@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
+import java.math.BigDecimal
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -90,7 +91,19 @@ class KeyFailoverProvider<T : ProviderSetting>(
     override suspend fun getQuota(providerSetting: T): ProviderQuota? {
         val keys = keysOf(providerSetting)
         if (keys.size <= 1) return delegate.getQuota(providerSetting)
-        return delegate.getQuota(withKey(providerSetting, keys.first()))
+
+        val results = keys.map { key ->
+            runCatching { delegate.getQuota(withKey(providerSetting, key)) }
+        }
+        val quotas = results.mapNotNull { it.getOrNull() }
+        if (quotas.isEmpty()) {
+            results.firstNotNullOfOrNull { it.exceptionOrNull() }?.let { throw it }
+            return null
+        }
+        // 余额类按币种求和；订阅用量各 Key 独立，取第一个能查到的结果
+        val balances = quotas.filterIsInstance<ProviderQuota.Balance>().map { it.value }
+        if (balances.isEmpty()) return quotas.first()
+        return ProviderQuota.Balance(sumBalanceValues(balances))
     }
 
     override suspend fun listModels(providerSetting: T): List<Model> {
@@ -107,5 +120,48 @@ class KeyFailoverProvider<T : ProviderSetting>(
             }
         }
         throw lastError ?: IllegalStateException("No API key available")
+    }
+}
+
+private val BALANCE_TOKEN = Regex(
+    """(?:(?<code>[A-Z]{3})\s*)?(?<symbol>[$€£¥￥])?\s*(?<amount>[-+]?\d+(?:\.\d+)?)\s*(?<suffix>[A-Z]{3})?"""
+)
+
+/**
+ * 多 Key 余额求和。同一币种相加，不同币种按首次出现顺序用 · 分隔；
+ * 例如 ["CNY 10.00 · USD 2.00", "CNY 5.00"] -> "CNY 15.00 · USD 2.00"。
+ * 无法解析的文本保留为 "a + b"，避免界面变成空白。
+ */
+internal fun sumBalanceValues(values: List<String>): String {
+    data class Bucket(var amount: BigDecimal, var scale: Int)
+    val buckets = linkedMapOf<String, Bucket>()
+    var parsed = false
+
+    values.forEach { value ->
+        BALANCE_TOKEN.findAll(value).forEach { match ->
+            val amountText = match.groups["amount"]?.value ?: return@forEach
+            val number = amountText.toBigDecimalOrNull() ?: return@forEach
+            val currency = match.groups["code"]?.value
+                ?: match.groups["symbol"]?.value
+                ?: match.groups["suffix"]?.value
+                ?: ""
+            val scale = amountText.substringAfter('.', "").length
+            val bucket = buckets.getOrPut(currency) { Bucket(BigDecimal.ZERO, 0) }
+            bucket.amount += number
+            bucket.scale = maxOf(bucket.scale, scale)
+            parsed = true
+        }
+    }
+
+    if (!parsed) {
+        return values.map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString(" + ")
+    }
+    return buckets.entries.joinToString(" · ") { (currency, bucket) ->
+        val amount = bucket.amount.setScale(bucket.scale).toPlainString()
+        when {
+            currency.isEmpty() -> amount
+            currency.length == 1 -> "$currency$amount"
+            else -> "$currency $amount"
+        }
     }
 }

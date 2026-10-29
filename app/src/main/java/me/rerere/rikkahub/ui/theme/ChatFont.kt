@@ -20,7 +20,8 @@ fun ChatFontProvider(
     displaySetting: DisplaySetting,
     content: @Composable () -> Unit,
 ) {
-    val chatFontFamily = rememberChatFontFamily(displaySetting)
+    val configured = rememberChatFontFamily(displaySetting)
+    val chatFontFamily = if (displaySetting.terminalStyle) FontFamily.Monospace else configured
     CompositionLocalProvider(LocalChatFontFamily provides chatFontFamily) {
         content()
     }

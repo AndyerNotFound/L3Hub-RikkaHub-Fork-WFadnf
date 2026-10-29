@@ -225,6 +225,7 @@
   <string name="chain_of_thought_collapse">Collapse</string>
   <string name="chain_of_thought_show_more_steps">Show %d more steps</string>
   <string name="chat_input_placeholder">Chat with AI</string>
+  <string name="chat_input_placeholder_terminal">Type a command…</string>
   <string name="chat_input_unsupported_file_type">Unsupported file type: %s</string>
   <string name="chat_input_file_read_failed">Failed to read file: %s</string>
   <string name="chat_message_add_favorite">Add Favorite</string>
@@ -662,6 +663,8 @@
   <string name="setting_asr_page_edit_provider">Edit ASR Provider</string>
   <string name="setting_display_page_amoled_dark_mode_desc">Use pure black background in dark theme, suitable for AMOLED screens</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED Dark Mode</string>
+  <string name="setting_terminal_style">Terminal style</string>
+  <string name="setting_terminal_style_desc">Render the chat with a monospace font, dark background and shell prompts</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">Automatically collapse thinking content after thinking is complete</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Auto Collapse Thinking</string>
   <string name="setting_display_page_auto_play_tts_desc">Automatically play TTS after assistant message generation completes</string>

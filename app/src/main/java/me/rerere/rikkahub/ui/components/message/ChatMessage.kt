@@ -72,6 +72,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
@@ -111,6 +112,7 @@ import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
+import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
@@ -156,6 +158,7 @@ fun ChatMessage(
         return
     }
     val settings = LocalSettings.current.displaySetting
+    val terminalStyle = settings.terminalStyle
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
@@ -169,29 +172,44 @@ fun ChatMessage(
     val colorScheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
+        horizontalAlignment = if (terminalStyle) {
+            Alignment.Start
+        } else if (message.role == MessageRole.USER) {
+            Alignment.End
+        } else {
+            Alignment.Start
+        },
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (!message.parts.isEmptyUIMessage()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                ChatMessageAssistantAvatar(
+            if (terminalStyle) {
+                TerminalMessageHeader(
                     message = message,
                     model = model,
                     assistant = assistant,
                     loading = loading,
-                    modifier = Modifier.weight(1f)
                 )
-                ChatMessageUserAvatar(
-                    message = message,
-                    avatar = settings.userAvatar,
-                    nickname = settings.userNickname,
-                    modifier = Modifier.weight(1f)
-                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    ChatMessageAssistantAvatar(
+                        message = message,
+                        model = model,
+                        assistant = assistant,
+                        loading = loading,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ChatMessageUserAvatar(
+                        message = message,
+                        avatar = settings.userAvatar,
+                        nickname = settings.userNickname,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
         val appSettings = LocalSettings.current
@@ -638,24 +656,38 @@ private fun MessagePartsBlock(
                         val streamingText = loading && block.index == parts.lastIndex
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
-                                ChatMessageBubble(
-                                    role = role,
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                    hazeState = hazeState,
-                                    onClick = { onUserMessageClick?.invoke() },
-                                    // 用户气泡不占满整行，和助手的回复错开
-                                    modifier = Modifier
-                                        .padding(start = 24.dp)
-                                        .animateContentSize(),
-                                ) {
-                                    CollapsibleUserMessageText(
-                                        text = part.text,
-                                        assistant = assistant,
-                                        onClickCitation = handleClickCitation,
-                                    )
+                                if (settings.displaySetting.terminalStyle) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .animateContentSize(),
+                                    ) {
+                                        CollapsibleUserMessageText(
+                                            text = part.text,
+                                            assistant = assistant,
+                                            onClickCitation = handleClickCitation,
+                                        )
+                                    }
+                                } else {
+                                    ChatMessageBubble(
+                                        role = role,
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                        hazeState = hazeState,
+                                        onClick = { onUserMessageClick?.invoke() },
+                                        // 用户气泡不占满整行，和助手的回复错开
+                                        modifier = Modifier
+                                            .padding(start = 24.dp)
+                                            .animateContentSize(),
+                                    ) {
+                                        CollapsibleUserMessageText(
+                                            text = part.text,
+                                            assistant = assistant,
+                                            onClickCitation = handleClickCitation,
+                                        )
+                                    }
                                 }
                             } else {
-                                if (settings.displaySetting.showAssistantBubble) {
+                                if (settings.displaySetting.showAssistantBubble && !settings.displaySetting.terminalStyle) {
                                     ChatMessageBubble(
                                         role = role,
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
@@ -840,6 +872,50 @@ private fun CollapsibleUserMessageText(
                     .clip(MaterialTheme.shapes.small)
                     .clickable { expanded = !expanded }
                     .padding(horizontal = 4.dp, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TerminalMessageHeader(
+    message: UIMessage,
+    model: Model?,
+    assistant: Assistant?,
+    loading: Boolean,
+) {
+    val isUser = message.role == MessageRole.USER
+    val userName = if (isUser) {
+        "user"
+    } else {
+        assistant?.name?.trim()?.replace(Regex("\\s+"), "-")?.lowercase()?.takeIf { it.isNotBlank() }
+            ?: model?.modelId?.substringAfterLast('/')?.lowercase()
+            ?: "assistant"
+    }
+    val prompt = if (isUser) {
+        "$ $userName@l3hub:~"
+    } else {
+        "λ $userName@l3hub:~"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = prompt,
+            style = MaterialTheme.typography.labelMedium,
+            fontFamily = FontFamily.Monospace,
+            color = if (isUser) TerminalPalette.Amber else TerminalPalette.Green,
+        )
+        if (loading) {
+            Text(
+                text = "▋",
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = FontFamily.Monospace,
+                color = TerminalPalette.Green,
             )
         }
     }
