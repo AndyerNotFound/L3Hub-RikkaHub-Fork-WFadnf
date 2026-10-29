@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,33 +124,32 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
         ) {
             // Play 版由商店负责更新，不提供更新提醒
             if (BuildConfig.UPDATE_CHECK_ENABLED && !BuildConfig.IS_PLAY_STORE) {
-                item {
-                    CardGroup {
-                        item(
-                            onClick = {
-                                selectedUpdatePauseDays = UPDATE_PAUSE_DAY_OPTIONS.first()
-                                showUpdatePauseDialog = true
-                            },
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_show_updates_title)) },
-                            supportingContent = {
-                                Text(
-                                    if (updateChecksEnabled) {
-                                        stringResource(R.string.setting_update_reminder_enabled)
-                                    } else {
-                                        stringResource(
-                                            R.string.setting_update_reminder_paused_until,
-                                            Instant.ofEpochMilli(displaySetting.updateCheckDisabledUntilEpochMillis)
-                                                .toLocalDateTime(),
-                                        )
-                                    }
-                                )
-                            },
-                            trailingContent = {
-                                Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                            },
-                        )
-                    }
+                CardGroup {
+                    item(
+                        onClick = {
+                            selectedUpdatePauseDays = UPDATE_PAUSE_DAY_OPTIONS.first()
+                            showUpdatePauseDialog = true
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_updates_title)) },
+                        supportingContent = {
+                            Text(
+                                if (updateChecksEnabled) {
+                                    stringResource(R.string.setting_update_reminder_enabled)
+                                } else {
+                                    stringResource(
+                                        R.string.setting_update_reminder_paused_until,
+                                        Instant.ofEpochMilli(displaySetting.updateCheckDisabledUntilEpochMillis)
+                                            .toLocalDateTime(),
+                                    )
+                                }
+                            )
+                        },
+                        trailingContent = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        },
+                    )
                 }
+            
             }
 
             CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_notification_background_generation)) }) {
