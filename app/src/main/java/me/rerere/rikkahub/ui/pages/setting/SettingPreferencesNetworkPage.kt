@@ -16,6 +16,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -50,6 +51,7 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -122,6 +124,15 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         }
     }
     var proxyTesting by remember { mutableStateOf(false) }
+    var retryCountDialogVisible by remember { mutableStateOf(false) }
+    var retryIntervalDialogVisible by remember { mutableStateOf(false) }
+    var retryCodesDialogVisible by remember { mutableStateOf(false) }
+
+    fun updateNetworkSetting(transform: (NetworkSetting) -> NetworkSetting) {
+        vm.updateSettings {
+            it.copy(networkSetting = transform(it.networkSetting))
+        }
+    }
 
     fun updateUserAgent(value: String) {
         userAgent = value
@@ -287,6 +298,46 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         )
     }
 
+    if (retryCountDialogVisible) {
+        RetryValueDialog(
+            title = stringResource(R.string.setting_page_preferences_network_retry_count),
+            initialValue = settings.networkSetting.retryMaxCount.toString(),
+            keyboardType = KeyboardType.Number,
+            onDismiss = { retryCountDialogVisible = false },
+        ) { value ->
+            value.toIntOrNull()?.let { count ->
+                updateNetworkSetting { it.copy(retryMaxCount = count.coerceIn(0, 10)) }
+            }
+            retryCountDialogVisible = false
+        }
+    }
+
+    if (retryIntervalDialogVisible) {
+        RetryValueDialog(
+            title = stringResource(R.string.setting_page_preferences_network_retry_interval),
+            initialValue = settings.networkSetting.retryIntervalSeconds.toString(),
+            keyboardType = KeyboardType.Number,
+            onDismiss = { retryIntervalDialogVisible = false },
+        ) { value ->
+            value.toIntOrNull()?.let { seconds ->
+                updateNetworkSetting { it.copy(retryIntervalSeconds = seconds.coerceIn(1, 60)) }
+            }
+            retryIntervalDialogVisible = false
+        }
+    }
+
+    if (retryCodesDialogVisible) {
+        RetryValueDialog(
+            title = stringResource(R.string.setting_page_preferences_network_retry_codes),
+            initialValue = settings.networkSetting.retryErrorCodes,
+            keyboardType = KeyboardType.Text,
+            onDismiss = { retryCodesDialogVisible = false },
+        ) { value ->
+            updateNetworkSetting { it.copy(retryErrorCodes = value.trim()) }
+            retryCodesDialogVisible = false
+        }
+    }
+
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -311,13 +362,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     switchItem(
                         checked = settings.networkSetting.enableAutoRetry,
                         onCheckedChange = { enabled ->
-                            vm.updateSettings {
-                                it.copy(
-                                    networkSetting = it.networkSetting.copy(
-                                        enableAutoRetry = enabled,
-                                    ),
-                                )
-                            }
+                            updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
                         },
                         supportingContent = {
                             Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
@@ -326,6 +371,61 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             Text(stringResource(R.string.setting_page_preferences_network_auto_retry))
                         },
                     )
+                    if (settings.networkSetting.enableAutoRetry) {
+                        item(
+                            headlineContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_count))
+                            },
+                            supportingContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc))
+                            },
+                            trailingContent = {
+                                Text(
+                                    text = stringResource(
+                                        R.string.setting_page_preferences_network_retry_count_value,
+                                        settings.networkSetting.retryMaxCount,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = { retryCountDialogVisible = true },
+                        )
+                        item(
+                            headlineContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_interval))
+                            },
+                            supportingContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc))
+                            },
+                            trailingContent = {
+                                Text(
+                                    text = stringResource(
+                                        R.string.setting_page_preferences_network_retry_interval_value,
+                                        settings.networkSetting.retryIntervalSeconds,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = { retryIntervalDialogVisible = true },
+                        )
+                        item(
+                            headlineContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_codes))
+                            },
+                            supportingContent = {
+                                Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc))
+                            },
+                            trailingContent = {
+                                Text(
+                                    text = settings.networkSetting.retryErrorCodes.ifBlank {
+                                        stringResource(R.string.setting_page_preferences_network_retry_codes_default)
+                                    },
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = { retryCodesDialogVisible = true },
+                        )
+                    }
                 }
             }
             item {
@@ -472,3 +572,37 @@ private fun certificateLabel(pem: String, index: Int): String = runCatching {
             ?.substringAfter("CN=")
     }
     ?: "CA ${index + 1}"
+
+@Composable
+private fun RetryValueDialog(
+    title: String,
+    initialValue: String,
+    keyboardType: KeyboardType,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var value by remember { mutableStateOf(initialValue) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(value) }) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}

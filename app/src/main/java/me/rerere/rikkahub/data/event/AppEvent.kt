@@ -3,6 +3,11 @@ package me.rerere.rikkahub.data.event
 import me.rerere.ai.ui.UIMessage
 import kotlin.uuid.Uuid
 
+/** 生成过程中的临时状态，Live Update 通知据此显示「压缩中」等提示。 */
+enum class ChatStatus {
+    COMPRESSING,
+}
+
 sealed class AppEvent {
     data class Speak(val text: String) : AppEvent()
     data object OpenUsageAccessSettings : AppEvent()
@@ -12,6 +17,13 @@ sealed class AppEvent {
         val conversationId: Uuid,
         val lastMessage: UIMessage,
         val senderName: String,
+    ) : AppEvent()
+
+    /** [status] 为 null 表示压缩结束、回到普通的生成中提示 */
+    data class ChatGenerationStatus(
+        val conversationId: Uuid,
+        val senderName: String,
+        val status: ChatStatus?,
     ) : AppEvent()
 
     /**

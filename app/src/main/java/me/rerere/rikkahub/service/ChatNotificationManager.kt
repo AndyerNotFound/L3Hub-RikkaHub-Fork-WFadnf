@@ -20,6 +20,7 @@ import me.rerere.rikkahub.conversationIntent
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.event.ChatStatus
 import me.rerere.rikkahub.data.model.GenerationPhase
 import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.utils.cancelNotification
@@ -61,6 +62,7 @@ class ChatNotificationManager(
             eventBus.events.collect { event ->
                 when (event) {
                     is AppEvent.ChatGenerationUpdate -> handleGenerationUpdate(event)
+                    is AppEvent.ChatGenerationStatus -> handleGenerationStatus(event)
                     is AppEvent.ChatGenerationEnded -> handleGenerationEnded(event)
                     else -> {}
                 }
@@ -80,6 +82,29 @@ class ChatNotificationManager(
         liveUpdateLastSentAt[event.conversationId] = now
 
         sendLiveUpdateNotification(event.conversationId, event.lastMessage, event.senderName)
+    }
+
+    private fun handleGenerationStatus(event: AppEvent.ChatGenerationStatus) {
+        if (isForeground.value) return
+        val displaySetting = settingsStore.settingsFlow.value.displaySetting
+        if (!displaySetting.enableNotificationOnMessageGeneration) return
+        if (!displaySetting.enableLiveUpdateNotification) return
+
+        liveUpdateLastSentAt[event.conversationId] = SystemClock.elapsedRealtime()
+        val (chipRes, titleRes) = when (event.status) {
+            ChatStatus.COMPRESSING -> R.string.notification_live_update_chip_compressing to
+                R.string.notification_live_update_compressing
+
+            null -> R.string.notification_live_update_chip_writing to
+                R.string.notification_live_update_title
+        }
+        sendLiveUpdate(
+            conversationId = event.conversationId,
+            senderName = event.senderName,
+            chipText = context.getString(chipRes),
+            statusText = context.getString(titleRes),
+            contentText = "",
+        )
     }
 
     private fun handleGenerationEnded(event: AppEvent.ChatGenerationEnded) {
@@ -116,7 +141,16 @@ class ChatNotificationManager(
     ) {
         // 确定当前状态
         val (chipText, statusText, contentText) = determineNotificationContent(lastMessage)
+        sendLiveUpdate(conversationId, senderName, chipText, statusText, contentText)
+    }
 
+    private fun sendLiveUpdate(
+        conversationId: Uuid,
+        senderName: String,
+        chipText: String,
+        statusText: String,
+        contentText: String,
+    ) {
         context.sendNotification(
             channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
             // 更新前台服务正在使用的同一条通知，避免重复显示生成进度。

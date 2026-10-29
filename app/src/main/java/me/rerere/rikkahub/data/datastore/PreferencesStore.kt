@@ -134,6 +134,12 @@ class SettingsStore internal constructor(
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
+        val PROVIDER_GROUPS = stringPreferencesKey("provider_groups")
+        val PROVIDER_GROUP_ASSIGNMENTS = stringPreferencesKey("provider_group_assignments")
+        val PROVIDER_PROXIES = stringPreferencesKey("provider_proxies")
+        val PROVIDER_PROXY_USERNAMES = stringPreferencesKey("provider_proxy_usernames")
+        val PROVIDER_PROXY_PASSWORDS = stringPreferencesKey("provider_proxy_passwords")
+        val CUSTOM_CA_CERTIFICATES = stringPreferencesKey("custom_ca_certificates")
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
@@ -142,6 +148,7 @@ class SettingsStore internal constructor(
 
         // 搜索
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
+        val ENABLED_SEARCH_SERVICE_IDS = stringPreferencesKey("enabled_search_service_ids")
         val SEARCH_COMMON = stringPreferencesKey("search_common")
         val SEARCH_SELECTED = intPreferencesKey("search_selected")
 

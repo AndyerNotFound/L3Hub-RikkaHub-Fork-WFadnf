@@ -67,6 +67,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -428,6 +429,9 @@ private fun ChatPageContent(
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
+    // 空会话的输入框贴在标语卡片下方：屏幕越高，卡片中心离底部越远，抬升量跟着增加
+    val emptyChatInputLift = (LocalConfiguration.current.screenHeightDp.dp - 500.dp)
+        .coerceIn(140.dp, 520.dp)
     val backgroundHazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
@@ -564,7 +568,7 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
-                    liftedBy = if (conversation.currentMessages.isEmpty() && !WindowInsets.isImeVisible) 210.dp else 0.dp,
+                    liftedBy = if (conversation.currentMessages.isEmpty() && !WindowInsets.isImeVisible) emptyChatInputLift else 0.dp,
                 )
             },
             containerColor = Color.Transparent,
@@ -880,7 +884,7 @@ private fun TopBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (chatModel != null) {
-                    AutoAIIcon(name = chatModel.modelId, modifier = Modifier.size(26.dp))
+                    AutoAIIcon(name = chatModel.modelId, modifier = Modifier.size(40.dp))
                 }
                 Row(
                     modifier = Modifier

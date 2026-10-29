@@ -2,7 +2,11 @@ package me.rerere.ai.provider
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.util.fetchBody
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomHeaders
@@ -50,6 +54,19 @@ internal suspend fun OkHttpClient.runQuotaQuery(
         }
         .get()
         .build()
-    val value = json.parseToJsonElement(fetchBody(request)).jsonObject.getByKey(query.resultPath)
+    val root = json.parseToJsonElement(fetchBody(request)).jsonObject
+    // DeepSeek 的余额接口把各币种放在 balance_infos 数组里，一并显示，避免只看到第一种货币
+    formatBalanceInfos(root)?.let { return@withContext ProviderQuota.Balance(it) }
+    val value = root.getByKey(query.resultPath)
     ProviderQuota.Balance(value.toDoubleOrNull()?.let { "%.2f".format(it) } ?: value)
+}
+
+private fun formatBalanceInfos(root: JsonObject): String? {
+    val infos = root["balance_infos"] as? JsonArray ?: return null
+    return infos.mapNotNull { element ->
+        val info = element as? JsonObject ?: return@mapNotNull null
+        val amount = info["total_balance"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+        val currency = info["currency"]?.jsonPrimitive?.contentOrNull
+        if (currency.isNullOrBlank()) amount else "$currency $amount"
+    }.joinToString(" · ").ifBlank { null }
 }

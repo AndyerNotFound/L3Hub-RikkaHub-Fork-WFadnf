@@ -120,6 +120,14 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
 
         // 提供商
         json(PROVIDERS, Settings::providers) { copy(providers = it) },
+        json(PROVIDER_GROUPS, Settings::providerGroups) { copy(providerGroups = it) },
+        json(PROVIDER_GROUP_ASSIGNMENTS, Settings::providerGroupAssignments) {
+            copy(providerGroupAssignments = it)
+        },
+        json(PROVIDER_PROXIES, Settings::providerProxies) { copy(providerProxies = it) },
+        json(PROVIDER_PROXY_USERNAMES, Settings::providerProxyUsernames) { copy(providerProxyUsernames = it) },
+        json(PROVIDER_PROXY_PASSWORDS, Settings::providerProxyPasswords) { copy(providerProxyPasswords = it) },
+        json(CUSTOM_CA_CERTIFICATES, Settings::customCaCertificates) { copy(customCaCertificates = it) },
 
         // 助手
         uuid(SELECT_ASSISTANT, Settings::assistantId) { copy(assistantId = it) },
@@ -128,6 +136,9 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
 
         // 搜索
         json(SEARCH_SERVICES, Settings::searchServices) { copy(searchServices = it) },
+        json(ENABLED_SEARCH_SERVICE_IDS, Settings::enabledSearchServiceIds) {
+            copy(enabledSearchServiceIds = it)
+        },
         json(SEARCH_COMMON, Settings::searchCommonOptions) { copy(searchCommonOptions = it) },
         plain(SEARCH_SELECTED, Settings::searchServiceSelected) { copy(searchServiceSelected = it) },
 

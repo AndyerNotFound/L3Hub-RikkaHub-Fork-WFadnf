@@ -112,7 +112,12 @@ data class NetworkSetting(
     val proxyUrl: String = "",
     val proxyUsername: String = "",
     val proxyPassword: String = "",
+    // 自定义重试：开关沿用旧字段名，升级后原来的开关状态不会丢
     val enableAutoRetry: Boolean = true,
+    val retryMaxCount: Int = 3,
+    val retryIntervalSeconds: Int = 1,
+    // 逗号分隔的 HTTP 错误码，空表示只重试网络错误
+    val retryErrorCodes: String = "",
 )
 
 @Serializable

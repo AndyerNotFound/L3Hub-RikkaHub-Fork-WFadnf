@@ -52,6 +52,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.event.ChatStatus
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AutoCompressTarget
@@ -1008,6 +1009,8 @@ class ChatService(
             TAG,
             "autoCompress: conversation=${session.id} used=$used estimated=$estimated limit=$limit trim=$trim",
         )
+        val statusSender = assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
+        appEventBus.tryEmit(AppEvent.ChatGenerationStatus(session.id, statusSender, ChatStatus.COMPRESSING))
         session.processingStatus.value = context.getString(R.string.chat_page_compressing)
         return try {
             compressSession(session, additionalPrompt = "", trim = trim, requireIdle = false)
@@ -1023,6 +1026,7 @@ class ChatService(
             false
         } finally {
             session.processingStatus.value = null
+            appEventBus.tryEmit(AppEvent.ChatGenerationStatus(session.id, statusSender, null))
         }
     }
 
