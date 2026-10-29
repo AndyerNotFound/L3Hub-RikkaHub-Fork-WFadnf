@@ -81,6 +81,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
@@ -103,6 +104,7 @@ import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
@@ -116,12 +118,14 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
+import java.time.ZoneId
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 
@@ -362,16 +366,24 @@ private fun ChatPageContent(
         collectLorebookInjections(conversation.currentMessages, assistant, setting.lorebooks).size
     }
 
-    // 独立计时器：从本轮开始生成到结束，按本地时钟计算，不用 API 返回的耗时
-    var generationStartedAt by remember { mutableStateOf<Long?>(null) }
-    var generationDurationMs by remember { mutableStateOf<Long?>(null) }
+    // 独立计时器：从本轮开始生成到结束，按本地时钟计算，不用 API 返回的耗时。
+    // 开始时间取自正在生成的助手消息，离开会话再回来不会从 0 重新计时。
+    val streamingMessage = remember(conversation.currentMessages) {
+        conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt == null }
+    }
+    var generationStartedAt by remember(streamingMessage?.id) { mutableStateOf<Long?>(null) }
+    var generationDurationMs by remember(streamingMessage?.id) { mutableStateOf<Long?>(null) }
     var timerNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    LaunchedEffect(loadingJob != null) {
+    LaunchedEffect(loadingJob != null, streamingMessage?.id) {
         if (loadingJob != null) {
             if (generationStartedAt == null) {
                 val now = System.currentTimeMillis()
-                generationStartedAt = now
+                val messageStart = streamingMessage?.createdAt
+                    ?.atZone(ZoneId.systemDefault())
+                    ?.toInstant()
+                    ?.toEpochMilli()
+                generationStartedAt = messageStart?.coerceAtMost(now) ?: now
                 timerNow = now
             }
         } else {
@@ -385,13 +397,16 @@ private fun ChatPageContent(
     LaunchedEffect(generationStartedAt) {
         while (generationStartedAt != null) {
             timerNow = System.currentTimeMillis()
-            delay(500)
+            delay(300)
         }
     }
 
+    val lastAssistantMessage = remember(conversation.currentMessages) {
+        conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
+    }
     val generationDurationMillis = generationStartedAt?.let {
         (timerNow - it).coerceAtLeast(0L)
-    } ?: generationDurationMs
+    } ?: generationDurationMs ?: lastAssistantMessage?.generationTimeMs
 
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
@@ -425,12 +440,12 @@ private fun ChatPageContent(
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
 
-    val completionProviders = remember(assistant.allWorkspaceIds, conversation.workspaceCwd, workspaceRepository) {
+    val completionProviders = remember(assistant.allWorkspaceIds, conversation.workspaceCwds, workspaceRepository) {
         assistant.allWorkspaceIds.map { workspaceId ->
             WorkspaceCompletionProvider(
                 workspaceId = workspaceId.toString(),
                 repository = workspaceRepository,
-                currentCwd = conversation.workspaceCwd,
+                currentCwd = conversation.workspaceCwds[workspaceId.toString()],
             )
         }
     }
@@ -464,9 +479,6 @@ private fun ChatPageContent(
                     onClickMenu = {
                         previewMode = !previewMode
                     },
-                    onUpdateTitle = {
-                        vm.updateTitle(it)
-                    },
                     onShowTaskTree = { showTaskTree = true },
                 )
             },
@@ -490,6 +502,11 @@ private fun ChatPageContent(
                     contextTokens = contextTokens,
                     usageTokenSpeed = usageTokenSpeed,
                     generationDurationMillis = generationDurationMillis,
+                    onUpdateContextMeterStyle = { style ->
+                        vm.updateSettings { latest ->
+                            latest.copy(displaySetting = latest.displaySetting.copy(contextMeterStyle = style))
+                        }
+                    },
                     injectedLorebookCount = lorebookInjectionCount,
                     onShowUsage = { showUsageSheet = true },
                     hazeState = hazeState,
@@ -799,14 +816,10 @@ private fun TopBar(
     previewMode: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
-    onUpdateTitle: (String) -> Unit,
     onShowTaskTree: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
-    val titleState = useEditState<String> {
-        onUpdateTitle(it)
-    }
     val effect = settings.displaySetting.effectiveBackgroundEffect
     fun effectColor(base: Color): Color = when (effect) {
         BackgroundEffectType.OFF -> base
@@ -832,6 +845,7 @@ private fun TopBar(
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(40.dp)
+                        .appButtonShadow(navShape, 3.dp)
                         .clip(navShape)
                         .background(effectColor(navColor))
                         .then(
@@ -856,123 +870,64 @@ private fun TopBar(
                 }
             }
         },
-        title = {
-            val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
-            Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
-                },
-                color = Color.Transparent,
-            ) {
-                Column {
-                    val provider = chatModel?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (chatModel != null && provider != null) {
-                        Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${chatModel.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
-                        )
-                    }
-                }
-            }
-        },
         actions = {
             val pillShape = RoundedCornerShape(50)
             val pillColor = MaterialTheme.colorScheme.surfaceContainerLow
             Row(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .clip(pillShape)
-                    .background(effectColor(pillColor))
-                    .then(
-                        if (effectBorder != null) {
-                            Modifier.border(effectBorder, pillShape)
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = settings.displaySetting,
-                        containerColor = pillColor,
-                        shape = pillShape,
-                    )
-                    .padding(horizontal = 2.dp),
+                modifier = Modifier.padding(end = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onShowTaskTree, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        HugeIcons.Flowchart01,
-                        stringResource(R.string.chat_task_tree_button),
-                        modifier = Modifier.size(20.dp),
-                    )
+                if (chatModel != null) {
+                    AutoAIIcon(name = chatModel.modelId, modifier = Modifier.size(26.dp))
                 }
+                Row(
+                    modifier = Modifier
+                        .appButtonShadow(pillShape, 3.dp)
+                        .clip(pillShape)
+                        .background(effectColor(pillColor))
+                        .then(
+                            if (effectBorder != null) {
+                                Modifier.border(effectBorder, pillShape)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .chatInputHaze(
+                            hazeState = hazeState,
+                            displaySetting = settings.displaySetting,
+                            containerColor = pillColor,
+                            shape = pillShape,
+                        )
+                        .padding(horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onShowTaskTree, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            HugeIcons.Flowchart01,
+                            stringResource(R.string.chat_task_tree_button),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
 
-                IconButton(onClick = { onClickMenu() }, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
-                        "Chat Options",
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                    IconButton(onClick = { onClickMenu() }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                            "Chat Options",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
 
-                IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
-                    Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(20.dp))
+                    IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
+                        Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(20.dp))
+                    }
+
                 }
             }
         },
     )
-    titleState.EditStateContent { title, onUpdate ->
-        AlertDialog(
-            onDismissRequest = {
-                titleState.dismiss()
-            },
-            title = {
-                Text(stringResource(R.string.chat_page_edit_title))
-            },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = onUpdate,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        titleState.confirm()
-                    }
-                ) {
-                    Text(stringResource(R.string.chat_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        titleState.dismiss()
-                    }
-                ) {
-                    Text(stringResource(R.string.chat_page_cancel))
-                }
-            }
-        )
-    }
 }
+
 
 @Composable
 private fun EmptyChatHero(

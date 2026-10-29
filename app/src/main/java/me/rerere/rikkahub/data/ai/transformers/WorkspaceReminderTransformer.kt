@@ -42,6 +42,7 @@ class WorkspaceReminderTransformer(
                 // 与 ChatToolFactory 保持一致: 仅在 shell 就绪时注入
                 if (workspace.shellStatus != WorkspaceShellStatus.READY.name) return@forEach
                 val layout = workspaceRepository.layout(workspaceId) ?: return@forEach
+                val cwd = ctx.workspaceCwds[workspaceId]?.ifBlank { null }
 
                 val prompt = if (workspace.isSsh()) {
                     val environmentResult = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
@@ -64,15 +65,15 @@ class WorkspaceReminderTransformer(
                         layout = layout,
                         shell = environment.shell,
                         distro = environment.distro,
-                        cwd = ctx.workspaceCwd,
+                        cwd = cwd,
                     )
                 } else {
                     buildWorkspacePrompt(
                         workspace = workspace,
                         shell = workspaceRepository.shell(workspaceId),
                         distro = readDistroName(workspaceId),
-                        cwd = ctx.workspaceCwd,
-                    ) + buildAgentsPrompt(workspaceId, ctx.workspaceCwd)
+                        cwd = cwd,
+                    ) + buildAgentsPrompt(workspaceId, cwd)
                 }
                 add(workspace to prompt)
             }

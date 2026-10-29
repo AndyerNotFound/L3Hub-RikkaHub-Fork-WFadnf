@@ -159,7 +159,7 @@ fun CardGroupScope.switchItem(
     supportingContent = supportingContent,
     leadingContent = leadingContent,
     trailingContent = {
-        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        AppSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     },
     headlineContent = headlineContent,
 )

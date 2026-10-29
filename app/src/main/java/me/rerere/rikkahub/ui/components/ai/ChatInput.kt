@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
@@ -37,6 +38,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.lazy.LazyColumn
@@ -124,12 +126,17 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
 import kotlin.uuid.Uuid
+
+/** 上下文预警进度条左右滑动的最小位移(px)，小于这个值当作点击 */
+
+private const val CONTEXT_METER_SWIPE_THRESHOLD = 60f
 
 @Composable
 fun ChatInput(
@@ -143,6 +150,7 @@ fun ChatInput(
     contextTokens: Int? = null,
     usageTokenSpeed: Float? = null,
     generationDurationMillis: Long? = null,
+    onUpdateContextMeterStyle: (ContextMeterStyle) -> Unit = {},
     injectedLorebookCount: Int = 0,
     onShowUsage: () -> Unit = {},
     hazeState: HazeState,
@@ -268,27 +276,46 @@ fun ChatInput(
                 )
             }
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
-                when (settings.displaySetting.contextMeterStyle) {
-                    ContextMeterStyle.BAR -> ContextUsageMeter(
-                        tokens = contextTokens,
-                        warnTokens = chatModel.warnContextTokens,
-                        maxTokens = chatModel.maxContextTokens,
-                        onShowUsage = onShowUsage,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    )
+                Box(
+                    modifier = Modifier.pointerInput(settings.displaySetting.contextMeterStyle) {
+                        var totalDrag = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { totalDrag = 0f },
+                            onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount },
+                            onDragEnd = {
+                                when {
+                                    totalDrag <= -CONTEXT_METER_SWIPE_THRESHOLD ->
+                                        onUpdateContextMeterStyle(ContextMeterStyle.BAR)
 
-                    ContextMeterStyle.RING -> ContextUsageRing(
-                        tokens = contextTokens,
-                        warnTokens = chatModel.warnContextTokens,
-                        maxTokens = chatModel.maxContextTokens,
-                        onShowUsage = onShowUsage,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                        provider = chatModel.findProvider(settings.providers),
-                        tokenSpeed = usageTokenSpeed,
-                        generationDurationMillis = generationDurationMillis,
-                    )
+                                    totalDrag >= CONTEXT_METER_SWIPE_THRESHOLD ->
+                                        onUpdateContextMeterStyle(ContextMeterStyle.RING)
+                                }
+                            },
+                        )
+                    }
+                ) {
+                    when (settings.displaySetting.contextMeterStyle) {
+                        ContextMeterStyle.BAR -> ContextUsageMeter(
+                            tokens = contextTokens,
+                            warnTokens = chatModel.warnContextTokens,
+                            maxTokens = chatModel.maxContextTokens,
+                            onShowUsage = onShowUsage,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
 
-                    ContextMeterStyle.OFF -> Unit
+                        ContextMeterStyle.RING -> ContextUsageRing(
+                            tokens = contextTokens,
+                            warnTokens = chatModel.warnContextTokens,
+                            maxTokens = chatModel.maxContextTokens,
+                            onShowUsage = onShowUsage,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            provider = chatModel.findProvider(settings.providers),
+                            tokenSpeed = usageTokenSpeed,
+                            generationDurationMillis = generationDurationMillis,
+                        )
+
+                        ContextMeterStyle.OFF -> Unit
+                    }
                 }
             }
             Surface(
@@ -574,7 +601,9 @@ private fun SendButton(
             )
     ) {
         Surface(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .appButtonShadow(CircleShape, 3.dp),
             shape = CircleShape,
             color = containerColor,
             content = {},
@@ -595,7 +624,9 @@ private fun ActionIconButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(30.dp),
+        modifier = Modifier
+            .size(30.dp)
+            .appButtonShadow(CircleShape, 2.dp),
         shape = CircleShape,
         tonalElevation = 0.dp,
         color = Color.Transparent,

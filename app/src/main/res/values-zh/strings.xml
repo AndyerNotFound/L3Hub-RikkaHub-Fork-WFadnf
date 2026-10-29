@@ -1890,6 +1890,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_week_this">本周</string>
   <string name="chat_page_week_last">上周</string>
   <string name="chat_page_week_range">%1$s – %2$s</string>
+  <string name="setting_display_page_button_shadow_title">按钮阴影</string>
+  <string name="setting_display_page_button_shadow_desc">为按钮与开关显示阴影</string>
+  <string name="setting_display_page_context_meter_switch_title">上下文预警</string>
+  <string name="setting_display_page_context_meter_switch_desc">在进度条上左滑切换条形视图，右滑切换环形视图</string>
   <string name="setting_display_page_context_meter_style_off">关闭</string>
   <string name="setting_display_page_context_meter_style_bar">条状</string>
   <string name="setting_display_page_context_meter_style_ring">环状</string>

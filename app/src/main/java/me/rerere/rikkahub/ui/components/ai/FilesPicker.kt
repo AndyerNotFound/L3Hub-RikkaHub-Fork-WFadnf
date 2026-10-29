@@ -112,7 +112,7 @@ internal fun FilesPicker(
     mcpManager: McpManager,
     onCompressContext: (additionalPrompt: String, keepRecentMessages: Int) -> Job,
     onUpdateAssistant: (Assistant) -> Unit,
-    onUpdateWorkspaceCwd: (String?) -> Unit,
+    onUpdateWorkspaceCwd: (Uuid, String?) -> Unit,
     onUpdateSearchMode: (SearchMode) -> Unit,
     onToggleSearchService: (String) -> Unit,
     showCompressDialog: Boolean,
@@ -132,11 +132,14 @@ internal fun FilesPicker(
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
 
-    val boundWorkspace = remember(workspaces, assistant.primaryWorkspaceId) {
-        workspaces.find { it.id == assistant.primaryWorkspaceId?.toString() }
+    // 每个已绑定且 shell 就绪的工作区都有自己的工作目录入口
+    val cwdWorkspaces = remember(workspaces, assistant.allWorkspaceIds) {
+        val boundIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+        workspaces.filter { workspace ->
+            workspace.id in boundIds && workspace.shellStatus == WorkspaceShellStatus.READY.name
+        }
     }
-    val showCwd = boundWorkspace != null && boundWorkspace.shellStatus == WorkspaceShellStatus.READY.name
-    var showCwdSheet by remember { mutableStateOf(false) }
+    var cwdWorkspaceId by remember { mutableStateOf<String?>(null) }
 
     var page by remember { mutableStateOf(FilesPickerPage.MAIN) }
     // 在子页面时，返回键回到上一级而不是关闭 sheet
@@ -219,7 +222,8 @@ internal fun FilesPicker(
                 val showMcp = settings.mcpServers.isNotEmpty()
                 // 限制了上下文消息数就是滚动上下文，旧消息会自动移出，不需要压缩
                 val showCompress = assistant.contextMessageLimit <= 0
-                val itemCount = 2 + listOf(showWorkspace, showWorkspace && showCwd, showMcp, showCompress).count { it }
+                val cwdItems = if (showWorkspace) cwdWorkspaces else emptyList()
+                val itemCount = 2 + cwdItems.size + listOf(showWorkspace, showMcp, showCompress).count { it }
                 var itemIndex = 0
                 Column(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -252,10 +256,10 @@ internal fun FilesPicker(
                             },
                         )
 
-                        // Workspace CWD
-                        if (showCwd) {
+                        // 每个绑定工作区各一个 CWD 入口
+                        cwdItems.forEach { workspace ->
                             SegmentedListItem(
-                                onClick = { showCwdSheet = true },
+                                onClick = { cwdWorkspaceId = workspace.id },
                                 shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
                                 leadingContent = {
                                     Icon(
@@ -267,12 +271,27 @@ internal fun FilesPicker(
                                     Icon(HugeIcons.ArrowRight01, contentDescription = null)
                                 },
                             ) {
-                                Text(
-                                    text = conversation.workspaceCwd ?: boundWorkspace?.workspaceDir().orEmpty(),
-                                    // 路径的末尾更有辨识度，放不下时省略开头
-                                    maxLines = 1,
-                                    overflow = TextOverflow.StartEllipsis,
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = workspace.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    Text(
+                                        text = conversation.workspaceCwds[workspace.id]
+                                            ?: workspace.workspaceDir(),
+                                        // 路径的末尾更有辨识度，放不下时省略开头
+                                        maxLines = 1,
+                                        overflow = TextOverflow.StartEllipsis,
+                                        modifier = Modifier.weight(2f),
+                                    )
+                                }
                             }
                         }
                     }
@@ -361,15 +380,16 @@ internal fun FilesPicker(
         }
     }
 
-    if (showCwdSheet && boundWorkspace != null) {
+    val cwdWorkspace = cwdWorkspaceId?.let { id -> cwdWorkspaces.find { it.id == id } }
+    if (cwdWorkspace != null) {
         WorkspaceCwdPickerSheet(
-            workspaceId = boundWorkspace.id,
-            workspaceDir = boundWorkspace.workspaceDir(),
-            currentCwd = conversation.workspaceCwd,
+            workspaceId = cwdWorkspace.id,
+            workspaceDir = cwdWorkspace.workspaceDir(),
+            currentCwd = conversation.workspaceCwds[cwdWorkspace.id],
             onSelectCwd = { newCwd ->
-                onUpdateWorkspaceCwd(newCwd)
+                onUpdateWorkspaceCwd(Uuid.parse(cwdWorkspace.id), newCwd)
             },
-            onDismiss = { showCwdSheet = false },
+            onDismiss = { cwdWorkspaceId = null },
         )
     }
 

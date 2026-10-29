@@ -34,6 +34,8 @@ data class Conversation(
     val config: ConversationConfig? = null,
     // Absolute path inside the workspace rootfs
     val workspaceCwd: String? = null,
+    // 每个绑定工作区各自的 CWD，key 是工作区 id
+    val workspaceCwds: Map<String, String> = emptyMap(),
     // 所属文件夹（助手内分组），null 表示未归入任何文件夹
     val folderId: Uuid? = null,
     // 子代理会话：由父会话的 dispatch_sub_agent 工具创建

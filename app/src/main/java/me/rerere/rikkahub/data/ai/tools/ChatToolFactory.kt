@@ -48,13 +48,13 @@ class ChatToolFactory(
         settings: Settings,
         assistant: Assistant,
         model: Model,
-        workspaceCwd: String? = null,
+        workspaceCwds: Map<String, String> = emptyMap(),
         conversationId: Uuid? = null,
     ): List<Tool> {
         val workspaceTools = createWorkspaceTools(
             workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
             workspaceRepository = workspaceRepository,
-            cwd = workspaceCwd,
+            cwds = workspaceCwds,
         )
         val tools = buildList {
             if (assistant.enableMemory) {

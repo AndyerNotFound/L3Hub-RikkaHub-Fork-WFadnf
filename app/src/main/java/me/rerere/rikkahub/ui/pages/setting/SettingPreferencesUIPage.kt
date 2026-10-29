@@ -194,6 +194,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
                     )
                     switchItem(
+                        checked = displaySetting.buttonShadow,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(buttonShadow = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_button_shadow_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_button_shadow_title)) },
+                    )
+                    switchItem(
                         checked = displaySetting.showDateTimeInMessage,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
@@ -211,29 +217,18 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                     )
-                    formItem(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_context_meter_style_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_context_meter_style_desc)) },
-                    ) {
-                        ConnectedChoiceButtons(
-                            options = ContextMeterStyle.entries,
-                            selected = displaySetting.contextMeterStyle,
-                            onSelect = { style ->
-                                updateDisplaySetting(displaySetting.copy(contextMeterStyle = style))
-                            },
-                        ) { style, selected ->
-                            ConnectedChoiceLabel(
-                                text = stringResource(
-                                    when (style) {
-                                        ContextMeterStyle.OFF -> R.string.setting_display_page_context_meter_style_off
-                                        ContextMeterStyle.BAR -> R.string.setting_display_page_context_meter_style_bar
-                                        ContextMeterStyle.RING -> R.string.setting_display_page_context_meter_style_ring
-                                    }
-                                ),
-                                selected = selected,
+                    switchItem(
+                        checked = displaySetting.contextMeterStyle != ContextMeterStyle.OFF,
+                        onCheckedChange = { enabled ->
+                            updateDisplaySetting(
+                                displaySetting.copy(
+                                    contextMeterStyle = if (enabled) ContextMeterStyle.BAR else ContextMeterStyle.OFF
+                                )
                             )
-                        }
-                    }
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_title)) },
+                    )
                 }
             }
 

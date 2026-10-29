@@ -30,6 +30,8 @@ data class ConversationEntity(
     val lorebookIds: String = "[]",
     @ColumnInfo("workspace_cwd", defaultValue = "")
     val workspaceCwd: String = "",
+    @ColumnInfo("workspace_cwds", defaultValue = "")
+    val workspaceCwds: String = "",
     @ColumnInfo("folder_id", defaultValue = "")
     val folderId: String = "",
     @ColumnInfo("config", defaultValue = "")

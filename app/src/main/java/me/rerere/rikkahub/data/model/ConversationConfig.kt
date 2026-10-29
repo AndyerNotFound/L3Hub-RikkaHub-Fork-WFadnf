@@ -80,8 +80,12 @@ fun Conversation.withAssistantUpdate(updated: Assistant, settings: Settings): Co
             lorebookIds = updated.lorebookIds,
         )
     }
-    // 工作目录属于原来的工作区，换工作区后失效
-    return if (updated.workspaceId != previous.workspaceId) conversation.copy(workspaceCwd = null) else conversation
+    // 工作目录属于原来的工作区，解绑或换工作区后失效
+    val boundIds = updated.allWorkspaceIds.map { it.toString() }.toSet()
+    return conversation.copy(
+        workspaceCwd = if (updated.workspaceId != previous.workspaceId) null else conversation.workspaceCwd,
+        workspaceCwds = conversation.workspaceCwds.filterKeys { it in boundIds },
+    )
 }
 
 /** 聊天页改动助手后写回助手设置的部分：会话持有的字段保持 [stored] 的原值。 */

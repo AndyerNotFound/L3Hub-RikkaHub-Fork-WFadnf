@@ -128,7 +128,7 @@ interface ConversationDAO {
     suspend fun updateChatSuggestions(id: String, chatSuggestions: String)
 
     @Query(
-        "UPDATE conversationentity SET config = :config, mode_injection_ids = :modeInjectionIds, lorebook_ids = :lorebookIds, workspace_cwd = :workspaceCwd WHERE id = :id"
+        "UPDATE conversationentity SET config = :config, mode_injection_ids = :modeInjectionIds, lorebook_ids = :lorebookIds, workspace_cwd = :workspaceCwd, workspace_cwds = :workspaceCwds WHERE id = :id"
     )
     suspend fun updateConfig(
         id: String,
@@ -136,6 +136,7 @@ interface ConversationDAO {
         modeInjectionIds: String,
         lorebookIds: String,
         workspaceCwd: String,
+        workspaceCwds: String,
     )
 
     @Query("UPDATE conversationentity SET folder_id = '' WHERE folder_id = :folderId")

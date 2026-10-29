@@ -182,6 +182,8 @@ data class DisplaySetting(
     val contextMeterStyle: ContextMeterStyle = ContextMeterStyle.BAR,
     // 使用 L3Hub 的思考强度图标和圆形滑块
     val useL3HubReasoningStyle: Boolean = false,
+    // 为按钮与开关显示阴影
+    val buttonShadow: Boolean = false,
     // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
     val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,

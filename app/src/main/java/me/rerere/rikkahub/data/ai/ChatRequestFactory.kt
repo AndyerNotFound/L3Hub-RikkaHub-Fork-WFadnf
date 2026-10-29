@@ -63,7 +63,7 @@ class ChatTurnContext(
     val providerSetting: ProviderSetting,
     val conversationId: Uuid,
     val conversationSystemPrompt: String?,
-    val workspaceCwd: String?,
+    val workspaceCwds: Map<String, String>,
     val memories: List<MemoryFile>,
     val tools: List<Tool>,
 )
@@ -101,6 +101,7 @@ class ChatRequestFactory(
         val model = settings.getChatModelOf(conversation)
             ?: throw IllegalStateException("No chat model selected")
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
+        val workspaceCwds = conversation.effectiveWorkspaceCwds(assistant)
         return ChatTurnContext(
             settings = settings,
             assistant = assistant,
@@ -108,13 +109,13 @@ class ChatRequestFactory(
             providerSetting = provider,
             conversationId = conversation.id,
             conversationSystemPrompt = conversation.customSystemPrompt,
-            workspaceCwd = conversation.workspaceCwd,
+            workspaceCwds = workspaceCwds,
             memories = if (assistant.enableMemory) memoryRepository.getFiles(assistant.memoryId) else emptyList(),
             tools = chatToolFactory.createTools(
                 settings = settings,
                 assistant = assistant,
                 model = model,
-                workspaceCwd = conversation.workspaceCwd,
+                workspaceCwds = workspaceCwds,
                 conversationId = conversation.id,
             ),
         )
@@ -244,7 +245,7 @@ class ChatRequestFactory(
             assistant = assistant,
             settings = turn.settings,
             processingStatus = processingStatus,
-            workspaceCwd = turn.workspaceCwd,
+            workspaceCwds = turn.workspaceCwds,
         )
         val params = TextGenerationParams(
             model = turn.model,
@@ -310,3 +311,11 @@ internal fun backgroundTextGenerationParams(
 
 internal fun Settings.retryPolicy() =
     if (networkSetting.enableAutoRetry) RetryPolicy.NETWORK else RetryPolicy.NONE
+
+
+// 旧会话只存了主工作区的一个 cwd，读的时候并进多工作区表
+private fun Conversation.effectiveWorkspaceCwds(assistant: Assistant): Map<String, String> {
+    val legacy = workspaceCwd?.takeIf { it.isNotBlank() } ?: return workspaceCwds
+    val primary = assistant.primaryWorkspaceId?.toString() ?: return workspaceCwds
+    return if (workspaceCwds.containsKey(primary)) workspaceCwds else workspaceCwds + (primary to legacy)
+}

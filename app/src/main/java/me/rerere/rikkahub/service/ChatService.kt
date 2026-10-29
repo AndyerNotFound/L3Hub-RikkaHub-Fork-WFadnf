@@ -1128,10 +1128,18 @@ class ChatService(
     }
 
     // 工作目录和配置一起按列落库；还没落过库的新会话先留在内存里，发出第一条消息时一起写入
-    suspend fun updateWorkspaceCwd(conversationId: Uuid, workspaceCwd: String?) {
+    suspend fun updateWorkspaceCwd(conversationId: Uuid, workspaceId: Uuid, workspaceCwd: String?) {
         withLoadedSession(conversationId) { session ->
             session.updateMetadata(
-                transform = { it.copy(workspaceCwd = workspaceCwd) },
+                transform = { conversation ->
+                    val key = workspaceId.toString()
+                    val cwds = if (workspaceCwd.isNullOrBlank()) {
+                        conversation.workspaceCwds - key
+                    } else {
+                        conversation.workspaceCwds + (key to workspaceCwd)
+                    }
+                    conversation.copy(workspaceCwds = cwds)
+                },
                 persist = conversationRepo::updateConversationConfig,
             )
         }

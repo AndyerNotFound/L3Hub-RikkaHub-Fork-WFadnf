@@ -53,7 +53,7 @@ internal data class WorkspaceTarget(
 suspend fun createWorkspaceTools(
     workspaceIds: Collection<String>,
     workspaceRepository: WorkspaceRepository,
-    cwd: String? = null,
+    cwds: Map<String, String> = emptyMap(),
 ): List<Tool> {
     val targets = workspaceIds
         .map { it.trim() }
@@ -77,14 +77,13 @@ suspend fun createWorkspaceTools(
         .toList()
     if (targets.isEmpty()) return emptyList()
 
-    val shellCwd = cwd?.let(targets.first().layout::relativeToWorkspace)
     return buildList {
         add(createReadFileTool(targets, workspaceRepository))
         if (targets.any { it.supportsFileWrite }) {
             add(createWriteFileTool(targets, workspaceRepository))
             add(createEditFileTool(targets, workspaceRepository))
         }
-        add(createShellTool(targets, workspaceRepository, shellCwd))
+        add(createShellTool(targets, workspaceRepository, cwds))
     }
 }
 
@@ -330,7 +329,7 @@ private fun createEditFileTool(
 private fun createShellTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
-    defaultCwd: String? = null,
+    workspaceCwds: Map<String, String> = emptyMap(),
 ) = Tool(
     name = "workspace_shell",
     description = buildString {
@@ -338,8 +337,8 @@ private fun createShellTool(
             "Run a shell command in the assistant's bound workspace Rootfs. The workspace files area is mounted at ${targets.first().layout.workspaceDir}. "
         )
         append("Use cwd for a path relative to the workspace files root. ")
-        if (!defaultCwd.isNullOrBlank()) {
-            append("Defaults to '$defaultCwd' for the primary workspace. ")
+        if (workspaceCwds.isNotEmpty()) {
+            append("Defaults to the directory picked for each workspace. ")
         }
         append("Requires Rootfs to be installed and ready.")
         append(targets.workspaceNote())
@@ -356,11 +355,8 @@ private fun createShellTool(
                     put("type", "string")
                     put(
                         "description",
-                        if (!defaultCwd.isNullOrBlank()) {
-                            "Working directory relative to the workspace files root. Defaults to '$defaultCwd' for the primary workspace; other workspaces default to root."
-                        } else {
-                            "Working directory relative to the workspace files root. Defaults to root."
-                        }
+                        "Working directory relative to the workspace files root. " +
+                            "Defaults to the directory picked for that workspace, or root."
                     )
                 })
                 put("timeout", buildJsonObject {
@@ -381,7 +377,7 @@ private fun createShellTool(
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
         val command = params.string("command") ?: error("command is required")
-        val fallbackCwd = if (target.id == targets.first().id) defaultCwd.orEmpty() else ""
+        val fallbackCwd = workspaceCwds[target.id].orEmpty()
         val cwd = target.layout.relativeToWorkspace(params.string("cwd") ?: fallbackCwd)
         val timeoutMillis = params.string("timeout")?.toLongOrNull()
             ?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)

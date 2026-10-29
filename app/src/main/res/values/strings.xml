@@ -1888,6 +1888,10 @@
   <string name="chat_page_week_this">This week</string>
   <string name="chat_page_week_last">Last week</string>
   <string name="chat_page_week_range">%1$s – %2$s</string>
+  <string name="setting_display_page_button_shadow_title">Button shadows</string>
+  <string name="setting_display_page_button_shadow_desc">Show shadows behind buttons and switches</string>
+  <string name="setting_display_page_context_meter_switch_title">Context warning meter</string>
+  <string name="setting_display_page_context_meter_switch_desc">Swipe the meter left for the bar view, right for the ring view</string>
   <string name="setting_display_page_context_meter_style_off">Off</string>
   <string name="setting_display_page_context_meter_style_bar">Bar</string>
   <string name="setting_display_page_context_meter_style_ring">Ring</string>

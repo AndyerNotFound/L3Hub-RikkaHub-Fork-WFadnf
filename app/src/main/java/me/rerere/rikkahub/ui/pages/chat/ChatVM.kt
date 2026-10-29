@@ -354,9 +354,9 @@ class ChatVM(
         }
     }
 
-    fun updateWorkspaceCwd(workspaceCwd: String?) {
+    fun updateWorkspaceCwd(workspaceId: Uuid, workspaceCwd: String?) {
         viewModelScope.launch {
-            chatService.updateWorkspaceCwd(_conversationId, workspaceCwd)
+            chatService.updateWorkspaceCwd(_conversationId, workspaceId, workspaceCwd)
         }
     }
 
