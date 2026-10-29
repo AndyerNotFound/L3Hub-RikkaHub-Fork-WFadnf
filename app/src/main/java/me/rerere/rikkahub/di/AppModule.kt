@@ -33,7 +33,7 @@ val appModule = module {
         SubAgentRunner(
             settingsStore = get(),
             conversationRepository = get(),
-            requestFactory = { get() },
+            chatServiceProvider = { get() },
         )
     }
 
@@ -133,7 +133,6 @@ val appModule = module {
             memoryConsolidationScheduler = get(),
             translationHandler = get(),
             metaGenerator = get(),
-            subAgentRunner = get(),
             mcpManager = get(),
             filesManager = get(),
             folderRepository = get()

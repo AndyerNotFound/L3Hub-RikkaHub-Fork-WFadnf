@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.subagent.SubAgentDispatchMode
 import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.model.Assistant
 import kotlin.uuid.Uuid
@@ -30,12 +31,11 @@ internal fun buildSubAgentTool(
     return Tool(
         name = SUB_AGENT_TOOL_NAME,
         description = """
-            把一项自成一体的任务派发给子代理。子代理在独立上下文里执行，不占用当前对话的上下文。
-            派发后立即返回；子代理完成后，结果会在本次回复的后续步骤自动回传，不需要你等待或重复执行。
-            出现以下情况时应优先派发，而不是自己一步步做完：
-            - 需要多轮搜索、阅读大量文件或执行大量终端命令；
-            - 任务与当前主线无关，或可以拆成多个互不依赖的子任务；
-            - 中间结果很多，继续自己做会占满当前上下文。
+            把一项自成一体的任务派发给子代理。子代理在独立上下文中执行，不占用当前对话的上下文。
+            你必须根据任务自行选择派发模式：
+            - wait：等待子代理完成并把最终结果直接作为工具结果返回；下一步需要结果才能继续时使用。
+            - background：派发后立即返回，适合与当前主线无关、可以独立并行的任务；不返回子代理结果，也不会在后续步骤自动回传，只能通过任务树查看会话。
+            子代理完成后，不要把同一任务重复执行。
             任务描述必须自包含：背景、目标、约束和期望的输出格式；子代理看不到当前对话。
             可用子代理：
             $catalog
@@ -44,9 +44,10 @@ internal fun buildSubAgentTool(
             """
             ## 子代理
             当任务可以独立完成、需要多步检索或大量文件/终端操作、或与当前主线无关时，优先调用 dispatch_sub_agent 交给子代理，不要自己逐步硬做。
+            派发模式由你决定：下一步必须依赖子代理结果时选择 wait；任务独立、可以并行或耗时较长、且当前对话不需要其结果时选择 background。
             适合派发：资料调研与对比、批量文件处理、独立代码修改、长文档阅读总结、可并行的子任务。
             不必派发：一句话问答、需要当前对话细节、需要用户确认或审批的操作。
-            派发后不要重复执行同一个任务；结果会在后续步骤自动回传，拿到结果后再汇总给用户。
+            派发后不要重复执行同一个任务；background 不会把结果回传给当前对话，不要等待或假设会收到结果。
             """.trimIndent()
         },
         parameters = {
@@ -60,6 +61,17 @@ internal fun buildSubAgentTool(
                         put("type", "string")
                         put("description", "要子代理完成的任务，自包含、可独立执行")
                     })
+                    put("mode", buildJsonObject {
+                        put("type", "string")
+                        put("enum", buildJsonArray {
+                            add("wait")
+                            add("background")
+                        })
+                        put(
+                            "description",
+                            "wait：等待并返回最终结果；background：立即返回，不返回最终结果。默认 background。",
+                        )
+                    })
                 },
                 required = listOf("assistant", "task"),
             )
@@ -68,12 +80,19 @@ internal fun buildSubAgentTool(
             val obj = args.jsonObject
             val target = obj["assistant"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val task = obj["task"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val mode = when (obj["mode"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()) {
+                null, "" -> SubAgentDispatchMode.BACKGROUND
+                "wait" -> SubAgentDispatchMode.WAIT
+                "background" -> SubAgentDispatchMode.BACKGROUND
+                else -> null
+            }
             val result = when {
+                mode == null -> "mode 只能是 wait 或 background"
                 target.isEmpty() -> "缺少参数 assistant"
                 task.isEmpty() -> "缺少参数 task"
                 subAgents.none { it.name.equals(target, ignoreCase = true) || it.id.toString() == target } ->
                     "没有名为「$target」的子代理，可用：${subAgents.joinToString { it.name }}"
-                else -> runner.dispatch(conversationId, target, task)
+                else -> runner.dispatch(conversationId, target, task, mode)
             }
             listOf(UIMessagePart.Text(result))
         },

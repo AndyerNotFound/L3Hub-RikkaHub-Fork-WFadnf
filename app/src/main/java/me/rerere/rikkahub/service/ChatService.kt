@@ -45,7 +45,6 @@ import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
-import me.rerere.rikkahub.data.ai.subagent.SubAgentRunner
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -163,7 +162,6 @@ class ChatService(
     private val memoryConsolidationScheduler: MemoryConsolidationScheduler,
     private val translationHandler: TranslationHandler,
     private val metaGenerator: ConversationMetaGenerator,
-    private val subAgentRunner: SubAgentRunner,
     val mcpManager: McpManager,
     private val filesManager: FilesManager,
     private val folderRepository: FolderRepository,
@@ -303,7 +301,10 @@ class ChatService(
 
     suspend fun initializeConversation(conversationId: Uuid) {
         withLoadedSession(conversationId) { session ->
-            settingsStore.selectAssistant(session.state.value.assistantId)
+            // 子代理会话有自己的助手，不能因为打开它而切走侧边栏所属的助手
+            if (session.state.value.parentConversationId == null) {
+                settingsStore.selectAssistant(session.state.value.assistantId)
+            }
         }
     }
 
@@ -481,6 +482,27 @@ class ChatService(
         }
     }
 
+    /** 等待会话当前这一轮生成结束；没有活动任务时直接返回最新会话。 */
+    suspend fun awaitGeneration(conversationId: Uuid): Conversation {
+        val session = sessionManager.getOrCreate(conversationId)
+        val job = session.getJob()
+        try {
+            job?.join()
+        } catch (e: CancellationException) {
+            job?.cancel()
+            throw e
+        }
+        return getConversation(conversationId) ?: session.state.value
+    }
+
+    /** 子代理结束时更新任务树状态；会话可能已经被回收，因此从数据库重新加载。 */
+    suspend fun updateSubAgentState(conversationId: Uuid, state: String) {
+        withLoadedSession(conversationId, createIfMissing = false) { session ->
+            session.update { it.copy(subAgentState = state) }
+            session.flush()
+        }
+    }
+
     /** Enqueue immediately; the result belongs to this item even after edits or later turns. */
     fun enqueueVoiceMessage(conversationId: Uuid, text: String): Deferred<String?> {
         val session = sessionManager.getOrCreate(conversationId)
@@ -535,20 +557,6 @@ class ChatService(
                 ensureInitialized(session)
                 finishInterruptedPendingTools(session)
                 autoCompressIfNeeded(session)
-                // 上一轮结束后才跑完的子代理，先作为一条消息接在历史里再发这条消息
-                val pendingSubAgentResults = subAgentRunner.takeResults(conversationId)
-                if (pendingSubAgentResults.isNotEmpty()) {
-                    session.update { latest ->
-                        latest.copy(
-                            messageNodes = latest.messageNodes + pendingSubAgentResults.map { result ->
-                                UIMessage(
-                                    role = MessageRole.USER,
-                                    parts = listOf(UIMessagePart.Text(result)),
-                                ).toMessageNode()
-                            }
-                        )
-                    }
-                }
 
                 val assistant = settingsStore.awaitLoaded().getStoredAssistantOf(session.state.value)
                 val processedContent = queued.parts.replaceUserRegexes(assistant)
@@ -755,25 +763,6 @@ class ChatService(
                 turn = turn,
                 messages = history,
                 processingStatus = session.processingStatus,
-                pendingInjections = {
-                    val results = subAgentRunner.takeResults(conversationId)
-                    if (results.isEmpty()) {
-                        emptyList()
-                    } else {
-                        val messages = results.map { result ->
-                            UIMessage(
-                                role = MessageRole.USER,
-                                parts = listOf(UIMessagePart.Text(result)),
-                            )
-                        }
-                        // 同时落到会话里，任务树和后续回合都能看到这次回传
-                        session.update { latest ->
-                            latest.copy(messageNodes = latest.messageNodes + messages.map { it.toMessageNode() })
-                        }
-                        session.flush()
-                        messages
-                    }
-                },
             )
             var finishReason: AgentFinishReason? = null
             try {

@@ -58,6 +58,7 @@ import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_RUNNING
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
@@ -77,6 +78,7 @@ fun SubAgentTaskSheet(
     onOpenConversation: (Uuid) -> Unit,
 ) {
     val repository: ConversationRepository = koinInject()
+    val chatService: ChatService = koinInject()
     val settingsStore: SettingsStore = koinInject()
     val settings by settingsStore.settingsFlow.collectAsState()
     val assistantNames = remember(settings.assistants) {
@@ -86,7 +88,7 @@ fun SubAgentTaskSheet(
 
     LaunchedEffect(conversationId) {
         while (true) {
-            tree = runCatching { loadTree(repository, conversationId) }.getOrNull()
+            tree = runCatching { loadTree(repository, chatService, conversationId) }.getOrNull()
             delay(1000)
         }
     }
@@ -129,14 +131,19 @@ fun SubAgentTaskSheet(
 
 private suspend fun loadTree(
     repository: ConversationRepository,
+    chatService: ChatService,
     id: Uuid,
     depth: Int = 0,
 ): TaskNode? = withContext(Dispatchers.IO) {
-    val conversation = repository.getConversationById(id) ?: return@withContext null
+    val conversation = chatService.getConversation(id)
+        ?: repository.getConversationById(id)
+        ?: return@withContext null
     val children = if (depth >= MAX_TREE_DEPTH) {
         emptyList()
     } else {
-        repository.getChildConversations(id).mapNotNull { child -> loadTree(repository, child.id, depth + 1) }
+        repository.getChildConversations(id).mapNotNull { child ->
+            loadTree(repository, chatService, child.id, depth + 1)
+        }
     }
     TaskNode(conversation = conversation, children = children)
 }
