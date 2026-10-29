@@ -24,8 +24,8 @@ android {
         applicationId = "com.rikkahub.l3hub.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 221
-        versionName = "L.3.1.1.43"
+        versionCode = 222
+        versionName = "L.3.1.1.44"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -85,9 +85,9 @@ android {
             // 包名和签名不变，可以直接覆盖安装。
             isDebuggable = false
             // R8 本机一次要 8 分钟, 日常构建先不开; 需要时把下面两行打开, 或交给 CI 出包
-            // optimization {
-            //     enable = true
-            // }
+            optimization {
+                enable = true
+            }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
