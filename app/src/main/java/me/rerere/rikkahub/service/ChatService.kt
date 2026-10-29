@@ -743,6 +743,7 @@ class ChatService(
                             appEventBus.tryEmit(
                                 AppEvent.ChatGenerationUpdate(conversationId, event.message, senderName)
                             )
+                            requestLoopCompressionIfNeeded(session, turn, event.message)
                         }
 
                         is AgentEvent.Retrying -> {
@@ -939,9 +940,33 @@ class ChatService(
         }
     }
 
+    /**
+     * 工具执行完、下一次请求之前主动检查上下文。等提供商报错再压缩时，有些服务会把超限
+     * 包装成普通 400，甚至直接截断输入，循环压缩就永远不会触发；这里按估算值提前拦住。
+     */
+    private fun requestLoopCompressionIfNeeded(
+        session: ConversationSession,
+        turn: ChatTurnContext,
+        message: UIMessage,
+    ) {
+        if (!turn.assistant.autoCompress || !turn.assistant.autoCompressLoop) return
+        // 只在最后一条工具刚执行完时检查一次，避免正文流式输出时反复扫描整个会话
+        if (message.parts.lastOrNull() !is UIMessagePart.Tool) return
+        val tools = message.getTools()
+        if (tools.isEmpty() || tools.any { !it.isExecuted }) return
+        val limit = turn.model.maxContextTokens?.takeIf { it > 0 }
+            ?: turn.model.warnContextTokens?.takeIf { it > 0 }
+            ?: turn.model.contextLength.takeIf { it > 0 }
+            ?: return
+        val estimated = session.state.value.estimateContextTokens()
+        if (estimated < limit) return
+        Log.i(TAG, "runTurn: estimated context $estimated >= $limit, compress before next step")
+        throw LoopCompressionRequested(estimated, limit)
+    }
+
     /** 循环压缩：模型循环里上下文超限时，保留正在生成的回复，压缩它之前的历史 */
     private suspend fun retryWithCompression(session: ConversationSession, error: Throwable): Boolean {
-        if (!error.isContextOverflow()) return false
+        if (error !is LoopCompressionRequested && !error.isContextOverflow()) return false
         val assistant = settingsStore.settingsFlow.value.getAssistantOf(session.state.value)
         if (!assistant.autoCompress || !assistant.autoCompressLoop) return false
         Log.i(TAG, "runTurn: context overflow, compress and retry")
@@ -1125,6 +1150,11 @@ class ChatService(
         session.flush()
     }
 
+    private class LoopCompressionRequested(
+        val estimated: Int,
+        val limit: Int,
+    ) : Exception("estimated context $estimated exceeds limit $limit")
+
     private companion object {
         val CONTEXT_OVERFLOW_HINTS = listOf(
             "context_length_exceeded",
@@ -1136,6 +1166,19 @@ class ChatService(
             "too many tokens",
             "exceeds the maximum number of tokens",
             "reduce the length of the messages",
+            "context limit",
+            "maximum context",
+            "token limit",
+            "context length exceeded",
+            "input tokens exceed",
+            "上下文长度",
+            "上下文窗口",
+            "超出上下文",
+            "超过上下文",
+            "输入过长",
+            "请求过长",
+            "提示词过长",
+            "令牌数",
         )
     }
 

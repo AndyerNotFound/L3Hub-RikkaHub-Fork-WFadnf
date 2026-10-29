@@ -24,6 +24,9 @@ class SettingsTrustManager(
         .filterIsInstance<X509TrustManager>()
         .first()
 
+    // AndroidCAStore 里的 user: 项就是用户在系统设置里安装的 CA；默认 TrustManager 不会带上它们
+    private val userManager: X509TrustManager? by lazy { buildUserCaManager() }
+
     @Volatile
     private var cachedPem: List<String> = emptyList()
 
@@ -34,6 +37,27 @@ class SettingsTrustManager(
         get() = SSLContext.getInstance("TLS").apply {
             init(null, arrayOf(this@SettingsTrustManager), null)
         }
+
+    private fun buildUserCaManager(): X509TrustManager? = runCatching {
+        val androidStore = KeyStore.getInstance(
+            "AndroidCAStore"
+        ).apply { load(null as java.security.KeyStore.LoadStoreParameter?) }
+        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType()).apply { load(null, null) }
+        var index = 0
+        androidStore.aliases().toList()
+            .filter { it.startsWith("user:") }
+            .forEach { alias ->
+                val certificate = androidStore.getCertificate(alias) as? X509Certificate ?: return@forEach
+                keyStore.setCertificateEntry("l3hub-system-user-${index++}", certificate)
+            }
+        if (index == 0) return@runCatching null
+        TrustManagerFactory
+            .getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            .apply { init(keyStore) }
+            .trustManagers
+            .filterIsInstance<X509TrustManager>()
+            .firstOrNull()
+    }.getOrNull()
 
     private fun customManager(): X509TrustManager? {
         val pems = settingsStore.settingsFlow.value.customCaCertificates
@@ -77,10 +101,22 @@ class SettingsTrustManager(
             defaultManager.checkServerTrusted(chain, authType)
             return
         } catch (e: CertificateException) {
+            userManager?.let { manager ->
+                try {
+                    manager.checkServerTrusted(chain, authType)
+                    return
+                } catch (_: CertificateException) {
+                }
+            }
             val custom = customManager() ?: throw e
             custom.checkServerTrusted(chain, authType)
         }
     }
 
-    override fun getAcceptedIssuers(): Array<X509Certificate> = defaultManager.acceptedIssuers
+    override fun getAcceptedIssuers(): Array<X509Certificate> =
+        (defaultManager.acceptedIssuers.toList() +
+            userManager?.acceptedIssuers.orEmpty() +
+            customManager()?.acceptedIssuers.orEmpty())
+            .distinctBy { it.subjectX500Principal.name to it.serialNumber }
+            .toTypedArray()
 }

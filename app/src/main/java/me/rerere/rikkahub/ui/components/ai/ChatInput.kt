@@ -174,6 +174,8 @@ fun ChatInput(
     onStopVoiceMode: () -> Unit = {},
     // 新对话界面把输入框整体上移，放到屏幕中心偏下
     liftedBy: androidx.compose.ui.unit.Dp = 0.dp,
+    // 嵌在页面内容里时由外层负责键盘和导航栏 inset，避免重复留白
+    applyWindowInsets: Boolean = true,
 ) {
     val toaster = LocalToaster.current
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -239,22 +241,26 @@ fun ChatInput(
     // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏
     val scrimColor = MaterialTheme.colorScheme.background
     val imeInsets = WindowInsets.ime
-    Surface(
-        color = Color.Transparent,
-        modifier = Modifier
-            .drawWithCache {
+    // 嵌在空会话页面中间时不需要底部渐变遮罩
+    val scrimModifier = if (applyWindowInsets) {
+        Modifier.drawWithCache {
             val brush = Brush.verticalGradient(
                 colors = listOf(scrimColor.copy(alpha = 0f), scrimColor),
                 startY = 0f,
                 endY = (size.height - imeInsets.getBottom(this)).coerceAtLeast(1f),
             )
             onDrawBehind { drawRect(brush) }
-        },
+        }
+    } else {
+        Modifier
+    }
+    Surface(
+        color = Color.Transparent,
+        modifier = scrimModifier,
     ) {
         Column(
             modifier = modifier
-                .imePadding()
-                .navigationBarsPadding()
+                .then(if (applyWindowInsets) Modifier.imePadding().navigationBarsPadding() else Modifier)
                 .padding(horizontal = 8.dp)
                 .padding(bottom = 8.dp + liftedBy)
                 .animateContentSize(),
