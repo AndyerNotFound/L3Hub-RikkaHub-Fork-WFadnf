@@ -44,17 +44,21 @@ class WorkspaceReminderTransformer(
                 val layout = workspaceRepository.layout(workspaceId) ?: return@forEach
 
                 val prompt = if (workspace.isSsh()) {
-                    val environment = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
+                    val environmentResult = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
                         // shell 探测需要连接, 失败时不再读发行版, 以免再等一次超时
                         RemoteEnvironment(
                             shell = workspaceRepository.shell(workspaceId),
                             distro = readDistroName(workspaceId),
                         )
-                    }.getOrElse { e ->
-                        Log.w("WorkspaceReminder", "Workspace unreachable: $workspaceId", e)
-                        add(workspace to buildUnreachablePrompt(workspace, layout, e))
+                    }
+                    if (environmentResult.isFailure) {
+                        val error = environmentResult.exceptionOrNull()
+                            ?: IllegalStateException("Workspace unreachable: $workspaceId")
+                        Log.w("WorkspaceReminder", "Workspace unreachable: $workspaceId", error)
+                        add(workspace to buildUnreachablePrompt(workspace, layout, error))
                         return@forEach
                     }
+                    val environment = environmentResult.getOrThrow()
                     buildSshWorkspacePrompt(
                         workspace = workspace,
                         layout = layout,

@@ -58,7 +58,7 @@ suspend fun createWorkspaceTools(
     val targets = workspaceIds
         .asSequence()
         .map { it.trim() }
-        .filter(String::isNotEmpty)
+        .filter { it.isNotEmpty() }
         .distinct()
         .mapNotNull { id ->
             val workspace = workspaceRepository.getById(id) ?: return@mapNotNull null
