@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDateTime
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -71,6 +72,21 @@ class ConversationContextTokensTest {
         )
 
         assertEquals(2_000, conversation.lastContextTokens())
+    }
+
+    @Test
+    fun `estimate includes reasoning and image parts`() {
+        val conversation = conversation(
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Reasoning(reasoning = "思".repeat(400)),
+                    UIMessagePart.Image(url = "file:///tmp/image.png"),
+                ),
+            ),
+        )
+
+        assertEquals(404 + 768, conversation.estimateContextTokens())
     }
 
     @Test

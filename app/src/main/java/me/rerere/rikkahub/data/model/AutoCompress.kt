@@ -77,6 +77,8 @@ fun Conversation.keepRecentContextForTokens(targetTokens: Int): ContextTrim {
         var suffixTokens = 0
         for (partIndex in message.parts.indices.reversed()) {
             suffixTokens += partTokens[partIndex]
+            // 空文本/空 part 不能当成切割边界，否则截断后内容没有变化
+            if (partTokens[partIndex] <= 0) continue
             val estimate = used + MESSAGE_TOKEN_OVERHEAD + suffixTokens
             val diff = kotlin.math.abs(targetTokens - estimate)
             if (diff < bestDiff || (diff == bestDiff && estimate <= targetTokens)) {

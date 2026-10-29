@@ -41,6 +41,19 @@ class ContextTrimTest {
     }
 
     @Test
+    fun `empty parts are not chosen as split boundaries`() {
+        val nodes = listOf(
+            UIMessage.user("a".repeat(400)).toMessageNode(),
+            message(text('b', 400), UIMessagePart.Text(""), text('c', 400)).toMessageNode(),
+        )
+        val conversation = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
+
+        val trim = conversation.keepRecentContextForTokens(150)
+
+        assertEquals(ContextTrim(nodeIndex = 1, partIndex = 2), trim)
+    }
+
+    @Test
     fun `reasoning parts count toward context tokens`() {
         val reasoning = UIMessagePart.Reasoning(reasoning = "思".repeat(400))
         val tokens = estimateMessageTokens(message(reasoning))
@@ -59,6 +72,20 @@ class ContextTrimTest {
         val trim = conversation.keepRecentContextForTokens(250)
 
         assertEquals(ContextTrim(nodeIndex = 1, partIndex = 1), trim)
+    }
+
+    @Test
+    fun `token trim ignores history before the last checkpoint`() {
+        val nodes = listOf(
+            UIMessage.user("old".repeat(400)).toMessageNode(),
+            UIMessage.user("summary").copy(isContextCheckpoint = true).toMessageNode(),
+            message(text('a', 400)).toMessageNode(),
+        )
+        val conversation = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
+
+        val trim = conversation.keepRecentContextForTokens(150)
+
+        assertEquals(ContextTrim(nodeIndex = 2), trim)
     }
 
     @Test
@@ -87,17 +114,19 @@ class ContextTrimTest {
     }
 
     @Test
-    fun `checkpoint refuses to truncate the whole message`() {
-        val nodes = listOf(UIMessage.user("hello").toMessageNode(), message(text('a', 8)).toMessageNode())
+    fun `checkpoint keeps the whole message when the part index is out of range`() {
+        val whole = text('a', 8)
+        val nodes = listOf(UIMessage.user("hello").toMessageNode(), message(whole).toMessageNode())
         val conversation = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
 
-        assertNull(
-            conversation.insertContextCheckpoint(
-                afterNodeId = nodes[0].id,
-                summary = "summary",
-                truncateNodeId = nodes[1].id,
-                keepPartsFrom = 1,
-            )
+        val result = conversation.insertContextCheckpoint(
+            afterNodeId = nodes[0].id,
+            summary = "summary",
+            truncateNodeId = nodes[1].id,
+            keepPartsFrom = 1,
         )
+
+        assertEquals(3, result?.messageNodes?.size)
+        assertEquals(listOf(whole), result?.messageNodes?.get(2)?.currentMessage?.parts)
     }
 }

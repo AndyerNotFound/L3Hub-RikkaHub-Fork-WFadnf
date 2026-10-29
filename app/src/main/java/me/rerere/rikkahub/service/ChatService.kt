@@ -65,6 +65,7 @@ import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
 import me.rerere.rikkahub.data.model.editMessage
 import me.rerere.rikkahub.data.model.estimateContextTokens
+import me.rerere.rikkahub.data.model.estimateTokens
 import me.rerere.rikkahub.data.model.fillModelSnapshots
 import me.rerere.rikkahub.data.model.fork
 import me.rerere.rikkahub.data.model.getAssistantOf
@@ -97,6 +98,36 @@ import java.util.Locale
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
+private val CONTEXT_OVERFLOW_HINTS = listOf(
+    "context_length_exceeded",
+    "maximum context length",
+    "context window",
+    "context length",
+    "prompt is too long",
+    "input is too long",
+    "too many tokens",
+    "exceeds the maximum number of tokens",
+    "reduce the length of the messages",
+    "context limit",
+    "maximum context",
+    "token limit",
+    "context length exceeded",
+    "input tokens exceed",
+    "request too large",
+    "payload too large",
+    "exceeds the context window",
+    "maximum number of tokens",
+    "input length",
+    "上下文长度",
+    "上下文窗口",
+    "超出上下文",
+    "超过上下文",
+    "输入过长",
+    "请求过长",
+    "提示词过长",
+    "令牌数",
+)
+private const val CONTEXT_ESTIMATE_SAFETY = 1.1f
 
 data class ChatError(
     val id: Uuid = Uuid.random(),
@@ -109,6 +140,16 @@ data class ChatError(
 
 enum class ChatErrorSolution {
     CheckFastModelSettings,
+}
+
+/** 错误文案里没有列出的超限表达（常见于中转网关）再用一个宽松的语义匹配兜底 */
+internal fun isContextOverflowMessage(message: String): Boolean {
+    val text = message.lowercase()
+    if (CONTEXT_OVERFLOW_HINTS.any { it in text }) return true
+    return Regex(
+        """(?:maximum|max|exceed(?:ed)?).{0,40}(?:context|prompt|input|token).{0,40}(?:length|window|token)""",
+        RegexOption.IGNORE_CASE,
+    ).containsMatchIn(text)
 }
 
 class ChatService(
@@ -800,8 +841,8 @@ class ChatService(
             return TurnResult.Failed
         } catch (e: Exception) {
             // 模型循环里上下文超限：压缩后从当前状态继续这一轮，最多重试一次
-            if (contextRetryCount == 0 && retryWithCompression(session, e)) {
-                return runTurn(session, regenerateNodeId, contextRetryCount = 1)
+            if (contextRetryCount < 2 && retryWithCompression(session, e)) {
+                return runTurn(session, regenerateNodeId, contextRetryCount = contextRetryCount + 1)
             }
             // 兜底取消 Live Update 通知（生成开始前失败时上面的 finally 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
@@ -958,7 +999,15 @@ class ChatService(
         val tools = message.getTools()
         if (tools.isEmpty() || tools.any { !it.isExecuted }) return
         val limit = turn.model.autoCompressLimit(turn.assistant.autoCompressThreshold) ?: return
-        val estimated = session.state.value.estimateContextTokens()
+        val systemPrompt = if (turn.assistant.allowConversationSystemPrompt) {
+            turn.conversationSystemPrompt.orEmpty()
+        } else {
+            turn.assistant.systemPrompt
+        }
+        val estimated = (
+            (session.state.value.estimateContextTokens() + estimateTokens(systemPrompt)) *
+                CONTEXT_ESTIMATE_SAFETY
+            ).toInt()
         if (estimated < limit) return
         Log.i(TAG, "runTurn: estimated context $estimated >= $limit, compress before next step")
         throw LoopCompressionRequested(estimated, limit)
@@ -967,7 +1016,7 @@ class ChatService(
     /** 循环压缩：模型循环里上下文超限时，保留正在生成的回复，压缩它之前的历史 */
     private suspend fun retryWithCompression(session: ConversationSession, error: Throwable): Boolean {
         if (error !is LoopCompressionRequested && !error.isContextOverflow()) return false
-        val assistant = settingsStore.settingsFlow.value.getAssistantOf(session.state.value)
+        val assistant = settingsStore.awaitLoaded().getAssistantOf(session.state.value)
         if (!assistant.autoCompress || !assistant.autoCompressLoop) return false
         Log.i(TAG, "runTurn: context overflow, compress and retry")
         return autoCompressIfNeeded(session, force = true, keepTailNodes = 1)
@@ -998,7 +1047,16 @@ class ChatService(
         // 真实用量偶尔缺失（回复没写入 usage、压缩后还没开始下一轮），退回按字符估算；
         // 估算只数检查点之后的可见内容，不含系统提示词与工具定义，作为兜底下限使用
         val used = conversation.lastContextTokens()
-        val estimated = conversation.estimateContextTokens()
+        val systemPrompt = if (assistant.allowConversationSystemPrompt &&
+            !conversation.customSystemPrompt.isNullOrBlank()) {
+            conversation.customSystemPrompt.orEmpty()
+        } else {
+            assistant.systemPrompt
+        }
+        val estimated = (
+            (conversation.estimateContextTokens() + estimateTokens(systemPrompt)) *
+                CONTEXT_ESTIMATE_SAFETY
+            ).toInt()
         if (!force && (limit == null || ((used ?: 0) < limit && estimated < limit))) {
             Log.d(TAG, "autoCompress: skip used=$used estimated=$estimated limit=$limit")
             return false
@@ -1011,7 +1069,7 @@ class ChatService(
             Log.d(TAG, "autoCompress: nothing to compress, compressible=$compressible")
             return false
         }
-        val trim = if (keepTailNodes != null) {
+        val preferredTrim = if (keepTailNodes != null) {
             ContextTrim((conversation.messageNodes.size - keepTailNodes).coerceAtLeast(checkpointIndex + 1))
         } else {
             when (assistant.autoCompressTarget) {
@@ -1021,6 +1079,12 @@ class ChatService(
                 AutoCompressTarget.TOKENS ->
                     conversation.keepRecentContextForTokens(assistant.autoCompressTargetValue)
             }
+        }
+        // 循环压缩没有可保留的尾条空间时，退化为压缩全部历史；继续放弃会让整轮直接报错
+        val trim = if (force && keepTailNodes != null && preferredTrim.nodeIndex <= checkpointIndex + 1) {
+            ContextTrim(conversation.messageNodes.size)
+        } else {
+            preferredTrim
         }
         val onlyCheckpointTail = trim.nodeIndex == checkpointIndex + 1
         if (trim.nodeIndex < checkpointIndex + 1 ||
@@ -1066,8 +1130,7 @@ class ChatService(
         val text = generateSequence(this) { it.cause }
             .mapNotNull { it.message }
             .joinToString("\n")
-            .lowercase()
-        return CONTEXT_OVERFLOW_HINTS.any { it in text }
+        return isContextOverflowMessage(text)
     }
 
     private suspend fun compressSession(
@@ -1102,12 +1165,7 @@ class ChatService(
         }
         // partIndex 指向 endIndex 这条消息内部：前半段进摘要，后半段留在检查点之后
         val splitNode = if (trim.partIndex > 0) {
-            val node = nodes.getOrNull(endIndex)
-                ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_conversation_changed))
-            check(trim.partIndex < node.currentMessage.parts.size) {
-                context.getString(R.string.chat_page_compress_conversation_changed)
-            }
-            node
+            nodes.getOrNull(endIndex)?.takeIf { trim.partIndex < it.currentMessage.parts.size }
         } else {
             null
         }
@@ -1159,38 +1217,6 @@ class ChatService(
         val estimated: Int,
         val limit: Int,
     ) : Exception("estimated context $estimated exceeds limit $limit")
-
-    private companion object {
-        val CONTEXT_OVERFLOW_HINTS = listOf(
-            "context_length_exceeded",
-            "maximum context length",
-            "context window",
-            "context length",
-            "prompt is too long",
-            "input is too long",
-            "too many tokens",
-            "exceeds the maximum number of tokens",
-            "reduce the length of the messages",
-            "context limit",
-            "maximum context",
-            "token limit",
-            "context length exceeded",
-            "input tokens exceed",
-            "request too large",
-            "payload too large",
-            "exceeds the context window",
-            "maximum number of tokens",
-            "input length",
-            "上下文长度",
-            "上下文窗口",
-            "超出上下文",
-            "超过上下文",
-            "输入过长",
-            "请求过长",
-            "提示词过长",
-            "令牌数",
-        )
-    }
 
     // ---- 聊天页配置 ----
 

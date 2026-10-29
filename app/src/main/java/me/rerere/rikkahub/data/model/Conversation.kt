@@ -196,16 +196,18 @@ internal fun Conversation.insertContextCheckpoint(
         if (truncateIndex == -1) return null
         val node = nodes[truncateIndex]
         val message = node.currentMessage
-        if (keepPartsFrom >= message.parts.size) return null
-        nodes[truncateIndex] = node.copy(
-            messages = node.messages.mapIndexed { messageIndex, item ->
-                if (messageIndex == node.selectIndex) {
-                    item.copy(parts = item.parts.drop(keepPartsFrom))
-                } else {
-                    item
-                }
-            },
-        )
+        // partIndex 已经越过末尾时保留整条消息，仍然插入检查点，避免整次压缩失败
+        if (keepPartsFrom < message.parts.size) {
+            nodes[truncateIndex] = node.copy(
+                messages = node.messages.mapIndexed { messageIndex, item ->
+                    if (messageIndex == node.selectIndex) {
+                        item.copy(parts = item.parts.drop(keepPartsFrom))
+                    } else {
+                        item
+                    }
+                },
+            )
+        }
     }
     val checkpoint = UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode()
     nodes.add(index + 1, checkpoint)
