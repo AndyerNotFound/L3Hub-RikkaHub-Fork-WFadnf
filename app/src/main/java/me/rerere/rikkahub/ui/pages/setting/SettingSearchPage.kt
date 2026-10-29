@@ -25,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -134,19 +133,6 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                         },
                         onDelete = {
                             deleteTarget = service
-                        },
-                        enabled = service.id.toString() in settings.enabledSearchServiceIds,
-                        onToggle = {
-                            val id = service.id.toString()
-                            vm.updateSettings { latest ->
-                                latest.copy(
-                                    enabledSearchServiceIds = if (id in latest.enabledSearchServiceIds) {
-                                        latest.enabledSearchServiceIds - id
-                                    } else {
-                                        latest.enabledSearchServiceIds + id
-                                    }
-                                )
-                            }
                         },
                         canDelete = settings.searchServices.size > 1,
                         modifier = Modifier
@@ -284,8 +270,6 @@ private fun SearchProviderCard(
     service: SearchServiceOptions,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    enabled: Boolean,
-    onToggle: () -> Unit,
     canDelete: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -318,11 +302,6 @@ private fun SearchProviderCard(
                 )
                 SearchAbilityTagLine(options = service)
             }
-
-            Switch(
-                checked = enabled,
-                onCheckedChange = { onToggle() },
-            )
 
             ItemActionMenu(
                 actions = listOf(

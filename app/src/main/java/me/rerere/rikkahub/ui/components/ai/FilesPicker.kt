@@ -114,7 +114,7 @@ internal fun FilesPicker(
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateWorkspaceCwd: (String?) -> Unit,
     onUpdateSearchMode: (SearchMode) -> Unit,
-    onUpdateSearchService: (Int) -> Unit,
+    onToggleSearchService: (String) -> Unit,
     showCompressDialog: Boolean,
     onShowCompressDialogChange: (Boolean) -> Unit,
     onDismiss: () -> Unit,
@@ -185,10 +185,7 @@ internal fun FilesPicker(
 
             FilesPickerPage.SEARCH_PROVIDER -> SearchProviderPicker(
                 settings = settings,
-                onUpdateSearchService = { index ->
-                    onUpdateSearchService(index)
-                    page = FilesPickerPage.SEARCH
-                },
+                onToggleSearchService = onToggleSearchService,
                 onBack = { page = FilesPickerPage.SEARCH },
             )
 

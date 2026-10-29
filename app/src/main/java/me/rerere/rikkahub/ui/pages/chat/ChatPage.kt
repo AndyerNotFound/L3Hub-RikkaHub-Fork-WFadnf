@@ -748,8 +748,22 @@ private fun ChatFilesPickerSheet(
                     builtInSearch = mode == SearchMode.BUILT_IN,
                 )
             },
-            onUpdateSearchService = { index ->
-                vm.updateSettings { it.copy(searchServiceSelected = index) }
+            onToggleSearchService = { id ->
+                vm.updateSettings { latest ->
+                    val defaultId = latest.searchServices
+                        .getOrNull(latest.searchServiceSelected)
+                        ?.id
+                        ?.toString()
+                    val current = latest.enabledSearchServiceIds.ifEmpty {
+                        if (defaultId != null) setOf(defaultId) else emptySet()
+                    }
+                    val next = when {
+                        id !in current -> current + id
+                        current.size > 1 -> current - id
+                        else -> current
+                    }
+                    latest.copy(enabledSearchServiceIds = next)
+                }
             },
             showCompressDialog = showCompressDialog,
             onShowCompressDialogChange = { showCompressDialog = it },

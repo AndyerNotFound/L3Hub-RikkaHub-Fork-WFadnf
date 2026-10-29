@@ -25,13 +25,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
@@ -67,6 +68,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
+import me.rerere.search.SearchServiceOptions
 
 enum class SearchMode {
     OFF,
@@ -83,6 +85,17 @@ internal fun searchModeOf(enableSearch: Boolean, model: Model?): SearchMode = wh
     else -> SearchMode.OFF
 }
 
+private fun Settings.effectiveSearchServiceIds(): Set<String> {
+    if (enabledSearchServiceIds.isNotEmpty()) return enabledSearchServiceIds
+    val defaultId = searchServices.getOrNull(searchServiceSelected)?.id?.toString()
+    return if (defaultId != null) setOf(defaultId) else emptySet()
+}
+
+private fun Settings.selectedSearchServices(): List<SearchServiceOptions> {
+    val ids = effectiveSearchServiceIds()
+    return searchServices.filter { it.id.toString() in ids }
+}
+
 // 加号 sheet 里的联网搜索入口
 @Composable
 internal fun SearchPickerListItem(
@@ -94,7 +107,9 @@ internal fun SearchPickerListItem(
     onClick: () -> Unit,
 ) {
     val mode = searchModeOf(enableSearch, model)
-    val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+    val selectedServices = settings.selectedSearchServices()
+    val currentService = selectedServices.firstOrNull()
+        ?: settings.searchServices.getOrNull(settings.searchServiceSelected)
 
     SegmentedListItem(
         onClick = onClick,
@@ -117,8 +132,12 @@ internal fun SearchPickerListItem(
             Text(
                 text = when (mode) {
                     SearchMode.OFF -> stringResource(R.string.search_picker_status_off)
-                    SearchMode.LOCAL -> currentService?.displayName
-                        ?: stringResource(R.string.search_picker_local_title)
+                    SearchMode.LOCAL -> if (selectedServices.size > 1) {
+                        stringResource(R.string.search_picker_selected_count, selectedServices.size)
+                    } else {
+                        currentService?.displayName
+                            ?: stringResource(R.string.search_picker_local_title)
+                    }
 
                     SearchMode.BUILT_IN -> stringResource(R.string.search_picker_model_title)
                 },
@@ -188,7 +207,9 @@ private fun SearchPicker(
         if (showModelSearch) add(SearchMode.BUILT_IN)
     }
 
-    val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
+    val selectedServices = settings.selectedSearchServices()
+    val currentService = selectedServices.firstOrNull()
+        ?: settings.searchServices.getOrNull(settings.searchServiceSelected)
 
     Column(
         modifier = Modifier
@@ -311,8 +332,12 @@ private fun SearchPicker(
                         Icon(HugeIcons.GlobalSearch, contentDescription = null)
                     }
                 },
-                supportingContent = currentService?.let {
-                    { SearchAbilityTagLine(options = it) }
+                supportingContent = {
+                    if (selectedServices.size > 1) {
+                        Text(stringResource(R.string.search_picker_multi_hint))
+                    } else {
+                        currentService?.let { SearchAbilityTagLine(options = it) }
+                    }
                 },
                 trailingContent = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -333,8 +358,12 @@ private fun SearchPicker(
                 },
             ) {
                 Text(
-                    text = currentService?.displayName
-                        ?: stringResource(R.string.search_picker_select_provider)
+                    text = if (selectedServices.size > 1) {
+                        stringResource(R.string.search_picker_selected_count, selectedServices.size)
+                    } else {
+                        currentService?.displayName
+                            ?: stringResource(R.string.search_picker_select_provider)
+                    }
                 )
             }
         }
@@ -356,10 +385,11 @@ private fun SearchMode.shape(): RoundedPolygon = when (this) {
 @Composable
 internal fun SearchProviderPicker(
     settings: Settings,
-    onUpdateSearchService: (Int) -> Unit,
+    onToggleSearchService: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val services = settings.searchServices
+    val selectedIds = settings.effectiveSearchServiceIds()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -373,6 +403,17 @@ internal fun SearchProviderPicker(
                     Icon(HugeIcons.ArrowLeft01, contentDescription = stringResource(R.string.back))
                 }
             },
+            actions = {
+                TextButton(onClick = onBack) {
+                    Text(stringResource(R.string.search_picker_done))
+                }
+            },
+        )
+        Text(
+            text = stringResource(R.string.search_picker_multi_hint),
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         LazyColumn(
             modifier = Modifier
@@ -382,10 +423,11 @@ internal fun SearchProviderPicker(
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             itemsIndexed(services) { index, service ->
-                val selected = settings.searchServiceSelected == index
+                val serviceId = service.id.toString()
+                val selected = serviceId in selectedIds
                 SegmentedListItem(
                     selected = selected,
-                    onClick = { onUpdateSearchService(index) },
+                    onClick = { onToggleSearchService(serviceId) },
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = services.size),
                     leadingContent = {
                         AutoAIIcon(
@@ -397,7 +439,7 @@ internal fun SearchProviderPicker(
                         SearchAbilityTagLine(options = service)
                     },
                     trailingContent = {
-                        RadioButton(selected = selected, onClick = null)
+                        Checkbox(checked = selected, onCheckedChange = null)
                     },
                 ) {
                     Text(service.displayName)

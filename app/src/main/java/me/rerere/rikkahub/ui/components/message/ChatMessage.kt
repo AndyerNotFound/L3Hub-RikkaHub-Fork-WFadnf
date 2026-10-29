@@ -70,7 +70,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
-import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.FlowPreview
@@ -512,13 +511,20 @@ private fun MessagePartsBlock(
     } else {
         emptyList()
     }
-    // 只有纯思考块时交给原版折叠；带工具调用的循环链整体再折一层
+    // 正文之前的思考/工具内容整体再折叠一层；单个纯思考链也统一走这层折叠
     val hasToolChain = blocksBeforeBody.any { block ->
         block is MessagePartBlock.ThinkingBlock && block.steps.any { step ->
             step is ThinkingStep.ToolStep || step is ThinkingStep.ServerToolStep
         }
     }
-    val hiddenBlocks = if (lastBodyIndex > 1 || hasToolChain) blocksBeforeBody else emptyList()
+    // 单一的纯思考链也走和循环链相同的外层折叠，不再退回原版内联形态
+    val onlyThinkingBeforeBody = blocksBeforeBody.isNotEmpty() &&
+        blocksBeforeBody.all { it is MessagePartBlock.ThinkingBlock }
+    val hiddenBlocks = if (lastBodyIndex > 1 || hasToolChain || onlyThinkingBeforeBody) {
+        blocksBeforeBody
+    } else {
+        emptyList()
+    }
     // 等待审批的工具不能藏起来，否则用户看不到审批按钮
     val hiddenPendingTool = hiddenBlocks.any { block ->
         block is MessagePartBlock.ThinkingBlock && block.steps.any { it is ThinkingStep.ToolStep && it.tool.isPending }
@@ -540,7 +546,6 @@ private fun MessagePartsBlock(
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {
-                    val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     // 等待审批的工具不能折叠起来，否则用户看不到审批按钮，这一轮会一直卡在等待审批
                     val firstPendingIndex = block.steps.indexOfFirst { it is ThinkingStep.ToolStep && it.tool.isPending }
                     val collapsedVisibleCount = if (firstPendingIndex == -1) {
@@ -570,7 +575,6 @@ private fun MessagePartsBlock(
                             ),
                         steps = block.steps,
                         collapsedVisibleCount = collapsedVisibleCount,
-                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
                         border = if (chainEffect == BackgroundEffectType.BLUR) {
                             BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         } else {
@@ -591,7 +595,6 @@ private fun MessagePartsBlock(
                                         reasoning = step.reasoning,
                                         model = model,
                                         assistant = assistant,
-                                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
                                     )
                                 }
                             }
@@ -812,12 +815,17 @@ private fun ChatMessageBubble(
     } else {
         Modifier
     }
-    val bubbleColor = if (useEffect) Color.Transparent else color
+    val bubbleColor = if (useEffect) {
+        color.copy(alpha = color.alpha * 0.65f)
+    } else {
+        color
+    }
     val contentColor = contentColorFor(color)
     Box(
         modifier = modifier
             .then(if (useEffect) Modifier.graphicsLayer(shape = shape, clip = true) else Modifier)
             .clipDrawing(shape)
+            .then(hazeModifier)
             .background(bubbleColor)
             .then(
                 if (effect == BackgroundEffectType.BLUR) {
@@ -830,7 +838,6 @@ private fun ChatMessageBubble(
                     Modifier
                 },
             )
-            .then(hazeModifier)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick)

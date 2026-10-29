@@ -48,7 +48,6 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
-import me.rerere.rikkahub.ui.components.ui.LocalChainOfThoughtCollapsed
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractThinkingTitle
@@ -200,14 +199,13 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     collapsedAdaptiveWidth: Boolean = false,
 ) {
     val (state, loading) = rememberReasoningState(reasoning)
-    val collapsedByChain = LocalChainOfThoughtCollapsed.current
     val thinkingTitle = reasoning.reasoning.extractThinkingTitle()
     val showThinkingTitle = loading && thinkingTitle != null
     val chatFontFamily = LocalTextStyle.current.fontFamily
 
     ControlledChainOfThoughtStep(
-        expanded = !collapsedByChain && state.expandState == ReasoningCardState.Expanded,
-        onExpandedChange = { if (!collapsedByChain) state.onExpandedChange(it, loading) },
+        expanded = state.expandState == ReasoningCardState.Expanded,
+        onExpandedChange = { state.onExpandedChange(it, loading) },
         icon = {
             Icon(
                 imageVector = HugeIcons.Idea01,

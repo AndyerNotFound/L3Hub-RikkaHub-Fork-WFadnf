@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.mutableIntStateOf
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
@@ -43,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -106,10 +109,10 @@ fun ReasoningButton(
                 contentAlignment = Alignment.Center
             ) {
                 if (useL3HubStyle) {
-                    Text(
-                        text = reasoningLevel.letter(),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(reasoningLevel.indicatorColor(), CircleShape),
                     )
                 } else {
                     Icon(reasoningLevel.icon(), null)
@@ -213,11 +216,13 @@ fun ReasoningPicker(
                     icon = previewLevel.icon(),
                     letter = if (useL3HubStyle) previewLevel.letter() else null,
                     containerColor = when {
+                        useL3HubStyle -> previewLevel.indicatorColor()
                         !previewLevel.isEnabled -> MaterialTheme.colorScheme.surfaceContainerHighest
                         previewLevel >= ReasoningLevel.HIGH -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.primaryContainer
                     },
                     contentColor = when {
+                        useL3HubStyle -> Color.White
                         !previewLevel.isEnabled -> MaterialTheme.colorScheme.onSurfaceVariant
                         previewLevel >= ReasoningLevel.HIGH -> MaterialTheme.colorScheme.onPrimary
                         else -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -282,7 +287,7 @@ private fun ReasoningLevel.shape(): RoundedPolygon = when (this) {
     ReasoningLevel.HIGH -> MaterialShapes.Cookie9Sided
     ReasoningLevel.XHIGH -> MaterialShapes.Cookie12Sided
     ReasoningLevel.MAX -> MaterialShapes.SoftBurst
-    ReasoningLevel.ULTRA -> MaterialShapes.Circle
+    ReasoningLevel.ULTRA -> MaterialShapes.Sunny
 }
 
 @Composable
@@ -308,6 +313,17 @@ private fun ReasoningLevel.letter(): String = when (this) {
     ReasoningLevel.ULTRA -> "U"
 }
 
+private fun ReasoningLevel.indicatorColor(): Color = when (this) {
+    ReasoningLevel.OFF -> Color(0xFF8A8A8A)
+    ReasoningLevel.AUTO -> Color(0xFF43A047)
+    ReasoningLevel.LOW -> Color(0xFF7CB342)
+    ReasoningLevel.MEDIUM -> Color(0xFFC0CA33)
+    ReasoningLevel.HIGH -> Color(0xFFFFB300)
+    ReasoningLevel.XHIGH -> Color(0xFFFF9800)
+    ReasoningLevel.MAX -> Color(0xFFF4511E)
+    ReasoningLevel.ULTRA -> Color(0xFFE53935)
+}
+
 @Composable
 private fun LinearReasoningSlider(
     level: ReasoningLevel,
@@ -322,12 +338,7 @@ private fun LinearReasoningSlider(
         previewIndex = levels.indexOf(level).coerceAtLeast(0)
     }
 
-    val primary = MaterialTheme.colorScheme.primary
-    val onPrimary = MaterialTheme.colorScheme.onPrimary
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val disabledThumbColor = MaterialTheme.colorScheme.surfaceContainerHighest
-    val disabledThumbContent = MaterialTheme.colorScheme.onSurfaceVariant
     val letterStyle = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
     val thumbLetterStyle = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
 
@@ -386,7 +397,7 @@ private fun LinearReasoningSlider(
         )
         if (progress > 0f) {
             drawRoundRect(
-                color = primary,
+                color = levels[previewIndex].indicatorColor(),
                 topLeft = Offset(trackLeft, trackY - trackHeight / 2f),
                 size = Size(trackWidth * progress, trackHeight),
                 cornerRadius = cornerRadius,
@@ -398,7 +409,9 @@ private fun LinearReasoningSlider(
             val active = index == previewIndex
             val label = textMeasurer.measure(
                 text = AnnotatedString(item.letter()),
-                style = letterStyle.copy(color = if (active) primary else labelColor),
+                style = letterStyle.copy(
+                    color = item.indicatorColor().copy(alpha = if (active) 1f else 0.55f),
+                ),
             )
             drawText(
                 textLayoutResult = label,
@@ -411,8 +424,8 @@ private fun LinearReasoningSlider(
 
         val thumbX = trackLeft + trackWidth * progress
         val thumbRadius = 15.dp.toPx()
-        val thumbColor = if (levels[previewIndex].isEnabled) primary else disabledThumbColor
-        val thumbContentColor = if (levels[previewIndex].isEnabled) onPrimary else disabledThumbContent
+        val thumbColor = levels[previewIndex].indicatorColor()
+        val thumbContentColor = Color.White
         drawCircle(color = thumbColor, radius = thumbRadius, center = Offset(thumbX, trackY))
         val thumbLetter = textMeasurer.measure(
             text = AnnotatedString(levels[previewIndex].letter()),
