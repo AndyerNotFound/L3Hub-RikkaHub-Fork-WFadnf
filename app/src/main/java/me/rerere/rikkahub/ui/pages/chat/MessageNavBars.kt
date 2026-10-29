@@ -134,8 +134,10 @@ fun MessageNavBars(
             contentAlignment = if (onLeft) Alignment.CenterStart else Alignment.CenterEnd,
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(vertical = 16.dp, horizontal = 4.dp),
+                verticalArrangement = Arrangement.SpaceEvenly,
                 horizontalAlignment = if (onLeft) Alignment.Start else Alignment.End,
             ) {
                 repeat(barsCount) { index ->
