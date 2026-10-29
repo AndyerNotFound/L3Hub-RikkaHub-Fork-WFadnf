@@ -36,6 +36,10 @@ data class UIMessage(
     val translation: String? = null,
     // 压缩检查点：此消息是它之前全部历史的摘要，组装请求时从最后一个检查点开始取
     val isContextCheckpoint: Boolean = false,
+    // 检查点在一条消息中间切开时，这条消息只有从该 part 开始的后缀会发给模型；
+    // 消息本身仍保留全部 part 供聊天页查看
+    val contextStartMessageId: Uuid? = null,
+    val contextStartPartIndex: Int = 0,
     // 请求期间生成的内部消息；该标记仅在内存中使用
     @Transient
     val isSynthetic: Boolean = false,
@@ -182,12 +186,28 @@ private const val CONTEXT_KEEP_RATIO = 0.5f
  * 先丢弃最后一个压缩检查点之前的消息(它们只保留给用户查看), 再按 [limit] 限制条数。
  * 检查点本身是被压缩历史的唯一来源, 始终保留, 条数限制只作用于它之后的消息。
  *
+ * 检查点记录了 part 边界压缩时, 被切开的这条消息只取 [UIMessage.contextStartPartIndex]
+ * 之后的后缀; 会话里存的原文保持完整。
+ *
  * @param limit 触发截断的消息条数上限, 小于等于 0 表示不限制
  */
 fun List<UIMessage>.limitContext(limit: Int): List<UIMessage> {
     val checkpointIndex = indexOfLast { it.isContextCheckpoint }
     if (checkpointIndex < 0) return limitMessageCount(limit)
-    return listOf(this[checkpointIndex]) + subList(checkpointIndex + 1, size).limitMessageCount(limit)
+    val checkpoint = this[checkpointIndex]
+    val context = listOf(checkpoint) + subList(checkpointIndex + 1, size).limitMessageCount(limit)
+
+    val startMessageId = checkpoint.contextStartMessageId ?: return context
+    val startPartIndex = checkpoint.contextStartPartIndex
+    if (startPartIndex <= 0) return context
+    return context.map { message ->
+        // 消息被编辑或删除后下标对不上时宁可整条发出去, 也不要凭空丢内容
+        if (message.id == startMessageId && startPartIndex < message.parts.size) {
+            message.copy(parts = message.parts.drop(startPartIndex))
+        } else {
+            message
+        }
+    }
 }
 
 /**

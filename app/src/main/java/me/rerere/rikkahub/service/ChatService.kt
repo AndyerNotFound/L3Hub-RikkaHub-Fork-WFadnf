@@ -1172,7 +1172,7 @@ class ChatService(
             val updated = latest.insertContextCheckpoint(
                 afterNodeId = nodes[endIndex - 1].id,
                 summary = summary,
-                truncateNodeId = splitNode?.id,
+                splitMessageId = splitNode?.currentMessage?.id,
                 keepPartsFrom = trim.partIndex,
             ) ?: throw IllegalStateException(context.getString(R.string.chat_page_compress_conversation_changed))
             updated.copy(chatSuggestions = emptyList())

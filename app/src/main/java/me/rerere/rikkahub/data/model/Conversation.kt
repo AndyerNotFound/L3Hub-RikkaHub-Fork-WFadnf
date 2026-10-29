@@ -179,39 +179,23 @@ fun Conversation.lastContextTokens(): Int? {
 /**
  * 在 [afterNodeId] 节点之后插入压缩检查点；该节点已不存在时返回 null。
  *
- * [truncateNodeId] 不为空时，把这条消息当前选中的版本只保留从 [keepPartsFrom] 开始的 part：
- * 被截掉的前半段已经写进摘要，保留的后半段继续留在检查点之后。
+ * [splitMessageId] 不为空时，检查点只让这条消息从 [keepPartsFrom] 开始的 part 发给模型。
+ * 原文不会被删改，聊天页仍能看到完整内容；被截掉的前半段已经写进摘要。
  */
 internal fun Conversation.insertContextCheckpoint(
     afterNodeId: Uuid,
     summary: String,
-    truncateNodeId: Uuid? = null,
+    splitMessageId: Uuid? = null,
     keepPartsFrom: Int = 0,
 ): Conversation? {
     val index = messageNodes.indexOfFirst { it.id == afterNodeId }
     if (index == -1) return null
     val nodes = messageNodes.toMutableList()
-    if (truncateNodeId != null && keepPartsFrom > 0) {
-        val truncateIndex = nodes.indexOfFirst { it.id == truncateNodeId }
-        // 目标节点已经变化时不再截断，但检查点仍然插入；整次压缩不应因此失败
-        if (truncateIndex != -1) {
-            val node = nodes[truncateIndex]
-            val message = node.currentMessage
-            // partIndex 已经越过末尾时保留整条消息
-            if (keepPartsFrom < message.parts.size) {
-                nodes[truncateIndex] = node.copy(
-                    messages = node.messages.mapIndexed { messageIndex, item ->
-                        if (messageIndex == node.selectIndex) {
-                            item.copy(parts = item.parts.drop(keepPartsFrom))
-                        } else {
-                            item
-                        }
-                    },
-                )
-            }
-        }
-    }
-    val checkpoint = UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode()
+    val checkpoint = UIMessage.user(summary).copy(
+        isContextCheckpoint = true,
+        contextStartMessageId = splitMessageId?.takeIf { keepPartsFrom > 0 },
+        contextStartPartIndex = keepPartsFrom.coerceAtLeast(0),
+    ).toMessageNode()
     nodes.add(index + 1, checkpoint)
     return copy(messageNodes = nodes)
 }

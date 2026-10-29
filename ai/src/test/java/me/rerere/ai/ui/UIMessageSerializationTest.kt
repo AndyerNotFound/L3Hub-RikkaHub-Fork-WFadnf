@@ -32,6 +32,31 @@ class UIMessageSerializationTest {
     }
 
     @Test
+    fun `context split metadata survives serialization`() {
+        val messageId = Uuid.random()
+        val message = UIMessage.user("summary").copy(
+            isContextCheckpoint = true,
+            contextStartMessageId = messageId,
+            contextStartPartIndex = 2,
+        )
+
+        val decoded = Json.decodeFromString<UIMessage>(Json.encodeToString(message))
+
+        assertEquals(messageId, decoded.contextStartMessageId)
+        assertEquals(2, decoded.contextStartPartIndex)
+    }
+
+    @Test
+    fun `messages without context split metadata decode with no split`() {
+        val legacy = """{"id":"00000000-0000-0000-0000-000000000001","role":"user","parts":[]}"""
+
+        val decoded = Json.decodeFromString<UIMessage>(legacy)
+
+        assertNull(decoded.contextStartMessageId)
+        assertEquals(0, decoded.contextStartPartIndex)
+    }
+
+    @Test
     fun `messages stored before checkpoints existed decode as ordinary messages`() {
         val legacy = """{"id":"00000000-0000-0000-0000-000000000001","role":"user","parts":[]}"""
 

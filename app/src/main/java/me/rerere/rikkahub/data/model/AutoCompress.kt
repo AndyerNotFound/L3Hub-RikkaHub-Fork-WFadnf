@@ -5,6 +5,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.limitContext
 
 /** 自动压缩的触发点：上下文占用到达模型配置的 WARN 或 MAX 门限 */
 @Serializable
@@ -92,14 +93,9 @@ fun Conversation.keepRecentContextForTokens(targetTokens: Int): ContextTrim {
     return ContextTrim(index + 1)
 }
 
-/** 压缩检查点之后的上下文 token 估算；压缩前的老消息已经不会再发出去，不计入 */
-fun Conversation.estimateContextTokens(): Int {
-    val checkpointIndex = messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
-    val nodes = if (checkpointIndex >= 0) messageNodes.drop(checkpointIndex) else messageNodes
-    return nodes.sumOf { node ->
-        node.messages.getOrNull(node.selectIndex)?.let { estimateMessageTokens(it) } ?: 0
-    }
-}
+/** 实际会发给模型的上下文 token 估算；压缩前的老消息和 part 边界之前的内容都不计入 */
+fun Conversation.estimateContextTokens(): Int =
+    currentMessages.limitContext(0).sumOf(::estimateMessageTokens)
 
 /** 单条消息的 token 估算，工具调用的输入输出也算在内 */
 internal fun estimateMessageTokens(message: UIMessage): Int =

@@ -4,6 +4,7 @@ import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.uuid.Uuid
 
 class MessageContextLimitTest {
     @Test
@@ -182,6 +183,52 @@ class MessageContextLimitTest {
 
         // 检查点之后有 15 条: limit=10 -> startIndex=10, 即保留最后 5 条
         assertEquals(listOf(messages[4]) + messages.subList(15, 20), result)
+    }
+
+    @Test
+    fun `limitContext should only drop the summarized prefix of a split message`() {
+        val split = UIMessage.assistant("").copy(
+            parts = listOf(
+                UIMessagePart.Text("summarized"),
+                UIMessagePart.Text("kept 1"),
+                UIMessagePart.Text("kept 2"),
+            )
+        )
+        val checkpoint = UIMessage.user("summary").copy(
+            isContextCheckpoint = true,
+            contextStartMessageId = split.id,
+            contextStartPartIndex = 1,
+        )
+        val messages = listOf(UIMessage.user("old"), checkpoint, split)
+
+        assertEquals(
+            listOf(checkpoint, split.copy(parts = split.parts.drop(1))),
+            messages.limitContext(0),
+        )
+    }
+
+    @Test
+    fun `limitContext keeps the whole message when the split target is gone`() {
+        val checkpoint = UIMessage.user("summary").copy(
+            isContextCheckpoint = true,
+            contextStartMessageId = Uuid.random(),
+            contextStartPartIndex = 2,
+        )
+        val messages = listOf(checkpoint, UIMessage.user("hi"))
+
+        assertEquals(messages, messages.limitContext(0))
+    }
+
+    @Test
+    fun `limitContext keeps a split message shorter than the recorded part index`() {
+        val split = UIMessage.assistant("").copy(parts = listOf(UIMessagePart.Text("only")))
+        val checkpoint = UIMessage.user("summary").copy(
+            isContextCheckpoint = true,
+            contextStartMessageId = split.id,
+            contextStartPartIndex = 3,
+        )
+
+        assertEquals(listOf(checkpoint, split), listOf(checkpoint, split).limitContext(0))
     }
 
     @Test

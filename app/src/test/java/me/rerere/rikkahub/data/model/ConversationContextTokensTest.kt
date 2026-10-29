@@ -90,6 +90,26 @@ class ConversationContextTokensTest {
     }
 
     @Test
+    fun `estimate excludes the summarized prefix of a split message`() {
+        val split = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("a".repeat(400)),
+                UIMessagePart.Text("b".repeat(400)),
+            ),
+        )
+        val source = conversation(UIMessage.user("hello"), split)
+        val result = source.insertContextCheckpoint(
+            afterNodeId = source.messageNodes[0].id,
+            summary = "摘要",
+            splitMessageId = split.id,
+            keepPartsFrom = 1,
+        )!!
+
+        assertEquals(4 + 2 + 4 + 100, result.estimateContextTokens())
+    }
+
+    @Test
     fun `returns null without any reply`() {
         assertNull(conversation(UIMessage.user("hi")).lastContextTokens())
     }
