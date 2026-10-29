@@ -661,7 +661,8 @@ fun Button(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {    Button(
+) {
+    Button(
         onClick = onClick,
         shape = shapes.shape,
         modifier = modifier,
@@ -673,6 +674,7 @@ fun Button(
         interactionSource = interactionSource,
         content = content,
     )
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -687,7 +689,8 @@ fun TextButton(
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {    TextButton(
+) {
+    TextButton(
         onClick = onClick,
         shape = shapes.shape,
         modifier = modifier,
@@ -699,6 +702,7 @@ fun TextButton(
         interactionSource = interactionSource,
         content = content,
     )
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -713,7 +717,8 @@ fun OutlinedButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {    OutlinedButton(
+) {
+    OutlinedButton(
         onClick = onClick,
         shape = shapes.shape,
         modifier = modifier,
@@ -725,6 +730,7 @@ fun OutlinedButton(
         interactionSource = interactionSource,
         content = content,
     )
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -739,7 +745,8 @@ fun FilledTonalButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {    FilledTonalButton(
+) {
+    FilledTonalButton(
         onClick = onClick,
         shape = shapes.shape,
         modifier = modifier,
@@ -751,6 +758,7 @@ fun FilledTonalButton(
         interactionSource = interactionSource,
         content = content,
     )
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
