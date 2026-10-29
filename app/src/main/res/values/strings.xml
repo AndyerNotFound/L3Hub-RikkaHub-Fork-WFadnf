@@ -1945,7 +1945,7 @@
   <string name="chat_page_worldbook_injected">%1$d worldbook entries injected</string>
   <string name="reasoning_ultra">Ultra</string>
   <string name="setting_display_page_use_l3hub_reasoning_title">Use L3Hub reasoning icons</string>
-  <string name="setting_display_page_use_l3hub_reasoning_desc">Replace the thinking icon with OALMHXMU letters and use a bar slider with a round thumb.</string>
+  <string name="setting_display_page_use_l3hub_reasoning_desc">Use a colour indicator (gray when off, green to red from Auto to Ultra) and a bar slider with a round thumb.</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">Export XML text preserving raw markup symbols</string>
 </resources>
