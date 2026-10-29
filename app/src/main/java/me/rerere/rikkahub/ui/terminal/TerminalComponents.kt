@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonElevation
+import androidx.compose.material3.ButtonShapes
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CardElevation
@@ -25,8 +26,10 @@ import androidx.compose.material3.CheckboxColors
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButtonColors
@@ -636,4 +639,114 @@ fun RadioButton(
         enabled = enabled && onClick != null,
         onClick = { onClick?.invoke() },
     )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun Button(
+    onClick: () -> Unit,
+    shapes: ButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Button(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun TextButton(
+    onClick: () -> Unit,
+    shapes: ButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+    elevation: ButtonElevation? = null,
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    TextButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun OutlinedButton(
+    onClick: () -> Unit,
+    shapes: ButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    elevation: ButtonElevation? = null,
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    OutlinedButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FilledTonalButton(
+    onClick: () -> Unit,
+    shapes: ButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    elevation: ButtonElevation? = ButtonDefaults.filledTonalButtonElevation(),
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    FilledTonalButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun IconButton(
+    onClick: () -> Unit,
+    shapes: IconButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    IconButton(onClick, modifier, enabled, colors, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FilledIconButton(
+    onClick: () -> Unit,
+    shapes: IconButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    FilledIconButton(onClick, modifier, enabled, IconButtonDefaults.filledShape, colors, interactionSource, content)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FilledTonalIconButton(
+    onClick: () -> Unit,
+    shapes: IconButtonShapes,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: IconButtonColors = IconButtonDefaults.filledTonalIconButtonColors(),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    FilledTonalIconButton(onClick, modifier, enabled, IconButtonDefaults.filledShape, colors, interactionSource, content)
 }
