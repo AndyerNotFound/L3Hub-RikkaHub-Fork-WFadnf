@@ -304,7 +304,14 @@ fun IconButton(
     content: @Composable () -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
-        androidx.compose.material3.IconButton(onClick, modifier, enabled, colors, interactionSource, content)
+        androidx.compose.material3.IconButton(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+            content = content,
+        )
         return
     }
     TerminalIconButton(onClick, modifier, enabled, content)
@@ -411,7 +418,7 @@ fun OutlinedCard(
     shape: Shape = CardDefaults.shape,
     colors: CardColors = CardDefaults.outlinedCardColors(),
     elevation: CardElevation = CardDefaults.outlinedCardElevation(),
-    border: BorderStroke? = null,
+    border: BorderStroke = CardDefaults.outlinedCardBorder(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
@@ -429,7 +436,7 @@ fun OutlinedCard(
     shape: Shape = CardDefaults.shape,
     colors: CardColors = CardDefaults.outlinedCardColors(),
     elevation: CardElevation = CardDefaults.outlinedCardElevation(),
-    border: BorderStroke? = null,
+    border: BorderStroke = CardDefaults.outlinedCardBorder(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -654,9 +661,18 @@ fun Button(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {
-    Button(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
-}
+) {    Button(
+        onClick = onClick,
+        shape = shapes.shape,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = interactionSource,
+        content = content,
+    )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -671,9 +687,18 @@ fun TextButton(
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {
-    TextButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
-}
+) {    TextButton(
+        onClick = onClick,
+        shape = shapes.shape,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = interactionSource,
+        content = content,
+    )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -688,9 +713,18 @@ fun OutlinedButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {
-    OutlinedButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
-}
+) {    OutlinedButton(
+        onClick = onClick,
+        shape = shapes.shape,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = interactionSource,
+        content = content,
+    )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -705,9 +739,18 @@ fun FilledTonalButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
-) {
-    FilledTonalButton(onClick, shapes.shape, modifier, enabled, colors, elevation, border, contentPadding, interactionSource, content)
-}
+) {    FilledTonalButton(
+        onClick = onClick,
+        shape = shapes.shape,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = interactionSource,
+        content = content,
+    )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -720,7 +763,14 @@ fun IconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    IconButton(onClick, modifier, enabled, colors, interactionSource, content)
+    IconButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+        interactionSource = interactionSource,
+        content = content,
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -734,7 +784,15 @@ fun FilledIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    FilledIconButton(onClick, modifier, enabled, IconButtonDefaults.filledShape, colors, interactionSource, content)
+    FilledIconButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = IconButtonDefaults.filledShape,
+        colors = colors,
+        interactionSource = interactionSource,
+        content = content,
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -748,5 +806,13 @@ fun FilledTonalIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    FilledTonalIconButton(onClick, modifier, enabled, IconButtonDefaults.filledShape, colors, interactionSource, content)
+    FilledTonalIconButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = IconButtonDefaults.filledShape,
+        colors = colors,
+        interactionSource = interactionSource,
+        content = content,
+    )
 }
