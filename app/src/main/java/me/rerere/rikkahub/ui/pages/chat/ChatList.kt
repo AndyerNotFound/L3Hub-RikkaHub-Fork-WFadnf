@@ -106,6 +106,7 @@ import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
+import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.ListSelectableItem
 import me.rerere.ui.components.Tooltip
@@ -333,20 +334,33 @@ private fun ChatListNormal(
         }
 
         ChatFontProvider(displaySetting = settings.displaySetting) {
+            val terminalStyle = settings.displaySetting.terminalStyle
             LazyColumn(
                 state = state,
                 // 顶部留白放进 contentPadding，让消息可以滚动到透明标题栏下面
-                contentPadding = PaddingValues(16.dp) + PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = 32.dp + innerPadding.calculateBottomPadding(),
-                ),
+                contentPadding = if (terminalStyle) {
+                    PaddingValues(horizontal = 10.dp) + PaddingValues(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = 32.dp + innerPadding.calculateBottomPadding(),
+                    )
+                } else {
+                    PaddingValues(16.dp) + PaddingValues(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = 32.dp + innerPadding.calculateBottomPadding(),
+                    )
+                },
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (terminalStyle) 8.dp else 12.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .topFadingEdge(innerPadding.calculateTopPadding() + 24.dp)
                     .hazeSource(state = hazeState),
             ) {
+            if (terminalStyle) {
+                item(key = "TerminalSessionHeader") {
+                    TerminalSessionHeader(conversation = conversation)
+                }
+            }
             itemsIndexed(
                 items = conversation.messageNodes,
                 key = { index, item -> item.id },
@@ -401,6 +415,7 @@ private fun ChatListNormal(
                             onToolAnswer = onToolAnswer,
                             hazeState = bubbleHazeState,
                             lastMessage = index == lastMessageIndex,
+                            messageIndex = index,
                         )
                     }
                 }
@@ -893,5 +908,46 @@ private fun BoxScope.MessageJumper(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TerminalSessionHeader(conversation: Conversation) {
+    val rule = "─".repeat(160)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        Text(
+            text = "┌─[ L3HUB // SESSION ]$rule",
+            style = MaterialTheme.typography.labelSmall,
+            color = TerminalPalette.Green,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+        Text(
+            text = "│ id=${conversation.id.toString().take(8)}  msg=${conversation.messageNodes.size}  title=${conversation.title.ifBlank { "untitled" }}",
+            style = MaterialTheme.typography.labelSmall,
+            color = TerminalPalette.GreenDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "├$rule",
+            style = MaterialTheme.typography.labelSmall,
+            color = TerminalPalette.Border,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+        Text(
+            text = "│ TIME      ROLE  CONTENT",
+            style = MaterialTheme.typography.labelSmall,
+            color = TerminalPalette.Amber,
+            maxLines = 1,
+        )
     }
 }

@@ -26,8 +26,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,10 +76,12 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.jsonArray
@@ -133,6 +138,7 @@ fun ChatMessage(
     model: Model? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
+    messageIndex: Int = 0,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
     onEdit: () -> Unit,
@@ -188,6 +194,7 @@ fun ChatMessage(
                     model = model,
                     assistant = assistant,
                     loading = loading,
+                    index = messageIndex,
                 )
             } else {
                 Row(
@@ -295,26 +302,52 @@ fun ChatMessage(
                             )
                         }
                     } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = if (message.role == MessageRole.USER) {
-                                Alignment.End
-                            } else {
-                                Alignment.Start
-                            },
-                        ) {
-                            MessagePartsBlock(
-                                assistant = assistant,
-                                role = message.role,
-                                parts = message.parts,
-                                annotations = message.annotations,
-                                loading = loading,
-                                model = model,
-                                onToolApproval = onToolApproval,
-                                onToolAnswer = onToolAnswer,
-                                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                                hazeState = hazeState,
-                            )
+                        if (settings.terminalStyle) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "│",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = TerminalPalette.GreenDim,
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    MessagePartsBlock(
+                                        assistant = assistant,
+                                        role = message.role,
+                                        parts = message.parts,
+                                        annotations = message.annotations,
+                                        loading = loading,
+                                        model = model,
+                                        onToolApproval = onToolApproval,
+                                        onToolAnswer = onToolAnswer,
+                                        onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                        hazeState = hazeState,
+                                    )
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = if (message.role == MessageRole.USER) {
+                                    Alignment.End
+                                } else {
+                                    Alignment.Start
+                                },
+                            ) {
+                                MessagePartsBlock(
+                                    assistant = assistant,
+                                    role = message.role,
+                                    parts = message.parts,
+                                    annotations = message.annotations,
+                                    loading = loading,
+                                    model = model,
+                                    onToolApproval = onToolApproval,
+                                    onToolAnswer = onToolAnswer,
+                                    onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                    hazeState = hazeState,
+                                )
+                            }
                         }
                     }
                 }
@@ -346,6 +379,21 @@ fun ChatMessage(
                     .padding(horizontal = 12.dp, vertical = 2.dp),
             )
             }
+        }
+
+        if (terminalStyle && !message.parts.isEmptyUIMessage()) {
+            Text(
+                text = "└" + "─".repeat(160),
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = TerminalPalette.Border,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+            )
         }
 
         val showActions = if (lastMessage) {
@@ -687,7 +735,17 @@ private fun MessagePartsBlock(
                                     }
                                 }
                             } else {
-                                if (settings.displaySetting.showAssistantBubble && !settings.displaySetting.terminalStyle) {
+                                if (settings.displaySetting.terminalStyle) {
+                                    TerminalTypewriterMarkdown(
+                                        content = part.text.replaceRegexes(
+                                            assistant = assistant,
+                                            scope = AssistantAffectScope.ASSISTANT,
+                                            visual = true,
+                                        ),
+                                        streaming = streamingText,
+                                        onClickCitation = handleClickCitation,
+                                    )
+                                } else if (settings.displaySetting.showAssistantBubble) {
                                     ChatMessageBubble(
                                         role = role,
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
@@ -878,11 +936,48 @@ private fun CollapsibleUserMessageText(
 }
 
 @Composable
+private fun TerminalTypewriterMarkdown(
+    content: String,
+    streaming: Boolean,
+    onClickCitation: (String) -> Unit,
+) {
+    var visible by remember { mutableIntStateOf(if (streaming) 0 else content.length) }
+    LaunchedEffect(content, streaming) {
+        if (!streaming) {
+            visible = content.length
+            return@LaunchedEffect
+        }
+        if (visible > content.length) visible = content.length
+        if (visible == 0 && content.isNotEmpty()) visible = minOf(12, content.length)
+        while (visible < content.length) {
+            delay(16)
+            val remaining = content.length - visible
+            // 一次推进一小段，既不真的逐字等待，也能看出正在“打印”
+            visible = minOf(content.length, visible + maxOf(2, remaining / 8))
+        }
+    }
+    val shown = content.take(visible.coerceIn(0, content.length))
+    val printing = visible < content.length
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+    ) {
+        MarkdownBlock(
+            content = if (printing) "$shown▋" else shown,
+            streaming = printing && streaming,
+            onClickCitation = onClickCitation,
+        )
+    }
+}
+
+@Composable
 private fun TerminalMessageHeader(
     message: UIMessage,
     model: Model?,
     assistant: Assistant?,
     loading: Boolean,
+    index: Int,
 ) {
     val isUser = message.role == MessageRole.USER
     val userName = if (isUser) {
@@ -892,30 +987,34 @@ private fun TerminalMessageHeader(
             ?: model?.modelId?.substringAfterLast('/')?.lowercase()
             ?: "assistant"
     }
+    val time = "%02d:%02d:%02d".format(
+        message.createdAt.hour,
+        message.createdAt.minute,
+        message.createdAt.second,
+    )
     val prompt = if (isUser) {
-        "$ $userName@l3hub:~"
+        "user@l3hub:~\$"
     } else {
-        "λ $userName@l3hub:~"
+        "λ $userName@l3hub:~\$"
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    val rule = "─".repeat(160)
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = prompt,
-            style = MaterialTheme.typography.labelMedium,
+            text = "┌─[%02d][%s] $time  $prompt $rule".format(index, if (isUser) "U" else "A"),
+            style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = if (isUser) TerminalPalette.Amber else TerminalPalette.Green,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.fillMaxWidth(),
         )
         if (loading) {
             Text(
-                text = "▋",
-                style = MaterialTheme.typography.labelMedium,
+                text = "│ processing... ▋",
+                style = MaterialTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
-                color = TerminalPalette.Green,
+                color = TerminalPalette.GreenDim,
             )
         }
     }

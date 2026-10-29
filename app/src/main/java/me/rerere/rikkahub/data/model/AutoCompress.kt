@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.model
 
 import kotlinx.serialization.Serializable
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 
@@ -105,11 +106,26 @@ internal fun estimateMessageTokens(message: UIMessage): Int =
 /** 单个 part 的 token 估算，用来决定消息内部的截断位置 */
 internal fun estimatePartTokens(part: UIMessagePart): Int = when (part) {
     is UIMessagePart.Text -> estimateTokens(part.text)
+    is UIMessagePart.Reasoning -> estimateTokens(part.reasoning)
     is UIMessagePart.Tool ->
         estimateTokens(part.toolName) +
             estimateTokens(part.input) +
             part.output.filterIsInstance<UIMessagePart.Text>().sumOf { estimateTokens(it.text) }
 
+    is UIMessagePart.ServerTool ->
+        estimateTokens(part.toolName) +
+            estimateTokens(part.input?.toString().orEmpty()) +
+            estimateTokens(part.output?.toString().orEmpty())
+
+    is UIMessagePart.ToolCall -> estimateTokens(part.toolName) + estimateTokens(part.arguments)
+
+    is UIMessagePart.ToolResult ->
+        estimateTokens(part.toolName) +
+            estimateTokens(part.content.toString()) +
+            estimateTokens(part.arguments.toString())
+
+    is UIMessagePart.Document -> 512 + estimateTokens(part.fileName)
+    is UIMessagePart.Image, is UIMessagePart.Video, is UIMessagePart.Audio -> 768
     else -> 0
 }
 
@@ -121,4 +137,18 @@ internal fun estimateTokens(text: String): Int {
         if (ch.code >= 0x2E80) cjk++ else other++
     }
     return cjk + (other + 3) / 4
+}
+
+/**
+ * 自动压缩实际使用的门限。WARN/MAX 未配置时依次退回另一个门限和旧的 contextLength，
+ * 避免只填了模型上下文长度时自动压缩被判成“没有门限”而永不触发。
+ */
+fun Model.autoCompressLimit(threshold: AutoCompressThreshold): Int? {
+    val warn = warnContextTokens?.takeIf { it > 0 }
+    val max = maxContextTokens?.takeIf { it > 0 }
+    val legacy = contextLength.takeIf { it > 0 }
+    return when (threshold) {
+        AutoCompressThreshold.WARN -> warn ?: max ?: legacy
+        AutoCompressThreshold.MAX -> max ?: warn ?: legacy
+    }
 }

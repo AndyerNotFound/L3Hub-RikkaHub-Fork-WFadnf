@@ -370,6 +370,17 @@ fun ChatInput(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    if (terminalStyle) {
+                        Text(
+                            text = "┌─[ COMPOSE ]" + "─".repeat(160),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            color = TerminalPalette.GreenDim,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                        )
+                    }
                     if (voiceState.phase != VoicePhase.Off) {
                         VoiceModeRow(
                             state = voiceState,
@@ -586,6 +597,16 @@ fun ChatInput(
                             sendButton()
                         }
                     }
+                    if (terminalStyle) {
+                        Text(
+                            text = "└─[ ENTER send · SHIFT+ENTER newline ]",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            color = TerminalPalette.GreenDim,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 
@@ -607,6 +628,8 @@ private fun SendButton(
     modifier: Modifier = Modifier,
 ) {
     val showStop = loading && empty
+    val terminal = LocalSettings.current.displaySetting.terminalStyle
+    val shape = if (terminal) RoundedCornerShape(2.dp) else CircleShape
     val containerColor = when {
         showStop -> MaterialTheme.colorScheme.errorContainer
         empty -> MaterialTheme.colorScheme.surfaceContainerHigh
@@ -622,7 +645,7 @@ private fun SendButton(
         modifier = modifier
             .size(30.dp)
             .testTag("chat_send_button")
-            .clip(CircleShape)
+            .clip(shape)
             .combinedClickable(
                 enabled = showStop || !empty,
                 onClick = onClick,
@@ -632,8 +655,8 @@ private fun SendButton(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .appButtonShadow(CircleShape, 2.dp),
-            shape = CircleShape,
+                .appButtonShadow(shape, if (terminal) 0.dp else 2.dp),
+            shape = shape,
             color = containerColor,
             content = {},
         )
@@ -651,12 +674,14 @@ private fun ActionIconButton(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val terminal = LocalSettings.current.displaySetting.terminalStyle
+    val shape = if (terminal) RoundedCornerShape(2.dp) else CircleShape
     Surface(
         onClick = onClick,
         modifier = Modifier
             .size(30.dp)
-            .appButtonShadow(CircleShape, 2.dp),
-        shape = CircleShape,
+            .appButtonShadow(shape, if (terminal) 0.dp else 2.dp),
+        shape = shape,
         tonalElevation = 0.dp,
         color = Color.Transparent,
     ) {
@@ -851,7 +876,7 @@ private fun TextInputRow(
             prefix = if (terminalStyle) {
                 {
                     Text(
-                        text = ">",
+                        text = "$ ",
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         color = TerminalPalette.Green,
                     )

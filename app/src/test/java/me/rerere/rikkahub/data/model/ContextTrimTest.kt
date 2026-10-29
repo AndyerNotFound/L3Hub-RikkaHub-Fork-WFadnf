@@ -41,6 +41,27 @@ class ContextTrimTest {
     }
 
     @Test
+    fun `reasoning parts count toward context tokens`() {
+        val reasoning = UIMessagePart.Reasoning(reasoning = "思".repeat(400))
+        val tokens = estimateMessageTokens(message(reasoning))
+
+        assertEquals(400 + 4, tokens)
+    }
+
+    @Test
+    fun `token trim can split the first message after a checkpoint`() {
+        val nodes = listOf(
+            UIMessage.user("summary").copy(isContextCheckpoint = true).toMessageNode(),
+            message(text('b', 400), text('c', 400), text('d', 400)).toMessageNode(),
+        )
+        val conversation = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
+
+        val trim = conversation.keepRecentContextForTokens(250)
+
+        assertEquals(ContextTrim(nodeIndex = 1, partIndex = 1), trim)
+    }
+
+    @Test
     fun `checkpoint truncates only the selected version of the split node`() {
         val parts = listOf(text('a', 8), text('b', 8), text('c', 8))
         val alternate = text('x', 8)

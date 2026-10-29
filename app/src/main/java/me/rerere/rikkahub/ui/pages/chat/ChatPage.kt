@@ -7,6 +7,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
@@ -77,6 +78,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -576,23 +578,40 @@ private fun ChatPageContent(
         }
         Scaffold(
             topBar = {
-                TopBar(
-                    hazeState = backgroundHazeState,
-                    settings = setting,
-                    assistant = assistant,
-                    chatModel = currentChatModel,
-                    conversation = conversation,
-                    bigScreen = bigScreen,
-                    drawerState = drawerState,
-                    previewMode = previewMode,
-                    onNewChat = {
-                        navigateToChatPage(navController)
-                    },
-                    onClickMenu = {
-                        previewMode = !previewMode
-                    },
-                    onShowTaskTree = { showTaskTree = true },
-                )
+                if (setting.displaySetting.terminalStyle) {
+                    TerminalTopBar(
+                        assistant = assistant,
+                        chatModel = currentChatModel,
+                        bigScreen = bigScreen,
+                        drawerState = drawerState,
+                        previewMode = previewMode,
+                        onNewChat = {
+                            navigateToChatPage(navController)
+                        },
+                        onClickMenu = {
+                            previewMode = !previewMode
+                        },
+                        onShowTaskTree = { showTaskTree = true },
+                    )
+                } else {
+                    TopBar(
+                        hazeState = backgroundHazeState,
+                        settings = setting,
+                        assistant = assistant,
+                        chatModel = currentChatModel,
+                        conversation = conversation,
+                        bigScreen = bigScreen,
+                        drawerState = drawerState,
+                        previewMode = previewMode,
+                        onNewChat = {
+                            navigateToChatPage(navController)
+                        },
+                        onClickMenu = {
+                            previewMode = !previewMode
+                        },
+                        onShowTaskTree = { showTaskTree = true },
+                    )
+                }
             },
             bottomBar = {
                 if (conversation.currentMessages.isNotEmpty()) {
@@ -843,6 +862,86 @@ private fun ChatFilesPickerSheet(
 }
 
 @Composable
+private fun TerminalTopBar(
+    assistant: Assistant,
+    chatModel: Model?,
+    bigScreen: Boolean,
+    drawerState: DrawerState,
+    previewMode: Boolean,
+    onNewChat: () -> Unit,
+    onClickMenu: () -> Unit,
+    onShowTaskTree: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val navShape = RoundedCornerShape(2.dp)
+    val buttonColor = TerminalPalette.SurfaceHigh
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (!bigScreen) {
+            TerminalBarButton(
+                text = "MENU",
+                shape = navShape,
+                color = buttonColor,
+                onClick = { scope.launch { drawerState.open() } },
+            )
+        }
+        Text(
+            text = (chatModel?.modelId?.substringAfterLast('/') ?: assistant.name.ifBlank { "no-model" })
+                .lowercase()
+                .take(22),
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.GreenDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TerminalBarButton("TREE", navShape, buttonColor, onShowTaskTree)
+        TerminalBarButton(
+            text = if (previewMode) "VIEW" else "LIST",
+            shape = navShape,
+            color = buttonColor,
+            onClick = onClickMenu,
+        )
+        TerminalBarButton("NEW", navShape, buttonColor, onNewChat)
+    }
+}
+
+@Composable
+private fun TerminalBarButton(
+    text: String,
+    shape: Shape,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = color,
+        border = BorderStroke(1.dp, TerminalPalette.Border),
+        modifier = Modifier.height(32.dp),
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "[$text]",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = TerminalPalette.Green,
+            )
+        }
+    }
+}
+
+@Composable
 private fun TopBar(
     hazeState: HazeState,
     settings: Settings,
@@ -1010,33 +1109,73 @@ private fun EmptyChatContent(
 
 @Composable
 private fun TerminalEmptyChatHero(assistant: Assistant) {
-    val shape = RoundedCornerShape(2.dp)
+    val rule = "─".repeat(160)
+    val logo = listOf(
+        "  _     _____ _   _ _   _ ____  ",
+        " | |   |___ /| | | | | | | __ ) ",
+        " | |     |_ \\| |_| | |_| |  _ \\ ",
+        " | |___ ___) |  _  |  _  | |_) |",
+        " |_____|____/|_| |_|_| |_|____/ ",
+    )
     Column(
         modifier = Modifier
-            .padding(horizontal = 24.dp)
-            .clip(shape)
-            .background(TerminalPalette.Surface)
-            .border(1.dp, TerminalPalette.Border, shape)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp),
         horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = "L3HUB :: TERMINAL",
-            style = MaterialTheme.typography.titleMedium,
+            text = "┌─[ L3HUB // TERMINAL ]$rule",
+            style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = TerminalPalette.Green,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+        logo.forEach { line ->
+            Text(
+                text = "│ $line",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                lineHeight = 12.sp,
+                color = TerminalPalette.Green,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+        Text(
+            text = "├$rule",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.Border,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
         Text(
-            text = "session ready · ${assistant.name.ifBlank { "assistant" }}",
-            style = MaterialTheme.typography.bodySmall,
+            text = "│ [ OK ] session ready · ${assistant.name.ifBlank { "assistant" }}",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
             color = TerminalPalette.GreenDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "> waiting for input_",
-            style = MaterialTheme.typography.bodyMedium,
+            text = "│ > waiting for input_",
+            style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = TerminalPalette.Green,
+            maxLines = 1,
+        )
+        Text(
+            text = "└$rule",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.Border,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
     }
 }

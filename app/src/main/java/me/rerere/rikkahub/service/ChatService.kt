@@ -59,6 +59,7 @@ import me.rerere.rikkahub.data.model.AutoCompressTarget
 import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.ContextTrim
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.autoCompressLimit
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
@@ -523,6 +524,9 @@ class ChatService(
                 session.flush()
                 session.submittingMessage = null
 
+                // 用户消息可能刚好把上下文推过门限，加入后再检查一次
+                autoCompressIfNeeded(session)
+
                 // 开始补全
                 val result = if (queued.answer) runTurn(session) else null
 
@@ -950,14 +954,10 @@ class ChatService(
         message: UIMessage,
     ) {
         if (!turn.assistant.autoCompress || !turn.assistant.autoCompressLoop) return
-        // 只在最后一条工具刚执行完时检查一次，避免正文流式输出时反复扫描整个会话
-        if (message.parts.lastOrNull() !is UIMessagePart.Tool) return
+        // 工具都执行完后检查一次；不要求工具一定在 parts 末尾，避免中间夹着思考/正文时漏掉
         val tools = message.getTools()
         if (tools.isEmpty() || tools.any { !it.isExecuted }) return
-        val limit = turn.model.maxContextTokens?.takeIf { it > 0 }
-            ?: turn.model.warnContextTokens?.takeIf { it > 0 }
-            ?: turn.model.contextLength.takeIf { it > 0 }
-            ?: return
+        val limit = turn.model.autoCompressLimit(turn.assistant.autoCompressThreshold) ?: return
         val estimated = session.state.value.estimateContextTokens()
         if (estimated < limit) return
         Log.i(TAG, "runTurn: estimated context $estimated >= $limit, compress before next step")
@@ -993,10 +993,7 @@ class ChatService(
         if (!assistant.autoCompress) return false
 
         val model = settings.getChatModelOf(conversation) ?: return false
-        val limit = when (assistant.autoCompressThreshold) {
-            AutoCompressThreshold.WARN -> model.warnContextTokens
-            AutoCompressThreshold.MAX -> model.maxContextTokens
-        }
+        val limit = model.autoCompressLimit(assistant.autoCompressThreshold)
 
         // 真实用量偶尔缺失（回复没写入 usage、压缩后还没开始下一轮），退回按字符估算；
         // 估算只数检查点之后的可见内容，不含系统提示词与工具定义，作为兜底下限使用
@@ -1010,7 +1007,7 @@ class ChatService(
         // 保留区不能吃掉检查点之后的全部消息，否则压缩范围为空
         val checkpointIndex = conversation.messageNodes.indexOfLast { it.currentMessage.isContextCheckpoint }
         val compressible = conversation.messageNodes.size - checkpointIndex - 1
-        if (compressible < 2) {
+        if (compressible < 1) {
             Log.d(TAG, "autoCompress: nothing to compress, compressible=$compressible")
             return false
         }
@@ -1025,7 +1022,12 @@ class ChatService(
                     conversation.keepRecentContextForTokens(assistant.autoCompressTargetValue)
             }
         }
-        if (trim.nodeIndex <= checkpointIndex + 1 || trim.nodeIndex > conversation.messageNodes.size) {
+        val onlyCheckpointTail = trim.nodeIndex == checkpointIndex + 1
+        if (trim.nodeIndex < checkpointIndex + 1 ||
+            trim.nodeIndex > conversation.messageNodes.size ||
+            trim.nodeIndex == 0 ||
+            (onlyCheckpointTail && trim.partIndex == 0)
+        ) {
             Log.d(TAG, "autoCompress: trim out of range, trim=$trim compressible=$compressible")
             return false
         }
@@ -1083,8 +1085,11 @@ class ChatService(
         val checkpointIndex = nodes.indexOfLast { it.currentMessage.isContextCheckpoint }
         // 压缩范围是 (checkpointIndex, endIndex)，之后的节点原样保留
         val endIndex = trim.nodeIndex
-        // 上一个检查点之后没有可压缩的消息
-        if (endIndex <= checkpointIndex + 1 || endIndex > nodes.size) {
+        // 上一个检查点之后没有可压缩的消息；partIndex > 0 时允许切分检查点后的第一条消息
+        val onlyCheckpointTail = endIndex == checkpointIndex + 1
+        if (endIndex < checkpointIndex + 1 || endIndex > nodes.size ||
+            (onlyCheckpointTail && (trim.partIndex == 0 || checkpointIndex < 0))
+        ) {
             throw IllegalStateException(
                 context.getString(
                     if (endIndex < nodes.size) {
@@ -1171,6 +1176,11 @@ class ChatService(
             "token limit",
             "context length exceeded",
             "input tokens exceed",
+            "request too large",
+            "payload too large",
+            "exceeds the context window",
+            "maximum number of tokens",
+            "input length",
             "上下文长度",
             "上下文窗口",
             "超出上下文",
