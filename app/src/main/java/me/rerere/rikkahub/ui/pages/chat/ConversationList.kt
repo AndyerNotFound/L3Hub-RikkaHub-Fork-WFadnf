@@ -1,15 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.Forward02
-import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.hugeicons.stroke.Pin
-import me.rerere.hugeicons.stroke.PinOff
-import me.rerere.hugeicons.stroke.Refresh01
-import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -36,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,15 +46,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.Forward02
+import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Pin
+import me.rerere.hugeicons.stroke.PinOff
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
+import kotlin.uuid.Uuid
 import java.time.LocalDate
 import java.time.ZoneId
-import kotlin.uuid.Uuid
 
 /**
  * Represents different types of items in the conversation list

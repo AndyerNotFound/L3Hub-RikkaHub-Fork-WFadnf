@@ -11,10 +11,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,10 +37,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -52,17 +48,16 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +70,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -86,10 +84,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.collectLatest
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -103,8 +98,8 @@ import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
@@ -126,14 +121,19 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.appButtonShadow
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.utils.SoundEffectPlayer
-import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.theme.TerminalPalette
+import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.utils.SoundEffectPlayer
+import me.rerere.ui.toast.ToastType
+import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collectLatest
 
 /** 上下文预警进度条左右滑动的最小位移(px)，小于这个值当作点击 */
 

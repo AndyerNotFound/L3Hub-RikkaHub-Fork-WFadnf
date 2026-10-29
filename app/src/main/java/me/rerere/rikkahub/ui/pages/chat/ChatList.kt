@@ -1,14 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Tick01
-import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.hugeicons.stroke.ArrowDownDouble
-import me.rerere.hugeicons.stroke.ArrowUpDouble
-import me.rerere.hugeicons.stroke.CursorPointer01
-import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Cancel01
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -23,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -45,16 +37,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ContainedLoadingIndicator
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -71,8 +62,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -91,10 +80,16 @@ import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessage
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowDownDouble
+import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.ArrowUpDouble
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.CursorPointer01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -104,7 +99,9 @@ import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
+import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.utils.plus
@@ -112,6 +109,9 @@ import me.rerere.ui.components.ListSelectableItem
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"

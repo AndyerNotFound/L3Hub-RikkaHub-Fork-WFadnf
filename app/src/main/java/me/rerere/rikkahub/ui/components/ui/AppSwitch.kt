@@ -1,12 +1,12 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 
 /** 跟随"按钮阴影"设置的开关。 */

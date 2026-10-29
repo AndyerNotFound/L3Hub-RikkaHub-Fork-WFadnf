@@ -23,18 +23,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import me.rerere.rikkahub.ui.components.ui.shadow.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,20 +41,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import me.rerere.rikkahub.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
+import me.rerere.rikkahub.ui.terminal.Card
+import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
-import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.utils.CrashHandler
 import org.koin.android.ext.android.inject
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.launch
 
 class SafeModeActivity : ComponentActivity() {
     private val settingsStore by inject<SettingsStore>()

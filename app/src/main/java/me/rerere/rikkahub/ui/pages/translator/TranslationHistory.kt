@@ -10,7 +10,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +24,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
 import me.rerere.rikkahub.ui.components.ai.translationLanguageName
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
+import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 import java.util.Locale

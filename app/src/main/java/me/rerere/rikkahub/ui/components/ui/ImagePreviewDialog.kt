@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,16 +20,17 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import coil3.compose.rememberAsyncImagePainter
-import me.rerere.ui.toast.ToastType
 import com.jvziyaoyao.scale.image.pager.ImagePager
 import com.jvziyaoyao.scale.zoomable.pager.rememberZoomablePagerState
-import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
+import kotlinx.coroutines.launch
 
 @Composable
 fun ImagePreviewDialog(

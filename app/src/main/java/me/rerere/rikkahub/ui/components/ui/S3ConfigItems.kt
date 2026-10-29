@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -18,6 +17,7 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.s3.S3Config
+import me.rerere.rikkahub.ui.terminal.IconButton
 
 /**
  * S3 连接信息的表单项，备份和媒体上传的配置共用。

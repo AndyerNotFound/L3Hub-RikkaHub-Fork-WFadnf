@@ -11,14 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
-import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import androidx.compose.material3.ButtonDefaults
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +32,9 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.ui.components.ui.shadow.Button
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.rikkahub.ui.terminal.TextButton
 import org.koin.compose.koinInject
 
 @Composable

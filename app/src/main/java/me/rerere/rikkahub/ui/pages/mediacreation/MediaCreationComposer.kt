@@ -49,20 +49,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ToggleButton
@@ -122,15 +117,20 @@ import me.rerere.rikkahub.data.model.canSubmit
 import me.rerere.rikkahub.data.model.mixesFramesWithReferences
 import me.rerere.rikkahub.data.model.withRequired
 import me.rerere.rikkahub.ui.components.ai.PickerHeader
+import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.Tag
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.rikkahub.ui.pages.setting.components.label
+import me.rerere.rikkahub.ui.pages.setting.components.typeName
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.pages.setting.components.label
-import me.rerere.rikkahub.ui.pages.setting.components.typeName
-import java.io.File
 import kotlin.uuid.Uuid
+import java.io.File
 
 private const val MAX_PICKED_IMAGES = 8
 

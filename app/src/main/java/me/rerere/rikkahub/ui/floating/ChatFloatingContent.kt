@@ -24,17 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import androidx.compose.material3.ContainedLoadingIndicator
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -78,15 +72,21 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.model.GenerationPhase
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.richtext.MaterialMarkdown
 import me.rerere.rikkahub.ui.components.ui.drawAppLogo
 import me.rerere.rikkahub.ui.components.ui.logoMorphShape
 import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
-import me.rerere.rikkahub.ui.components.richtext.MaterialMarkdown
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.components.ui.shadow.Button
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.rikkahub.ui.terminal.TextButton
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // 和 Material3 LoadingIndicator 的参数一致；放宽 visibilityThreshold 让低阻尼弹簧在间隔内结束
 private val MorphSpring = spring<Float>(dampingRatio = 0.6f, stiffness = 200f, visibilityThreshold = 0.1f)

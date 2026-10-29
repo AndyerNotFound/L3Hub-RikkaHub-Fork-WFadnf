@@ -1,10 +1,5 @@
 package me.rerere.rikkahub.ui.pages.history;
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Pin
-import me.rerere.hugeicons.stroke.PinOff
-import me.rerere.hugeicons.stroke.GlobalSearch
-import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,7 +10,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,8 +18,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,17 +30,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.Pin
+import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun HistoryPage(vm: HistoryVM = koinViewModel()) {

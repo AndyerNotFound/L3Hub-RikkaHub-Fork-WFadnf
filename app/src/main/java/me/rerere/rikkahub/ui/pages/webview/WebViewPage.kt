@@ -1,10 +1,5 @@
 package me.rerere.rikkahub.ui.pages.webview
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ArrowRight01
-import me.rerere.hugeicons.stroke.Bug01
-import me.rerere.hugeicons.stroke.Earth
-import me.rerere.hugeicons.stroke.Refresh01
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,13 +12,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,8 +28,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Bug01
+import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.ui.webview.WEB_VIEW_BASE_URL
 import me.rerere.ui.webview.WebView

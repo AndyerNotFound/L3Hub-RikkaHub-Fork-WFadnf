@@ -22,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,8 +41,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.mediagen.model.ImageRole
@@ -53,7 +50,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.MediaCreationFiles
 import me.rerere.rikkahub.data.model.MediaCreationParams
 import me.rerere.rikkahub.data.model.MediaCreationStatus
+import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.getActivity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 internal val ImageRole.label: String

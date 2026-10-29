@@ -19,13 +19,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import me.rerere.rikkahub.ui.components.ui.shadow.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,8 +38,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.ui.toast.ToastType
-import kotlinx.coroutines.launch
 import me.rerere.common.android.Logging
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Bug01
@@ -50,20 +45,25 @@ import me.rerere.hugeicons.stroke.File01
 import me.rerere.hugeicons.stroke.PaintBoard
 import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.data.model.Avatar
-import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.MathBlock
 import me.rerere.rikkahub.ui.components.richtext.Mermaid
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.terminal.HorizontalDivider
+import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import kotlin.random.Random
 import kotlin.random.nextInt
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.launch
 
 private enum class DebugTab(
     override val icon: ImageVector,

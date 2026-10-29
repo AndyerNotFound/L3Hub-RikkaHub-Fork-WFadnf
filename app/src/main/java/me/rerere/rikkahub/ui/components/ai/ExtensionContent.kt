@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ButtonDefaults
-import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
@@ -22,7 +21,6 @@ import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -33,16 +31,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlin.uuid.Uuid
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Link01
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.skills.SkillMetadata
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
+import me.rerere.rikkahub.data.skills.SkillMetadata
+import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.rikkahub.ui.terminal.Switch
+import kotlin.uuid.Uuid
 
 @Composable
 fun ModeInjectionsContent(

@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -20,6 +18,8 @@ import me.rerere.hugeicons.stroke.File01
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.ExporterState
+import me.rerere.rikkahub.ui.terminal.OutlinedCard
+import me.rerere.rikkahub.ui.terminal.TextButton
 
 @Composable
 fun <T> ExportDialog(
