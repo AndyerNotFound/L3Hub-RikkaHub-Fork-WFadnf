@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -31,6 +32,8 @@ fun NumberSlider(
     enabled: Boolean = true,
 ) {
     val steps = (valueRange.last - valueRange.first - 1).coerceAtLeast(0)
+    // 输入框自己保存草稿，否则打到一半的位数低于下限就会被立刻弹回去
+    var text by remember(value) { mutableStateOf(value.toString()) }
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -47,17 +50,23 @@ fun NumberSlider(
             modifier = Modifier.weight(1f),
         )
         OutlinedTextField(
-            value = value.toString(),
+            value = text,
             onValueChange = { input ->
                 val digits = input.filter { it.isDigit() }.take(7)
+                text = digits
                 digits.toIntOrNull()?.let { parsed ->
                     if (parsed in valueRange) onValueChange(parsed)
                 }
             },
-            modifier = Modifier.width(96.dp),
             textStyle = MaterialTheme.typography.bodyMedium,
             singleLine = true,
             enabled = enabled,
+            // 失焦时回到真实值，避免留下一个不合法的草稿
+            modifier = Modifier
+                .width(96.dp)
+                .onFocusChanged { state ->
+                    if (!state.isFocused) text = value.toString()
+                },
             suffix = if (suffix.isNotBlank()) {
                 { Text(suffix, style = MaterialTheme.typography.labelSmall) }
             } else {
