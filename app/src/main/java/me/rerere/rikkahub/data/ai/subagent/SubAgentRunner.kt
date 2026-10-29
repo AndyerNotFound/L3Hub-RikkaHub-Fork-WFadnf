@@ -91,9 +91,11 @@ class SubAgentRunner(
             SubAgentDispatchMode.WAIT -> finishChild(chatService, candidate, child)
             SubAgentDispatchMode.BACKGROUND -> {
                 scope.launch {
-                    finishChild(chatService, candidate, child)
+                    val result = finishChild(chatService, candidate, child)
+                    runCatching { chatService.deliverSubAgentResult(parent.id, result) }
+                        .onFailure { Log.w(TAG, "deliver sub agent result failed", it) }
                 }
-                "子代理「${candidate.name}」已在后台开始执行，结果不会回传；可在任务树查看进度。"
+                "子代理「${candidate.name}」已在后台开始执行，完成后会自动把结果送回当前会话；也可以打开会话 ${child.id} 查看进度。"
             }
         }
     }
@@ -133,7 +135,7 @@ class SubAgentRunner(
             updateState(chatService, child.id, SUB_AGENT_STATE_COMPLETED)
             buildString {
                 appendLine("子代理「${candidate.name}」已完成，会话 ID：${child.id}")
-                appendLine("完整过程可在聊天页右上角的任务树里查看。")
+                appendLine("完整过程可以在那个会话里查看，历史会话和任务树都能找到。")
                 appendLine()
                 append(answer)
             }

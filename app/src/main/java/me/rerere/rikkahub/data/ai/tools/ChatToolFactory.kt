@@ -8,6 +8,7 @@ import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.FileFolders
@@ -21,6 +22,27 @@ import java.io.File
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatToolFactory"
+
+/**
+ * 子代理会话没有人在旁边确认，工具调用一律按完全权限直接执行。
+ * `ask_user` 需要真人回答，子代理只能自己决定，这里直接给模型回一条提示。
+ */
+internal fun Tool.withAutoApproval(): Tool {
+    if (name == ASK_USER_TOOL_NAME) {
+        return copy(
+            needsApproval = { false },
+            execute = {
+                listOf(
+                    UIMessagePart.Text(
+                        "当前是子代理会话，没有用户可以回答问题。请根据已有信息自行做出决定，不要调用 ask_user。"
+                    )
+                )
+            },
+        )
+    }
+    return copy(needsApproval = { false })
+}
+
 private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
 
@@ -50,6 +72,7 @@ class ChatToolFactory(
         model: Model,
         workspaceCwds: Map<String, String> = emptyMap(),
         conversationId: Uuid? = null,
+        autoApproveTools: Boolean = false,
     ): List<Tool> {
         val workspaceTools = createWorkspaceTools(
             workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
@@ -108,7 +131,8 @@ class ChatToolFactory(
         val canReadToolOutputs = workspaceTools.isNotEmpty() && assistant.allWorkspaceIds.any { workspaceId ->
             workspaceRepository.getById(workspaceId.toString())?.capabilities()?.rootfs == true
         }
-        return if (canReadToolOutputs) tools.map(::withOutputTruncation) else tools
+        val truncated = if (canReadToolOutputs) tools.map(::withOutputTruncation) else tools
+        return if (autoApproveTools) truncated.map { it.withAutoApproval() } else truncated
     }
 
     private fun withOutputTruncation(tool: Tool): Tool {

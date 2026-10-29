@@ -119,6 +119,8 @@ class ChatRequestFactory(
                 model = model,
                 workspaceCwds = workspaceCwds,
                 conversationId = conversation.id,
+                // 子代理会话是自己跑完的，没有人给它点审批
+                autoApproveTools = conversation.parentConversationId != null,
             ),
         )
     }

@@ -45,6 +45,7 @@ import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
+import me.rerere.rikkahub.data.ai.subagent.formatSubAgentResults
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -239,7 +240,10 @@ class ChatService(
         if (session.state.value.isAwaitingToolApproval) {
             session.messageQueue.failReplyWaiters(context.getString(R.string.chat_page_voice_tool_approval))
         }
-        appScope.launch { dispatchNextQueuedMessage(session.id) }
+        appScope.launch {
+            dispatchNextQueuedMessage(session.id)
+            flushSubAgentResults(session.id)
+        }
     }
 
     // 保留 UI/Web 的入口，生命周期和状态查询统一交给 SessionManager。
@@ -301,11 +305,11 @@ class ChatService(
 
     suspend fun initializeConversation(conversationId: Uuid) {
         withLoadedSession(conversationId) { session ->
-            // 子代理会话有自己的助手，不能因为打开它而切走侧边栏所属的助手
-            if (session.state.value.parentConversationId == null) {
-                settingsStore.selectAssistant(session.state.value.assistantId)
-            }
+            // 子代理会话按普通会话列在历史里，打开时侧边栏跟着切到它自己的助手
+            settingsStore.selectAssistant(session.state.value.assistantId)
         }
+        // 上一轮还在忙的时候攒下的子代理结果，等用户打开这个会话再投递
+        flushSubAgentResults(conversationId)
     }
 
     private suspend fun ensureInitialized(session: ConversationSession) {
@@ -500,6 +504,49 @@ class ChatService(
         withLoadedSession(conversationId, createIfMissing = false) { session ->
             session.update { it.copy(subAgentState = state) }
             session.flush()
+        }
+    }
+
+    // ---- background 子代理的结果投递 ----
+
+    // 父会话正忙时先攒着，空闲后合并成一条输入投递，避免打断正在进行的回合
+    private val pendingSubAgentResults = mutableMapOf<Uuid, MutableList<String>>()
+
+    // 正在投递的会话：同一时刻只送一条，投递期间新到的结果留到下一轮再合并
+    private val deliveringSubAgentResults = mutableSetOf<Uuid>()
+
+    /**
+     * background 子代理完成后调用：父会话空闲就立刻把结果当作一条用户消息投递；
+     * 正在生成、停在工具审批上或还没打开时先攒着，等这一轮结束或下次打开会话时合并投递。
+     */
+    suspend fun deliverSubAgentResult(parentConversationId: Uuid, result: String) {
+        synchronized(pendingSubAgentResults) {
+            pendingSubAgentResults.getOrPut(parentConversationId) { mutableListOf() }.add(result)
+        }
+        flushSubAgentResults(parentConversationId)
+    }
+
+    private suspend fun flushSubAgentResults(conversationId: Uuid) {
+        val batch = synchronized(pendingSubAgentResults) {
+            if (!pendingSubAgentResults.containsKey(conversationId)) return
+            if (!deliveringSubAgentResults.add(conversationId)) return
+            val session = sessionManager.get(conversationId)
+            // 会话没打开时不主动起一轮生成，等用户下次打开再送；
+            // 上下文已满又没开自动压缩时也先留着，等用户压缩或删消息后再投递
+            val canDeliver = session != null &&
+                !session.isGenerating &&
+                !session.state.value.isAwaitingToolApproval &&
+                !(session.maxContextReached() && !autoCompressEnabled(session))
+            if (!canDeliver) {
+                deliveringSubAgentResults.remove(conversationId)
+                return
+            }
+            pendingSubAgentResults.remove(conversationId).orEmpty()
+        }
+        try {
+            sendMessage(conversationId, listOf(UIMessagePart.Text(formatSubAgentResults(batch))), answer = true)
+        } finally {
+            synchronized(pendingSubAgentResults) { deliveringSubAgentResults.remove(conversationId) }
         }
     }
 
