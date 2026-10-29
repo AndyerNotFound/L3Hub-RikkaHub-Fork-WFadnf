@@ -31,24 +31,24 @@ internal fun buildSubAgentTool(
     return Tool(
         name = SUB_AGENT_TOOL_NAME,
         description = """
-            把一项自成一体的任务派发给子代理。子代理在独立上下文中执行，不占用当前对话的上下文。
-            你必须根据任务自行选择派发模式：
-            - wait：等待子代理完成并把最终结果直接作为工具结果返回；下一步需要结果才能继续时使用。
-            - background：派发后立即返回，适合与当前主线无关、可以并行或耗时较长的任务；子代理完成后结果会自动投递回当前会话，不需要轮询。
-            子代理完成后，不要把同一任务重复执行。
-            任务描述必须自包含：背景、目标、约束和期望的输出格式；子代理看不到当前对话。
-            可用子代理：
+            Dispatch a self-contained task to a sub-agent. The sub-agent runs in its own isolated context and does not consume the current conversation's context.
+            You must choose the dispatch mode yourself:
+            - wait: block until the sub-agent finishes and return its final result as the tool result. Use it when the next step depends on the result.
+            - background: return immediately. Use it for tasks unrelated to the current thread, tasks that can run in parallel, or long-running work. The result is delivered back to this conversation automatically when the sub-agent finishes, no polling needed.
+            Do not repeat the same task after a sub-agent has completed it.
+            The task description must be self-contained: background, goal, constraints, and the expected output format. The sub-agent cannot see this conversation.
+            Available sub-agents:
             $catalog
         """.trimIndent(),
         systemPrompt = { _, _ ->
             """
-            ## 子代理
-            当任务可以独立完成、需要多步检索或大量文件/终端操作、或与当前主线无关时，优先调用 dispatch_sub_agent 交给子代理，不要自己逐步硬做。
-            派发模式由你决定：下一步必须依赖子代理结果时选择 wait；任务独立、可以并行或耗时较长时选择 background。
-            background 的结果会在子代理完成后自动送回当前会话；如果当前会话还在忙，多条结果会合并后在你空闲时一次投递。
-            适合派发：资料调研与对比、批量文件处理、独立代码修改、长文档阅读总结、可并行的子任务。
-            不必派发：一句话问答、需要当前对话细节、需要用户确认或审批的操作。
-            派发后不要重复执行同一个任务；background 的结果会自动送达，不要轮询，也不要在收到结果前假设它已经完成。
+            ## Sub-agents
+            When a task can be finished independently, needs multi-step research or heavy file/terminal work, or is unrelated to the current thread, prefer calling dispatch_sub_agent instead of doing everything step by step yourself.
+            Pick the dispatch mode yourself: use wait when the next step depends on the sub-agent's result; use background when the task is independent, can run in parallel, or may take a long time.
+            background results are delivered back to this conversation automatically when the sub-agent finishes; if this conversation is still busy, multiple results are merged and delivered once when you are idle.
+            Good candidates: research and comparison, batch file processing, independent code changes, summarizing long documents, and subtasks that can run in parallel.
+            Not worth dispatching: one-line questions, tasks that need details of this conversation, or anything that needs the user's confirmation or approval.
+            Do not repeat a task after dispatching it; background results arrive automatically, so do not poll and do not assume a result is ready before it arrives.
             """.trimIndent()
         },
         parameters = {
@@ -56,11 +56,11 @@ internal fun buildSubAgentTool(
                 properties = buildJsonObject {
                     put("assistant", buildJsonObject {
                         put("type", "string")
-                        put("description", "子代理名称，必须是可用子代理列表里的名字")
+                        put("description", "Sub-agent name. Must be one of the names in the available sub-agent list.")
                     })
                     put("task", buildJsonObject {
                         put("type", "string")
-                        put("description", "要子代理完成的任务，自包含、可独立执行")
+                        put("description", "The task for the sub-agent. Must be self-contained and independently executable.")
                     })
                     put("mode", buildJsonObject {
                         put("type", "string")
@@ -70,7 +70,7 @@ internal fun buildSubAgentTool(
                         })
                         put(
                             "description",
-                            "wait：等待并返回最终结果；background：立即返回，不返回最终结果。默认 background。",
+                            "wait: wait and return the final result; background: return immediately without the final result. Defaults to background.",
                         )
                     })
                 },

@@ -2024,4 +2024,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_message_nav_position_title">消息导航在左侧</string>
   <string name="setting_display_page_message_nav_position_desc">滚动时把边缘那一列消息横条放到左侧；默认在右侧</string>
   <string name="task_tree_task">任务</string>
+  <string name="setting_display_page_disable_animations_title">关闭所有动画</string>
+  <string name="setting_display_page_disable_animations_desc">界面切换、卡片展开等直接跳变，不做 Material 动效</string>
+  <string name="heartbeat_page_model_clear">清除当前</string>
+  <string name="chat_page_select_multiple">多选</string>
+  <string name="chat_page_selected_count">已选 %1$d 个</string>
 </resources>

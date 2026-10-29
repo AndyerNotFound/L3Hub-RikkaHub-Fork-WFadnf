@@ -14,9 +14,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -175,11 +177,23 @@ fun AssistantHeartbeatPage(id: String) {
                         Text(modelName ?: stringResource(R.string.heartbeat_page_model_desc))
                     },
                     trailingContent = {
-                        Icon(
-                            imageVector = HugeIcons.ArrowRight01,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (heartbeat.modelId != null) {
+                                TextButton(
+                                    onClick = { update { it.copy(modelId = null) } },
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.heartbeat_page_model_clear),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = HugeIcons.ArrowRight01,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     },
                 )
             }

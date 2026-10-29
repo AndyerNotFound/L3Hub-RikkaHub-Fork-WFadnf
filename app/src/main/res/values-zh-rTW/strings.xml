@@ -1854,4 +1854,9 @@
   <string name="setting_display_page_message_nav_position_title">訊息導覽在左側</string>
   <string name="setting_display_page_message_nav_position_desc">捲動時把邊緣那一列訊息橫條放到左側；預設在右側</string>
   <string name="task_tree_task">任務</string>
+  <string name="setting_display_page_disable_animations_title">關閉所有動畫</string>
+  <string name="setting_display_page_disable_animations_desc">介面切換、卡片展開等直接跳變，不做 Material 動效</string>
+  <string name="heartbeat_page_model_clear">清除目前</string>
+  <string name="chat_page_select_multiple">多選</string>
+  <string name="chat_page_selected_count">已選 %1$d 個</string>
 </resources>

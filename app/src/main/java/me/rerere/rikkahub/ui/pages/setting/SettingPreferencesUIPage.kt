@@ -267,6 +267,12 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     )
                 }
                 switchItem(
+                    checked = displaySetting.disableAnimations,
+                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(disableAnimations = it)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_disable_animations_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_disable_animations_title)) },
+                )
+                switchItem(
                     checked = displaySetting.showThinkingContent,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },

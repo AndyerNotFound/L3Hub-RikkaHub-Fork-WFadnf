@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ import androidx.paging.compose.itemKey
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
@@ -56,6 +58,7 @@ import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
@@ -99,8 +102,17 @@ fun ColumnScope.ConversationList(
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
     onRename: (Conversation, String) -> Unit = { _, _ -> },
+    onDeleteSelected: (List<Conversation>) -> Unit = {},
+    onPinSelected: (List<Conversation>) -> Unit = {},
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
+    // 多选：长按菜单里进入，点条目切换选中
+    var selectionMode by remember { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateListOf<Uuid>() }
+    fun selectedConversations(): List<Conversation> = conversations.itemSnapshotList.items
+        .filterIsInstance<ConversationListItem.Item>()
+        .map { it.conversation }
+        .filter { it.id in selectedIds }
     // 列表顶部若放了 header，会话项在 LazyColumn 中的位置要往后挪一位
     val headerCount = if (header != null) 1 else 0
 
@@ -119,9 +131,31 @@ fun ColumnScope.ConversationList(
         }
     }
 
+    Column(modifier = modifier) {
+    AnimatedVisibility(visible = selectionMode) {
+        SelectionBar(
+            count = selectedIds.size,
+            onPin = {
+                onPinSelected(selectedConversations())
+                selectedIds.clear()
+                selectionMode = false
+            },
+            onDelete = {
+                onDeleteSelected(selectedConversations())
+                selectedIds.clear()
+                selectionMode = false
+            },
+            onClear = {
+                selectedIds.clear()
+                selectionMode = false
+            },
+        )
+    }
     LazyColumn(
         state = listState,
-        modifier = modifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f),
         verticalArrangement = Arrangement.Top,
     ) {
         if (header != null) {
@@ -204,7 +238,30 @@ fun ColumnScope.ConversationList(
                         conversation = item.conversation,
                         selected = item.conversation.id == current.id,
                         loading = item.conversation.id in conversationJobs,
-                        onClick = onClick,
+                        selectionMode = selectionMode,
+                        checked = item.conversation.id in selectedIds,
+                        onToggleSelection = {
+                            if (item.conversation.id in selectedIds) {
+                                selectedIds.remove(item.conversation.id)
+                            } else {
+                                selectedIds.add(item.conversation.id)
+                            }
+                        },
+                        onEnterSelection = {
+                            selectionMode = true
+                            if (item.conversation.id !in selectedIds) selectedIds.add(item.conversation.id)
+                        },
+                        onClick = if (selectionMode) {
+                            { conversation ->
+                                if (conversation.id in selectedIds) {
+                                    selectedIds.remove(conversation.id)
+                                } else {
+                                    selectedIds.add(conversation.id)
+                                }
+                            }
+                        } else {
+                            onClick
+                        },
                         onDelete = onDelete,
                         onRegenerateTitle = onRegenerateTitle,
                         onPin = onPin,
@@ -221,6 +278,7 @@ fun ColumnScope.ConversationList(
             }
             }
         }
+    }
     }
 }
 
@@ -287,6 +345,10 @@ private fun ConversationItem(
     conversation: Conversation,
     selected: Boolean,
     loading: Boolean,
+    selectionMode: Boolean = false,
+    checked: Boolean = false,
+    onToggleSelection: () -> Unit = {},
+    onEnterSelection: () -> Unit = {},
     modifier: Modifier = Modifier,
     onDelete: (Conversation) -> Unit = {},
     onRegenerateTitle: (Conversation) -> Unit = {},
@@ -315,11 +377,12 @@ private fun ConversationItem(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
-                onClick = { onClick(conversation) },
+                onClick = {
+                    if (selectionMode) onToggleSelection() else onClick(conversation)
+                },
                 onLongClick = {
-                    // Also clear chat input focus when the drawer is permanently visible.
                     focusManager.clearFocus(force = true)
-                    showDropdownMenu = true
+                    if (selectionMode) onToggleSelection() else showDropdownMenu = true
                 }
             )
             .background(backgroundColor),
@@ -330,6 +393,38 @@ private fun ConversationItem(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            AnimatedVisibility(visible = selectionMode) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (checked) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                Color.Transparent
+                            }
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (checked) {
+                        Icon(
+                            imageVector = HugeIcons.Tick01,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.outlineVariant)
+                        )
+                    }
+                }
+            }
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
                 maxLines = 1,
@@ -361,6 +456,14 @@ private fun ConversationItem(
                 expanded = showDropdownMenu,
                 onDismissRequest = { showDropdownMenu = false },
             ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_page_select_multiple)) },
+                    onClick = {
+                        onEnterSelection()
+                        showDropdownMenu = false
+                    },
+                    leadingIcon = { Icon(HugeIcons.Tick01, null) },
+                )
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -476,5 +579,61 @@ private fun ConversationItem(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun SelectionBar(
+    count: Int,
+    onPin: () -> Unit,
+    onDelete: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.chat_page_selected_count, count),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = HugeIcons.Pin,
+                contentDescription = stringResource(R.string.pin_chat),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onPin)
+                    .padding(6.dp)
+                    .size(18.dp),
+            )
+            Spacer(Modifier.size(4.dp))
+            Icon(
+                imageVector = HugeIcons.Delete01,
+                contentDescription = stringResource(R.string.chat_page_delete),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onDelete)
+                    .padding(6.dp)
+                    .size(18.dp),
+            )
+            Spacer(Modifier.size(4.dp))
+            Icon(
+                imageVector = HugeIcons.Cancel01,
+                contentDescription = stringResource(R.string.chat_page_cancel),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onClear)
+                    .padding(6.dp)
+                    .size(18.dp),
+            )
+        }
     }
 }

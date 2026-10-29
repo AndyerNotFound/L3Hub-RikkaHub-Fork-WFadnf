@@ -43,7 +43,8 @@ fun ChatMessageSubAgentNotice(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    var expanded by remember(message.createdAt) { mutableStateOf(true) }
+    // 回传结果通常很长，默认收起，点标题行再展开
+    var expanded by remember(message.createdAt) { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxWidth()

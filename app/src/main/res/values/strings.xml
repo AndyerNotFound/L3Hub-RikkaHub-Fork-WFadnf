@@ -2022,4 +2022,9 @@
   <string name="setting_display_page_message_nav_position_title">Message nav on the left</string>
   <string name="setting_display_page_message_nav_position_desc">Put the column of message ticks on the left edge while scrolling</string>
   <string name="task_tree_task">Task</string>
+  <string name="setting_display_page_disable_animations_title">Disable all animations</string>
+  <string name="setting_display_page_disable_animations_desc">Use instant transitions instead of Material motion</string>
+  <string name="heartbeat_page_model_clear">Clear</string>
+  <string name="chat_page_select_multiple">Select multiple</string>
+  <string name="chat_page_selected_count">%1$d selected</string>
 </resources>

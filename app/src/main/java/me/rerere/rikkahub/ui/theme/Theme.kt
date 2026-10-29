@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.theme
 
 import android.os.Build
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -32,6 +34,16 @@ val LocalExtendColors = compositionLocalOf { ExtendLightColors }
 val LocalDarkMode = compositionLocalOf { false }
 
 private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
+
+/** 关闭动效时用的 MotionScheme：所有 spec 都是 snap，动画一帧到位 */
+private val SnapMotionScheme = object : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = snap()
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = snap()
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = snap()
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = snap()
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = snap()
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = snap()
+}
 
 @Serializable
 enum class ColorMode {
@@ -114,7 +126,11 @@ fun RikkahubTheme(
             typography = if (terminal) terminalTypography(Typography) else Typography,
             shapes = if (terminal) TerminalShapes else MaterialTheme.shapes,
             content = content,
-            motionScheme = MotionScheme.expressive()
+            motionScheme = if (settings.displaySetting.disableAnimations) {
+                SnapMotionScheme
+            } else {
+                MotionScheme.expressive()
+            }
         )
     }
 }

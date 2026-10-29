@@ -301,7 +301,21 @@ fun ChatDrawerContent(
                 onMoveToFolder = {
                     conversationToMoveFolder = it
                     showMoveToFolderSheet = true
-                }
+                },
+                onDeleteSelected = { list ->
+                    scope.launch {
+                        list.forEach { vm.deleteConversation(it).join() }
+                        conversations.refresh()
+                        if (list.any { it.id == current.id }) {
+                            navigateToChatPage(navController)
+                        }
+                    }
+                },
+                onPinSelected = { list ->
+                    // 有未置顶的就全部置顶，否则全部取消置顶
+                    val target = list.any { !it.isPinned }
+                    list.filter { it.isPinned != target }.forEach { vm.updatePinnedStatus(it) }
+                },
             )
 
             if (memoryDreaming) {

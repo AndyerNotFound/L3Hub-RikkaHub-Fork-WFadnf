@@ -191,6 +191,8 @@ data class DisplaySetting(
     val buttonShadow: Boolean = false,
     // Usage 看板的上下文占用用饼图显示
     val usagePieChart: Boolean = false,
+    // 关闭所有动效：Material 的 motionScheme 换成 snap，列表/卡片的过渡直接跳变
+    val disableAnimations: Boolean = false,
     // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
     val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,
