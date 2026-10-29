@@ -1157,6 +1157,11 @@
   <string name="extensions_page_workspace_desc">管理可由 Agent 存取的本地工作目錄</string>
   <string name="workspace_select">選擇工作區</string>
   <string name="workspace_no_binding">無綁定</string>
+  <string name="workspace_selected_count">已選擇 %1$d 個工作區</string>
+  <string name="workspace_multi_select_hint">可多選；助手可以同時使用所有已選工作區。</string>
+  <string name="workspace_done">完成</string>
+  <string name="chat_message_expand_content">展開</string>
+  <string name="chat_message_collapse_content">收起</string>
   <string name="workspace_manage">管理工作區</string>
   <string name="workspace_detail">工作區詳細資訊</string>
   <string name="workspace_terminal">工作區終端</string>
