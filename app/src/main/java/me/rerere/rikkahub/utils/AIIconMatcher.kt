@@ -13,7 +13,7 @@ private val iconCache = mutableMapOf<String, String>()
 
 // https://lobehub.com/zh/icons
 fun computeAIIconByName(name: String, availableIcons: List<String> = emptyList()): String? {
-    iconCache[name]?.let { return it }
+    iconCache[name]?.let { return preferColorIcon(it, availableIcons) }
 
     val lowerName = name.lowercase()
     val result = when {

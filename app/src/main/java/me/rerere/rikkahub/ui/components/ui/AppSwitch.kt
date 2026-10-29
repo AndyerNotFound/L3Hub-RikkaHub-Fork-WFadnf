@@ -21,7 +21,7 @@ fun AppSwitch(
         checked = checked,
         onCheckedChange = onCheckedChange,
         enabled = enabled,
-        modifier = if (LocalButtonShadow.current) {
+        modifier = if (LocalButtonShadow.current && enabled) {
             modifier.shadow(
                 elevation = 1.dp,
                 shape = CircleShape,
