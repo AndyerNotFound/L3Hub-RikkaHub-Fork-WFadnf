@@ -145,6 +145,8 @@ import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
+import java.io.File
+import java.util.Locale
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -452,6 +454,22 @@ private fun ChatPageContent(
         }
     }
 
+    fun terminalConversationMarkdown(): String = buildString {
+        appendLine("# ${conversation.title.ifBlank { "conversation" }}")
+        appendLine()
+        terminalMessages().forEach { message ->
+            val role = when (message.role) {
+                MessageRole.USER -> "User"
+                MessageRole.ASSISTANT -> "Assistant"
+                else -> "System"
+            }
+            appendLine("## $role")
+            appendLine()
+            appendLine(message.toText())
+            appendLine()
+        }
+    }
+
     fun runTerminalCommand(raw: String) {
         val command = parseTerminalCommand(raw) ?: return
         var clearInput = true
@@ -479,7 +497,8 @@ private fun ChatPageContent(
                     when {
                         matches.size == 1 -> {
                             vm.setChatModel(matches.first())
-                            terminalOutput = "model -> ${matches.first().displayName.ifBlank { matches.first().modelId }}"
+                            val picked = matches.first()
+                            terminalOutput = "model -> ${picked.displayName.ifBlank { picked.modelId }}"
                         }
                         matches.isEmpty() -> terminalOutput = "no model matched: ${command.args}"
                         else -> terminalOutput = buildString {
@@ -588,24 +607,93 @@ private fun ChatPageContent(
                 }
             }
             "export" -> {
-                val markdown = buildString {
-                    appendLine("# ${conversation.title.ifBlank { "conversation" }}")
-                    appendLine()
-                    terminalMessages().forEach { message ->
-                        val role = when (message.role) {
-                            MessageRole.USER -> "User"
-                            MessageRole.ASSISTANT -> "Assistant"
-                            else -> "System"
-                        }
-                        appendLine("## $role")
-                        appendLine()
-                        appendLine(message.toText())
-                        appendLine()
-                    }
-                }
+                val markdown = terminalConversationMarkdown()
                 context.writeClipboardText(markdown)
                 terminalOutput = "conversation copied as markdown (${markdown.length} chars)"
             }
+            "save" -> {
+                val markdown = terminalConversationMarkdown()
+                val dir = File(context.getExternalFilesDir(null), "exports").apply { mkdirs() }
+                val file = File(dir, "conversation-${conversation.id}-${System.currentTimeMillis()}.md")
+                runCatching { file.writeText(markdown) }
+                    .onSuccess { terminalOutput = "saved -> ${file.absolutePath}" }
+                    .onFailure { terminalOutput = "save failed: ${it.message}" }
+            }
+            "assistant" -> {
+                if (command.args.isBlank()) {
+                    terminalOutput = buildString {
+                        appendLine("assistants:")
+                        setting.assistants.forEach { item ->
+                            val mark = if (item.id == conversation.assistantId) "*" else " "
+                            appendLine("$mark ${item.name.ifBlank { "assistant" }}  [${item.id}]")
+                        }
+                    }
+                } else {
+                    val query = command.args.lowercase()
+                    val matches = setting.assistants.filter { it.name.lowercase().contains(query) }
+                    when {
+                        matches.size == 1 -> {
+                            vm.moveConversationToAssistant(conversation, matches.first().id)
+                            terminalOutput = "assistant -> ${matches.first().name}"
+                        }
+                        matches.isEmpty() -> terminalOutput = "no assistant matched: ${command.args}"
+                        else -> terminalOutput = buildString {
+                            appendLine("multiple matches:")
+                            matches.take(20).forEach { appendLine("  ${it.name}") }
+                        }
+                    }
+                }
+            }
+            "chats" -> navController.navigate(Screen.History)
+            "favorite" -> navController.navigate(Screen.Favorite)
+            "open" -> {
+                val id = runCatching { Uuid.parse(command.args.trim()) }.getOrNull()
+                if (id == null) {
+                    terminalOutput = "usage: /open <conversation-id>\ncurrent: ${conversation.id}"
+                } else {
+                    navigateToChatPage(navController, chatId = id)
+                }
+            }
+            "close" -> {
+                scope.launch {
+                    vm.deleteConversation(conversation)
+                    navController.popBackStack()
+                }
+            }
+            "fav" -> {
+                val message = terminalMessageAt(command.args)
+                val node = message?.let { target ->
+                    conversation.messageNodes.firstOrNull { node -> node.messages.any { it.id == target.id } }
+                }
+                if (node == null) {
+                    terminalOutput = "message not found: ${command.args}"
+                } else {
+                    val wasFavorite = node.isFavorite
+                    vm.toggleMessageFavorite(node)
+                    val label = if (wasFavorite) "unfavorited" else "favorited"
+                    terminalOutput = "$label -> [${node.messages.first().id}]"
+                }
+            }
+            "switch" -> {
+                val node = conversation.messageNodes.lastOrNull { it.messages.size > 1 }
+                val index = command.args.trim().toIntOrNull()
+                if (node == null || index == null) {
+                    terminalOutput = "usage: /switch <0..${node?.messages?.lastIndex ?: 0}>"
+                } else {
+                    vm.selectMessageNode(node.id, index.coerceIn(0, node.messages.lastIndex))
+                    terminalOutput = "branch -> $index"
+                }
+            }
+            "translate" -> {
+                val message = terminalMessageAt(command.args, defaultAssistant = true)
+                if (message == null) {
+                    terminalOutput = "no assistant message to translate"
+                } else {
+                    vm.translateMessage(message, Locale.forLanguageTag(setting.translateTargetLanguage))
+                }
+            }
+            "mcp" -> navController.navigate(Screen.SettingMcp)
+            "workspace" -> showFilesSheet = true
             "settings" -> navController.navigate(Screen.Setting)
             "terminal" -> {
                 when (command.args.lowercase()) {
@@ -1078,86 +1166,6 @@ private fun ChatFilesPickerSheet(
 }
 
 @Composable
-private fun TerminalTopBar(
-    assistant: Assistant,
-    chatModel: Model?,
-    bigScreen: Boolean,
-    drawerState: DrawerState,
-    previewMode: Boolean,
-    onNewChat: () -> Unit,
-    onClickMenu: () -> Unit,
-    onShowTaskTree: () -> Unit,
-) {
-    val scope = rememberCoroutineScope()
-    val navShape = RoundedCornerShape(2.dp)
-    val buttonColor = TerminalPalette.SurfaceHigh
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (!bigScreen) {
-            TerminalBarButton(
-                text = "MENU",
-                shape = navShape,
-                color = buttonColor,
-                onClick = { scope.launch { drawerState.open() } },
-            )
-        }
-        Text(
-            text = (chatModel?.modelId?.substringAfterLast('/') ?: assistant.name.ifBlank { "no-model" })
-                .lowercase()
-                .take(22),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.GreenDim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        TerminalBarButton("TREE", navShape, buttonColor, onShowTaskTree)
-        TerminalBarButton(
-            text = if (previewMode) "VIEW" else "LIST",
-            shape = navShape,
-            color = buttonColor,
-            onClick = onClickMenu,
-        )
-        TerminalBarButton("NEW", navShape, buttonColor, onNewChat)
-    }
-}
-
-@Composable
-private fun TerminalBarButton(
-    text: String,
-    shape: Shape,
-    color: Color,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = shape,
-        color = color,
-        border = BorderStroke(1.dp, TerminalPalette.Border),
-        modifier = Modifier.height(32.dp),
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "[$text]",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = TerminalPalette.Green,
-            )
-        }
-    }
-}
-
-@Composable
 private fun TopBar(
     hazeState: HazeState,
     settings: Settings,
@@ -1383,6 +1391,24 @@ private fun TerminalEmptyChatHero(assistant: Assistant) {
             fontFamily = FontFamily.Monospace,
             color = TerminalPalette.Green,
             maxLines = 1,
+        )
+        Text(
+            text = "│   /help   列出全部命令    /model  切换模型",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.GreenDim,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+        Text(
+            text = "│   /usage  查看上下文    /tree   任务树",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = TerminalPalette.GreenDim,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
         Text(
             text = "└$rule",

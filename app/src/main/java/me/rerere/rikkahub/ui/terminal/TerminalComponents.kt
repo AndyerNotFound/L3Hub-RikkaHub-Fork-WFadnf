@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -278,19 +279,12 @@ private fun TerminalIconButton(
     enabled: Boolean,
     content: @Composable () -> Unit,
 ) {
-    Row(
-        modifier = modifier
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    CompositionLocalProvider(
+        LocalContentColor provides if (enabled) TerminalPalette.Green else TerminalPalette.GreenDim,
     ) {
-        TerminalBracket("[", if (enabled) TerminalPalette.GreenDim else TerminalPalette.Border)
-        CompositionLocalProvider(
-            LocalContentColor provides if (enabled) TerminalPalette.Green else TerminalPalette.GreenDim,
-        ) {
+        Box(modifier = modifier.clickable(enabled = enabled, onClick = onClick)) {
             content()
         }
-        TerminalBracket("]", if (enabled) TerminalPalette.GreenDim else TerminalPalette.Border)
     }
 }
 
