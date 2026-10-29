@@ -82,11 +82,13 @@ class WorkspaceReminderTransformer(
         val prompt = buildString {
             if (prompts.size > 1) {
                 appendLine("<workspaces>")
-                appendLine("The assistant is bound to multiple workspaces. Pass `workspace` to workspace_* tools with one of:")
+                appendLine(
+                    "The assistant is bound to multiple workspaces. Pass `workspace` to workspace_* tools using one of these IDs:"
+                )
                 prompts.forEach { (workspace, _) ->
-                    appendLine("- ${workspace.name} (${workspace.id})")
+                    appendLine("- ${workspace.id} — ${workspace.name}")
                 }
-                appendLine("If `workspace` is omitted, \"${prompts.first().first.name}\" is used.")
+                appendLine("If `workspace` is omitted, \"${prompts.first().first.id}\" is used.")
                 appendLine("</workspaces>")
                 appendLine()
             }

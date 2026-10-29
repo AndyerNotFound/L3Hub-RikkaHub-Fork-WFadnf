@@ -148,6 +148,30 @@ class AgentLoopTest {
     }
 
     @Test
+    fun `throwing approval callback waits for approval instead of aborting the run`() = runTest {
+        var executed = false
+        val broken = Tool(
+            name = "broken",
+            description = "broken",
+            needsApproval = { error("approval callback failed") },
+            execute = {
+                executed = true
+                ok()
+            },
+        )
+        provider.stream {
+            toolCall("call-1", "broken", "{}")
+            finish()
+        }
+
+        val finished = runToEnd(request(tools = listOf(broken))).finished()
+
+        assertEquals(AgentFinishReason.AwaitingApproval(setOf("call-1")), finished.reason)
+        assertEquals(ToolApprovalState.Pending, finished.message.tool("call-1").approvalState)
+        assertFalse(executed)
+    }
+
+    @Test
     fun `resuming after approval runs every remaining tool in call order`() = runTest {
         val executed = mutableListOf<String>()
         val tools = listOf(

@@ -69,7 +69,7 @@ internal class AgentLoop(
             parts = current.parts.map { part ->
                 if (part is UIMessagePart.Tool && !part.isExecuted &&
                     part.approvalState == ToolApprovalState.Auto &&
-                    findTool(part.toolName)?.needsApproval?.invoke(part.inputAsJson()) == true
+                    requiresApproval(part)
                 ) {
                     part.copy(approvalState = ToolApprovalState.Pending)
                 } else {
@@ -80,6 +80,11 @@ internal class AgentLoop(
         if (updated != current) update(updated)
         return updated.getTools().filter { it.isPending }.mapTo(LinkedHashSet()) { it.toolCallId }
     }
+
+    // 审批回调可能是工具作者写的任意代码，抛异常时按需要审批处理，不能让它中断整轮生成
+    private fun requiresApproval(part: UIMessagePart.Tool): Boolean = runCatching {
+        findTool(part.toolName)?.needsApproval?.invoke(part.inputAsJson()) == true
+    }.getOrDefault(true)
 
     private suspend fun generateStep() {
         val current = message

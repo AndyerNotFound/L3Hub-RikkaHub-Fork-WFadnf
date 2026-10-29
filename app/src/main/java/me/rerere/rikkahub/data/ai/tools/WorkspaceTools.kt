@@ -42,7 +42,7 @@ fun resolveWorkspaceToolApproval(name: String, overrides: Map<String, Boolean>):
 
 private const val TAG = "WorkspaceTools"
 
-private data class WorkspaceTarget(
+internal data class WorkspaceTarget(
     val id: String,
     val name: String,
     val layout: WorkspaceLayout,
@@ -91,8 +91,8 @@ suspend fun createWorkspaceTools(
 private fun List<WorkspaceTarget>.workspaceNote(): String = if (size <= 1) {
     ""
 } else {
-    " Multiple workspaces are bound: ${joinToString { "${it.name} (${it.id})" }}." +
-        " Set `workspace` to choose one; defaults to ${first().name}."
+    " Multiple workspaces are bound: ${joinToString { "${it.id} (${it.name})" }}." +
+        " Set `workspace` to one of these IDs; defaults to ${first().id}."
 }
 
 private fun JsonObjectBuilder.putWorkspaceProperty(targets: List<WorkspaceTarget>) {
@@ -101,22 +101,55 @@ private fun JsonObjectBuilder.putWorkspaceProperty(targets: List<WorkspaceTarget
         put("type", "string")
         put(
             "description",
-            "Workspace to use. One of: ${targets.joinToString { "${it.name} (${it.id})" }}." +
-                " Defaults to ${targets.first().name}."
+            "Workspace ID to use. One of: ${targets.joinToString { "${it.id} (${it.name})" }}." +
+                " Defaults to ${targets.first().id}. Prefer the ID; names may contain quotes."
         )
     })
 }
 
-private fun JsonObject.resolveWorkspace(targets: List<WorkspaceTarget>): WorkspaceTarget {
+internal fun JsonObject.resolveWorkspace(targets: List<WorkspaceTarget>): WorkspaceTarget {
     if (targets.size == 1) return targets.first()
     val requested = string("workspace")?.trim().orEmpty()
     if (requested.isBlank()) return targets.first()
-    return targets.firstOrNull { target ->
+
+    targets.firstOrNull { target ->
         target.id.equals(requested, ignoreCase = true) || target.name.equals(requested, ignoreCase = true)
-    } ?: error(
-        "Unknown workspace '$requested'. Available: ${targets.joinToString { "${it.name} (${it.id})" }}"
-    )
+    }?.let { return it }
+
+    val normalized = requested.normalizeWorkspaceSelector()
+    if (normalized.isNotEmpty()) {
+        val matches = targets.filter { target ->
+            target.id.normalizeWorkspaceSelector() == normalized ||
+                target.name.normalizeWorkspaceSelector() == normalized
+        }
+        if (matches.size == 1) return matches.single()
+        if (matches.size > 1) {
+            error("Ambiguous workspace '$requested'. Use the workspace ID. Available: ${targets.availableWorkspaces()}")
+        }
+    }
+
+    val idPrefixMatches = targets.filter { it.id.startsWith(requested, ignoreCase = true) }
+    if (idPrefixMatches.size == 1) return idPrefixMatches.single()
+
+    error("Unknown workspace '$requested'. Use the workspace ID. Available: ${targets.availableWorkspaces()}")
 }
+
+/** 审批回调不能抛异常，否则会中断整轮生成；解析失败时交给调用方按需要审批处理。 */
+internal fun JsonObject.resolveWorkspaceOrNull(targets: List<WorkspaceTarget>): WorkspaceTarget? =
+    runCatching { resolveWorkspace(targets) }.getOrNull()
+
+private fun List<WorkspaceTarget>.availableWorkspaces(): String =
+    joinToString { "${it.id} (${it.name})" }
+
+/** 名称可能带引号，模型有时只保留其中一部分；比较时去掉各类引号并归一小写与空白。 */
+private fun String.normalizeWorkspaceSelector(): String =
+    filterNot { it in WORKSPACE_QUOTES }
+        .replace(WHITESPACE, " ")
+        .trim()
+        .lowercase()
+
+private val WORKSPACE_QUOTES = setOf('"', '\'', '“', '”', '‘', '’', '＂')
+private val WHITESPACE = Regex("\\s+")
 
 private fun WorkspaceTarget.needsApproval(name: String): Boolean =
     resolveWorkspaceToolApproval(name, approvalOverrides)
@@ -149,7 +182,7 @@ private fun createReadFileTool(
         )
     },
     needsApproval = { params ->
-        params.jsonObject.resolveWorkspace(targets).needsApproval("workspace_read_file")
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_read_file") ?: true
     },
     execute = {
         val params = it.jsonObject
@@ -200,8 +233,8 @@ private fun createWriteFileTool(
         )
     },
     needsApproval = { params ->
-        val target = params.jsonObject.resolveWorkspace(targets)
-        target.needsApproval("workspace_write_file") ||
+        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
+        target == null || target.needsApproval("workspace_write_file") ||
             params.jsonObject.pathOutsideWritableRoots(target.layout, "path")
     },
     execute = {
@@ -252,8 +285,8 @@ private fun createEditFileTool(
         )
     },
     needsApproval = { params ->
-        val target = params.jsonObject.resolveWorkspace(targets)
-        target.needsApproval("workspace_edit_file") ||
+        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
+        target == null || target.needsApproval("workspace_edit_file") ||
             params.jsonObject.pathOutsideWritableRoots(target.layout, "path")
     },
     execute = {
@@ -342,7 +375,7 @@ private fun createShellTool(
         )
     },
     needsApproval = { params ->
-        params.jsonObject.resolveWorkspace(targets).needsApproval("workspace_shell")
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_shell") ?: true
     },
     execute = {
         val params = it.jsonObject
