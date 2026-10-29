@@ -56,7 +56,6 @@ suspend fun createWorkspaceTools(
     cwd: String? = null,
 ): List<Tool> {
     val targets = workspaceIds
-        .asSequence()
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinct()
