@@ -1645,6 +1645,17 @@
   <string name="chat_message_usage_total_output">總輸出</string>
   <string name="chat_message_usage_speed">速度</string>
   <string name="chat_message_usage_duration">時長</string>
+  <string name="chat_message_usage_destination">Token 去向</string>
+  <string name="chat_message_usage_destination_input">輸入</string>
+  <string name="chat_message_usage_destination_output">輸出</string>
+  <string name="chat_message_usage_destination_system">系統 &amp; 工具定義</string>
+  <string name="chat_message_usage_destination_user">對話輸入</string>
+  <string name="chat_message_usage_destination_history">對話歷史</string>
+  <string name="chat_message_usage_destination_tool">工具呼叫與結果</string>
+  <string name="chat_message_usage_destination_reasoning">思考</string>
+  <string name="chat_message_usage_destination_reply">正文輸出</string>
+  <string name="chat_message_usage_destination_cached">其中快取命中</string>
+  <string name="chat_message_usage_destination_hint">分類依訊息內容估算，總量來自上游 usage。</string>
   <string name="stats_page_usage_title">Token 使用量</string>
   <string name="stats_page_range_7d">7 天</string>
   <string name="stats_page_range_30d">30 天</string>

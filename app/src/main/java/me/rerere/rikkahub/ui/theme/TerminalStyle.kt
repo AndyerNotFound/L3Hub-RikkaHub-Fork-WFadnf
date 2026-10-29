@@ -1,12 +1,16 @@
 package me.rerere.rikkahub.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
 
 /** 终端风格会话界面的配色，黑底绿字，强调色用琥珀色 */
 object TerminalPalette {
@@ -49,6 +53,17 @@ val TerminalColorScheme = darkColorScheme(
 
 private fun TextStyle.monospace() = copy(fontFamily = FontFamily.Monospace)
 
+/** 终端模式下所有组件都用直角，配合等宽字体形成文本窗口的观感 */
+val TerminalShapes = Shapes(
+    extraSmall = RoundedCornerShape(0.dp),
+    small = RoundedCornerShape(0.dp),
+    medium = RoundedCornerShape(0.dp),
+    large = RoundedCornerShape(0.dp),
+    extraLarge = RoundedCornerShape(0.dp),
+)
+
+val LocalTerminalMode = compositionLocalOf { false }
+
 fun terminalTypography(base: Typography): Typography = base.copy(
     displayLarge = base.displayLarge.monospace(),
     displayMedium = base.displayMedium.monospace(),
@@ -76,6 +91,7 @@ fun TerminalTheme(enabled: Boolean, content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = TerminalColorScheme,
         typography = terminalTypography(MaterialTheme.typography),
+        shapes = TerminalShapes,
         content = content,
     )
 }

@@ -38,6 +38,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
@@ -51,9 +53,15 @@ import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.model.effectiveContextWindow
+import me.rerere.rikkahub.data.model.TokenBreakdown
+import me.rerere.rikkahub.data.model.TokenBucket
+import me.rerere.rikkahub.data.model.TokenDestination
+import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
+import me.rerere.rikkahub.ui.theme.TerminalPalette
+import kotlin.math.roundToInt
 import java.text.NumberFormat
 import java.time.Duration
 
@@ -176,6 +184,9 @@ fun ConversationUsageDetails(
 
     val lastMessage = usageMessages.last()
     val lastStats = remember(lastMessage) { lastMessage.nerdStats(lastMessage.usage!!) }
+    val breakdown = remember(messages, lastMessage) {
+        buildTokenBreakdown(messages, lastStats.lastUsage)
+    }
     val total = usageMessages.fold(null as TokenUsage?) { acc, message -> acc.sum(message.usage) }
         ?: TokenUsage()
     val steps = usageMessages.sumOf { it.stepCount ?: 1 }
@@ -194,6 +205,9 @@ fun ConversationUsageDetails(
             contextLength = contextLength,
             modifier = Modifier.padding(bottom = 8.dp),
         )
+        if (breakdown.hasUsage) {
+            TokenDestinationSection(breakdown = breakdown)
+        }
         UsageDetailRow(stringResource(R.string.chat_message_usage_step_count), steps.toString())
         UsageDetailRow(stringResource(R.string.chat_message_usage_total_input), total.promptTokens.exact())
         if (total.cachedTokens > 0) {
@@ -310,6 +324,175 @@ private fun ContextUsageBar(
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Token 去向：输入侧按内容分类估算后缩放到真实 promptTokens，输出侧拆思考与正文。
+ */
+@Composable
+private fun TokenDestinationSection(
+    breakdown: TokenBreakdown,
+    modifier: Modifier = Modifier,
+) {
+    val terminal = LocalSettings.current.displaySetting.terminalStyle
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.chat_message_usage_destination),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                text = "${breakdown.promptTotal.exact()} in / ${breakdown.completionTotal.exact()} out",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = LocalContentColor.current.copy(alpha = 0.6f),
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (breakdown.promptBuckets.isNotEmpty()) {
+            Text(
+                text = "${stringResource(R.string.chat_message_usage_destination_input)} · " +
+                    breakdown.promptTotal.exact(),
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalContentColor.current.copy(alpha = 0.6f),
+            )
+            TokenStackBar(
+                buckets = breakdown.promptBuckets,
+                total = breakdown.promptTotal,
+                terminal = terminal,
+            )
+            breakdown.promptBuckets.forEach { bucket ->
+                UsageDetailRow(
+                    label = bucket.destination.label(),
+                    value = "${bucket.tokens.exact()} · ${bucket.percentOf(breakdown.promptTotal)}%",
+                )
+            }
+            if (breakdown.cachedTokens > 0) {
+                UsageDetailRow(
+                    label = stringResource(R.string.chat_message_usage_destination_cached),
+                    value = "${breakdown.cachedTokens.exact()} · " +
+                        "${(breakdown.cachedTokens * 100f / breakdown.promptTotal).roundToInt()}%",
+                )
+            }
+        }
+        if (breakdown.completionBuckets.isNotEmpty()) {
+            Text(
+                text = "${stringResource(R.string.chat_message_usage_destination_output)} · " +
+                    breakdown.completionTotal.exact(),
+                style = MaterialTheme.typography.labelSmall,
+                color = LocalContentColor.current.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            TokenStackBar(
+                buckets = breakdown.completionBuckets,
+                total = breakdown.completionTotal,
+                terminal = terminal,
+            )
+            breakdown.completionBuckets.forEach { bucket ->
+                UsageDetailRow(
+                    label = bucket.destination.label(),
+                    value = "${bucket.tokens.exact()} · ${bucket.percentOf(breakdown.completionTotal)}%",
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.chat_message_usage_destination_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = LocalContentColor.current.copy(alpha = 0.5f),
+        )
+    }
+}
+
+private fun TokenBucket.percentOf(total: Int): Int =
+    if (total > 0) (tokens * 100f / total).roundToInt() else 0
+
+@Composable
+private fun TokenDestination.label(): String = stringResource(
+    when (this) {
+        TokenDestination.SYSTEM -> R.string.chat_message_usage_destination_system
+        TokenDestination.INPUT -> R.string.chat_message_usage_destination_user
+        TokenDestination.HISTORY -> R.string.chat_message_usage_destination_history
+        TokenDestination.TOOL -> R.string.chat_message_usage_destination_tool
+        TokenDestination.REASONING -> R.string.chat_message_usage_destination_reasoning
+        TokenDestination.OUTPUT -> R.string.chat_message_usage_destination_reply
+    }
+)
+
+@Composable
+private fun destinationColor(destination: TokenDestination): Color {
+    val colors = MaterialTheme.colorScheme
+    return when (destination) {
+        TokenDestination.SYSTEM -> colors.outline
+        TokenDestination.INPUT -> colors.primary
+        TokenDestination.HISTORY -> colors.primary.copy(alpha = 0.5f)
+        TokenDestination.TOOL -> colors.tertiary
+        TokenDestination.REASONING -> colors.secondary
+        TokenDestination.OUTPUT -> colors.tertiary
+    }
+}
+
+@Composable
+private fun TokenStackBar(
+    buckets: List<TokenBucket>,
+    total: Int,
+    terminal: Boolean,
+) {
+    if (total <= 0 || buckets.isEmpty()) return
+    val colors = buckets.map { destinationColor(it.destination) }
+    if (terminal) {
+        val cells = 28
+        val allocated = buckets.map { (it.tokens.toFloat() / total * cells).toInt() }.toMutableList()
+        var remaining = cells - allocated.sum()
+        var index = 0
+        while (remaining > 0) {
+            allocated[index % allocated.size] += 1
+            remaining -= 1
+            index += 1
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+            allocated.forEachIndexed { i, count ->
+                if (count > 0) {
+                    Text(
+                        text = "█".repeat(count),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = if (colors[i] == MaterialTheme.colorScheme.outline) {
+                            TerminalPalette.GreenDim
+                        } else {
+                            colors[i]
+                        },
+                    )
+                }
+            }
+        }
+    } else {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(3.dp)),
+        ) {
+            var x = 0f
+            buckets.forEachIndexed { i, bucket ->
+                val width = size.width * bucket.tokens / total
+                drawRect(
+                    color = colors[i],
+                    topLeft = Offset(x, 0f),
+                    size = Size((width - 1.dp.toPx()).coerceAtLeast(1f), size.height),
+                )
+                x += width
             }
         }
     }

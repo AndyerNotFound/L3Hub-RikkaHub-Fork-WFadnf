@@ -120,6 +120,7 @@ import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.urlDecode
@@ -407,7 +408,23 @@ fun ChatMessage(
         }
 
         val motionScheme = MaterialTheme.motionScheme
-        AnimatedVisibility(
+        if (terminalStyle) {
+            if (showActions) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    TerminalMessageAction("copy") { context.copyMessageToClipboard(message) }
+                    TerminalMessageAction("retry") { onRegenerate() }
+                    if (message.role == MessageRole.USER) {
+                        TerminalMessageAction("edit", onEdit)
+                    }
+                    TerminalMessageAction("more") { showActionsSheet = true }
+                }
+            }
+        } else AnimatedVisibility(
             visible = showActions,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
@@ -945,19 +962,42 @@ private fun TerminalTypewriterMarkdown(
     streaming: Boolean,
     onClickCitation: (String) -> Unit,
 ) {
+    val latest = rememberUpdatedState(content)
     var visible by remember { mutableIntStateOf(if (streaming) 0 else content.length) }
-    LaunchedEffect(content, streaming) {
+    LaunchedEffect(streaming) {
         if (!streaming) {
-            visible = content.length
+            // 流结束后把尾巴快速补完，仍然保留逐字观感
+            visible = visible.coerceIn(0, latest.value.length)
+            while (visible < latest.value.length) {
+                delay(16)
+                val remaining = latest.value.length - visible
+                visible = minOf(latest.value.length, visible + maxOf(8, remaining / 3))
+            }
             return@LaunchedEffect
         }
-        if (visible > content.length) visible = content.length
         if (visible == 0 && content.isNotEmpty()) visible = minOf(12, content.length)
-        while (visible < content.length) {
+        var lastNanos = System.nanoTime()
+        while (true) {
             delay(16)
-            val remaining = content.length - visible
-            // 一次推进一小段，既不真的逐字等待，也能看出正在“打印”
-            visible = minOf(content.length, visible + maxOf(2, remaining / 8))
+            val target = latest.value.length
+            if (visible > target) visible = target
+            val backlog = target - visible
+            if (backlog <= 0) {
+                lastNanos = System.nanoTime()
+                continue
+            }
+            val now = System.nanoTime()
+            val seconds = ((now - lastNanos) / 1_000_000_000.0).coerceIn(0.001, 0.1)
+            lastNanos = now
+            // 上游来得快时按积压加速，保证不会越拖越远；慢下来后再回到正常打字速度
+            val charsPerSecond = when {
+                backlog > 1200 -> 12_000.0
+                backlog > 320 -> 4_200.0
+                backlog > 96 -> 1_200.0
+                else -> 240.0
+            }
+            val step = maxOf(1, (charsPerSecond * seconds).toInt())
+            visible = minOf(target, visible + step)
         }
     }
     val shown = content.take(visible.coerceIn(0, content.length))
@@ -1022,6 +1062,19 @@ private fun TerminalMessageHeader(
             )
         }
     }
+}
+
+@Composable
+private fun TerminalMessageAction(label: String, onClick: () -> Unit) {
+    Text(
+        text = "[$label]",
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.Monospace,
+        color = TerminalPalette.GreenDim,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    )
 }
 
 private val BubbleCorner = 24.dp

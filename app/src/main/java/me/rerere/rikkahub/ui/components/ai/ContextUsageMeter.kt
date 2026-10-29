@@ -197,7 +197,6 @@ fun ContextUsageRing(
     modifier: Modifier = Modifier,
     provider: ProviderSetting? = null,
     tokenSpeed: Float? = null,
-    generationDurationMillis: Long? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -294,35 +293,13 @@ fun ContextUsageRing(
                     color = mainColor,
                 )
             }
-            if (tokenSpeed != null || generationDurationMillis != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    if (tokenSpeed != null) {
-                        Text(
-                            text = "${tokenSpeed.toFixed(1)} tok/s",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    if (tokenSpeed != null && generationDurationMillis != null) {
-                        Text(
-                            text = "·",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (generationDurationMillis != null) {
-                        Text(
-                            text = "${(generationDurationMillis / 1000f).toFixed(1)}s",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+            if (tokenSpeed != null) {
+                Text(
+                    text = "${tokenSpeed.toFixed(1)} tok/s",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
             if (limitReached) {
                 Text(
@@ -333,9 +310,11 @@ fun ContextUsageRing(
             }
         }
         if (provider != null) {
+            // 余额每 30 秒自动刷新一次；失败时保留上一次的数字
             ProviderQuotaText(
                 providerSetting = provider,
                 style = MaterialTheme.typography.labelSmall,
+                refreshIntervalMillis = 30_000,
             )
         }
     }

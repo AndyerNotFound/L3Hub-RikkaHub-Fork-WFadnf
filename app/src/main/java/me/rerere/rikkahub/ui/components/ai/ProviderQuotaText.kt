@@ -26,8 +26,10 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.DashboardSpeed02
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.SimpleCache
 import me.rerere.rikkahub.utils.toDp
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -42,7 +44,10 @@ private val cache = SimpleCache.builder<String, ProviderQuota>()
  * 调用前先用 [supportsQuota] 判断有没有额度可查。
  */
 @Composable
-fun rememberProviderQuota(providerSetting: ProviderSetting): Result<ProviderQuota>? {
+fun rememberProviderQuota(
+    providerSetting: ProviderSetting,
+    refreshIntervalMillis: Long = 0,
+): Result<ProviderQuota>? {
     val providerManager = koinInject<ProviderManager>()
     // 查询配置或登录的账号变了要重新查
     val cacheKey = "${providerSetting.id}," + when (providerSetting) {
@@ -52,17 +57,28 @@ fun rememberProviderQuota(providerSetting: ProviderSetting): Result<ProviderQuot
     val quota by produceState(
         initialValue = cache.getIfPresent(cacheKey)?.let { Result.success(it) },
         cacheKey,
+        refreshIntervalMillis,
     ) {
         val cached = cache.getIfPresent(cacheKey)
         if (cached != null) {
             value = Result.success(cached)
-            return@produceState
+            if (refreshIntervalMillis <= 0) return@produceState
         }
-        value = null
-        value = runCatching {
-            providerManager.getProviderByType(providerSetting).getQuota(providerSetting)
-                ?: error("Quota is not available")
-        }.onSuccess { cache.put(cacheKey, it) }
+        var first = true
+        while (true) {
+            if (cached == null || refreshIntervalMillis > 0) {
+                val result = runCatching {
+                    providerManager.getProviderByType(providerSetting).getQuota(providerSetting)
+                        ?: error("Quota is not available")
+                }
+                result.onSuccess { cache.put(cacheKey, it) }
+                // 定时刷新失败时保留上一次的余额，不要闪成错误
+                if (first || result.isSuccess) value = result
+                first = false
+            }
+            if (refreshIntervalMillis <= 0) break
+            delay(refreshIntervalMillis)
+        }
     }
     return quota
 }
@@ -73,11 +89,13 @@ fun ProviderQuotaText(
     providerSetting: ProviderSetting,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
-    color: Color = Color.Unspecified
+    color: Color = Color.Unspecified,
+    refreshIntervalMillis: Long = 0,
 ) {
     if (!providerSetting.supportsQuota) return
 
-    val result = rememberProviderQuota(providerSetting)
+    val terminal = LocalSettings.current.displaySetting.terminalStyle
+    val result = rememberProviderQuota(providerSetting, refreshIntervalMillis)
     val quota = result?.getOrNull()
     val text = when {
         result == null -> "~"
@@ -95,14 +113,24 @@ fun ProviderQuotaText(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(
-            imageVector = if (quota is ProviderQuota.UsageLimits) HugeIcons.DashboardSpeed02 else HugeIcons.MoneyBag02,
-            contentDescription = null,
-            modifier = Modifier.size(style.fontSize.toDp()),
-            tint = color.takeOrElse { LocalContentColor.current }
-        )
+        if (!terminal) {
+            Icon(
+                imageVector = if (quota is ProviderQuota.UsageLimits) {
+                    HugeIcons.DashboardSpeed02
+                } else {
+                    HugeIcons.MoneyBag02
+                },
+                contentDescription = null,
+                modifier = Modifier.size(style.fontSize.toDp()),
+                tint = color.takeOrElse { LocalContentColor.current }
+            )
+        }
         Text(
-            text = text,
+            text = if (terminal) {
+                "${if (quota is ProviderQuota.UsageLimits) "%" else "$"} $text"
+            } else {
+                text
+            },
             style = style,
             maxLines = 1,
             color = color

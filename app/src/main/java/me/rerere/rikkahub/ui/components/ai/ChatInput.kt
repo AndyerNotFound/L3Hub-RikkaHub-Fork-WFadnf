@@ -150,7 +150,6 @@ fun ChatInput(
     // 当前会话已占用的上下文 token(最近一次回复的真实用量)
     contextTokens: Int? = null,
     usageTokenSpeed: Float? = null,
-    generationDurationMillis: Long? = null,
     onUpdateContextMeterStyle: (ContextMeterStyle) -> Unit = {},
     injectedLorebookCount: Int = 0,
     onShowUsage: () -> Unit = {},
@@ -323,7 +322,6 @@ fun ChatInput(
                             modifier = Modifier.padding(horizontal = 4.dp),
                             provider = chatModel.findProvider(settings.providers),
                             tokenSpeed = usageTokenSpeed,
-                            generationDurationMillis = generationDurationMillis,
                         )
 
                         ContextMeterStyle.OFF -> Unit

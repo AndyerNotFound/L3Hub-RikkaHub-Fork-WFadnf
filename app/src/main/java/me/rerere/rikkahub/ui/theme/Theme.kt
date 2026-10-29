@@ -65,8 +65,11 @@ fun RikkahubTheme(
             theme.getColorScheme(dark = darkTheme)
         }
     }
-    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
-        if (darkTheme && amoledDarkMode) {
+    val terminal = settings.displaySetting.terminalStyle
+    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme, terminal) {
+        if (terminal) {
+            TerminalColorScheme
+        } else if (darkTheme && amoledDarkMode) {
             colorScheme.copy(
                 background = AMOLED_DARK_BACKGROUND,
                 surface = AMOLED_DARK_BACKGROUND,
@@ -75,21 +78,22 @@ fun RikkahubTheme(
             colorScheme
         }
     }
-    val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
+    val extendColors = if (darkTheme || terminal) ExtendDarkColors else ExtendLightColors
+    val effectiveDark = darkTheme || terminal
 
     // 更新状态栏图标颜色
     val view = LocalView.current
     val activity = view.context.getActivity()
     // 浮窗可能使用 Application Context，没有可更新系统栏的 Activity。
     if (!view.isInEditMode && activity != null) {
-        DisposableEffect(view, activity, darkTheme) {
+        DisposableEffect(view, activity, effectiveDark) {
             val window = activity.window
             val controller = WindowCompat.getInsetsController(window, view)
             val previousLightStatusBars = controller.isAppearanceLightStatusBars
             val previousLightNavigationBars = controller.isAppearanceLightNavigationBars
             controller.apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
+                isAppearanceLightStatusBars = !effectiveDark
+                isAppearanceLightNavigationBars = !effectiveDark
             }
             onDispose {
                 // 嵌套主题（如终端的深色主题）退出时恢复原有系统栏图标颜色。
@@ -100,13 +104,15 @@ fun RikkahubTheme(
     }
 
     CompositionLocalProvider(
-        LocalDarkMode provides darkTheme,
+        LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
+        LocalTerminalMode provides terminal,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
-            typography = Typography,
+            typography = if (terminal) terminalTypography(Typography) else Typography,
+            shapes = if (terminal) TerminalShapes else MaterialTheme.shapes,
             content = content,
             motionScheme = MotionScheme.expressive()
         )

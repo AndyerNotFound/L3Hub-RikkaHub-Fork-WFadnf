@@ -1050,13 +1050,16 @@ class ChatService(
         } else {
             turn.assistant.systemPrompt
         }
-        val estimated = (
+        // 优先用上游返回的真实 usage；只有拿不到 usage 时才按字符估算兜底
+        val real = message.contextTokens()?.takeIf { it > 0 }
+        val used = real ?: (
             (session.state.value.estimateContextTokens() + estimateTokens(systemPrompt)) *
                 CONTEXT_ESTIMATE_SAFETY
             ).toInt()
-        if (estimated < limit) return
-        Log.i(TAG, "runTurn: estimated context $estimated >= $limit, compress before next step")
-        throw LoopCompressionRequested(estimated, limit)
+        if (used < limit) return
+        val source = if (real != null) "usage" else "estimate"
+        Log.i(TAG, "runTurn: context $used ($source) >= $limit, compress before next step")
+        throw LoopCompressionRequested(used, limit)
     }
 
     /** 循环压缩：模型循环里上下文超限时，保留正在生成的回复，压缩它之前的历史 */
@@ -1091,20 +1094,26 @@ class ChatService(
         val limit = model.autoCompressLimit(assistant.autoCompressThreshold)
 
         // 真实用量偶尔缺失（回复没写入 usage、压缩后还没开始下一轮），退回按字符估算；
-        // 估算只数检查点之后的可见内容，不含系统提示词与工具定义，作为兜底下限使用
-        val used = conversation.lastContextTokens()
+        // 估算只数检查点之后的可见内容，不含系统提示词与工具定义，仅作为兜底
+        val real = conversation.lastContextTokens()?.takeIf { it > 0 }
         val systemPrompt = if (assistant.allowConversationSystemPrompt &&
             !conversation.customSystemPrompt.isNullOrBlank()) {
             conversation.customSystemPrompt.orEmpty()
         } else {
             assistant.systemPrompt
         }
-        val estimated = (
-            (conversation.estimateContextTokens() + estimateTokens(systemPrompt)) *
-                CONTEXT_ESTIMATE_SAFETY
-            ).toInt()
-        if (!force && (limit == null || ((used ?: 0) < limit && estimated < limit))) {
-            Log.d(TAG, "autoCompress: skip used=$used estimated=$estimated limit=$limit")
+        val estimated = if (real == null) {
+            (
+                (conversation.estimateContextTokens() + estimateTokens(systemPrompt)) *
+                    CONTEXT_ESTIMATE_SAFETY
+                ).toInt()
+        } else {
+            null
+        }
+        // 有上游 usage 时只信 usage，估算值不再参与门限判断
+        val used = real ?: estimated ?: 0
+        if (!force && (limit == null || used < limit)) {
+            Log.d(TAG, "autoCompress: skip used=$used real=$real estimated=$estimated limit=$limit")
             return false
         }
 
@@ -1120,7 +1129,7 @@ class ChatService(
 
         Log.i(
             TAG,
-            "autoCompress: conversation=${session.id} used=$used estimated=$estimated limit=$limit trim=$trim",
+            "autoCompress: conversation=${session.id} used=$used real=$real estimated=$estimated limit=$limit trim=$trim",
         )
         val statusSender = assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
         appEventBus.tryEmit(AppEvent.ChatGenerationStatus(session.id, statusSender, ChatStatus.COMPRESSING))

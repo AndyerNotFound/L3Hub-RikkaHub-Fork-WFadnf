@@ -69,7 +69,6 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,6 +96,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.Avatar
@@ -132,10 +132,18 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalChatInput
+import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalChatTopBar
+import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalModelPickerDialog
+import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalOutputDialog
+import me.rerere.rikkahub.ui.pages.chat.terminal.parseTerminalCommand
+import me.rerere.rikkahub.ui.pages.chat.terminal.terminalHelpText
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.TerminalTheme
 import me.rerere.rikkahub.utils.base64Decode
+import me.rerere.rikkahub.utils.copyMessageToClipboard
+import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -363,6 +371,7 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
 
     // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
@@ -380,47 +389,6 @@ private fun ChatPageContent(
     val lorebookInjectionCount = remember(conversation.currentMessages, assistant.lorebookIds, setting.lorebooks) {
         collectLorebookInjections(conversation.currentMessages, assistant, setting.lorebooks).size
     }
-
-    // 独立计时器：从本轮开始生成到结束，按本地时钟计算，不用 API 返回的耗时。
-    // 开始时间取自正在生成的助手消息，离开会话再回来不会从 0 重新计时。
-    val streamingMessage = remember(conversation.currentMessages) {
-        conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt == null }
-    }
-    var generationStartedAt by remember { mutableStateOf<Long?>(null) }
-    var generationDurationMs by remember { mutableStateOf<Long?>(null) }
-    var timerNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(loadingJob != null, streamingMessage?.id) {
-        if (loadingJob != null) {
-            if (generationStartedAt == null) {
-                val now = System.currentTimeMillis()
-                val messageStart = streamingMessage?.createdAt
-                    ?.toInstant(TimeZone.currentSystemDefault())
-                    ?.toEpochMilliseconds()
-                generationStartedAt = messageStart?.coerceAtMost(now) ?: now
-                timerNow = now
-            }
-        } else {
-            generationStartedAt?.let { start ->
-                generationDurationMs = (System.currentTimeMillis() - start).coerceAtLeast(0L)
-                generationStartedAt = null
-            }
-        }
-    }
-
-    LaunchedEffect(generationStartedAt) {
-        while (generationStartedAt != null) {
-            timerNow = System.currentTimeMillis()
-            delay(300)
-        }
-    }
-
-    val lastAssistantMessage = remember(conversation.currentMessages) {
-        conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
-    }
-    val generationDurationMillis = generationStartedAt?.let {
-        (timerNow - it).coerceAtLeast(0L)
-    } ?: generationDurationMs ?: lastAssistantMessage?.generationTimeMs
 
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
@@ -446,6 +414,9 @@ private fun ChatPageContent(
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
+    var showTerminalModelPicker by remember { mutableStateOf(false) }
+    var terminalOutput by remember { mutableStateOf<String?>(null) }
+    val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
         setting = setting,
@@ -453,6 +424,207 @@ private fun ChatPageContent(
     )
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
+
+    // 终端与普通输入共用的发送入口：模型、上下文门限检查都走这里
+    val sendInput: () -> Unit = {
+        if (currentChatModel == null) {
+            toaster.show("请先选择模型", type = ToastType.Error)
+        } else if (contextLimitBlocksSend && assistant.autoCompress) {
+            showCompressAndSendDialog = true
+        } else if (contextLimitReached) {
+            toaster.show(contextLimitMessage, type = ToastType.Error)
+            if (contextLimitBlocksSend) Unit else submitInput()
+        } else {
+            submitInput()
+        }
+    }
+
+    fun terminalMessages(): List<me.rerere.ai.ui.UIMessage> = conversation.currentMessages
+
+    fun terminalMessageAt(arg: String, defaultAssistant: Boolean = false): me.rerere.ai.ui.UIMessage? {
+        val index = arg.trim().toIntOrNull()
+        return if (index != null) {
+            terminalMessages().getOrNull(index)
+        } else if (defaultAssistant) {
+            terminalMessages().lastOrNull { it.role == MessageRole.ASSISTANT }
+        } else {
+            terminalMessages().lastOrNull()
+        }
+    }
+
+    fun runTerminalCommand(raw: String) {
+        val command = parseTerminalCommand(raw) ?: return
+        var clearInput = true
+        when (command.name) {
+            "help" -> terminalOutput = terminalHelpText()
+            "status" -> terminalOutput = buildString {
+                appendLine("assistant : ${assistant.name.ifBlank { "assistant" }}")
+                appendLine("model     : ${currentChatModel?.displayName ?: "no-model"}")
+                appendLine("context   : ${contextTokens ?: 0} / ${currentChatModel?.maxContextTokens ?: "-"}")
+                appendLine("messages  : ${conversation.currentMessages.size}")
+                appendLine("speed     : ${usageTokenSpeed?.let { "%.1f tok/s".format(it) } ?: "-"}")
+                append("queue     : ${messageQueue.size}")
+            }
+            "model" -> {
+                if (command.args.isBlank()) {
+                    showTerminalModelPicker = true
+                } else {
+                    val models = setting.providers.flatMap { it.models }
+                        .filter { it.type == ModelType.CHAT }
+                    val query = command.args.lowercase()
+                    val matches = models.filter {
+                        it.displayName.lowercase().contains(query) ||
+                            it.modelId.lowercase().contains(query)
+                    }
+                    when {
+                        matches.size == 1 -> {
+                            vm.setChatModel(matches.first())
+                            terminalOutput = "model -> ${matches.first().displayName.ifBlank { matches.first().modelId }}"
+                        }
+                        matches.isEmpty() -> terminalOutput = "no model matched: ${command.args}"
+                        else -> terminalOutput = buildString {
+                            appendLine("multiple matches, use a longer name:")
+                            matches.take(20).forEach {
+                                appendLine("  ${it.displayName.ifBlank { it.modelId }}  [${it.modelId}]")
+                            }
+                        }
+                    }
+                }
+            }
+            "new" -> navigateToChatPage(navController)
+            "messages" -> terminalOutput = buildString {
+                terminalMessages().forEachIndexed { index, message ->
+                    val role = if (message.role == MessageRole.USER) "U" else "A"
+                    val preview = message.toText().lineSequence().firstOrNull().orEmpty().take(72)
+                    appendLine("[%02d] %s %s".format(index, role, preview))
+                }
+            }
+            "send" -> {
+                if (command.args.isBlank()) {
+                    terminalOutput = "usage: /send <text>"
+                } else {
+                    vm.handleMessageSend(listOf(UIMessagePart.Text(command.args)))
+                    scope.launch {
+                        delay(100.milliseconds)
+                        chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                    }
+                }
+            }
+            "retry" -> {
+                val message = terminalMessageAt(command.args, defaultAssistant = true)
+                if (message == null) {
+                    terminalOutput = "no assistant message to regenerate"
+                } else {
+                    vm.regenerateAtMessage(message)
+                }
+            }
+            "edit" -> {
+                val message = terminalMessageAt(command.args)
+                if (message == null) {
+                    terminalOutput = "message not found: ${command.args}"
+                } else {
+                    inputState.editingMessage = message.id
+                    inputState.setContents(message.parts)
+                    clearInput = false
+                }
+            }
+            "delete" -> {
+                val message = terminalMessageAt(command.args)
+                when {
+                    message == null -> terminalOutput = "message not found: ${command.args}"
+                    loadingJob != null -> vm.showDeleteBlockedWhileGeneratingError()
+                    else -> vm.deleteMessage(message)
+                }
+            }
+            "copy" -> {
+                val message = terminalMessageAt(command.args)
+                if (message == null) {
+                    terminalOutput = "message not found: ${command.args}"
+                } else {
+                    context.copyMessageToClipboard(message)
+                    toaster.show("已复制消息", type = ToastType.Success)
+                }
+            }
+            "branch" -> {
+                val message = terminalMessageAt(command.args)
+                if (message == null) {
+                    terminalOutput = "message not found: ${command.args}"
+                } else {
+                    scope.launch {
+                        val fork = vm.forkMessage(message)
+                        navigateToChatPage(navController, chatId = fork.id)
+                    }
+                }
+            }
+            "compress" -> vm.handleCompressContext(command.args, keepRecentMessages = 0)
+            "usage" -> showUsageSheet = true
+            "tree" -> showTaskTree = true
+            "files" -> showFilesSheet = true
+            "voice" -> onStartVoiceMode()
+            "stop" -> vm.stopGeneration()
+            "title" -> {
+                if (command.args.isBlank()) {
+                    terminalOutput = "usage: /title <text>"
+                } else {
+                    vm.updateTitle(command.args)
+                    terminalOutput = "title -> ${command.args}"
+                }
+            }
+            "pin" -> {
+                vm.updatePinnedStatus(conversation)
+                terminalOutput = if (conversation.isPinned) "unpinned" else "pinned"
+            }
+            "search" -> {
+                val enabled = when (command.args.lowercase()) {
+                    "on", "1", "true", "yes" -> true
+                    "off", "0", "false", "no" -> false
+                    else -> null
+                }
+                if (enabled == null) {
+                    terminalOutput = "usage: /search on|off"
+                } else {
+                    vm.updateSearch(enableWebSearch = enabled, builtInSearch = enabled)
+                    terminalOutput = "web search -> ${if (enabled) "on" else "off"}"
+                }
+            }
+            "export" -> {
+                val markdown = buildString {
+                    appendLine("# ${conversation.title.ifBlank { "conversation" }}")
+                    appendLine()
+                    terminalMessages().forEach { message ->
+                        val role = when (message.role) {
+                            MessageRole.USER -> "User"
+                            MessageRole.ASSISTANT -> "Assistant"
+                            else -> "System"
+                        }
+                        appendLine("## $role")
+                        appendLine()
+                        appendLine(message.toText())
+                        appendLine()
+                    }
+                }
+                context.writeClipboardText(markdown)
+                terminalOutput = "conversation copied as markdown (${markdown.length} chars)"
+            }
+            "settings" -> navController.navigate(Screen.Setting)
+            "terminal" -> {
+                when (command.args.lowercase()) {
+                    "on", "1", "true" -> vm.updateSettings {
+                        it.copy(displaySetting = it.displaySetting.copy(terminalStyle = true))
+                    }
+                    "off", "0", "false" -> vm.updateSettings {
+                        it.copy(displaySetting = it.displaySetting.copy(terminalStyle = false))
+                    }
+                    else -> terminalOutput = "usage: /terminal on|off"
+                }
+            }
+            "clear" -> inputState.clearInput()
+            else -> terminalOutput = "unknown command: /${command.name}\n输入 /help 查看可用命令"
+        }
+        if (clearInput && command.name != "clear") {
+            inputState.clearInput()
+        }
+    }
 
     val completionProviders = remember(assistant.allWorkspaceIds, conversation.workspaceCwds, workspaceRepository) {
         assistant.allWorkspaceIds.map { workspaceId ->
@@ -490,7 +662,6 @@ private fun ChatPageContent(
             chatModel = currentChatModel,
             contextTokens = contextTokens,
             usageTokenSpeed = usageTokenSpeed,
-            generationDurationMillis = generationDurationMillis,
             onUpdateContextMeterStyle = { style ->
                 vm.updateSettings { latest ->
                     latest.copy(displaySetting = latest.displaySetting.copy(contextMeterStyle = style))
@@ -503,21 +674,7 @@ private fun ChatPageContent(
             onCancelClick = {
                 vm.stopGeneration()
             },
-            onSendClick = {
-                if (currentChatModel == null) {
-                    toaster.show("请先选择模型", type = ToastType.Error)
-                    return@ChatInput
-                }
-                if (contextLimitBlocksSend && assistant.autoCompress) {
-                    showCompressAndSendDialog = true
-                    return@ChatInput
-                }
-                if (contextLimitReached) {
-                    toaster.show(contextLimitMessage, type = ToastType.Error)
-                    if (contextLimitBlocksSend) return@ChatInput
-                }
-                submitInput()
-            },
+            onSendClick = sendInput,
             onInterjectClick = {
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
@@ -579,19 +736,18 @@ private fun ChatPageContent(
         Scaffold(
             topBar = {
                 if (setting.displaySetting.terminalStyle) {
-                    TerminalTopBar(
-                        assistant = assistant,
-                        chatModel = currentChatModel,
+                    TerminalChatTopBar(
+                        title = conversation.title,
+                        assistantName = assistant.name,
+                        modelName = currentChatModel?.displayName ?: "no-model",
+                        contextTokens = contextTokens,
+                        maxContextTokens = currentChatModel?.maxContextTokens,
                         bigScreen = bigScreen,
-                        drawerState = drawerState,
-                        previewMode = previewMode,
-                        onNewChat = {
-                            navigateToChatPage(navController)
-                        },
-                        onClickMenu = {
-                            previewMode = !previewMode
-                        },
-                        onShowTaskTree = { showTaskTree = true },
+                        onMenu = { scope.launch { drawerState.open() } },
+                        onNewChat = { navigateToChatPage(navController) },
+                        onTaskTree = { showTaskTree = true },
+                        onUsage = { showUsageSheet = true },
+                        onHelp = { terminalOutput = terminalHelpText() },
                     )
                 } else {
                     TopBar(
@@ -615,7 +771,26 @@ private fun ChatPageContent(
             },
             bottomBar = {
                 if (conversation.currentMessages.isNotEmpty()) {
-                    ChatInputContent()
+                    if (setting.displaySetting.terminalStyle) {
+                        TerminalChatInput(
+                            state = inputState,
+                            settings = setting,
+                            chatModel = currentChatModel,
+                            contextTokens = contextTokens,
+                            tokenSpeed = usageTokenSpeed,
+                            loading = loadingJob != null,
+                            queuedCount = messageQueue.size,
+                            onSubmit = sendInput,
+                            onStop = vm::stopGeneration,
+                            onFiles = { showFilesSheet = true },
+                            onVoice = onStartVoiceMode,
+                            onModel = { showTerminalModelPicker = true },
+                            onUsage = { showUsageSheet = true },
+                            onCommand = { runTerminalCommand(it) },
+                        )
+                    } else {
+                        ChatInputContent()
+                    }
                 }
             },
             containerColor = Color.Transparent,
@@ -627,10 +802,30 @@ private fun ChatPageContent(
                     slogan = setting.displaySetting.emptyChatSlogan,
                     hazeState = backgroundHazeState,
                     input = {
-                        ChatInputContent(
-                            modifier = Modifier.fillMaxWidth(),
-                            applyWindowInsets = false,
-                        )
+                        if (setting.displaySetting.terminalStyle) {
+                            TerminalChatInput(
+                                modifier = Modifier.fillMaxWidth(),
+                                state = inputState,
+                                settings = setting,
+                                chatModel = currentChatModel,
+                                contextTokens = contextTokens,
+                                tokenSpeed = usageTokenSpeed,
+                                loading = loadingJob != null,
+                                queuedCount = messageQueue.size,
+                                onSubmit = sendInput,
+                                onStop = vm::stopGeneration,
+                                onFiles = { showFilesSheet = true },
+                                onVoice = onStartVoiceMode,
+                                onModel = { showTerminalModelPicker = true },
+                                onUsage = { showUsageSheet = true },
+                                onCommand = { runTerminalCommand(it) },
+                            )
+                        } else {
+                            ChatInputContent(
+                                modifier = Modifier.fillMaxWidth(),
+                                applyWindowInsets = false,
+                            )
+                        }
                     },
                 )
             } else {
@@ -769,6 +964,27 @@ private fun ChatPageContent(
                 attachmentPickerActions = attachmentPickerActions,
                 onStartVoiceMode = onStartVoiceMode,
                 onDismiss = { showFilesSheet = false },
+            )
+        }
+
+        terminalOutput?.let { output ->
+            TerminalOutputDialog(
+                title = "OUTPUT",
+                content = output,
+                onDismiss = { terminalOutput = null },
+            )
+        }
+
+        if (showTerminalModelPicker) {
+            TerminalModelPickerDialog(
+                settings = setting,
+                current = currentChatModel,
+                onSelect = { model ->
+                    vm.setChatModel(model)
+                    showTerminalModelPicker = false
+                    terminalOutput = "model -> ${model.displayName.ifBlank { model.modelId }}"
+                },
+                onDismiss = { showTerminalModelPicker = false },
             )
         }
     }

@@ -1677,6 +1677,17 @@
   <string name="chat_message_usage_total_output">Total output</string>
   <string name="chat_message_usage_speed">Speed</string>
   <string name="chat_message_usage_duration">Duration</string>
+  <string name="chat_message_usage_destination">Token destination</string>
+  <string name="chat_message_usage_destination_input">Input</string>
+  <string name="chat_message_usage_destination_output">Output</string>
+  <string name="chat_message_usage_destination_system">System &amp; tool schemas</string>
+  <string name="chat_message_usage_destination_user">Conversation input</string>
+  <string name="chat_message_usage_destination_history">Conversation history</string>
+  <string name="chat_message_usage_destination_tool">Tool calls &amp; results</string>
+  <string name="chat_message_usage_destination_reasoning">Thinking</string>
+  <string name="chat_message_usage_destination_reply">Reply text</string>
+  <string name="chat_message_usage_destination_cached">of which cached</string>
+  <string name="chat_message_usage_destination_hint">Split estimated from message content; totals come from provider usage.</string>
   <string name="stats_page_usage_title">Token usage</string>
   <string name="stats_page_range_7d">7 days</string>
   <string name="stats_page_range_30d">30 days</string>
