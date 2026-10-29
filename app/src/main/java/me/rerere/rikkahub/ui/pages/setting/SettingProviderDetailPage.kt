@@ -281,7 +281,8 @@ fun SettingProviderDetailPage(id: Uuid, focusModelId: String? = null, vm: Settin
                     ProviderDetailTab.MODELS -> {
                         SettingProviderModelPage(
                             provider = provider,
-                            onEdit = onEdit
+                            onEdit = onEdit,
+                            focusModelId = focusModelId,
                         )
                     }
 
@@ -663,11 +664,13 @@ private fun SettingProviderConfigPage(
 @Composable
 private fun SettingProviderModelPage(
     provider: ProviderSetting,
-    onEdit: (ProviderSetting) -> Unit
+    onEdit: (ProviderSetting) -> Unit,
+    focusModelId: String? = null,
 ) {
     ModelList(
         providerSetting = provider,
-        onUpdateProvider = onEdit
+        onUpdateProvider = onEdit,
+        focusModelId = focusModelId,
     )
 }
 
@@ -696,7 +699,8 @@ private fun SettingProviderAdvancedPage(
 @Composable
 private fun ModelList(
     providerSetting: ProviderSetting,
-    onUpdateProvider: (ProviderSetting) -> Unit
+    onUpdateProvider: (ProviderSetting) -> Unit,
+    focusModelId: String? = null,
 ) {
     val providerManager = koinInject<ProviderManager>()
     val modelList by produceState(emptyList(), providerSetting) {
