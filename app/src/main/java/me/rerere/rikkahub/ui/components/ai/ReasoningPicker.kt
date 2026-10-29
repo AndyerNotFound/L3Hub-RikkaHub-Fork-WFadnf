@@ -114,13 +114,7 @@ fun ReasoningButton(
                 contentAlignment = Alignment.Center
             ) {
                 if (useL3HubStyle) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(reasoningLevel.indicatorColor(), CircleShape),
-                    )
-                } else {
-                    // 强度用粗体文字标出来，颜色跟档位对应
+                    // L3Hub 样式用粗体文字，颜色跟档位对应
                     Text(
                         text = reasoningLevel.badgeText(),
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -132,6 +126,8 @@ fun ReasoningButton(
                         color = reasoningLevel.indicatorColor(),
                         maxLines = 1,
                     )
+                } else {
+                    Icon(reasoningLevel.icon(), null)
                 }
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))

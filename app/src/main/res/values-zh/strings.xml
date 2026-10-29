@@ -2023,4 +2023,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="about_page_attribution">本应用是 RikkaHub 的非官方修改版，原作者的署名与版权归 re-ovo (RE) 所有，修改部分由 fork 维护者负责。如果喜欢，请支持原作者。</string>
   <string name="setting_display_page_message_nav_position_title">消息导航在左侧</string>
   <string name="setting_display_page_message_nav_position_desc">滚动时把边缘那一列消息横条放到左侧；默认在右侧</string>
+  <string name="task_tree_task">任务</string>
 </resources>

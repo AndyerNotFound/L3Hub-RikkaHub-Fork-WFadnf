@@ -514,8 +514,18 @@ fun ChatInput(
                                 showQuickMessageButton = false,
                                 fullscreenOnOverflow = true,
                                 contentPadding = PaddingValues(
-                                    start = if (stacked) 4.dp else 70.dp,
-                                    end = if (stacked) 4.dp else 130.dp,
+                                    // 卡片左右内边距变大时，把输入框自己的内缩减回去，
+                                    // 文字可用宽度保持不变，行数就不会因为拖滑块而变
+                                    start = if (stacked) {
+                                        4.dp
+                                    } else {
+                                        (70 - (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)).dp
+                                    },
+                                    end = if (stacked) {
+                                        4.dp
+                                    } else {
+                                        (130 - (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)).dp
+                                    },
                                     bottom = if (stacked) 44.dp else 0.dp,
                                 ),
                                 onMeasure = { height, oneLine ->
@@ -873,9 +883,11 @@ private fun TextInputRow(
             shape = if (terminalStyle) RoundedCornerShape(0.dp) else MaterialTheme.shapes.largeIncreased,
             placeholder = {
                 Text(
-                    stringResource(
+                    text = stringResource(
                         if (terminalStyle) R.string.chat_input_placeholder_terminal else R.string.chat_input_placeholder
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             },
             prefix = if (terminalStyle) {

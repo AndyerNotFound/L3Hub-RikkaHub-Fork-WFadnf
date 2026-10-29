@@ -66,6 +66,9 @@ fun ModelPickerTwoPane(
     onSelect: (Model) -> Unit,
     onReorderGroups: (List<String>) -> Unit,
     onToggleFavorite: (Uuid) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenProvider: (ProviderSetting) -> Unit,
+    onEditModel: (Model, ProviderSetting) -> Unit,
 ) {
     val providersByGroup = remember(providers, assignments) {
         providers.groupBy { provider -> assignments[provider.id.toString()] }
@@ -101,17 +104,17 @@ fun ModelPickerTwoPane(
             search.isNotBlank() -> providers.flatMap { provider ->
                 provider.models
                     .filter { it.type == modelType && it.displayName.contains(search, true) }
-                    .map { model -> model to provider.name }
+                    .map { model -> model to provider }
             }
 
-            showFavorites -> favoriteModels.map { model ->
-                val providerName = providers.firstOrNull { provider -> provider.models.any { it.id == model.id } }?.name
-                model to providerName.orEmpty()
+            showFavorites -> favoriteModels.mapNotNull { model ->
+                providers.firstOrNull { provider -> provider.models.any { it.id == model.id } }
+                    ?.let { provider -> model to provider }
             }
 
             selectedProvider != null -> selectedProvider.models
                 .filter { it.type == modelType }
-                .map { model -> model to selectedProvider.name }
+                .map { model -> model to selectedProvider }
 
             else -> emptyList()
         }
@@ -174,6 +177,7 @@ fun ModelPickerTwoPane(
                                 showFavorites = false
                                 selectedProviderId = provider.id
                             },
+                            onLongClick = { onOpenProvider(provider) },
                         )
                     }
                 }
@@ -201,6 +205,7 @@ fun ModelPickerTwoPane(
                                 showFavorites = false
                                 selectedProviderId = provider.id
                             },
+                            onLongClick = { onOpenProvider(provider) },
                         )
                     }
                 }
@@ -248,14 +253,39 @@ fun ModelPickerTwoPane(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding = PaddingValues(12.dp),
             ) {
-                items(models, key = { it.first.id }) { (model, providerName) ->
-                    ModelCardTwoPane(
+                items(models, key = { it.first.id }) { (model, provider) ->
+                    ModelItem(
                         model = model,
-                        providerName = providerName,
-                        selected = model.id == currentModel,
-                        favorite = model.id in favoriteIds,
+                        providerSetting = provider,
+                        select = model.id == currentModel,
                         onSelect = { onSelect(model) },
-                        onToggleFavorite = { onToggleFavorite(model.id) },
+                        onDismiss = onDismiss,
+                        onLongClick = { onEditModel(model, provider) },
+                        tail = {
+                            IconButton(
+                                onClick = { onToggleFavorite(model.id) },
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = HeartIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (model.id in favoriteIds) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
+                        },
+                        footer = {
+                            Text(
+                                text = "WARN ${formatTokens(model.warnContextTokens)} · " +
+                                    "MAX ${formatTokens(model.maxContextTokens)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                     )
                 }
             }
@@ -314,12 +344,13 @@ private fun ProviderLogoButton(
     isFavoriteEntry: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Surface(
-        onClick = onClick,
         modifier = Modifier
             .padding(horizontal = 10.dp)
-            .size(44.dp),
+            .size(44.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = RoundedCornerShape(14.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -338,66 +369,6 @@ private fun ProviderLogoButton(
             } else {
                 AutoAIIcon(name = name, color = Color.Transparent)
             }
-        }
-    }
-}
-
-@Composable
-private fun ModelCardTwoPane(
-    model: Model,
-    providerName: String,
-    selected: Boolean,
-    favorite: Boolean,
-    onSelect: () -> Unit,
-    onToggleFavorite: () -> Unit,
-) {
-    Surface(
-        onClick = onSelect,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = model.displayName.ifBlank { model.modelId },
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onToggleFavorite, modifier = Modifier.size(28.dp)) {
-                    Icon(
-                        imageVector = HeartIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = if (favorite) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
-            }
-            Text(
-                text = providerName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "WARN ${formatTokens(model.warnContextTokens)} · MAX ${formatTokens(model.maxContextTokens)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

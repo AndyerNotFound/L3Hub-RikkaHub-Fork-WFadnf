@@ -56,6 +56,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -178,7 +179,7 @@ private enum class ModelFormTab(
 }
 
 @Composable
-fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
+fun SettingProviderDetailPage(id: Uuid, focusModelId: String? = null, vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     val provider = settings.providers.find { it.id == id } ?: return
@@ -743,6 +744,7 @@ private fun ModelList(
                     ) { isDragging ->
                         ModelCard(
                             model = item,
+                            autoOpen = focusModelId == item.id.toString(),
                             onDelete = {
                                 onUpdateProvider(providerSetting.delModel(item))
                             },
@@ -1582,10 +1584,15 @@ private fun ModelCard(
     modifier: Modifier = Modifier,
     onDelete: () -> Unit,
     onEdit: (Model) -> Unit,
-    parentProvider: ProviderSetting
+    parentProvider: ProviderSetting,
+    autoOpen: Boolean = false,
 ) {
     val dialogState = useEditState<Model> {
         onEdit(it.copy(displayName = it.displayName.trim()))
+    }
+    // 从模型选择菜单长按进来时直接打开这个模型的编辑面板
+    LaunchedEffect(autoOpen) {
+        if (autoOpen) dialogState.open(model.copy())
     }
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }

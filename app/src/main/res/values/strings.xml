@@ -2021,4 +2021,5 @@
   <string name="about_page_attribution">This app is an unofficial fork of RikkaHub. All credit and copyright for the original work belong to re-ovo (RE); changes in this fork are maintained by the fork author. If you enjoy it, please support the original author.</string>
   <string name="setting_display_page_message_nav_position_title">Message nav on the left</string>
   <string name="setting_display_page_message_nav_position_desc">Put the column of message ticks on the left edge while scrolling</string>
+  <string name="task_tree_task">Task</string>
 </resources>

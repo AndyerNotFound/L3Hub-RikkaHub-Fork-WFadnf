@@ -364,6 +364,7 @@ fun ModelListSheet(
 
     val settingsStore = koinInject<SettingsStore>()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    val navController = LocalNavController.current
 
     ModalBottomSheet(
         onDismissRequest = {
@@ -406,6 +407,20 @@ fun ModelListSheet(
                             )
                         }
                     }
+                },
+                onDismiss = { dismiss() },
+                onOpenProvider = { provider ->
+                    dismiss()
+                    navController.navigate(Screen.SettingProviderDetail(provider.id.toString()))
+                },
+                onEditModel = { model, provider ->
+                    dismiss()
+                    navController.navigate(
+                        Screen.SettingProviderDetail(
+                            providerId = provider.id.toString(),
+                            modelId = model.id.toString(),
+                        )
+                    )
                 },
             )
         }
@@ -820,7 +835,7 @@ private fun ColumnScope.ModelList(
 }
 
 @Composable
-private fun ModelItem(
+internal fun ModelItem(
     model: Model,
     providerSetting: ProviderSetting,
     select: Boolean,
@@ -828,7 +843,9 @@ private fun ModelItem(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     tail: @Composable RowScope.() -> Unit = {},
-    dragHandle: @Composable (RowScope.() -> Unit)? = null
+    dragHandle: @Composable (RowScope.() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val navController = LocalNavController.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -851,7 +868,7 @@ private fun ModelItem(
                     .weight(1f)
                     .combinedClickable(
                         enabled = true,
-                        onLongClick = {
+                        onLongClick = onLongClick ?: {
                             onDismiss()
                             navController.navigate(
                                 Screen.SettingProviderDetail(
@@ -900,6 +917,8 @@ private fun ModelItem(
 
                         ModelAbilityTag(model = model)
                     }
+
+                    footer?.invoke()
                 }
                 tail()
             }

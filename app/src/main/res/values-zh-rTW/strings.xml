@@ -1853,4 +1853,5 @@
   <string name="about_page_attribution">本應用是 RikkaHub 的非官方修改版，原作者的署名與版權歸 re-ovo (RE) 所有，修改部分由 fork 維護者負責。如果喜歡，請支持原作者。</string>
   <string name="setting_display_page_message_nav_position_title">訊息導覽在左側</string>
   <string name="setting_display_page_message_nav_position_desc">捲動時把邊緣那一列訊息橫條放到左側；預設在右側</string>
+  <string name="task_tree_task">任務</string>
 </resources>
