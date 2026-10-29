@@ -46,7 +46,8 @@ private fun Assistant.withConversationConfig(config: ConversationConfig) = copy(
     enableWebSearch = config.enableWebSearch,
     mcpServers = config.mcpServers,
     workspaceId = config.workspaceId,
-    workspaceIds = config.workspaceIds,
+    // 旧会话没有保存多工作区集合，沿用助手当前的绑定，升级后无需重新开会话
+    workspaceIds = config.workspaceIds.ifEmpty { this.workspaceIds },
     enabledSkills = config.enabledSkills,
 )
 
