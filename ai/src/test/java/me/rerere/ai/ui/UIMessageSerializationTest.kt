@@ -23,6 +23,15 @@ class UIMessageSerializationTest {
     }
 
     @Test
+    fun `sub agent notice marker survives serialization and defaults to false`() {
+        val notice = UIMessage.user("result").copy(isSubAgentNotice = true)
+        assertTrue(Json.decodeFromString<UIMessage>(Json.encodeToString(notice)).isSubAgentNotice)
+
+        val plain = Json.decodeFromString<UIMessage>(Json.encodeToString(UIMessage.user("hi")))
+        assertFalse(plain.isSubAgentNotice)
+    }
+
+    @Test
     fun `context checkpoint marker survives serialization`() {
         val message = UIMessage.user("summary").copy(isContextCheckpoint = true)
 

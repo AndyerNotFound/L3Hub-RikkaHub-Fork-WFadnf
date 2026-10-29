@@ -490,8 +490,10 @@ private fun exportToXml(
     messages.forEach { message ->
         val model = message.modelSnapshot?.displayName
             ?: message.modelId?.toString().orEmpty()
+        // 子代理回投是系统通知，导出成 system，别让导出记录看起来像用户说过这句话
+        val role = if (message.isSubAgentNotice) "system" else message.role.name.lowercase()
         sb.appendLine(
-            "  <message role='${message.role.name.lowercase()}' created-at='${attr(message.createdAt.toString())}' model='${attr(model)}'>"
+            "  <message role='$role' created-at='${attr(message.createdAt.toString())}' model='${attr(model)}'>"
         )
         message.parts.forEach { part -> appendPart(sb, part, "    ") }
         sb.appendLine("  </message>")

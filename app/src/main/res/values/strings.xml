@@ -1575,6 +1575,8 @@
   <string name="search_picker_status_off">Turned off</string>
   <string name="search_picker_off_description">The model answers only from what it already knows and will not access the web.</string>
   <string name="chat_page_compress_checkpoint_title">Earlier messages compressed into a summary</string>
+  <string name="chat_message_sub_agent_notice_title">Sub-agent finished</string>
+  <string name="chat_message_sub_agent_notice_hint">system generated</string>
   <string name="chat_page_compress_checkpoint_hint">Messages above this line are no longer sent to the model; this summary replaces them. Delete the summary to send the full history again.</string>
   <string name="chat_page_compress_blocked_generating">Stop the generation before compressing the context</string>
   <string name="chat_page_compress_nothing_to_compress">No new messages to compress since the last summary</string>

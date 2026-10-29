@@ -1577,6 +1577,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="search_picker_status_off">已关闭</string>
   <string name="search_picker_off_description">模型只根据已有知识回答，不会访问网络。</string>
   <string name="chat_page_compress_checkpoint_title">以上内容已压缩为摘要</string>
+  <string name="chat_message_sub_agent_notice_title">子代理任务完成</string>
+  <string name="chat_message_sub_agent_notice_hint">系统自动回传</string>
   <string name="chat_page_compress_checkpoint_hint">分隔线以上的消息不再发送给模型，由这份摘要代替。删除摘要即可恢复发送完整历史。</string>
   <string name="chat_page_compress_blocked_generating">请先停止生成再压缩上下文</string>
   <string name="chat_page_compress_conversation_changed">对话在压缩期间发生变化，请重试</string>

@@ -458,6 +458,7 @@ class ChatService(
         content: List<UIMessagePart>,
         answer: Boolean = true,
         interject: Boolean = false,
+        notice: Boolean = false,
     ) {
         if (content.isEmptyInputMessage()) return
         val session = sessionManager.getOrCreate(conversationId)
@@ -481,7 +482,7 @@ class ChatService(
                 return
             }
             if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
-            session.messageQueue.enqueue(content, answer)
+            session.messageQueue.enqueue(content, answer, notice = notice)
             dispatchNextQueuedMessage(conversationId)
         }
     }
@@ -544,7 +545,13 @@ class ChatService(
             pendingSubAgentResults.remove(conversationId).orEmpty()
         }
         try {
-            sendMessage(conversationId, listOf(UIMessagePart.Text(formatSubAgentResults(batch))), answer = true)
+            // 系统通知：走 USER 角色进请求，界面和导出都按系统消息展示
+            sendMessage(
+                conversationId = conversationId,
+                content = listOf(UIMessagePart.Text(formatSubAgentResults(batch))),
+                answer = true,
+                notice = true,
+            )
         } finally {
             synchronized(pendingSubAgentResults) { deliveringSubAgentResults.remove(conversationId) }
         }
@@ -615,6 +622,7 @@ class ChatService(
                         messageNodes = it.messageNodes + UIMessage(
                             role = MessageRole.USER,
                             parts = processedContent,
+                            isSubAgentNotice = queued.notice,
                         ).toMessageNode(),
                     )
                 }

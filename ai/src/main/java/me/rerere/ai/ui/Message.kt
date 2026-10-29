@@ -43,6 +43,9 @@ data class UIMessage(
     // 请求期间生成的内部消息；该标记仅在内存中使用
     @Transient
     val isSynthetic: Boolean = false,
+    // 系统自动生成的通知（比如后台子代理完成回投），不是用户输入：
+    // 走 USER 角色是为了让各家 provider 都能带进请求，界面上按系统通知展示，导出时记为 system
+    val isSubAgentNotice: Boolean = false,
 ) {
     fun summaryAsText(maxLength: Int = Int.MAX_VALUE): String {
         val text = "[${role.name}]: " + parts.joinToString(separator = "\n") { part ->

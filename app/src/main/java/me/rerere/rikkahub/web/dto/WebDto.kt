@@ -233,6 +233,8 @@ data class MessageDto(
     val generationTimeMs: Long? = null,
     val translation: String? = null,
     val isContextCheckpoint: Boolean = false,
+    // 系统自动生成的通知（后台子代理回投），不是用户输入
+    val isSubAgentNotice: Boolean = false,
 )
 
 @Serializable
@@ -376,4 +378,5 @@ fun UIMessage.toDto() = MessageDto(
     generationTimeMs = generationTimeMs,
     translation = translation,
     isContextCheckpoint = isContextCheckpoint,
+    isSubAgentNotice = isSubAgentNotice,
 )

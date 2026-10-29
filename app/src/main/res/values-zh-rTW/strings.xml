@@ -1554,6 +1554,8 @@
   <string name="search_picker_status_off">已關閉</string>
   <string name="search_picker_off_description">模型僅根據自身已知的內容回答，不會存取網路。</string>
   <string name="chat_page_compress_checkpoint_title">先前的訊息已壓縮為摘要</string>
+  <string name="chat_message_sub_agent_notice_title">子代理任務完成</string>
+  <string name="chat_message_sub_agent_notice_hint">系統自動回傳</string>
   <string name="chat_page_compress_checkpoint_hint">此線以上的訊息將不再傳送給模型；此摘要會取代它們。刪除摘要即可再次傳送完整歷史記錄。</string>
   <string name="chat_page_compress_blocked_generating">請先停止生成，再壓縮上下文</string>
   <string name="chat_page_compress_conversation_changed">對話在壓縮期間已變更。請再試一次。</string>

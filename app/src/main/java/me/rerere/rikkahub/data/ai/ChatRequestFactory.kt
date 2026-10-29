@@ -15,9 +15,11 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
+import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_NOTICE_FRAMING
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -241,7 +243,14 @@ class ChatRequestFactory(
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
-            addAll(messages.limitContext(assistant.contextMessageLimit))
+            addAll(
+                messages.limitContext(assistant.contextMessageLimit).map { message ->
+                    // 子代理回投走 USER 角色（provider 都认），这里补一句说明，模型才不会当成用户说的
+                    if (!message.isSubAgentNotice) message else message.copy(
+                        parts = listOf(UIMessagePart.Text(SUB_AGENT_NOTICE_FRAMING)) + message.parts,
+                    )
+                }
+            )
         }.transforms(
             transformers = inputTransformers,
             context = context,

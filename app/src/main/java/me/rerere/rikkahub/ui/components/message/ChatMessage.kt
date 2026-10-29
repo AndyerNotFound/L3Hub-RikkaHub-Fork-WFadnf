@@ -163,6 +163,10 @@ fun ChatMessage(
         )
         return
     }
+    if (message.isSubAgentNotice) {
+        ChatMessageSubAgentNotice(message = message, modifier = modifier)
+        return
+    }
     val settings = LocalSettings.current.displaySetting
     val terminalStyle = settings.terminalStyle
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
