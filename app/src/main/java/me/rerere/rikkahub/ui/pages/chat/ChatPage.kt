@@ -372,8 +372,8 @@ private fun ChatPageContent(
     val streamingMessage = remember(conversation.currentMessages) {
         conversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt == null }
     }
-    var generationStartedAt by remember(streamingMessage?.id) { mutableStateOf<Long?>(null) }
-    var generationDurationMs by remember(streamingMessage?.id) { mutableStateOf<Long?>(null) }
+    var generationStartedAt by remember { mutableStateOf<Long?>(null) }
+    var generationDurationMs by remember { mutableStateOf<Long?>(null) }
     var timerNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(loadingJob != null, streamingMessage?.id) {
