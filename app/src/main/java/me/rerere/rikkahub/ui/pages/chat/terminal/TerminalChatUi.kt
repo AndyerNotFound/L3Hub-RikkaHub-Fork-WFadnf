@@ -18,8 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -237,34 +237,30 @@ fun TerminalChatInput(
                 color = TerminalPalette.Amber,
                 modifier = Modifier.padding(end = 6.dp),
             )
-            BasicTextField(
-                state = state.textContent,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 22.dp, max = 132.dp),
-                textStyle = TerminalTextStyle,
-                cursorBrush = SolidColor(TerminalPalette.Amber),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
+            Box(modifier = Modifier.weight(1f)) {
+                if (text.isEmpty()) {
+                    Text(
+                        text = "输入消息，或 /help 查看命令",
+                        style = TerminalTextStyle.copy(color = TerminalPalette.GreenDim),
+                    )
+                }
+                BasicTextField(
+                    state = state.textContent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 22.dp, max = 132.dp),
+                    textStyle = TerminalTextStyle,
+                    cursorBrush = SolidColor(TerminalPalette.Amber),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 6),
+                    onKeyboardAction = {
                         if (!loading) {
                             val raw = state.textContent.text.toString().trim()
                             if (raw.startsWith("/")) onCommand(raw) else onSubmit()
                         }
                     },
-                ),
-                decorationBox = { inner ->
-                    Box {
-                        if (text.isEmpty()) {
-                            Text(
-                                text = "输入消息，或 /help 查看命令",
-                                style = TerminalTextStyle.copy(color = TerminalPalette.GreenDim),
-                            )
-                        }
-                        inner()
-                    }
-                },
-            )
+                )
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

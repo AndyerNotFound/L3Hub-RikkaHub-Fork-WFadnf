@@ -463,7 +463,7 @@ private fun ChatPageContent(
                 appendLine("context   : ${contextTokens ?: 0} / ${currentChatModel?.maxContextTokens ?: "-"}")
                 appendLine("messages  : ${conversation.currentMessages.size}")
                 appendLine("speed     : ${usageTokenSpeed?.let { "%.1f tok/s".format(it) } ?: "-"}")
-                append("queue     : ${messageQueue.size}")
+                append("queue     : ${messageQueue.messages.size}")
             }
             "model" -> {
                 if (command.args.isBlank()) {
@@ -779,7 +779,7 @@ private fun ChatPageContent(
                             contextTokens = contextTokens,
                             tokenSpeed = usageTokenSpeed,
                             loading = loadingJob != null,
-                            queuedCount = messageQueue.size,
+                            queuedCount = messageQueue.messages.size,
                             onSubmit = sendInput,
                             onStop = vm::stopGeneration,
                             onFiles = { showFilesSheet = true },
@@ -811,7 +811,7 @@ private fun ChatPageContent(
                                 contextTokens = contextTokens,
                                 tokenSpeed = usageTokenSpeed,
                                 loading = loadingJob != null,
-                                queuedCount = messageQueue.size,
+                                queuedCount = messageQueue.messages.size,
                                 onSubmit = sendInput,
                                 onStop = vm::stopGeneration,
                                 onFiles = { showFilesSheet = true },
