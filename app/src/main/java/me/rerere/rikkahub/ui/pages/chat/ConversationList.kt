@@ -5,6 +5,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.hugeicons.stroke.Refresh01
@@ -27,12 +28,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,7 +97,8 @@ fun ColumnScope.ConversationList(
     onRegenerateTitle: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
-    onMoveToFolder: (Conversation) -> Unit = {}
+    onMoveToFolder: (Conversation) -> Unit = {},
+    onRename: (Conversation, String) -> Unit = { _, _ -> },
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
     // 列表顶部若放了 header，会话项在 LazyColumn 中的位置要往后挪一位
@@ -205,6 +210,7 @@ fun ColumnScope.ConversationList(
                         onPin = onPin,
                         onMoveToAssistant = onMoveToAssistant,
                         onMoveToFolder = onMoveToFolder,
+                        onRename = onRename,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -287,6 +293,7 @@ private fun ConversationItem(
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
+    onRename: (Conversation, String) -> Unit = { _, _ -> },
     onClick: (Conversation) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -298,6 +305,9 @@ private fun ConversationItem(
     }
     var showDropdownMenu by remember {
         mutableStateOf(false)
+    }
+    var renameTarget by remember {
+        mutableStateOf<Conversation?>(null)
     }
     Box(
         modifier = modifier
@@ -371,6 +381,19 @@ private fun ConversationItem(
 
                 DropdownMenuItem(
                     text = {
+                        Text(stringResource(R.string.chat_page_rename))
+                    },
+                    onClick = {
+                        renameTarget = conversation
+                        showDropdownMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(HugeIcons.PencilEdit01, null)
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = {
                         Text(stringResource(id = R.string.chat_page_regenerate_title))
                     },
                     onClick = {
@@ -422,5 +445,36 @@ private fun ConversationItem(
                 )
             }
         }
+    }
+
+    renameTarget?.let { target ->
+        var title by remember(target.id) { mutableStateOf(target.title) }
+        AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text(stringResource(R.string.chat_page_edit_title)) },
+            text = {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRename(target, title.trim())
+                        renameTarget = null
+                    }
+                ) {
+                    Text(stringResource(R.string.chat_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameTarget = null }) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            },
+        )
     }
 }

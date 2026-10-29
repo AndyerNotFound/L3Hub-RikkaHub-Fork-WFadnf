@@ -301,6 +301,12 @@ class ChatVM(
         }
     }
 
+    fun updateTitle(conversationId: Uuid, title: String) {
+        viewModelScope.launch {
+            chatService.updateTitle(conversationId, title)
+        }
+    }
+
     fun deleteConversation(conversation: Conversation): Job =
         viewModelScope.launch {
             chatService.deleteConversation(conversation.id)

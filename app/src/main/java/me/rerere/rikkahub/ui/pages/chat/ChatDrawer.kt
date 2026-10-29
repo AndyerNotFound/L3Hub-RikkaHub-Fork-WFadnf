@@ -274,6 +274,9 @@ fun ChatDrawerContent(
                 onRegenerateTitle = {
                     vm.generateTitle(it, true)
                 },
+                onRename = { conversation, title ->
+                    vm.updateTitle(conversation.id, title)
+                },
                 onDelete = {
                     scope.launch {
                         vm.deleteConversation(it).join()
