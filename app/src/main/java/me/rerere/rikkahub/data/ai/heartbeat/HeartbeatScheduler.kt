@@ -60,6 +60,12 @@ class HeartbeatScheduler(
 
     private suspend fun tick() {
         val settings = settingsStore.awaitLoaded()
+        // 关掉的助手清掉标记，下次重新打开时从打开的那一刻开始计时
+        settings.assistants.filter { !it.heartbeat.enabled }.forEach { assistant ->
+            if (prefs.contains(armedKey(assistant.id))) {
+                prefs.edit().remove(armedKey(assistant.id)).apply()
+            }
+        }
         val candidates = settings.assistants.filter { it.heartbeat.enabled }
         if (candidates.isEmpty()) return
 
@@ -68,6 +74,14 @@ class HeartbeatScheduler(
         candidates.forEach { assistant ->
             val heartbeat = assistant.heartbeat
             if (!heartbeat.isActiveAt(hour)) return@forEach
+            // 刚打开开关时先记一次时间，避免一启用就立刻触发
+            if (!prefs.getBoolean(armedKey(assistant.id), false)) {
+                prefs.edit()
+                    .putBoolean(armedKey(assistant.id), true)
+                    .putLong(lastFiredKey(assistant.id), now)
+                    .apply()
+                return@forEach
+            }
             val lastFiredAt = prefs.getLong(lastFiredKey(assistant.id), 0L)
             val intervalMs = heartbeat.normalizedIntervalMinutes() * 60_000L
             if (now - lastFiredAt < intervalMs) return@forEach
@@ -155,6 +169,8 @@ class HeartbeatScheduler(
     }
 
     private fun lastFiredKey(assistantId: Uuid) = "last_fired_$assistantId"
+
+    private fun armedKey(assistantId: Uuid) = "armed_$assistantId"
 
     private fun conversationKey(assistantId: Uuid) = "conversation_$assistantId"
 

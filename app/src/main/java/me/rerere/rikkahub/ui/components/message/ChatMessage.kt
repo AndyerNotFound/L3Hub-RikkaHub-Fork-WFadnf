@@ -603,7 +603,7 @@ private fun MessagePartsBlock(
         when {
             lastBodyIndex > 0 -> groupedParts.subList(0, lastBodyIndex)
             // 还没有正文（只有一段思考或一次工具调用）时整段内容都参与折叠
-            lastBodyIndex<= 0 && groupedParts.isNotEmpty() &&
+            lastBodyIndex <= 0 && groupedParts.isNotEmpty() &&
                 groupedParts.none { it is MessagePartBlock.ContentBlock } -> groupedParts
             else -> emptyList()
         }
