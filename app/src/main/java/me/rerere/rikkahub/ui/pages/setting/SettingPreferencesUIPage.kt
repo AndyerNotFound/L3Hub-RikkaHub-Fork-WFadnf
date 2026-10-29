@@ -218,6 +218,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                     )
                     switchItem(
+                        checked = displaySetting.usagePieChart,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(usagePieChart = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_usage_pie_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_usage_pie_title)) },
+                    )
+                    switchItem(
                         checked = displaySetting.contextMeterStyle != ContextMeterStyle.OFF,
                         onCheckedChange = { enabled ->
                             updateDisplaySetting(

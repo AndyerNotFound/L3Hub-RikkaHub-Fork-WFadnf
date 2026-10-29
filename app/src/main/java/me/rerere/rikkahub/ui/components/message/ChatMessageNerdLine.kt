@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -58,12 +59,12 @@ import me.rerere.rikkahub.data.model.TokenBucket
 import me.rerere.rikkahub.data.model.TokenDestination
 import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
-import me.rerere.rikkahub.ui.theme.TerminalPalette
-import kotlin.math.roundToInt
 import java.text.NumberFormat
 import java.time.Duration
+import kotlin.math.roundToInt
 
 /**
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
@@ -255,6 +256,7 @@ private fun ContextUsageBar(
     val capacity = maxOf(contextLength ?: 0, contextTokens, 1)
     val hasFreeSpace = capacity > contextTokens
     val trackColor = colorScheme.surfaceContainerHighest
+    val pieChart = LocalSettings.current.displaySetting.usagePieChart
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -276,36 +278,46 @@ private fun ContextUsageBar(
                 Text(text = contextTokens.exact())
             }
         }
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-        ) {
-            val gap = 2.dp.toPx()
-            val radius = CornerRadius(size.height / 2)
-            // 每段之间留出间隔；还有空余时最后一段和空余之间也要留
-            val gaps = if (hasFreeSpace) segments.size else segments.size - 1
-            val available = size.width - gap * gaps
-            var x = 0f
-            segments.forEach { segment ->
-                if (x >= size.width) return@forEach
-                // 太小的段至少画成一个圆点，不然看不出来
-                val width = (segment.tokens.toFloat() / capacity * available).coerceAtLeast(size.height)
-                drawRoundRect(
-                    color = segment.color,
-                    topLeft = Offset(x, 0f),
-                    size = Size(width.coerceAtMost(size.width - x), size.height),
-                    cornerRadius = radius,
-                )
-                x += width + gap
-            }
-            if (hasFreeSpace && x < size.width) {
-                drawRoundRect(
-                    color = trackColor,
-                    topLeft = Offset(x, 0f),
-                    size = Size(size.width - x, size.height),
-                    cornerRadius = radius,
-                )
+        if (pieChart) {
+            UsagePie(
+                segments = segments,
+                capacity = capacity,
+                contextTokens = contextTokens,
+                hasFreeSpace = hasFreeSpace,
+                trackColor = trackColor,
+            )
+        } else {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+            ) {
+                val gap = 2.dp.toPx()
+                val radius = CornerRadius(size.height / 2)
+                // 每段之间留出间隔；还有空余时最后一段和空余之间也要留
+                val gaps = if (hasFreeSpace) segments.size else segments.size - 1
+                val available = size.width - gap * gaps
+                var x = 0f
+                segments.forEach { segment ->
+                    if (x >= size.width) return@forEach
+                    // 太小的段至少画成一个圆点，不然看不出来
+                    val width = (segment.tokens.toFloat() / capacity * available).coerceAtLeast(size.height)
+                    drawRoundRect(
+                        color = segment.color,
+                        topLeft = Offset(x, 0f),
+                        size = Size(width.coerceAtMost(size.width - x), size.height),
+                        cornerRadius = radius,
+                    )
+                    x += width + gap
+                }
+                if (hasFreeSpace && x < size.width) {
+                    drawRoundRect(
+                        color = trackColor,
+                        topLeft = Offset(x, 0f),
+                        size = Size(size.width - x, size.height),
+                        cornerRadius = radius,
+                    )
+                }
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -321,6 +333,93 @@ private fun ContextUsageBar(
                     )
                     Text(
                         text = "${segment.label} ${segment.tokens.exact()}",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 上下文占用饼图：缓存命中、未命中输入、输出各占一段，剩余为窗口空余。
+ */
+@Composable
+private fun UsagePie(
+    segments: List<UsageSegment>,
+    capacity: Int,
+    contextTokens: Int,
+    hasFreeSpace: Boolean,
+    trackColor: Color,
+) {
+    val total = capacity.toFloat().coerceAtLeast(1f)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(modifier = Modifier.size(76.dp)) {
+            val strokeWidth = 12.dp.toPx()
+            val inset = strokeWidth / 2f
+            val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+            var start = -90f
+            segments.forEach { segment ->
+                val sweep = 360f * segment.tokens / total
+                drawArc(
+                    color = segment.color,
+                    startAngle = start,
+                    sweepAngle = (sweep - 1.5f).coerceAtLeast(1f),
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth),
+                )
+                start += sweep
+            }
+            if (hasFreeSpace) {
+                val sweep = 360f * (capacity - contextTokens) / total
+                drawArc(
+                    color = trackColor,
+                    startAngle = start,
+                    sweepAngle = (sweep - 1.5f).coerceAtLeast(1f),
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth),
+                )
+            }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            segments.forEach { segment ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(modifier = Modifier.size(6.dp).background(segment.color, CircleShape))
+                    Text(
+                        text = segment.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(text = segment.tokens.exact(), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (hasFreeSpace) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(modifier = Modifier.size(6.dp).background(trackColor, CircleShape))
+                    Text(
+                        text = stringResource(R.string.chat_message_usage_free),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = (capacity - contextTokens).exact(),
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }

@@ -560,6 +560,11 @@ private fun ChatListNormal(
 
             val captureProgress = LocalScrollCaptureInProgress.current
 
+            ChatScrollHandle(
+                state = state,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+
             // 消息快速跳转
             MessageJumper(
                 show = isRecentScroll && !state.isScrollInProgress && settings.displaySetting.showMessageJumper && !captureProgress,

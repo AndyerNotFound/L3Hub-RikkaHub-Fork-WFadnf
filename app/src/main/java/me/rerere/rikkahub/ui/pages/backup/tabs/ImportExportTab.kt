@@ -126,6 +126,33 @@ fun ImportExportTab(
                     isRestoring = false
                     return@launch
                 }
+                if (importType == "xml") {
+                    runCatching {
+                        val text = context.contentResolver
+                            .openInputStream(sourceUri)
+                            ?.bufferedReader()
+                            ?.use { it.readText() }
+                            ?: error("Cannot read file")
+                        val result = vm.importXml(text)
+                        toaster.show(
+                            context.getString(
+                                R.string.backup_page_xml_import_success,
+                                result.title,
+                                result.count,
+                                result.conversations,
+                            ),
+                            type = ToastType.Success
+                        )
+                    }.onFailure { e ->
+                        e.printStackTrace()
+                        toaster.show(
+                            context.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                            type = ToastType.Error
+                        )
+                    }
+                    isRestoring = false
+                    return@launch
+                }
                 runCatching {
                     when (importType) {
                         "local" -> {
@@ -277,6 +304,20 @@ fun ImportExportTab(
                 supportingContent = { Text(stringResource(R.string.backup_page_import_markdown_desc)) },
                 leadingContent = {
                     BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "markdown")
+                },
+            )
+
+            item(
+                onClick = if (!isRestoring) {
+                    {
+                        importType = "xml"
+                        openDocumentLauncher.launch(arrayOf("*/*"))
+                    }
+                } else null,
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_xml)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_xml_desc)) },
+                leadingContent = {
+                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "xml")
                 },
             )
 

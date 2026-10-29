@@ -176,6 +176,9 @@
   <string name="backup_page_import_from_cherry_studio">Import from Cherry Studio</string>
   <string name="backup_page_import_from_markdown">Import from Markdown</string>
   <string name="backup_page_import_markdown_desc">Create a new conversation from a .md chat log</string>
+  <string name="backup_page_import_from_xml">Import from XML</string>
+  <string name="backup_page_import_xml_desc">Create conversations from an .xml chat log</string>
+  <string name="backup_page_xml_import_success">Imported \"%1$s\" (%2$d messages in %3$d chats)</string>
   <string name="backup_page_markdown_import_success">Imported \"%1$s\" (%2$d messages)</string>
   <string name="backup_page_import_from_other_app">Import from other app</string>
   <string name="backup_page_importing">Importing...</string>
@@ -731,6 +734,9 @@
   <string name="setting_display_page_ui_corner_radius_desc">%1$d dp, applies to chat bubbles, input bar and drawer</string>
   <string name="setting_display_page_show_thinking_content_title">Show Thinking Content</string>
   <string name="setting_display_page_show_token_usage_desc">Display token usage and message count</string>
+  <string name="setting_display_page_usage_pie_title">Usage Pie Chart</string>
+  <string name="setting_display_page_usage_pie_desc">Show context usage as a pie chart in the usage panel</string>
+  <string name="chat_message_usage_free">Free</string>
   <string name="setting_display_page_show_token_usage_title">Show Token &amp; Context Stats</string>
   <string name="setting_display_page_show_updates_desc">Whether to display app update notifications</string>
   <string name="setting_display_page_show_updates_title">Show Updates</string>

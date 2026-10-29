@@ -189,6 +189,8 @@ data class DisplaySetting(
     val useL3HubReasoningStyle: Boolean = false,
     // 为按钮与开关显示阴影
     val buttonShadow: Boolean = false,
+    // Usage 看板的上下文占用用饼图显示
+    val usagePieChart: Boolean = false,
     // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
     val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,

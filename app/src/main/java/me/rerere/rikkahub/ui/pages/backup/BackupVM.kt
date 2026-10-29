@@ -23,6 +23,7 @@ import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
 import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
 import me.rerere.rikkahub.data.sync.importer.MarkdownChatImporter
+import me.rerere.rikkahub.data.sync.importer.XmlChatImporter
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.utils.UiState
@@ -126,6 +127,30 @@ class BackupVM(
             )
         )
         MarkdownImportResult(title = title, count = parsed.messages.size)
+    }
+
+    /** 从 XML 聊天记录新建会话，不覆盖任何已有数据 */
+    suspend fun importXml(text: String): XmlImportResult = withContext(Dispatchers.IO) {
+        val chats = XmlChatImporter.parse(text).filter { it.messages.isNotEmpty() }
+        require(chats.isNotEmpty()) { "No chat messages found in this file" }
+        chats.forEach { chat ->
+            val title = chat.title.ifBlank {
+                chat.messages.first().toText().trim().take(40).ifBlank { "XML import" }
+            }
+            conversationRepository.insertConversation(
+                Conversation(
+                    assistantId = settings.value.assistantId,
+                    title = title,
+                    messageNodes = chat.messages.map { it.toMessageNode() },
+                )
+            )
+        }
+        val first = chats.first()
+        XmlImportResult(
+            title = first.title.ifBlank { first.messages.first().toText().trim().take(40) },
+            conversations = chats.size,
+            count = chats.sumOf { it.messages.size },
+        )
     }
 
     suspend fun restoreFromChatBox(file: File): ChatboxRestoreResult = withContext(Dispatchers.IO) {
@@ -264,3 +289,5 @@ data class ChatboxRestoreResult(
 )
 
 data class MarkdownImportResult(val title: String, val count: Int)
+
+data class XmlImportResult(val title: String, val conversations: Int, val count: Int)

@@ -268,31 +268,32 @@ private fun AgentBranch(
                     isLast = children.isEmpty() && index == tools.lastIndex,
                 )
             }
-            children.forEachIndexed { index, child ->
-                AgentBranch(
-                    node = child,
-                    prefix = childPrefix,
-                    isLast = index == children.lastIndex,
-                    isRoot = false,
-                    assistantNames = assistantNames,
-                    onOpen = onOpen,
-                )
-            }
             if (tools.isEmpty() && children.isEmpty() && isSubAgent) {
                 NoToolsRow(prefix = childPrefix)
             }
-            if (isSubAgent) {
-                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                    TreeRail(prefix = childPrefix, isLast = true, isRoot = false)
-                    Text(
-                        text = stringResource(R.string.task_tree_open),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clickable { onOpen(conversation.id) }
-                            .padding(vertical = 6.dp),
-                    )
-                }
+        }
+        // 折叠只收起本节点的工具明细，子代理仍然展开，避免隐藏下游任务
+        children.forEachIndexed { index, child ->
+            AgentBranch(
+                node = child,
+                prefix = childPrefix,
+                isLast = index == children.lastIndex && !isSubAgent,
+                isRoot = false,
+                assistantNames = assistantNames,
+                onOpen = onOpen,
+            )
+        }
+        if (isSubAgent) {
+            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                TreeRail(prefix = childPrefix, isLast = true, isRoot = false)
+                Text(
+                    text = stringResource(R.string.task_tree_open),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clickable { onOpen(conversation.id) }
+                        .padding(vertical = 6.dp),
+                )
             }
         }
     }

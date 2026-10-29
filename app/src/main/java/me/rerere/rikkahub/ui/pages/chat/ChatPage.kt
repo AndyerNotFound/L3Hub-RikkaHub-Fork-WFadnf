@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,6 +36,7 @@ import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -49,6 +51,7 @@ import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -113,10 +116,12 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
@@ -417,6 +422,11 @@ private fun ChatPageContent(
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
     var showTerminalModelPicker by remember { mutableStateOf(false) }
+    val chatModelListState = rememberModelListState(
+        modelId = assistant.chatModelId,
+        providers = setting.providers,
+        type = ModelType.CHAT,
+    )
     var terminalOutput by remember { mutableStateOf<String?>(null) }
     val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
@@ -438,6 +448,19 @@ private fun ChatPageContent(
             if (contextLimitBlocksSend) Unit else submitInput()
         } else {
             submitInput()
+        }
+    }
+
+    val sendInterject: () -> Unit = interject@{
+        if (contextLimitReached) {
+            toaster.show(contextLimitMessage, type = ToastType.Error)
+            if (contextLimitBlocksSend) return@interject
+        }
+        vm.handleMessageSend(inputState.getContents(), interject = true)
+        inputState.clearInput()
+        scope.launch {
+            delay(100.milliseconds)
+            chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
         }
     }
 
@@ -854,6 +877,7 @@ private fun ChatPageContent(
                             previewMode = !previewMode
                         },
                         onShowTaskTree = { showTaskTree = true },
+                        onShowModelPicker = { chatModelListState.open() },
                     )
                 }
             },
@@ -875,6 +899,9 @@ private fun ChatPageContent(
                             onModel = { showTerminalModelPicker = true },
                             onUsage = { showUsageSheet = true },
                             onCommand = { runTerminalCommand(it) },
+                            assistant = assistant,
+                            onUpdateAssistant = vm::updateAssistant,
+                            onInterject = sendInterject,
                         )
                     } else {
                         ChatInputContent()
@@ -907,6 +934,9 @@ private fun ChatPageContent(
                                 onModel = { showTerminalModelPicker = true },
                                 onUsage = { showUsageSheet = true },
                                 onCommand = { runTerminalCommand(it) },
+                                assistant = assistant,
+                                onUpdateAssistant = vm::updateAssistant,
+                                onInterject = sendInterject,
                             )
                         } else {
                             ChatInputContent(
@@ -1075,6 +1105,10 @@ private fun ChatPageContent(
                 onDismiss = { showTerminalModelPicker = false },
             )
         }
+
+        ModelListSheet(state = chatModelListState) { model ->
+            vm.setChatModel(model)
+        }
     }
     }
 }
@@ -1178,6 +1212,7 @@ private fun TopBar(
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,
+    onShowModelPicker: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -1202,37 +1237,56 @@ private fun TopBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         title = {},
         navigationIcon = {
-            if (!bigScreen) {
-                val navShape = if (terminal) RoundedCornerShape(2.dp) else CircleShape
-                val navColor = MaterialTheme.colorScheme.surfaceContainerLow
-                Surface(
-                    onClick = {
-                        scope.launch { drawerState.open() }
-                    },
-                    modifier = Modifier
-                        .padding(start = 12.dp)
-                        .size(40.dp)
-                        .appButtonShadow(navShape, 2.dp)
-                        .clip(navShape)
-                        .background(effectColor(navColor))
-                        .then(
-                            if (effectBorder != null) {
-                                Modifier.border(effectBorder, navShape)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .chatInputHaze(
-                            hazeState = hazeState,
-                            displaySetting = settings.displaySetting,
-                            containerColor = navColor,
-                            shape = navShape,
-                        ),
-                    shape = navShape,
-                    color = Color.Transparent,
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                Row(
+                    modifier = Modifier.padding(start = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(20.dp))
+                    if (!bigScreen) {
+                        val navShape = if (terminal) RoundedCornerShape(2.dp) else CircleShape
+                        val navColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        Surface(
+                            onClick = {
+                                scope.launch { drawerState.open() }
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .appButtonShadow(navShape, 2.dp)
+                                .clip(navShape)
+                                .background(effectColor(navColor))
+                                .then(
+                                    if (effectBorder != null) {
+                                        Modifier.border(effectBorder, navShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .chatInputHaze(
+                                    hazeState = hazeState,
+                                    displaySetting = settings.displaySetting,
+                                    containerColor = navColor,
+                                    shape = navShape,
+                                ),
+                            shape = navShape,
+                            color = Color.Transparent,
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    if (chatModel != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onShowModelPicker),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AutoAIIcon(name = chatModel.modelId, color = Color.Transparent)
+                        }
                     }
                 }
             }
@@ -1245,9 +1299,6 @@ private fun TopBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (chatModel != null) {
-                    AutoAIIcon(name = chatModel.modelId, modifier = Modifier.size(40.dp))
-                }
                 Row(
                     modifier = Modifier
                         .appButtonShadow(pillShape, 2.dp)

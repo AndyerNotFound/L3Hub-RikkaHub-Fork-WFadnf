@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat.terminal
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +28,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -32,15 +39,19 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.theme.TerminalPalette
@@ -75,6 +86,7 @@ fun TerminalChatTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(TerminalPalette.Background)
+            .statusBarsPadding()
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Row(
@@ -111,19 +123,28 @@ fun TerminalChatTopBar(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!bigScreen) TerminalTextButton("MENU", onMenu)
-            TerminalTextButton("NEW", onNewChat)
-            TerminalTextButton("TREE", onTaskTree)
-            TerminalTextButton("USAGE", onUsage)
-            TerminalTextButton("HELP", onHelp)
-            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (!bigScreen) TerminalTextButton("MENU", onMenu)
+                TerminalTextButton("NEW", onNewChat)
+                TerminalTextButton("TREE", onTaskTree)
+                TerminalTextButton("USAGE", onUsage)
+                TerminalTextButton("HELP", onHelp)
+            }
             Text(
                 text = "${assistantName.ifBlank { "assistant" }} :: $modelName",
                 style = TerminalTextStyle,
                 color = TerminalPalette.GreenDim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(160.dp),
+                textAlign = TextAlign.End,
+                modifier = Modifier
+                    .widthIn(max = 140.dp)
+                    .padding(start = 6.dp),
             )
         }
         Text(
@@ -160,9 +181,13 @@ fun TerminalChatInput(
     onModel: () -> Unit,
     onUsage: () -> Unit,
     onCommand: (String) -> Unit,
+    assistant: Assistant,
+    onUpdateAssistant: (Assistant) -> Unit,
+    onInterject: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val text = state.textContent.text.toString()
+    var showCommandPalette by remember { mutableStateOf(false) }
     val suggestions = terminalCommandSuggestions(text)
     Column(
         modifier = modifier
@@ -266,23 +291,58 @@ fun TerminalChatInput(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (loading) {
-                TerminalTextButton("STOP", onClick = onStop, color = TerminalPalette.Error)
-            } else {
-                TerminalTextButton("SEND", onClick = onSubmit, color = TerminalPalette.Amber)
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (loading) {
+                    TerminalTextButton("STOP", onClick = onStop, color = TerminalPalette.Error)
+                } else {
+                    TerminalTextButton("SEND", onClick = onSubmit, color = TerminalPalette.Amber)
+                }
+                TerminalTextButton("FILES", onFiles)
+                TerminalTextButton("MODEL", onModel)
+                if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+                    TerminalTextButton(
+                        text = "THINK:${assistant.reasoningLevel.name}",
+                        onClick = {
+                            val levels = ReasoningLevel.entries
+                            val next = levels[(levels.indexOf(assistant.reasoningLevel) + 1) % levels.size]
+                            onUpdateAssistant(assistant.copy(reasoningLevel = next))
+                        },
+                    )
+                }
+                if (loading && text.isNotBlank() && settings.enableMessageQueue) {
+                    TerminalTextButton("QUEUE", onClick = onInterject)
+                }
+                TerminalTextButton("VOICE", onVoice)
+                TerminalTextButton("CMD", onClick = { showCommandPalette = true })
+                TerminalTextButton("HELP", onClick = { onCommand("/help") })
             }
-            TerminalTextButton("FILES", onFiles)
-            TerminalTextButton("MODEL", onModel)
-            TerminalTextButton("VOICE", onVoice)
-            TerminalTextButton("HELP", onClick = { onCommand("/help") })
-            Spacer(Modifier.weight(1f))
             Text(
                 text = "${state.messageContent.size} att · ${text.length} ch",
                 style = TerminalTextStyle,
                 color = TerminalPalette.GreenDim,
                 maxLines = 1,
+                modifier = Modifier.padding(start = 6.dp),
             )
         }
+    }
+
+    if (showCommandPalette) {
+        TerminalCommandPaletteDialog(
+            onPick = { spec ->
+                showCommandPalette = false
+                if (spec.usage.contains(' ')) {
+                    state.setMessageText("/${spec.name} ")
+                } else {
+                    onCommand("/${spec.name}")
+                }
+            },
+            onDismiss = { showCommandPalette = false },
+        )
     }
 }
 
@@ -400,6 +460,59 @@ fun TerminalOutputDialog(
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState()),
                 )
+                Text(
+                    text = terminalRule(60),
+                    style = TerminalTextStyle,
+                    color = TerminalPalette.Border,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                TerminalTextButton("CLOSE", onDismiss, color = TerminalPalette.Amber)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TerminalCommandPaletteDialog(
+    onPick: (TerminalCommandSpec) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            color = TerminalPalette.Background,
+            border = BorderStroke(1.dp, TerminalPalette.Border),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = "┌─[ COMMANDS ]" + terminalRule(40),
+                    style = TerminalTextStyle,
+                    color = TerminalPalette.Amber,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                )
+                LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    items(TERMINAL_COMMANDS, key = { it.name }) { spec ->
+                        Text(
+                            text = spec.usage.padEnd(22) + "  " + spec.description,
+                            style = TerminalTextStyle,
+                            color = TerminalPalette.Green,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(spec) }
+                                .padding(vertical = 3.dp),
+                        )
+                    }
+                }
                 Text(
                     text = terminalRule(60),
                     style = TerminalTextStyle,

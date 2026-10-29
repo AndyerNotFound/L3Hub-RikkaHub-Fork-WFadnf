@@ -176,6 +176,9 @@
   <string name="backup_page_import_from_cherry_studio">从Cherry Studio导入</string>
   <string name="backup_page_import_from_markdown">从 Markdown 导入</string>
   <string name="backup_page_import_markdown_desc">从 .md 聊天记录新建一个会话</string>
+  <string name="backup_page_import_from_xml">从 XML 导入</string>
+  <string name="backup_page_import_xml_desc">从 .xml 聊天记录新建会话，不覆盖已有数据</string>
+  <string name="backup_page_xml_import_success">已导入「%1$s」（%3$d 个会话 / %2$d 条消息）</string>
   <string name="backup_page_markdown_import_success">已导入「%1$s」（%2$d 条消息）</string>
   <string name="backup_page_import_from_other_app">从其他APP导入</string>
   <string name="backup_page_importing">正在恢复...</string>
@@ -724,6 +727,9 @@
   <string name="setting_display_page_ui_corner_radius_desc">%1$d dp，应用于聊天气泡、输入框和侧边栏</string>
   <string name="setting_display_page_show_thinking_content_title">显示思考内容</string>
   <string name="setting_display_page_show_token_usage_desc">显示token用量和消息数量</string>
+  <string name="setting_display_page_usage_pie_title">用量饼图</string>
+  <string name="setting_display_page_usage_pie_desc">在用量看板中用饼图显示上下文占用</string>
+  <string name="chat_message_usage_free">剩余</string>
   <string name="setting_display_page_show_token_usage_title">显示Token和上下文统计</string>
   <string name="setting_display_page_show_updates_desc">是否显示应用更新通知</string>
   <string name="setting_display_page_show_updates_title">显示更新</string>
