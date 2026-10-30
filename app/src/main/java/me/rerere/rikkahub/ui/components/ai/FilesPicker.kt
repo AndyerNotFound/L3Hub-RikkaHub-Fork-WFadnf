@@ -86,6 +86,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
@@ -720,7 +721,7 @@ private fun WorkspaceConnectionIndicator(
             me.rerere.workspace.ssh.SshPoolState.CONNECTED -> Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .background(me.rerere.rikkahub.ui.theme.extendColors.green6, CircleShape)
+                    .background(MaterialTheme.extendColors.green6, CircleShape)
             )
 
             else -> Box(
@@ -735,7 +736,7 @@ private fun WorkspaceConnectionIndicator(
                 .size(8.dp)
                 .background(
                     color = if (workspace.shellStatus == me.rerere.workspace.WorkspaceShellStatus.READY.name) {
-                        me.rerere.rikkahub.ui.theme.extendColors.green6
+                        MaterialTheme.extendColors.green6
                     } else {
                         MaterialTheme.colorScheme.outline
                     },
