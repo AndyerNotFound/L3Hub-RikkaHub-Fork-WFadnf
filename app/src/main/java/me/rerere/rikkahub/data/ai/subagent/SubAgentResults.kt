@@ -9,12 +9,11 @@ package me.rerere.rikkahub.data.ai.subagent
  * 这条消息是系统通知，不是用户发言：[NOTICE_FRAMING] 只在组装请求时加到最前面，
  * 界面和导出看到的是 [formatSubAgentResults] 的正文。
  */
-internal const val SUB_AGENT_NOTICE_FRAMING = "（这是系统自动回传的子代理任务结果，不是你输入的内容，直接据此继续即可）"
+internal const val SUB_AGENT_NOTICE_FRAMING = "(This is an automatic system notice carrying results from sub-agent tasks, not something the user typed. Continue from it directly.)"
 
 internal fun formatSubAgentResults(results: List<String>): String = buildString {
-    append("以下 ")
     append(results.size)
-    append(" 个后台子代理任务已完成，结果已回传。请据此继续当前工作，已经完成的部分不要重复执行。")
+    append(" parallel sub-agent task(s) have finished; their results are below. Continue the current work from them and do not repeat what is already done.")
     results.forEachIndexed { index, result ->
         appendLine()
         appendLine()

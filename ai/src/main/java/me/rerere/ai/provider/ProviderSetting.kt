@@ -100,6 +100,7 @@ sealed class ProviderSetting {
         override var apiKey: String = "",
         // 用户手动关掉的 Key，仍然留在 apiKey 里，随时可以重新启用
         override var disabledApiKeys: List<String> = emptyList(),
+        override var apiKeyLabels: Map<String, String> = emptyMap(),
         override var baseUrl: String = "https://api.openai.com/v1",
         var chatCompletionsPath: String = "/chat/completions",
         var useResponseApi: Boolean = false,
@@ -107,6 +108,8 @@ sealed class ProviderSetting {
         var responsesPath: String = "/responses",
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
+
+        override fun withApiKey(apiKey: String): ApiKey = copy(apiKey = apiKey)
 
         override fun copyProvider(
             id: Uuid,
@@ -146,6 +149,7 @@ sealed class ProviderSetting {
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override var apiKey: String = "",
         override var disabledApiKeys: List<String> = emptyList(),
+        override var apiKeyLabels: Map<String, String> = emptyMap(),
         override var baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
         var vertexAI: Boolean = false,
         var useServiceAccount: Boolean = false,
@@ -156,6 +160,8 @@ sealed class ProviderSetting {
         var useInteractionsApi: Boolean = false, // ignored when vertex AI is enabled
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
+
+        override fun withApiKey(apiKey: String): ApiKey = copy(apiKey = apiKey)
 
         override fun copyProvider(
             id: Uuid,
@@ -194,11 +200,14 @@ sealed class ProviderSetting {
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override var apiKey: String = "",
         override var disabledApiKeys: List<String> = emptyList(),
+        override var apiKeyLabels: Map<String, String> = emptyMap(),
         override var baseUrl: String = "https://api.anthropic.com/v1",
         var promptCaching: Boolean = false,
         var promptCacheTtl: ClaudePromptCacheTtl = ClaudePromptCacheTtl.FIVE_MINUTES,
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
+
+        override fun withApiKey(apiKey: String): ApiKey = copy(apiKey = apiKey)
 
         override fun copyProvider(
             id: Uuid,
@@ -228,7 +237,13 @@ sealed class ProviderSetting {
     sealed class ApiKey : ProviderSetting() {
         abstract val apiKey: String
         abstract val disabledApiKeys: List<String>
+
+        /** 每个 Key 的自定义标签，按 Key 文本索引，只用于界面显示 */
+        abstract val apiKeyLabels: Map<String, String>
         abstract val baseUrl: String
+
+        /** 同一份配置换成另一个 Key，用于多 Key 轮询或逐个 Key 拉模型 */
+        abstract fun withApiKey(apiKey: String): ApiKey
 
         /** 用户自定义的额度查询 */
         abstract val quotaQuery: QuotaQuery

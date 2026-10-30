@@ -188,6 +188,12 @@ internal fun AssistantBasicContent(
                 supportingContent = { Text(stringResource(R.string.assistant_page_sub_agent_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_sub_agent)) },
             )
+            switchItem(
+                checked = assistant.enableNotification,
+                onCheckedChange = { onUpdate(assistant.copy(enableNotification = it)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_enable_notification_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_enable_notification)) },
+            )
             formItem(
                 headlineContent = { Text(stringResource(R.string.assistant_page_tags)) },
             ) {

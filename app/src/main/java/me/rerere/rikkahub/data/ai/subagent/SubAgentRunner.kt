@@ -24,11 +24,14 @@ const val SUB_AGENT_STATE_COMPLETED = "completed"
 const val SUB_AGENT_STATE_FAILED = "failed"
 
 private const val TAG = "SubAgentRunner"
-private const val MAX_DEPTH = 4
+// 主代理 → 子代理 → 孙代理，最多三代；depthOf 返回祖先数量，父会话在第 2 层起拒绝继续派发
+private const val MAX_DEPTH = 2
 
 /**
  * 把任务交给一个普通助手会话，复用 ChatService 的会话、流式状态和生成生命周期。
  * 会话通过 [Conversation.parentConversationId] 挂在父会话下面，任务树据此渲染。
+ *
+ * 派发一律是并行的：调用立即返回，结果在子代理跑完后自动回送父会话。
  */
 class SubAgentRunner(
     private val settingsStore: SettingsStore,
@@ -41,7 +44,6 @@ class SubAgentRunner(
         parentConversationId: Uuid,
         target: String,
         task: String,
-        mode: SubAgentDispatchMode,
     ): String {
         val settings = settingsStore.awaitLoaded()
         val candidate = settings.assistants.firstOrNull { assistant ->
@@ -49,24 +51,24 @@ class SubAgentRunner(
                 assistant.id.toString().equals(target.trim(), ignoreCase = true) ||
                     assistant.name.equals(target.trim(), ignoreCase = true)
                 )
-        } ?: return "没有找到名为「$target」的子代理，请使用可用列表里的名称。"
+        } ?: return "No sub-agent named \"$target\". Use one of the names in the available sub-agent list."
 
         val parent = conversationRepository.getConversationById(parentConversationId)
-            ?: return "父会话不存在，无法派发子代理。"
+            ?: return "The parent conversation no longer exists, so the task cannot be dispatched."
 
         if (settings.getAssistantOf(parent).id == candidate.id) {
-            return "不能把任务派发给当前助手自己，请换一个子代理。"
+            return "A sub-agent cannot dispatch a task to itself. Pick another sub-agent."
         }
 
         val depth = depthOf(parentConversationId)
         if (depth >= MAX_DEPTH) {
-            return "子代理层级已达上限（$MAX_DEPTH 层），请直接在当前会话完成任务。"
+            return "Sub-agent nesting is limited to three generations (main -> child -> grandchild), and this conversation is already the deepest one. Finish the task here instead of dispatching it again."
         }
 
         val child = Conversation(
             assistantId = candidate.id,
-            title = task.trim().lineSequence().firstOrNull()?.take(40)?.ifBlank { "子代理任务" }
-                ?: "子代理任务",
+            title = task.trim().lineSequence().firstOrNull()?.take(40)?.ifBlank { "Sub-agent task" }
+                ?: "Sub-agent task",
             messageNodes = emptyList(),
             parentConversationId = parent.id,
             subAgentTask = task,
@@ -84,20 +86,15 @@ class SubAgentRunner(
         } catch (e: Exception) {
             Log.w(TAG, "start sub agent failed", e)
             markFailed(chatService, child.id)
-            return "子代理「${candidate.name}」执行失败：${e.message ?: e::class.simpleName}"
+            return "Sub-agent \"${candidate.name}\" failed to start: ${e.message ?: e::class.simpleName}"
         }
 
-        return when (mode) {
-            SubAgentDispatchMode.WAIT -> finishChild(chatService, candidate, child)
-            SubAgentDispatchMode.BACKGROUND -> {
-                scope.launch {
-                    val result = finishChild(chatService, candidate, child)
-                    runCatching { chatService.deliverSubAgentResult(parent.id, result) }
-                        .onFailure { Log.w(TAG, "deliver sub agent result failed", it) }
-                }
-                "子代理「${candidate.name}」已在后台开始执行，完成后会自动把结果送回当前会话；也可以打开会话 ${child.id} 查看进度。"
-            }
+        scope.launch {
+            val result = finishChild(chatService, candidate, child)
+            runCatching { chatService.deliverSubAgentResult(parent.id, result) }
+                .onFailure { Log.w(TAG, "deliver sub agent result failed", it) }
         }
+        return "Sub-agent \"${candidate.name}\" is now running in parallel. Its result will be delivered back to this conversation automatically; open conversation ${child.id} to watch progress."
     }
 
     private suspend fun finishChild(
@@ -115,7 +112,7 @@ class SubAgentRunner(
         } catch (e: Exception) {
             Log.w(TAG, "sub agent run failed", e)
             markFailed(chatService, child.id)
-            return "子代理「${candidate.name}」执行失败：${e.message ?: e::class.simpleName}"
+            return "Sub-agent \"${candidate.name}\" failed: ${e.message ?: e::class.simpleName}"
         }
 
         val awaitingApproval = conversation.isAwaitingToolApproval
@@ -127,21 +124,20 @@ class SubAgentRunner(
 
         return if (awaitingApproval) {
             updateState(chatService, child.id, SUB_AGENT_STATE_FAILED)
-            "子代理「${candidate.name}」停在了需要用户确认的工具上，请打开会话 ${child.id} 审批后继续。"
+            "Sub-agent \"${candidate.name}\" stopped on a tool call that needs user approval. Open conversation ${child.id}, approve it, and let it continue."
         } else if (answer.isBlank()) {
             updateState(chatService, child.id, SUB_AGENT_STATE_FAILED)
-            "子代理「${candidate.name}」没有产生回复，会话 ${child.id} 可在任务树里查看。"
+            "Sub-agent \"${candidate.name}\" produced no reply. Conversation ${child.id} is available in the task tree."
         } else {
             updateState(chatService, child.id, SUB_AGENT_STATE_COMPLETED)
             buildString {
-                appendLine("子代理「${candidate.name}」已完成，会话 ID：${child.id}")
-                appendLine("完整过程可以在那个会话里查看，历史会话和任务树都能找到。")
+                appendLine("Sub-agent \"${candidate.name}\" finished. Conversation ID: ${child.id}")
+                appendLine("The full transcript is in that conversation; it is also listed under history and in the task tree.")
                 appendLine()
                 append(answer)
             }
         }
     }
-
     private suspend fun markFailed(chatService: ChatService, conversationId: Uuid) {
         updateState(chatService, conversationId, SUB_AGENT_STATE_FAILED)
     }

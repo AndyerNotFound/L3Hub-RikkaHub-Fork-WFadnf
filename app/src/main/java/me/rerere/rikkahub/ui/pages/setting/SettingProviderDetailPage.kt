@@ -705,11 +705,23 @@ private fun ModelList(
     val providerManager = koinInject<ProviderManager>()
     val modelList by produceState(emptyList(), providerSetting) {
         runCatching {
-            println("loading models...")
-            value = providerManager.getProviderByType(providerSetting)
-                .listModels(providerSetting)
-                .sortedBy { it.modelId }
-                .toList()
+            val provider = providerManager.getProviderByType(providerSetting)
+            val apiKeySetting = providerSetting as? ProviderSetting.ApiKey
+            val enabledKeys = apiKeySetting?.let { setting ->
+                setting.apiKey.split(Regex("[\\n,]"))
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && it !in setting.disabledApiKeys }
+            }.orEmpty()
+            val models = if (apiKeySetting != null && enabledKeys.size > 1) {
+                // 每个 Key 可能开通了不同的模型，合并去重后再展示
+                enabledKeys.flatMap { key ->
+                    runCatching { provider.listModels(apiKeySetting.withApiKey(key)) }
+                        .getOrDefault(emptyList())
+                }.distinctBy { it.modelId }
+            } else {
+                provider.listModels(providerSetting)
+            }
+            value = models.sortedBy { it.modelId }.toList()
         }.onFailure {
             it.printStackTrace()
         }

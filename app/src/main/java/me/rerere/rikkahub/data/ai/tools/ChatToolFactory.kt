@@ -34,7 +34,7 @@ internal fun Tool.withAutoApproval(): Tool {
             execute = {
                 listOf(
                     UIMessagePart.Text(
-                        "当前是子代理会话，没有用户可以回答问题。请根据已有信息自行做出决定，不要调用 ask_user。"
+                        "This is a sub-agent conversation, so there is no user to answer questions. Decide on your own from the information you already have and do not call ask_user."
                     )
                 )
             },

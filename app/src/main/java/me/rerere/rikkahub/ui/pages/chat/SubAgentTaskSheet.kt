@@ -84,6 +84,7 @@ fun SubAgentTaskSheet(
     onOpenConversation: (Uuid) -> Unit,
 ) {
     val repository: ConversationRepository = koinInject()
+    var previewId by remember { mutableStateOf<Uuid?>(null) }
     val chatService: ChatService = koinInject()
     val settingsStore: SettingsStore = koinInject()
     val settings by settingsStore.settingsFlow.collectAsState()
@@ -149,13 +150,23 @@ fun SubAgentTaskSheet(
                         AgentDetail(
                             item = selected,
                             assistantName = assistantNames[selected.node.conversation.assistantId].orEmpty(),
-                            onOpen = onOpenConversation,
+                            onOpen = { previewId = it },
                             modifier = Modifier.weight(1f),
                         )
                     }
                 }
             }
         }
+    }
+    previewId?.let { id ->
+        SubAgentConversationWindow(
+            conversationId = id,
+            onDismiss = { previewId = null },
+            onOpenFull = {
+                previewId = null
+                onOpenConversation(id)
+            },
+        )
     }
 }
 

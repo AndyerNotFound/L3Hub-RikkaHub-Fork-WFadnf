@@ -87,6 +87,7 @@ val appModule = module {
             appScope = get(),
             eventBus = get(),
             settingsStore = get(),
+            conversationRepository = get(),
         )
     }
 

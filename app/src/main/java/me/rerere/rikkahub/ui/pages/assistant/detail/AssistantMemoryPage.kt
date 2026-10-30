@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.annotation.StringRes
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,9 +50,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
@@ -62,6 +77,7 @@ import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
 import me.rerere.rikkahub.data.model.memoryTitleOf
+import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
@@ -82,6 +98,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -112,6 +129,78 @@ fun AssistantMemoryPage(id: String) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val pagerState = rememberPagerState { MemoryTab.entries.size }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val memoryRepository: MemoryRepository = koinInject()
+
+    // 导出整个记忆库为 JSON；导入时按 path 覆盖同名文件、其余新增
+    val exportMemory = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching {
+                val files = memoryRepository.getFiles(vm.memoryId)
+                val json = buildJsonObject {
+                    put("version", 1)
+                    put("memoryId", vm.memoryId)
+                    putJsonArray("files") {
+                        files.forEach { file ->
+                            addJsonObject {
+                                put("path", file.path)
+                                put("content", file.content)
+                            }
+                        }
+                    }
+                }
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(json.toString().toByteArray())
+                } ?: error("cannot open output stream")
+            }.onSuccess {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.memory_export_done),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }.onFailure {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.memory_export_failed),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+    val importMemory = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching {
+                val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    ?: error("cannot open input stream")
+                val files = Json.parseToJsonElement(text).jsonObject["files"]?.jsonArray
+                    ?: error("missing files array")
+                files.forEach { element ->
+                    val obj = element.jsonObject
+                    val path = obj["path"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+                    val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+                    memoryRepository.writeFile(vm.memoryId, path, content)
+                }
+            }.onSuccess {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.memory_import_done),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }.onFailure {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.memory_import_failed),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -124,6 +213,16 @@ fun AssistantMemoryPage(id: String) {
                 },
                 actions = {
                     if (MemoryTab.entries[pagerState.currentPage] == MemoryTab.FILES) {
+                        IconButton(onClick = {
+                            exportMemory.launch(
+                                "memory-${assistant.name.ifBlank { "assistant" }}-${System.currentTimeMillis()}.json"
+                            )
+                        }) {
+                            Icon(HugeIcons.ArrowDown01, contentDescription = stringResource(R.string.memory_export))
+                        }
+                        IconButton(onClick = { importMemory.launch(arrayOf("application/json", "text/plain", "*/*")) }) {
+                            Icon(HugeIcons.ArrowUp01, contentDescription = stringResource(R.string.memory_import))
+                        }
                         IconButton(onClick = { navController.navigate(Screen.MemoryFile(vm.memoryId, null)) }) {
                             Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.add))
                         }

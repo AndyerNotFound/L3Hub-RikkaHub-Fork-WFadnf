@@ -305,7 +305,8 @@ private fun CardGroupScope.apiKeyItem(
     providerId: Uuid,
     apiKey: String,
     disabledApiKeys: List<String>,
-    onValueChange: (apiKey: String, disabledApiKeys: List<String>) -> Unit,
+    apiKeyLabels: Map<String, String>,
+    onValueChange: (apiKey: String, disabledApiKeys: List<String>, apiKeyLabels: Map<String, String>) -> Unit,
 ) = formItem(
     headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
     supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
@@ -319,11 +320,15 @@ private fun CardGroupScope.apiKeyItem(
     }
     // 关掉的 Key 存在 provider 上，按内容匹配而不是按位置，改 Key 文本也不会错位
     var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
+    // 标签按 Key 文本索引，改 Key 文本时跟着搬过去；删 Key 时一起清掉
+    var labels by remember(providerId, apiKeyLabels) { mutableStateOf(apiKeyLabels) }
 
     fun emit() {
+        val liveKeys = keys.map { it.trim() }.filter { it.isNotBlank() }
         onValueChange(
-            keys.map { it.trim() }.filter { it.isNotBlank() }.joinToString("\n"),
+            liveKeys.joinToString("\n"),
             disabled,
+            labels.filterKeys { it in liveKeys },
         )
     }
 
@@ -336,8 +341,14 @@ private fun CardGroupScope.apiKeyItem(
             ) {
                 OutlinedTextField(
                     value = key,
-                    onValueChange = {
-                        keys[index] = it
+                    onValueChange = { text ->
+                        val oldKey = keys[index]
+                        if (oldKey != text) {
+                            labels[oldKey]?.let { label ->
+                                labels = labels - oldKey + (text.trim() to label)
+                            }
+                        }
+                        keys[index] = text
                         emit()
                     },
                     modifier = Modifier.weight(1f),
@@ -365,6 +376,16 @@ private fun CardGroupScope.apiKeyItem(
                     },
                 )
                 if (key.isNotBlank()) {
+                    OutlinedTextField(
+                        value = labels[key].orEmpty(),
+                        onValueChange = { label ->
+                            labels = if (label.isBlank()) labels - key else labels + (key to label)
+                            emit()
+                        },
+                        modifier = Modifier.width(96.dp),
+                        label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
+                        singleLine = true,
+                    )
                     Switch(
                         checked = key !in disabled,
                         onCheckedChange = { enabled ->
@@ -406,8 +427,8 @@ private fun ProviderConfigureOpenAI(
 
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
-            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
+            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
         }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
@@ -606,8 +627,8 @@ private fun ProviderConfigureClaude(
 ) {
     CardGroup {
         nameItem(provider, onEdit)
-        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
-            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+        apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
+            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
         }
         textFieldItem(
             label = R.string.setting_provider_page_api_base_url,
@@ -682,8 +703,8 @@ private fun ProviderConfigureGoogle(
     CardGroup {
         nameItem(provider, onEdit)
         if (!useServiceAccount) {
-            apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys) { apiKey, disabledKeys ->
-                onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys))
+            apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
+                onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
             }
         }
         if (!provider.vertexAI) {

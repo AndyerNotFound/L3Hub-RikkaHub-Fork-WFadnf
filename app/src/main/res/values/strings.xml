@@ -2027,4 +2027,16 @@
   <string name="heartbeat_page_model_clear">Clear</string>
   <string name="chat_page_select_multiple">Select multiple</string>
   <string name="chat_page_selected_count">%1$d selected</string>
+  <string name="assistant_page_enable_notification">Enable notifications</string>
+  <string name="assistant_page_enable_notification_desc">When off, this assistant stops sending generation progress and completion notifications</string>
+  <string name="setting_provider_page_api_key_label">Label</string>
+  <string name="memory_export">Export memory</string>
+  <string name="memory_import">Import memory</string>
+  <string name="memory_export_done">Memory exported</string>
+  <string name="memory_export_failed">Failed to export memory</string>
+  <string name="memory_import_done">Memory imported</string>
+  <string name="memory_import_failed">Failed to import memory</string>
+  <string name="task_tree_loading">Loading conversation…</string>
+  <string name="task_tree_open_full">Open full conversation</string>
+  <string name="close">Close</string>
 </resources>

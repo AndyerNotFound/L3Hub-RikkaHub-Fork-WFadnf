@@ -2029,4 +2029,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="heartbeat_page_model_clear">清除当前</string>
   <string name="chat_page_select_multiple">多选</string>
   <string name="chat_page_selected_count">已选 %1$d 个</string>
+  <string name="assistant_page_enable_notification">启用通知</string>
+  <string name="assistant_page_enable_notification_desc">关闭后这个助手不再发送生成进度与完成通知</string>
+  <string name="setting_provider_page_api_key_label">标签</string>
+  <string name="memory_export">导出记忆</string>
+  <string name="memory_import">导入记忆</string>
+  <string name="memory_export_done">记忆已导出</string>
+  <string name="memory_export_failed">导出记忆失败</string>
+  <string name="memory_import_done">记忆已导入</string>
+  <string name="memory_import_failed">导入记忆失败</string>
+  <string name="task_tree_loading">正在读取会话…</string>
+  <string name="task_tree_open_full">打开完整会话</string>
+  <string name="close">关闭</string>
 </resources>

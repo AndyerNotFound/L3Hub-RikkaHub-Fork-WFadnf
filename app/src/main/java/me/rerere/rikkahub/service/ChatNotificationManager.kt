@@ -21,7 +21,9 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.event.ChatStatus
+import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.model.GenerationPhase
+import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.utils.cancelNotification
 import me.rerere.rikkahub.utils.sendNotification
@@ -41,6 +43,7 @@ class ChatNotificationManager(
     appScope: AppScope,
     eventBus: AppEventBus,
     private val settingsStore: SettingsStore,
+    private val conversationRepository: ConversationRepository,
 ) {
     private val isForeground = MutableStateFlow(false)
     private val liveUpdateLastSentAt = ConcurrentHashMap<Uuid, Long>()
@@ -72,6 +75,7 @@ class ChatNotificationManager(
 
     private fun handleGenerationUpdate(event: AppEvent.ChatGenerationUpdate) {
         if (isForeground.value) return
+        if (!assistantAllowsNotifications(event.conversationId)) return
         val displaySetting = settingsStore.settingsFlow.value.displaySetting
         if (!displaySetting.enableNotificationOnMessageGeneration) return
         if (!displaySetting.enableLiveUpdateNotification) return
@@ -86,6 +90,7 @@ class ChatNotificationManager(
 
     private fun handleGenerationStatus(event: AppEvent.ChatGenerationStatus) {
         if (isForeground.value) return
+        if (!assistantAllowsNotifications(event.conversationId)) return
         val displaySetting = settingsStore.settingsFlow.value.displaySetting
         if (!displaySetting.enableNotificationOnMessageGeneration) return
         if (!displaySetting.enableLiveUpdateNotification) return
@@ -112,6 +117,7 @@ class ChatNotificationManager(
 
         val contentPreview = event.contentPreview ?: return
         if (isForeground.value) return
+        if (!assistantAllowsNotifications(event.conversationId)) return
         if (!settingsStore.settingsFlow.value.displaySetting.enableNotificationOnMessageGeneration) return
         sendGenerationDoneNotification(event.conversationId, event.senderName, contentPreview)
     }
@@ -195,6 +201,14 @@ class ChatNotificationManager(
                 ""
             )
         }
+
+    /** 助手设置里关掉「启用通知」后，这个助手的所有系统通知都不发 */
+    private fun assistantAllowsNotifications(conversationId: Uuid): Boolean = runCatching {
+        val settings = settingsStore.settingsFlow.value
+        val conversation = conversationRepository.getConversationById(conversationId)
+            ?: return@runCatching true
+        settings.getAssistantOf(conversation).enableNotification
+    }.getOrDefault(true)
 
     private fun cancelLiveUpdateNotification(conversationId: Uuid) {
         liveUpdateLastSentAt.remove(conversationId)
