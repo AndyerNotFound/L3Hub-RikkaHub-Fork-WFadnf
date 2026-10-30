@@ -280,6 +280,12 @@ private fun AgentDetail(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
+                    Text(
+                        text = stringResource(R.string.task_tree_generation, item.depth + 1),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 6.dp),
+                    )
                     StateBadge(state = conversation.subAgentState)
                 }
                 Text(

@@ -2048,4 +2048,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_media_page_webdav_username">用户名</string>
   <string name="setting_media_page_webdav_password">密码</string>
   <string name="setting_media_page_webdav_path">目录</string>
+  <string name="task_tree_generation">第 %1$d 代</string>
 </resources>

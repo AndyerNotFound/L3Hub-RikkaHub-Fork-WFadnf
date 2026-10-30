@@ -2046,4 +2046,5 @@
   <string name="setting_media_page_webdav_username">Username</string>
   <string name="setting_media_page_webdav_password">Password</string>
   <string name="setting_media_page_webdav_path">Folder</string>
+  <string name="task_tree_generation">Gen %1$d</string>
 </resources>

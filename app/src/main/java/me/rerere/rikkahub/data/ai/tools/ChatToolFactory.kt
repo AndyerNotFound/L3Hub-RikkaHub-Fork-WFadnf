@@ -88,7 +88,12 @@ class ChatToolFactory(
             }
             addAll(
                 localTools.getTools(
-                    options = assistant.localTools,
+                    // 子代理默认也能继续派发下一层，不用手动打开这个工具
+                    options = if (assistant.isSubAgent) {
+                        (assistant.localTools + me.rerere.rikkahub.data.model.LocalToolOption.SubAgent).distinct()
+                    } else {
+                        assistant.localTools
+                    },
                     conversationId = conversationId,
                     assistants = settings.assistants,
                 )

@@ -1878,4 +1878,5 @@
   <string name="setting_media_page_webdav_username">使用者名稱</string>
   <string name="setting_media_page_webdav_password">密碼</string>
   <string name="setting_media_page_webdav_path">目錄</string>
+  <string name="task_tree_generation">第 %1$d 代</string>
 </resources>
