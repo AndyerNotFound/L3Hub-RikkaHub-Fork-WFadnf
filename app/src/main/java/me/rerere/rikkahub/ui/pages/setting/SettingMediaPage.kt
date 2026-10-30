@@ -417,7 +417,7 @@ private fun MediaUploadS3Tab(
                 )
             }
         } else {
-            CardGroup {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = webDavConfig.url,
                     onValueChange = {

@@ -39,6 +39,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlin.uuid.Uuid
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
@@ -59,7 +60,7 @@ private const val PREVIEW_REFRESH_MS = 1200L
  */
 @Composable
 fun SubAgentConversationWindow(
-    conversationId: java.util.UUID,
+    conversationId: Uuid,
     onDismiss: () -> Unit,
     onOpenFull: () -> Unit,
 ) {

@@ -73,7 +73,7 @@ class ChatNotificationManager(
         }
     }
 
-    private fun handleGenerationUpdate(event: AppEvent.ChatGenerationUpdate) {
+    private suspend fun handleGenerationUpdate(event: AppEvent.ChatGenerationUpdate) {
         if (isForeground.value) return
         if (!assistantAllowsNotifications(event.conversationId)) return
         val displaySetting = settingsStore.settingsFlow.value.displaySetting
@@ -88,7 +88,7 @@ class ChatNotificationManager(
         sendLiveUpdateNotification(event.conversationId, event.lastMessage, event.senderName)
     }
 
-    private fun handleGenerationStatus(event: AppEvent.ChatGenerationStatus) {
+    private suspend fun handleGenerationStatus(event: AppEvent.ChatGenerationStatus) {
         if (isForeground.value) return
         if (!assistantAllowsNotifications(event.conversationId)) return
         val displaySetting = settingsStore.settingsFlow.value.displaySetting
@@ -112,7 +112,7 @@ class ChatNotificationManager(
         )
     }
 
-    private fun handleGenerationEnded(event: AppEvent.ChatGenerationEnded) {
+    private suspend fun handleGenerationEnded(event: AppEvent.ChatGenerationEnded) {
         cancelLiveUpdateNotification(event.conversationId)
 
         val contentPreview = event.contentPreview ?: return
