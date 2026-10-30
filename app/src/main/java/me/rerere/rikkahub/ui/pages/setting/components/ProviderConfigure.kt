@@ -336,6 +336,7 @@ private fun CardGroupScope.apiKeyItem(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         keys.forEachIndexed { index, key ->
             var visible by remember(providerId, index) { mutableStateOf(false) }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -377,16 +378,6 @@ private fun CardGroupScope.apiKeyItem(
                     },
                 )
                 if (key.isNotBlank()) {
-                    OutlinedTextField(
-                        value = labels[key].orEmpty(),
-                        onValueChange = { label ->
-                            labels = if (label.isBlank()) labels - key else labels + (key to label)
-                            emit()
-                        },
-                        modifier = Modifier.width(96.dp),
-                        label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
-                        singleLine = true,
-                    )
                     Switch(
                         checked = key !in disabled,
                         onCheckedChange = { enabled ->
@@ -410,6 +401,19 @@ private fun CardGroupScope.apiKeyItem(
                         )
                     }
                 }
+            }
+            if (key.isNotBlank()) {
+                OutlinedTextField(
+                    value = labels[key].orEmpty(),
+                    onValueChange = { label ->
+                        labels = if (label.isBlank()) labels - key else labels + (key to label)
+                        emit()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
+                    singleLine = true,
+                )
+            }
             }
         }
         TextButton(onClick = { keys.add("") }) {

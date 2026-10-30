@@ -845,7 +845,9 @@ private fun ModelSettingsForm(
                         OutlinedTextField(
                             value = model.modelId,
                             onValueChange = {
-                                if (!isEdit) {
+                                if (isEdit) {
+                                    onModelChange(model.copy(modelId = it.trim()))
+                                } else {
                                     setModelId(it.trim())
                                 }
                             },
@@ -856,7 +858,6 @@ private fun ModelSettingsForm(
                                     Text(stringResource(R.string.setting_provider_page_model_id_placeholder))
                                 }
                             },
-                            enabled = !isEdit
                         )
 
                         OutlinedTextField(

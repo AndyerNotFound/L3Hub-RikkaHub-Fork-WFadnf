@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
@@ -133,6 +135,7 @@ internal fun FilesPicker(
     val provider = chatModel?.findProvider(providers = settings.providers)
     val navController = LocalNavController.current
     val workspaceRepository: WorkspaceRepository = koinInject()
+    val sshStates by workspaceRepository.sshStates.collectAsState()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
 
     // 每个已绑定且 shell 就绪的工作区都有自己的工作目录入口
@@ -278,6 +281,10 @@ internal fun FilesPicker(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
+                                    WorkspaceConnectionIndicator(
+                                        workspace = workspace,
+                                        state = sshStates[workspace.id],
+                                    )
                                     Text(
                                         text = workspace.name,
                                         style = MaterialTheme.typography.labelSmall,
@@ -694,4 +701,46 @@ private fun AttachmentGridPreview() {
         ),
         modifier = Modifier.padding(16.dp),
     )
+}
+
+/** 工作区连接状态：建连/重试转圈，SSH 连上绿灯、断开红灯，本地工作区就绪即绿灯 */
+@Composable
+private fun WorkspaceConnectionIndicator(
+    workspace: WorkspaceEntity,
+    state: me.rerere.workspace.ssh.SshPoolState?,
+) {
+    if (workspace.isSsh()) {
+        when (state) {
+            me.rerere.workspace.ssh.SshPoolState.CONNECTING,
+            me.rerere.workspace.ssh.SshPoolState.RETRYING -> CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+            )
+
+            me.rerere.workspace.ssh.SshPoolState.CONNECTED -> Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(me.rerere.rikkahub.ui.theme.extendColors.green6, CircleShape)
+            )
+
+            else -> Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
+            )
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    color = if (workspace.shellStatus == me.rerere.workspace.WorkspaceShellStatus.READY.name) {
+                        me.rerere.rikkahub.ui.theme.extendColors.green6
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                    shape = CircleShape,
+                )
+        )
+    }
 }

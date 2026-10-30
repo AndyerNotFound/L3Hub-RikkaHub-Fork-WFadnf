@@ -1,5 +1,9 @@
 package me.rerere.workspace.ssh
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.io.Closeable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -23,6 +27,10 @@ class SshConnectionPool(
     private val channelTimeoutMillis: Int = SshConnection.DEFAULT_CHANNEL_TIMEOUT_MS,
 ) : Closeable {
     private val connections = ConcurrentHashMap<String, PooledConnection>()
+
+    // 每个工作区最近一次连接状态，界面据此显示转圈/绿灯/红灯
+    private val _states = MutableStateFlow<Map<String, SshPoolState>>(emptyMap())
+    val states: StateFlow<Map<String, SshPoolState>> = _states.asStateFlow()
 
     // 按工作区串行化建连; 可中断地等待, 前一个建连卡住时被取消的调用方能及时返回
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
@@ -54,6 +62,7 @@ class SshConnectionPool(
         lockOf(id).withLock {
             connections.remove(id)?.connection?.close()
         }
+        updateState(id, SshPoolState.DISCONNECTED)
     }
 
     /** 停止空闲清理并关闭所有连接, 之后连接池不能再使用 */
@@ -66,6 +75,7 @@ class SshConnectionPool(
         }
         sweeper.shutdownNow()
         remaining.forEach { it.connection.close() }
+        _states.update { current -> current.mapValues { SshPoolState.DISCONNECTED } }
     }
 
     /**
@@ -87,7 +97,7 @@ class SshConnectionPool(
             if (pooled.connection.isConnected && !channelFailed) throw e
             evict(id, pooled)
             if (!retry && !channelFailed) throw e
-            val retried = acquire(id, config)
+            val retried = acquire(id, config, retrying = true)
             try {
                 block(retried.connection)
             } finally {
@@ -117,7 +127,7 @@ class SshConnectionPool(
             if (pooled.connection.isConnected && !channelFailed) throw e
             evict(id, pooled)
             if (!channelFailed) throw e
-            val retried = acquire(id, config)
+            val retried = acquire(id, config, retrying = true)
             try {
                 open(retried.connection, retried::release)
             } catch (retryError: Exception) {
@@ -127,11 +137,15 @@ class SshConnectionPool(
         }
     }
 
-    /** 连接池里 [id] 是否有可用连接, 供测试观察空闲断开 */
-    internal fun isConnected(id: String): Boolean = connections[id]?.connection?.isConnected == true
+    /** 连接池里 [id] 是否有可用连接 */
+    fun isConnected(id: String): Boolean = connections[id]?.connection?.isConnected == true
 
     // 在锁内登记使用, 清理线程同样持锁检查, 保证拿到手的连接不会被当成空闲关掉
-    private fun acquire(id: String, config: SshConnectionConfig): PooledConnection {
+    private fun acquire(
+        id: String,
+        config: SshConnectionConfig,
+        retrying: Boolean = false,
+    ): PooledConnection {
         val lock = lockOf(id)
         lock.lockInterruptibly()
         try {
@@ -139,20 +153,28 @@ class SshConnectionPool(
             connections[id]?.let { existing ->
                 if (existing.connection.config == config && existing.connection.isConnected) {
                     existing.retain()
+                    updateState(id, SshPoolState.CONNECTED)
                     return existing
                 }
                 connections.remove(id)
                 existing.connection.close()
             }
+            updateState(id, if (retrying) SshPoolState.RETRYING else SshPoolState.CONNECTING)
             // 被取消时放弃等待, 之后建好的连接直接关掉
-            val connection = awaitInterruptibly(
-                step = { SshConnection.open(config, channelTimeoutMillis) },
-                onAbandoned = { it.close() },
-            )
+            val connection = try {
+                awaitInterruptibly(
+                    step = { SshConnection.open(config, channelTimeoutMillis) },
+                    onAbandoned = { it.close() },
+                )
+            } catch (e: Exception) {
+                updateState(id, SshPoolState.DISCONNECTED)
+                throw e
+            }
             val pooled = PooledConnection(connection).also { it.retain() }
             synchronized(lifecycleLock) {
                 if (!closed) {
                     connections[id] = pooled
+                    updateState(id, SshPoolState.CONNECTED)
                     return pooled
                 }
             }
@@ -168,6 +190,7 @@ class SshConnectionPool(
             connections.remove(id, pooled)
         }
         pooled.connection.close()
+        updateState(id, SshPoolState.DISCONNECTED)
     }
 
     private fun closeIdle() {
@@ -177,12 +200,17 @@ class SshConnectionPool(
                 if (connections[id] === pooled && pooled.isIdle(now, idleTimeoutMillis)) {
                     connections.remove(id)
                     pooled.connection.close()
+                    updateState(id, SshPoolState.DISCONNECTED)
                 }
             }
         }
     }
 
     private fun lockOf(id: String): ReentrantLock = locks.computeIfAbsent(id) { ReentrantLock() }
+
+    private fun updateState(id: String, state: SshPoolState) {
+        _states.update { current -> current + (id to state) }
+    }
 
     private class PooledConnection(val connection: SshConnection) {
         private val activeUses = AtomicInteger()

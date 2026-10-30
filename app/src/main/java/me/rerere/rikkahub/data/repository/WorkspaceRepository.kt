@@ -7,6 +7,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -31,6 +32,7 @@ import me.rerere.workspace.WorkspaceType
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshConnectionConfig
 import me.rerere.workspace.ssh.SshConnectionPool
+import me.rerere.workspace.ssh.SshPoolState
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshShell
 import me.rerere.workspace.ssh.SshWorkspaceBackend
@@ -49,6 +51,9 @@ class WorkspaceRepository(
     private val sshPool: SshConnectionPool,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
+
+    /** SSH 连接池的实时状态，界面上用来显示连接指示灯 */
+    val sshStates: StateFlow<Map<String, SshPoolState>> get() = sshPool.states
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
         val workspaces = dao.getAll()
