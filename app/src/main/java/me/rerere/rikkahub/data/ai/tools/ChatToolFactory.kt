@@ -10,6 +10,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
+import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.model.Assistant
@@ -90,7 +91,7 @@ class ChatToolFactory(
                 localTools.getTools(
                     // 子代理默认也能继续派发下一层，不用手动打开这个工具
                     options = if (assistant.isSubAgent) {
-                        (assistant.localTools + me.rerere.rikkahub.data.model.LocalToolOption.SubAgent).distinct()
+                        (assistant.localTools + LocalToolOption.SubAgent).distinct()
                     } else {
                         assistant.localTools
                     },
