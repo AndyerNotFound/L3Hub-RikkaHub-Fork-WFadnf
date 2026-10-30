@@ -203,7 +203,7 @@ class ChatNotificationManager(
         }
 
     /** 助手设置里关掉「启用通知」后，这个助手的所有系统通知都不发 */
-    private fun assistantAllowsNotifications(conversationId: Uuid): Boolean = runCatching {
+    private suspend fun assistantAllowsNotifications(conversationId: Uuid): Boolean = runCatching {
         val settings = settingsStore.settingsFlow.value
         val conversation = conversationRepository.getConversationById(conversationId)
             ?: return@runCatching true
