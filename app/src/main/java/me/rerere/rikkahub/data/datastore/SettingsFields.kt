@@ -151,7 +151,7 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         // S3
         json(S3_CONFIG, Settings::s3Config) { copy(s3Config = it) },
         json(UPLOAD_S3_CONFIG, Settings::uploadS3Config) { copy(uploadS3Config = it) },
-        json(UPLOAD_WEBDAV_CONFIG, Settings::uploadWebDavConfig) { copy(uploadWebDavConfig = it) }
+        json(UPLOAD_WEBDAV_CONFIG, Settings::uploadWebDavConfig) { copy(uploadWebDavConfig = it) },
         json(ASSET_STORAGE_TYPE, Settings::assetStorageType) { copy(assetStorageType = it) },
 
         // 媒体生成
