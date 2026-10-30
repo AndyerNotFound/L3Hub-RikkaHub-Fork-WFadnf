@@ -404,11 +404,12 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                                 when (params.reasoningLevel) {
                                     ReasoningLevel.LOW -> put("thinkingLevel", "low")
                                     ReasoningLevel.MEDIUM -> put("thinkingLevel", "medium")
-                                    else -> put("thinkingLevel", "high") // HIGH, XHIGH
+                                    ReasoningLevel.ULTRA -> put("thinkingLevel", "ultra")
+                                    else -> put("thinkingLevel", "high") // HIGH, XHIGH, MAX
                                 }
                             } else {
-                                // Gemini 2.5 的预算上限是 32768，Ultra 的 64k 需要收敛到上限
-                                put("thinkingBudget", params.reasoningLevel.budgetTokens.coerceAtMost(32_768))
+                                // 档位原样换算成预算：Ultra 就是 64000，超出服务上限时由服务端报错
+                                put("thinkingBudget", params.reasoningLevel.budgetTokens)
                             }
                         }
                     }

@@ -384,7 +384,7 @@ class ChatCompletionsAPI(
                         if (level.isEnabled && level != ReasoningLevel.AUTO) {
                             val effort = when (level) {
                                 ReasoningLevel.MEDIUM, ReasoningLevel.HIGH -> "high"
-                                ReasoningLevel.MAX, ReasoningLevel.ULTRA -> "max"
+                                ReasoningLevel.MAX -> "max"
                                 else -> level.effort
                             }
                             put("reasoning_effort", effort)
@@ -397,6 +397,7 @@ class ChatCompletionsAPI(
                                 val effort = when (level) {
                                     ReasoningLevel.XHIGH, ReasoningLevel.MAX -> "max"
                                     ReasoningLevel.OFF -> "none"
+                                    ReasoningLevel.ULTRA -> "ultra"
                                     else -> "high"
                                 }
                                 put("reasoning_effort", effort)

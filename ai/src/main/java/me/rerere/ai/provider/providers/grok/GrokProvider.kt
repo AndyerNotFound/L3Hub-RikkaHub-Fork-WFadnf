@@ -65,7 +65,7 @@ private val MODELS_WITHOUT_REASONING_EFFORT = Regex("""^grok-4\.20(-\d{4})?-(non
 
 /**
  * 与 Vercel AI SDK 的 xAI provider 一致：关闭发 `none`（grok-4.3 及更新的推理模型支持），
- * `xhigh` 只有 grok-4.6 支持，其他模型落到 `high`。
+ * `xhigh` 只有 grok-4.6 支持，其他模型落到 `high`；`ultra` 原样发出，由服务端决定是否接受。
  */
 private fun grokEffort(level: ReasoningLevel, modelId: String): String? {
     if (MODELS_WITHOUT_REASONING_EFFORT.matches(modelId)) return null
@@ -75,7 +75,8 @@ private fun grokEffort(level: ReasoningLevel, modelId: String): String? {
         ReasoningLevel.LOW -> "low"
         ReasoningLevel.MEDIUM -> "medium"
         ReasoningLevel.HIGH -> "high"
-        ReasoningLevel.XHIGH, ReasoningLevel.MAX, ReasoningLevel.ULTRA ->
+        ReasoningLevel.ULTRA -> "ultra"
+        ReasoningLevel.XHIGH, ReasoningLevel.MAX ->
             if (modelId == "grok-4.6") "xhigh" else "high"
     }
 }

@@ -110,6 +110,7 @@ class InteractionsApiTest {
         assertEquals("minimal", thinkingLevel("gemini-3-flash-preview", ReasoningLevel.OFF))
         assertEquals("low", thinkingLevel("gemini-2.5-flash", ReasoningLevel.OFF))
         assertEquals("high", thinkingLevel("gemini-2.5-pro", ReasoningLevel.XHIGH))
+        assertEquals("ultra", thinkingLevel("gemini-2.5-pro", ReasoningLevel.ULTRA))
     }
 
     @Test

@@ -493,15 +493,8 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                             put("display", "summarized")
                         })
                         put("output_config", buildJsonObject {
-                            // Anthropic 只认到 max，Ultra 取它的上限
-                            put(
-                                "effort",
-                                if (params.reasoningLevel == ReasoningLevel.ULTRA) {
-                                    "max"
-                                } else {
-                                    params.reasoningLevel.effort
-                                },
-                            )
+                            // 档位原样发送：Ultra 就发 ultra，服务不认是用户自己的选择
+                            put("effort", params.reasoningLevel.effort)
                         })
                     }
                 }

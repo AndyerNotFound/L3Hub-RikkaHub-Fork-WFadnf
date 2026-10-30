@@ -264,6 +264,7 @@ internal class InteractionsAPI(
         }
         ReasoningLevel.LOW -> "low"
         ReasoningLevel.MEDIUM -> "medium"
+        ReasoningLevel.ULTRA -> "ultra"
         else -> "high" // HIGH, XHIGH, MAX
     }
 
