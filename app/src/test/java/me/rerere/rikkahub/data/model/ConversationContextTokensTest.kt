@@ -64,6 +64,34 @@ class ConversationContextTokensTest {
     }
 
     @Test
+    fun `usage of a reply kept from before the checkpoint is ignored`() {
+        // 压缩把检查点插在保留的尾部消息之前：这些回复比检查点旧，usage 覆盖的是压缩前的上下文
+        val conversation = conversation(
+            UIMessage.user("old").copy(createdAt = at(0)),
+            UIMessage.user("summary").copy(createdAt = at(3), isContextCheckpoint = true),
+            assistantMessage(1, lastUsage = TokenUsage(promptTokens = 7_500, completionTokens = 100)),
+            UIMessage.user("hi").copy(createdAt = at(4)),
+        )
+
+        assertNull(conversation.lastContextTokens())
+    }
+
+    @Test
+    fun `reply continued after the checkpoint is used even if it started earlier`() {
+        // 续写复用同一条助手消息，但每一步都会刷新 finishedAt
+        val continued = assistantMessage(
+            1,
+            lastUsage = TokenUsage(promptTokens = 2_500, completionTokens = 100),
+        ).copy(finishedAt = at(3))
+        val conversation = conversation(
+            UIMessage.user("summary").copy(createdAt = at(2), isContextCheckpoint = true),
+            continued,
+        )
+
+        assertEquals(2_600, conversation.lastContextTokens())
+    }
+
+    @Test
     fun `reply after the checkpoint is used`() {
         val conversation = conversation(
             UIMessage.user("summary").copy(createdAt = at(1), isContextCheckpoint = true),

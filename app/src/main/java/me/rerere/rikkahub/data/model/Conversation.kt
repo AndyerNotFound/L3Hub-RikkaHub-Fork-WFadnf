@@ -165,12 +165,21 @@ data class MessageNode(
 fun Conversation.lastContextTokens(): Int? {
     // 流式输出时每来一个 token 都会调用这里, 所以不构造 currentMessages 那份完整副本
     fun MessageNode.selected(): UIMessage = messages[selectIndex]
+    // 压缩时检查点插在保留的尾部消息之前，尾部那些旧回复的 usage 算的是压缩前的上下文，
+    // 不能拿来判断当前占用，否则压缩完会立刻再次触发一次压缩。只有检查点生成之后还在更新的
+    // 回复（续写会刷新 finishedAt）才作数。
+    val checkpoint = messageNodes.asReversed()
+        .firstOrNull { it.selected().isContextCheckpoint }
+        ?.selected()
     // 新回复没带 usage 时沿用上一条有 usage 的回复；遇到压缩检查点说明上下文已变化，不能继续往前找
     messageNodes.asReversed().forEach { node ->
         val message = node.selected()
         if (message.isContextCheckpoint) return null
         if (message.role == MessageRole.ASSISTANT) {
-            message.contextTokens()?.let { return it }
+            val usage = message.contextTokens() ?: return@forEach
+            if (checkpoint == null) return usage
+            val updatedAt = message.finishedAt ?: message.createdAt
+            return if (updatedAt > checkpoint.createdAt) usage else null
         }
     }
     return null
