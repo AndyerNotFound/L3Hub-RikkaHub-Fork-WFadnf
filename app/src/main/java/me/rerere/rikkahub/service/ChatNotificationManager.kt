@@ -75,14 +75,15 @@ class ChatNotificationManager(
 
     private suspend fun handleGenerationUpdate(event: AppEvent.ChatGenerationUpdate) {
         if (isForeground.value) return
-        if (!assistantAllowsNotifications(event.conversationId)) return
         val displaySetting = settingsStore.settingsFlow.value.displaySetting
         if (!displaySetting.enableNotificationOnMessageGeneration) return
         if (!displaySetting.enableLiveUpdateNotification) return
 
+        // 先按节流窗口过滤，再去查会话对应的助手，避免每个流式 chunk 都读一次库
         val now = SystemClock.elapsedRealtime()
         val lastSentAt = liveUpdateLastSentAt[event.conversationId]
         if (lastSentAt != null && now - lastSentAt < LIVE_UPDATE_NOTIFICATION_THROTTLE_MS) return
+        if (!assistantAllowsNotifications(event.conversationId)) return
         liveUpdateLastSentAt[event.conversationId] = now
 
         sendLiveUpdateNotification(event.conversationId, event.lastMessage, event.senderName)
