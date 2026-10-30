@@ -161,6 +161,8 @@ class SettingsStore internal constructor(
         // S3
         val S3_CONFIG = stringPreferencesKey("s3_config")
         val UPLOAD_S3_CONFIG = stringPreferencesKey("upload_s3_config")
+        val UPLOAD_WEBDAV_CONFIG = stringPreferencesKey("upload_webdav_config")
+        val ASSET_STORAGE_TYPE = stringPreferencesKey("asset_storage_type")
 
         // 媒体生成
         val MEDIA_GENERATION_PROVIDERS = stringPreferencesKey("media_generation_providers")

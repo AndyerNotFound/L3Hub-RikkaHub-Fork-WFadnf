@@ -30,7 +30,7 @@ class AutoApproveToolTest {
         val wrapped = tool(ASK_USER_TOOL_NAME).withAutoApproval()
         assertFalse(wrapped.needsApproval(JsonNull))
         val text = (wrapped.execute(JsonNull).single() as UIMessagePart.Text).text
-        assertTrue(text.contains("子代理会话"))
-        assertTrue(text.contains("自行做出决定"))
+        assertTrue(text.contains("sub-agent conversation"))
+        assertTrue(text.contains("Decide on your own"))
     }
 }
