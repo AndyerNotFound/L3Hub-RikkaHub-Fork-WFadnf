@@ -35,8 +35,8 @@ class RemoteFileStoreTest {
     private val storage = FakeStorage()
     private val store = RemoteFileStore(
         scope = CoroutineScope(Dispatchers.Unconfined),
-        config = { config },
-        storage = { storage },
+        configKey = { "${config.endpoint}|${config.bucket}" },
+        storageProvider = { storage.takeIf { config.endpoint.isNotBlank() } },
         now = { now },
     )
 

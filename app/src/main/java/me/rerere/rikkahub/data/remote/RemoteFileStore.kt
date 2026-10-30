@@ -9,10 +9,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.AssetStorageType
 import me.rerere.rikkahub.data.sync.s3.S3Client
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.data.sync.s3.S3ListResult
+import me.rerere.rikkahub.data.sync.webdav.WebDavClient
 import java.io.File
 import java.net.URLConnection
 import java.security.MessageDigest
@@ -35,27 +38,26 @@ private const val TAG = "RemoteFileStore"
  */
 class RemoteFileStore internal constructor(
     private val scope: CoroutineScope,
-    private val config: () -> S3Config,
-    private val storage: (S3Config) -> RemoteObjectStorage,
+    private val configKey: () -> String,
+    private val storageProvider: () -> RemoteObjectStorage?,
     private val now: () -> Instant = Instant::now,
 ) {
     constructor(settingsStore: SettingsStore, httpClient: HttpClient, scope: CoroutineScope) : this(
         scope = scope,
-        // 签出的地址要交给只接受 HTTPS 素材的接口，没写协议时不能落到 http
-        config = { settingsStore.settingsFlow.value.uploadS3Config.withHttpsByDefault() },
-        storage = { S3ObjectStorage(S3Client(it, httpClient)) },
+        configKey = { settingsStore.settingsFlow.value.assetStorageKey() },
+        storageProvider = { settingsStore.settingsFlow.value.createAssetStorage(httpClient) },
     )
 
     private val mutex = Mutex()
     private val hashes = ConcurrentHashMap<String, FileHash>()
 
     // 以下状态只在持有 mutex 时读写
-    private var knownConfig: S3Config? = null
+    private var knownConfig: String? = null
     private val knownObjects = HashMap<String, KnownObject>()
     private var lastSweepAt: Instant? = null
 
     val isConfigured: Boolean
-        get() = config().isUsable()
+        get() = storageProvider() != null
 
     /**
      * 确保 [file] 在桶里，并返回 [expires] 内有效的下载地址。内容已上传过时不会重传，只重新签发地址。
@@ -66,11 +68,10 @@ class RemoteFileStore internal constructor(
         expires: Duration = DEFAULT_URL_EXPIRES,
     ): Result<RemoteFile> = runCatching {
         require(expires.isPositive() && expires <= RETENTION) { "expires must be between 0 and $RETENTION" }
-        val config = config()
-        check(config.isUsable()) { "S3 is not configured" }
+        val storage = storageProvider() ?: error("Asset storage is not configured")
+        val config = configKey()
 
         val key = objectKey(file)
-        val storage = storage(config)
         val sweepDue = mutex.withLock {
             if (config != knownConfig) {
                 knownObjects.clear()
@@ -101,9 +102,8 @@ class RemoteFileStore internal constructor(
      * 用当前配置访问一次桶，配置缺失或请求失败时返回失败。
      */
     suspend fun testConnection(): Result<Unit> = runCatching {
-        val config = config()
-        check(config.isUsable()) { "S3 is not configured" }
-        storage(config).list(KEY_PREFIX, null)
+        val storage = storageProvider() ?: error("Asset storage is not configured")
+        storage.list(KEY_PREFIX, null)
         Unit
     }.onFailure { if (it is CancellationException) throw it }
 
@@ -111,9 +111,7 @@ class RemoteFileStore internal constructor(
      * 删除超过 [RETENTION] 的对象。
      */
     internal suspend fun sweep() {
-        val config = config()
-        if (!config.isUsable()) return
-        val storage = storage(config)
+        val storage = storageProvider() ?: return
 
         var token: String? = null
         do {
@@ -229,4 +227,56 @@ private fun File.sha256Hex(): String {
         }
     }
     return digest.digest().joinToString("") { "%02x".format(it) }
+}
+
+/** 当前素材后端的一份标识，后端或配置变化时用来丢掉缓存的对象列表 */
+internal fun Settings.assetStorageKey(): String = when (assetStorageType) {
+    AssetStorageType.S3 -> "s3|" + uploadS3Config.withHttpsByDefault().let {
+        "${it.endpoint}|${it.bucket}|${it.accessKeyId}|${it.pathStyle}"
+    }
+
+    AssetStorageType.WEBDAV -> "webdav|${uploadWebDavConfig.url}|${uploadWebDavConfig.path}|${uploadWebDavConfig.username}"
+}
+
+/** 按设置构造上传后端；配置不完整时返回 null */
+internal fun Settings.createAssetStorage(httpClient: HttpClient): RemoteObjectStorage? = when (assetStorageType) {
+    AssetStorageType.S3 -> uploadS3Config.withHttpsByDefault()
+        .takeIf { it.isUsable() }
+        ?.let { S3ObjectStorage(S3Client(it, httpClient)) }
+
+    // 匿名 WebDAV 也有，只要求填了地址
+    AssetStorageType.WEBDAV -> uploadWebDavConfig
+        .takeIf { it.url.isNotBlank() }
+        ?.let { WebDavObjectStorage(WebDavClient(it, httpClient)) }
+}
+
+/**
+ * WebDAV 版的素材存储：文件直接 PUT 到配置目录，交给接口的地址就是它的直链。
+ * 服务器不提供签名的临时地址，所以直链不会过期；旧文件也不主动清扫，由用户自己管理。
+ */
+private class WebDavObjectStorage(
+    private val client: WebDavClient,
+) : RemoteObjectStorage {
+    override suspend fun lastModified(key: String): Instant? =
+        client.head(key).getOrNull()?.lastModified
+
+    override suspend fun put(key: String, file: File, contentType: String) {
+        client.ensureCollectionExists(key.substringBeforeLast('/', "")).getOrThrow()
+        client.put(key, file, contentType).getOrThrow()
+    }
+
+    override suspend fun list(prefix: String, continuationToken: String?): S3ListResult =
+        S3ListResult(
+            objects = emptyList(),
+            commonPrefixes = emptyList(),
+            isTruncated = false,
+            nextContinuationToken = null,
+            keyCount = 0,
+        )
+
+    override suspend fun delete(key: String) {
+        client.delete(key).getOrThrow()
+    }
+
+    override fun presign(key: String, expires: Duration): String = client.publicUrl(key)
 }

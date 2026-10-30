@@ -2041,4 +2041,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_loading">正在读取会话…</string>
   <string name="task_tree_open_full">打开完整会话</string>
   <string name="close">关闭</string>
+  <string name="setting_media_page_asset_storage_s3">S3</string>
+  <string name="setting_media_page_asset_storage_webdav">WebDAV</string>
+  <string name="setting_media_page_webdav_desc">把素材上传到 WebDAV 服务器。文件会放进下面配置的目录，接口拿到的是它的直链，所以这个目录必须能被公网访问、且不需要鉴权就能读取；服务器不会自动清理旧文件。</string>
+  <string name="setting_media_page_webdav_url">服务器地址</string>
+  <string name="setting_media_page_webdav_username">用户名</string>
+  <string name="setting_media_page_webdav_password">密码</string>
+  <string name="setting_media_page_webdav_path">目录</string>
 </resources>

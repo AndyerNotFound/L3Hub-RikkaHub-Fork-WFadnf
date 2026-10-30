@@ -2039,4 +2039,11 @@
   <string name="task_tree_loading">Loading conversation…</string>
   <string name="task_tree_open_full">Open full conversation</string>
   <string name="close">Close</string>
+  <string name="setting_media_page_asset_storage_s3">S3</string>
+  <string name="setting_media_page_asset_storage_webdav">WebDAV</string>
+  <string name="setting_media_page_webdav_desc">Store uploads on a WebDAV server instead. Files are uploaded to the configured folder and the API receives their direct link, so the folder must be reachable over the public internet and readable without signing.</string>
+  <string name="setting_media_page_webdav_url">Server URL</string>
+  <string name="setting_media_page_webdav_username">Username</string>
+  <string name="setting_media_page_webdav_password">Password</string>
+  <string name="setting_media_page_webdav_path">Folder</string>
 </resources>

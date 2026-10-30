@@ -1871,4 +1871,11 @@
   <string name="task_tree_loading">正在讀取會話…</string>
   <string name="task_tree_open_full">開啟完整會話</string>
   <string name="close">關閉</string>
+  <string name="setting_media_page_asset_storage_s3">S3</string>
+  <string name="setting_media_page_asset_storage_webdav">WebDAV</string>
+  <string name="setting_media_page_webdav_desc">把素材上傳到 WebDAV 伺服器。檔案會放進下面設定的目錄，介面拿到的是它的直連網址，所以這個目錄必須能從公網存取、且不需要驗證就能讀取；伺服器不會自動清理舊檔案。</string>
+  <string name="setting_media_page_webdav_url">伺服器位址</string>
+  <string name="setting_media_page_webdav_username">使用者名稱</string>
+  <string name="setting_media_page_webdav_password">密碼</string>
+  <string name="setting_media_page_webdav_path">目錄</string>
 </resources>

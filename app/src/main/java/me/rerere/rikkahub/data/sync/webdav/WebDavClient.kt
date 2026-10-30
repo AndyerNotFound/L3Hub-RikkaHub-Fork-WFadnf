@@ -48,6 +48,9 @@ class WebDavClient(
             "$base/${pathSegments.joinToString("/")}"
         }
     }
+    /** 文件的直链，交给只接受 URL 的接口用；不做签名，服务器若要求鉴权就取不到 */
+    fun publicUrl(path: String): String = config.buildUrl(path)
+
     suspend fun put(
         path: String,
         data: ByteArray,

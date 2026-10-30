@@ -27,7 +27,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -57,6 +61,7 @@ import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.AssetStorageType
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -358,6 +363,8 @@ private fun MediaUploadS3Tab(
 
     // 输入框以本地状态为准：设置要经过存储再回流，直接绑定的话打字快了会被旧值覆盖
     var config by remember { mutableStateOf(settings.uploadS3Config) }
+    var webDavConfig by remember { mutableStateOf(settings.uploadWebDavConfig) }
+    val type = settings.assetStorageType
 
     Column(
         modifier = modifier
@@ -367,21 +374,91 @@ private fun MediaUploadS3Tab(
             .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            AssetStorageType.entries.forEachIndexed { index, entry ->
+                SegmentedButton(
+                    selected = type == entry,
+                    onClick = {
+                        onUpdateSettings { latest -> latest.copy(assetStorageType = entry) }
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index, AssetStorageType.entries.size),
+                ) {
+                    Text(
+                        when (entry) {
+                            AssetStorageType.S3 -> stringResource(R.string.setting_media_page_asset_storage_s3)
+                            AssetStorageType.WEBDAV -> stringResource(R.string.setting_media_page_asset_storage_webdav)
+                        }
+                    )
+                }
+            }
+        }
+
         Text(
-            text = stringResource(R.string.setting_media_page_s3_desc),
+            text = stringResource(
+                if (type == AssetStorageType.S3) {
+                    R.string.setting_media_page_s3_desc
+                } else {
+                    R.string.setting_media_page_webdav_desc
+                }
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        CardGroup {
-            s3ConnectionItems(
-                config = config,
-                onUpdate = {
-                    config = it
-                    onUpdateSettings { latest -> latest.copy(uploadS3Config = it) }
-                }
-            )
+        if (type == AssetStorageType.S3) {
+            CardGroup {
+                s3ConnectionItems(
+                    config = config,
+                    onUpdate = {
+                        config = it
+                        onUpdateSettings { latest -> latest.copy(uploadS3Config = it) }
+                    }
+                )
+            }
+        } else {
+            CardGroup {
+                OutlinedTextField(
+                    value = webDavConfig.url,
+                    onValueChange = {
+                        webDavConfig = webDavConfig.copy(url = it)
+                        onUpdateSettings { latest -> latest.copy(uploadWebDavConfig = webDavConfig) }
+                    },
+                    label = { Text(stringResource(R.string.setting_media_page_webdav_url)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = webDavConfig.username,
+                    onValueChange = {
+                        webDavConfig = webDavConfig.copy(username = it)
+                        onUpdateSettings { latest -> latest.copy(uploadWebDavConfig = webDavConfig) }
+                    },
+                    label = { Text(stringResource(R.string.setting_media_page_webdav_username)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = webDavConfig.password,
+                    onValueChange = {
+                        webDavConfig = webDavConfig.copy(password = it)
+                        onUpdateSettings { latest -> latest.copy(uploadWebDavConfig = webDavConfig) }
+                    },
+                    label = { Text(stringResource(R.string.setting_media_page_webdav_password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = webDavConfig.path,
+                    onValueChange = {
+                        webDavConfig = webDavConfig.copy(path = it)
+                        onUpdateSettings { latest -> latest.copy(uploadWebDavConfig = webDavConfig) }
+                    },
+                    label = { Text(stringResource(R.string.setting_media_page_webdav_path)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
         }
 
         CardGroup {

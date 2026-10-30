@@ -81,8 +81,12 @@ data class Settings(
     val mcpServers: List<McpServerConfig> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
+    // 素材上传后端：S3 或 WebDAV
+    val assetStorageType: AssetStorageType = AssetStorageType.S3,
     // RemoteFileStore 上传临时素材用的桶，和备份的 s3Config 互不影响；items 字段在这里不使用
     val uploadS3Config: S3Config = S3Config(),
+    // 素材上传走 WebDAV 时的连接配置；path 是存放素材的目录
+    val uploadWebDavConfig: WebDavConfig = WebDavConfig(path = "rikkahub_uploads"),
     val mediaGenerationProviders: List<MediaGenerationProviderSetting> = emptyList(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
     val selectedTTSProviderId: Uuid = DEFAULT_SYSTEM_TTS_ID,
@@ -241,6 +245,12 @@ data class DisplaySetting(
     val volumeKeyScrollRatio: Float = 1.0f,
     val conversationSortOrder: ConversationSortOrder = ConversationSortOrder.UPDATE_TIME,
 )
+
+@Serializable
+enum class AssetStorageType {
+    S3,
+    WEBDAV,
+}
 
 @Serializable
 data class WebDavConfig(
