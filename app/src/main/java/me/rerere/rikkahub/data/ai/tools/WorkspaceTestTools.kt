@@ -112,8 +112,15 @@ internal fun createTestTool(
             changedFiles = explicitPaths.ifEmpty {
                 runCatching { git.status(target.id, cwd).files.map { it.path } }.getOrDefault(emptyList())
             }
-            // 递归列目录代价太高，这里只按命名规则推导；目标文件不存在时命令会自己报错
-            val existing = emptySet<String>()
+            // git ls-files 一次就能拿到仓库文件清单，用来确认推导出来的测试文件真的存在
+            val existing = runCatching {
+                git.run(target.id, cwd, "git ls-files")
+                    .output
+                    .lineSequence()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }.getOrDefault(emptySet())
             val extra = when (framework) {
                 TestFramework.GRADLE -> ChangedTestSelector.gradleTestFilters(changedFiles, existing)
                     .joinToString("") { " --tests ${it.shQuote()}" }

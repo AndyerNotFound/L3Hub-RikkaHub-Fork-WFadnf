@@ -171,7 +171,9 @@ object WorkspaceTestToolUI : ToolUIRenderer {
     @Composable
     override fun Preview(context: ToolUIContext, onDismissRequest: () -> Unit) {
         val repository: WorkspaceRepository = koinInject()
-        val workspaceId = context.assistant?.primaryWorkspaceId?.toString()
+        // 工具入参里的 workspace 才是这次实际用的工作区，多工作区助手不能只按主工作区读
+        val workspaceId = context.arguments.str("workspace")
+            ?: context.assistant?.primaryWorkspaceId?.toString()
         val content = context.content?.jsonObjectOrNull
         var expanded by remember { mutableStateOf<JsonObject?>(null) }
         var snippet by remember { mutableStateOf<String?>(null) }

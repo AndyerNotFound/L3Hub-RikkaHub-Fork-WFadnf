@@ -810,9 +810,9 @@ object ChangedTestSelector {
             if (isTestFile) {
                 result.add(path)
             } else {
+                // 只有确认约定的测试文件真的存在才加入，否则 pytest 会直接报 file not found
                 val target = "tests/test_" + name
-                // 常规位置优先；现有文件集合只用于确认该约定文件确实存在
-                result.add(if (existing.isEmpty() || existing.contains(target)) target else target)
+                if (existing.contains(target)) result.add(target)
             }
             if (result.size >= MAX_TARGETS) break
         }

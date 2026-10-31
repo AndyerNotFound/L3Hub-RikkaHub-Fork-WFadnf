@@ -544,19 +544,32 @@ private suspend fun applyUnifiedPatch(
             }
             return@forEach
         }
+        val existing = runCatching {
+            workspaceRepository.readTextInRootfs(target.id, absolutePath)
+        }.getOrNull()
         val original = if (diff.isNewFile) {
+            // /dev/null 开头但目标已存在：直接拒绝，否则会覆盖原文件，撤销时还会把它删掉
+            if (existing != null) {
+                conflicts += buildJsonObject {
+                    put("path", rawPath)
+                    put("hunk", 0)
+                    put("line", 0)
+                    put("reason", "file already exists; read it and send a normal diff instead of /dev/null")
+                }
+                return@forEach
+            }
             null
         } else {
-            runCatching { workspaceRepository.readTextInRootfs(target.id, absolutePath) }.getOrNull()
-        }
-        if (original == null && !diff.isNewFile) {
-            conflicts += buildJsonObject {
-                put("path", rawPath)
-                put("hunk", 0)
-                put("line", 0)
-                put("reason", "file not found")
+            if (existing == null) {
+                conflicts += buildJsonObject {
+                    put("path", rawPath)
+                    put("hunk", 0)
+                    put("line", 0)
+                    put("reason", "file not found")
+                }
+                return@forEach
             }
-            return@forEach
+            existing
         }
         when (val outcome = UnifiedDiff.apply(original.orEmpty(), diff)) {
             is ApplyOutcome.Success -> writes += PlannedPatchWrite(

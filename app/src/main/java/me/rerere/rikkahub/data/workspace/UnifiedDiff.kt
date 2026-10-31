@@ -70,7 +70,10 @@ object UnifiedDiff {
 
         fun flush() {
             if (!started) return
-            if (hunks.isNotEmpty() || isBinary) {
+            // 删除空文件时没有 hunk；只有路径已经落到 +++/dev/null 才算这一块结束，
+            // 否则遇到 ---/+++ 头会先把同一个文件提前发出去
+            val emptyDelete = isDeleted && hunks.isEmpty() && newPath == null && oldPath != null
+            if (hunks.isNotEmpty() || isBinary || emptyDelete) {
                 result += FileDiff(
                     oldPath = oldPath,
                     newPath = newPath,

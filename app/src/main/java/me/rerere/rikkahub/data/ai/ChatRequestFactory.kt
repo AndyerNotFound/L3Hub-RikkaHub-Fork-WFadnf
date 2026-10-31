@@ -238,7 +238,7 @@ class ChatRequestFactory(
                     appendLine()
                     append(buildMemoryPrompt(turn.memories))
                 }
-                // 任务清单：压缩后消息里的 todo 调用可能被裁掉，这里每次重新注入
+                // 任务清单：压缩后消息里的 todo 调用可能被裁掉，这里每轮重新注入（同一轮内更新走工具结果）
                 if (turn.todos.isNotEmpty()) {
                     appendLine()
                     append(buildTodoPrompt(turn.todos))

@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,6 +63,17 @@ internal fun TurnDiffActions(
     val scope = rememberCoroutineScope()
     val repository: WorkspaceRepository = koinInject()
     val git = remember(repository) { WorkspaceGit(repository) }
+    // write/edit 工具给的是 Rootfs 绝对路径，git 用的是仓库相对路径，先统一
+    val normalizedFiles by produceState(files, workspaceId) {
+        value = files
+        val layout = withContext(Dispatchers.IO) {
+            runCatching { repository.layout(workspaceId) }.getOrNull()
+        }
+        if (layout != null) {
+            val prefix = layout.workspaceDir.trimEnd('/') + "/"
+            value = files.map { it.removePrefix(prefix) }
+        }
+    }
 
     var showSheet by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -81,7 +93,7 @@ internal fun TurnDiffActions(
                 .onSuccess { status ->
                     statusLabels = status.files.associate { it.path to it.statusLabel }
                 }
-            runCatching { git.numstat(workspaceId, paths = files) }
+            runCatching { git.numstat(workspaceId, paths = normalizedFiles) }
                 .onSuccess { stats = it }
         }
         loading = false
@@ -143,7 +155,7 @@ internal fun TurnDiffActions(
                             scope.launch {
                                 loading = true
                                 val result = withContext(Dispatchers.IO) {
-                                    runCatching { git.discard(workspaceId, paths = files) }.getOrNull()
+                                    runCatching { git.discard(workspaceId, paths = normalizedFiles) }.getOrNull()
                                 }
                                 loading = false
                                 Toast.makeText(
@@ -171,7 +183,7 @@ internal fun TurnDiffActions(
                     modifier = Modifier.heightIn(max = 460.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    items(files) { path ->
+                    items(normalizedFiles) { path ->
                         val stat = stats.firstOrNull { it.path == path }
                         Column {
                             Row(

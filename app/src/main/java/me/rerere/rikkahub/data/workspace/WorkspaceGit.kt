@@ -66,29 +66,33 @@ class WorkspaceGit(
     }
 
     suspend fun status(workspaceId: String, cwd: String = ""): GitStatus {
-        val out = run(workspaceId, cwd, "git status --porcelain=v1 -b").output
+        // -z：路径不做引号包裹和八进制转义，中文/空格文件名才解析得对
+        val out = run(workspaceId, cwd, "git status --porcelain=v1 -b -z").output
         var branch = ""
         var ahead = 0
         var behind = 0
         val files = mutableListOf<GitFileChange>()
-        out.lineSequence().forEach { line ->
-            when {
-                line.startsWith("## ") -> {
-                    val header = line.removePrefix("## ")
-                    branch = header.substringBefore("...").substringBefore(' ').trim()
-                    Regex("ahead (\\d+)").find(header)?.groupValues?.get(1)?.toIntOrNull()?.let { ahead = it }
-                    Regex("behind (\\d+)").find(header)?.groupValues?.get(1)?.toIntOrNull()?.let { behind = it }
-                }
-
-                line.length >= 3 -> {
-                    val index = line[0]
-                    val workTree = line[1]
-                    var path = line.substring(3).trim()
-                    // rename 显示为 "old -> new"，取新路径
-                    if (path.contains(" -> ")) path = path.substringAfter(" -> ")
-                    if (path.isNotEmpty()) files += GitFileChange(path, index, workTree)
-                }
-            }
+        val tokens = out.split('\u0000')
+        var index = 0
+        val header = tokens.firstOrNull()
+        if (header != null && header.startsWith("## ")) {
+            val text = header.removePrefix("## ")
+            branch = text.substringBefore("...").substringBefore(' ').trim()
+            Regex("ahead (\\d+)").find(text)?.groupValues?.get(1)?.toIntOrNull()?.let { ahead = it }
+            Regex("behind (\\d+)").find(text)?.groupValues?.get(1)?.toIntOrNull()?.let { behind = it }
+            index = 1
+        }
+        while (index < tokens.size) {
+            val entry = tokens[index]
+            index++
+            if (entry.length < 3) continue
+            val indexStatus = entry[0]
+            val workTree = entry[1]
+            // rename / copy 的下一条记录是原路径，跳过
+            if (indexStatus == 'R' || indexStatus == 'C') index++
+            var path = entry.substring(3).trim()
+            if (path.contains(" -> ")) path = path.substringAfter(" -> ")
+            if (path.isNotEmpty()) files += GitFileChange(path, indexStatus, workTree)
         }
         return GitStatus(branch = branch, ahead = ahead, behind = behind, files = files)
     }
@@ -125,18 +129,31 @@ class WorkspaceGit(
             ?.joinToString(" ") { it.shQuote() }
             ?.let { " -- $it" }
             .orEmpty()
-        run(workspaceId, cwd, "git --no-pager diff --numstat HEAD --no-color$suffix").output
-            .lineSequence()
-            .forEach { line ->
-                val parts = line.split('\t')
-                if (parts.size >= 3) {
-                    val added = parts[0].toIntOrNull() ?: 0
-                    val removed = parts[1].toIntOrNull() ?: 0
-                    val path = parts[2].trim()
-                    rows.removeAll { it.path == path }
-                    rows += GitFileStat(path, added, removed)
-                }
+        val tokens = run(workspaceId, cwd, "git --no-pager diff --numstat -z HEAD --no-color$suffix")
+            .output
+            .split('\u0000')
+        var index = 0
+        while (index < tokens.size) {
+            val record = tokens[index]
+            index++
+            if (record.isBlank()) continue
+            val parts = record.split('\t')
+            if (parts.size < 3) continue
+            val added = parts[0].toIntOrNull() ?: 0
+            val removed = parts[1].toIntOrNull() ?: 0
+            var path = parts[2].trim()
+            if (path.isEmpty()) {
+                // rename：后面两段分别是旧路径和新路径
+                val oldPath = tokens.getOrNull(index).orEmpty()
+                index++
+                val newPath = tokens.getOrNull(index).orEmpty()
+                index++
+                path = newPath.ifEmpty { oldPath }
             }
+            if (path.isEmpty()) continue
+            rows.removeAll { it.path == path }
+            rows += GitFileStat(path, added, removed)
+        }
         return rows
     }
 
