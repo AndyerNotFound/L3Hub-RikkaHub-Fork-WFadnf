@@ -24,6 +24,7 @@ import me.rerere.rikkahub.data.db.fts.MessageSearchSort
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
 import kotlin.uuid.Uuid
@@ -326,9 +327,20 @@ class ConversationRepository(
     }
 
     suspend fun updateConversation(conversation: Conversation) {
+        // todo_write 直接写库，会话对象里可能还是旧值；内存为空而库里有时保留库里的，避免整轮保存把清单抹掉
+        val persistedTodos = conversationDAO.getConversationById(conversation.id.toString())?.todos.orEmpty()
+        val effective = if (conversation.todos.isEmpty() && persistedTodos.isNotEmpty()) {
+            conversation.copy(
+                todos = runCatching {
+                    JsonInstant.decodeFromString<List<TodoItem>>(persistedTodos)
+                }.getOrDefault(emptyList()),
+            )
+        } else {
+            conversation
+        }
         database.withTransaction {
             conversationDAO.update(
-                conversationToConversationEntity(conversation)
+                conversationToConversationEntity(effective)
             )
             // 删除旧的节点，插入新的节点
             messageNodeDAO.deleteByConversation(conversation.id.toString())
@@ -398,6 +410,7 @@ class ConversationRepository(
             parentConversationId = conversation.parentConversationId?.toString() ?: "",
             subAgentTask = conversation.subAgentTask ?: "",
             subAgentState = conversation.subAgentState ?: "",
+            todos = JsonInstant.encodeToString(conversation.todos),
         )
     }
 
@@ -426,6 +439,9 @@ class ConversationRepository(
             parentConversationId = conversationEntity.parentConversationId.ifEmpty { null }?.let { Uuid.parse(it) },
             subAgentTask = conversationEntity.subAgentTask.ifEmpty { null },
             subAgentState = conversationEntity.subAgentState.ifEmpty { null },
+            todos = runCatching {
+                JsonInstant.decodeFromString<List<TodoItem>>(conversationEntity.todos.ifEmpty { "[]" })
+            }.getOrDefault(emptyList()),
         )
     }
 
@@ -475,6 +491,13 @@ class ConversationRepository(
 
     suspend fun updateCustomSystemPrompt(conversationId: Uuid, customSystemPrompt: String?) {
         conversationDAO.updateCustomSystemPrompt(conversationId.toString(), customSystemPrompt ?: "")
+    }
+
+    suspend fun updateTodos(conversationId: Uuid, todos: List<TodoItem>) {
+        conversationDAO.updateTodos(
+            id = conversationId.toString(),
+            todos = JsonInstant.encodeToString(todos),
+        )
     }
 
     suspend fun updateChatSuggestions(conversationId: Uuid, chatSuggestions: List<String>) {

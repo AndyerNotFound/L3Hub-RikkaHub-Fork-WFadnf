@@ -59,6 +59,7 @@ import me.rerere.rikkahub.data.model.AutoCompressTarget
 import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.ContextTrim
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.autoCompressLimit
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
@@ -191,6 +192,13 @@ class ChatService(
             if (previous != null && previous.messageNodes !== current.messageNodes) {
                 withContext(Dispatchers.IO) { deleteUnreferencedFiles(previous, current) }
             }
+        }
+    }
+
+    /** todo_write 工具直接写库，这里同步内存里的会话状态，聊天页卡片才能立刻刷新 */
+    fun syncTodos(conversationId: Uuid, todos: List<TodoItem>) {
+        sessionManager.get(conversationId)?.update { current ->
+            if (current.todos == todos) current else current.copy(todos = todos)
         }
     }
 

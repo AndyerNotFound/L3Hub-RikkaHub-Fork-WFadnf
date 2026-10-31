@@ -16,6 +16,9 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.workspace.ApplyOutcome
+import me.rerere.rikkahub.data.workspace.FileDiff
+import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceCapabilities
@@ -57,11 +60,18 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_grep" to false,
     "workspace_write_file" to false,
     "workspace_edit_file" to false,
+    "workspace_apply_patch" to false,
     "workspace_shell" to true,
+    "workspace_git" to true,
+    "workspace_test" to true,
 )
 
 /** 直接写文件的工具, 只在支持 [WorkspaceCapabilities.fileWriteTools] 的工作区提供 */
-val WorkspaceFileWriteToolNames: Set<String> = setOf("workspace_write_file", "workspace_edit_file")
+val WorkspaceFileWriteToolNames: Set<String> = setOf(
+    "workspace_write_file",
+    "workspace_edit_file",
+    "workspace_apply_patch",
+)
 
 fun resolveWorkspaceToolApproval(name: String, overrides: Map<String, Boolean>): Boolean =
     overrides[name] ?: WorkspaceToolDefaultApprovals[name] ?: false
@@ -115,19 +125,22 @@ suspend fun createWorkspaceTools(
         if (targets.any { it.supportsFileWrite }) {
             add(createWriteFileTool(targets, workspaceRepository, snapshots, conversationId))
             add(createEditFileTool(targets, workspaceRepository, snapshots, conversationId))
+            add(createApplyPatchTool(targets, workspaceRepository, snapshots, conversationId))
         }
+        add(createGitTool(targets, workspaceRepository))
+        add(createTestTool(targets, workspaceRepository))
         add(createShellTool(targets, workspaceRepository, cwds))
     }
 }
 
-private fun List<WorkspaceTarget>.workspaceNote(): String = if (size <= 1) {
+internal fun List<WorkspaceTarget>.workspaceNote(): String = if (size <= 1) {
     ""
 } else {
     " Multiple workspaces are bound: ${joinToString { "${it.id} (${it.name})" }}." +
         " Set `workspace` to one of these IDs; defaults to ${first().id}."
 }
 
-private fun JsonObjectBuilder.putWorkspaceProperty(targets: List<WorkspaceTarget>) {
+internal fun JsonObjectBuilder.putWorkspaceProperty(targets: List<WorkspaceTarget>) {
     if (targets.size <= 1) return
     put("workspace", buildJsonObject {
         put("type", "string")
@@ -183,7 +196,7 @@ private fun String.normalizeWorkspaceSelector(): String =
 private val WORKSPACE_QUOTES = setOf('"', '\'', '“', '”', '‘', '’', '＂')
 private val WHITESPACE = Regex("\\s+")
 
-private fun WorkspaceTarget.needsApproval(name: String): Boolean =
+internal fun WorkspaceTarget.needsApproval(name: String): Boolean =
     resolveWorkspaceToolApproval(name, approvalOverrides)
 
 private val IMAGE_EXTENSIONS = setOf(
@@ -417,6 +430,235 @@ private fun createEditFileTool(
         )
     },
 )
+
+private fun createApplyPatchTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+    snapshots: WorkspaceSnapshotStore?,
+    conversationId: Uuid?,
+) = Tool(
+    name = "workspace_apply_patch",
+    description = """
+        Apply a unified diff to the assistant's bound workspace Rootfs. Paths in the patch are relative to the workspace files root (${targets.first().layout.workspaceDir});
+        absolute paths inside Rootfs are accepted too. Supports multiple files and multiple hunks per file, new files (/dev/null old path) and deletions.
+        Hunks are matched by context; a missing or ambiguous context rejects the whole patch and nothing is written, so always read the file before patching.
+        Returns per-file added/removed counts and any conflicts with hunk index and line. Use dry_run=true to validate without writing.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                put("patch", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Unified diff text, e.g. --- a/src/Foo.kt / +++ b/src/Foo.kt / @@ -1,3 +1,4 @@ headers")
+                })
+                put("dry_run", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Only validate and report, do not write files. Defaults to false.")
+                })
+            },
+            required = listOf("patch"),
+        )
+    },
+    needsApproval = { params ->
+        val obj = params.jsonObject
+        val target = obj.resolveWorkspaceOrNull(targets)
+        target == null || target.needsApproval("workspace_apply_patch") || obj.patchOutsideWritableRoots(target.layout)
+    },
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        require(target.supportsFileWrite) {
+            "Workspace '${target.name}' does not support file write tools"
+        }
+        val patchText = params.string("patch") ?: error("patch is required")
+        val dryRun = params["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val result = applyUnifiedPatch(
+            target = target,
+            workspaceRepository = workspaceRepository,
+            snapshots = snapshots,
+            conversationId = conversationId,
+            patchText = patchText,
+            dryRun = dryRun,
+        )
+        listOf(UIMessagePart.Text(result.toString()))
+    },
+)
+
+private data class PlannedPatchWrite(
+    val displayPath: String,
+    val absolutePath: String,
+    val original: String?,
+    val content: String?,
+    val added: Int,
+    val removed: Int,
+)
+
+/** 补丁先全部校验再落盘：任何一个文件冲突都整体放弃，不留半截修改 */
+private suspend fun applyUnifiedPatch(
+    target: WorkspaceTarget,
+    workspaceRepository: WorkspaceRepository,
+    snapshots: WorkspaceSnapshotStore?,
+    conversationId: Uuid?,
+    patchText: String,
+    dryRun: Boolean,
+): JsonObject {
+    val diffs = UnifiedDiff.parse(patchText)
+    if (diffs.isEmpty()) {
+        return buildJsonObject {
+            put("ok", false)
+            put("error", "No unified diff hunks found. Expected ---/+++ file headers and @@ hunks.")
+        }
+    }
+
+    val writes = mutableListOf<PlannedPatchWrite>()
+    val conflicts = mutableListOf<JsonObject>()
+    val skipped = mutableListOf<JsonObject>()
+
+    diffs.forEach { diff ->
+        if (diff.isBinary) {
+            skipped += buildJsonObject {
+                put("path", diff.newPath ?: diff.oldPath.orEmpty())
+                put("reason", "binary patch is not supported")
+            }
+            return@forEach
+        }
+        val rawPath = (diff.newPath ?: diff.oldPath).orEmpty()
+        val absolutePath = runCatching { target.layout.resolvePatchPath(rawPath) }.getOrNull()
+        if (absolutePath == null) {
+            conflicts += buildJsonObject {
+                put("path", rawPath)
+                put("hunk", 0)
+                put("line", 0)
+                put("reason", "invalid path")
+            }
+            return@forEach
+        }
+        if (!target.layout.isWritable(absolutePath)) {
+            conflicts += buildJsonObject {
+                put("path", rawPath)
+                put("hunk", 0)
+                put("line", 0)
+                put("reason", "path is outside the writable area")
+            }
+            return@forEach
+        }
+        val original = if (diff.isNewFile) {
+            null
+        } else {
+            runCatching { workspaceRepository.readTextInRootfs(target.id, absolutePath) }.getOrNull()
+        }
+        if (original == null && !diff.isNewFile) {
+            conflicts += buildJsonObject {
+                put("path", rawPath)
+                put("hunk", 0)
+                put("line", 0)
+                put("reason", "file not found")
+            }
+            return@forEach
+        }
+        when (val outcome = UnifiedDiff.apply(original.orEmpty(), diff)) {
+            is ApplyOutcome.Success -> writes += PlannedPatchWrite(
+                displayPath = rawPath,
+                absolutePath = absolutePath,
+                original = original,
+                content = if (diff.isDeletedFile) null else outcome.content,
+                added = outcome.added,
+                removed = outcome.removed,
+            )
+
+            is ApplyOutcome.Conflict -> conflicts += buildJsonObject {
+                put("path", outcome.path ?: rawPath)
+                put("hunk", outcome.hunkIndex)
+                put("line", outcome.line)
+                put("reason", outcome.reason)
+            }
+        }
+    }
+
+    if (conflicts.isNotEmpty()) {
+        return buildJsonObject {
+            put("ok", false)
+            put("conflicts", buildJsonArray { conflicts.forEach { add(it) } })
+            put("skipped", buildJsonArray { skipped.forEach { add(it) } })
+            put("hint", "Nothing was written. Read the current file content and regenerate the patch with matching context.")
+        }
+    }
+
+    var snapshotTurn: String? = null
+    if (!dryRun) {
+        writes.forEach { write ->
+            if (snapshots != null && conversationId != null) {
+                val (area, relative) = resolveStorageArea(target.layout, write.absolutePath)
+                snapshotTurn = runCatching {
+                    snapshots.capture(
+                        conversationId = conversationId,
+                        workspaceId = target.id,
+                        absolutePath = write.absolutePath,
+                        area = area,
+                        relativePath = relative,
+                        original = write.original,
+                    )
+                }.getOrNull() ?: snapshotTurn
+            }
+            val content = write.content
+            if (content == null) {
+                val (area, relative) = resolveStorageArea(target.layout, write.absolutePath)
+                workspaceRepository.deleteFile(target.id, area, relative, recursive = false)
+            } else {
+                workspaceRepository.writeAbsoluteText(target.id, write.absolutePath, content, overwrite = true)
+            }
+        }
+    }
+
+    return buildJsonObject {
+        put("ok", true)
+        put("dryRun", dryRun)
+        put("applied", writes.size)
+        put("files", buildJsonArray {
+            writes.forEach { write ->
+                add(buildJsonObject {
+                    put("path", write.displayPath)
+                    put("added", write.added)
+                    put("removed", write.removed)
+                    if (write.content == null) put("deleted", true)
+                    if (write.original == null) put("created", true)
+                })
+            }
+        })
+        if (skipped.isNotEmpty()) {
+            put("skipped", buildJsonArray { skipped.forEach { add(it) } })
+        }
+        if (snapshotTurn != null && conversationId != null) {
+            put("snapshotTurn", snapshotTurn)
+            put("conversationId", conversationId.toString())
+        }
+    }
+}
+
+/** 补丁里的路径是仓库相对路径, 统一映射到 Rootfs 内的工作区目录 */
+private fun WorkspaceLayout.resolvePatchPath(raw: String): String {
+    val cleaned = raw.replace('\\', '/').trim()
+    require(cleaned.isNotEmpty()) { "empty path in patch" }
+    require(!cleaned.contains('\u0000')) { "invalid character in patch path" }
+    val normalized = if (cleaned.startsWith("/")) {
+        cleaned
+    } else {
+        "${workspaceDir.trimEnd('/')}/${cleaned.trimStart('/')}"
+    }
+    require(normalized.split('/').none { it == ".." }) { "patch path must not escape the workspace: $raw" }
+    return normalized
+}
+
+private fun kotlinx.serialization.json.JsonObject.patchOutsideWritableRoots(layout: WorkspaceLayout): Boolean =
+    runCatching {
+        val text = string("patch").orEmpty()
+        UnifiedDiff.parse(text).any { diff ->
+            val raw = diff.newPath ?: diff.oldPath ?: return@any false
+            !layout.isWritable(layout.resolvePatchPath(raw))
+        }
+    }.getOrDefault(true)
 
 private fun createShellTool(
     targets: List<WorkspaceTarget>,

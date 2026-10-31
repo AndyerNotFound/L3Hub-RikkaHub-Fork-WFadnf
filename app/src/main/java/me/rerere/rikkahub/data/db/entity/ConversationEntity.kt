@@ -42,4 +42,6 @@ data class ConversationEntity(
     val subAgentTask: String = "",
     @ColumnInfo("sub_agent_state", defaultValue = "")
     val subAgentState: String = "",
+    @ColumnInfo("todos", defaultValue = "")
+    val todos: String = "",
 )

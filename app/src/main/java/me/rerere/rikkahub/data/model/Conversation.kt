@@ -42,6 +42,8 @@ data class Conversation(
     val parentConversationId: Uuid? = null,
     val subAgentTask: String? = null,
     val subAgentState: String? = null,
+    // 会话级任务清单，由 todo_write 工具维护
+    val todos: List<TodoItem> = emptyList(),
     @Transient
     val newConversation: Boolean = false
 ) {

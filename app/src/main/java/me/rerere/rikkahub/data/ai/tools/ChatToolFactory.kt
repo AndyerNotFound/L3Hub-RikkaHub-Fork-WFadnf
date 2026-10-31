@@ -104,6 +104,9 @@ class ChatToolFactory(
                 addAll(createConversationTools(conversationRepository, assistant.id))
             }
             addAll(workspaceTools)
+            if (conversationId != null) {
+                addAll(createTodoTools(conversationRepository, conversationId))
+            }
             if (assistant.enabledSkills.isNotEmpty()) {
                 addAll(
                     createSkillTools(

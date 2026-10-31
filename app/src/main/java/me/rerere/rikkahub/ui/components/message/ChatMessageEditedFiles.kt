@@ -60,7 +60,11 @@ import java.io.File
 import kotlin.uuid.Uuid
 
 private const val DEFAULT_VISIBLE_COUNT = 3
-private val WORKSPACE_FILE_TOOL_NAMES = setOf("workspace_write_file", "workspace_edit_file")
+private val WORKSPACE_FILE_TOOL_NAMES = setOf(
+    "workspace_write_file",
+    "workspace_edit_file",
+    "workspace_apply_patch",
+)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -72,9 +76,7 @@ internal fun EditedFilesList(
     val editedFiles = remember(parts) {
         parts.filterIsInstance<UIMessagePart.Tool>()
             .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
-            .mapNotNull { tool ->
-(tool.inputAsJson() as? JsonObject)?.get("path")?.jsonPrimitive?.contentOrNull
-            }
+            .flatMap { tool -> tool.editedPaths() }
             .distinct()
     }
     if (editedFiles.isEmpty()) return
@@ -173,6 +175,11 @@ internal fun EditedFilesList(
             )
         }
     }
+
+    TurnDiffActions(
+        workspaceId = workspaceId,
+        files = editedFiles,
+    )
 
     if (showRevertDialog && snapshotTurn != null) {
         RikkaConfirmDialog(
@@ -301,5 +308,19 @@ internal fun EditedFilesList(
                 }
             }
         }
+    }
+}
+
+/** write/edit 看输入里的 path，apply_patch 看输出里的 files 列表 */
+private fun UIMessagePart.Tool.editedPaths(): List<String> {
+    if (toolName != "workspace_apply_patch") {
+        val path = (inputAsJson() as? JsonObject)?.get("path")?.jsonPrimitive?.contentOrNull
+        return listOfNotNull(path)
+    }
+    val text = (output.firstOrNull() as? UIMessagePart.Text)?.text ?: return emptyList()
+    val obj = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return emptyList()
+    val files = obj["files"] as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+    return files.mapNotNull { element ->
+        (element as? JsonObject)?.get("path")?.jsonPrimitive?.contentOrNull
     }
 }
