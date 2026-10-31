@@ -717,7 +717,11 @@ private suspend fun walkWorkspace(
 }
 
 /** 只读小文本文件；超过大小上限、读失败或像二进制时返回 null */
-private suspend fun readTextForSearch(workspaceId: String, path: String, sizeBytes: Long): String? {
+private suspend fun WorkspaceRepository.readTextForSearch(
+    workspaceId: String,
+    path: String,
+    sizeBytes: Long,
+): String? {
     if (sizeBytes > MAX_GREP_FILE_BYTES) return null
     val bytes = runCatching { readRootfsBuffer(workspaceId, path) }.getOrNull() ?: return null
     val array = bytes.toByteArray()
@@ -919,7 +923,7 @@ private fun createGrepTool(
                     return@walkWorkspace false
                 }
                 scanned++
-                val text = readTextForSearch(target.id, absolute, entry.sizeBytes)
+                val text = workspaceRepository.readTextForSearch(target.id, absolute, entry.sizeBytes)
                 if (text != null) {
                     text.lineSequence().forEachIndexed { index, line ->
                         if (matches.size < limit && matcher.containsMatchIn(line)) {

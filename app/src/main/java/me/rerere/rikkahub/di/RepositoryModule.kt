@@ -100,6 +100,7 @@ val repositoryModule = module {
 
     // AI 改文件前的原内容快照，用来撤销某一轮的修改
     single {
+        val context: Context = get()
         WorkspaceSnapshotStore(context, get(), get())
     }
 
