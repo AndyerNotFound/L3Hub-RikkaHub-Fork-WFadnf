@@ -86,6 +86,9 @@ import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Package01
+import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.FileEdit
 import me.rerere.hugeicons.stroke.FileExport
 import me.rerere.hugeicons.stroke.FileImport
@@ -613,8 +616,15 @@ private fun WorkspaceToolApprovalCard(
 @Composable
 private fun workspaceToolApprovalItems() = listOf(
     Triple("workspace_read_file", stringResource(R.string.workspace_detail_tool_read_file), HugeIcons.FileView),
+    Triple("workspace_list", stringResource(R.string.workspace_detail_tool_list), HugeIcons.Folder01),
+    Triple("workspace_glob", stringResource(R.string.workspace_detail_tool_glob), HugeIcons.File02),
+    Triple("workspace_grep", stringResource(R.string.workspace_detail_tool_grep), HugeIcons.Search01),
     Triple("workspace_write_file", stringResource(R.string.workspace_detail_tool_write_file), HugeIcons.PencilEdit01),
     Triple("workspace_edit_file", stringResource(R.string.workspace_detail_tool_edit_file), HugeIcons.FileEdit),
+    Triple("workspace_apply_patch", stringResource(R.string.workspace_detail_tool_apply_patch), HugeIcons.Wrench01),
+    Triple("workspace_git", stringResource(R.string.workspace_detail_tool_git), HugeIcons.Package01),
+    Triple("workspace_test", stringResource(R.string.workspace_detail_tool_test), HugeIcons.Tick01),
+    Triple("workspace_repo_map", stringResource(R.string.workspace_detail_tool_repo_map), HugeIcons.Book01),
     Triple("workspace_shell", stringResource(R.string.workspace_detail_tool_shell), HugeIcons.ComputerTerminal01),
 )
 

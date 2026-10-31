@@ -1886,4 +1886,11 @@
   <string name="workspace_revert_failed">復原失敗：%1$s</string>
   <string name="assistant_page_plan_mode">計畫模式</string>
   <string name="assistant_page_plan_mode_desc">只允許唯讀工具：寫檔案、改倉庫、執行命令都會被拒絕，適合先探索再動手</string>
+  <string name="workspace_detail_tool_list">列出目錄</string>
+  <string name="workspace_detail_tool_glob">檔案比對</string>
+  <string name="workspace_detail_tool_grep">全文搜尋</string>
+  <string name="workspace_detail_tool_apply_patch">套用補丁</string>
+  <string name="workspace_detail_tool_git">Git 審閱</string>
+  <string name="workspace_detail_tool_test">執行測試</string>
+  <string name="workspace_detail_tool_repo_map">倉庫地圖</string>
 </resources>

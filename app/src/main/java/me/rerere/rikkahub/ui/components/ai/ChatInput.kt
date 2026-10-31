@@ -94,6 +94,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Fullscreen
@@ -371,6 +372,17 @@ fun ChatInput(
                     ),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    if (assistant.planMode) {
+                        Text(
+                            text = "计划模式 · 只读探索（点此关闭）",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onUpdateAssistant(assistant.copy(planMode = false)) }
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
                     if (terminalStyle) {
                         Text(
                             text = "┌─[ COMPOSE ]" + "─".repeat(160),
@@ -487,6 +499,17 @@ fun ChatInput(
                                     contentDescription = stringResource(R.string.more_options),
                                 )
                             }
+                            ActionIconButton(onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) }) {
+                                Icon(
+                                    imageVector = HugeIcons.View,
+                                    contentDescription = "计划模式：只读探索",
+                                    tint = if (assistant.planMode) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
                             if (quickMessages.isNotEmpty()) {
                                 QuickMessageButton(quickMessages = quickMessages, state = state)
                             }
@@ -598,6 +621,18 @@ fun ChatInput(
                                 Icon(
                                     imageVector = HugeIcons.Add01,
                                     contentDescription = stringResource(R.string.more_options),
+                                )
+                            }
+
+                            ActionIconButton(onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) }) {
+                                Icon(
+                                    imageVector = HugeIcons.View,
+                                    contentDescription = "计划模式：只读探索",
+                                    tint = if (assistant.planMode) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                 )
                             }
 

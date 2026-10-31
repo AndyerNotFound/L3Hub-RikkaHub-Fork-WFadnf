@@ -2054,4 +2054,11 @@
   <string name="workspace_revert_failed">Undo failed: %1$s</string>
   <string name="assistant_page_plan_mode">Plan mode</string>
   <string name="assistant_page_plan_mode_desc">Only read-only tools are allowed: file writes, git changes and command execution are rejected until you switch it off.</string>
+  <string name="workspace_detail_tool_list">List directory</string>
+  <string name="workspace_detail_tool_glob">Match files</string>
+  <string name="workspace_detail_tool_grep">Search contents</string>
+  <string name="workspace_detail_tool_apply_patch">Apply patch</string>
+  <string name="workspace_detail_tool_git">Git review</string>
+  <string name="workspace_detail_tool_test">Run tests</string>
+  <string name="workspace_detail_tool_repo_map">Repo map</string>
 </resources>
