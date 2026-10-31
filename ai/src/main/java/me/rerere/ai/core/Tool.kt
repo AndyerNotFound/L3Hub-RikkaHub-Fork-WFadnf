@@ -15,6 +15,8 @@ data class Tool(
     val parameters: () -> InputSchema? = { null },
     val systemPrompt: (model: Model, messages: List<UIMessage>) -> String = { _, _ -> "" },
     val needsApproval: (JsonElement) -> Boolean = { false },
+    // 只读工具在同一批里可以并发执行；写操作和网络副作用工具保持串行
+    val isReadOnly: Boolean = false,
     val execute: suspend (JsonElement) -> List<UIMessagePart>
 )
 

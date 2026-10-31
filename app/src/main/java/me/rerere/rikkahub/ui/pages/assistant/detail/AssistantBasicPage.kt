@@ -189,6 +189,12 @@ internal fun AssistantBasicContent(
                 headlineContent = { Text(stringResource(R.string.assistant_page_sub_agent)) },
             )
             switchItem(
+                checked = assistant.planMode,
+                onCheckedChange = { onUpdate(assistant.copy(planMode = it)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_plan_mode_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_plan_mode)) },
+            )
+            switchItem(
                 checked = assistant.enableNotification,
                 onCheckedChange = { onUpdate(assistant.copy(enableNotification = it)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_enable_notification_desc)) },

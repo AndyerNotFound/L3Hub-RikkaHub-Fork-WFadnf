@@ -233,6 +233,15 @@ class ChatRequestFactory(
                     append(effectiveSystemPrompt)
                 }
 
+                // 计划模式：只读探索，先把方案讲清楚
+                if (assistant.planMode) {
+                    appendLine()
+                    append(
+                        "## Plan mode\n" +
+                            "Only read-only tools are available. File writes, git changes, test runs and non-read shell commands are rejected.\n" +
+                            "Explore the workspace, then present a concrete plan and ask the user to turn plan mode off before making changes."
+                    )
+                }
                 // 记忆
                 if (assistant.enableMemory) {
                     appendLine()

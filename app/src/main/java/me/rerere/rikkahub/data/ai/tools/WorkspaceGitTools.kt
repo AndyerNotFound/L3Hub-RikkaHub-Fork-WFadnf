@@ -22,6 +22,7 @@ private val GIT_READ_ONLY_ACTIONS = setOf("status", "diff", "numstat", "branches
 internal fun createGitTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
+    planMode: Boolean = false,
 ): Tool {
     val git = WorkspaceGit(workspaceRepository)
     return Tool(
@@ -103,6 +104,16 @@ internal fun createGitTool(
                 ?.mapNotNull { element -> element.jsonPrimitive.contentOrNull }
                 .orEmpty()
 
+            if (planMode && action !in GIT_READ_ONLY_ACTIONS) {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("error", "Plan mode is on: only read-only git actions are allowed (${GIT_READ_ONLY_ACTIONS.joinToString()}).")
+                            put("action", action)
+                        }.toString()
+                    )
+                )
+            }
             val payload = when (action) {
                 "status" -> {
                     val status = git.status(target.id, cwd)

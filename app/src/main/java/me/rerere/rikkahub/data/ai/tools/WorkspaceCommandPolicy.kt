@@ -8,6 +8,9 @@ package me.rerere.rikkahub.data.ai.tools
  */
 internal object WorkspaceCommandPolicy {
 
+    /** 命令风险分级：只读直接放行，危险命令无论用户怎么配置都必须确认 */
+    enum class Risk { READ_ONLY, WRITE, DANGEROUS }
+
     private val READ_ONLY_COMMANDS = setOf(
         "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "find", "tree",
         "file", "stat", "du", "df", "pwd", "echo", "printf", "basename", "dirname",
@@ -139,5 +142,26 @@ internal object WorkspaceCommandPolicy {
             "tag" -> subArgs.all { it.startsWith("-") }
             else -> true
         }
+    }
+
+    // 破坏性/提权/远程执行类命令，单独判定为 DANGEROUS
+    private val DANGEROUS_PATTERNS = listOf(
+        Regex("""(^|[;&|]\s*)sudo\b"""),
+        Regex("""\brm\s+(-[A-Za-z]*[rf][A-Za-z]*\s+)+(/|~|${'$'}HOME|\*)\s*$"""),
+        Regex("""\bmkfs(\.\w+)?\b"""),
+        Regex("""\bdd\b[^\n]*\bof=/dev/"""),
+        Regex("""\b(chmod|chown)\s+-R\s+(777|root)\s+/(\s|$)"""),
+        Regex("""\b(curl|wget)\b[^\n|;]*\|\s*(sudo\s+)?(ba|z|fi)?sh\b"""),
+        Regex("""\bgit\s+push\b[^\n]*\s(--force|-f)\b"""),
+        Regex("""\bgit\s+clean\b[^\n]*\s-[A-Za-z]*[xdf]"""),
+        Regex("""\b(shutdown|reboot|poweroff|halt)\b"""),
+        Regex("""\bhistory\s+-c\b"""),
+        Regex(""":\(\)\s*\{.*\}\s*;?\s*:"""),
+    )
+
+    fun classify(command: String): Risk = when {
+        isReadOnly(command) -> Risk.READ_ONLY
+        DANGEROUS_PATTERNS.any { it.containsMatchIn(command) } -> Risk.DANGEROUS
+        else -> Risk.WRITE
     }
 }

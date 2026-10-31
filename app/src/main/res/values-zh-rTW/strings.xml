@@ -1884,4 +1884,6 @@
   <string name="workspace_revert_confirm_action">復原</string>
   <string name="workspace_revert_done">已還原 %1$d 個檔案</string>
   <string name="workspace_revert_failed">復原失敗：%1$s</string>
+  <string name="assistant_page_plan_mode">計畫模式</string>
+  <string name="assistant_page_plan_mode_desc">只允許唯讀工具：寫檔案、改倉庫、執行命令都會被拒絕，適合先探索再動手</string>
 </resources>

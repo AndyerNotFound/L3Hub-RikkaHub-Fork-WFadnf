@@ -31,6 +31,8 @@ data class Assistant(
     val streamOutput: Boolean = true,
     // 关闭后这个助手不再发系统通知（生成完成 / 进度 / 压缩状态）
     val enableNotification: Boolean = true,
+    // 计划模式：只允许只读工具，写文件/执行命令/改仓库一律拒绝
+    val planMode: Boolean = false,
     val enableMemory: Boolean = false,
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val autoConsolidateMemory: Boolean = true, // 对话停下来后在后台自动整理记忆; 关闭后只能手动整理

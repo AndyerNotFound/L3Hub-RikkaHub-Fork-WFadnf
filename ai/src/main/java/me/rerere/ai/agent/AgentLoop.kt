@@ -1,6 +1,9 @@
 package me.rerere.ai.agent
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -161,18 +164,54 @@ internal class AgentLoop(
         return generated
     }
 
-    // 按调用顺序逐个执行，每执行完一个就更新一次，中途取消时已经执行的结果不会丢
+    // 连续的只读调用并发跑，写操作仍按顺序；中途取消时已完成的结果都会写回
     private suspend fun executeTools() {
         val tools = checkNotNull(message).getTools().filter { !it.isExecuted }
-        for (tool in tools) {
-            // 只给真正运行的工具计时；开始时先写一次，界面才能在执行中实时显示耗时
-            val runs = tool.approvalState == ToolApprovalState.Auto || tool.approvalState == ToolApprovalState.Approved
-            if (runs) updateTool(tool.toolCallId) { it.copy(startedAt = Clock.System.now(), finishedAt = null) }
-            val output = execute(tool)
-            updateTool(tool.toolCallId) {
-                it.copy(output = output, finishedAt = if (runs) Clock.System.now() else it.finishedAt)
+        var index = 0
+        while (index < tools.size) {
+            if (canRunInParallel(tools[index])) {
+                var end = index + 1
+                while (end < tools.size && canRunInParallel(tools[end])) end++
+                executeParallel(tools.subList(index, end))
+                index = end
+            } else {
+                executeOne(tools[index])
+                index++
             }
         }
+    }
+
+    private suspend fun executeOne(tool: UIMessagePart.Tool) {
+        // 只给真正运行的工具计时；开始时先写一次，界面才能在执行中实时显示耗时
+        val runs = tool.approvalState == ToolApprovalState.Auto || tool.approvalState == ToolApprovalState.Approved
+        if (runs) updateTool(tool.toolCallId) { it.copy(startedAt = Clock.System.now(), finishedAt = null) }
+        val output = execute(tool)
+        updateTool(tool.toolCallId) {
+            it.copy(output = output, finishedAt = if (runs) Clock.System.now() else it.finishedAt)
+        }
+    }
+
+    private suspend fun executeParallel(group: List<UIMessagePart.Tool>) {
+        val started = Clock.System.now()
+        group.forEach { tool ->
+            updateTool(tool.toolCallId) { it.copy(startedAt = started, finishedAt = null) }
+        }
+        val results = coroutineScope {
+            group.map { tool ->
+                async { tool.toolCallId to execute(tool) }
+            }.awaitAll()
+        }
+        val finished = Clock.System.now()
+        results.forEach { (toolCallId, output) ->
+            updateTool(toolCallId) { it.copy(output = output, finishedAt = finished) }
+        }
+    }
+
+    private fun canRunInParallel(tool: UIMessagePart.Tool): Boolean {
+        val runs = tool.approvalState == ToolApprovalState.Auto || tool.approvalState == ToolApprovalState.Approved
+        if (!runs) return false
+        val definition = findTool(tool.toolName) ?: return false
+        return definition.isReadOnly
     }
 
     private suspend fun updateTool(toolCallId: String, transform: (UIMessagePart.Tool) -> UIMessagePart.Tool) {

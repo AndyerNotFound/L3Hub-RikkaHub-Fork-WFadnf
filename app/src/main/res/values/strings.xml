@@ -2052,4 +2052,6 @@
   <string name="workspace_revert_confirm_action">Undo</string>
   <string name="workspace_revert_done">Restored %1$d file(s)</string>
   <string name="workspace_revert_failed">Undo failed: %1$s</string>
+  <string name="assistant_page_plan_mode">Plan mode</string>
+  <string name="assistant_page_plan_mode_desc">Only read-only tools are allowed: file writes, git changes and command execution are rejected until you switch it off.</string>
 </resources>

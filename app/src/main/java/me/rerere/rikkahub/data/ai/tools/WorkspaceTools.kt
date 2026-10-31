@@ -18,6 +18,10 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.ApplyOutcome
 import me.rerere.rikkahub.data.workspace.FileDiff
+import me.rerere.rikkahub.data.workspace.GitIgnoreMatcher
+import me.rerere.rikkahub.data.workspace.GitIgnoreRule
+import me.rerere.rikkahub.data.workspace.RepoMap
+import me.rerere.rikkahub.data.workspace.RepoMapFile
 import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.utils.generateUnifiedDiff
@@ -64,6 +68,7 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_shell" to true,
     "workspace_git" to true,
     "workspace_test" to true,
+    "workspace_repo_map" to false,
 )
 
 /** 直接写文件的工具, 只在支持 [WorkspaceCapabilities.fileWriteTools] 的工作区提供 */
@@ -91,6 +96,7 @@ suspend fun createWorkspaceTools(
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
     conversationId: Uuid? = null,
+    planMode: Boolean = false,
 ): List<Tool> {
     val targets = workspaceIds
         .map { it.trim() }
@@ -119,17 +125,19 @@ suspend fun createWorkspaceTools(
         add(createListTool(targets, workspaceRepository))
         add(createGlobTool(targets, workspaceRepository))
         add(createGrepTool(targets, workspaceRepository))
+        add(createRepoMapTool(targets, workspaceRepository))
         val snapshots = conversationId?.let {
             runCatching { getKoin().get<WorkspaceSnapshotStore>() }.getOrNull()
         }
-        if (targets.any { it.supportsFileWrite }) {
+        // 计划模式只放只读工具：写文件、跑测试这类有副作用的工具直接不注册
+        if (targets.any { it.supportsFileWrite } && !planMode) {
             add(createWriteFileTool(targets, workspaceRepository, snapshots, conversationId))
             add(createEditFileTool(targets, workspaceRepository, snapshots, conversationId))
             add(createApplyPatchTool(targets, workspaceRepository, snapshots, conversationId))
         }
-        add(createGitTool(targets, workspaceRepository))
-        add(createTestTool(targets, workspaceRepository))
-        add(createShellTool(targets, workspaceRepository, cwds))
+        add(createGitTool(targets, workspaceRepository, planMode))
+        if (!planMode) add(createTestTool(targets, workspaceRepository))
+        add(createShellTool(targets, workspaceRepository, cwds, planMode))
     }
 }
 
@@ -238,6 +246,7 @@ private fun createReadFileTool(
     needsApproval = { params ->
         params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_read_file") ?: true
     },
+    isReadOnly = true,
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
@@ -677,6 +686,7 @@ private fun createShellTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
     workspaceCwds: Map<String, String> = emptyMap(),
+    planMode: Boolean = false,
 ) = Tool(
     name = "workspace_shell",
     description = buildString {
@@ -729,11 +739,14 @@ private fun createShellTool(
     },
     needsApproval = { params ->
         val target = params.jsonObject.resolveWorkspaceOrNull(targets)
+        val command = params.jsonObject.string("command").orEmpty()
         when {
             target == null -> true
+            // 破坏性命令始终要确认，用户关掉审批也不放行
+            WorkspaceCommandPolicy.classify(command) == WorkspaceCommandPolicy.Risk.DANGEROUS -> true
             !target.needsApproval("workspace_shell") -> false
             // 只读命令免审批：编码时大量 ls / grep / git diff，逐条确认没法用
-            WorkspaceCommandPolicy.isReadOnly(params.jsonObject.string("command").orEmpty()) -> false
+            WorkspaceCommandPolicy.classify(command) == WorkspaceCommandPolicy.Risk.READ_ONLY -> false
             else -> true
         }
     },
@@ -748,6 +761,16 @@ private fun createShellTool(
             ?.times(1_000L)
             ?: WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS
         val background = params["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        if (planMode && !WorkspaceCommandPolicy.isReadOnly(command)) {
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    buildJsonObject {
+                        put("error", "Plan mode is on: only read-only commands are allowed. Turn plan mode off in the assistant settings to run this.")
+                        put("command", command)
+                    }.toString()
+                )
+            )
+        }
         if (background) {
             val log = "/tmp/l3hub-job-${System.currentTimeMillis()}.log"
             val quoted = command.replace("'", "'\\''")
@@ -941,7 +964,10 @@ internal class GlobMatcher(pattern: String) {
     }
 }
 
-/** 按目录逐层展开，跳过依赖和构建目录；条目数和层数都有上限 */
+/**
+ * 按目录逐层展开，跳过依赖和构建目录；条目数和层数都有上限。
+ * 每进一个目录读一次它自己的 .gitignore，规则向下继承，命中忽略的条目直接跳过。
+ */
 private suspend fun walkWorkspace(
     repository: WorkspaceRepository,
     target: WorkspaceTarget,
@@ -950,21 +976,43 @@ private suspend fun walkWorkspace(
     onEntry: suspend (absolutePath: String, entry: WorkspaceFileEntry) -> Boolean,
 ) {
     val start = root.trim().trimEnd('/').ifBlank { "/" }
-    val queue = ArrayDeque<Pair<String, Int>>()
-    queue.add(start to 0)
+    val queue = ArrayDeque<Triple<String, Int, List<GitIgnoreRule>>>()
+    queue.add(Triple(start, 0, emptyList()))
     var visited = 0
     while (queue.isNotEmpty() && visited < maxEntries) {
-        val (directory, depth) = queue.removeFirst()
+        val (directory, depth, inheritedRules) = queue.removeFirst()
         val (area, relative) = resolveStorageArea(target.layout, directory)
         val entries = runCatching { repository.listFiles(target.id, area, relative) }
             .getOrElse { emptyList() }
             .sortedWith(compareByDescending<WorkspaceFileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
+
+        val gitignore = entries.firstOrNull { !it.isDirectory && it.name == ".gitignore" }
+        val rules = if (gitignore != null) {
+            val text = repository.readTextForSearch(
+                workspaceId = target.id,
+                path = joinAbsolute(directory, gitignore.name),
+                sizeBytes = gitignore.sizeBytes,
+            )
+            if (text != null) {
+                inheritedRules + GitIgnoreMatcher.parse(directory, text)
+            } else {
+                inheritedRules
+            }
+        } else {
+            inheritedRules
+        }
+
         for (entry in entries) {
             visited++
             val absolute = joinAbsolute(directory, entry.name)
+            // 规则的基准目录就是它所在的目录，直接用绝对路径判断即可
+            if (GitIgnoreMatcher.isIgnored(rules, absolute, entry.isDirectory)) {
+                if (visited >= maxEntries) return
+                continue
+            }
             if (!onEntry(absolute, entry)) return
             if (entry.isDirectory && depth < MAX_SEARCH_DEPTH && entry.name !in SEARCH_SKIPPED_DIRS) {
-                queue.add(absolute to depth + 1)
+                queue.add(Triple(absolute, depth + 1, rules))
             }
             if (visited >= maxEntries) return
         }
@@ -983,6 +1031,83 @@ private suspend fun WorkspaceRepository.readTextForSearch(
     if (array.take(4096).any { it == 0.toByte() }) return null
     return array.toString(Charsets.UTF_8)
 }
+
+/** 仓库地图：文件树 + 顶层符号，省掉逐个 read 的往返 */
+private fun createRepoMapTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_repo_map",
+    description = """
+        Build a compact map of the workspace: file tree grouped by directory with top-level symbols per file
+        (Kotlin/Java/Python/TS/JS/Go/Rust/Swift/Ruby/C#/C++). Respects .gitignore.
+        Use it before reading files in a large repository; pass path to map a subdirectory and max_files to bound the scan.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                putPathProperty(targets.first().layout, required = false)
+                put("max_files", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum files to scan. Defaults to 300, max 800.")
+                })
+            },
+        )
+    },
+    needsApproval = { params ->
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_repo_map") ?: true
+    },
+    isReadOnly = true,
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.layout.workspaceDir
+        val maxFiles = params.string("max_files")?.toIntOrNull()?.coerceIn(1, MAX_REPO_MAP_FILES) ?: DEFAULT_REPO_MAP_FILES
+        val prefix = target.layout.workspaceDir.trimEnd('/') + "/"
+
+        val files = mutableListOf<RepoMapFile>()
+        walkWorkspace(
+            repository = workspaceRepository,
+            target = target,
+            root = root,
+            maxEntries = MAX_SEARCH_ENTRIES,
+        ) { absolute, entry ->
+            if (!entry.isDirectory && files.size < maxFiles && absolute.isRepoMapSource()) {
+                val text = workspaceRepository.readTextForSearch(target.id, absolute, entry.sizeBytes)
+                if (text != null) {
+                    val relative = absolute.removePrefix(prefix)
+                    files += RepoMapFile(
+                        path = relative,
+                        lines = text.count { it == '\n' } + 1,
+                        symbols = RepoMap.extractSymbols(relative, text),
+                    )
+                }
+            }
+            true
+        }
+
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("path", root)
+                    put("fileCount", files.size)
+                    put("truncated", files.size >= maxFiles)
+                    put("map", RepoMap.render(files))
+                }.toString()
+            )
+        )
+    },
+)
+
+private const val DEFAULT_REPO_MAP_FILES = 300
+private const val MAX_REPO_MAP_FILES = 800
+
+private fun String.isRepoMapSource(): Boolean =
+    substringAfterLast('.', "").lowercase() in setOf(
+        "kt", "kts", "java", "py", "ts", "tsx", "js", "jsx", "go", "rs", "swift", "rb", "cs", "cpp", "h",
+    )
 
 private fun createListTool(
     targets: List<WorkspaceTarget>,
@@ -1005,6 +1130,7 @@ private fun createListTool(
     needsApproval = { params ->
         params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_list") ?: true
     },
+    isReadOnly = true,
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
@@ -1067,6 +1193,7 @@ private fun createGlobTool(
     needsApproval = { params ->
         params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_glob") ?: true
     },
+    isReadOnly = true,
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
@@ -1152,6 +1279,7 @@ private fun createGrepTool(
     needsApproval = { params ->
         params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_grep") ?: true
     },
+    isReadOnly = true,
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
