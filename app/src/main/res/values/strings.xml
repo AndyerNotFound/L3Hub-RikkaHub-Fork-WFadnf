@@ -2047,4 +2047,9 @@
   <string name="setting_media_page_webdav_password">Password</string>
   <string name="setting_media_page_webdav_path">Folder</string>
   <string name="task_tree_generation">Gen %1$d</string>
+  <string name="workspace_revert_turn">Undo this turn</string>
+  <string name="workspace_revert_confirm">Restore every file this turn changed to how it was before the turn? Files created in this turn will be deleted.</string>
+  <string name="workspace_revert_confirm_action">Undo</string>
+  <string name="workspace_revert_done">Restored %1$d file(s)</string>
+  <string name="workspace_revert_failed">Undo failed: %1$s</string>
 </resources>

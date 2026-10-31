@@ -50,6 +50,13 @@ class WorkspaceReminderTransformer(
                         RemoteEnvironment(
                             shell = workspaceRepository.shell(workspaceId),
                             distro = readDistroName(workspaceId),
+                            home = runCatching {
+                                workspaceRepository.executeCommand(
+                                    id = workspaceId,
+                                    command = "printf '%s' \"\$HOME\"",
+                                    timeoutMillis = 15_000,
+                                ).stdout.trim()
+                            }.getOrNull()?.takeIf { it.startsWith("/") },
                         )
                     }
                     if (environmentResult.isFailure) {
@@ -66,6 +73,9 @@ class WorkspaceReminderTransformer(
                         shell = environment.shell,
                         distro = environment.distro,
                         cwd = cwd,
+                    ) + buildAgentsPrompt(
+                        workspaceId,
+                        remoteAgentsPaths(layout, cwd, environment.home),
                     )
                 } else {
                     buildWorkspacePrompt(
@@ -73,7 +83,7 @@ class WorkspaceReminderTransformer(
                         shell = workspaceRepository.shell(workspaceId),
                         distro = readDistroName(workspaceId),
                         cwd = cwd,
-                    ) + buildAgentsPrompt(workspaceId, cwd)
+                    ) + buildAgentsPrompt(workspaceId, localAgentsPaths(cwd))
                 }
                 add(workspace to prompt)
             }
@@ -115,16 +125,34 @@ class WorkspaceReminderTransformer(
         }
     }
 
-    private suspend fun buildAgentsPrompt(workspaceId: String, cwd: String?): String {
+    /** 本地 Rootfs：用户级、工作区根、会话当前目录 */
+    private fun localAgentsPaths(cwd: String?): List<String> {
         // ProotShellRunner 将 HOME 固定为 /root；相对 PWD 按 /workspace 解析。
         val workingDirectory = Paths.get(WorkspaceManager.ROOTFS_WORKSPACE_DIR)
             .resolve(cwd?.takeIf { it.isNotBlank() } ?: ".")
             .normalize()
-        val paths = linkedSetOf(
+        return listOf(
             "${WorkspaceManager.ROOTFS_HOME_DIR}/.agents/AGENTS.md",
             "${WorkspaceManager.ROOTFS_WORKSPACE_DIR}/AGENTS.md",
             workingDirectory.resolve("AGENTS.md").toString(),
         )
+    }
+
+    /** 远程工作区：远程 home 下的用户级、工作区根、会话当前目录；读不到就是没有 */
+    private fun remoteAgentsPaths(layout: WorkspaceLayout, cwd: String?, home: String?): List<String> {
+        val base = layout.workspaceDir.trimEnd('/').ifBlank { "/" }
+        val workingDirectory = if (cwd.isNullOrBlank()) null else {
+            val relative = cwd.trim('/')
+            if (relative.isEmpty()) base else "$base/$relative"
+        }
+        return listOfNotNull(
+            home?.let { "$it/.agents/AGENTS.md" },
+            "$base/AGENTS.md",
+            workingDirectory?.let { "$it/AGENTS.md" },
+        ).distinct()
+    }
+
+    private suspend fun buildAgentsPrompt(workspaceId: String, paths: Collection<String>): String {
         val instructions = paths.mapNotNull { path ->
             readRootfsText(workspaceId, path, MAX_AGENTS_BYTES)?.let { path to it }
         }
@@ -173,7 +201,7 @@ class WorkspaceReminderTransformer(
 }
 
 /** 远程工作区提示词里描述的执行环境 */
-internal data class RemoteEnvironment(val shell: String, val distro: String?)
+internal data class RemoteEnvironment(val shell: String, val distro: String?, val home: String? = null)
 
 /**
  * 按工作区缓存远程执行环境。

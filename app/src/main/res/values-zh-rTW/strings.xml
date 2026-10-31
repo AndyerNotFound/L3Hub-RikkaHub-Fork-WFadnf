@@ -1879,4 +1879,9 @@
   <string name="setting_media_page_webdav_password">密碼</string>
   <string name="setting_media_page_webdav_path">目錄</string>
   <string name="task_tree_generation">第 %1$d 代</string>
+  <string name="workspace_revert_turn">復原本輪修改</string>
+  <string name="workspace_revert_confirm">把本輪改過的檔案還原到修改前？本輪新建的檔案會被刪除。</string>
+  <string name="workspace_revert_confirm_action">復原</string>
+  <string name="workspace_revert_done">已還原 %1$d 個檔案</string>
+  <string name="workspace_revert_failed">復原失敗：%1$s</string>
 </resources>

@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.repository.MediaCreationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.data.skills.SkillManager
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
@@ -95,6 +96,11 @@ val repositoryModule = module {
 
     single {
         WorkspaceRepository(get(), get(), get(), get(), get())
+    }
+
+    // AI 改文件前的原内容快照，用来撤销某一轮的修改
+    single {
+        WorkspaceSnapshotStore(context, get(), get())
     }
 
     single {

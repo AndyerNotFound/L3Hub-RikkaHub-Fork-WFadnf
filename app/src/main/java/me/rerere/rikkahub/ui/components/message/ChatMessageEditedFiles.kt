@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -10,16 +11,20 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -34,19 +39,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Share08
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.ui.terminal.Card
+import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.compose.koinInject
 import java.io.File
+import kotlin.uuid.Uuid
 
 private const val DEFAULT_VISIBLE_COUNT = 3
 private val WORKSPACE_FILE_TOOL_NAMES = setOf("workspace_write_file", "workspace_edit_file")
@@ -71,6 +82,31 @@ internal fun EditedFilesList(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val workspaceRepository: WorkspaceRepository = koinInject()
+    val snapshots: WorkspaceSnapshotStore = koinInject()
+
+    // 工具结果里带着本轮快照 key，界面据此提供撤销
+    val snapshotTurn = remember(parts) {
+        parts.filterIsInstance<UIMessagePart.Tool>()
+            .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
+            .mapNotNull { tool ->
+                val text = (tool.output.firstOrNull() as? UIMessagePart.Text)?.text
+                    ?: return@mapNotNull null
+                val obj = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()
+                    ?: return@mapNotNull null
+                val turn = obj["snapshotTurn"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val conversation = obj["conversationId"]?.jsonPrimitive?.contentOrNull
+                    ?: return@mapNotNull null
+                conversation to turn
+            }
+            .lastOrNull()
+    }
+    var reverted by remember { mutableStateOf(false) }
+    var showRevertDialog by remember { mutableStateOf(false) }
+    val revertable by produceState(false, snapshotTurn, reverted) {
+        value = snapshotTurn != null && !reverted && runCatching {
+            snapshots.hasTurn(Uuid.parse(snapshotTurn.first), snapshotTurn.second)
+        }.getOrDefault(false)
+    }
 
     var selectedPath by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
@@ -118,6 +154,57 @@ internal fun EditedFilesList(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             )
         }
+    }
+
+    if (revertable && snapshotTurn != null) {
+        TextButton(
+            onClick = { showRevertDialog = true },
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Refresh01,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.size(4.dp))
+            Text(
+                text = stringResource(R.string.workspace_revert_turn),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+    }
+
+    if (showRevertDialog && snapshotTurn != null) {
+        RikkaConfirmDialog(
+            show = true,
+            title = stringResource(R.string.workspace_revert_turn),
+            confirmText = stringResource(R.string.workspace_revert_confirm_action),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = {
+                showRevertDialog = false
+                val (conversation, turn) = snapshotTurn
+                scope.launch {
+                    snapshots.revert(Uuid.parse(conversation), turn)
+                        .onSuccess { count ->
+                            reverted = true
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.workspace_revert_done, count),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.workspace_revert_failed, error.message ?: ""),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                }
+            },
+            onDismiss = { showRevertDialog = false },
+            text = { Text(stringResource(R.string.workspace_revert_confirm)) },
+        )
     }
 
     if (selectedPath != null) {

@@ -16,10 +16,12 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceCapabilities
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
+import kotlin.uuid.Uuid
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
@@ -30,6 +32,7 @@ import java.nio.file.Paths
 
 private const val SHELL_TIMEOUT_MAX_SECONDS = 600L
 private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+private const val MAX_SNAPSHOT_FILE_BYTES = 4L * 1024 * 1024
 private const val DEFAULT_READ_LINES = 2000
 private const val MAX_READ_LINES = 5000
 private const val MAX_LIST_ENTRIES = 500
@@ -77,6 +80,7 @@ suspend fun createWorkspaceTools(
     workspaceIds: Collection<String>,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
+    conversationId: Uuid? = null,
 ): List<Tool> {
     val targets = workspaceIds
         .map { it.trim() }
@@ -105,9 +109,12 @@ suspend fun createWorkspaceTools(
         add(createListTool(targets, workspaceRepository))
         add(createGlobTool(targets, workspaceRepository))
         add(createGrepTool(targets, workspaceRepository))
+        val snapshots = conversationId?.let {
+            runCatching { getKoin().get<WorkspaceSnapshotStore>() }.getOrNull()
+        }
         if (targets.any { it.supportsFileWrite }) {
-            add(createWriteFileTool(targets, workspaceRepository))
-            add(createEditFileTool(targets, workspaceRepository))
+            add(createWriteFileTool(targets, workspaceRepository, snapshots, conversationId))
+            add(createEditFileTool(targets, workspaceRepository, snapshots, conversationId))
         }
         add(createShellTool(targets, workspaceRepository, cwds))
     }
@@ -251,6 +258,8 @@ private fun createReadFileTool(
 private fun createWriteFileTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
+    snapshots: WorkspaceSnapshotStore?,
+    conversationId: Uuid?,
 ) = Tool(
     name = "workspace_write_file",
     description = """
@@ -289,14 +298,41 @@ private fun createWriteFileTool(
         val path = params.absolutePath("path")
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        // 覆盖前留一份原内容，供聊天页撤销这一轮的修改
+        var snapshotTurn: String? = null
+        if (snapshots != null && conversationId != null) {
+            val size = runCatching { workspaceRepository.absoluteFileSize(target.id, path) }.getOrNull()
+            val original = if (size != null && size <= MAX_SNAPSHOT_FILE_BYTES) {
+                runCatching { workspaceRepository.readTextInRootfs(target.id, path) }.getOrNull()
+            } else {
+                null
+            }
+            if (size == null || original != null) {
+                val (area, relative) = resolveStorageArea(target.layout, path)
+                snapshotTurn = runCatching {
+                    snapshots.capture(conversationId, target.id, path, area, relative, original)
+                }.getOrNull()
+            }
+        }
         val entry = workspaceRepository.writeAbsoluteText(target.id, path, text, overwrite)
-        listOf(UIMessagePart.Text(entry.toJson().toString()))
+        val payload = if (snapshotTurn == null) {
+            entry.toJson().toString()
+        } else {
+            buildJsonObject {
+                entry.toJson().forEach { (key, value) -> put(key, value) }
+                put("snapshotTurn", snapshotTurn)
+                put("conversationId", conversationId.toString())
+            }.toString()
+        }
+        listOf(UIMessagePart.Text(payload))
     },
 )
 
 private fun createEditFileTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
+    snapshots: WorkspaceSnapshotStore?,
+    conversationId: Uuid?,
 ) = Tool(
     name = "workspace_edit_file",
     description = """
@@ -345,6 +381,14 @@ private fun createEditFileTool(
         require(oldText.isNotEmpty()) { "old_text must not be empty" }
 
         val original = workspaceRepository.readTextInRootfs(target.id, path)
+        // 改之前留一份原内容，供聊天页撤销这一轮的修改
+        var snapshotTurn: String? = null
+        if (snapshots != null && conversationId != null) {
+            val (area, relative) = resolveStorageArea(target.layout, path)
+            snapshotTurn = runCatching {
+                snapshots.capture(conversationId, target.id, path, area, relative, original)
+            }.getOrNull()
+        }
         // 逐级尝试 exact -> line_trimmed -> block_anchor 替换器, 见 TextReplacers.kt
         val result = try {
             replaceText(original, oldText, newText, replaceAll)
@@ -362,6 +406,10 @@ private fun createEditFileTool(
                     put("sizeBytes", entry.sizeBytes)
                     put("updatedAt", entry.updatedAt)
                     put("workspace", target.name)
+                    snapshotTurn?.let {
+                        put("snapshotTurn", it)
+                        put("conversationId", conversationId.toString())
+                    }
                 }.toString(),
                 // diff 存入 metadata 供 UI 渲染 diff view, 不会随工具结果发送给 API
                 metadata = diff?.let { d -> DiffMetadata(diff = d).toMetadata() },
@@ -384,6 +432,7 @@ private fun createShellTool(
         if (workspaceCwds.isNotEmpty()) {
             append("Defaults to the directory picked for each workspace. ")
         }
+        append("Set background=true for long-running commands (dev servers, watchers): it returns a pid and a log file immediately.")
         append("Requires Rootfs to be installed and ready.")
         append(targets.workspaceNote())
     },
@@ -410,6 +459,15 @@ private fun createShellTool(
                         "Command timeout in seconds. Defaults to 30, max $SHELL_TIMEOUT_MAX_SECONDS."
                     )
                 })
+                put("background", buildJsonObject {
+                    put("type", "boolean")
+                    put(
+                        "description",
+                        "Run the command detached and return at once with a pid and a log path. " +
+                            "Read the log with `tail -n 100 <log>` and stop it with `kill -- -<pid>`. " +
+                            "On local Rootfs workspaces the job may end when the container exits; SSH workspaces keep it running."
+                    )
+                })
             },
             required = listOf("command"),
         )
@@ -434,19 +492,41 @@ private fun createShellTool(
             ?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
             ?.times(1_000L)
             ?: WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS
-        val result = workspaceRepository.executeCommand(target.id, command, cwd, timeoutMillis)
-        listOf(
-            UIMessagePart.Text(
-                buildJsonObject {
-                    put("exitCode", result.exitCode)
-                    put("stdout", result.stdout)
-                    put("stderr", result.stderr)
-                    put("timedOut", result.timedOut)
-                    if (result.truncated) put("truncated", true)
-                    put("workspace", target.name)
-                }.toString()
+        val background = params["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        if (background) {
+            val log = "/tmp/l3hub-job-${System.currentTimeMillis()}.log"
+            val quoted = command.replace("'", "'\\''")
+            // 有 setsid 就脱离会话，没有就退回 nohup；整段放子 shell 里后台执行，$! 就是实际进程号
+            val wrapped = "if command -v setsid >/dev/null 2>&1; then " +
+                "exec setsid nohup sh -c '$quoted' > '$log' 2>&1; " +
+                "else exec nohup sh -c '$quoted' > '$log' 2>&1; fi & echo \$!"
+            val started = workspaceRepository.executeCommand(target.id, wrapped, cwd, 15_000)
+            listOf(
+                UIMessagePart.Text(
+                    buildJsonObject {
+                        put("background", true)
+                        put("pid", started.stdout.trim())
+                        put("log", log)
+                        put("workspace", target.name)
+                        put("hint", "Read output with workspace_shell + `tail -n 100 $log`; stop with `kill -- -<pid>`.")
+                    }.toString()
+                )
             )
-        )
+        } else {
+            val result = workspaceRepository.executeCommand(target.id, command, cwd, timeoutMillis)
+            listOf(
+                UIMessagePart.Text(
+                    buildJsonObject {
+                        put("exitCode", result.exitCode)
+                        put("stdout", result.stdout)
+                        put("stderr", result.stderr)
+                        put("timedOut", result.timedOut)
+                        if (result.truncated) put("truncated", true)
+                        put("workspace", target.name)
+                    }.toString()
+                )
+            )
+        }
     },
 )
 

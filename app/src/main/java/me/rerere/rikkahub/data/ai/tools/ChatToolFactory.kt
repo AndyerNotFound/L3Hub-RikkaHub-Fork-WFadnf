@@ -79,6 +79,7 @@ class ChatToolFactory(
             workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
             workspaceRepository = workspaceRepository,
             cwds = workspaceCwds,
+            conversationId = conversationId,
         )
         val tools = buildList {
             if (assistant.enableMemory) {
