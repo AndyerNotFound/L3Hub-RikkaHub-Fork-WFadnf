@@ -246,6 +246,13 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
   改成一条 `exec` 一次性问出哪些子项是目录，服务器不允许 exec 时退回逐个 stat
 - `Conversation.lastContextTokens()` 流式输出每个 token 都会调用，改成不再复制整个消息列表
 
+## Coding Agent 第一轮：检索工具与只读命令免审批（fork 新增）
+
+- 新增 `workspace_list` / `workspace_glob` / `workspace_grep`。三者都走工作区 backend 的 `listFiles` + `exportAbsoluteFile`，本地 Rootfs 与 SSH 工作区共用同一套实现；遍历会跳过 `.git`、`node_modules`、`build` 等目录，条目数、层数、单文件大小都有上限。
+- `workspace_read_file` 增加 `offset` / `limit`（1-based 行号）与返回里的 `totalLines` / `truncated`，大文件可以分段读，不再整文件塞进上下文。
+- `workspace_shell` 的只读命令（`ls`、`cat`、`grep`、`rg`、`find`、`git status/diff/log` 等）不再逐条询问。命令替换、重定向、子 shell、后台运行、`find -exec/-delete`、`git` 写操作等仍按原策略要求审批；判定逻辑在 `WorkspaceCommandPolicy`，纯函数，有单测。
+- 系统提示里同步说明新工具与免审批范围。
+
 ## 还要做的
 
 1. **签名**：在 `local.properties`（已 gitignore）加四项，之后所有版本都用同一个 keystore，否则无法覆盖升级

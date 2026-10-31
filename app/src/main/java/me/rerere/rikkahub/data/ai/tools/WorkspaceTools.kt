@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools
 import android.util.Log
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -21,14 +22,36 @@ import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
+import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
+import java.nio.file.FileSystems
+import java.nio.file.Paths
 
 private const val SHELL_TIMEOUT_MAX_SECONDS = 600L
 private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+private const val DEFAULT_READ_LINES = 2000
+private const val MAX_READ_LINES = 5000
+private const val MAX_LIST_ENTRIES = 500
+private const val MAX_GLOB_RESULTS = 500
+private const val MAX_GREP_RESULTS = 200
+private const val MAX_SEARCH_ENTRIES = 4000
+private const val MAX_SEARCH_DEPTH = 12
+private const val MAX_GREP_FILE_BYTES = 512L * 1024
+private const val MAX_GREP_SCANNED_FILES = 800
+private const val MAX_GREP_LINE_CHARS = 400
+
+// 依赖目录和构建产物没有检索价值，遍历时整棵跳过
+private val SEARCH_SKIPPED_DIRS = setOf(
+    ".git", ".gradle", ".idea", "node_modules", "build", "dist", "out", "target",
+    "__pycache__", ".venv", "venv", ".dart_tool", "Pods", ".next", "coverage",
+)
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
+    "workspace_list" to false,
+    "workspace_glob" to false,
+    "workspace_grep" to false,
     "workspace_write_file" to false,
     "workspace_edit_file" to false,
     "workspace_shell" to true,
@@ -79,6 +102,9 @@ suspend fun createWorkspaceTools(
 
     return buildList {
         add(createReadFileTool(targets, workspaceRepository))
+        add(createListTool(targets, workspaceRepository))
+        add(createGlobTool(targets, workspaceRepository))
+        add(createGrepTool(targets, workspaceRepository))
         if (targets.any { it.supportsFileWrite }) {
             add(createWriteFileTool(targets, workspaceRepository))
             add(createEditFileTool(targets, workspaceRepository))
@@ -169,6 +195,7 @@ private fun createReadFileTool(
         Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
         Use ${targets.first().layout.workspaceDir} for the workspace files area.
         Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
+        Returns at most `limit` lines starting at `offset` (1-based); check totalLines to page through large files.
         ${targets.workspaceNote()}
     """.trimIndent().replace("\n", " "),
     parameters = {
@@ -176,6 +203,14 @@ private fun createReadFileTool(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
                 putPathProperty(targets.first().layout, required = true)
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "1-based line number to start reading from. Defaults to 1.")
+                })
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum number of lines to read. Defaults to $DEFAULT_READ_LINES, max $MAX_READ_LINES.")
+                })
             },
             required = listOf("path"),
         )
@@ -191,11 +226,20 @@ private fun createReadFileTool(
             workspaceRepository.readImageInRootfs(target.id, path)
         } else {
             val text = workspaceRepository.readTextInRootfs(target.id, path)
+            val page = pageText(
+                text = text,
+                offset = params.int("offset") ?: 1,
+                limit = params.int("limit") ?: DEFAULT_READ_LINES,
+            )
             listOf(
                 UIMessagePart.Text(
                     buildJsonObject {
                         put("path", path)
-                        put("text", text)
+                        put("text", page.text)
+                        put("startLine", page.startLine)
+                        put("endLine", page.endLine)
+                        put("totalLines", page.totalLines)
+                        if (page.truncated) put("truncated", true)
                         put("workspace", target.name)
                     }.toString()
                 )
@@ -371,7 +415,14 @@ private fun createShellTool(
         )
     },
     needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_shell") ?: true
+        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
+        when {
+            target == null -> true
+            !target.needsApproval("workspace_shell") -> false
+            // 只读命令免审批：编码时大量 ls / grep / git diff，逐条确认没法用
+            WorkspaceCommandPolicy.isReadOnly(params.jsonObject.string("command").orEmpty()) -> false
+            else -> true
+        }
     },
     execute = {
         val params = it.jsonObject
@@ -479,3 +530,351 @@ private fun WorkspaceFileEntry.toJson() = buildJsonObject {
     put("sizeBytes", sizeBytes)
     put("updatedAt", updatedAt)
 }
+
+// ---------------------------------------------------------------------------
+// 检索类工具：列目录 / glob / grep
+//
+// 都走 backend 的 listFiles + exportAbsoluteFile，本地与 SSH 工作区共用同一套实现；
+// 遍历有层数、条目数、单文件大小上限，避免在大仓库上把手机拖死。
+// ---------------------------------------------------------------------------
+
+private data class SearchMatch(val path: String, val line: Int, val text: String)
+
+internal data class PagedText(
+    val text: String,
+    val startLine: Int,
+    val endLine: Int,
+    val totalLines: Int,
+    val truncated: Boolean,
+)
+
+/** 按 1-based 行号切片；offset 超出总行数时返回空文本，不报错 */
+internal fun pageText(text: String, offset: Int, limit: Int): PagedText {
+    val lines = if (text.isEmpty()) {
+        emptyList()
+    } else {
+        text.split('\n').let { parts -> if (parts.last().isEmpty()) parts.dropLast(1) else parts }
+    }
+    if (lines.isEmpty()) return PagedText(text = "", startLine = 1, endLine = 0, totalLines = 0, truncated = false)
+
+    val start = offset.coerceAtLeast(1)
+    val count = limit.coerceIn(1, MAX_READ_LINES)
+    if (start > lines.size) {
+        return PagedText(text = "", startLine = start, endLine = start - 1, totalLines = lines.size, truncated = false)
+    }
+    val end = (start + count - 1).coerceAtMost(lines.size)
+    return PagedText(
+        text = lines.subList(start - 1, end).joinToString("\n"),
+        startLine = start,
+        endLine = end,
+        totalLines = lines.size,
+        truncated = end < lines.size,
+    )
+}
+
+/** 环境内绝对路径落在文件区还是 Rootfs 区；返回值可直接交给 backend.listFiles */
+internal fun resolveStorageArea(layout: WorkspaceLayout, path: String): Pair<WorkspaceStorageArea, String> {
+    val normalized = path.trim().trimEnd('/').ifBlank { "/" }
+    val root = layout.workspaceDir.trimEnd('/').ifBlank { "/" }
+    return when {
+        normalized == root -> WorkspaceStorageArea.FILES to ""
+        root != "/" && normalized.startsWith("$root/") ->
+            WorkspaceStorageArea.FILES to normalized.removePrefix("$root/")
+        normalized == "/" -> WorkspaceStorageArea.LINUX to ""
+        else -> WorkspaceStorageArea.LINUX to normalized.trimStart('/')
+    }
+}
+
+private fun joinAbsolute(directory: String, name: String): String {
+    val base = directory.trimEnd('/')
+    return if (base.isEmpty()) "/$name" else "$base/$name"
+}
+
+/** 预编译 glob，避免逐个文件重新解析；pattern 非法时 isValid 为 false */
+internal class GlobMatcher(pattern: String) {
+    private val matcher = runCatching {
+        FileSystems.getDefault().getPathMatcher("glob:${pattern.trim()}")
+    }.getOrNull()
+    private val matchFileNameOnly = !pattern.contains('/')
+
+    val isValid: Boolean = matcher != null
+
+    fun matches(relativePath: String, fileName: String): Boolean {
+        val compiled = matcher ?: return false
+        val path = runCatching { Paths.get(relativePath.trimStart('/')) }.getOrNull() ?: return false
+        return compiled.matches(path) || (matchFileNameOnly && compiled.matches(path.fileName))
+    }
+}
+
+/** 按目录逐层展开，跳过依赖和构建目录；条目数和层数都有上限 */
+private suspend fun walkWorkspace(
+    repository: WorkspaceRepository,
+    target: WorkspaceTarget,
+    root: String,
+    maxEntries: Int,
+    onEntry: suspend (absolutePath: String, entry: WorkspaceFileEntry) -> Boolean,
+) {
+    val start = root.trim().trimEnd('/').ifBlank { "/" }
+    val queue = ArrayDeque<Pair<String, Int>>()
+    queue.add(start to 0)
+    var visited = 0
+    while (queue.isNotEmpty() && visited < maxEntries) {
+        val (directory, depth) = queue.removeFirst()
+        val (area, relative) = resolveStorageArea(target.layout, directory)
+        val entries = runCatching { repository.listFiles(target.id, area, relative) }
+            .getOrElse { emptyList() }
+            .sortedWith(compareByDescending<WorkspaceFileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
+        for (entry in entries) {
+            visited++
+            val absolute = joinAbsolute(directory, entry.name)
+            if (!onEntry(absolute, entry)) return
+            if (entry.isDirectory && depth < MAX_SEARCH_DEPTH && entry.name !in SEARCH_SKIPPED_DIRS) {
+                queue.add(absolute to depth + 1)
+            }
+            if (visited >= maxEntries) return
+        }
+    }
+}
+
+/** 只读小文本文件；超过大小上限、读失败或像二进制时返回 null */
+private suspend fun readTextForSearch(workspaceId: String, path: String, sizeBytes: Long): String? {
+    if (sizeBytes > MAX_GREP_FILE_BYTES) return null
+    val bytes = runCatching { readRootfsBuffer(workspaceId, path) }.getOrNull() ?: return null
+    val array = bytes.toByteArray()
+    if (array.take(4096).any { it == 0.toByte() }) return null
+    return array.toString(Charsets.UTF_8.name())
+}
+
+private fun createListTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_list",
+    description = """
+        List a directory in the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
+        Returns name, absolute path, type, size and mtime, directories first. Defaults to the workspace files area.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                putPathProperty(targets.first().layout, required = false)
+            },
+        )
+    },
+    needsApproval = { params ->
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_list") ?: true
+    },
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        val path = params.string("path")?.let { params.absolutePath("path") } ?: target.layout.workspaceDir
+        val (area, relative) = resolveStorageArea(target.layout, path)
+        val all = workspaceRepository.listFiles(target.id, area, relative)
+            .sortedWith(compareByDescending<WorkspaceFileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
+        val entries = all.take(MAX_LIST_ENTRIES)
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("path", path)
+                    put("entries", buildJsonArray {
+                        entries.forEach { entry ->
+                            add(buildJsonObject {
+                                put("name", entry.name)
+                                put("path", joinAbsolute(path, entry.name))
+                                put("type", if (entry.isDirectory) "directory" else "file")
+                                put("sizeBytes", entry.sizeBytes)
+                                put("updatedAt", entry.updatedAt)
+                            })
+                        }
+                    })
+                    if (all.size > entries.size) put("truncated", true)
+                    put("workspace", target.name)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createGlobTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_glob",
+    description = """
+        Find files by glob pattern inside the assistant's bound workspace Rootfs, for example `**/*.kt` or `src/**/*.md`.
+        Skips .git, node_modules, build and other dependency or output directories.
+        Returns absolute paths. Defaults to the workspace files area; paths must be absolute inside Rootfs.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                put("pattern", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Glob pattern matched against paths relative to `path`, e.g. **/*.kt")
+                })
+                putPathProperty(targets.first().layout, required = false)
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum number of files to return. Defaults to $MAX_GLOB_RESULTS, max 2000.")
+                })
+            },
+            required = listOf("pattern"),
+        )
+    },
+    needsApproval = { params ->
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_glob") ?: true
+    },
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        val pattern = params.string("pattern")?.trim().orEmpty()
+        require(pattern.isNotEmpty()) { "pattern is required" }
+        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.layout.workspaceDir
+        val limit = (params.int("limit") ?: MAX_GLOB_RESULTS).coerceIn(1, 2000)
+        val matcher = GlobMatcher(pattern)
+        require(matcher.isValid) { "Invalid glob pattern: $pattern" }
+
+        val matches = mutableListOf<WorkspaceFileEntry>()
+        val prefix = root.trimEnd('/')
+        walkWorkspace(workspaceRepository, target, root, MAX_SEARCH_ENTRIES) { absolute, entry ->
+            if (!entry.isDirectory) {
+                val relative = absolute.removePrefix(prefix).trimStart('/')
+                if (matcher.matches(relative, entry.name)) {
+                    matches += entry.copy(path = absolute)
+                }
+            }
+            matches.size < limit
+        }
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("pattern", pattern)
+                    put("path", root)
+                    put("files", buildJsonArray {
+                        matches.forEach { entry ->
+                            add(buildJsonObject {
+                                put("path", entry.path)
+                                put("sizeBytes", entry.sizeBytes)
+                            })
+                        }
+                    })
+                    if (matches.size >= limit) put("truncated", true)
+                    put("workspace", target.name)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createGrepTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_grep",
+    description = """
+        Search file contents inside the assistant's bound workspace Rootfs. Returns absolute file path, 1-based line number and the matched line.
+        Skips binary files, files larger than 512KB, and .git, node_modules, build and other dependency or output directories.
+        Use `include` to restrict file names, e.g. `*.kt`. Defaults to the workspace files area; paths must be absolute inside Rootfs.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                put("query", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Text to search for, or a regular expression when regex=true")
+                })
+                putPathProperty(targets.first().layout, required = false)
+                put("include", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Only search files whose name matches this glob, e.g. *.kt")
+                })
+                put("regex", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Treat query as a regular expression. Defaults to false (literal text).")
+                })
+                put("ignore_case", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Case-insensitive match. Defaults to true.")
+                })
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum number of matching lines. Defaults to $MAX_GREP_RESULTS, max 1000.")
+                })
+            },
+            required = listOf("query"),
+        )
+    },
+    needsApproval = { params ->
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_grep") ?: true
+    },
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        val query = params.string("query").orEmpty()
+        require(query.isNotEmpty()) { "query is required" }
+        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.layout.workspaceDir
+        val limit = (params.int("limit") ?: MAX_GREP_RESULTS).coerceIn(1, 1000)
+        val include = params.string("include")?.trim()?.takeIf { it.isNotEmpty() }
+        val includeMatcher = include?.let(::GlobMatcher)
+        require(includeMatcher?.isValid != false) { "Invalid include glob: $include" }
+        val options = if (params.boolean("ignore_case") ?: true) setOf(RegexOption.IGNORE_CASE) else emptySet()
+        val matcher = runCatching {
+            if (params.boolean("regex") == true) Regex(query, options) else Regex(Regex.escape(query), options)
+        }.getOrElse { error("Invalid regular expression: ${it.message}") }
+
+        val matches = mutableListOf<SearchMatch>()
+        var scanned = 0
+        var scanLimitReached = false
+        walkWorkspace(workspaceRepository, target, root, MAX_SEARCH_ENTRIES) { absolute, entry ->
+            val included = includeMatcher == null || includeMatcher.matches(entry.name, entry.name)
+            if (!entry.isDirectory && entry.sizeBytes <= MAX_GREP_FILE_BYTES && included) {
+                if (scanned >= MAX_GREP_SCANNED_FILES) {
+                    scanLimitReached = true
+                    return@walkWorkspace false
+                }
+                scanned++
+                val text = readTextForSearch(target.id, absolute, entry.sizeBytes)
+                if (text != null) {
+                    text.lineSequence().forEachIndexed { index, line ->
+                        if (matches.size < limit && matcher.containsMatchIn(line)) {
+                            matches += SearchMatch(absolute, index + 1, line.take(MAX_GREP_LINE_CHARS))
+                        }
+                    }
+                }
+            }
+            matches.size < limit
+        }
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("query", query)
+                    put("path", root)
+                    put("matches", buildJsonArray {
+                        matches.forEach { match ->
+                            add(buildJsonObject {
+                                put("path", match.path)
+                                put("line", match.line)
+                                put("text", match.text)
+                            })
+                        }
+                    })
+                    put("scannedFiles", scanned)
+                    if (matches.size >= limit || scanLimitReached) put("truncated", true)
+                    put("workspace", target.name)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun kotlinx.serialization.json.JsonObject.int(name: String): Int? =
+    this[name]?.jsonPrimitive?.contentOrNull?.trim()?.toIntOrNull()
+
+private fun kotlinx.serialization.json.JsonObject.boolean(name: String): Boolean? =
+    this[name]?.jsonPrimitive?.contentOrNull?.trim()?.toBooleanStrictOrNull()

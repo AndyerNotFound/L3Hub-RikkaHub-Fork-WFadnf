@@ -252,13 +252,22 @@ private fun buildWorkspacePrompt(
     }
     appendShellLine(shell)
     appendLine("- Available tools:")
-    appendLine("  - `workspace_read_file`: read file contents.")
+    appendLine("  - `workspace_read_file`: read file contents. Supports `offset` and `limit` (1-based lines); check `totalLines` and page through large files instead of reading them whole.")
+    appendLine("  - `workspace_list`: list a directory, directories first.")
+    appendLine("  - `workspace_glob`: find files by glob pattern such as `**/*.kt`.")
+    appendLine("  - `workspace_grep`: search file contents, returns path, line number and matched line.")
     appendLine(
         "  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files."
     )
     appendLine("  - `workspace_shell`: run shell commands (the files area is mounted at /workspace).")
     appendLine(
-        "- Prefer `workspace_shell` for tasks that standard Unix tools handle well, and prefer `workspace_edit_file` for targeted edits over rewriting whole files."
+        "- Prefer `workspace_glob` and `workspace_grep` over shell `find` / `grep`: they skip .git, node_modules and build directories and return structured results."
+    )
+    appendLine(
+        "- Read-only shell commands (ls, cat, grep, git status/diff/log, ...) run without approval; anything that writes or executes arbitrary code still asks the user."
+    )
+    appendLine(
+        "- Prefer `workspace_edit_file` for targeted edits over rewriting whole files."
     )
     appendLine(
         "- The skills directory is mounted at `/skills`. Each skill is a subdirectory `/skills/<skill-name>/` containing a `SKILL.md` (with `name` and `description` frontmatter) plus any supporting files. Read a skill's `SKILL.md` before using it, and follow its instructions."
@@ -303,8 +312,17 @@ private fun buildSshWorkspacePrompt(
     }
     appendShellLine(shell)
     appendLine("- Available tools:")
-    appendLine("  - `workspace_read_file`: read file contents.")
+    appendLine("  - `workspace_read_file`: read file contents. Supports `offset` and `limit` (1-based lines); check `totalLines` and page through large files instead of reading them whole.")
+    appendLine("  - `workspace_list`: list a directory, directories first.")
+    appendLine("  - `workspace_glob`: find files by glob pattern such as `**/*.kt`.")
+    appendLine("  - `workspace_grep`: search file contents, returns path, line number and matched line.")
     appendLine("  - `workspace_shell`: run shell commands on the remote machine (defaults to the workspace directory).")
+    appendLine(
+        "- Prefer `workspace_glob` and `workspace_grep` over shell `find` / `grep`: they skip .git, node_modules and build directories and return structured results."
+    )
+    appendLine(
+        "- Read-only shell commands (ls, cat, grep, git status/diff/log, ...) run without approval; anything that writes or executes arbitrary code still asks the user."
+    )
     appendLine(
         "- There are no file write or edit tools in this workspace. Create and modify files with `workspace_shell`, for example a quoted heredoc (`cat > file <<'EOF'`) for new content, or `sed`, `patch` or a short script for targeted edits. Prefer targeted edits over rewriting whole files."
     )
