@@ -726,7 +726,7 @@ private suspend fun WorkspaceRepository.readTextForSearch(
     val bytes = runCatching { readRootfsBuffer(workspaceId, path) }.getOrNull() ?: return null
     val array = bytes.toByteArray()
     if (array.take(4096).any { it == 0.toByte() }) return null
-    return array.toString(Charsets.UTF_8.name())
+    return array.toString(Charsets.UTF_8)
 }
 
 private fun createListTool(
