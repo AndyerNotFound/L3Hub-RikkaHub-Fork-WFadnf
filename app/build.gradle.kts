@@ -24,8 +24,8 @@ android {
         applicationId = "com.rikkahub.l3hub.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 227
-        versionName = "L.3.1.1.49"
+        versionCode = 228
+        versionName = "L.3.1.1.50"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -45,6 +45,14 @@ android {
     }
 
     signingConfigs {
+        // 固定 debug 包用的签名：默认 debug keystore 跟构建机走，换机器或清缓存就会换 key，
+        // 已装的旧版本无法覆盖安装（INSTALL_FAILED_UPDATE_INCOMPATIBLE）。这里用仓库里这份固定 key。
+        create("devDebug") {
+            storeFile = rootProject.file("keystore/l3hub-debug.jks")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             val localProperties = Properties()
             val localPropertiesFile = rootProject.file("local.properties")
@@ -79,6 +87,7 @@ android {
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
         }
         debug {
+            signingConfig = signingConfigs.getByName("devDebug")
             applicationIdSuffix = ".debug"
             // fork 日常只装这一个包：按 release 的方式编译（关调试、开 R8），
             // 否则 Compose 的调试构建在真机上滚动和流式输出会明显掉帧。
