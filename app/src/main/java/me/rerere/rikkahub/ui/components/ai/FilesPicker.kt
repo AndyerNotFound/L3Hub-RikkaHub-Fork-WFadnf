@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,6 +63,7 @@ import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Package
@@ -230,7 +232,7 @@ internal fun FilesPicker(
                 // 限制了上下文消息数就是滚动上下文，旧消息会自动移出，不需要压缩
                 val showCompress = assistant.contextMessageLimit <= 0
                 val cwdItems = if (showWorkspace) cwdWorkspaces else emptyList()
-                val itemCount = 2 + cwdItems.size + listOf(showWorkspace, showMcp, showCompress).count { it }
+                val itemCount = 3 + cwdItems.size + listOf(showWorkspace, showMcp, showCompress).count { it }
                 var itemIndex = 0
                 Column(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -339,6 +341,24 @@ internal fun FilesPicker(
                         },
                     ) {
                         Text(stringResource(R.string.assistant_page_tab_extensions))
+
+                    // Plan Mode Toggle
+                    SegmentedListItem(
+                        onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) },
+                        shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                        leadingContent = {
+                            Icon(
+                                imageVector = HugeIcons.View,
+                                contentDescription = null,
+                                tint = if (assistant.planMode) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    LocalContentColor.current
+                                },
+                            )
+                        },
+                    ) {
+                        Text("计划模式")
                     }
 
                     // Compress History Button

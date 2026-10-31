@@ -499,17 +499,6 @@ fun ChatInput(
                                     contentDescription = stringResource(R.string.more_options),
                                 )
                             }
-                            ActionIconButton(onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) }) {
-                                Icon(
-                                    imageVector = HugeIcons.View,
-                                    contentDescription = "计划模式：只读探索",
-                                    tint = if (assistant.planMode) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
-                            }
                             if (quickMessages.isNotEmpty()) {
                                 QuickMessageButton(quickMessages = quickMessages, state = state)
                             }
@@ -621,18 +610,6 @@ fun ChatInput(
                                 Icon(
                                     imageVector = HugeIcons.Add01,
                                     contentDescription = stringResource(R.string.more_options),
-                                )
-                            }
-
-                            ActionIconButton(onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) }) {
-                                Icon(
-                                    imageVector = HugeIcons.View,
-                                    contentDescription = "计划模式：只读探索",
-                                    tint = if (assistant.planMode) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
                                 )
                             }
 
