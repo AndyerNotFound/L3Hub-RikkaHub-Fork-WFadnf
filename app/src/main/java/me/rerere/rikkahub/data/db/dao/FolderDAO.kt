@@ -26,6 +26,18 @@ interface FolderDAO {
     @Query("UPDATE conversation_folder SET name = :name WHERE id = :id")
     suspend fun rename(id: String, name: String)
 
+    @Query("SELECT * FROM conversation_folder WHERE id = :id")
+    fun observeFolder(id: String): Flow<FolderEntity?>
+
+    @Query("SELECT * FROM conversation_folder")
+    suspend fun getAll(): List<FolderEntity>
+
+    /** 工作区删除后清掉文件夹上的引用，[workspaceId] 为原来的主工作区时一起换掉 */
+    @Query(
+        "UPDATE conversation_folder SET workspace_id = :primary, workspace_ids = :workspaceIds WHERE id = :id"
+    )
+    suspend fun updateWorkspaces(id: String, primary: String, workspaceIds: String)
+
     @Delete
     suspend fun delete(folder: FolderEntity)
 

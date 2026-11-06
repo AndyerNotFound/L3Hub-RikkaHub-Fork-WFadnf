@@ -25,12 +25,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.uuid.Uuid
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
-import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.terminal.Checkbox
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
@@ -38,13 +38,15 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 
 @Composable
 internal fun WorkspaceSelectSheet(
-    assistant: Assistant,
+    boundIds: Set<Uuid>,
     workspaces: List<WorkspaceEntity>,
     onSelect: (Set<String>) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit,
+    // 说明这段绑定从哪儿来（例如「这个文件夹里的会话都用这组工作区」）
+    supportingText: String? = null,
 ) {
-    val selectedIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+    val selectedIds = boundIds.map { it.toString() }.toSet()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberBottomSheetState(
@@ -70,6 +72,14 @@ internal fun WorkspaceSelectSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
+            supportingText?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
 
             Column(
                 modifier = Modifier

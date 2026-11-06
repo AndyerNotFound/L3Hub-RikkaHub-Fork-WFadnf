@@ -98,7 +98,7 @@ val repositoryModule = module {
     } onClose { it?.close() }
 
     single {
-        WorkspaceRepository(get(), get(), get(), get(), get())
+        WorkspaceRepository(get(), get(), get(), get(), get(), get())
     }
 
     // AI 改文件前的原内容快照，用来撤销某一轮的修改

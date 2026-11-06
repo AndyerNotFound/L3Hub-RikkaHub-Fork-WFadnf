@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.repository.ConversationFolderRef
 import me.rerere.rikkahub.data.repository.LightConversationEntity
 
 @Dao
@@ -88,6 +89,12 @@ interface ConversationDAO {
 
     @Query("SELECT EXISTS(SELECT 1 FROM conversationentity WHERE id = :id)")
     suspend fun existsById(id: String): Boolean
+
+    /** 只取分组和父会话归属，解析工作区绑定时用，不加载消息树 */
+    @Query(
+        "SELECT folder_id AS folderId, parent_conversation_id AS parentConversationId FROM conversationentity WHERE id = :id"
+    )
+    suspend fun getFolderRef(id: String): ConversationFolderRef?
 
     @Insert
     suspend fun insert(conversation: ConversationEntity)

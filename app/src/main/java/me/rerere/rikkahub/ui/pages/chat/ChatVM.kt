@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -38,9 +39,12 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.NodeFavoriteTarget
 import me.rerere.rikkahub.data.model.TodoItem
+import me.rerere.rikkahub.data.model.WorkspaceBinding
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
+import me.rerere.rikkahub.data.model.withWorkspaceBinding
 import me.rerere.rikkahub.data.repository.FavoriteRepository
+import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
@@ -61,6 +65,7 @@ class ChatVM(
     val updateChecker: UpdateChecker,
     private val filesManager: FilesManager,
     private val favoriteRepository: FavoriteRepository,
+    private val folderRepository: FolderRepository,
 ) : ViewModel() {
     private val _conversationId: Uuid = Uuid.parse(id)
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
@@ -117,10 +122,33 @@ class ChatVM(
             old.modeInjectionIds == new.modeInjectionIds && old.lorebookIds == new.lorebookIds
     }
 
-    // 会话视角下的助手：会话开始后，模型、思考级别、搜索等以会话上固定的配置为准
-    val assistant: StateFlow<Assistant> = combine(settings, configuredConversation) { settings, conversation ->
-        settings.getAssistantOf(conversation)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, settings.value.getAssistantOf(conversation.value))
+    // 会话所在文件夹绑定的工作区。文件夹是分组的单位：换绑、移进移出都要立刻反映到界面上。
+    // 子代理会话自己没有分组，跟父会话走，父链要现查一次（这里不像普通会话那样有现成的 Flow 可跟）
+    val folderWorkspaceBinding: StateFlow<WorkspaceBinding> = conversation
+        .map { it.folderId to it.parentConversationId }
+        .distinctUntilChanged()
+        .flatMapLatest { (folderId, parentId) ->
+            if (parentId == null) {
+                folderRepository.observeWorkspaceBinding(folderId)
+            } else {
+                flow { emit(folderRepository.workspaceBindingOf(folderId, parentId)) }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, WorkspaceBinding.None)
+
+    // 会话视角下的助手：会话开始后，模型、思考级别、搜索等以会话上固定的配置为准；
+    // 文件夹绑了工作区时，那一组盖在会话自己的绑定上面
+    val assistant: StateFlow<Assistant> = combine(
+        settings,
+        configuredConversation,
+        folderWorkspaceBinding,
+    ) { settings, conversation, binding ->
+        settings.getAssistantOf(conversation).withWorkspaceBinding(binding)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        settings.value.getAssistantOf(conversation.value),
+    )
 
     // 当前模型
     val currentChatModel: StateFlow<Model?> = combine(settings, configuredConversation) { settings, conversation ->
@@ -275,7 +303,7 @@ class ChatVM(
 
     fun showDeleteBlockedWhileGeneratingError() {
         chatService.addError(
-            error = IllegalStateException("请先停止生成再删除消息"),
+            error = IllegalStateException(context.getString(R.string.chat_page_stop_generating_to_delete)),
             conversationId = _conversationId,
             title = context.getString(R.string.error_title_operation)
         )

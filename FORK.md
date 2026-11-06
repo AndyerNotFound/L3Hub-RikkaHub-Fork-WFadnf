@@ -570,6 +570,63 @@ app/src/test/.../ssh/SshCommandParserTest.kt    解析器单测（不依赖 Andr
 sshd-common 的 jar 合计约 2.7 MB，R8 会裁掉一部分用不到的算法/解析器但不会全裁；
 下次出包时用 `assembleGithubRelease` 前后对比确认。
 
+## 文件夹绑定工作区（fork 新增）
+
+会话文件夹原来是助手内的分组。这一版让文件夹再绑一组工作区：落在这个文件夹里的会话都用这组工作区，
+于是「按对话分组的文件夹」就等于「按工作区把会话分了组」。适合一个项目一堆聊天共用一个工作区的场景。
+
+设计取舍是**运行时解析，不写快照**：
+
+- 会话 `config` 里固定的工作区保持原样。读取时 `FolderRepository.workspaceBindingOf(conversation)`
+  现取文件夹的绑定，盖在 `Settings.getAssistantOf(conversation)` 上（`Assistant.withWorkspaceBinding`）。
+- 好处是换绑立即对全组生效，会话移出文件夹就自动回到自己的绑定；坏处是每次取助手多一次轻查询，
+  而且聊天页那份助手带着「不是自己的」工作区——所以写回要还原（见下）。
+- 子代理会话自己没有分组，解析时沿 `parentConversationId` 往上找父会话的文件夹（最多 3 跳），
+  否则派出去的活会落在另一个工作区里。
+
+生效点：
+
+| 位置 | 作用 |
+|---|---|
+| `ChatRequestFactory.createContext` | 工具注册、`WorkspaceReminderTransformer`、每个工作区的 CWD 都吃这份 assistant |
+| `ChatVM.assistant` | 聊天页的工作区入口、CWD 列表、补全提供者 |
+| `ChatService.updateChatAssistant` | 写回会话/助手前把工作区字段还原成会话自己的，避免文件夹的绑定被固化成会话快照 |
+
+界面：抽屉里文件夹芯片长按 → 「绑定工作区」，多选，芯片上多一个小盒子图标表示这组绑了工作区；
+聊天页的工作区入口在文件夹接管时只显示「由文件夹「X」提供」，不提供改写（改了也会被文件夹盖掉）。
+
+数据：`conversation_folder` 加两列 `workspace_id`（主工作区）/ `workspace_ids`（逗号分隔），
+Room 版本 35 → 36，走 `AutoMigration(35, 36)`。工作区被删除时 `WorkspaceRepository.delete` 会顺手
+调 `FolderRepository.detachWorkspace`，把文件夹上的引用摘掉。
+
+Web API：`FolderDto` 多了 `workspaceId` / `workspaceIds`，新增 `POST /api/folders/{id}/workspaces`
+（body `{"workspaceIds": [...], "workspaceId": "..."}`，留空即解绑）。web-ui 前端还没做对应控件。
+
+改动文件：
+
+```
+app/.../data/model/Folder.kt                    文件夹模型加 workspaceId / workspaceIds
+app/.../data/model/WorkspaceBinding.kt          新增：一组工作区 + Assistant.withWorkspaceBinding
+app/.../data/db/entity/FolderEntity.kt          两列
+app/.../data/db/dao/FolderDAO.kt                observeFolder / getAll / updateWorkspaces
+app/.../data/db/dao/ConversationDAO.kt          getFolderRef（只取 folder_id + parent_conversation_id）
+app/.../data/db/AppDatabase.kt                  version 36 + AutoMigration(35, 36)
+app/.../data/repository/FolderRepository.kt     绑定读写、会话解析（含父链）、工作区删除后摘引用
+app/.../data/repository/WorkspaceRepository.kt  删除工作区时摘掉文件夹引用
+app/.../data/ai/ChatRequestFactory.kt           本轮 assistant 盖上文件夹的绑定
+app/.../service/ChatService.kt                  写回前还原会话自己的绑定
+app/.../ui/components/ai/WorkspaceSelectSheet.kt 入参从 assistant 改成 boundIds，可带一行说明
+app/.../ui/components/ai/FilesPicker.kt         文件夹接管时工作区入口只读
+app/.../ui/pages/chat/ChatDrawer.kt             「绑定工作区」菜单项、芯片标记、选择表
+app/.../ui/pages/chat/ChatDrawerVM.kt           工作区列表、updateFolderWorkspaces
+app/.../ui/pages/chat/ChatVM.kt                 助手流合并文件夹绑定
+app/.../ui/pages/chat/ChatPage.kt               把文件夹名传给工作区入口
+app/.../web/dto/WebDto.kt / routes/FolderRoutes.kt   DTO 字段与绑定接口
+```
+
+未验证：这次没有跑 Gradle（Termux 上不编译）。`app/schemas/.../36.json` 要等第一次构建由 Room 生成，
+生成后需要一起提交，否则下一次加表/加列时自动迁移会缺上一版 schema。
+
 ## 还要做的
 
 1. **签名**：在 `local.properties`（已 gitignore）加四项，之后所有版本都用同一个 keystore，否则无法覆盖升级
@@ -579,11 +636,13 @@ sshd-common 的 jar 合计约 2.7 MB，R8 会裁掉一部分用不到的算法/�
    keyAlias=...
    keyPassword=...
    ```
-2. **图标与链接**：`app_name` 已改为 L3Hub，应用图标仍是上游素材；`ui/pages/setting/SettingAboutPage.kt` 里的 GitHub / Discord 链接也仍指向上游
-3. **可选：深链和 action 改名**（两版共存时，外部应用触发这些会弹选择器）
+2. **Room schema 36.json**：本机不编译，`app/schemas/me.rerere.rikkahub.data.db.AppDatabase/36.json`
+   还没生成。第一次 `assembleGithubDebug` 之后把它提交上来，下一次迁移要用
+3. **图标与链接**：`app_name` 已改为 L3Hub，应用图标仍是上游素材；`ui/pages/setting/SettingAboutPage.kt` 里的 GitHub / Discord 链接也仍指向上游
+4. **可选：深链和 action 改名**（两版共存时，外部应用触发这些会弹选择器）
    - `AndroidManifest.xml` 的 `rikkahub://` scheme → 你的 scheme，同步改 `res/xml/shortcuts.xml`
    - `AndroidManifest.xml` 与 `RouteActivity.kt` 里的 `me.rerere.rikkahub.action.*`
-4. **构建**
+5. **构建**
    ```bash
    ANDROID_HOME=/opt/android-sdk ./gradlew :app:assembleGithubDebug
    ```

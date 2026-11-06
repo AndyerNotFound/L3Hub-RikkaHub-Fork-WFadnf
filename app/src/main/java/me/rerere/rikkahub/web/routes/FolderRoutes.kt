@@ -9,6 +9,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import kotlinx.coroutines.flow.first
+import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.service.ChatService
@@ -17,6 +18,7 @@ import me.rerere.rikkahub.web.ConflictException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.web.dto.CreateFolderRequest
 import me.rerere.rikkahub.web.dto.RenameFolderRequest
+import me.rerere.rikkahub.web.dto.SetFolderWorkspacesRequest
 import me.rerere.rikkahub.web.dto.toDto
 
 fun Route.folderRoutes(
@@ -56,6 +58,21 @@ fun Route.folderRoutes(
 
             folderRepo.getFolderById(uuid) ?: throw NotFoundException("Folder not found")
             folderRepo.renameFolder(uuid, name)
+            call.respond(HttpStatusCode.OK, mapOf("status" to "updated"))
+        }
+
+        // POST /api/folders/{id}/workspaces - Bind the folder to a workspace set (empty = unbind)
+        post("/{id}/workspaces") {
+            val uuid = call.parameters["id"].toUuid("folder id")
+            folderRepo.getFolderById(uuid) ?: throw NotFoundException("Folder not found")
+            val request = call.receive<SetFolderWorkspacesRequest>()
+            val ids = request.workspaceIds.mapNotNull { id ->
+                runCatching { Uuid.parse(id.trim()) }.getOrNull()
+            }.toSet()
+            val primary = request.workspaceId?.let { id ->
+                runCatching { Uuid.parse(id.trim()) }.getOrNull()
+            }
+            folderRepo.updateFolderWorkspaces(uuid, primary, ids)
             call.respond(HttpStatusCode.OK, mapOf("status" to "updated"))
         }
 

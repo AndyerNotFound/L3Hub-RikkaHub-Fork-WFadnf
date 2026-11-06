@@ -186,6 +186,19 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹（#2133）
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = LocalContext.current as ComponentActivity)
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    val folders by drawerVm.folders.collectAsStateWithLifecycle()
+    val folderBinding by vm.folderWorkspaceBinding.collectAsStateWithLifecycle()
+    // 文件夹绑了工作区时，工作区入口只展示这份绑定，改要去抽屉的文件夹菜单里改。
+    // 子代理会话自己没有分组，工作区来自父会话的文件夹，那个文件夹可能属于别的助手、这里查不到名字，
+    // 所以空串表示「被文件夹接管，但名字未知」
+    val folderWorkspaceName = remember(conversation.folderId, folders, folderBinding) {
+        val ownFolder = folders.firstOrNull { it.id == conversation.folderId }
+        when {
+            ownFolder != null && ownFolder.allWorkspaceIds.isNotEmpty() -> ownFolder.name
+            folderBinding.isNotEmpty() -> ""
+            else -> null
+        }
+    }
     LaunchedEffect(selectedFolderId) {
         vm.updateDraftFolder(selectedFolderId)
     }
@@ -314,6 +327,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     processingStatus = processingStatus,
                     setting = setting,
                     conversation = conversation,
+                    folderWorkspaceName = folderWorkspaceName,
                     drawerState = drawerState,
                     navController = navController,
                     vm = vm,
@@ -355,6 +369,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     processingStatus = processingStatus,
                     setting = setting,
                     conversation = conversation,
+                    folderWorkspaceName = folderWorkspaceName,
                     drawerState = drawerState,
                     navController = navController,
                     vm = vm,
@@ -384,6 +399,8 @@ private fun ChatPageContent(
     setting: Settings,
     bigScreen: Boolean,
     conversation: Conversation,
+    // 文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定（见 ChatPage 顶部）
+    folderWorkspaceName: String?,
     drawerState: DrawerState,
     navController: Navigator,
     vm: ChatVM,
@@ -462,7 +479,7 @@ private fun ChatPageContent(
     // 终端与普通输入共用的发送入口：模型、上下文门限检查都走这里
     val sendInput: () -> Unit = {
         if (currentChatModel == null) {
-            toaster.show("请先选择模型", type = ToastType.Error)
+            toaster.show(context.getString(R.string.media_creation_page_select_model_first), type = ToastType.Error)
         } else if (contextLimitBlocksSend && assistant.autoCompress) {
             showCompressAndSendDialog = true
         } else if (contextLimitReached) {
@@ -519,7 +536,7 @@ private fun ChatPageContent(
         val command = parseTerminalCommand(raw) ?: return
         var clearInput = true
         when (command.name) {
-            "help" -> terminalOutput = terminalHelpText()
+            "help" -> terminalOutput = terminalHelpText { context.getString(it) }
             "status" -> terminalOutput = buildString {
                 appendLine("assistant : ${assistant.name.ifBlank { "assistant" }}")
                 appendLine("model     : ${currentChatModel?.displayName ?: "no-model"}")
@@ -606,7 +623,7 @@ private fun ChatPageContent(
                     terminalOutput = "message not found: ${command.args}"
                 } else {
                     context.copyMessageToClipboard(message)
-                    toaster.show("已复制消息", type = ToastType.Success)
+                    toaster.show(context.getString(R.string.chat_page_message_copied), type = ToastType.Success)
                 }
             }
             "branch" -> {
@@ -752,7 +769,7 @@ private fun ChatPageContent(
                 }
             }
             "clear" -> inputState.clearInput()
-            else -> terminalOutput = "unknown command: /${command.name}\n输入 /help 查看可用命令"
+            else -> terminalOutput = context.getString(R.string.chat_page_terminal_unknown_command, command.name)
         }
         if (clearInput && command.name != "clear") {
             inputState.clearInput()
@@ -883,7 +900,7 @@ private fun ChatPageContent(
                         onNewChat = { navigateToChatPage(navController) },
                         onTaskTree = { showTaskTree = true },
                         onUsage = { showUsageSheet = true },
-                        onHelp = { terminalOutput = terminalHelpText() },
+                        onHelp = { terminalOutput = terminalHelpText { context.getString(it) } },
                     )
                 } else {
                     TopBar(
@@ -1114,6 +1131,7 @@ private fun ChatPageContent(
                 inputState = inputState,
                 setting = setting,
                 conversation = conversation,
+                folderWorkspaceName = folderWorkspaceName,
                 assistant = assistant,
                 chatModel = currentChatModel,
                 vm = vm,
@@ -1156,6 +1174,7 @@ private fun ChatFilesPickerSheet(
     inputState: ChatInputState,
     setting: Settings,
     conversation: Conversation,
+    folderWorkspaceName: String?,
     assistant: Assistant,
     chatModel: Model?,
     vm: ChatVM,
@@ -1183,6 +1202,7 @@ private fun ChatFilesPickerSheet(
     ) {
         FilesPicker(
             conversation = conversation,
+            folderWorkspaceName = folderWorkspaceName,
             state = inputState,
             assistant = assistant,
             chatModel = chatModel,
@@ -1528,7 +1548,7 @@ private fun TerminalEmptyChatHero(assistant: Assistant) {
             maxLines = 1,
         )
         Text(
-            text = "│   /help   列出全部命令    /model  切换模型",
+            text = stringResource(R.string.chat_page_terminal_hint_commands),
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = TerminalPalette.GreenDim,
@@ -1537,7 +1557,7 @@ private fun TerminalEmptyChatHero(assistant: Assistant) {
             overflow = TextOverflow.Clip,
         )
         Text(
-            text = "│   /usage  查看上下文    /tree   任务树",
+            text = stringResource(R.string.chat_page_terminal_hint_tools),
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = TerminalPalette.GreenDim,

@@ -52,6 +52,8 @@ import me.rerere.rikkahub.data.model.estimateMessageTokens
 import me.rerere.rikkahub.data.model.estimateTokens
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
+import me.rerere.rikkahub.data.model.withWorkspaceBinding
+import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
@@ -88,6 +90,7 @@ class ChatRequestFactory(
     private val usageRecorder: UsageRecorder,
     private val chatToolFactory: ChatToolFactory,
     private val memoryRepository: MemoryRepository,
+    private val folderRepository: FolderRepository,
     templateTransformer: TemplateTransformer,
     workspaceRepository: WorkspaceRepository,
 ) {
@@ -121,8 +124,10 @@ class ChatRequestFactory(
 
     /** 解析本轮的助手、模型、记忆和工具；MCP 服务名不合法时抛出 InvalidMcpServerNamesException */
     suspend fun createContext(settings: Settings, conversation: Conversation): ChatTurnContext {
-        // 模型、思考级别、搜索、工具等以会话上固定的配置为准
+        // 模型、思考级别、搜索、工具等以会话上固定的配置为准；
+        // 会话所在文件夹绑了工作区时，那一组盖在上面（工具、提醒、工作目录都跟着走）
         val assistant = settings.getAssistantOf(conversation)
+            .withWorkspaceBinding(folderRepository.workspaceBindingOf(conversation))
         val model = settings.getChatModelOf(conversation)
             ?: throw IllegalStateException("No chat model selected")
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")

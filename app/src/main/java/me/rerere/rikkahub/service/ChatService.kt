@@ -99,6 +99,7 @@ import me.rerere.rikkahub.data.model.withAssistantUpdate
 import me.rerere.rikkahub.data.model.withNodeFavorite
 import me.rerere.rikkahub.data.model.withToolApproval
 import me.rerere.rikkahub.data.model.withTranslation
+import me.rerere.rikkahub.data.model.withWorkspaceBinding
 import me.rerere.rikkahub.data.model.withoutConversationFields
 import me.rerere.rikkahub.data.model.withoutUnresumableToolCalls
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -1764,7 +1765,17 @@ class ChatService(
             val settings = settingsStore.awaitLoaded()
             val conversation = session.state.value
             val stored = settings.getStoredAssistantOf(conversation)
-            val updated = update(settings.getAssistantOf(conversation))
+            val current = settings.getAssistantOf(conversation)
+            // 文件夹接管的只是「这个分组用哪组工作区」，不是会话自己的绑定：
+            // 界面里那份助手带着文件夹的覆盖，写回前还原，离开文件夹后会话才不会留着上一个分组的工作区
+            val folderBinding = folderRepository.workspaceBindingOf(conversation)
+            val updated = update(current.withWorkspaceBinding(folderBinding)).let { result ->
+                if (folderBinding.isEmpty) {
+                    result
+                } else {
+                    result.copy(workspaceId = current.workspaceId, workspaceIds = current.workspaceIds)
+                }
+            }
             val assistant = updated.withoutConversationFields(conversation, stored)
             session.updateMetadata(
                 transform = { it.withAssistantUpdate(updated, settings) },

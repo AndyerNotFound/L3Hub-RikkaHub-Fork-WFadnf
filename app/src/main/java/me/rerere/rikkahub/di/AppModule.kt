@@ -137,6 +137,7 @@ val appModule = module {
             usageRecorder = get(),
             chatToolFactory = get(),
             memoryRepository = get(),
+            folderRepository = get(),
             templateTransformer = get(),
             workspaceRepository = get(),
         )

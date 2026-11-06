@@ -23,15 +23,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.toLocalString
@@ -46,6 +50,7 @@ class ChatDrawerVM(
     private val settingsStore: SettingsStore,
     conversationRepo: ConversationRepository,
     private val folderRepo: FolderRepository,
+    private val workspaceRepository: WorkspaceRepository,
     private val chatService: ChatService,
     private val memoryConsolidationScheduler: MemoryConsolidationScheduler,
     private val savedStateHandle: SavedStateHandle,
@@ -58,6 +63,9 @@ class ChatDrawerVM(
     private val sortOrderFlow = settingsStore.settingsFlow
         .map { it.displaySetting.conversationSortOrder }
         .distinctUntilChanged()
+
+    // 文件夹绑定的写操作串行化，见 updateFolderWorkspaces
+    private val folderWriteMutex = Mutex()
 
     // 当前选中的文件夹筛选，null 表示「未归类」视图
     private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
@@ -76,6 +84,10 @@ class ChatDrawerVM(
     // 当前助手的文件夹列表（Room Flow，增删改自动刷新）
     val folders: StateFlow<List<Folder>> = assistantIdFlow
         .flatMapLatest { folderRepo.getFoldersOfAssistant(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // 文件夹能绑定的工作区
+    val workspaces: StateFlow<List<WorkspaceEntity>> = workspaceRepository.listFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 当前助手的记忆库是否正在后台整理；没开记忆的助手即使共用的全局记忆库在整理也不显示
@@ -177,6 +189,25 @@ class ChatDrawerVM(
         viewModelScope.launch {
             val assistantId = assistantIdFlow.first()
             folderRepo.createFolder(assistantId, trimmed)
+        }
+    }
+
+    /**
+     * 改文件夹绑定的工作区：这个分组里的会话都改用这组工作区。
+     *
+     * 只改文件夹这一处，会话各自固定的绑定保持原样——移出分组就回到自己的工作区。
+     */
+    fun updateFolderWorkspaces(folderId: Uuid, workspaceIds: Set<Uuid>) {
+        viewModelScope.launch {
+            // 连点几下会起好几个协程，整组覆盖的 UPDATE 之间没有顺序保证，串起来才不会丢一次勾选
+            folderWriteMutex.withLock {
+                val current = folders.value.firstOrNull { it.id == folderId }
+                folderRepo.updateFolderWorkspaces(
+                    id = folderId,
+                    primary = current?.primaryWorkspaceId ?: workspaceIds.firstOrNull(),
+                    workspaceIds = workspaceIds,
+                )
+            }
         }
     }
 

@@ -638,7 +638,7 @@ internal fun AssistantBasicContent(
     }
     if (showWorkspaceSheet) {
         WorkspaceSelectSheet(
-            assistant = assistant,
+            boundIds = assistant.allWorkspaceIds,
             workspaces = workspaces,
             onSelect = { ids ->
                 val parsed = ids.mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }.toSet()

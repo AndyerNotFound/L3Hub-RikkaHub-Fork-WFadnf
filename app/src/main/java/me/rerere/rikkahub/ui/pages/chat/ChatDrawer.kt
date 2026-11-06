@@ -68,6 +68,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
@@ -94,6 +95,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
+import me.rerere.rikkahub.ui.components.ai.WorkspaceSelectSheet
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -166,6 +168,7 @@ fun ChatDrawerContent(
 
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
+    val bindableWorkspaces by drawerVm.workspaces.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     val memoryDreaming by drawerVm.memoryDreaming.collectAsStateWithLifecycle()
     val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
@@ -236,6 +239,9 @@ fun ChatDrawerContent(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
+    var folderToBindWorkspace by remember { mutableStateOf<Folder?>(null) }
+    // 这次勾选的草稿：Room 回流要一个来回，草稿保证连续点几下不会互相盖掉
+    var folderWorkspaceDraft by remember { mutableStateOf<Set<Uuid>>(emptySet()) }
 
     val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
     var updateChecksEnabled by remember(updateCheckDisabledUntil) {
@@ -284,6 +290,10 @@ fun ChatDrawerContent(
                     onCreate = { showCreateFolderDialog = true },
                     onRename = { folderToRename = it },
                     onDelete = { folderToDelete = it },
+                    onBindWorkspace = { folder ->
+                        folderWorkspaceDraft = folder.allWorkspaceIds
+                        folderToBindWorkspace = folder
+                    },
                     modifier = Modifier.weight(1f),
                 )
 
@@ -669,6 +679,25 @@ fun ChatDrawerContent(
         )
     }
 
+    // 文件夹绑定工作区：这个分组里的会话共用这组工作区
+    folderToBindWorkspace?.let { folder ->
+        WorkspaceSelectSheet(
+            boundIds = folderWorkspaceDraft,
+            workspaces = bindableWorkspaces,
+            supportingText = stringResource(R.string.chat_page_folder_workspace_hint),
+            onSelect = { ids ->
+                val parsed = ids.mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }.toSet()
+                folderWorkspaceDraft = parsed
+                drawerVm.updateFolderWorkspaces(folder.id, parsed)
+            },
+            onManage = {
+                folderToBindWorkspace = null
+                navController.navigate(Screen.Workspaces)
+            },
+            onDismiss = { folderToBindWorkspace = null },
+        )
+    }
+
     // 移动到助手 Bottom Sheet
     if (showMoveToAssistantSheet) {
         ModalBottomSheet(
@@ -1000,6 +1029,7 @@ private fun FolderBar(
     onCreate: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
+    onBindWorkspace: (Folder) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
@@ -1022,6 +1052,7 @@ private fun FolderBar(
                     label = folder.name,
                     icon = HugeIcons.Folder01,
                     selected = selectedFolderId == folder.id,
+                    workspaceBound = folder.allWorkspaceIds.isNotEmpty(),
                     onClick = { onSelect(folder.id) },
                     onLongClick = { menuExpanded = true },
                 )
@@ -1034,6 +1065,14 @@ private fun FolderBar(
                         leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
                         onClick = {
                             onRename(folder)
+                            menuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
+                        leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
+                        onClick = {
+                            onBindWorkspace(folder)
                             menuExpanded = false
                         }
                     )
@@ -1122,6 +1161,8 @@ private fun FolderChip(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     icon: ImageVector? = null,
+    // 这个分组绑了工作区：用一个小标记说明「这堆聊天共用一个工作区」
+    workspaceBound: Boolean = false,
 ) {
     Surface(
         shape = CircleShape,
@@ -1151,6 +1192,14 @@ private fun FolderChip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (workspaceBound) {
+                Icon(
+                    imageVector = HugeIcons.Codesandbox,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }

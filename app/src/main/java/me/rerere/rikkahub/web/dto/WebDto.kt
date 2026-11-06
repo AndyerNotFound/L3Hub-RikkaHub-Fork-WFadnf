@@ -85,6 +85,13 @@ data class RenameFolderRequest(
 )
 
 @Serializable
+data class SetFolderWorkspacesRequest(
+    val workspaceIds: List<String> = emptyList(),
+    // 不给时取列表里的第一个
+    val workspaceId: String? = null,
+)
+
+@Serializable
 data class MoveConversationToFolderRequest(
     // null 表示移出文件夹（未归类）
     val folderId: String? = null
@@ -170,6 +177,9 @@ data class FolderDto(
     val name: String,
     val sortIndex: Int,
     val createAt: Long,
+    // 文件夹绑定的工作区：落在里面的话题都用这一组
+    val workspaceId: String? = null,
+    val workspaceIds: List<String> = emptyList(),
 )
 
 @Serializable
@@ -341,6 +351,8 @@ fun me.rerere.rikkahub.data.model.Folder.toDto() = FolderDto(
     name = name,
     sortIndex = sortIndex,
     createAt = createAt.toEpochMilli(),
+    workspaceId = workspaceId?.toString(),
+    workspaceIds = allWorkspaceIds.map { it.toString() },
 )
 
 fun Conversation.toDto(isGenerating: Boolean = false) = ConversationDto(

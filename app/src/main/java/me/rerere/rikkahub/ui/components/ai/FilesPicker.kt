@@ -119,6 +119,9 @@ private val FilesPickerPage.parent: FilesPickerPage
 @Composable
 internal fun FilesPicker(
     conversation: Conversation,
+    // 会话所在文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定，改要回文件夹上改。
+    // null 表示不接管；空串表示接管了但文件夹名查不到（子代理会话跟的父会话文件夹）
+    folderWorkspaceName: String? = null,
     // 会话视角下的助手和模型：会话开始后以会话上固定的配置为准
     assistant: Assistant,
     chatModel: Model?,
@@ -275,6 +278,7 @@ internal fun FilesPicker(
                             WorkspacePickerListItem(
                                 assistant = assistant,
                                 workspaces = workspaces,
+                                folderWorkspaceName = folderWorkspaceName,
                                 shapes = ListItemDefaults.segmentedShapes(index = workspaceIndex, count = itemCount),
                                 onUpdateAssistant = onUpdateAssistant,
                                 onNavigateToDetail = { id ->
@@ -522,6 +526,7 @@ private fun WorkspacePickerListItem(
     assistant: Assistant,
     workspaces: List<WorkspaceEntity>,
     shapes: ListItemShapes,
+    folderWorkspaceName: String?,
     onUpdateAssistant: (Assistant) -> Unit,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToTerminal: (String) -> Unit,
@@ -534,7 +539,8 @@ private fun WorkspacePickerListItem(
     }
 
     SegmentedListItem(
-        onClick = { showSheet = true },
+        // 绑定来自文件夹时这里不提供改写：改了也会被文件夹盖掉，不如只说清楚现在用的是哪组
+        onClick = { if (folderWorkspaceName == null) showSheet = true },
         shapes = shapes,
         leadingContent = {
             Icon(
@@ -545,6 +551,12 @@ private fun WorkspacePickerListItem(
         supportingContent = {
             Text(
                 text = when {
+                    folderWorkspaceName != null -> if (folderWorkspaceName.isEmpty()) {
+                        stringResource(R.string.chat_page_workspace_from_folder_unnamed)
+                    } else {
+                        stringResource(R.string.chat_page_workspace_from_folder, folderWorkspaceName)
+                    }
+
                     boundWorkspaces.isEmpty() -> stringResource(R.string.assistant_page_workspace_unbound)
                     boundWorkspaces.size == 1 -> boundWorkspaces.first().name
                     else -> stringResource(R.string.workspace_selected_count, boundWorkspaces.size)
@@ -582,7 +594,7 @@ private fun WorkspacePickerListItem(
 
     if (showSheet) {
         WorkspaceSelectSheet(
-            assistant = assistant,
+            boundIds = assistant.allWorkspaceIds,
             workspaces = workspaces,
             onSelect = { workspaceIds ->
                 val newIds = workspaceIds.mapNotNull { id ->

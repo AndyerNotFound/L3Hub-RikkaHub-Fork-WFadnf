@@ -49,6 +49,7 @@ class WorkspaceRepository(
     private val rootfsInstaller: RootfsInstaller,
     private val settingsStore: SettingsStore,
     private val sshPool: SshConnectionPool,
+    private val folderRepository: FolderRepository,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
@@ -384,6 +385,12 @@ class WorkspaceRepository(
             manager.deleteWorkspace(workspace.root)
         }
         cleanupAssistantReferences(id)
+        // 文件夹上的绑定也要摘掉，不然分组会指着一个已经不存在的工作区。
+        // 这里已经删过一遍了，失败只记一笔：分组里留个失效 id 比让删除操作报错要好
+        runCatching { Uuid.parse(id) }.getOrNull()?.let { workspaceId ->
+            runCatching { folderRepository.detachWorkspace(workspaceId) }
+                .onFailure { Log.w(TAG, "detach folder workspace failed: $workspaceId", it) }
+        }
         return true
     }
 
