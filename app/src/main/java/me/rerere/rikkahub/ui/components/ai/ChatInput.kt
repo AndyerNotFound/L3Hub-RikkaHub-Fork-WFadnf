@@ -412,7 +412,7 @@ fun ChatInput(
                 ) {
                     if (assistant.planMode) {
                         Text(
-                            text = "计划模式 · 只读探索 · 点击关闭",
+                            text = stringResource(R.string.chat_input_plan_mode_hint),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier

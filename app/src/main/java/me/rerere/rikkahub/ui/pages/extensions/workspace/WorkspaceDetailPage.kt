@@ -346,7 +346,7 @@ fun WorkspaceDetailPage(id: String) {
     state.exportResult?.let { result ->
         AlertDialog(
             onDismissRequest = vm::dismissExportResult,
-            title = { Text("导出结果") },
+            title = { Text(stringResource(R.string.workspace_detail_export_result)) },
             text = { Text(result, modifier = Modifier.verticalScroll(rememberScrollState())) },
             confirmButton = {
                 TextButton(onClick = vm::dismissExportResult) { Text(stringResource(R.string.common_confirm)) }
@@ -605,7 +605,7 @@ private fun WorkspaceToolApprovalCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "这些开关只在「审批」执行档位生效；其它档位不会读取它们。",
+                    text = stringResource(R.string.workspace_detail_tool_approval_mode_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -857,7 +857,7 @@ private fun WorkspaceFilesPage(
                 colors = CustomColors.floatingToolbarColors,
                 leadingContent = {
                     IconButton(onClick = { exitSelection() }) {
-                        Icon(HugeIcons.Cancel01, contentDescription = "取消多选")
+                        Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.workspace_detail_cancel_selection))
                     }
                 },
                 trailingContent = {
@@ -866,7 +866,7 @@ private fun WorkspaceFilesPage(
                             selectedPaths = if (allSelected) emptySet() else files.map { it.path }.toSet()
                         },
                     ) {
-                        Icon(HugeIcons.CheckList, contentDescription = if (allSelected) "取消全选" else "全选")
+                        Icon(HugeIcons.CheckList, contentDescription = if (allSelected) stringResource(R.string.media_creation_page_deselect_all) else stringResource(R.string.media_creation_page_select_all))
                     }
                 },
             ) {
@@ -880,7 +880,7 @@ private fun WorkspaceFilesPage(
                         modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text("导出 (${selectedFiles.size})")
+                    Text(stringResource(R.string.workspace_detail_export_selected, selectedFiles.size))
                 }
             }
         }
@@ -968,7 +968,7 @@ private fun ExportProgressCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "正在导出 $completed/$total",
+                text = stringResource(R.string.workspace_detail_exporting_progress, completed, total),
                 style = MaterialTheme.typography.bodyMedium,
             )
             LinearWavyProgressIndicator(
@@ -1029,7 +1029,7 @@ private fun WorkspaceFileItem(
             .combinedClickable(
                 onClick = onOpen,
                 onLongClick = if (entry.isDirectory) null else onLongClick,
-                onLongClickLabel = if (entry.isDirectory) null else "选择文件",
+                onLongClickLabel = if (entry.isDirectory) null else stringResource(R.string.workspace_detail_select_file),
             ),
         shape = shape,
         color = containerColor,

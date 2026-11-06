@@ -443,7 +443,7 @@ private val TTSProviderSetting.typeName: String
         is TTSProviderSetting.Step -> "Step"
         is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
         is TTSProviderSetting.FishAudio -> "Fish Audio"
-        is TTSProviderSetting.Volcengine -> "火山引擎"
+        is TTSProviderSetting.Volcengine -> stringResource(R.string.setting_tts_page_provider_volcengine)
     }
 
 // TTS 和 ASR 列表共用的服务商卡片，点卡片编辑，点单选圈设为当前使用

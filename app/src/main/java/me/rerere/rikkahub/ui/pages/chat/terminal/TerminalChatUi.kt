@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +50,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
@@ -246,7 +248,7 @@ fun TerminalChatInput(
         }
         if (queuedCount > 0) {
             Text(
-                text = "queue: $queuedCount pending · /stop 清空当前生成",
+                text = stringResource(R.string.terminal_queue_pending_hint, queuedCount),
                 style = TerminalTextStyle,
                 color = TerminalPalette.GreenDim,
             )
@@ -255,7 +257,7 @@ fun TerminalChatInput(
             Column(modifier = Modifier.fillMaxWidth()) {
                 suggestions.forEach { command ->
                     Text(
-                        text = "  ${command.usage}  ${command.description}",
+                        text = "  ${command.usage}  " + stringResource(command.description),
                         style = TerminalTextStyle,
                         color = TerminalPalette.GreenDim,
                         maxLines = 1,
@@ -281,7 +283,7 @@ fun TerminalChatInput(
             Box(modifier = Modifier.weight(1f)) {
                 if (text.isEmpty()) {
                     Text(
-                        text = "输入消息，或 /help 查看命令",
+                        text = stringResource(R.string.terminal_input_placeholder),
                         style = TerminalTextStyle.copy(color = TerminalPalette.GreenDim),
                     )
                 }
@@ -517,7 +519,7 @@ private fun TerminalCommandPaletteDialog(
                 LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                     items(TERMINAL_COMMANDS, key = { it.name }) { spec ->
                         Text(
-                            text = spec.usage.padEnd(22) + "  " + spec.description,
+                            text = spec.usage.padEnd(22) + "  " + stringResource(spec.description),
                             style = TerminalTextStyle,
                             color = TerminalPalette.Green,
                             maxLines = 1,

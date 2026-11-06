@@ -18,6 +18,7 @@ import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.roundToInt
+import me.rerere.rikkahub.R
 
 private const val MIME_PNG = "image/png"
 private const val MIME_PDF = "application/pdf"
@@ -101,9 +102,9 @@ private fun saveExport(
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val resolver = context.contentResolver
-        val uri = resolver.insert(collection, values) ?: error("无法创建导出文件")
+        val uri = resolver.insert(collection, values) ?: error(context.getString(R.string.stats_page_export_create_failed))
         try {
-            resolver.openOutputStream(uri)?.use(write) ?: error("无法写入导出文件")
+            resolver.openOutputStream(uri)?.use(write) ?: error(context.getString(R.string.stats_page_export_write_failed))
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
             resolver.update(uri, values, null, null)

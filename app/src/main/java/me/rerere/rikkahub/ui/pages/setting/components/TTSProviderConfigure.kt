@@ -57,7 +57,7 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.Step -> "Step"
                         is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                         is TTSProviderSetting.FishAudio -> "Fish Audio"
-                        is TTSProviderSetting.Volcengine -> "火山引擎"
+                        is TTSProviderSetting.Volcengine -> stringResource(R.string.setting_tts_page_provider_volcengine)
                     },
                     options = TTSProviderSetting.Types,
                     readOnly = true,
@@ -74,7 +74,7 @@ fun TTSProviderConfigure(
                             TTSProviderSetting.MiMo::class -> "MiMo"
                             TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                             TTSProviderSetting.FishAudio::class -> "Fish Audio"
-                            TTSProviderSetting.Volcengine::class -> "火山引擎"
+                            TTSProviderSetting.Volcengine::class -> stringResource(R.string.setting_tts_page_provider_volcengine)
                             TTSProviderSetting.Step::class -> "Step"
                             else -> providerClass.simpleName ?: "Unknown"
                         }
@@ -631,8 +631,8 @@ private fun CardGroupScope.qwenTTSItems(
     val formats = listOf("wav", "mp3", "pcm", "opus")
 
     formItem(
-        headlineContent = { Text("Audio Format") },
-        supportingContent = { Text("Audio encoding returned by Qwen TTS") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_audio_format)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_audio_format_desc)) }
     ) {
         SelectTextField(
             value = setting.format,
@@ -649,8 +649,8 @@ private fun CardGroupScope.qwenTTSItems(
     val sampleRates = listOf(8000, 16000, 22050, 24000, 44100, 48000)
 
     formItem(
-        headlineContent = { Text("Sample Rate") },
-        supportingContent = { Text("Audio sample rate in Hz") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_sample_rate)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_sample_rate_desc)) }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -819,7 +819,7 @@ private fun CardGroupScope.xAITTSItems(
     )
 
     formItem(
-        headlineContent = { Text("Language") },
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_language)) },
     ) {
         SelectTextField(
             value = setting.language,
@@ -977,10 +977,10 @@ private fun CardGroupScope.fishAudioTTSItems(
 
     // Model (下拉选择框 + 文本输入框，完全同 ElevenLabs 格式)
     val models = listOf(
-        "s2.1-pro" to "S2.1-Pro (推荐)",
-        "s2.1-pro-free" to "S2.1-Pro Free (免费)",
-        "s2-pro" to "S2-Pro",
-        "s1" to "S1"
+        "s2.1-pro" to R.string.setting_tts_page_fish_model_s2_1_pro,
+        "s2.1-pro-free" to R.string.setting_tts_page_fish_model_s2_1_pro_free,
+        "s2-pro" to R.string.setting_tts_page_fish_model_s2_pro,
+        "s1" to R.string.setting_tts_page_fish_model_s1
     )
 
     formItem(
@@ -996,7 +996,7 @@ private fun CardGroupScope.fishAudioTTSItems(
             onOptionSelected = { (modelId, _) ->
                 onValueChange(setting.copy(model = modelId))
             },
-            optionToString = { (modelId, displayName) -> "$displayName ($modelId)" },
+            optionToString = { (modelId, nameRes) -> stringResource(nameRes) + " ($modelId)" },
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1054,7 +1054,7 @@ private fun CardGroupScope.stepTTSItems(
     // API Key
     formItem(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        supportingContent = { Text("从阶跃星辰官网获取密钥: platform.stepfun.com/interface-key") }
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_step_api_key_description)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1062,7 +1062,7 @@ private fun CardGroupScope.stepTTSItems(
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("从阶跃星辰官网获取密钥") },
+            placeholder = { Text(stringResource(R.string.setting_tts_page_step_api_key_placeholder)) },
         )
     }
 
@@ -1083,10 +1083,10 @@ private fun CardGroupScope.stepTTSItems(
 
     // Model
     val models = listOf(
-        "step-tts-mini" to "step-tts-mini (轻量, 便宜)",
-        "step-tts-vivid" to "step-tts-vivid (情感丰富)",
-        "stepaudio-2.5-tts" to "stepaudio-2.5-tts (语境感知, 支持 instruction)",
-        "step-tts-2" to "step-tts-2 (上一代)",
+        "step-tts-mini" to R.string.setting_tts_page_step_model_step_tts_mini,
+        "step-tts-vivid" to R.string.setting_tts_page_step_model_step_tts_vivid,
+        "stepaudio-2.5-tts" to R.string.setting_tts_page_step_model_stepaudio_2_5_tts,
+        "step-tts-2" to R.string.setting_tts_page_step_model_step_tts_2,
     )
 
     formItem(
@@ -1102,7 +1102,7 @@ private fun CardGroupScope.stepTTSItems(
             onOptionSelected = { (modelId, _) ->
                 onValueChange(setting.copy(model = modelId))
             },
-            optionToString = { (_, description) -> description },
+            optionToString = { (_, nameRes) -> stringResource(nameRes) },
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1111,37 +1111,37 @@ private fun CardGroupScope.stepTTSItems(
     // 部分常用 voice-id, 完整列表见官方开发指南
     // https://platform.stepfun.com/docs/zh/guides/developer/tts
     val voices = listOf(
-        "elegantgentle-female" to "气质温婉 (elegantgentle-female)",
-        "livelybreezy-female" to "活力轻快 (livelybreezy-female)",
-        "energeticconfident-female" to "活力自信 (energeticconfident-female)",
-        "jingdiannvsheng" to "经典女声 (jingdiannvsheng)",
-        "wenroushunv" to "温柔熟女 (wenroushunv)",
-        "tianmeinvsheng" to "甜美女声 (tianmeinvsheng)",
-        "qingchunshaonv" to "清纯少女 (qingchunshaonv)",
-        "wenrounvsheng" to "温柔女声 (wenrounvsheng)",
-        "ruanmengnvsheng" to "软萌女生 (ruanmengnvsheng)",
-        "youyanvsheng" to "优雅女生 (youyanvsheng)",
-        "lengyanyujie" to "冷艳御姐 (lengyanyujie)",
-        "shuangkuaijiejie" to "爽快姐姐 (shuangkuaijiejie)",
-        "wenjingxuejie" to "文静学姐 (wenjingxuejie)",
-        "linjiajiejie" to "邻家姐姐 (linjiajiejie)",
-        "linjiameimei" to "邻家妹妹 (linjiameimei)",
-        "zhixingjiejie" to "知性姐姐 (zhixingjiejie)",
-        "cixingnansheng" to "磁性男声 (cixingnansheng)",
-        "wenrounansheng" to "温柔男声 (wenrounansheng)",
-        "yuanqinansheng" to "元气男声 (yuanqinansheng)",
-        "zhengpaiqingnian" to "正派青年 (zhengpaiqingnian)",
-        "ruyananshi" to "儒雅男士 (ruyananshi)",
-        "boyinnansheng" to "播音男声 (boyinnansheng)",
-        "shenchennanyin" to "深沉男音 (shenchennanyin)",
-        "shuangkuainansheng" to "爽快男声 (shuangkuainansheng)",
-        "ganliannvsheng" to "干练女声 (ganliannvsheng)",
-        "qinhenvsheng" to "亲切女声 (qinhenvsheng)",
-        "huolinvsheng" to "活力女声 (huolinvsheng)",
-        "jilingshaonv" to "机灵少女 (jilingshaonv)",
-        "yuanqishaonv" to "元气少女 (yuanqishaonv)",
-        "wenrougongzi" to "温柔公子 (wenrougongzi)",
-        "qingniandaxuesheng" to "青年大学生 (qingniandaxuesheng)",
+        "elegantgentle-female" to R.string.setting_tts_page_step_voice_elegantgentle_female,
+        "livelybreezy-female" to R.string.setting_tts_page_step_voice_livelybreezy_female,
+        "energeticconfident-female" to R.string.setting_tts_page_step_voice_energeticconfident_female,
+        "jingdiannvsheng" to R.string.setting_tts_page_step_voice_jingdiannvsheng,
+        "wenroushunv" to R.string.setting_tts_page_step_voice_wenroushunv,
+        "tianmeinvsheng" to R.string.setting_tts_page_step_voice_tianmeinvsheng,
+        "qingchunshaonv" to R.string.setting_tts_page_step_voice_qingchunshaonv,
+        "wenrounvsheng" to R.string.setting_tts_page_step_voice_wenrounvsheng,
+        "ruanmengnvsheng" to R.string.setting_tts_page_step_voice_ruanmengnvsheng,
+        "youyanvsheng" to R.string.setting_tts_page_step_voice_youyanvsheng,
+        "lengyanyujie" to R.string.setting_tts_page_step_voice_lengyanyujie,
+        "shuangkuaijiejie" to R.string.setting_tts_page_step_voice_shuangkuaijiejie,
+        "wenjingxuejie" to R.string.setting_tts_page_step_voice_wenjingxuejie,
+        "linjiajiejie" to R.string.setting_tts_page_step_voice_linjiajiejie,
+        "linjiameimei" to R.string.setting_tts_page_step_voice_linjiameimei,
+        "zhixingjiejie" to R.string.setting_tts_page_step_voice_zhixingjiejie,
+        "cixingnansheng" to R.string.setting_tts_page_step_voice_cixingnansheng,
+        "wenrounansheng" to R.string.setting_tts_page_step_voice_wenrounansheng,
+        "yuanqinansheng" to R.string.setting_tts_page_step_voice_yuanqinansheng,
+        "zhengpaiqingnian" to R.string.setting_tts_page_step_voice_zhengpaiqingnian,
+        "ruyananshi" to R.string.setting_tts_page_step_voice_ruyananshi,
+        "boyinnansheng" to R.string.setting_tts_page_step_voice_boyinnansheng,
+        "shenchennanyin" to R.string.setting_tts_page_step_voice_shenchennanyin,
+        "shuangkuainansheng" to R.string.setting_tts_page_step_voice_shuangkuainansheng,
+        "ganliannvsheng" to R.string.setting_tts_page_step_voice_ganliannvsheng,
+        "qinhenvsheng" to R.string.setting_tts_page_step_voice_qinhenvsheng,
+        "huolinvsheng" to R.string.setting_tts_page_step_voice_huolinvsheng,
+        "jilingshaonv" to R.string.setting_tts_page_step_voice_jilingshaonv,
+        "yuanqishaonv" to R.string.setting_tts_page_step_voice_yuanqishaonv,
+        "wenrougongzi" to R.string.setting_tts_page_step_voice_wenrougongzi,
+        "qingniandaxuesheng" to R.string.setting_tts_page_step_voice_qingniandaxuesheng,
     )
 
     formItem(
@@ -1157,7 +1157,7 @@ private fun CardGroupScope.stepTTSItems(
             onOptionSelected = { (voiceId, _) ->
                 onValueChange(setting.copy(voice = voiceId))
             },
-            optionToString = { (_, description) -> description },
+            optionToString = { (_, nameRes) -> stringResource(nameRes) },
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1166,8 +1166,8 @@ private fun CardGroupScope.stepTTSItems(
     val formats = listOf("mp3", "wav", "pcm", "opus", "flac")
 
     formItem(
-        headlineContent = { Text("Response Format") },
-        supportingContent = { Text("音频编码格式 (注意 StepFun API 字段名为 camelCase)") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_response_format)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_step_response_format_description)) }
     ) {
         SelectTextField(
             value = setting.responseFormat,
@@ -1185,7 +1185,7 @@ private fun CardGroupScope.stepTTSItems(
     // Speed
     formItem(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        supportingContent = { Text("语速 (0.5 - 2.0, 1.0 为正常)") }
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_fish_audio_speed_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -1201,8 +1201,8 @@ private fun CardGroupScope.stepTTSItems(
 
     // Volume
     formItem(
-        headlineContent = { Text("Volume") },
-        supportingContent = { Text("音量 (0.1 - 2.0, 1.0 为正常)") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_volume)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_step_volume_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.volume,
@@ -1220,8 +1220,8 @@ private fun CardGroupScope.stepTTSItems(
     val sampleRates = listOf(8000, 16000, 22050, 24000)
 
     formItem(
-        headlineContent = { Text("Sample Rate") },
-        supportingContent = { Text("采样率 (Hz)") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_sample_rate)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_step_sample_rate_description)) }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -1237,8 +1237,8 @@ private fun CardGroupScope.stepTTSItems(
 
     // Instruction (仅 stepaudio-2.5-tts 生效)
     formItem(
-        headlineContent = { Text("Instruction") },
-        supportingContent = { Text("全局语境指令, 仅 stepaudio-2.5-tts 生效 (≤200 字符, 留空不下发)") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_instruction)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_step_instruction_description)) }
     ) {
         OutlinedTextField(
             value = setting.instruction,
@@ -1249,7 +1249,7 @@ private fun CardGroupScope.stepTTSItems(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("例如: 语气温柔, 语速偏慢") },
+            placeholder = { Text(stringResource(R.string.setting_tts_page_step_instruction_placeholder)) },
             minLines = 2,
             maxLines = 4,
         )
@@ -1261,8 +1261,8 @@ private fun CardGroupScope.volcengineTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     formItem(
-        headlineContent = { Text("API Key") },
-        supportingContent = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_volcengine_api_key_description)) }
     ) {
         var keyVisible by remember(setting.id) { mutableStateOf(false) }
         OutlinedTextField(
@@ -1273,7 +1273,7 @@ private fun CardGroupScope.volcengineTTSItems(
                 IconButton(onClick = { keyVisible = !keyVisible }) {
                     Icon(
                         imageVector = if (keyVisible) HugeIcons.ViewOff else HugeIcons.View,
-                        contentDescription = if (keyVisible) "隐藏 API Key" else "显示 API Key",
+                        contentDescription = if (keyVisible) stringResource(R.string.setting_tts_page_hide_api_key) else stringResource(R.string.setting_tts_page_show_api_key),
                     )
                 }
             },
@@ -1291,8 +1291,8 @@ private fun CardGroupScope.volcengineTTSItems(
         )
     }
     formItem(
-        headlineContent = { Text("资源 ID") },
-        supportingContent = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_resource_id)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_volcengine_resource_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.resourceId,
@@ -1302,8 +1302,8 @@ private fun CardGroupScope.volcengineTTSItems(
         )
     }
     formItem(
-        headlineContent = { Text("音色 ID") },
-        supportingContent = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_volcengine_voice_id_description)) }
     ) {
         OutlinedTextField(
             value = setting.speaker,
@@ -1314,7 +1314,7 @@ private fun CardGroupScope.volcengineTTSItems(
     }
     formItem(
         headlineContent = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        supportingContent = { Text("范围 -50～100，0 为正常语速，-50 为半速，100 为两倍速。") }
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_volcengine_speed_description)) }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,

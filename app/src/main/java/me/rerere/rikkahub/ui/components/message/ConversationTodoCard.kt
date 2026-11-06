@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
@@ -51,6 +52,7 @@ import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick02
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MAX_TODO_ITEMS
 import me.rerere.rikkahub.data.model.MAX_TODO_TEXT_CHARS
 import me.rerere.rikkahub.data.model.TodoItem
@@ -89,10 +91,10 @@ internal fun ConversationTodoCard(
         ?: todos.firstOrNull { it.status == TodoStatus.PENDING }
     // 全做完和「剩下的都取消了」是两回事，别都说成「全部完成」
     val summary = when {
-        expanded -> "收起"
+        expanded -> stringResource(R.string.chat_message_collapse_content)
         current != null -> current.content
-        cancelled > 0 -> "已无可做项"
-        else -> "全部完成"
+        cancelled > 0 -> stringResource(R.string.todo_nothing_left)
+        else -> stringResource(R.string.todo_all_done)
     }
 
     Surface(
@@ -108,7 +110,7 @@ internal fun ConversationTodoCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "任务",
+                    text = stringResource(R.string.todo_title),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -241,12 +243,12 @@ private fun TodoRowMenu(
         // 这里不用 IconButton：它自带 48dp 的最小触摸区，会把每一行都撑成 48dp，卡片立刻变胖
         SmallIconAction(
             icon = HugeIcons.MoreVertical,
-            contentDescription = "任务操作",
+            contentDescription = stringResource(R.string.todo_actions),
             onClick = { expanded = true },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             TodoMenuItem(
-                text = "标记进行中",
+                text = stringResource(R.string.todo_mark_in_progress),
                 icon = HugeIcons.Play,
                 enabled = status != TodoStatus.IN_PROGRESS,
                 onClick = {
@@ -255,7 +257,7 @@ private fun TodoRowMenu(
                 },
             )
             TodoMenuItem(
-                text = "标记未开始",
+                text = stringResource(R.string.todo_mark_not_started),
                 icon = HugeIcons.Refresh01,
                 enabled = status != TodoStatus.PENDING,
                 onClick = {
@@ -264,7 +266,7 @@ private fun TodoRowMenu(
                 },
             )
             TodoMenuItem(
-                text = "取消任务",
+                text = stringResource(R.string.todo_cancel_task),
                 icon = HugeIcons.Cancel01,
                 enabled = status != TodoStatus.CANCELLED,
                 onClick = {
@@ -273,7 +275,7 @@ private fun TodoRowMenu(
                 },
             )
             TodoMenuItem(
-                text = "移除任务",
+                text = stringResource(R.string.todo_remove_task),
                 icon = HugeIcons.Delete02,
                 destructive = true,
                 onClick = {
@@ -343,7 +345,7 @@ private fun TodoAddRow(
 ) {
     if (full) {
         Text(
-            text = "已到 $MAX_TODO_ITEMS 条上限",
+            text = stringResource(R.string.todo_limit_reached, MAX_TODO_ITEMS),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 24.dp, top = 6.dp),
@@ -367,7 +369,7 @@ private fun TodoAddRow(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "添加任务",
+                text = stringResource(R.string.todo_add),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -419,7 +421,7 @@ private fun TodoAddRow(
                 ) {
                     if (text.isEmpty()) {
                         Text(
-                            text = "新任务…",
+                            text = stringResource(R.string.todo_new_task_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
@@ -430,14 +432,14 @@ private fun TodoAddRow(
         )
         SmallIconAction(
             icon = HugeIcons.Tick02,
-            contentDescription = "添加任务",
+            contentDescription = stringResource(R.string.todo_add),
             enabled = text.isNotBlank(),
             tint = MaterialTheme.colorScheme.primary,
             onClick = { submit() },
         )
         SmallIconAction(
             icon = HugeIcons.Cancel01,
-            contentDescription = "取消",
+            contentDescription = stringResource(R.string.common_cancel),
             onClick = { onAddingChange(false) },
         )
     }

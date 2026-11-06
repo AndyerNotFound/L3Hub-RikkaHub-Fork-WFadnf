@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.ui.pages.chat.terminal
 
+import androidx.annotation.StringRes
+import me.rerere.rikkahub.R
+
 /** 终端里可用的斜杠命令。args 为命令名之后的原始文本。 */
 data class TerminalCommand(
     val name: String,
@@ -9,45 +12,45 @@ data class TerminalCommand(
 data class TerminalCommandSpec(
     val name: String,
     val usage: String,
-    val description: String,
+    @StringRes val description: Int,
 )
 
 val TERMINAL_COMMANDS: List<TerminalCommandSpec> = listOf(
-    TerminalCommandSpec("help", "/help", "显示命令列表"),
-    TerminalCommandSpec("status", "/status", "显示会话、模型与上下文状态"),
-    TerminalCommandSpec("model", "/model [名称]", "切换模型；不带参数时打开模型列表"),
-    TerminalCommandSpec("new", "/new", "新建会话"),
-    TerminalCommandSpec("messages", "/messages", "列出当前消息与编号"),
-    TerminalCommandSpec("send", "/send <文本>", "直接发送一条消息"),
-    TerminalCommandSpec("retry", "/retry [编号]", "重新生成指定或最后一条回复"),
-    TerminalCommandSpec("edit", "/edit <编号>", "把指定消息载入输入框编辑"),
-    TerminalCommandSpec("delete", "/delete [编号]", "删除指定或最后一条消息"),
-    TerminalCommandSpec("copy", "/copy [编号]", "复制指定或最后一条消息"),
-    TerminalCommandSpec("branch", "/branch [编号]", "从指定或最后一条消息创建分支"),
-    TerminalCommandSpec("compress", "/compress [要求]", "压缩上下文，保留最近 0 条消息"),
-    TerminalCommandSpec("usage", "/usage", "打开 Usage 看板"),
-    TerminalCommandSpec("tree", "/tree", "打开子代理任务树"),
-    TerminalCommandSpec("files", "/files", "打开附件与工作区面板"),
-    TerminalCommandSpec("voice", "/voice", "进入语音输入"),
-    TerminalCommandSpec("stop", "/stop", "停止当前生成"),
-    TerminalCommandSpec("title", "/title <标题>", "重命名当前会话"),
-    TerminalCommandSpec("pin", "/pin", "置顶或取消置顶当前会话"),
-    TerminalCommandSpec("search", "/search on|off", "开关联网搜索"),
-    TerminalCommandSpec("export", "/export", "复制整段会话为 Markdown"),
-    TerminalCommandSpec("assistant", "/assistant [名称]", "列出或切换助手"),
-    TerminalCommandSpec("chats", "/chats", "打开会话历史"),
-    TerminalCommandSpec("open", "/open <会话ID>", "打开指定会话"),
-    TerminalCommandSpec("favorite", "/favorite", "打开收藏夹"),
-    TerminalCommandSpec("close", "/close", "删除当前会话并返回"),
-    TerminalCommandSpec("fav", "/fav [编号]", "收藏或取消收藏消息"),
-    TerminalCommandSpec("switch", "/switch <分支号>", "切换消息分支"),
-    TerminalCommandSpec("translate", "/translate [编号]", "翻译指定或最后一条回复"),
-    TerminalCommandSpec("mcp", "/mcp", "打开 MCP 设置"),
-    TerminalCommandSpec("workspace", "/workspace", "打开工作区与附件面板"),
-    TerminalCommandSpec("save", "/save", "把会话导出为 Markdown 文件"),
-    TerminalCommandSpec("settings", "/settings", "打开设置"),
-    TerminalCommandSpec("terminal", "/terminal on|off", "开关终端界面"),
-    TerminalCommandSpec("clear", "/clear", "清空输入框"),
+    TerminalCommandSpec("help", "/help", R.string.terminal_cmd_help_desc),
+    TerminalCommandSpec("status", "/status", R.string.terminal_cmd_status_desc),
+    TerminalCommandSpec("model", "/model [name]", R.string.terminal_cmd_model_desc),
+    TerminalCommandSpec("new", "/new", R.string.terminal_cmd_new_desc),
+    TerminalCommandSpec("messages", "/messages", R.string.terminal_cmd_messages_desc),
+    TerminalCommandSpec("send", "/send <text>", R.string.terminal_cmd_send_desc),
+    TerminalCommandSpec("retry", "/retry [index]", R.string.terminal_cmd_retry_desc),
+    TerminalCommandSpec("edit", "/edit <index>", R.string.terminal_cmd_edit_desc),
+    TerminalCommandSpec("delete", "/delete [index]", R.string.terminal_cmd_delete_desc),
+    TerminalCommandSpec("copy", "/copy [index]", R.string.terminal_cmd_copy_desc),
+    TerminalCommandSpec("branch", "/branch [index]", R.string.terminal_cmd_branch_desc),
+    TerminalCommandSpec("compress", "/compress [request]", R.string.terminal_cmd_compress_desc),
+    TerminalCommandSpec("usage", "/usage", R.string.terminal_cmd_usage_desc),
+    TerminalCommandSpec("tree", "/tree", R.string.terminal_cmd_tree_desc),
+    TerminalCommandSpec("files", "/files", R.string.terminal_cmd_files_desc),
+    TerminalCommandSpec("voice", "/voice", R.string.terminal_cmd_voice_desc),
+    TerminalCommandSpec("stop", "/stop", R.string.terminal_cmd_stop_desc),
+    TerminalCommandSpec("title", "/title <title>", R.string.terminal_cmd_title_desc),
+    TerminalCommandSpec("pin", "/pin", R.string.terminal_cmd_pin_desc),
+    TerminalCommandSpec("search", "/search on|off", R.string.terminal_cmd_search_desc),
+    TerminalCommandSpec("export", "/export", R.string.terminal_cmd_export_desc),
+    TerminalCommandSpec("assistant", "/assistant [name]", R.string.terminal_cmd_assistant_desc),
+    TerminalCommandSpec("chats", "/chats", R.string.terminal_cmd_chats_desc),
+    TerminalCommandSpec("open", "/open <conversation ID>", R.string.terminal_cmd_open_desc),
+    TerminalCommandSpec("favorite", "/favorite", R.string.terminal_cmd_favorite_desc),
+    TerminalCommandSpec("close", "/close", R.string.terminal_cmd_close_desc),
+    TerminalCommandSpec("fav", "/fav [index]", R.string.terminal_cmd_fav_desc),
+    TerminalCommandSpec("switch", "/switch <branch index>", R.string.terminal_cmd_switch_desc),
+    TerminalCommandSpec("translate", "/translate [index]", R.string.terminal_cmd_translate_desc),
+    TerminalCommandSpec("mcp", "/mcp", R.string.terminal_cmd_mcp_desc),
+    TerminalCommandSpec("workspace", "/workspace", R.string.terminal_cmd_workspace_desc),
+    TerminalCommandSpec("save", "/save", R.string.terminal_cmd_save_desc),
+    TerminalCommandSpec("settings", "/settings", R.string.terminal_cmd_settings_desc),
+    TerminalCommandSpec("terminal", "/terminal on|off", R.string.terminal_cmd_terminal_desc),
+    TerminalCommandSpec("clear", "/clear", R.string.terminal_cmd_clear_desc),
 )
 
 fun parseTerminalCommand(input: String): TerminalCommand? {
@@ -72,14 +75,14 @@ fun terminalCommandSuggestions(input: String, limit: Int = 6): List<TerminalComm
         .take(limit)
 }
 
-fun terminalHelpText(): String = buildString {
+fun terminalHelpText(resolveText: (Int) -> String = { "" }): String = buildString {
     appendLine("L3HUB // COMMAND REFERENCE")
     appendLine("─".repeat(56))
     TERMINAL_COMMANDS.forEach { command ->
         append(command.usage.padEnd(22))
         append("  ")
-        appendLine(command.description)
+        appendLine(resolveText(command.description))
     }
     appendLine("─".repeat(56))
-    append("消息编号是每行开头的 [00]；不带编号时默认最后一条。")
+    append(resolveText(R.string.terminal_help_index_note))
 }

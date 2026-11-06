@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileEdit
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import org.koin.compose.koinInject
@@ -61,9 +63,9 @@ object ApplyPatchToolUI : ToolUIRenderer {
         val count = files(context).size
         val conflicts = conflicts(context).size
         return when {
-            conflicts > 0 -> "补丁冲突 $conflicts 处，未写入"
-            count > 0 -> "已应用补丁：$count 个文件"
-            else -> "应用补丁"
+            conflicts > 0 -> stringResource(R.string.workspace_review_patch_conflicts, conflicts)
+            count > 0 -> stringResource(R.string.workspace_review_patch_applied, count)
+            else -> stringResource(R.string.workspace_detail_tool_apply_patch)
         }
     }
 
@@ -102,7 +104,7 @@ object ApplyPatchToolUI : ToolUIRenderer {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("补丁结果", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.workspace_review_patch_result), style = MaterialTheme.typography.titleMedium)
             files(context).forEach { file ->
                 Text(
                     text = "${file.str("path").orEmpty()}  +${file.int("added")} -${file.int("removed")}",
@@ -147,8 +149,8 @@ object WorkspaceTestToolUI : ToolUIRenderer {
         val content = context.content?.jsonObjectOrNull
         val failed = content?.get("failed")?.jsonPrimitive?.intOrNull ?: 0
         val passed = content?.get("passed")?.jsonPrimitive?.intOrNull ?: 0
-        if (content == null) return "运行测试"
-        return if (failed > 0) "测试失败 $failed / 通过 $passed" else "测试通过 $passed"
+        if (content == null) return stringResource(R.string.workspace_detail_tool_test)
+        return if (failed > 0) stringResource(R.string.workspace_review_test_failed, failed, passed) else stringResource(R.string.workspace_review_test_passed, passed)
     }
 
     override fun hasSummary(context: ToolUIContext): Boolean = diagnostics(context).isNotEmpty()
@@ -180,6 +182,12 @@ object WorkspaceTestToolUI : ToolUIRenderer {
         var snippetError by remember { mutableStateOf<String?>(null) }
         var snippetLanguage by remember { mutableStateOf("kotlin") }
 
+        // LaunchedEffect 里不是 composable 作用域，先在这里取好再传进去
+        val noWorkspaceMessage = stringResource(R.string.workspace_review_no_workspace)
+        val noReadablePathMessage = stringResource(R.string.workspace_review_no_readable_path)
+        val testResultTitle = stringResource(R.string.workspace_review_test_result)
+        val lineNotFoundFormat = stringResource(R.string.workspace_review_line_not_found)
+
         LaunchedEffect(expanded) {
             val target = expanded ?: return@LaunchedEffect
             val path = target.str("file") ?: return@LaunchedEffect
@@ -192,7 +200,7 @@ object WorkspaceTestToolUI : ToolUIRenderer {
             // 不要停在「读取文件…」让人以为还在读。
             val loaded = withContext(Dispatchers.IO) {
                 if (workspaceId == null) {
-                    return@withContext Result.failure(IllegalStateException("这个会话没有绑定工作区"))
+                    return@withContext Result.failure(IllegalStateException(noWorkspaceMessage))
                 }
                 val candidates = buildList {
                     add(path)
@@ -205,13 +213,15 @@ object WorkspaceTestToolUI : ToolUIRenderer {
                         val lines = text.lines()
                         val from = (line - 6).coerceAtLeast(1)
                         val to = (line + 6).coerceAtMost(lines.size)
-                        require(from <= to) { "$candidate 只有 ${lines.size} 行, 定位不到第 $line 行" }
+                        require(from <= to) {
+                            String.format(lineNotFoundFormat, candidate, lines.size, line)
+                        }
                         lines.subList(from - 1, to).joinToString("\n")
                     }
                     if (result.isSuccess) return@withContext result
                     lastError = result.exceptionOrNull()
                 }
-                Result.failure(lastError ?: IllegalStateException("没有可读的路径"))
+                Result.failure(lastError ?: IllegalStateException(noReadablePathMessage))
             }
             snippet = loaded.getOrNull()
             snippetError = loaded.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
@@ -227,15 +237,18 @@ object WorkspaceTestToolUI : ToolUIRenderer {
         ) {
             Text(
                 text = buildString {
-                    append("测试结果")
+                    append(testResultTitle)
                     content?.get("framework")?.jsonPrimitive?.contentOrNull?.let { append(" · $it") }
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = "通过 ${content?.get("passed")?.jsonPrimitive?.intOrNull ?: 0} · " +
-                    "失败 ${content?.get("failed")?.jsonPrimitive?.intOrNull ?: 0} · " +
-                    "跳过 ${content?.get("skipped")?.jsonPrimitive?.intOrNull ?: 0}",
+                text = stringResource(
+                    R.string.workspace_review_test_summary,
+                    content?.get("passed")?.jsonPrimitive?.intOrNull ?: 0,
+                    content?.get("failed")?.jsonPrimitive?.intOrNull ?: 0,
+                    content?.get("skipped")?.jsonPrimitive?.intOrNull ?: 0,
+                ),
                 style = MaterialTheme.typography.bodySmall,
             )
             content?.get("command")?.jsonPrimitive?.contentOrNull?.let { command ->
@@ -268,12 +281,12 @@ object WorkspaceTestToolUI : ToolUIRenderer {
                             val code = snippet
                             if (code == null && snippetError != null) {
                                 Text(
-                                    text = "读取源码失败：$snippetError",
+                                    text = stringResource(R.string.workspace_review_read_source_failed, snippetError.orEmpty()),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             } else if (code == null) {
-                                Text("读取文件…", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.workspace_review_reading_file), style = MaterialTheme.typography.labelSmall)
                             } else {
                                 HighlightCodeBlock(
                                     code = code,

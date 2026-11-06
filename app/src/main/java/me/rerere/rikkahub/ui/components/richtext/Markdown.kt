@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +58,7 @@ import kotlinx.datetime.toLocalDateTime
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Download04
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -374,7 +376,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "表格",
+                text = stringResource(R.string.markdown_table_label),
                 fontSize = 12.sp,
                 lineHeight = 12.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -390,7 +392,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
 
                 Icon(
                     imageVector = HugeIcons.Copy01,
-                    contentDescription = "Copy",
+                    contentDescription = stringResource(R.string.copy),
                     tint = iconTint,
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
@@ -405,7 +407,7 @@ private fun TableCard(table: MarkdownBlock.Table) {
 
                 Icon(
                     imageVector = HugeIcons.Download04,
-                    contentDescription = "Download",
+                    contentDescription = stringResource(R.string.common_download),
                     tint = iconTint,
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))

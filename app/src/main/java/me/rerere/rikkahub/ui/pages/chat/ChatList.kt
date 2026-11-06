@@ -833,7 +833,7 @@ private fun ChatListNormal(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
-                        text = if (createPullArmed) "松开新建会话" else "继续上拉新建会话",
+                        text = if (createPullArmed) stringResource(R.string.chat_page_pull_release_new_chat) else stringResource(R.string.chat_page_pull_keep_pulling),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Canvas(

@@ -107,6 +107,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
     val resources = LocalResources.current
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    val caReadFailedMsg = stringResource(R.string.setting_network_ca_read_failed)
     val caImporter = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -116,7 +117,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
             }.getOrNull()
             val pem = bytes?.let { certificateToPem(it) }
             if (pem == null) {
-                toaster.show("无法读取证书文件", type = ToastType.Error)
+                toaster.show(caReadFailedMsg, type = ToastType.Error)
             } else {
                 vm.updateSettings { latest ->
                     if (pem in latest.customCaCertificates) {

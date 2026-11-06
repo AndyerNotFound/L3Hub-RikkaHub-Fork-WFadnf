@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -119,13 +120,13 @@ internal fun TurnDiffActions(
             onClick = { showSheet = true },
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp),
         ) {
-            Text("本轮改动", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.turn_diff_this_turn), style = MaterialTheme.typography.labelMedium)
         }
         TextButton(
             onClick = { showCommit = true },
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp),
         ) {
-            Text("提交", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.turn_diff_commit), style = MaterialTheme.typography.labelMedium)
         }
     }
 
@@ -146,7 +147,7 @@ internal fun TurnDiffActions(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "本轮改动",
+                        text = stringResource(R.string.turn_diff_this_turn),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -160,7 +161,7 @@ internal fun TurnDiffActions(
                                 loading = false
                                 Toast.makeText(
                                     context,
-                                    if (result?.ok == true) "已丢弃本轮改动" else "丢弃失败：${result?.output.orEmpty().take(120)}",
+                                    if (result?.ok == true) context.getString(R.string.turn_diff_discard_all_done) else context.getString(R.string.turn_diff_discard_all_failed, result?.output.orEmpty().take(120)),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                                 reload()
@@ -173,11 +174,11 @@ internal fun TurnDiffActions(
                             modifier = Modifier.size(14.dp),
                         )
                         Spacer(Modifier.size(4.dp))
-                        Text("全部丢弃", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.turn_diff_discard_all), style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 if (loading && stats.isEmpty()) {
-                    Text("读取中…", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.turn_diff_loading), style = MaterialTheme.typography.bodySmall)
                 }
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 460.dp),
@@ -207,20 +208,20 @@ internal fun TurnDiffActions(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Text(
-                                    text = if (stat == null || stat.untracked) "新文件" else "+${stat.added} -${stat.removed}",
+                                    text = if (stat == null || stat.untracked) stringResource(R.string.turn_diff_new_file) else "+${stat.added} -${stat.removed}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 TextButton(onClick = { pendingDiscard = path }) {
-                                    Text("丢弃", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                             if (expandedPath == path) {
                                 val diff = expandedDiff
                                 if (diff == null) {
-                                    Text("读取 diff…", style = MaterialTheme.typography.bodySmall)
+                                    Text(stringResource(R.string.turn_diff_reading_diff), style = MaterialTheme.typography.bodySmall)
                                 } else if (diff.isBlank()) {
-                                    Text("无 diff（可能为新文件）", style = MaterialTheme.typography.bodySmall)
+                                    Text(stringResource(R.string.turn_diff_no_diff), style = MaterialTheme.typography.bodySmall)
                                 } else {
                                     val fileDiff = remember(diff) { UnifiedDiff.parse(diff).firstOrNull() }
                                     val hunks = fileDiff?.hunks.orEmpty()
@@ -242,7 +243,7 @@ internal fun TurnDiffActions(
                                             }
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
-                                                    text = "Hunk ${index + 1} · 自第 ${hunk.oldStart} 行起",
+                                                    text = stringResource(R.string.turn_diff_hunk_header, index + 1, hunk.oldStart),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.weight(1f),
@@ -257,7 +258,7 @@ internal fun TurnDiffActions(
                                                             }
                                                             Toast.makeText(
                                                                 context,
-                                                                if (result?.ok == true) "已回退该 Hunk" else "回退失败：${result?.output.orEmpty().take(100)}",
+                                                                if (result?.ok == true) context.getString(R.string.turn_diff_hunk_discard_done) else context.getString(R.string.turn_diff_hunk_discard_failed, result?.output.orEmpty().take(100)),
                                                                 Toast.LENGTH_SHORT,
                                                             ).show()
                                                             expandedDiff = withContext(Dispatchers.IO) {
@@ -266,7 +267,7 @@ internal fun TurnDiffActions(
                                                             reload()
                                                         }
                                                     },
-                                                ) { Text("丢弃", style = MaterialTheme.typography.labelSmall) }
+                                                ) { Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall) }
                                             }
                                             Surface(
                                                 shape = MaterialTheme.shapes.small,
@@ -290,8 +291,8 @@ internal fun TurnDiffActions(
         val path = pendingDiscard!!
         AlertDialog(
             onDismissRequest = { pendingDiscard = null },
-            title = { Text("丢弃改动") },
-            text = { Text("将 ${path.substringAfterLast('/')} 恢复到 HEAD？未跟踪的新文件将被删除。") },
+            title = { Text(stringResource(R.string.turn_diff_discard_title)) },
+            text = { Text(stringResource(R.string.turn_diff_discard_message, path.substringAfterLast('/'))) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -302,16 +303,16 @@ internal fun TurnDiffActions(
                             }
                             Toast.makeText(
                                 context,
-                                if (result?.ok == true) "已恢复" else "恢复失败：${result?.output.orEmpty().take(120)}",
+                                if (result?.ok == true) context.getString(R.string.turn_diff_restore_done) else context.getString(R.string.turn_diff_restore_failed, result?.output.orEmpty().take(120)),
                                 Toast.LENGTH_SHORT,
                             ).show()
                             reload()
                         }
                     },
-                ) { Text("丢弃") }
+                ) { Text(stringResource(R.string.turn_diff_discard)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDiscard = null }) { Text("取消") }
+                TextButton(onClick = { pendingDiscard = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -319,17 +320,17 @@ internal fun TurnDiffActions(
     if (showCommit) {
         AlertDialog(
             onDismissRequest = { if (!committing) showCommit = false },
-            title = { Text("提交改动") },
+            title = { Text(stringResource(R.string.turn_diff_commit_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "将先执行 git add -A，再使用以下信息提交。",
+                        text = stringResource(R.string.turn_diff_commit_hint),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
                         value = commitMessage,
                         onValueChange = { commitMessage = it },
-                        label = { Text("提交信息") },
+                        label = { Text(stringResource(R.string.turn_diff_commit_message)) },
                         minLines = 2,
                         maxLines = 4,
                         modifier = Modifier.fillMaxWidth(),
@@ -350,20 +351,20 @@ internal fun TurnDiffActions(
                             if (result?.ok == true) {
                                 showCommit = false
                                 commitMessage = ""
-                                Toast.makeText(context, result.output.lineSequence().firstOrNull() ?: "已提交", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, result.output.lineSequence().firstOrNull() ?: context.getString(R.string.turn_diff_commit_done), Toast.LENGTH_SHORT).show()
                             } else {
                                 Toast.makeText(
                                     context,
-                                    "提交失败：${result?.output.orEmpty().take(160)}",
+                                    context.getString(R.string.turn_diff_commit_failed, result?.output.orEmpty().take(160)),
                                     Toast.LENGTH_LONG,
                                 ).show()
                             }
                         }
                     },
-                ) { Text(if (committing) "提交中…" else "提交") }
+                ) { Text(if (committing) stringResource(R.string.turn_diff_committing) else stringResource(R.string.turn_diff_commit)) }
             },
             dismissButton = {
-                TextButton(onClick = { showCommit = false }, enabled = !committing) { Text("取消") }
+                TextButton(onClick = { showCommit = false }, enabled = !committing) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }

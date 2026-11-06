@@ -92,6 +92,7 @@ val viewModelModule = module {
     viewModel<WorkspaceDetailVM> {
         WorkspaceDetailVM(
             id = it.get(),
+            context = get(),
             repository = get(),
             terminalSessionManager = get(),
         )

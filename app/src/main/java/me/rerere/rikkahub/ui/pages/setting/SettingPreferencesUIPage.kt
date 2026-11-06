@@ -219,8 +219,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     onCheckedChange = {
                         updateDisplaySetting(displaySetting.copy(hideCompletedTodoCard = it))
                     },
-                    supportingContent = { Text("任务全部完成后从输入框上方收起；关掉这个开关就能随时看到") },
-                    headlineContent = { Text("完成后收起任务清单") },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_title)) },
                 )
                 switchItem(
                     checked = displaySetting.showDateTimeInMessage,
@@ -694,15 +694,15 @@ private fun deleteCustomChatFontInternal(context: Context, relativePath: String)
 }
 
 private val AnimationSpeed.label: String
-    get() = when (this) {
-        AnimationSpeed.SYSTEM -> "跟随系统"
-        AnimationSpeed.FAST -> "轻快"
-        AnimationSpeed.GENTLE -> "柔和"
+    @Composable get() = when (this) {
+        AnimationSpeed.SYSTEM -> stringResource(R.string.setting_display_page_animation_speed_system)
+        AnimationSpeed.FAST -> stringResource(R.string.setting_display_page_animation_speed_fast)
+        AnimationSpeed.GENTLE -> stringResource(R.string.setting_display_page_animation_speed_gentle)
     }
 
 private val AnimationSpeed.description: String
-    get() = when (this) {
-        AnimationSpeed.SYSTEM -> "用 Material 自带的空间曲线"
-        AnimationSpeed.FAST -> "同样的位移用更短的时间走完"
-        AnimationSpeed.GENTLE -> "慢一点，尾段拖得更长"
+    @Composable get() = when (this) {
+        AnimationSpeed.SYSTEM -> stringResource(R.string.setting_display_page_animation_speed_system_desc)
+        AnimationSpeed.FAST -> stringResource(R.string.setting_display_page_animation_speed_fast_desc)
+        AnimationSpeed.GENTLE -> stringResource(R.string.setting_display_page_animation_speed_gentle_desc)
     }
