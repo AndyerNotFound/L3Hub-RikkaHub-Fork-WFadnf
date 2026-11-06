@@ -195,7 +195,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         val ownFolder = folders.firstOrNull { it.id == conversation.folderId }
         when {
             ownFolder != null && ownFolder.allWorkspaceIds.isNotEmpty() -> ownFolder.name
-            folderBinding.isNotEmpty() -> ""
+            folderBinding.isNotEmpty -> ""
             else -> null
         }
     }
