@@ -6,9 +6,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
@@ -34,9 +38,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.MessageRole
@@ -269,88 +282,120 @@ fun ChatMessageActionsSheet(
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit,
-    // 用户消息长按菜单顶部那排快捷按钮（复制 / 重新生成 / 分支切换 / 时间）
-    quickActions: (@Composable () -> Unit)? = null,
+    onDismissRequest: () -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {
-        // WebView Preview (only show if message has text content)
-        val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
-            .any { it.text.isNotBlank() }
-        val actions = buildList {
-            add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))
-            if (hasTextContent) {
-                add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.render_with_webview), onClick = onWebViewPreview))
-            }
-            add(MessageSheetAction(HugeIcons.Edit01, stringResource(R.string.edit), onClick = onEdit))
-            add(MessageSheetAction(HugeIcons.Share04, stringResource(R.string.share), onClick = onShare))
-            add(MessageSheetAction(HugeIcons.GitFork, stringResource(R.string.create_fork), onClick = onFork))
-            if (onToggleFavorite != null) {
-                add(
-                    MessageSheetAction(
-                        icon = HugeIcons.FavouriteCircle,
-                        label = stringResource(
-                            if (isFavorite) R.string.chat_message_remove_favorite
-                            else R.string.chat_message_add_favorite
-                        ),
-                        onClick = onToggleFavorite,
-                    )
-                )
-            }
-            add(MessageSheetAction(HugeIcons.Delete01, stringResource(R.string.delete), destructive = true, onClick = onDelete))
-        }
+        ChatMessageActionList(
+            message = message,
+            model = model,
+            onEdit = onEdit,
+            onDelete = onDelete,
+            onShare = onShare,
+            onFork = onFork,
+            onSelectAndCopy = onSelectAndCopy,
+            isFavorite = isFavorite,
+            onToggleFavorite = onToggleFavorite,
+            onWebViewPreview = onWebViewPreview,
+            onDismissRequest = onDismissRequest,
+        )
+    }
+}
 
+/**
+ * 消息操作的内容：助手消息的「更多」弹窗和用户消息的长按菜单共用同一份，
+ * 两边的入口不同，条目和顺序不要分叉。
+ */
+@Composable
+private fun ChatMessageActionList(
+    message: UIMessage,
+    model: Model?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onFork: () -> Unit,
+    onSelectAndCopy: () -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: (() -> Unit)?,
+    onWebViewPreview: () -> Unit,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    quickActions: (@Composable () -> Unit)? = null,
+) {
+    val hasTextContent = message.parts.filterIsInstance<UIMessagePart.Text>()
+        .any { it.text.isNotBlank() }
+    val actions = buildList {
+        add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))
+        if (hasTextContent) {
+            add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.render_with_webview), onClick = onWebViewPreview))
+        }
+        add(MessageSheetAction(HugeIcons.Edit01, stringResource(R.string.edit), onClick = onEdit))
+        add(MessageSheetAction(HugeIcons.Share04, stringResource(R.string.share), onClick = onShare))
+        add(MessageSheetAction(HugeIcons.GitFork, stringResource(R.string.create_fork), onClick = onFork))
+        if (onToggleFavorite != null) {
+            add(
+                MessageSheetAction(
+                    icon = HugeIcons.FavouriteCircle,
+                    label = stringResource(
+                        if (isFavorite) R.string.chat_message_remove_favorite
+                        else R.string.chat_message_add_favorite
+                    ),
+                    onClick = onToggleFavorite,
+                )
+            )
+        }
+        add(MessageSheetAction(HugeIcons.Delete01, stringResource(R.string.delete), destructive = true, onClick = onDelete))
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (quickActions != null) {
+            quickActions()
+        }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
-            if (quickActions != null) {
-                quickActions()
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-            ) {
-                actions.fastForEachIndexed { index, action ->
-                    SegmentedListItem(
-                        onClick = {
-                            onDismissRequest()
-                            action.onClick()
-                        },
-                        shapes = ListItemDefaults.segmentedShapes(index = index, count = actions.size),
-                        colors = if (action.destructive) {
-                            ListItemDefaults.segmentedColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                leadingContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                        } else {
-                            ListItemDefaults.segmentedColors()
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = action.icon,
-                                contentDescription = null,
-                            )
-                        },
-                    ) {
-                        Text(action.label)
-                    }
+            actions.fastForEachIndexed { index, action ->
+                SegmentedListItem(
+                    onClick = {
+                        onDismissRequest()
+                        action.onClick()
+                    },
+                    shapes = ListItemDefaults.segmentedShapes(index = index, count = actions.size),
+                    colors = if (action.destructive) {
+                        ListItemDefaults.segmentedColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            leadingContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    } else {
+                        ListItemDefaults.segmentedColors()
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = action.icon,
+                            contentDescription = null,
+                        )
+                    },
+                ) {
+                    Text(action.label)
                 }
             }
+        }
 
-            // Message Info
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                    Text(message.createdAt.toJavaLocalDateTime().toLocalString())
-                    if (model != null) {
-                        Text(model.displayName)
-                    }
+        // Message Info
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ProvideTextStyle(MaterialTheme.typography.labelSmall) {
+                Text(message.createdAt.toJavaLocalDateTime().toLocalString())
+                if (model != null) {
+                    Text(model.displayName)
                 }
             }
         }
@@ -424,4 +469,100 @@ internal fun UserMessageMenuQuickActions(
         onDismiss = { showRegenerateConfirm = false },
         text = { Text(stringResource(R.string.regenerate_confirm_message)) }
     )
+}
+
+private val MessageMenuMaxWidth = 300.dp
+
+/**
+ * 用户消息的长按菜单：贴着气泡原地打开，不再从屏幕底部滑上来。
+ *
+ * 位置由 [BubbleMenuPositionProvider] 计算：优先气泡下方，放不下翻到上方，
+ * 水平方向与气泡右缘对齐并收进窗口。窗口太矮时菜单自己滚动，不会顶出屏幕。
+ */
+@Composable
+internal fun UserMessageActionsMenu(
+    message: UIMessage,
+    model: Model?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onFork: () -> Unit,
+    onSelectAndCopy: () -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: (() -> Unit)?,
+    onWebViewPreview: () -> Unit,
+    quickActions: (@Composable () -> Unit)?,
+    onDismissRequest: () -> Unit,
+) {
+    val density = LocalDensity.current
+    val windowSize = LocalWindowInfo.current.containerSize
+    val positionProvider = remember(density) {
+        BubbleMenuPositionProvider(with(density) { 8.dp.roundToPx() })
+    }
+    // 窄屏上不能比窗口还宽，横屏下高度也要留出滚动余地
+    val width = with(density) {
+        minOf(MessageMenuMaxWidth, (windowSize.width.toDp() - 16.dp).coerceAtLeast(200.dp))
+    }
+    val maxHeight = with(density) { windowSize.height.toDp() * 0.7f }
+
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(
+            focusable = true,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(width)
+                .heightIn(max = maxHeight),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 3.dp,
+            shadowElevation = 8.dp,
+        ) {
+            ChatMessageActionList(
+                message = message,
+                model = model,
+                onEdit = onEdit,
+                onDelete = onDelete,
+                onShare = onShare,
+                onFork = onFork,
+                onSelectAndCopy = onSelectAndCopy,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onWebViewPreview = onWebViewPreview,
+                onDismissRequest = onDismissRequest,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                quickActions = quickActions,
+            )
+        }
+    }
+}
+
+/**
+ * 把菜单贴在气泡旁边：先试气泡下方，放不下翻到上方，都放不下就贴住窗口下沿；
+ * 水平方向让菜单右缘对齐气泡右缘（用户消息都靠右），再整体收进窗口。
+ */
+private class BubbleMenuPositionProvider(private val marginPx: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val below = anchorBounds.bottom + marginPx
+        val above = anchorBounds.top - popupContentSize.height - marginPx
+        val y = when {
+            below + popupContentSize.height <= windowSize.height - marginPx -> below
+            above >= marginPx -> above
+            else -> (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
+        }
+        val x = (anchorBounds.right - popupContentSize.width)
+            .coerceAtMost(windowSize.width - popupContentSize.width - marginPx)
+            .coerceAtLeast(marginPx)
+        return IntOffset(x, y)
+    }
 }

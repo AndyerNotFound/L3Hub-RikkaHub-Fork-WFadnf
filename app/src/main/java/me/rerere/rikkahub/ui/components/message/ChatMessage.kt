@@ -230,6 +230,58 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+    // 用户消息的长按菜单贴着气泡原地开；终端风格没有气泡，仍旧走底部弹窗
+    val inPlaceMenu = message.role == MessageRole.USER && !terminalStyle
+    val onSelectAndCopy: () -> Unit = { showSelectCopySheet = true }
+    val onWebViewPreview: () -> Unit = {
+        val textContent = message.parts
+            .filterIsInstance<UIMessagePart.Text>()
+            .joinToString("\n\n") { it.text }
+            .trim()
+        if (textContent.isNotBlank()) {
+            val htmlContent = buildMarkdownPreviewHtml(
+                context = context,
+                markdown = textContent,
+                colorScheme = colorScheme
+            )
+            val contentId = WebViewContentCache.store(context.cacheDir, htmlContent)
+            navController.navigate(Screen.WebView(contentId = contentId))
+        }
+    }
+    // 菜单作为气泡的子节点渲染，锚点就是气泡本身
+    val userMessageMenu: (@Composable () -> Unit)? = if (inPlaceMenu) {
+        {
+            if (showActionsSheet) {
+                UserMessageActionsMenu(
+                    message = message,
+                    model = model,
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onShare = onShare,
+                    onFork = onFork,
+                    onSelectAndCopy = onSelectAndCopy,
+                    isFavorite = isFavorite,
+                    onToggleFavorite = onToggleFavorite,
+                    onWebViewPreview = onWebViewPreview,
+                    quickActions = {
+                        UserMessageMenuQuickActions(
+                            message = message,
+                            node = node,
+                            onRegenerate = {
+                                // 菜单别挡着重新生成后的对话
+                                showActionsSheet = false
+                                onRegenerate()
+                            },
+                            onUpdate = onUpdate,
+                        )
+                    },
+                    onDismissRequest = { showActionsSheet = false },
+                )
+            }
+        }
+    } else {
+        null
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (terminalStyle) {
@@ -392,6 +444,7 @@ fun ChatMessage(
                                     onToolAnswer = onToolAnswer,
                                     onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
                                     onUserMessageLongClick = onUserMessageLongClick,
+                                    userMessageMenu = userMessageMenu,
                                     hazeState = hazeState,
                                     joinedToPrevious = joinedToPrevious,
                                     joinedToNext = joinedToNext,
@@ -507,7 +560,8 @@ fun ChatMessage(
         }
 
     }
-    if (showActionsSheet) {
+    // 用户消息的菜单在气泡里原地弹，这里只剩助手消息和终端风格的底部弹窗
+    if (showActionsSheet && !inPlaceMenu) {
         ChatMessageActionsSheet(
             message = message,
             onEdit = onEdit,
@@ -515,44 +569,12 @@ fun ChatMessage(
             onShare = onShare,
             onFork = onFork,
             model = model,
-            onSelectAndCopy = {
-                showSelectCopySheet = true
-            },
+            onSelectAndCopy = onSelectAndCopy,
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
-            onWebViewPreview = {
-                val textContent = message.parts
-                    .filterIsInstance<UIMessagePart.Text>()
-                    .joinToString("\n\n") { it.text }
-                    .trim()
-                if (textContent.isNotBlank()) {
-                    val htmlContent = buildMarkdownPreviewHtml(
-                        context = context,
-                        markdown = textContent,
-                        colorScheme = colorScheme
-                    )
-                    val contentId = WebViewContentCache.store(context.cacheDir, htmlContent)
-                    navController.navigate(Screen.WebView(contentId = contentId))
-                }
-            },
+            onWebViewPreview = onWebViewPreview,
             onDismissRequest = {
                 showActionsSheet = false
-            },
-            quickActions = if (message.role == MessageRole.USER) {
-                {
-                    UserMessageMenuQuickActions(
-                        message = message,
-                        node = node,
-                        onRegenerate = {
-                            // 菜单别挡着重新生成后的对话
-                            showActionsSheet = false
-                            onRegenerate()
-                        },
-                        onUpdate = onUpdate,
-                    )
-                }
-            } else {
-                null
             }
         )
     }
@@ -621,6 +643,7 @@ private fun MessagePartsBlock(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
     onUserMessageLongClick: (() -> Unit)? = null,
+    userMessageMenu: (@Composable () -> Unit)? = null,
     hazeState: HazeState? = null,
     joinedToPrevious: Boolean = false,
     joinedToNext: Boolean = false,
@@ -668,6 +691,7 @@ private fun MessagePartsBlock(
             assistant = assistant,
             onClick = onUserMessageClick,
             onLongClick = onUserMessageLongClick,
+            menu = userMessageMenu,
             onClickCitation = handleClickCitation,
             hazeState = hazeState,
             joinedToPrevious = joinedToPrevious,
@@ -1186,6 +1210,7 @@ private fun ChatMessageBubble(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
+    popup: (@Composable () -> Unit)? = null,
     joinedToPrevious: Boolean = false,
     joinedToNext: Boolean = false,
     content: @Composable () -> Unit,
@@ -1270,6 +1295,8 @@ private fun ChatMessageBubble(
             .padding(horizontal = 10.dp, vertical = 10.dp),
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
+        // 长按菜单挂在气泡的布局节点里，弹窗以气泡为锚点，滚动时跟着气泡走
+        popup?.invoke()
     }
 }
 
@@ -1356,6 +1383,7 @@ private fun UserMessageContent(
     assistant: Assistant?,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    menu: (@Composable () -> Unit)?,
     onClickCitation: (String) -> Unit,
     hazeState: HazeState?,
     joinedToPrevious: Boolean = false,
@@ -1384,6 +1412,7 @@ private fun UserMessageContent(
         onClick = { onClick?.invoke() },
         onLongClick = onLongClick,
         onLongClickLabel = stringResource(R.string.chat_message_long_press_actions),
+        popup = menu,
         modifier = Modifier
             .padding(start = adaptiveHorizontalPaddingValue(24.dp))
             .animateContentSize(),
