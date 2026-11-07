@@ -44,7 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.rerere.ui.components.AnimatedDialog
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -62,6 +61,7 @@ import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import kotlin.math.roundToInt
+import me.rerere.ui.components.AnimatedDialog
 
 private val TerminalTextStyle = TextStyle(
     fontFamily = FontFamily.Monospace,

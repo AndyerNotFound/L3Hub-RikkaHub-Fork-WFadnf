@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +47,7 @@ import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
+import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.androidx.compose.koinViewModel
 
 @Composable

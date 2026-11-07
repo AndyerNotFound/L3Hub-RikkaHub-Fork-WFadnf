@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -86,6 +85,7 @@ import me.rerere.rikkahub.ui.terminal.RadioButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
+import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.concurrent.TimeUnit

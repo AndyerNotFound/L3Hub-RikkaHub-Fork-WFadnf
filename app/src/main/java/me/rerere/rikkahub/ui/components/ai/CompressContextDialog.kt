@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +37,7 @@ import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable
 fun CompressContextDialog(

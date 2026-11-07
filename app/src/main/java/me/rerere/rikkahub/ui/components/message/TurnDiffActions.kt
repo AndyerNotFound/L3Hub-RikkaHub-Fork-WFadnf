@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -46,6 +45,7 @@ import me.rerere.rikkahub.data.workspace.GitFileStat
 import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceGit
 import androidx.compose.material3.Surface
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.richtext.DiffView
 import org.koin.compose.koinInject
 

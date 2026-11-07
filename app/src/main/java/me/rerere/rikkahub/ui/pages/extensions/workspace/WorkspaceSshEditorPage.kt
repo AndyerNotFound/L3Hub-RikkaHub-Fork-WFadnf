@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -64,6 +63,7 @@ import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshRemoteDirIssue
 import org.koin.androidx.compose.koinViewModel

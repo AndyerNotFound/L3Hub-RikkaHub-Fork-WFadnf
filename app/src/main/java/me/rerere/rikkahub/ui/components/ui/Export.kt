@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,6 +19,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.ExporterState
 import me.rerere.rikkahub.ui.terminal.OutlinedCard
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable
 fun <T> ExportDialog(

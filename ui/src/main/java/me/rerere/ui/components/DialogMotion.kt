@@ -7,6 +7,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -14,8 +15,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -31,6 +35,14 @@ import androidx.compose.ui.window.DialogProperties
 val LocalDialogEnterSpec = compositionLocalOf<FiniteAnimationSpec<Float>?> { null }
 val LocalDialogExitSpec = compositionLocalOf<FiniteAnimationSpec<Float>?> { null }
 
+/**
+ * 插槽里的按钮要主动关掉弹窗时走这里：先播退场，演完再执行动作。
+ *
+ * 直接改状态把弹窗从组合里拿掉的话，窗口当场就没了，退场动画没有机会播——
+ * 按钮这条路要滑出去，就得从这儿过一道。没接这个的地方返回 null，调用方退回直接执行。
+ */
+val LocalDialogDismiss = compositionLocalOf<((() -> Unit) -> Unit)?> { null }
+
 /** 卡片从下方这么远滑上来。再远就像从屏幕外飞进来，不像原地弹出来。 */
 private val DialogSlideDistance = 24.dp
 
@@ -39,14 +51,12 @@ private val DialogSlideDistance = 24.dp
  *
  * 进场在第一次组合时自己跑完，不要调用方传可见性——`if (show) AlertDialog(...)` 这种写法里，
  * 弹窗一被组合就该出现，这里接住那一下。
- *
- * 退场只能拦住走 [requestDismiss] 的那条路（点外部、返回键、点取消）：反向动画演完再真的关掉。
- * 调用方自己把状态置 false、直接把窗口从组合里拿掉的那种，这里接不住——
- * Compose 的 Dialog 没有「正在退场」这种中间态，除非调用方改成把可见性传进来。
  */
 private class DialogMotion(
     val progress: () -> Float,
+    val isClosing: () -> Boolean,
     val requestDismiss: () -> Unit,
+    val dismissThen: (() -> Unit) -> Unit,
 )
 
 @Composable
@@ -55,6 +65,7 @@ private fun rememberDialogMotion(onDismissRequest: () -> Unit): DialogMotion {
     val exitSpec = LocalDialogExitSpec.current ?: MaterialTheme.motionScheme.fastSpatialSpec()
     val progress = remember { Animatable(0f) }
     var closing by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     // 动画演完再回调，那会儿拿到的必须是最后一次传进来的 onDismissRequest
     val dismiss = rememberUpdatedState(onDismissRequest)
 
@@ -64,26 +75,57 @@ private fun rememberDialogMotion(onDismissRequest: () -> Unit): DialogMotion {
     LaunchedEffect(closing) {
         if (!closing) return@LaunchedEffect
         progress.animateTo(0f, exitSpec)
-        dismiss.value()
+        val action = pendingAction
+        pendingAction = null
+        if (action != null) action() else dismiss.value()
+        // 留一帧给父级把这个窗口从组合里拿掉
+        withFrameNanos { }
+        // 还活着说明这次「请求关闭」被拒了：有的调用点只是把 onDismissRequest 当请示——
+        // 锁屏、重启应用的确认框、正在加载的弹窗、裁剪失败还要重试的那种，都不会真的关。
+        // 那就原路弹回来。窗口没拆、遮罩还在、输入还拦着，停在隐身里等于这个弹窗再也点不到
+        progress.animateTo(1f, enterSpec)
+        closing = false
     }
 
-    return DialogMotion(progress = { progress.value }, requestDismiss = { closing = true })
+    return DialogMotion(
+        progress = { progress.value },
+        isClosing = { closing },
+        requestDismiss = { closing = true },
+        dismissThen = { action ->
+            if (!closing) {
+                pendingAction = action
+                closing = true
+            }
+        },
+    )
+}
+
+/** 退场那几百毫秒里窗口还没拆，按钮还点得到；先把输入拦下来，免得同一个动作被点两次。 */
+private fun Modifier.blockDialogInput(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            event.changes.forEach { it.consume() }
+        }
+    }
 }
 
 /**
  * 只动绘制、不动测量：弹窗的窗口尺寸一开始就是最终大小，滑入过程中不会把布局重算一遍。
  * 弹簧会略微过冲，透明度夹回 0..1，位移那点回弹留着。
  */
-private fun Modifier.dialogSlideLayer(motion: DialogMotion): Modifier = graphicsLayer {
-    val shown = motion.progress()
-    alpha = shown.coerceIn(0f, 1f)
-    translationY = (1f - shown) * DialogSlideDistance.toPx()
-}
+private fun Modifier.dialogSlideLayer(motion: DialogMotion): Modifier = this
+    .then(if (motion.isClosing()) Modifier.blockDialogInput() else Modifier)
+    .graphicsLayer {
+        val shown = motion.progress()
+        alpha = shown.coerceIn(0f, 1f)
+        translationY = (1f - shown) * DialogSlideDistance.toPx()
+    }
 
 /**
  * M3 [AlertDialog] 的滑入滑出版本，参数与原来一一对应，调用处改一下函数名和 import 就行。
  *
- * [modifier] 会落到 AlertDialog 内部那层整屏的 Box 上（M3 的约定），
+ * [modifier] 会落到 AlertDialog 内部那层铺满窗口内容区的 Box 上（M3 的约定），
  * 因此位移作用的是整块内容而不是背景遮罩——遮罩仍然由窗口自己淡入。
  */
 @Composable
@@ -98,16 +140,18 @@ fun AnimatedAlertDialog(
     properties: DialogProperties = DialogProperties(),
 ) {
     val motion = rememberDialogMotion(onDismissRequest)
-    AlertDialog(
-        onDismissRequest = motion.requestDismiss,
-        confirmButton = confirmButton,
-        modifier = modifier.dialogSlideLayer(motion),
-        dismissButton = dismissButton,
-        icon = icon,
-        title = title,
-        text = text,
-        properties = properties,
-    )
+    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+        AlertDialog(
+            onDismissRequest = motion.requestDismiss,
+            confirmButton = confirmButton,
+            modifier = modifier.dialogSlideLayer(motion),
+            dismissButton = dismissButton,
+            icon = icon,
+            title = title,
+            text = text,
+            properties = properties,
+        )
+    }
 }
 
 /**
@@ -122,19 +166,22 @@ fun AnimatedBasicAlertDialog(
     content: @Composable () -> Unit,
 ) {
     val motion = rememberDialogMotion(onDismissRequest)
-    BasicAlertDialog(
-        onDismissRequest = motion.requestDismiss,
-        modifier = modifier.dialogSlideLayer(motion),
-        properties = properties,
-        content = content,
-    )
+    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+        BasicAlertDialog(
+            onDismissRequest = motion.requestDismiss,
+            modifier = modifier.dialogSlideLayer(motion),
+            properties = properties,
+            content = content,
+        )
+    }
 }
 
 /**
  * 原生 [Dialog] 的滑入滑出版本。
  *
- * 内容自己画、可能撑满整屏的那些（图片预览、扫码、终端）走这里；
- * 包一层 Box 只为挂动画，不参与测量，窗口大小仍旧由内容决定。
+ * 内容自己画、可能撑满整屏的那些（图片预览、扫码、终端）走这里。
+ * 外面这层 Box 不加任何尺寸约束，只把内容原样量一遍再原样交给窗口，
+ * 所以窗口大小仍旧由内容决定，和直接用 [Dialog] 一样。
  */
 @Composable
 fun AnimatedDialog(
@@ -148,8 +195,10 @@ fun AnimatedDialog(
         onDismissRequest = motion.requestDismiss,
         properties = properties,
     ) {
-        Box(modifier = modifier.dialogSlideLayer(motion)) {
-            content()
+        CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+            Box(modifier = modifier.dialogSlideLayer(motion)) {
+                content()
+            }
         }
     }
 }

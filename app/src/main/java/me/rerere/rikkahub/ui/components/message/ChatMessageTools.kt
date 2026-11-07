@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -65,6 +64,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.DotLoading
 import kotlin.time.Clock
 import kotlin.time.Duration

@@ -27,7 +27,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ColorScheme
@@ -110,6 +109,7 @@ import me.rerere.rikkahub.ui.theme.isCompleteHexColor
 import me.rerere.rikkahub.ui.theme.parseHexColor
 import me.rerere.rikkahub.ui.theme.roleColors
 import me.rerere.rikkahub.utils.plus
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
 

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +32,7 @@ import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.toast.ToastType
 import java.io.File
 import java.io.FileInputStream

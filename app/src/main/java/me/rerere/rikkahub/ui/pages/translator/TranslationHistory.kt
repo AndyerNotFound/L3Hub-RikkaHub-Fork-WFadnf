@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 import java.util.Locale
+import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable
 fun TranslationHistoryHeader(

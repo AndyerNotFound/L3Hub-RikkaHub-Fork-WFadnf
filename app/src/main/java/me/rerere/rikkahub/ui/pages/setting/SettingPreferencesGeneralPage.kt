@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -56,6 +55,7 @@ import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.hasDeviceCredential
 import me.rerere.rikkahub.utils.plus
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt

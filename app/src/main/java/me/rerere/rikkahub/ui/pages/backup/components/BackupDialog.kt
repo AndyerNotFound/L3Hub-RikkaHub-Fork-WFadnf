@@ -1,12 +1,12 @@
 package me.rerere.rikkahub.ui.pages.backup.components
 
-import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.R
 import kotlin.system.exitProcess
+import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable
 fun BackupDialog() {

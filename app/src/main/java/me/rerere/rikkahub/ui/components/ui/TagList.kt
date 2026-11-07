@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +35,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.ui.terminal.TextButton
 import kotlin.uuid.Uuid
+import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable
 fun TagsInput(

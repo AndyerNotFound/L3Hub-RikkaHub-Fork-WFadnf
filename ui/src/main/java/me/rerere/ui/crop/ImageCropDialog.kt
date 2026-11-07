@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import me.rerere.ui.components.AnimatedDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
@@ -58,6 +57,7 @@ import me.rerere.hugeicons.stroke.RefreshCcw
 import me.rerere.hugeicons.stroke.RotateCwSquare
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.ui.R
+import me.rerere.ui.components.AnimatedDialog
 
 /**
  * 全屏的图片裁剪：拖动、缩放图片，拖框的边角调整范围，可以旋转 90°。

@@ -25,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import me.rerere.ui.components.AnimatedDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
@@ -41,6 +40,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import java.io.File
+import me.rerere.ui.components.AnimatedDialog
 
 /**
  * 全屏循环播放一个本地视频文件。设备解不了这个视频时给出提示，并可以交给其他应用打开。

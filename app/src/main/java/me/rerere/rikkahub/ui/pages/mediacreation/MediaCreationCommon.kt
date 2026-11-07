@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.data.model.MediaCreationStatus
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.getActivity
 import java.io.File
+import me.rerere.ui.components.AnimatedAlertDialog
 
 internal val ImageRole.label: String
     @Composable get() = when (this) {

@@ -42,7 +42,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import me.rerere.ui.components.AnimatedDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -60,6 +59,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.terminal.IconButton
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import me.rerere.ui.components.AnimatedDialog
 
 /**
  * 全屏扫描二维码，识别到内容后回调一次 [onResult]。

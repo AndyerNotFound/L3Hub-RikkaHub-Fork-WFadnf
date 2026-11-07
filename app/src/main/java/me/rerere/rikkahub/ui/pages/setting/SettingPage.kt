@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -94,6 +93,7 @@ import me.rerere.rikkahub.utils.joinQQGroup
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.writeClipboardText
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.icons.DiscordIcon
 import me.rerere.ui.icons.TencentQQIcon
 import org.koin.androidx.compose.koinViewModel

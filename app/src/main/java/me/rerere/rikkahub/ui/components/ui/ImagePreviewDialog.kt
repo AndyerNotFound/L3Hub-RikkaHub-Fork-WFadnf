@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
-import me.rerere.ui.components.AnimatedDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -29,6 +28,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.ui.components.AnimatedDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
 

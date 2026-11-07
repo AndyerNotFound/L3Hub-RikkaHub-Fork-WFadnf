@@ -47,7 +47,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import me.rerere.ui.components.AnimatedBasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -142,6 +141,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.utils.SoundEffectPlayer
+import me.rerere.ui.components.AnimatedBasicAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid

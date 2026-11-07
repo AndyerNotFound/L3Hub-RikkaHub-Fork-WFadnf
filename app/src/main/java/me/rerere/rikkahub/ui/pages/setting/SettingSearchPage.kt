@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -57,6 +56,7 @@ import me.rerere.rikkahub.utils.plus
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.components.RikkaConfirmDialog
