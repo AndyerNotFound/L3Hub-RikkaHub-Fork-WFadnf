@@ -42,3 +42,16 @@ fun <T> rememberEffectsSpec(): FiniteAnimationSpec<T> {
         AnimationSpeed.GENTLE -> tween<T>(durationMillis = 320)
     }
 }
+
+/**
+ * 收起、退出这类"收回去"的位移统一从这里取：比 [rememberSpatialSpec] 更紧，
+ * 档位同样跟设置走，用户把动画调快以后退出不会还按默认时长慢慢收。
+ */
+@Composable
+fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
+    return when (LocalAnimationSpeed.current) {
+        AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.fastSpatialSpec()
+        AnimationSpeed.FAST -> spring<T>(dampingRatio = 0.95f, stiffness = 1400f)
+        AnimationSpeed.GENTLE -> spring<T>(dampingRatio = 0.8f, stiffness = 420f)
+    }
+}

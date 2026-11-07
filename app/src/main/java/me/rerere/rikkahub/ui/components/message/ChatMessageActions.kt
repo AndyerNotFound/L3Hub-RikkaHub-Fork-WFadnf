@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,11 +33,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,6 +79,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
@@ -302,7 +308,11 @@ fun ChatMessageActionsSheet(
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
             onWebViewPreview = onWebViewPreview,
-            onDismissRequest = onDismissRequest,
+            // 弹窗是另一层窗口，和菜单一样：先关再由动作打开下一个界面
+            onRunAction = { action ->
+                onDismissRequest()
+                action()
+            },
             quickActions = quickActions,
         )
     }
@@ -324,7 +334,7 @@ private fun ChatMessageActionList(
     isFavorite: Boolean,
     onToggleFavorite: (() -> Unit)?,
     onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit,
+    onRunAction: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     quickActions: (@Composable () -> Unit)? = null,
 ) {
@@ -370,10 +380,7 @@ private fun ChatMessageActionList(
         ) {
             actions.fastForEachIndexed { index, action ->
                 SegmentedListItem(
-                    onClick = {
-                        onDismissRequest()
-                        action.onClick()
-                    },
+                    onClick = { onRunAction(action.onClick) },
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = actions.size),
                     colors = if (action.destructive) {
                         ListItemDefaults.segmentedColors(
@@ -470,11 +477,16 @@ private val MessageMenuMaxWidth = 300.dp
 // 菜单与气泡之间的间隙；同时当作阴影的绘制余量，popup 窗口不会给边界外的阴影留空间
 private val MessageMenuMargin = 8.dp
 
+// 展开动画的起始缩放：从气泡那个角开始长，不从 0 开始，否则像是凭空冒出来
+private const val MenuExpandFromScale = 0.86f
+
 /**
  * 用户消息的长按菜单：贴着气泡原地打开，不再从屏幕底部滑上来。
  *
  * 位置由 [BubbleMenuPositionProvider] 计算：优先气泡下方，放不下翻到上方，
  * 水平方向与气泡右缘对齐并收进窗口。窗口太矮时菜单自己滚动，不会顶出屏幕。
+ *
+ * 展开时从贴着气泡的那个角长出来，收回沿同一条路退回去；反向动画演完才真正移除窗口。
  */
 @Composable
 internal fun UserMessageActionsMenu(
@@ -491,11 +503,41 @@ internal fun UserMessageActionsMenu(
     quickActions: (@Composable () -> Unit)?,
     onDismissRequest: () -> Unit,
 ) {
+    val enterSpec = rememberSpatialSpec<Float>()
+    val exitSpec = rememberFastSpatialSpec<Float>()
     val density = LocalDensity.current
     val windowSize = LocalWindowInfo.current.containerDpSize
     val marginPx = with(density) { MessageMenuMargin.roundToPx() }
+    val progress = remember { Animatable(0f) }
+    // 展开原点跟着菜单位置走：贴在气泡下方从右上角长出来，翻到上方从右下角长回去
+    var originY by remember { mutableFloatStateOf(0f) }
+    var closing by remember { mutableStateOf(false) }
     val positionProvider = remember(density, marginPx) {
-        BubbleMenuPositionProvider(marginPx)
+        BubbleMenuPositionProvider(marginPx) { placedBelow ->
+            originY = if (placedBelow) 0f else 1f
+        }
+    }
+    // 收回分两步：反向动画演完，再让外层把菜单从组合里拿掉，否则会瞬间消失
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val dismiss: () -> Unit = { closing = true }
+    // 条目上的动作要等菜单收回去再执行：动画还在演就把下一个窗口翻上来，两个窗口会叠着，
+    // 那一下点击也会被还活着的 popup 吃掉
+    val dismissAfter: (() -> Unit) -> Unit = { action ->
+        if (!closing) {
+            pendingAction = action
+            closing = true
+        }
+    }
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, enterSpec)
+    }
+    LaunchedEffect(closing) {
+        if (!closing) return@LaunchedEffect
+        progress.animateTo(0f, exitSpec)
+        val action = pendingAction
+        pendingAction = null
+        action?.invoke()
+        onDismissRequest()
     }
     // 宽度取「窗口能给的」与「菜单想要的」里小的那个。下限不能用绝对 dp：
     // 分屏小窗比 200dp 还窄时，写死的下限会把菜单顶出窗口，右边被裁掉
@@ -506,7 +548,7 @@ internal fun UserMessageActionsMenu(
 
     Popup(
         popupPositionProvider = positionProvider,
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = dismiss,
         properties = PopupProperties(
             focusable = true,
             dismissOnBackPress = true,
@@ -514,7 +556,21 @@ internal fun UserMessageActionsMenu(
         ),
     ) {
         // 外面这层留白是给阴影的：popup 窗口会把边界外的绘制裁掉，不留白就没有阴影
-        Box(modifier = Modifier.padding(MessageMenuMargin)) {
+        Box(
+            modifier = Modifier
+                .padding(MessageMenuMargin)
+                // 只缩放绘制，不动布局：popup 的测量尺寸始终是最终大小，位置不会跟着抖
+                .graphicsLayer {
+                    val shown = progress.value
+                    // 弹簧会略微过冲，透明度夹回 0..1，缩放那点回弹留着
+                    alpha = shown.coerceIn(0f, 1f)
+                    val scale = MenuExpandFromScale + (1f - MenuExpandFromScale) * shown
+                    scaleX = scale
+                    scaleY = scale
+                    // 贴着气泡的那个角不动，菜单从那里长出来
+                    transformOrigin = TransformOrigin(1f, originY)
+                },
+        ) {
             Surface(
                 modifier = Modifier
                     .width(menuWidth)
@@ -535,7 +591,7 @@ internal fun UserMessageActionsMenu(
                     isFavorite = isFavorite,
                     onToggleFavorite = onToggleFavorite,
                     onWebViewPreview = onWebViewPreview,
-                    onDismissRequest = onDismissRequest,
+                    onRunAction = dismissAfter,
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     quickActions = quickActions,
                 )
@@ -548,7 +604,11 @@ internal fun UserMessageActionsMenu(
  * 把菜单贴在气泡旁边：先试气泡下方，放不下翻到上方，都放不下就贴住窗口下沿；
  * 水平方向让菜单右缘对齐气泡右缘（用户消息都靠右），再整体收进窗口。
  */
-private class BubbleMenuPositionProvider(private val marginPx: Int) : PopupPositionProvider {
+private class BubbleMenuPositionProvider(
+    private val marginPx: Int,
+    // 告诉菜单这次落在气泡的哪一侧，展开动画的原点据此选上边还是下边
+    private val onPlacedBelow: (Boolean) -> Unit,
+) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
         windowSize: IntSize,
@@ -570,6 +630,8 @@ private class BubbleMenuPositionProvider(private val marginPx: Int) : PopupPosit
         val x = (anchorBounds.right - popupContentSize.width)
             .coerceAtMost(windowSize.width - popupContentSize.width - marginPx)
             .coerceAtLeast(marginPx)
+        // 按菜单中心落在气泡中心的哪一侧判断，贴边压缩的情况也算得对
+        onPlacedBelow(y + popupContentSize.height / 2 >= anchorBounds.center.y)
         return IntOffset(x, y)
     }
 }
