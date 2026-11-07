@@ -143,6 +143,7 @@ import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.urlDecode
 import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
+import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.math.abs
@@ -216,6 +217,8 @@ fun ChatMessage(
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
+    // 重新生成要确认一次；这个状态放在菜单外面，确认框不能挂在 Popup 里
+    var showRegenerateConfirm by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     // 用户消息不再在气泡下面常驻一排操作按钮：长按气泡把菜单拉起来，原来那排按钮都收进菜单。
     // 助手消息的按钮行保持不变。
@@ -253,10 +256,11 @@ fun ChatMessage(
         UserMessageMenuQuickActions(
             message = message,
             node = node,
-            onRegenerate = {
-                // 菜单别挡着重新生成后的对话
+            onRegenerateRequest = {
+                // 先收菜单再问：确认框弹在 Popup 上面时，落点算「点到菜单外」，
+                // 菜单会连同框一起被关掉，那一下点击也就丢了
                 showActionsSheet = false
-                onRegenerate()
+                showRegenerateConfirm = true
             },
             onUpdate = onUpdate,
         )
@@ -581,6 +585,19 @@ fun ChatMessage(
             }
         )
     }
+
+    RikkaConfirmDialog(
+        show = showRegenerateConfirm,
+        title = stringResource(R.string.regenerate),
+        confirmText = stringResource(R.string.confirm),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showRegenerateConfirm = false
+            onRegenerate()
+        },
+        onDismiss = { showRegenerateConfirm = false },
+        text = { Text(stringResource(R.string.regenerate_confirm_message)) },
+    )
 
     if (showSelectCopySheet) {
         ChatMessageCopySheet(

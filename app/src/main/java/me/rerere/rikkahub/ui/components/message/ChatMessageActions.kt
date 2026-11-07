@@ -413,18 +413,20 @@ private fun ChatMessageActionList(
  *
  * 这几个按钮原来常驻在气泡下方，收进菜单之后气泡只剩内容，同一条消息也不再占两行高度；
  * 分支切换和时间跟按钮排在同一颗胶囊里，宽度够时一行放得下。
+ *
+ * 重新生成只把「要确认」这件事交出去，确认框由调用方在菜单外渲染：
+ * 菜单本身是个 Popup 窗口，框弹在它上面时这一下算点到菜单外，菜单会先把自己关掉。
  */
 @Composable
 internal fun UserMessageMenuQuickActions(
     message: UIMessage,
     node: MessageNode,
-    onRegenerate: () -> Unit,
+    onRegenerateRequest: () -> Unit,
     onUpdate: (MessageNode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val settings = LocalSettings.current
-    var showRegenerateConfirm by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier,
@@ -444,7 +446,7 @@ internal fun UserMessageMenuQuickActions(
             ChatMessageActionButton(
                 icon = HugeIcons.Refresh03,
                 contentDescription = stringResource(R.string.regenerate),
-                onClick = { showRegenerateConfirm = true },
+                onClick = onRegenerateRequest,
             )
             ChatMessageBranchSelector(
                 node = node,
@@ -461,20 +463,6 @@ internal fun UserMessageMenuQuickActions(
             }
         }
     }
-
-    // 在用户消息上重新生成会把这条之后的内容丢掉，先确认一次
-    RikkaConfirmDialog(
-        show = showRegenerateConfirm,
-        title = stringResource(R.string.regenerate),
-        confirmText = stringResource(R.string.confirm),
-        dismissText = stringResource(R.string.cancel),
-        onConfirm = {
-            showRegenerateConfirm = false
-            onRegenerate()
-        },
-        onDismiss = { showRegenerateConfirm = false },
-        text = { Text(stringResource(R.string.regenerate_confirm_message)) }
-    )
 }
 
 private val MessageMenuMaxWidth = 300.dp
@@ -509,12 +497,11 @@ internal fun UserMessageActionsMenu(
     val positionProvider = remember(density, marginPx) {
         BubbleMenuPositionProvider(marginPx)
     }
-    // 窄屏上不能比窗口还宽；菜单最多占窗口高度的六成，剩下的留给菜单外的气泡和列表
-    val menuWidth = minOf(
-        MessageMenuMaxWidth,
-        (windowSize.width - MessageMenuMargin * 2).coerceAtLeast(200.dp),
-    )
-    val maxHeight = (windowSize.height * 0.6f - MessageMenuMargin * 2).coerceAtLeast(240.dp)
+    // 宽度取「窗口能给的」与「菜单想要的」里小的那个。下限不能用绝对 dp：
+    // 分屏小窗比 200dp 还窄时，写死的下限会把菜单顶出窗口，右边被裁掉
+    val menuWidth = minOf(MessageMenuMaxWidth, windowSize.width - MessageMenuMargin * 2)
+    // 高度留七成：矮屏上四条条目加信息块放得下，删掉的那条不至于落到折叠线下面
+    val maxHeight = windowSize.height * 0.72f
 
     Popup(
         popupPositionProvider = positionProvider,
@@ -567,8 +554,10 @@ private class BubbleMenuPositionProvider(private val marginPx: Int) : PopupPosit
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val below = anchorBounds.bottom + marginPx
-        val above = anchorBounds.top - popupContentSize.height - marginPx
+        // popupContentSize 里已经含了外层那圈留给阴影的边距，这里再加一次
+        // 会让气泡和菜单之间的实际间隙变成两倍
+        val below = anchorBounds.bottom
+        val above = anchorBounds.top - popupContentSize.height
         val bottomLimit = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
         val y = when {
             below + popupContentSize.height <= windowSize.height - marginPx -> below
