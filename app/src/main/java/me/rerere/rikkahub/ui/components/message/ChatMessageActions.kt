@@ -79,6 +79,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
@@ -306,7 +308,11 @@ fun ChatMessageActionsSheet(
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
             onWebViewPreview = onWebViewPreview,
-            onDismissRequest = onDismissRequest,
+            // 弹窗是另一层窗口，和菜单一样：先关再由动作打开下一个界面
+            onRunAction = { action ->
+                onDismissRequest()
+                action()
+            },
             quickActions = quickActions,
         )
     }
@@ -328,7 +334,7 @@ private fun ChatMessageActionList(
     isFavorite: Boolean,
     onToggleFavorite: (() -> Unit)?,
     onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit,
+    onRunAction: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     quickActions: (@Composable () -> Unit)? = null,
 ) {
@@ -374,10 +380,7 @@ private fun ChatMessageActionList(
         ) {
             actions.fastForEachIndexed { index, action ->
                 SegmentedListItem(
-                    onClick = {
-                        onDismissRequest()
-                        action.onClick()
-                    },
+                    onClick = { onRunAction(action.onClick) },
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = actions.size),
                     colors = if (action.destructive) {
                         ListItemDefaults.segmentedColors(
@@ -500,7 +503,8 @@ internal fun UserMessageActionsMenu(
     quickActions: (@Composable () -> Unit)?,
     onDismissRequest: () -> Unit,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
+    val enterSpec = rememberSpatialSpec<Float>()
+    val exitSpec = rememberFastSpatialSpec<Float>()
     val density = LocalDensity.current
     val windowSize = LocalWindowInfo.current.containerDpSize
     val marginPx = with(density) { MessageMenuMargin.roundToPx() }
@@ -514,13 +518,25 @@ internal fun UserMessageActionsMenu(
         }
     }
     // 收回分两步：反向动画演完，再让外层把菜单从组合里拿掉，否则会瞬间消失
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val dismiss: () -> Unit = { closing = true }
+    // 条目上的动作要等菜单收回去再执行：动画还在演就把下一个窗口翻上来，两个窗口会叠着，
+    // 那一下点击也会被还活着的 popup 吃掉
+    val dismissAfter: (() -> Unit) -> Unit = { action ->
+        if (!closing) {
+            pendingAction = action
+            closing = true
+        }
+    }
     LaunchedEffect(Unit) {
-        progress.animateTo(1f, motionScheme.defaultSpatialSpec())
+        progress.animateTo(1f, enterSpec)
     }
     LaunchedEffect(closing) {
         if (!closing) return@LaunchedEffect
-        progress.animateTo(0f, motionScheme.fastSpatialSpec())
+        progress.animateTo(0f, exitSpec)
+        val action = pendingAction
+        pendingAction = null
+        action?.invoke()
         onDismissRequest()
     }
     // 宽度取「窗口能给的」与「菜单想要的」里小的那个。下限不能用绝对 dp：
@@ -546,7 +562,8 @@ internal fun UserMessageActionsMenu(
                 // 只缩放绘制，不动布局：popup 的测量尺寸始终是最终大小，位置不会跟着抖
                 .graphicsLayer {
                     val shown = progress.value
-                    alpha = shown
+                    // 弹簧会略微过冲，透明度夹回 0..1，缩放那点回弹留着
+                    alpha = shown.coerceIn(0f, 1f)
                     val scale = MenuExpandFromScale + (1f - MenuExpandFromScale) * shown
                     scaleX = scale
                     scaleY = scale
@@ -574,7 +591,7 @@ internal fun UserMessageActionsMenu(
                     isFavorite = isFavorite,
                     onToggleFavorite = onToggleFavorite,
                     onWebViewPreview = onWebViewPreview,
-                    onDismissRequest = dismiss,
+                    onRunAction = dismissAfter,
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     quickActions = quickActions,
                 )
