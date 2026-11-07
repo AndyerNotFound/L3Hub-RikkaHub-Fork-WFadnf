@@ -29,6 +29,11 @@ private const val ENTER_WINDOW_MS = 800L
  */
 internal fun newAppendedMessageIds(previous: List<Uuid>, current: List<Uuid>): List<Uuid> {
     if (current.isEmpty()) return emptyList()
+    // 上一帧还是空的、这一帧一次来了好几条：这是会话刚从库里读回来的整段历史。
+    // 冷打开一个已有会话时，首帧拿到的是 Conversation.ofId 的空列表，随后整段历史一次性到位，
+    // 不挡的话每条都会被当成"刚追加"，一屏旧消息一起从下面滑上来。
+    // 空会话里新消息只会一条条进来，一次多条的只可能是历史。
+    if (previous.isEmpty() && current.size > 1) return emptyList()
     val known = previous.toHashSet()
     // 一条都对不上：整段被换掉了（重新加载、导入、清空重来），不是"来了新消息"，
     // 否则会把一整页旧消息当成刚追加的，一起从下面滑上来

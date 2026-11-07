@@ -231,9 +231,10 @@ private fun MessagePreview(
     val consumeEnter = remember(enterTracker) { enterTracker::consume }
     LaunchedEffect(conversation.messageNodes.size, conversation.subAgentState) {
         if (conversation.messageNodes.isNotEmpty()) {
-            // 等新 item 完成布局再算目标，别用数据下标去撞还没布局出来的列表
+            // 目标用数据下标：首帧列表可能还没测量完，layoutInfo.totalItemsCount 还是 0，
+            // 拿它算出来的目标是 0，会把预览滚到顶部而不是最新一条
             withFrameNanos { }
-            listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+            listState.animateScrollToItem(conversation.messageNodes.lastIndex)
         }
     }
     LazyColumn(

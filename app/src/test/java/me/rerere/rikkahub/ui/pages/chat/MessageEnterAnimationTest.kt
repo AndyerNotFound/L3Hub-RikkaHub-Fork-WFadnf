@@ -12,8 +12,9 @@ class MessageEnterAnimationTest {
     private val d = Uuid.random()
 
     @Test
-    fun `appending to an empty list counts as an append`() {
-        assertEquals(listOf(a, b), newAppendedMessageIds(emptyList(), listOf(a, b)))
+    fun `a history list arriving into an empty frame is not an append`() {
+        // 冷打开已有会话：首帧是空列表，随后整段历史一次性到位，不能当成新消息
+        assertEquals(emptyList<Uuid>(), newAppendedMessageIds(emptyList(), listOf(a, b)))
     }
 
     @Test
@@ -61,6 +62,18 @@ class MessageEnterAnimationTest {
     fun `first frame never animates`() {
         val tracker = MessageEnterTracker { 0L }
         assertTrue(tracker.track(listOf(a, b)).isEmpty())
+    }
+
+    @Test
+    fun `opening a stored conversation does not animate its history`() {
+        val tracker = MessageEnterTracker { 0L }
+        // 首帧是 Conversation.ofId 的空列表
+        assertTrue(tracker.track(emptyList()).isEmpty())
+        // 数据库读回来的整段历史
+        val history = List(12) { Uuid.random() }
+        assertTrue(tracker.track(history).isEmpty())
+        // 之后真正追加的一条照常播
+        assertEquals(setOf(c), tracker.track(history + c))
     }
 
     @Test
