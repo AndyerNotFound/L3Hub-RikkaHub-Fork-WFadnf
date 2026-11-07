@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -289,7 +289,7 @@ internal fun TurnDiffActions(
 
     if (pendingDiscard != null) {
         val path = pendingDiscard!!
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { pendingDiscard = null },
             title = { Text(stringResource(R.string.turn_diff_discard_title)) },
             text = { Text(stringResource(R.string.turn_diff_discard_message, path.substringAfterLast('/'))) },
@@ -318,7 +318,7 @@ internal fun TurnDiffActions(
     }
 
     if (showCommit) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { if (!committing) showCommit = false },
             title = { Text(stringResource(R.string.turn_diff_commit_title)) },
             text = {

@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -113,7 +113,7 @@ fun BackgroundPicker(
     }
 
     if (showPickOption) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = {
                 showPickOption = false
             },
@@ -169,7 +169,7 @@ fun BackgroundPicker(
     }
 
     if (showUrlInput) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = {
                 showUrlInput = false
             },

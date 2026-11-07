@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.backup.components
 
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,7 +10,7 @@ import kotlin.system.exitProcess
 
 @Composable
 fun BackupDialog() {
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = {},
         title = { Text(stringResource(R.string.backup_page_restart_app)) },
         text = { Text(stringResource(R.string.backup_page_restart_desc)) },

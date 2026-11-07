@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import me.rerere.ui.components.AnimatedDialog
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -450,7 +450,7 @@ fun TerminalOutputDialog(
     content: String,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    AnimatedDialog(onDismissRequest = onDismiss) {
         Surface(
             color = TerminalPalette.Background,
             border = BorderStroke(1.dp, TerminalPalette.Border),
@@ -496,7 +496,7 @@ private fun TerminalCommandPaletteDialog(
     onPick: (TerminalCommandSpec) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    AnimatedDialog(onDismissRequest = onDismiss) {
         Surface(
             color = TerminalPalette.Background,
             border = BorderStroke(1.dp, TerminalPalette.Border),
@@ -555,7 +555,7 @@ fun TerminalModelPickerDialog(
         val models = provider.models.filter { it.type == me.rerere.ai.provider.ModelType.CHAT }
         if (models.isEmpty()) null else provider to models
     }
-    Dialog(onDismissRequest = onDismiss) {
+    AnimatedDialog(onDismissRequest = onDismiss) {
         Surface(
             color = TerminalPalette.Background,
             border = BorderStroke(1.dp, TerminalPalette.Border),

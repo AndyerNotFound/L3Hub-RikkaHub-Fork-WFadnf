@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -333,7 +333,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             is SshEditorError.Message -> error.text
             is SshEditorError.MessageArgs -> stringResource(error.id, error.arg)
         }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = vm::dismissError,
             title = { Text(
                     if (state.canSaveAnyway) {
@@ -459,7 +459,7 @@ private fun HostKeyDialog(
     onDismiss: () -> Unit,
 ) {
     val changed = pending.expected != null
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(HugeIcons.Key01, contentDescription = null) },
         title = { Text(

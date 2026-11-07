@@ -1,7 +1,7 @@
 package me.rerere.ui.sketch
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,7 +26,7 @@ internal fun SketchTextInput(onConfirm: (String) -> Unit, onDismiss: () -> Unit)
     val focusRequester = remember { FocusRequester() }
     // 弹出来就能直接打字
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.sketch_dialog_text)) },
         text = {

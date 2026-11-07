@@ -22,7 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -235,7 +235,7 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
     }
 
     if (showExportDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showExportDialog = false },
             title = { Text(stringResource(R.string.stats_page_export_title)) },
             text = {

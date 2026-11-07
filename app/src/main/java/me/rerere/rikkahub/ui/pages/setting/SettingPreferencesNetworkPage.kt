@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
@@ -208,7 +208,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
     }
 
     if (proxyDialogVisible) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { proxyDialogVisible = false },
             modifier = Modifier.imePadding(),
             title = {
@@ -553,7 +553,7 @@ private fun RetryValueDialog(
     onConfirm: (String) -> Unit,
 ) {
     var value by remember { mutableStateOf(initialValue) }
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {

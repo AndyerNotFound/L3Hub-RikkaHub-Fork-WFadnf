@@ -23,7 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -419,7 +419,7 @@ private fun ImportProviderButton(
     }
 
     if (showImportDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showImportDialog = false },
             title = {
                 Text(

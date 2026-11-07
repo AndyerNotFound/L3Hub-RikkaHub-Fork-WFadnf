@@ -20,7 +20,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -297,7 +297,7 @@ private fun MemorySettingsTab(
 
     if (showTimeReminderIntervalDialog) {
         val interval = timeReminderIntervalInput.toIntOrNull()?.takeIf { it > 0 }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showTimeReminderIntervalDialog = false },
             title = { Text(stringResource(R.string.assistant_page_time_reminder_interval)) },
             text = {
@@ -333,7 +333,7 @@ private fun MemorySettingsTab(
     }
 
     if (showAutoCompressThresholdDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showAutoCompressThresholdDialog = false },
             title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
             text = {
@@ -377,7 +377,7 @@ private fun MemorySettingsTab(
         val minValue = 1
         val maxValue = 500
         val valid = parsed != null && parsed in minValue..maxValue
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showAutoCompressTargetDialog = false },
             title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target)) },
             text = {

@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,7 +53,7 @@ fun TranslationHistoryHeader(
     }
 
     if (showClearDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text(stringResource(R.string.translator_page_clear_history_title)) },
             text = { Text(stringResource(R.string.translator_page_clear_history_message)) },

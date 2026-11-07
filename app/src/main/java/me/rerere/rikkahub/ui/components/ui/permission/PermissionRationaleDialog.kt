@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import me.rerere.ui.components.AnimatedDialog
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AlertCircle
 import me.rerere.rikkahub.R
@@ -44,7 +44,7 @@ internal fun PermissionRationaleDialog(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Dialog(
+    AnimatedDialog(
         onDismissRequest = onCancel,
     ) {
         Card(

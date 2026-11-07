@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -158,7 +158,7 @@ internal fun MessageQueuePanel(
         DisposableEffect(message.id) {
             onDispose { finishEdit(message.id, null) }
         }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { editing = null },
             title = { Text(stringResource(R.string.chat_page_queue_edit_title)) },
             text = {

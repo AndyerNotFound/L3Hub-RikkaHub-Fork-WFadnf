@@ -30,6 +30,8 @@ import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 import me.rerere.rikkahub.utils.getActivity
+import me.rerere.ui.components.LocalDialogEnterSpec
+import me.rerere.ui.components.LocalDialogExitSpec
 
 private val ExtendLightColors = lightExtendColors()
 private val ExtendDarkColors = darkExtendColors()
@@ -192,13 +194,20 @@ fun RikkahubTheme(
                 else -> MaterialTheme.shapes
             },
             content = {
-                if (wrapContent) {
-                    content()
-                } else {
-                    // 编辑模式：全屏盖一层取色器，点哪算哪
-                    Box(modifier = Modifier.fillMaxSize()) {
+                // 弹窗的进出场跟页面转场共用一档速度：用户在设置里调快以后，
+                // 不该只有页面收住了、弹窗还按默认时长慢慢滑
+                CompositionLocalProvider(
+                    LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
+                    LocalDialogExitSpec provides rememberFastSpatialSpec<Float>(),
+                ) {
+                    if (wrapContent) {
                         content()
-                        ColorProbeOverlay()
+                    } else {
+                        // 编辑模式：全屏盖一层取色器，点哪算哪
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            content()
+                            ColorProbeOverlay()
+                        }
                     }
                 }
             },

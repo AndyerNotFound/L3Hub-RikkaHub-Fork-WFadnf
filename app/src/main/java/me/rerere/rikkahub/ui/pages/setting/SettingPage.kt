@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -168,7 +168,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
                 if (showNicknameDialog) {
-                    AlertDialog(
+                    AnimatedAlertDialog(
                         onDismissRequest = { showNicknameDialog = false },
                         title = { Text(stringResource(R.string.chat_page_edit_nickname)) },
                         text = {

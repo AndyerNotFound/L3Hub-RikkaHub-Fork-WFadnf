@@ -31,7 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
@@ -1097,7 +1097,7 @@ private fun ChatPageContent(
         }
 
         if (showCompressAndSendDialog) {
-            AlertDialog(
+            AnimatedAlertDialog(
                 onDismissRequest = { showCompressAndSendDialog = false },
                 title = { Text(stringResource(R.string.chat_page_compress_before_send_title)) },
                 text = { Text(stringResource(R.string.chat_page_compress_before_send_desc)) },

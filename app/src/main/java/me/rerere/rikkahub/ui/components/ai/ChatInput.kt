@@ -47,7 +47,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.BasicAlertDialog
+import me.rerere.ui.components.AnimatedBasicAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -1215,7 +1215,7 @@ private fun FullScreenEditor(
     placeholder: String,
     onDone: () -> Unit
 ) {
-    BasicAlertDialog(
+    AnimatedBasicAlertDialog(
         onDismissRequest = {
             onDone()
         },

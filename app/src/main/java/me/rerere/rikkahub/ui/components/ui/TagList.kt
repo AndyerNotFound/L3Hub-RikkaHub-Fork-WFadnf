@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
@@ -101,7 +101,7 @@ fun TagsInput(
         // 获取未选择的标签
         val unselectedTags = tags.filter { tag -> !value.contains(tag.id) }
 
-        AlertDialog(onDismissRequest = {
+        AnimatedAlertDialog(onDismissRequest = {
             showAddDialog = false
             tagName = ""
             showError = false

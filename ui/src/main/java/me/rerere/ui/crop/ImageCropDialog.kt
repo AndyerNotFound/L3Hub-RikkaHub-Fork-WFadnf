@@ -45,7 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import me.rerere.ui.components.AnimatedDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
@@ -107,7 +107,7 @@ fun ImageCropDialog(
         }
     }
 
-    Dialog(
+    AnimatedDialog(
         onDismissRequest = { if (!cropping) onDismiss() },
         properties = DialogProperties(
             dismissOnClickOutside = false,

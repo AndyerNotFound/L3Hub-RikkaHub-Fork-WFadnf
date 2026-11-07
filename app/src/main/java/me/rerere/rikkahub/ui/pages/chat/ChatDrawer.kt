@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -458,7 +458,7 @@ fun ChatDrawerContent(
 
     // 昵称编辑对话框
     nicknameEditState.EditStateContent { nickname, onUpdate ->
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = {
                 nicknameEditState.dismiss()
             },
@@ -594,7 +594,7 @@ fun ChatDrawerContent(
     // 新建文件夹对话框
     if (showCreateFolderDialog) {
         var name by remember { mutableStateOf("") }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showCreateFolderDialog = false },
             title = { Text(stringResource(R.string.chat_page_create_folder)) },
             text = {
@@ -626,7 +626,7 @@ fun ChatDrawerContent(
     // 重命名文件夹对话框
     folderToRename?.let { folder ->
         var name by remember(folder.id) { mutableStateOf(folder.name) }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { folderToRename = null },
             title = { Text(stringResource(R.string.chat_page_rename_folder)) },
             text = {
@@ -656,7 +656,7 @@ fun ChatDrawerContent(
 
     // 删除文件夹确认
     folderToDelete?.let { folder ->
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { folderToDelete = null },
             title = { Text(stringResource(R.string.chat_page_delete_folder)) },
             text = { Text(stringResource(R.string.chat_page_delete_folder_confirm, folder.name)) },

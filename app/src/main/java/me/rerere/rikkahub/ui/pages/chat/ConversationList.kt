@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -623,7 +623,7 @@ private fun ConversationItem(
 
     renameTarget?.let { target ->
         var title by remember(target.id) { mutableStateOf(target.title) }
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { renameTarget = null },
             title = { Text(stringResource(R.string.chat_page_edit_title)) },
             text = {

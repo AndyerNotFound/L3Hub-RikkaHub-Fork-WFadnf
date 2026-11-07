@@ -38,7 +38,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -344,7 +344,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     state.exportResult?.let { result ->
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = vm::dismissExportResult,
             title = { Text(stringResource(R.string.workspace_detail_export_result)) },
             text = { Text(result, modifier = Modifier.verticalScroll(rememberScrollState())) },
@@ -368,7 +368,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     installError?.let { message ->
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = vm::dismissInstallError,
             title = { Text(stringResource(R.string.workspace_detail_rootfs_install_failed)) },
             text = { Text(message) },
@@ -381,7 +381,7 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     settingsError?.let { message ->
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = vm::dismissSettingsError,
             title = { Text(stringResource(R.string.workspace_detail_settings_save_failed)) },
             text = { Text(message.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }) },
@@ -693,7 +693,7 @@ private fun InstallRootfsDialog(
 ) {
     var url by rememberSaveable(workspace.id) { mutableStateOf(DEFAULT_ROOTFS_URL) }
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_install_rootfs)) },
         text = {

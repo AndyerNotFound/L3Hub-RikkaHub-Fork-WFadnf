@@ -35,7 +35,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CardDefaults
@@ -357,7 +357,7 @@ private fun SettingProviderConfigPage(
     }
 
     if (showGroupDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showGroupDialog = false },
             title = { Text(stringResource(R.string.setting_provider_group_title)) },
             text = {
@@ -430,7 +430,7 @@ private fun SettingProviderConfigPage(
     }
 
     if (showProxyDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showProxyDialog = false },
             title = { Text(stringResource(R.string.setting_provider_proxy_title)) },
             text = {
@@ -643,7 +643,7 @@ private fun SettingProviderConfigPage(
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = {
                 Text(stringResource(R.string.confirm_delete))

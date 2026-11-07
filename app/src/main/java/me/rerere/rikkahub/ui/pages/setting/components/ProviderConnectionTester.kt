@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -80,7 +80,7 @@ fun ProviderConnectionTester(
             streamingText = ""
         }
 
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = { showTestDialog = false },
             title = {
                 Text(stringResource(R.string.setting_provider_page_test_connection))

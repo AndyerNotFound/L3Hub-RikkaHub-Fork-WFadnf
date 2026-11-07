@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -499,7 +499,7 @@ private fun AddSkillDialog(
     val nameError = content.isNotBlank() && name == null
     val validationError = (validation.exceptionOrNull() as? SkillValidationException)?.error
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.skills_page_add_title)) },
         text = {
@@ -551,7 +551,7 @@ private fun ImportSkillDialog(
     var url by rememberSaveable { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = { if (!loading) onDismiss() },
         title = { Text(stringResource(R.string.skills_page_import_from_github)) },
         text = {

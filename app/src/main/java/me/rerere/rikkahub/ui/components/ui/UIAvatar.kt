@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material3.AlertDialog
+import me.rerere.ui.components.AnimatedAlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -200,7 +200,7 @@ fun UIAvatar(
     }
 
     if (showPickOption) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = {
                 showPickOption = false
             },
@@ -283,7 +283,7 @@ fun UIAvatar(
     }
 
     if (showUrlInput) {
-        AlertDialog(
+        AnimatedAlertDialog(
             onDismissRequest = {
                 showUrlInput = false
             },
