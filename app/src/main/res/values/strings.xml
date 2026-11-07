@@ -2174,6 +2174,7 @@
   <string name="chat_message_collapse_content">Collapse</string>
   <string name="chat_message_expand_earlier_steps">Expand previous %1$d steps</string>
   <string name="chat_message_collapse_earlier_steps">Collapse previous %1$d steps</string>
+  <string name="chat_message_long_press_actions">Long press for actions</string>
 
   <string name="chat_page_stats">Stats</string>
   <string name="setting_page_profile">Profile</string>

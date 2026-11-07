@@ -2176,6 +2176,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_collapse_content">收起</string>
   <string name="chat_message_expand_earlier_steps">展开此前 %1$d 步</string>
   <string name="chat_message_collapse_earlier_steps">收起此前 %1$d 步</string>
+  <string name="chat_message_long_press_actions">长按查看操作</string>
 
   <string name="chat_page_stats">统计</string>
   <string name="setting_page_profile">个人资料</string>

@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
@@ -17,6 +19,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
@@ -266,7 +269,9 @@ fun ChatMessageActionsSheet(
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    // 用户消息长按菜单顶部那排快捷按钮（复制 / 重新生成 / 分支切换 / 时间）
+    quickActions: (@Composable () -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -305,6 +310,9 @@ fun ChatMessageActionsSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (quickActions != null) {
+                quickActions()
+            }
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
@@ -347,4 +355,73 @@ fun ChatMessageActionsSheet(
             }
         }
     }
+}
+
+/**
+ * 用户消息长按菜单顶部那排快捷操作。
+ *
+ * 这几个按钮原来常驻在气泡下方，收进菜单之后气泡只剩内容，同一条消息也不再占两行高度；
+ * 分支切换和时间跟按钮排在同一颗胶囊里，宽度够时一行放得下。
+ */
+@Composable
+internal fun UserMessageMenuQuickActions(
+    message: UIMessage,
+    node: MessageNode,
+    onRegenerate: () -> Unit,
+    onUpdate: (MessageNode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val settings = LocalSettings.current
+    var showRegenerateConfirm by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            ChatMessageActionButton(
+                icon = HugeIcons.Copy01,
+                contentDescription = stringResource(R.string.copy),
+                onClick = { context.copyMessageToClipboard(message) },
+            )
+            ChatMessageActionButton(
+                icon = HugeIcons.Refresh03,
+                contentDescription = stringResource(R.string.regenerate),
+                onClick = { showRegenerateConfirm = true },
+            )
+            ChatMessageBranchSelector(
+                node = node,
+                onUpdate = onUpdate,
+            )
+            if (settings.displaySetting.showDateTimeInMessage) {
+                Text(
+                    text = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
+    }
+
+    // 在用户消息上重新生成会把这条之后的内容丢掉，先确认一次
+    RikkaConfirmDialog(
+        show = showRegenerateConfirm,
+        title = stringResource(R.string.regenerate),
+        confirmText = stringResource(R.string.confirm),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showRegenerateConfirm = false
+            onRegenerate()
+        },
+        onDismiss = { showRegenerateConfirm = false },
+        text = { Text(stringResource(R.string.regenerate_confirm_message)) }
+    )
 }
