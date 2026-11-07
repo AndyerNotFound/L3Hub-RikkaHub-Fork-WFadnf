@@ -23,6 +23,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * 弹窗进场与退场用的曲线。
@@ -74,11 +76,20 @@ private fun rememberDialogMotion(onDismissRequest: () -> Unit): DialogMotion {
     }
     LaunchedEffect(closing) {
         if (!closing) return@LaunchedEffect
-        progress.animateTo(0f, exitSpec)
         val action = pendingAction
         pendingAction = null
-        if (action != null) action() else dismiss.value()
-        // 留一帧给父级把这个窗口从组合里拿掉
+        try {
+            progress.animateTo(0f, exitSpec)
+        } finally {
+            // 动画被打断（弹窗从别处被收走、宿主页面销毁）也要把动作交出去：
+            // 按钮点下去的那一下，不能因为窗口提前消失就一起丢了
+            withContext(NonCancellable) {
+                if (action != null) action() else dismiss.value()
+            }
+        }
+        // 等两帧给父级把这个窗口从组合里拿掉：同步置状态的重组跟这里在同一帧，
+        // 只等一帧会抢在它前面，把马上要消失的弹窗又弹回来一下
+        withFrameNanos { }
         withFrameNanos { }
         // 还活着说明这次「请求关闭」被拒了：有的调用点只是把 onDismissRequest 当请示——
         // 锁屏、重启应用的确认框、正在加载的弹窗、裁剪失败还要重试的那种，都不会真的关。
