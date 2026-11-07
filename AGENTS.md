@@ -33,6 +33,23 @@ Material 3 look (cards with dividers, plain forms).
 App 有一个 `distribution` 维度的 product flavor：`github`（默认）和 `play`，共用同一个 applicationId。
 渠道差异用 `BuildConfig.IS_PLAY_STORE` 判断（如 Play 版不检查更新、不显示更新提醒）。
 
+## 本机环境（Termux，实测）
+
+上面那串 `./gradlew` 是 PC / CI 上的命令，**本机（Termux）跑不了**：没有 `gradle` 命令，`~/.gradle` 下
+既没有 wrapper 分发也没有依赖缓存，`ANDROID_HOME` 未设、`/opt/android-sdk` 不存在。真要在本机跑，得先下
+GB 级依赖，还要过 `compguard` 的编译限额——不划算。验证一律走远端：
+
+- **单测**：`CI` workflow，push 到任意分支即触发，实测 3–5 分钟。看结果与失败日志：
+  `gh run list --limit 3`、`gh run view <run-id> --log-failed`。
+- **出包**：`Build APK` workflow，打 `v*` tag 触发，实测 8–11 分钟。`tools/build-apk.sh` 是给云端机用的，
+  本机不可执行。
+- **云端编译机**：`git remote cloud-build` → `cloud:/root/projects/rikkahub-fork`（ssh alias `cloud`）。
+  当前它的主机指纹与 `~/.ssh/known_hosts` 不一致，修好之前这条通道不可用。
+- `gh` 默认仓库已设为 `AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf`。本仓库同时挂了 `upstream` remote，
+  不设默认时会静默查到上游的 workflow（会得到 HTTP 404）。
+
+所以改完代码要 push 才拿得到反馈，一次改动要让失败面尽量小：宁可分两次推，也别攒一大坨。
+
 ## Module Structure
 
 - **app**: Main application module with UI, ViewModels, and core logic
