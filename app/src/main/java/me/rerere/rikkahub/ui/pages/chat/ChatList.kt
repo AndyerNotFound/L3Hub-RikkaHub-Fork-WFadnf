@@ -52,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -323,7 +325,8 @@ private fun ChatListNormal(
     }
 
     fun List<LazyListItemInfo>.isAtBottom(): Boolean {
-        val lastItem = lastOrNull() ?: return false
+        // 还没布局出任何 item（新会话第一条消息刚进来）也算在底部
+        val lastItem = lastOrNull() ?: return true
         val inputBarHeight = with(density) { innerPadding.calculateBottomPadding().toPx() }
         val lastPos = lastItem.offset + lastItem.size
         val inputPos = (state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt())
@@ -355,6 +358,21 @@ private fun ChatListNormal(
             .associateBy { it.id }
     }
     val lastMessageIndex = conversation.messageNodes.lastIndex
+
+    // 新消息入场：只有"尾部刚追加"的那几条会从屏幕下方滑进来，
+    // 打开会话、加载历史、切换分支时列表尾部不会多出 id，所以都不会播。
+    val enterTracker = remember(conversation.id) { MessageEnterTracker() }
+    // 流式输出时每帧都会重组，条数和尾条没变就不用重扫一遍 id
+    val messageIds = remember(
+        conversation.id,
+        conversation.messageNodes.size,
+        conversation.messageNodes.lastOrNull()?.id,
+    ) {
+        conversation.messageNodes.map { it.id }
+    }
+    val enteringMessageIds = enterTracker.track(messageIds)
+    // 方法引用每次重组都是新实例，缓存一份，动画中的 item 才不会被父级重组带着跑
+    val consumeEnter = remember(enterTracker) { enterTracker::consume }
 
     // 滚到最底部以后继续上拉：拉满才认。
     // available 沿用原始手势符号（手指上滑是负值），到底以后列表吃不下，多出来的这段就是拉伸量。
@@ -479,6 +497,31 @@ private fun ChatListNormal(
         modifier = Modifier
             .fillMaxSize(),
     ) {
+        // 新消息追加：用短动画滚过去，不要一瞬间闪现。
+        // 用户自己发的消息由 ChatPage 在发送后滚动，这里只认助手新开的那条，
+        // 否则同一次发送会排出两条动画，滚到位以后再补一小段。
+        // 流式 token 的小步增长不算追加，仍走下面那条每帧跟随。
+        var lastNodeCount by remember(conversation.id) {
+            mutableIntStateOf(conversation.messageNodes.size)
+        }
+        LaunchedEffect(conversation.messageNodes.size) {
+            val grew = conversation.messageNodes.size > lastNodeCount
+            lastNodeCount = conversation.messageNodes.size
+            if (!grew || !loadingState || state.isScrollInProgress) return@LaunchedEffect
+            if (!settings.displaySetting.enableAutoScroll) return@LaunchedEffect
+            if (conversation.messageNodes.lastOrNull()?.role != MessageRole.ASSISTANT) return@LaunchedEffect
+            if (!state.layoutInfo.visibleItemsInfo.isAtBottom()) return@LaunchedEffect
+            // 等新 item 完成布局再算目标，否则拿到的还是追加前的位置
+            withFrameNanos { }
+            state.animateScrollToItem((state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+            // 动画期间内容还在长的话，收尾再追一次，
+            // 免得动画一停就把增长的那一截交给每帧跟随去瞬跳
+            withFrameNanos { }
+            if (state.canScrollForward) {
+                state.animateScrollToItem((state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+            }
+        }
+
         // 自动滚动到底部
         if (settings.displaySetting.enableAutoScroll) {
             LaunchedEffect(state) {
@@ -555,64 +598,70 @@ private fun ChatListNormal(
                     joinedToPrevious -> MESSAGE_GAP_JOINED
                     else -> MESSAGE_GAP_ROLE_CHANGE
                 }
-                Column {
-                    if (itemGap > 0.dp) {
-                        Spacer(Modifier.height(itemGap))
-                    }
-                    ListSelectableItem(
-                        key = node.id,
-                        onSelectChange = {
-                            if (!selectedItems.contains(node.id)) {
-                                selectedItems.add(node.id)
-                            } else {
-                                selectedItems.remove(node.id)
-                            }
-                        },
-                        selectedKeys = selectedItems,
-                        enabled = selecting,
-                    ) {
-                        ChatMessage(
-                            node = node,
-                            model = node.currentMessage.modelId?.let(modelById::get)
-                                ?: node.currentMessage.snapshotModel(),
-                            assistant = assistant,
-                            loading = loading && index == lastMessageIndex,
-                            onRegenerate = {
-                                onRegenerate(node.currentMessage)
+                MessageEnterSlide(
+                    messageId = node.id,
+                    animateEnter = node.id in enteringMessageIds,
+                    onEnterFinished = consumeEnter,
+                ) {
+                    Column {
+                        if (itemGap > 0.dp) {
+                            Spacer(Modifier.height(itemGap))
+                        }
+                        ListSelectableItem(
+                            key = node.id,
+                            onSelectChange = {
+                                if (!selectedItems.contains(node.id)) {
+                                    selectedItems.add(node.id)
+                                } else {
+                                    selectedItems.remove(node.id)
+                                }
                             },
-                            onEdit = {
-                                onEdit(node.currentMessage)
-                            },
-                            onFork = {
-                                onForkMessage(node.currentMessage)
-                            },
-                            onDelete = {
-                                onDelete(node.currentMessage)
-                            },
-                            onShare = {
-                                selecting = true  // 使用 CoroutineScope 延迟状态更新
-                                selectedItems.clear()
-                                selectedItems.addAll(conversation.messageNodes.map { it.id }
-                                    .subList(0, conversation.messageNodes.indexOf(node) + 1))
-                            },
-                            onUpdate = {
-                                onUpdateMessage(it)
-                            },
-                            isFavorite = node.isFavorite,
-                            onToggleFavorite = {
-                                onToggleFavorite?.invoke(node)
-                            },
-                            onTranslate = onTranslate,
-                            onClearTranslation = onClearTranslation,
-                            onToolApproval = onToolApproval,
-                            onToolAnswer = onToolAnswer,
-                            hazeState = bubbleHazeState,
-                            conversationId = conversation.id,
-                            lastMessage = index == lastMessageIndex,
-                            messageIndex = index,
-                            joinedToPrevious = joinedToPrevious,
-                            joinedToNext = joinedToNext,
-                        )
+                            selectedKeys = selectedItems,
+                            enabled = selecting,
+                        ) {
+                            ChatMessage(
+                                node = node,
+                                model = node.currentMessage.modelId?.let(modelById::get)
+                                    ?: node.currentMessage.snapshotModel(),
+                                assistant = assistant,
+                                loading = loading && index == lastMessageIndex,
+                                onRegenerate = {
+                                    onRegenerate(node.currentMessage)
+                                },
+                                onEdit = {
+                                    onEdit(node.currentMessage)
+                                },
+                                onFork = {
+                                    onForkMessage(node.currentMessage)
+                                },
+                                onDelete = {
+                                    onDelete(node.currentMessage)
+                                },
+                                onShare = {
+                                    selecting = true  // 使用 CoroutineScope 延迟状态更新
+                                    selectedItems.clear()
+                                    selectedItems.addAll(conversation.messageNodes.map { it.id }
+                                        .subList(0, conversation.messageNodes.indexOf(node) + 1))
+                                },
+                                onUpdate = {
+                                    onUpdateMessage(it)
+                                },
+                                isFavorite = node.isFavorite,
+                                onToggleFavorite = {
+                                    onToggleFavorite?.invoke(node)
+                                },
+                                onTranslate = onTranslate,
+                                onClearTranslation = onClearTranslation,
+                                onToolApproval = onToolApproval,
+                                onToolAnswer = onToolAnswer,
+                                hazeState = bubbleHazeState,
+                                conversationId = conversation.id,
+                                lastMessage = index == lastMessageIndex,
+                                messageIndex = index,
+                                joinedToPrevious = joinedToPrevious,
+                                joinedToNext = joinedToNext,
+                            )
+                        }
                     }
                 }
             }
@@ -1102,7 +1151,7 @@ private fun BoxScope.MessageJumper(
             Surface(
                 onClick = {
                     scope.launch {
-                        state.scrollToItem(0)
+                        state.animateScrollToItem(0)
                     }
                 },
                 shape = CircleShape,
@@ -1162,7 +1211,11 @@ private fun BoxScope.MessageJumper(
             Surface(
                 onClick = {
                     scope.launch {
-                        state.scrollToItem(state.layoutInfo.totalItemsCount - 1)
+                        // 滚回最新消息用短动画，不要一瞬间闪现过去；
+                        // 距离远时 Compose 自己会先跳到目标附近，再动画收尾
+                        state.animateScrollToItem(
+                            index = (state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                        )
                     }
                 },
                 shape = CircleShape,

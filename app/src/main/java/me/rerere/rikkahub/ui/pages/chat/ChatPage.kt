@@ -453,7 +453,9 @@ private fun ChatPageContent(
             vm.handleMessageSend(inputState.getContents())
             scope.launch {
                 delay(100.milliseconds)
-                chatListState.requestScrollToItem(currentMessages.size + 5)
+                chatListState.animateScrollToItem(
+                    index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                )
             }
         }
         inputState.clearInput()
@@ -503,7 +505,9 @@ private fun ChatPageContent(
         inputState.clearInput()
         scope.launch {
             delay(100.milliseconds)
-            chatListState.requestScrollToItem(currentMessages.size + 5)
+            chatListState.animateScrollToItem(
+                index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+            )
         }
     }
 
@@ -596,7 +600,9 @@ private fun ChatPageContent(
                     vm.handleMessageSend(listOf(UIMessagePart.Text(command.args)))
                     scope.launch {
                         delay(100.milliseconds)
-                        chatListState.requestScrollToItem(currentMessages.size + 5)
+                        chatListState.animateScrollToItem(
+                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                        )
                     }
                 }
             }
@@ -857,7 +863,9 @@ private fun ChatPageContent(
                 inputState.clearInput()
                 scope.launch {
                     delay(100.milliseconds)
-                    chatListState.requestScrollToItem(currentMessages.size + 5)
+                    chatListState.animateScrollToItem(
+                        index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                    )
                 }
             },
             onLongSendClick = {
@@ -873,7 +881,10 @@ private fun ChatPageContent(
                 } else {
                     vm.handleMessageSend(content = inputState.getContents(), answer = false)
                     scope.launch {
-                        chatListState.requestScrollToItem(currentMessages.size + 5)
+                        delay(100.milliseconds)
+                        chatListState.animateScrollToItem(
+                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                        )
                     }
                 }
                 inputState.clearInput()
@@ -1063,6 +1074,8 @@ private fun ChatPageContent(
                     onJumpToMessage = { index ->
                         previewMode = false
                         scope.launch {
+                            // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
+                            // 现在算距离用的是预览页那份还没挂上的布局
                             chatListState.requestScrollToItem(index)
                         }
                     },

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.theme
 
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -24,5 +25,20 @@ fun <T> rememberSpatialSpec(): FiniteAnimationSpec<T> {
         AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.defaultSpatialSpec()
         AnimationSpeed.FAST -> spring<T>(dampingRatio = 0.9f, stiffness = 900f)
         AnimationSpeed.GENTLE -> spring<T>(dampingRatio = 0.8f, stiffness = 220f)
+    }
+}
+
+/**
+ * 淡入淡出、透明度变化这类"不位移"的动画统一从这里取。
+ *
+ * 和 [rememberSpatialSpec] 用同一套档位，免得用户把动画调快以后，
+ * 位移已经收住了、淡入还按默认时长慢慢走。
+ */
+@Composable
+fun <T> rememberEffectsSpec(): FiniteAnimationSpec<T> {
+    return when (LocalAnimationSpeed.current) {
+        AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.defaultEffectsSpec()
+        AnimationSpeed.FAST -> tween<T>(durationMillis = 120)
+        AnimationSpeed.GENTLE -> tween<T>(durationMillis = 320)
     }
 }

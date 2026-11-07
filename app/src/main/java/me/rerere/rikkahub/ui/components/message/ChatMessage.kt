@@ -19,9 +19,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +49,7 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -213,6 +216,17 @@ fun ChatMessage(
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
+    val hapticFeedback = LocalHapticFeedback.current
+    // 用户消息不再在气泡下面常驻一排操作按钮：长按气泡把菜单拉起来，原来那排按钮都收进菜单。
+    // 助手消息的按钮行保持不变。
+    val onUserMessageLongClick: (() -> Unit)? = if (message.role == MessageRole.USER) {
+        {
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            showActionsSheet = true
+        }
+    } else {
+        null
+    }
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -350,6 +364,7 @@ fun ChatMessage(
                                         onToolApproval = onToolApproval,
                                         onToolAnswer = onToolAnswer,
                                         onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                        onUserMessageLongClick = onUserMessageLongClick,
                                         hazeState = hazeState,
                                         joinedToPrevious = joinedToPrevious,
                                         joinedToNext = joinedToNext,
@@ -376,6 +391,7 @@ fun ChatMessage(
                                     onToolApproval = onToolApproval,
                                     onToolAnswer = onToolAnswer,
                                     onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                    onUserMessageLongClick = onUserMessageLongClick,
                                     hazeState = hazeState,
                                     joinedToPrevious = joinedToPrevious,
                                     joinedToNext = joinedToNext,
@@ -434,10 +450,13 @@ fun ChatMessage(
         } else {
             message.parts.isEmptyUIMessage().not()
         }
+        // 普通气泡里的用户消息把操作收进长按菜单，气泡下面不再挂按钮；
+        // 终端风格没有气泡，行内按钮照旧。
+        val showActionRow = showActions && (terminalStyle || message.role != MessageRole.USER)
 
         val motionScheme = MaterialTheme.motionScheme
         if (terminalStyle) {
-            if (showActions) {
+            if (showActionRow) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -453,7 +472,7 @@ fun ChatMessage(
                 }
             }
         } else AnimatedVisibility(
-            visible = showActions,
+            visible = showActionRow,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
             exit = slideOutVertically(motionScheme.fastSpatialSpec()) { it / 2 } +
@@ -518,6 +537,22 @@ fun ChatMessage(
             },
             onDismissRequest = {
                 showActionsSheet = false
+            },
+            quickActions = if (message.role == MessageRole.USER) {
+                {
+                    UserMessageMenuQuickActions(
+                        message = message,
+                        node = node,
+                        onRegenerate = {
+                            // 菜单别挡着重新生成后的对话
+                            showActionsSheet = false
+                            onRegenerate()
+                        },
+                        onUpdate = onUpdate,
+                    )
+                }
+            } else {
+                null
             }
         )
     }
@@ -585,6 +620,7 @@ private fun MessagePartsBlock(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
+    onUserMessageLongClick: (() -> Unit)? = null,
     hazeState: HazeState? = null,
     joinedToPrevious: Boolean = false,
     joinedToNext: Boolean = false,
@@ -631,6 +667,7 @@ private fun MessagePartsBlock(
             parts = parts,
             assistant = assistant,
             onClick = onUserMessageClick,
+            onLongClick = onUserMessageLongClick,
             onClickCitation = handleClickCitation,
             hazeState = hazeState,
             joinedToPrevious = joinedToPrevious,
@@ -1147,6 +1184,8 @@ private fun ChatMessageBubble(
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     joinedToPrevious: Boolean = false,
     joinedToNext: Boolean = false,
     content: @Composable () -> Unit,
@@ -1213,8 +1252,16 @@ private fun ChatMessageBubble(
                 },
             )
             .then(
-                if (onClick != null) {
-                    Modifier.clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick)
+                // 长按（用户消息的操作菜单）和点击（编辑）共用同一个交互源，
+                // 按下时圆角收缩的反馈对两种手势都在
+                if (onClick != null || onLongClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = ripple(),
+                        onLongClickLabel = onLongClickLabel,
+                        onLongClick = onLongClick,
+                        onClick = { onClick?.invoke() },
+                    )
                 } else {
                     Modifier
                 },
@@ -1308,6 +1355,7 @@ private fun UserMessageContent(
     parts: List<UIMessagePart>,
     assistant: Assistant?,
     onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
     onClickCitation: (String) -> Unit,
     hazeState: HazeState?,
     joinedToPrevious: Boolean = false,
@@ -1334,13 +1382,17 @@ private fun UserMessageContent(
         joinedToPrevious = joinedToPrevious,
         joinedToNext = joinedToNext,
         onClick = { onClick?.invoke() },
+        onLongClick = onLongClick,
+        onLongClickLabel = stringResource(R.string.chat_message_long_press_actions),
         modifier = Modifier
             .padding(start = adaptiveHorizontalPaddingValue(24.dp))
             .animateContentSize(),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (attachments.isNotEmpty()) {
-                UserAttachmentTiles(attachments = attachments)
+                // 卡片自带点击，会先把 down 事件消费掉，气泡外层就收不到长按了；
+                // 长按一并挂在卡片上，点图片消息也能拉出菜单
+                UserAttachmentTiles(attachments = attachments, onLongClick = onLongClick)
             }
             texts.forEach { text ->
                 CollapsibleUserMessageText(
@@ -1354,7 +1406,10 @@ private fun UserMessageContent(
 }
 
 @Composable
-private fun UserAttachmentTiles(attachments: List<UIMessagePart>) {
+private fun UserAttachmentTiles(
+    attachments: List<UIMessagePart>,
+    onLongClick: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val visible = attachments.take(3)
     val hiddenCount = (attachments.size - visible.size).coerceAtLeast(0)
@@ -1377,6 +1432,7 @@ private fun UserAttachmentTiles(attachments: List<UIMessagePart>) {
                     }
                     if (!url.isNullOrBlank()) context.openLocalFile(url)
                 },
+                onLongClick = onLongClick,
             )
         }
     }
@@ -1387,7 +1443,9 @@ private fun UserAttachmentTile(
     part: UIMessagePart,
     moreCount: Int,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     val partUrl = when (part) {
         is UIMessagePart.Image -> part.url
         is UIMessagePart.Document -> part.url
@@ -1407,7 +1465,15 @@ private fun UserAttachmentTile(
         }
     }
     Surface(
-        onClick = onClick,
+        // 用带 onClick 的 Surface 时它自带 48dp 最小触控尺寸，换成分开挂手势后要自己补回来
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),

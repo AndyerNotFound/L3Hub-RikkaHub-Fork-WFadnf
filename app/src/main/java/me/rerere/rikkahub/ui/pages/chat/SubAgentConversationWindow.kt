@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -217,9 +218,22 @@ private fun MessagePreview(
         settings.assistants.firstOrNull { it.id == conversation.assistantId }
     }
     val listState = rememberLazyListState()
+    val enterTracker = remember(conversation.id) { MessageEnterTracker() }
+    val messageIds = remember(
+        conversation.id,
+        conversation.messageNodes.size,
+        conversation.messageNodes.lastOrNull()?.id,
+    ) {
+        conversation.messageNodes.map { it.id }
+    }
+    val enteringMessageIds = enterTracker.track(messageIds)
+    // 方法引用每次重组都是新实例，缓存一份，动画中的 item 才不会被父级重组带着跑
+    val consumeEnter = remember(enterTracker) { enterTracker::consume }
     LaunchedEffect(conversation.messageNodes.size, conversation.subAgentState) {
         if (conversation.messageNodes.isNotEmpty()) {
-            listState.scrollToItem(conversation.messageNodes.lastIndex)
+            // 等新 item 完成布局再算目标，别用数据下标去撞还没布局出来的列表
+            withFrameNanos { }
+            listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
         }
     }
     LazyColumn(
@@ -229,21 +243,27 @@ private fun MessagePreview(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         itemsIndexed(conversation.messageNodes, key = { _, node -> node.id }) { index, node ->
-            ChatMessage(
-                node = node,
-                loading = conversation.subAgentState == SUB_AGENT_STATE_RUNNING &&
-                    index == conversation.messageNodes.lastIndex,
-                assistant = assistant,
-                conversationId = conversation.id,
-                lastMessage = index == conversation.messageNodes.lastIndex,
-                messageIndex = index,
-                onFork = {},
-                onRegenerate = {},
-                onEdit = {},
-                onShare = {},
-                onDelete = {},
-                onUpdate = {},
-            )
+            MessageEnterSlide(
+                messageId = node.id,
+                animateEnter = node.id in enteringMessageIds,
+                onEnterFinished = consumeEnter,
+            ) {
+                ChatMessage(
+                    node = node,
+                    loading = conversation.subAgentState == SUB_AGENT_STATE_RUNNING &&
+                        index == conversation.messageNodes.lastIndex,
+                    assistant = assistant,
+                    conversationId = conversation.id,
+                    lastMessage = index == conversation.messageNodes.lastIndex,
+                    messageIndex = index,
+                    onFork = {},
+                    onRegenerate = {},
+                    onEdit = {},
+                    onShare = {},
+                    onDelete = {},
+                    onUpdate = {},
+                )
+            }
         }
     }
 }
