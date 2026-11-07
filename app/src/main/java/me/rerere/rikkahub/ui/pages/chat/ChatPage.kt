@@ -512,8 +512,6 @@ private fun ChatPageContent(
         derivedStateOf { chatListState.canScrollBackward }
     }
 
-    TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
-
     fun terminalMessages(): List<me.rerere.ai.ui.UIMessage> = currentMessages
 
     fun terminalMessageAt(arg: String, defaultAssistant: Boolean = false): me.rerere.ai.ui.UIMessage? {
