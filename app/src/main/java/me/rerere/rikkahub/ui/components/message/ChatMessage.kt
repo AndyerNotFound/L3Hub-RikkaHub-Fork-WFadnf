@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,7 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -1388,7 +1390,9 @@ private fun UserMessageContent(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (attachments.isNotEmpty()) {
-                UserAttachmentTiles(attachments = attachments)
+                // 卡片自带点击，会先把 down 事件消费掉，气泡外层就收不到长按了；
+                // 长按一并挂在卡片上，点图片消息也能拉出菜单
+                UserAttachmentTiles(attachments = attachments, onLongClick = onLongClick)
             }
             texts.forEach { text ->
                 CollapsibleUserMessageText(
@@ -1402,7 +1406,10 @@ private fun UserMessageContent(
 }
 
 @Composable
-private fun UserAttachmentTiles(attachments: List<UIMessagePart>) {
+private fun UserAttachmentTiles(
+    attachments: List<UIMessagePart>,
+    onLongClick: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val visible = attachments.take(3)
     val hiddenCount = (attachments.size - visible.size).coerceAtLeast(0)
@@ -1425,6 +1432,7 @@ private fun UserAttachmentTiles(attachments: List<UIMessagePart>) {
                     }
                     if (!url.isNullOrBlank()) context.openLocalFile(url)
                 },
+                onLongClick = onLongClick,
             )
         }
     }
@@ -1435,7 +1443,9 @@ private fun UserAttachmentTile(
     part: UIMessagePart,
     moreCount: Int,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     val partUrl = when (part) {
         is UIMessagePart.Image -> part.url
         is UIMessagePart.Document -> part.url
@@ -1455,7 +1465,15 @@ private fun UserAttachmentTile(
         }
     }
     Surface(
-        onClick = onClick,
+        // 用带 onClick 的 Surface 时它自带 48dp 最小触控尺寸，换成分开挂手势后要自己补回来
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            ),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
