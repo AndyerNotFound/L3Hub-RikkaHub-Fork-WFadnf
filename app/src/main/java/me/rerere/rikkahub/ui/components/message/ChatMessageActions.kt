@@ -500,8 +500,9 @@ internal fun UserMessageActionsMenu(
     // 宽度取「窗口能给的」与「菜单想要的」里小的那个。下限不能用绝对 dp：
     // 分屏小窗比 200dp 还窄时，写死的下限会把菜单顶出窗口，右边被裁掉
     val menuWidth = minOf(MessageMenuMaxWidth, windowSize.width - MessageMenuMargin * 2)
-    // 高度留七成：矮屏上四条条目加信息块放得下，删掉的那条不至于落到折叠线下面
-    val maxHeight = windowSize.height * 0.72f
+    // 高度只占窗口六成：菜单再高就会盖住它对着的那条气泡，看不清在操作哪条消息。
+    // 放不下的条目走内部滚动，这与 Material 菜单的常态一致
+    val maxHeight = windowSize.height * 0.6f
 
     Popup(
         popupPositionProvider = positionProvider,
