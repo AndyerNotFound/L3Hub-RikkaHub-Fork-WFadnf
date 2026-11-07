@@ -248,6 +248,19 @@ fun ChatMessage(
             navController.navigate(Screen.WebView(contentId = contentId))
         }
     }
+    // 原来挂在气泡下面的那排按钮，现在作为菜单顶部的一条胶囊，两条路径共用
+    val userMenuQuickActions: (@Composable () -> Unit) = {
+        UserMessageMenuQuickActions(
+            message = message,
+            node = node,
+            onRegenerate = {
+                // 菜单别挡着重新生成后的对话
+                showActionsSheet = false
+                onRegenerate()
+            },
+            onUpdate = onUpdate,
+        )
+    }
     // 菜单作为气泡的子节点渲染，锚点就是气泡本身
     val userMessageMenu: (@Composable () -> Unit)? = if (inPlaceMenu) {
         {
@@ -263,18 +276,7 @@ fun ChatMessage(
                     isFavorite = isFavorite,
                     onToggleFavorite = onToggleFavorite,
                     onWebViewPreview = onWebViewPreview,
-                    quickActions = {
-                        UserMessageMenuQuickActions(
-                            message = message,
-                            node = node,
-                            onRegenerate = {
-                                // 菜单别挡着重新生成后的对话
-                                showActionsSheet = false
-                                onRegenerate()
-                            },
-                            onUpdate = onUpdate,
-                        )
-                    },
+                    quickActions = userMenuQuickActions,
                     onDismissRequest = { showActionsSheet = false },
                 )
             }
@@ -573,6 +575,7 @@ fun ChatMessage(
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
             onWebViewPreview = onWebViewPreview,
+            quickActions = if (message.role == MessageRole.USER) userMenuQuickActions else null,
             onDismissRequest = {
                 showActionsSheet = false
             }
@@ -1295,7 +1298,7 @@ private fun ChatMessageBubble(
             .padding(horizontal = 10.dp, vertical = 10.dp),
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
-        // 长按菜单挂在气泡的布局节点里，弹窗以气泡为锚点，滚动时跟着气泡走
+        // 长按菜单挂在气泡的布局节点里，弹窗以气泡为锚点定位
         popup?.invoke()
     }
 }

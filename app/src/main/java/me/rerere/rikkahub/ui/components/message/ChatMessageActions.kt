@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -282,7 +283,9 @@ fun ChatMessageActionsSheet(
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    // 终端风格没有气泡、走这个弹窗，用户消息的分支切换还得从这儿进
+    quickActions: (@Composable () -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -300,6 +303,7 @@ fun ChatMessageActionsSheet(
             onToggleFavorite = onToggleFavorite,
             onWebViewPreview = onWebViewPreview,
             onDismissRequest = onDismissRequest,
+            quickActions = quickActions,
         )
     }
 }
@@ -350,9 +354,11 @@ private fun ChatMessageActionList(
     }
 
     Column(
-        modifier = modifier
+        // 顺序不能反：内边距要在滚动里面，否则条目会滚到圆角外面被裁掉
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .then(modifier),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -473,6 +479,9 @@ internal fun UserMessageMenuQuickActions(
 
 private val MessageMenuMaxWidth = 300.dp
 
+// 菜单与气泡之间的间隙；同时当作阴影的绘制余量，popup 窗口不会给边界外的阴影留空间
+private val MessageMenuMargin = 8.dp
+
 /**
  * 用户消息的长按菜单：贴着气泡原地打开，不再从屏幕底部滑上来。
  *
@@ -495,15 +504,17 @@ internal fun UserMessageActionsMenu(
     onDismissRequest: () -> Unit,
 ) {
     val density = LocalDensity.current
-    val windowSize = LocalWindowInfo.current.containerSize
-    val positionProvider = remember(density) {
-        BubbleMenuPositionProvider(with(density) { 8.dp.roundToPx() })
+    val windowSize = LocalWindowInfo.current.containerDpSize
+    val marginPx = with(density) { MessageMenuMargin.roundToPx() }
+    val positionProvider = remember(density, marginPx) {
+        BubbleMenuPositionProvider(marginPx)
     }
-    // 窄屏上不能比窗口还宽，横屏下高度也要留出滚动余地
-    val width = with(density) {
-        minOf(MessageMenuMaxWidth, (windowSize.width.toDp() - 16.dp).coerceAtLeast(200.dp))
-    }
-    val maxHeight = with(density) { windowSize.height.toDp() * 0.7f }
+    // 窄屏上不能比窗口还宽；菜单最多占窗口高度的六成，剩下的留给菜单外的气泡和列表
+    val menuWidth = minOf(
+        MessageMenuMaxWidth,
+        (windowSize.width - MessageMenuMargin * 2).coerceAtLeast(200.dp),
+    )
+    val maxHeight = (windowSize.height * 0.6f - MessageMenuMargin * 2).coerceAtLeast(240.dp)
 
     Popup(
         popupPositionProvider = positionProvider,
@@ -514,30 +525,33 @@ internal fun UserMessageActionsMenu(
             dismissOnClickOutside = true,
         ),
     ) {
-        Surface(
-            modifier = Modifier
-                .width(width)
-                .heightIn(max = maxHeight),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 3.dp,
-            shadowElevation = 8.dp,
-        ) {
-            ChatMessageActionList(
-                message = message,
-                model = model,
-                onEdit = onEdit,
-                onDelete = onDelete,
-                onShare = onShare,
-                onFork = onFork,
-                onSelectAndCopy = onSelectAndCopy,
-                isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite,
-                onWebViewPreview = onWebViewPreview,
-                onDismissRequest = onDismissRequest,
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                quickActions = quickActions,
-            )
+        // 外面这层留白是给阴影的：popup 窗口会把边界外的绘制裁掉，不留白就没有阴影
+        Box(modifier = Modifier.padding(MessageMenuMargin)) {
+            Surface(
+                modifier = Modifier
+                    .width(menuWidth)
+                    .heightIn(max = maxHeight),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 8.dp,
+            ) {
+                ChatMessageActionList(
+                    message = message,
+                    model = model,
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onShare = onShare,
+                    onFork = onFork,
+                    onSelectAndCopy = onSelectAndCopy,
+                    isFavorite = isFavorite,
+                    onToggleFavorite = onToggleFavorite,
+                    onWebViewPreview = onWebViewPreview,
+                    onDismissRequest = onDismissRequest,
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    quickActions = quickActions,
+                )
+            }
         }
     }
 }
@@ -555,10 +569,13 @@ private class BubbleMenuPositionProvider(private val marginPx: Int) : PopupPosit
     ): IntOffset {
         val below = anchorBounds.bottom + marginPx
         val above = anchorBounds.top - popupContentSize.height - marginPx
+        val bottomLimit = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
         val y = when {
             below + popupContentSize.height <= windowSize.height - marginPx -> below
             above >= marginPx -> above
-            else -> (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
+            // 两边都放不下时往空间大的一侧贴边，不要一律往下压，否则菜单会整块压住气泡
+            anchorBounds.center.y < windowSize.height / 2 -> bottomLimit
+            else -> marginPx
         }
         val x = (anchorBounds.right - popupContentSize.width)
             .coerceAtMost(windowSize.width - popupContentSize.width - marginPx)
