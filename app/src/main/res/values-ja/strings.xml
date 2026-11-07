@@ -437,7 +437,7 @@
   <string name="permission_diaog_title">権限リクエスト</string>
   <string name="permission_go_to_settings">アプリ設定へ移動</string>
   <string name="permission_local_network">ローカルネットワーク</string>
-  <string name="permission_local_network_desc">同じローカルネットワーク上のデバイスから Web サーバーへアクセスできるようにします</string>
+  <string name="permission_local_network_desc">ローカルネットワーク上のセルフホストサービスへの接続や、他のデバイスから Web サーバーへのアクセスに必要です</string>
   <string name="permission_microphone">マイク</string>
   <string name="permission_microphone_desc">音声認識にはマイクの権限が必要です</string>
   <string name="permission_notification">通知</string>
@@ -2526,4 +2526,24 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_tts_page_instruction">指示</string>
   <string name="common_download">ダウンロード</string>
   <string name="workspace_review_line_not_found">%1$s は %2$d 行しかありません。%3$d 行目を見つけられません</string>
+  <string name="background_tasks_running">バックグラウンドタスク: %1$d件実行中</string>
+  <string name="background_tasks_title">バックグラウンドタスク</string>
+  <string name="background_tasks_empty">この会話にはバックグラウンドタスクはありません</string>
+  <string name="background_tasks_stopping">停止中…</string>
+  <string name="background_tasks_log_truncated">ログの末尾を表示しています。完全なログ: %1$s</string>
+  <string name="background_tasks_no_output_yet">まだ出力がありません</string>
+  <string name="background_tasks_no_output">出力なし</string>
+  <string name="background_tasks_status_running">実行中 · %1$s</string>
+  <string name="background_tasks_status_exited">コード %1$d で終了 · %2$s</string>
+  <string name="background_tasks_status_stopped">停止 · %1$s</string>
+  <string name="background_tasks_duration_seconds">%1$d秒</string>
+  <string name="background_tasks_duration_minutes">%1$d分 %2$d秒</string>
+  <string name="background_tasks_duration_hours">%1$d時間%2$d分</string>
+  <string name="tool_ui_shell_background_running">バックグラウンドで実行中 · %1$s</string>
+  <string name="tool_ui_shell_background_stopped">停止 · %1$s</string>
+  <string name="tool_ui_shell_background">バックグラウンド · %1$s</string>
+  <string name="chat_page_notice_retry">再試行</string>
+  <string name="notification_background_shell_running">バックグラウンドで実行中のコマンド: %1$d</string>
+  <string name="background_shell_notice_exited">バックグラウンドコマンドがコード %1$d で終了しました: %2$s</string>
+  <string name="background_shell_notice_stopped">バックグラウンドコマンドを停止しました: %1$s</string>
 </resources>

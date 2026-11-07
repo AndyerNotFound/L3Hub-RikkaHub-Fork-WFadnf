@@ -185,6 +185,7 @@ class ChatService(
     private val draftStore: DraftStore,
     private val subAgentResultStore: SubAgentResultStore,
     private val subAgentWaits: SubAgentWaits,
+    private val backgroundShellManager: BackgroundShellManager,
 ) {
     /** 一轮生成的结果 */
     private sealed interface TurnResult {
@@ -303,11 +304,23 @@ class ChatService(
 
     fun cleanup() = runCatching { sessionManager.cleanup() }
 
+    init {
+        appScope.launch {
+            backgroundShellManager.noticeEvents.collect { event ->
+                when (event) {
+                    is BackgroundShellNoticeEvent.Posted -> postNotice(event.conversationId, event.key, event.notice)
+                    is BackgroundShellNoticeEvent.Withdrawn ->
+                        sessionManager.get(event.conversationId)?.inbox?.withdraw(event.key)
+                }
+            }
+        }
+    }
+
     private fun onSessionGenerationFinished(session: ConversationSession, cause: Throwable?) {
         // 取消只来自停止（已自行暂停）或删除，这里再暂停会盖掉停止后用户发送时恢复的队列
-        if (cause != null && cause !is CancellationException) session.messageQueue.pause()
+        if (cause != null && cause !is CancellationException) session.inbox.pause()
         if (session.state.value.isAwaitingToolApproval) {
-            session.messageQueue.failReplyWaiters(context.getString(R.string.chat_page_voice_tool_approval))
+            session.inbox.failReplyWaiters(context.getString(R.string.chat_page_voice_tool_approval))
         }
         appScope.launch {
             // 先回报这一轮（读到的还是刚跑完的状态），再放行下一条排队消息：
@@ -328,7 +341,7 @@ class ChatService(
                     subAgentResultStore.append(session.id, claim.conversationId, claim.text)
                 }
             }
-            dispatchNextQueuedMessage(session.id)
+            dispatchInbox(session.id)
             flushSubAgentResults(session.id)
         }
     }
@@ -474,13 +487,13 @@ class ChatService(
     private suspend fun mutate(conversationId: Uuid, transform: (Conversation) -> Conversation): Conversation =
         withLoadedSession(conversationId) { session ->
             session.update(transform)
-            session.flush().also { dispatchNextQueuedMessage(conversationId) }
+            session.flush().also { dispatchInbox(conversationId) }
         }
 
     // 只删上次落库时引用、这次落库不再引用的文件；只在内存里出现过的文件宁可漏删也不误删
     private fun deleteUnreferencedFiles(previous: Conversation, current: Conversation) {
         val session = sessionManager.get(current.id)
-        val queuedFiles = (session?.messageQueue?.state?.value?.messages.orEmpty() +
+        val queuedFiles = (session?.inbox?.state?.value?.messages.orEmpty() +
             listOfNotNull(session?.submittingMessage))
             .flatMap { it.parts }.localFileUrls().map { it.toUri() }
         val retainedFiles = (current.files + queuedFiles).toSet()
@@ -493,25 +506,27 @@ class ChatService(
 
     // ---- 发送消息 ----
 
-    fun getMessageQueueFlow(conversationId: Uuid): StateFlow<MessageQueueState> =
-        sessionManager.getMessageQueueFlow(conversationId)
+    fun getInboxFlow(conversationId: Uuid): StateFlow<InboxState> =
+        sessionManager.getInboxFlow(conversationId)
 
-    fun removeQueuedMessage(conversationId: Uuid, messageId: Uuid) {
-        sessionManager.get(conversationId)?.messageQueue?.remove(messageId)?.let(::cleanupQueuedAttachments)
-        dispatchNextQueuedMessage(conversationId)
+    /** 删除收件箱里的一项：用户输入连同只被它引用的附件一起删，通知直接丢弃 */
+    fun removeInboxItem(conversationId: Uuid, itemId: Uuid) {
+        (sessionManager.get(conversationId)?.inbox?.remove(itemId) as? QueuedMessage)
+            ?.let(::cleanupQueuedAttachments)
+        dispatchInbox(conversationId)
     }
 
     fun beginEditQueuedMessage(conversationId: Uuid, messageId: Uuid): QueuedMessage? =
-        sessionManager.get(conversationId)?.messageQueue?.beginEdit(messageId)
+        sessionManager.get(conversationId)?.inbox?.beginEdit(messageId)
 
     fun finishEditQueuedMessage(
         conversationId: Uuid,
         messageId: Uuid,
         parts: List<UIMessagePart>? = null
     ) {
-        sessionManager.get(conversationId)?.messageQueue?.finishEdit(messageId, parts)
+        sessionManager.get(conversationId)?.inbox?.finishEdit(messageId, parts)
             ?.let(::cleanupQueuedAttachments)
-        dispatchNextQueuedMessage(conversationId)
+        dispatchInbox(conversationId)
     }
 
     private fun cleanupQueuedAttachments(previous: QueuedMessage) {
@@ -528,7 +543,7 @@ class ChatService(
                     previous = previous,
                     conversations = currentSessions.map { it.state.value },
                     pendingMessages = currentSessions.flatMap {
-                        it.messageQueue.state.value.messages + listOfNotNull(it.submittingMessage)
+                        it.inbox.state.value.messages + listOfNotNull(it.submittingMessage)
                     },
                 ) - persistedReferences
                 if (unusedFiles.isNotEmpty()) {
@@ -542,8 +557,8 @@ class ChatService(
         }
     }
 
-    fun resumeMessageQueue(conversationId: Uuid) {
-        sessionManager.get(conversationId)?.messageQueue?.resume()
+    fun resumeInbox(conversationId: Uuid) {
+        sessionManager.get(conversationId)?.inbox?.resume()
         // 先把积压的子代理结果排到队尾再开跑：只 dispatch 的话它要等下一轮结束才轮得到。
         // flush 抛异常也必须把队列开起来，否则 resume() 之后没有任何 job，界面像死了一样
         appScope.launch {
@@ -554,7 +569,7 @@ class ChatService(
             } catch (e: Exception) {
                 Log.w(TAG, "flush sub agent results on resume failed: $conversationId", e)
             } finally {
-                dispatchNextQueuedMessage(conversationId)
+                dispatchInbox(conversationId)
             }
         }
     }
@@ -597,20 +612,20 @@ class ChatService(
             // 关掉消息队列后，生成期间发送的消息等价于插话
             val queueEnabled = settingsStore.settingsFlow.value.enableMessageQueue
             if (interject || (!queueEnabled && session.getJob() != null)) {
-                session.messageQueue.enqueueFirst(content, answer)
-                session.messageQueue.resume()
+                session.inbox.enqueueFirst(content, answer, notice = notice)
+                session.inbox.resume()
                 val job = session.getJob()
                 if (job != null) {
                     // 取消后 onSessionGenerationFinished 会立刻派发队首
                     job.cancel()
                 } else {
-                    dispatchNextQueuedMessage(conversationId)
+                    dispatchInbox(conversationId)
                 }
                 return@synchronized true
             }
-            if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
-            session.messageQueue.enqueue(content, answer, notice = notice)
-            dispatchNextQueuedMessage(conversationId)
+            if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
+            session.inbox.enqueue(content, answer, notice = notice)
+            dispatchInbox(conversationId)
             return@synchronized true
         }
     }
@@ -837,8 +852,8 @@ class ChatService(
                     // 队列里还压着用户消息时的暂停说明它们都不会执行，通知混进去只会一起搁着；
                     // 队列空时这个暂停只是「上一轮被停掉或失败」的残留，sendMessage 会自己恢复，
                     // 不放开的话子代理结果会一直躺在盘上，直到用户再发一条并跑完一整轮
-                    (!session.messageQueue.state.value.paused ||
-                        session.messageQueue.state.value.messages.isEmpty()) &&
+                    (!session.inbox.state.value.paused ||
+                        session.inbox.state.value.messages.isEmpty()) &&
                     !(session.maxContextReached() && !autoCompressEnabled(session))
             }
             if (!canDeliver) return
@@ -882,7 +897,7 @@ class ChatService(
         val reply = CompletableDeferred<String?>()
         synchronized(session) {
             check(text.isNotBlank()) { context.getString(R.string.chat_page_voice_empty) }
-            check(!session.messageQueue.state.value.paused || session.messageQueue.state.value.messages.isEmpty()) {
+            check(!session.inbox.state.value.paused || session.inbox.state.value.messages.isEmpty()) {
                 context.getString(R.string.chat_page_voice_resume_queue)
             }
             check(!session.state.value.isAwaitingToolApproval) {
@@ -891,14 +906,24 @@ class ChatService(
             check(!session.maxContextReached()) {
                 context.getString(R.string.chat_page_context_limit_reached)
             }
-            if (session.messageQueue.state.value.messages.isEmpty()) session.messageQueue.resume()
-            session.messageQueue.enqueue(listOf(UIMessagePart.Text(text)), reply = reply)
-            dispatchNextQueuedMessage(conversationId)
+            if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
+            session.inbox.enqueue(listOf(UIMessagePart.Text(text)), reply = reply)
+            dispatchInbox(conversationId)
         }
         return reply
     }
 
-    private fun dispatchNextQueuedMessage(conversationId: Uuid): Job? {
+    /**
+     * 放入一条运行时通知，例如后台命令结束。
+     * 正在生成时这一轮在下一步请求模型前取走；空闲时主动开一轮，不用等用户再发消息。
+     */
+    fun postNotice(conversationId: Uuid, key: String, notice: UIMessagePart.Notice) {
+        sessionManager.getOrCreate(conversationId).inbox.post(key, notice)
+        dispatchInbox(conversationId)
+    }
+
+    /** 会话空闲时从收件箱开始下一轮：先发用户输入，只剩通知时单独开一轮 */
+    private fun dispatchInbox(conversationId: Uuid): Job? {
         val session = sessionManager.get(conversationId) ?: return null
         synchronized(session) {
             // A pending tool approval is still part of the current turn.
@@ -910,17 +935,22 @@ class ChatService(
                 return null
             }
             // 队列里还有消息但已经到达 MAX: 暂停队列, 压缩上下文后可以手动恢复
-            if (session.messageQueue.state.value.messages.isNotEmpty() &&
+            if (session.inbox.state.value.messages.isNotEmpty() &&
                 session.maxContextReached() &&
                 !autoCompressEnabled(session)
             ) {
-                session.messageQueue.pause()
+                session.inbox.pause()
                 reportContextLimit(conversationId)
                 return null
             }
-            val next = session.messageQueue.takeNext() ?: return null
-            session.submittingMessage = next
-            return sendQueuedMessage(session, next)
+            return when (val next = session.inbox.takeNext() ?: return null) {
+                is InboxTurn.Message -> {
+                    session.submittingMessage = next.message
+                    sendQueuedMessage(session, next.message)
+                }
+
+                InboxTurn.Notices -> sendQueuedNotices(session)
+            }
         }
     }
 
@@ -942,13 +972,18 @@ class ChatService(
 
                 // 添加消息到列表
                 val previousIds = session.state.value.currentMessages.mapTo(HashSet()) { it.id }
+                // 等待中的通知存成用户消息之前的节点：写进回复的话，重新生成时就丢了。
+                // 不回复时留在收件箱，这一轮结束后单独开一轮
+                val notices = if (queued.answer) session.inbox.takeNotices() else emptyList()
                 session.update {
                     it.copy(
-                        messageNodes = it.messageNodes + UIMessage(
-                            role = MessageRole.USER,
-                            parts = processedContent,
-                            isSubAgentNotice = queued.notice,
-                        ).toMessageNode(),
+                        messageNodes = it.messageNodes +
+                            listOfNotNull(notices.takeIf { n -> n.isNotEmpty() }?.toNoticeNode()) +
+                            UIMessage(
+                                role = MessageRole.USER,
+                                parts = processedContent,
+                                isSubAgentNotice = queued.notice,
+                            ).toMessageNode(),
                         // 子代理会话每开一轮就回到 running：上一轮之后还会被回传的结果再触发一轮，任务树不该停在「已完成」
                         subAgentState = if (it.parentConversationId != null) SUB_AGENT_STATE_RUNNING else it.subAgentState,
                     )
@@ -992,10 +1027,44 @@ class ChatService(
         return job
     }
 
+    /** 只有通知在等时开的一轮：通知存成一个 user 节点，模型的回复是它的下一个节点 */
+    private fun sendQueuedNotices(session: ConversationSession): Job {
+        val conversationId = session.id
+        session.replyMessageId.value = null
+        val job = launchGenerationJob(conversationId = conversationId) {
+            try {
+                // 通知来自已经开始过的会话；会话刚被删除时不能重新创建
+                session.initialize(
+                    load = { loadConversation(conversationId) },
+                    create = { throw NotFoundException("Conversation not found") },
+                )
+                // 加载前不知道是否在等审批；审批后执行完工具，这一轮会自己取走通知
+                if (session.state.value.isAwaitingToolApproval) return@launchGenerationJob
+                val notices = session.inbox.takeNotices()
+                if (notices.isEmpty()) return@launchGenerationJob
+                // 存成 user 节点：重新生成和分支都和普通消息一样
+                session.update { it.copy(messageNodes = it.messageNodes + notices.toNoticeNode()) }
+                session.flush()
+                runTurn(session)
+                _generationDoneFlow.emit(conversationId)
+            } catch (e: NotFoundException) {
+                Log.w(TAG, "sendQueuedNotices: conversation $conversationId not found, dropping notices")
+                session.inbox.takeNotices()
+            } catch (e: Exception) {
+                reportFailure(session, e, R.string.error_title_generation)
+            }
+        }
+        session.setJob(job)
+        return job
+    }
+
+    private fun List<UIMessagePart.Notice>.toNoticeNode() =
+        UIMessage(role = MessageRole.USER, parts = this).toMessageNode()
+
     // 发送、重新生成和审批失败时报告错误并暂停队列，排队的消息等用户处理完再继续
     private fun reportFailure(session: ConversationSession, error: Exception, @StringRes title: Int) {
         if (error is CancellationException) throw error
-        session.messageQueue.pause()
+        session.inbox.pause()
         addError(error, session.id, title = context.getString(title))
     }
 
@@ -1188,6 +1257,7 @@ class ChatService(
                         .also { loopOverflowCompress = it }
                         .let { it == CompressAttempt.COMPRESSED }
                 },
+                takePendingParts = session.inbox::takeNotices,
             )
             var finishReason: AgentFinishReason? = null
             try {
@@ -1249,7 +1319,7 @@ class ChatService(
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
             throw e
         } catch (e: InvalidMcpServerNamesException) {
-            session.messageQueue.pause()
+            session.inbox.pause()
             addError(
                 error = IllegalStateException(
                     context.getString(R.string.error_mcp_invalid_server_name, e.names.joinToString(", "))
@@ -1269,7 +1339,7 @@ class ChatService(
             }
             // 兜底取消 Live Update 通知（生成开始前失败时上面的 finally 不会执行）
             appEventBus.tryEmit(AppEvent.ChatGenerationEnded(conversationId, senderName, null))
-            session.messageQueue.pause()
+            session.inbox.pause()
             e.printStackTrace()
             addError(e, conversationId, title = context.getString(R.string.error_title_generation))
             Logging.log(TAG, "runTurn: $e")
@@ -1399,6 +1469,7 @@ class ChatService(
             // 生成中的回复还没写完，压缩不到它，检查点也不能插到它前面
             check(!session.isGenerating) { context.getString(R.string.chat_page_compress_blocked_generating) }
             // 和自动压缩共用一把锁：两边同时跑会插两份摘要，后插的那份还可能把前一份顶到后面去
+            // 压缩期间 dispatchInbox 让路（compressMutex），压完再补一次派发
             session.compressMutex.withLock {
                 val size = session.state.value.messageNodes.size
                 compressSession(
@@ -1410,6 +1481,7 @@ class ChatService(
                 // 手动压过之后，自动压缩不该再为同一份上下文总结一遍
                 session.markCompressed()
             }
+            dispatchInbox(conversationId)
         }
         Result.success(Unit)
     } catch (e: CancellationException) {
@@ -1418,10 +1490,10 @@ class ChatService(
     } catch (e: Exception) {
         Result.failure(e)
     } finally {
-        // 压缩期间 dispatchNextQueuedMessage 会被 compressMutex 挡回去，这里补一次，
+        // 压缩期间 dispatchInbox 会被 compressMutex 挡回去，这里补一次，
         // 否则压缩中排进队列的消息会一直卡着。取消也一样：用户取消的是这次压缩，
         // 队列里的消息仍然要按队列自己的暂停状态决定发不发
-        dispatchNextQueuedMessage(conversationId)
+        dispatchInbox(conversationId)
     }
 
     /**
@@ -1991,7 +2063,7 @@ class ChatService(
         val session = sessionManager.getOrCreate(conversationId)
         // 正在生成的这一轮必须先停掉：否则它会把内容写回刚被清空的会话，甚至把会话重新落库
         val jobs = synchronized(session) {
-            session.messageQueue.pause()
+            session.inbox.pause()
             session.cancelJobs()
         }
         jobs.forEach { job -> runCatching { job.join() } }
@@ -2012,6 +2084,8 @@ class ChatService(
         subAgentResultStore.clear(conversationId)
         draftRestored.remove(conversationId)
         sessionManager.removeIfIdle(session)
+        // 后台命令随会话一起终止, 撤销删除也不会恢复; 终止要等宽限期, 不阻塞删除
+        appScope.launch { backgroundShellManager.killConversation(conversationId) }
     }
 
     /** 撤销删除：写回删除前的会话，还停在这个会话上的页面也一并换回 */
@@ -2032,10 +2106,11 @@ class ChatService(
     }
 
     private fun discardQueuedMessages(session: ConversationSession) {
-        session.messageQueue.pause()
-        session.messageQueue.state.value.messages.forEach { queued ->
-            session.messageQueue.remove(queued.id)?.let(::cleanupQueuedAttachments)
+        session.inbox.pause()
+        session.inbox.state.value.messages.forEach { queued ->
+            (session.inbox.remove(queued.id) as? QueuedMessage)?.let(::cleanupQueuedAttachments)
         }
+        session.inbox.takeNotices()
     }
 
     // ---- 翻译消息 ----
@@ -2173,7 +2248,7 @@ class ChatService(
     suspend fun stopGeneration(conversationId: Uuid) {
         val session = sessionManager.get(conversationId) ?: return
         val jobs = synchronized(session) {
-            session.messageQueue.pause()
+            session.inbox.pause()
             session.cancelJobs()
         }
         if (jobs.isEmpty()) return

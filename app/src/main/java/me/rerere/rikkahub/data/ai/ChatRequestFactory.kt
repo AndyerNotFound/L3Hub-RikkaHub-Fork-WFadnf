@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import me.rerere.ai.agent.AgentHooks
 import me.rerere.ai.agent.AgentRequest
 import me.rerere.ai.agent.StepRequest
+import me.rerere.ai.agent.expandNotices
 import me.rerere.ai.agent.withRetry
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
@@ -158,7 +159,7 @@ class ChatRequestFactory(
 
     /**
      * 本轮交给 runAgent 的请求和钩子。[messages] 的最后一条是助手消息时从它继续，否则新建一条助手消息。
-     * [processingStatus] 用来显示 OCR 这类输入转换的进度。
+     * [processingStatus] 用来显示 OCR 这类输入转换的进度；[takePendingParts] 取出要在请求模型前写进助手消息的通知。
      */
     fun createAgent(
         turn: ChatTurnContext,
@@ -167,6 +168,7 @@ class ChatRequestFactory(
         pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
         beforeStep: suspend (List<UIMessage>) -> List<UIMessage>? = { null },
         onContextOverflow: suspend (Throwable) -> Boolean = { false },
+        takePendingParts: suspend () -> List<UIMessagePart> = { emptyList() },
     ): Pair<AgentRequest, AgentHooks> {
         val injectedMessages = mutableListOf<UIMessage>()
         // 和钩子同名，提前取个别名，免得 override 里写成自己调自己
@@ -214,6 +216,8 @@ class ChatRequestFactory(
                         .visualTransforms(outputTransformers, context, turn.model, turn.assistant, turn.settings)
                         .onGenerationFinish(outputTransformers, context, turn.model, turn.assistant, turn.settings)
                 }
+
+            override suspend fun pendingParts() = takePendingParts()
         }
         return request to hooks
     }
@@ -390,7 +394,7 @@ class ChatRequestFactory(
                 }
             )
         }
-        val requestMessages = if (transformers.isEmpty()) {
+        val transformedMessages = if (transformers.isEmpty()) {
             baseMessages
         } else {
             baseMessages.transforms(
@@ -404,6 +408,8 @@ class ChatRequestFactory(
                 todos = turn.todos,
             )
         }
+        // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效
+        val requestMessages = transformedMessages.expandNotices()
         val params = TextGenerationParams(
             model = turn.model,
             temperature = assistant.temperature,

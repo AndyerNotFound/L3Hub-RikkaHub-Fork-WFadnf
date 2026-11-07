@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -68,6 +70,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Sparkles
+import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.RECOMMENDED_PROVIDERS
@@ -142,6 +145,8 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         searchQuery = ""
         pendingScrollId = provider.id.toString()
         vm.updateSettings { latest ->
+            // 连点时第二次写入已经能看到第一次的结果，避免出现重复 id
+            if (latest.providers.any { it.id == provider.id }) return@updateSettings latest
             latest.copy(providers = listOf(provider) + latest.providers)
         }
     }
@@ -156,8 +161,11 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
-                    RecommendProviderButton { provider ->
-                        addProvider(provider.copyProvider(Uuid.random()))
+                    // 推荐提供商保留固定 id，读盘后才能按 id 补回不落盘的描述
+                    RecommendProviderButton(
+                        addedIds = settings.providers.map { it.id }.toSet(),
+                    ) { provider ->
+                        addProvider(provider.copyProvider())
                     }
                     ImportProviderButton {
                         addProvider(it.copyProvider(Uuid.random()))
@@ -262,6 +270,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
 
 @Composable
 private fun RecommendProviderButton(
+    addedIds: Set<Uuid>,
     onAdd: (ProviderSetting) -> Unit
 ) {
     val toaster = LocalToaster.current
@@ -285,6 +294,7 @@ private fun RecommendProviderButton(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -298,6 +308,7 @@ private fun RecommendProviderButton(
                     RECOMMENDED_PROVIDERS.fastForEachIndexed { index, provider ->
                         RecommendProviderItem(
                             provider = provider,
+                            added = provider.id in addedIds,
                             shape = cardGroupItemShape(index, RECOMMENDED_PROVIDERS.size),
                             onAdd = {
                                 onAdd(provider)
@@ -317,6 +328,7 @@ private fun RecommendProviderButton(
 @Composable
 private fun RecommendProviderItem(
     provider: ProviderSetting,
+    added: Boolean,
     shape: Shape,
     onAdd: () -> Unit
 ) {
@@ -331,28 +343,37 @@ private fun RecommendProviderItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AutoAIIcon(
-                name = provider.name,
-                modifier = Modifier.size(40.dp)
-            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = provider.name,
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AutoAIIcon(
+                        name = provider.name,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = provider.name,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 ProvideTextStyle(MaterialTheme.typography.labelSmall) {
                     CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.7f)) {
-                        provider.description()
+                        provider.shortDescription()
                     }
                 }
             }
-            FilledTonalIconButton(onClick = onAdd) {
-                Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.setting_provider_page_add))
+            FilledTonalIconButton(onClick = onAdd, enabled = !added) {
+                if (added) {
+                    Icon(HugeIcons.Tick02, contentDescription = "已添加")
+                } else {
+                    Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.setting_provider_page_add))
+                }
             }
         }
     }

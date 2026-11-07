@@ -53,6 +53,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,6 +78,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -113,9 +115,12 @@ import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
@@ -154,7 +159,6 @@ import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.writeClipboardText
-import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -503,6 +507,13 @@ private fun ChatPageContent(
         }
     }
 
+    // 消息滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
+    val listScrolledUnderTopBar by remember(chatListState) {
+        derivedStateOf { chatListState.canScrollBackward }
+    }
+
+    TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
+
     fun terminalMessages(): List<me.rerere.ai.ui.UIMessage> = currentMessages
 
     fun terminalMessageAt(arg: String, defaultAssistant: Boolean = false): me.rerere.ai.ui.UIMessage? {
@@ -797,6 +808,15 @@ private fun ChatPageContent(
     ) {
         val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
         val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
+        val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
+        var showBackgroundTasks by remember { mutableStateOf(false) }
+        if (showBackgroundTasks) {
+            BackgroundTasksSheet(
+                tasks = backgroundTasks,
+                onStop = vm::stopBackgroundTask,
+                onDismiss = { showBackgroundTasks = false },
+            )
+        }
         ChatInput(
             onStartVoiceMode = onStartVoiceMode,
             voiceState = voiceState,
@@ -807,6 +827,8 @@ private fun ChatPageContent(
             onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
             onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
             onResumeMessageQueue = vm::resumeMessageQueue,
+            runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
+            onShowBackgroundTasks = { showBackgroundTasks = true },
             loading = loadingJob != null,
             settings = setting,
             assistant = assistant,
@@ -920,6 +942,7 @@ private fun ChatPageContent(
                         },
                         onShowTaskTree = { showTaskTree = true },
                         onShowModelPicker = { chatModelListState.open() },
+                        showCapsuleBackground = !previewMode && listScrolledUnderTopBar,
                     )
                 }
             },
@@ -1267,6 +1290,7 @@ private fun TopBar(
     drawerState: DrawerState,
     bigScreen: Boolean,
     previewMode: Boolean,
+    showCapsuleBackground: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,

@@ -443,7 +443,7 @@
   <string name="permission_diaog_title">權限請求</string>
   <string name="permission_go_to_settings">前往設定</string>
   <string name="permission_local_network">本地網路</string>
-  <string name="permission_local_network_desc">允許同一區域網路內的裝置存取 Web 伺服器</string>
+  <string name="permission_local_network_desc">連線區域網路內的自建服務，以及讓其他裝置存取 Web 伺服器時需要此權限</string>
   <string name="permission_microphone">麥克風</string>
   <string name="permission_microphone_desc">需要麥克風權限才能進行語音辨識</string>
   <string name="permission_notification">通知</string>
@@ -2524,4 +2524,24 @@
   <string name="setting_tts_page_instruction">指示</string>
   <string name="common_download">下載</string>
   <string name="workspace_review_line_not_found">%1$s 只有 %2$d 行，找不到第 %3$d 行</string>
+  <string name="background_tasks_running">背景任務：%1$d 個執行中</string>
+  <string name="background_tasks_title">背景任務</string>
+  <string name="background_tasks_empty">此對話中沒有背景任務</string>
+  <string name="background_tasks_stopping">正在停止…</string>
+  <string name="background_tasks_log_truncated">顯示日誌結尾。完整日誌：%1$s</string>
+  <string name="background_tasks_no_output_yet">尚無輸出</string>
+  <string name="background_tasks_no_output">無輸出</string>
+  <string name="background_tasks_status_running">執行中 · %1$s</string>
+  <string name="background_tasks_status_exited">已退出，退出碼 %1$d · %2$s</string>
+  <string name="background_tasks_status_stopped">已停止 · %1$s</string>
+  <string name="background_tasks_duration_seconds">%1$d秒</string>
+  <string name="background_tasks_duration_minutes">%1$d分 %2$d秒</string>
+  <string name="background_tasks_duration_hours">%1$d小時 %2$d分</string>
+  <string name="tool_ui_shell_background_running">背景執行中 · %1$s</string>
+  <string name="tool_ui_shell_background_stopped">已停止 · %1$s</string>
+  <string name="tool_ui_shell_background">背景 · %1$s</string>
+  <string name="chat_page_notice_retry">重試</string>
+  <string name="notification_background_shell_running">背景指令執行中：%1$d</string>
+  <string name="background_shell_notice_exited">背景指令已結束，結束代碼 %1$d：%2$s</string>
+  <string name="background_shell_notice_stopped">背景指令已被你停止：%1$s</string>
 </resources>

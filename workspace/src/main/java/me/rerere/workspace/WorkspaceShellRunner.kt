@@ -8,6 +8,10 @@ import java.util.concurrent.TimeUnit
 interface WorkspaceShellRunner {
     fun execute(context: WorkspaceShellContext): WorkspaceCommandResult
 
+    /** 在后台启动命令并立即返回, [id] 用来命名日志文件; [WorkspaceShellContext.timeoutMillis] 不起作用 */
+    fun startBackground(context: WorkspaceShellContext, id: String): WorkspaceBackgroundCommand =
+        throw UnsupportedOperationException("Background commands are not supported by this shell")
+
     /** 交互式终端的启动参数, 不支持交互式终端时返回 null */
     fun terminalLaunch(context: WorkspaceTerminalContext): WorkspaceTerminalLaunch? = null
 }
@@ -66,7 +70,12 @@ private const val OUTPUT_DRAIN_TIMEOUT_MS = 5_000L
 // 超时被强杀时孙进程可能还攥着管道, 这时只短暂收一下残留输出, 不为它多等
 private const val KILLED_DRAIN_TIMEOUT_MS = 500L
 
-fun Process.readResult(timeoutMillis: Long, stdin: ByteArray? = null): WorkspaceCommandResult {
+/** 等待命令结束并收集输出; 超时或线程被中断时用 [terminate] 结束进程 */
+fun Process.readResult(
+    timeoutMillis: Long,
+    stdin: ByteArray? = null,
+    terminate: Process.() -> Unit = { destroyForcibly() },
+): WorkspaceCommandResult {
     val stdout = StreamCollector(inputStream)
     val stderr = StreamCollector(errorStream)
     val stdinWriter = stdin?.let { bytes -> StreamWriter(outputStream, bytes) }
@@ -82,7 +91,7 @@ fun Process.readResult(timeoutMillis: Long, stdin: ByteArray? = null): Workspace
     try {
         val finished = waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
         if (!finished) {
-            destroyForcibly()
+            terminate()
         }
         stdinWriter?.join(1_000)
         // 两个流共用一个总预算: 分别各等 5s 的话, 孙进程攥着管道时每条命令要多花 10s
@@ -100,7 +109,7 @@ fun Process.readResult(timeoutMillis: Long, stdin: ByteArray? = null): Workspace
         )
     } catch (e: InterruptedException) {
         // 调用方线程被中断（如协程取消时的 runInterruptible），杀掉进程避免命令继续执行
-        destroyForcibly()
+        terminate()
         // 进程被杀后 stdout/stderr 会关闭, 这里 join 回收两个采集线程, 避免每次取消泄漏一对线程
         stdinWriter?.join(1_000)
         stdout.join(1_000)

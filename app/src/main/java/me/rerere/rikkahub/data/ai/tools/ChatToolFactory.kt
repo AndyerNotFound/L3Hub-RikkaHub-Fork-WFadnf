@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.data.skills.SkillManager
+import me.rerere.rikkahub.service.BackgroundShellManager
 import java.io.File
 import kotlin.uuid.Uuid
 
@@ -66,6 +67,7 @@ class ChatToolFactory(
     private val mcpManager: McpManager,
     private val skillManager: SkillManager,
     private val workspaceRepository: WorkspaceRepository,
+    private val backgroundShellManager: BackgroundShellManager,
 ) {
     suspend fun createTools(
         settings: Settings,
@@ -83,6 +85,7 @@ class ChatToolFactory(
             conversationId = conversationId,
             planMode = assistant.planMode,
             executionPermission = assistant.executionPermission,
+            backgroundShellManager = backgroundShellManager,
         )
         val tools = buildList {
             if (assistant.enableMemory) {

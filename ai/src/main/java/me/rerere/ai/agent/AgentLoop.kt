@@ -93,16 +93,19 @@ internal class AgentLoop(
     }.getOrDefault(true)
 
     private suspend fun generateStep(overflowRetries: Int = 0, retriedBase: UIMessage? = null) {
+        appendPendingParts()
         val current = message
         val step = hooks.prepareStep(if (current == null) history else history + current)
         val params = step.params.copy(tools = request.tools)
         // 重装这一步时沿用同一条助手消息：失败前已经流出去的半截内容可能写进了会话，
-        // 换一个 id 会让同一个节点多出一份分支
-        val base = retriedBase ?: current ?: UIMessage(
-            role = MessageRole.ASSISTANT,
-            parts = emptyList(),
-            modelId = params.model.id,
-        )
+        // 换一个 id 会让同一个节点多出一份分支；只带着追加内容创建的消息还没有模型 id
+        val base = retriedBase
+            ?: current?.let { it.copy(modelId = it.modelId ?: params.model.id) }
+            ?: UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = emptyList(),
+                modelId = params.model.id,
+            )
         val generated = try {
             if (request.stream) {
                 stream(step.messages, params, base)
@@ -120,6 +123,16 @@ internal class AgentLoop(
             throw e
         }
         update(hooks.finishStep(generated, newPartsFrom = base.parts.size).copy(finishedAt = now()))
+    }
+
+    // 续写普通回复时最后一个 part 不是执行完的工具或通知，这时追加会把续写变成新的一轮
+    private suspend fun appendPendingParts() {
+        val current = message
+        if (current != null && !current.parts.lastOrNull().isModelsTurn()) return
+        val parts = hooks.pendingParts()
+        if (parts.isEmpty()) return
+        val base = current ?: UIMessage(role = MessageRole.ASSISTANT, parts = emptyList())
+        update(base.copy(parts = base.parts + parts))
     }
 
     private suspend fun stream(
@@ -280,6 +293,9 @@ internal class AgentLoop(
         events.emit(AgentEvent.Finished(checkNotNull(message), reason))
     }
 }
+
+private fun UIMessagePart?.isModelsTurn() =
+    (this is UIMessagePart.Tool && isExecuted) || this is UIMessagePart.Notice
 
 private fun errorOutput(error: String): List<UIMessagePart> =
     listOf(UIMessagePart.Text(buildJsonObject { put("error", error) }.toString()))
