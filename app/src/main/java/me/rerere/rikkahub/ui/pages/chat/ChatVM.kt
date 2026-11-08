@@ -274,15 +274,17 @@ class ChatVM(
      *
      * @param content 消息内容
      * @param answer 是否触发消息生成，如果为false，则仅添加消息到消息列表中
+     * @return 是否已被受理；false 时调用方应把内容留在输入框里（关闭消息队列后正在压缩上下文、
+     * 或者队列暂停还压着旧消息时会拒绝，不再退化成排队）
      */
     fun handleMessageSend(
         content: List<UIMessagePart>,
         answer: Boolean = true,
         interject: Boolean = false,
-    ) {
-        if (content.isEmptyInputMessage()) return
+    ): Boolean {
+        if (content.isEmptyInputMessage()) return false
 
-        chatService.sendMessage(_conversationId, content, answer, interject)
+        return chatService.sendMessage(_conversationId, content, answer, interject)
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {

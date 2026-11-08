@@ -188,6 +188,30 @@ class ConversationInboxTest {
     }
 
     @Test
+    fun `barge in keeps its reply observer and waits behind earlier input`() {
+        val queue = ConversationInbox()
+        queue.enqueue(text("waiting"))
+        val reply = CompletableDeferred<String?>()
+        queue.enqueue(text("barge in"), reply = reply)
+
+        assertEquals(text("waiting"), queue.nextMessage()!!.parts)
+        val dispatched = queue.nextMessage()!!
+        assertEquals(text("barge in"), dispatched.parts)
+        assertTrue(dispatched.reply === reply)
+    }
+
+    @Test
+    fun `messages sent without the queue keep the flag through edits`() {
+        val queue = ConversationInbox()
+        queue.enqueue(text("sent while approval pending"), sentWithoutQueue = true)
+        val id = queue.state.value.messages.single().id
+        queue.beginEdit(id)
+        queue.finishEdit(id, text("edited"))
+
+        assertTrue(queue.state.value.messages.single().sentWithoutQueue)
+    }
+
+    @Test
     fun `notices start a turn only when no user input is waiting`() {
         val inbox = ConversationInbox()
         inbox.post("a", notice("a"))

@@ -22,6 +22,9 @@ data class QueuedMessage(
     val isEditing: Boolean = false,
     // 系统自动生成的通知（后台子代理回投），不是用户输入
     val notice: Boolean = false,
+    // 关闭消息队列时提交的消息：只在收件箱里过渡到派发，界面别把它当成「排队中」。
+    // 它照样可能碰上等审批，由 dispatchInbox 在关闭队列时整体放行（新一轮开头会取消待审批的工具）
+    val sentWithoutQueue: Boolean = false,
     // Optional in-memory observer; null result means the queued message was withdrawn.
     val reply: CompletableDeferred<String?>? = null,
 ) : InboxItem
@@ -82,6 +85,7 @@ class ConversationInbox {
         answer: Boolean = true,
         reply: CompletableDeferred<String?>? = null,
         notice: Boolean = false,
+        sentWithoutQueue: Boolean = false,
     ) {
         if (parts.isEmptyInputMessage()) {
             reply?.complete(null)
@@ -93,6 +97,7 @@ class ConversationInbox {
                 answer = answer,
                 reply = reply,
                 notice = notice,
+                sentWithoutQueue = sentWithoutQueue,
             ),
         )
     }

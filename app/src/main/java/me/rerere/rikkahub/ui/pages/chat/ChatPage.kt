@@ -459,8 +459,9 @@ private fun ChatPageContent(
                 parts = inputState.getContents(),
                 messageId = inputState.editingMessage!!,
             )
-        } else {
-            vm.handleMessageSend(inputState.getContents())
+            inputState.clearInput()
+        } else if (vm.handleMessageSend(inputState.getContents())) {
+            inputState.clearInput()
             scope.launch {
                 delay(100.milliseconds)
                 chatListState.animateScrollToItem(
@@ -468,7 +469,7 @@ private fun ChatPageContent(
                 )
             }
         }
-        inputState.clearInput()
+        // 没被受理（关闭队列后正在压缩上下文、或队列暂停还压着旧消息）则保留输入框内容
     }
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
@@ -514,13 +515,14 @@ private fun ChatPageContent(
             toaster.show(contextLimitMessage, type = ToastType.Error)
             if (contextLimitBlocksSend) return@interject
         }
-        vm.handleMessageSend(inputState.getContents(), interject = true)
-        inputState.clearInput()
-        scope.launch {
-            delay(100.milliseconds)
-            chatListState.animateScrollToItem(
-                index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-            )
+        if (vm.handleMessageSend(inputState.getContents(), interject = true)) {
+            inputState.clearInput()
+            scope.launch {
+                delay(100.milliseconds)
+                chatListState.animateScrollToItem(
+                    index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                )
+            }
         }
     }
 
@@ -880,13 +882,14 @@ private fun ChatPageContent(
                     toaster.show(contextLimitMessage, type = ToastType.Error)
                     if (contextLimitBlocksSend) return@ChatInput
                 }
-                vm.handleMessageSend(inputState.getContents(), interject = true)
-                inputState.clearInput()
-                scope.launch {
-                    delay(100.milliseconds)
-                    chatListState.animateScrollToItem(
-                        index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                    )
+                if (vm.handleMessageSend(inputState.getContents(), interject = true)) {
+                    inputState.clearInput()
+                    scope.launch {
+                        delay(100.milliseconds)
+                        chatListState.animateScrollToItem(
+                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
+                        )
+                    }
                 }
             },
             onLongSendClick = {
@@ -899,8 +902,9 @@ private fun ChatPageContent(
                         parts = inputState.getContents(),
                         messageId = inputState.editingMessage!!,
                     )
-                } else {
-                    vm.handleMessageSend(content = inputState.getContents(), answer = false)
+                    inputState.clearInput()
+                } else if (vm.handleMessageSend(content = inputState.getContents(), answer = false)) {
+                    inputState.clearInput()
                     scope.launch {
                         delay(100.milliseconds)
                         chatListState.animateScrollToItem(
@@ -908,7 +912,6 @@ private fun ChatPageContent(
                         )
                     }
                 }
-                inputState.clearInput()
             },
             onUpdateChatModel = vm::setChatModel,
             onUpdateAssistant = vm::updateAssistant,

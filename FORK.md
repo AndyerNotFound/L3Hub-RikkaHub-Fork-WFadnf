@@ -97,7 +97,7 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 | RGB/HSV 调色板 | 设置 → 主题 → 自定义颜色 | `SettingThemePage.ColorPickerRow` 从 HSL 改成 HSV/RGB 双模式，文本输入支持 `hsv()`/`rgb()`/`#RRGGBB` |
 | MAX 拦截开关 | 模型编辑 → 上下文预警 | `Model.enforceMaxContext`（默认 true）；关闭后到 MAX 只弹提示，`ChatService` 不再硬拦 |
 | Markdown 导入 | 备份 → 从 Markdown 导入 | `data/sync/importer/MarkdownChatImporter.kt`，支持 `**User**:` / `User:` / `## User` 三种标记，代码块内不切分 |
-| 消息队列开关 | 设置 → 常规 → 消息队列 | `Settings.enableMessageQueue`（默认 true）；关闭后生成中发送 = 打断当前回复并立即发送 |
+| 消息队列开关 | 设置 → 常规 → 消息队列 | `Settings.enableMessageQueue`（默认 true）。关闭后一条用户消息都不进队列：生成中或等工具审批时打断当前回复、立即发送（待审批的工具标成取消）；正在压缩上下文、或队列暂停还压着旧消息时拒绝并提示、输入框内容保留；语音模式同时改成一轮说完再开麦。判定收在 `service/MessageQueuePolicy.kt` |
 | 强制插话 | 生成中输入框右侧按钮 | 仅队列开启时出现；`MessageQueue.enqueueFirst` + cancel 当前 job，生成结束立刻派发队首 |
 
 语言支持 en / zh-CN / zh-TW / ja / ko / ru / de / ar，对应 `res/values-*`。

@@ -594,9 +594,11 @@ class ChatService(
     }
 
     /**
-     * @param interject 强制插话：不等当前回复结束，直接打断并把这条消息插到队首
-     * @return 消息是否已被受理。上下文到达 MAX 又没开自动压缩、或者内容为空时返回 false，
-     * 调用方据此决定要不要把内容留着下次再送（子代理结果回投就是这么用的）
+     * @param interject 强制插话：不等当前回复结束，直接打断并把这条消息插到队首（只在消息队列开启时有意义，
+     * 关闭后每条消息本来就按插话处理）
+     * @return 消息是否已被受理。内容为空、上下文到达 MAX 又没开自动压缩、关闭了消息队列但正在压缩上下文、
+     * 或者队列暂停又压着旧消息时返回 false；调用方据此决定要不要把内容留着下次再送
+     * （子代理结果回投就是这么用的）
      */
     fun sendMessage(
         conversationId: Uuid,
@@ -612,9 +614,12 @@ class ChatService(
                 reportContextLimit(conversationId)
                 return@synchronized false
             }
-            // 关掉消息队列后，生成期间发送的消息等价于插话
-            val queueEnabled = settingsStore.settingsFlow.value.enableMessageQueue
-            if (interject || (!queueEnabled && session.getJob() != null)) {
+            // 关掉消息队列后，用户消息一条都不进队列：能发就当场发，发不了就拒绝，
+            // 由调用方把内容留在输入框里（语音消息和系统回投也走这里，见 sendWithoutQueue）
+            if (!settingsStore.settingsFlow.value.enableMessageQueue) {
+                return@synchronized sendWithoutQueue(session, content, answer, notice)
+            }
+            if (interject) {
                 session.inbox.enqueueFirst(content, answer, notice = notice)
                 session.inbox.resume()
                 val job = session.getJob()
@@ -631,6 +636,79 @@ class ChatService(
             dispatchInbox(conversationId)
             return@synchronized true
         }
+    }
+
+    /**
+     * 消息队列关闭时的发送：不排队等这一轮结束。
+     *
+     * - 正在生成：打断当前回复，立刻发（生成中的自动压缩随这一轮一起取消）
+     * - 等工具审批：同样打断，审批中的工具会标成取消
+     * - 正在压缩上下文（且没有生成）：这时打断不安全，直接拒绝并报错，绝不悄悄排进队列
+     * - 系统回投（子代理结果）：不是用户输入，忙时交回调用方保留，不为它打断任何东西
+     * - 其余情况：立即派发
+     */
+    private fun sendWithoutQueue(
+        session: ConversationSession,
+        content: List<UIMessagePart>,
+        answer: Boolean,
+        notice: Boolean,
+    ): Boolean {
+        val conversationId = session.id
+        val inbox = session.inbox.state.value
+        // 队列暂停又还压着旧消息时新消息根本派发不出去（takeNext 直接返回 null）：
+        // 拒绝并把内容留在输入框里，不能假装受理
+        if (!notice && inbox.paused && inbox.messages.isNotEmpty()) {
+            reportUnqueueableSend(conversationId, R.string.chat_page_voice_resume_queue)
+            return false
+        }
+        return when (decideUnqueuedSend(
+            notice = notice,
+            hasJob = session.getJob() != null,
+            awaitingApproval = session.state.value.isAwaitingToolApproval,
+            compressing = session.compressMutex.isLocked,
+        )) {
+            UnqueuedSend.DeferNotice -> false
+
+            UnqueuedSend.RefuseCompressing -> {
+                reportUnqueueableSend(conversationId, R.string.chat_page_compressing)
+                false
+            }
+
+            UnqueuedSend.Interrupt -> {
+                // 排在队尾：关掉队列后连发两条时顺序不能反过来，旧消息也按提交顺序先走
+                session.inbox.enqueue(
+                    parts = content,
+                    answer = answer,
+                    notice = notice,
+                    sentWithoutQueue = true,
+                )
+                session.inbox.resume()
+                val job = session.getJob()
+                if (job != null) {
+                    // 取消后 onSessionGenerationFinished 会立刻派发队首
+                    job.cancel()
+                } else {
+                    dispatchInbox(conversationId)
+                }
+                true
+            }
+
+            UnqueuedSend.Dispatch -> {
+                if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
+                session.inbox.enqueue(content, answer, notice = notice)
+                dispatchInbox(conversationId)
+                true
+            }
+        }
+    }
+
+    /** 关闭消息队列后，发送被当前状态挡住：说明原因，内容留给调用方。 */
+    private fun reportUnqueueableSend(conversationId: Uuid, @StringRes message: Int) {
+        addError(
+            error = IllegalStateException(context.getString(message)),
+            conversationId = conversationId,
+            title = context.getString(R.string.error_title_operation),
+        )
     }
 
     /** 子代理结束时更新任务树状态；会话可能已经被回收，因此从数据库重新加载。 */
@@ -903,11 +981,29 @@ class ChatService(
             check(!session.inbox.state.value.paused || session.inbox.state.value.messages.isEmpty()) {
                 context.getString(R.string.chat_page_voice_resume_queue)
             }
-            check(!session.state.value.isAwaitingToolApproval) {
-                context.getString(R.string.chat_page_voice_tools_before_resume)
-            }
             check(!session.maxContextReached()) {
                 context.getString(R.string.chat_page_context_limit_reached)
+            }
+            // 关闭队列时语音同样不许排队：生成中、等审批都和打字发送一样直接打断
+            val queueEnabled = settingsStore.settingsFlow.value.enableMessageQueue
+            if (!queueEnabled) {
+                session.inbox.enqueue(
+                    parts = listOf(UIMessagePart.Text(text)),
+                    reply = reply,
+                    sentWithoutQueue = true,
+                )
+                session.inbox.resume()
+                val job = session.getJob()
+                if (job != null) {
+                    // 取消后 onSessionGenerationFinished 会立刻派发队首
+                    job.cancel()
+                } else {
+                    dispatchInbox(conversationId)
+                }
+                return reply
+            }
+            check(!session.state.value.isAwaitingToolApproval) {
+                context.getString(R.string.chat_page_voice_tools_before_resume)
             }
             if (session.inbox.state.value.messages.isEmpty()) session.inbox.resume()
             session.inbox.enqueue(listOf(UIMessagePart.Text(text)), reply = reply)
@@ -931,12 +1027,14 @@ class ChatService(
         synchronized(session) {
             // A pending tool approval is still part of the current turn.
             // 压缩不是会话 job，单靠自己不会被 getJob() 挡住，这里显式让路
-            if (session.getJob() != null ||
-                session.state.value.isAwaitingToolApproval ||
-                session.compressMutex.isLocked
-            ) {
-                return null
-            }
+            val canDispatch = canDispatchInbox(
+                hasJob = session.getJob() != null,
+                awaitingApproval = session.state.value.isAwaitingToolApproval,
+                compressing = session.compressMutex.isLocked,
+                queueEnabled = settingsStore.settingsFlow.value.enableMessageQueue,
+                hasUserMessage = session.inbox.state.value.messages.isNotEmpty(),
+            )
+            if (!canDispatch) return null
             // 队列里还有消息但已经到达 MAX: 暂停队列, 压缩上下文后可以手动恢复
             if (session.inbox.state.value.messages.isNotEmpty() &&
                 session.maxContextReached() &&

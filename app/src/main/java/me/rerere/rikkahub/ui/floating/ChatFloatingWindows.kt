@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.conversationIntent
-import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.GenerationPhase
@@ -163,10 +163,10 @@ class ChatFloatingWindows(
 
     private fun installBubble(): FxControl = FloatingX.install(BUBBLE_TAG) {
         compose {
-            WindowContent { state, display ->
+            WindowContent { state, settings ->
                 ChatFloatingBubble(
                     state = state,
-                    icon = display.floatingBubbleIcon,
+                    icon = settings.displaySetting.floatingBubbleIcon,
                     onClick = tracker::expand,
                 )
             }
@@ -181,7 +181,8 @@ class ChatFloatingWindows(
 
     private fun installPanel(): FxControl = FloatingX.install(PANEL_TAG) {
         compose {
-            WindowContent { state, display ->
+            WindowContent { state, settings ->
+                val display = settings.displaySetting
                 val conversationId = state.conversationId
                 // 换屏（旋转 / 分屏）改了可用宽度：宽度按新屏幕换算，横向重新居中。
                 // 不能拿旋转前的坐标去推——那个位置在新可用区里已经对不上了。
@@ -225,6 +226,7 @@ class ChatFloatingWindows(
                     onStop = { appScope.launch { chatService.stopGeneration(conversationId) } },
                     onSend = { text -> chatService.sendMessage(conversationId, listOf(UIMessagePart.Text(text))) },
                     onResumeQueue = { chatService.resumeInbox(conversationId) },
+                    queueEnabled = settings.enableMessageQueue,
                 )
             }
         }
@@ -389,7 +391,7 @@ class ChatFloatingWindows(
     // 窗口隐藏时生命周期退回 STARTED，只在显示时订阅，流式输出不会让隐藏的窗口跟着重组。
     // 设置也走这条路：面板尺寸和图标只在窗口真的显示时才需要。
     @Composable
-    private fun WindowContent(content: @Composable (FloatingChatUiState, DisplaySetting) -> Unit) {
+    private fun WindowContent(content: @Composable (FloatingChatUiState, Settings) -> Unit) {
         val state by uiState.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
             minActiveState = Lifecycle.State.RESUMED,
@@ -398,7 +400,7 @@ class ChatFloatingWindows(
         // 窗口就是触摸区，窗口外的滑动和点击全被浮窗接走（“滑哪都在拖悬浮球”就是这么来的）
         RikkahubTheme(wrapContent = true) {
             CompositionLocalProvider(LocalUriHandler provides uriHandler) {
-                state?.let { content(it, settings.displaySetting) }
+                state?.let { content(it, settings) }
             }
         }
     }

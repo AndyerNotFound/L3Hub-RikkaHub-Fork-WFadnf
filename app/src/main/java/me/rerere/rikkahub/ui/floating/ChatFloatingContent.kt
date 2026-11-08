@@ -375,8 +375,11 @@ fun ChatFloatingPanel(
     onOpenConversation: () -> Unit,
     onToolApproval: (toolCallId: String, approved: Boolean) -> Unit,
     onStop: () -> Unit,
-    onSend: (String) -> Unit,
+    /** 返回 false 表示没被受理（关闭消息队列后又碰上等审批、压缩上下文），输入框内容要留着 */
+    onSend: (String) -> Boolean,
     onResumeQueue: () -> Unit,
+    // 消息队列开关：只影响「本轮结束后发送」的占位文字；已经压着的旧消息照常显示
+    queueEnabled: Boolean = true,
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -481,7 +484,9 @@ fun ChatFloatingPanel(
                         onDismiss = onDismiss,
                     )
                     // 多个审批、横屏或大字体时放不下，中间这段滚动，标题和输入栏始终可见
-                    if (state.preview.isNotEmpty() || state.pendingTools.isNotEmpty() || state.queuedCount > 0) {
+                    // 队列开关只决定新消息收不收；已经压着的旧消息仍要显示（暂停时还要能继续）
+                    val showQueue = state.queuedCount > 0
+                    if (state.preview.isNotEmpty() || state.pendingTools.isNotEmpty() || showQueue) {
                         Column(
                             modifier = Modifier
                                 .weight(1f, fill = false)
@@ -503,7 +508,7 @@ fun ChatFloatingPanel(
                                     onOpenConversation = onOpenConversation,
                                 )
                             }
-                            if (state.queuedCount > 0) {
+                            if (showQueue) {
                                 QueueRow(
                                     count = state.queuedCount,
                                     paused = state.queuePaused,
@@ -515,6 +520,7 @@ fun ChatFloatingPanel(
                     ReplyBar(
                         conversationId = state.conversationId,
                         generating = state.generating,
+                        queueEnabled = queueEnabled,
                         onSend = onSend,
                         onStop = onStop,
                         onReplyFocusChanged = onReplyFocusChanged,
@@ -748,7 +754,8 @@ private fun QueueRow(count: Int, paused: Boolean, onResume: () -> Unit) {
 private fun ReplyBar(
     conversationId: Uuid,
     generating: Boolean,
-    onSend: (String) -> Unit,
+    queueEnabled: Boolean,
+    onSend: (String) -> Boolean,
     onStop: () -> Unit,
     onReplyFocusChanged: (Boolean) -> Unit,
 ) {
@@ -758,7 +765,8 @@ private fun ReplyBar(
     fun send() {
         val content = text.trim()
         if (content.isEmpty()) return
-        onSend(content)
+        // 被拒绝（关闭队列后正在压缩上下文）时留着原文，别让用户重打
+        if (!onSend(content)) return
         text = ""
         focusManager.clearFocus()
     }
@@ -780,11 +788,15 @@ private fun ReplyBar(
                     }
                 }
                 .onFocusChanged { onReplyFocusChanged(it.isFocused) },
-            // 生成中发送的消息会排队，等这一轮结束后再发
+            // 生成中发送的消息会排队，等这一轮结束后再发；队列关掉时就是打断重发
             placeholder = {
                 Text(
                     stringResource(
-                        if (generating) R.string.floating_chat_reply_queued_placeholder else R.string.floating_chat_reply_placeholder
+                        if (generating && queueEnabled) {
+                            R.string.floating_chat_reply_queued_placeholder
+                        } else {
+                            R.string.floating_chat_reply_placeholder
+                        }
                     )
                 )
             },

@@ -106,7 +106,9 @@ fun rememberVoiceModeStarter(vm: ChatVM, settings: Settings): () -> Unit {
                     null
                 },
                 stopSpeaking = tts::stop,
-                listenWhileReplying = settings.displaySetting.voiceModeListenWhileReplying,
+                // 关闭消息队列时语音也不能攒着：改成一轮说完再开麦，不会出现排队等回复
+                listenWhileReplying = settings.displaySetting.voiceModeListenWhileReplying &&
+                    settings.enableMessageQueue,
             )
         }
     }

@@ -241,6 +241,21 @@ fun ChatInput(
         if (!imeVisible) focusManager.clearFocus()
     }
 
+    // 关闭消息队列后，插话用的临时项只会停留几毫秒，别让它闪一下「待发送」。
+    // 之前就排着的消息和系统通知照常显示，否则它们会变成看不见也撤不掉的残留
+    val visibleQueue = remember(messageQueue, settings.enableMessageQueue) {
+        if (settings.enableMessageQueue) {
+            messageQueue
+        } else {
+            // 只有「正在过渡到派发」的这一条时不显示队列，免得闪一下「待发送」；
+            // 一旦还压着别的消息（旧队列残留、通知）就照常显示，不能让任何一条变得看不见。
+            // 暂停时也照常显示：卡住的消息要能继续或撤销。
+            val transientOnly = !messageQueue.paused &&
+                messageQueue.items.all { (it as? QueuedMessage)?.sentWithoutQueue == true }
+            if (transientOnly) messageQueue.copy(items = emptyList()) else messageQueue
+        }
+    }
+
     val asr = LocalASRState.current
     val asrState by asr.state.collectAsState()
     val hapticFeedback = LocalHapticFeedback.current
@@ -316,7 +331,7 @@ fun ChatInput(
                 )
             }
             MessageQueuePanel(
-                state = messageQueue,
+                state = visibleQueue,
                 onRemove = onRemoveQueuedMessage,
                 onBeginEdit = onBeginEditQueuedMessage,
                 onFinishEdit = onFinishEditQueuedMessage,
