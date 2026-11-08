@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,6 +46,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -494,18 +497,31 @@ class RouteActivity : ComponentActivity() {
                     val showSettingRail = windowDpSize.width > windowDpSize.height &&
                         windowDpSize.width >= 700.dp &&
                         currentScreen?.isSettingBoard() == true
+                    // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
+                    val settingRailWidth by animateDpAsState(
+                        targetValue = if (showSettingRail) 224.dp else 0.dp,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        label = "settingRailWidth",
+                    )
                     Row(modifier = Modifier.fillMaxSize()) {
-                    if (showSettingRail) {
-                        SettingRail(
-                            current = currentScreen,
-                            // 换分区时把上一分区的详情页收掉，返回只回到设置首页
-                            onNavigate = { target ->
-                                navController.navigate(target) {
-                                    popUpTo(Screen.Setting)
-                                    launchSingleTop = true
-                                }
-                            },
-                        )
+                    if (settingRailWidth > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .width(settingRailWidth)
+                                .fillMaxHeight()
+                                .clipToBounds(),
+                        ) {
+                            SettingRail(
+                                current = currentScreen,
+                                // 换分区时把上一分区的详情页收掉，返回只回到设置首页
+                                onNavigate = { target ->
+                                    navController.navigate(target) {
+                                        popUpTo(Screen.Setting)
+                                        launchSingleTop = true
+                                    }
+                                },
+                            )
+                        }
                     }
                     NavDisplay(
                         backStack = backStack,
