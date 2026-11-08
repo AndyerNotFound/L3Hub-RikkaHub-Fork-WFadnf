@@ -13,15 +13,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,11 +52,14 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete02
+import me.rerere.hugeicons.stroke.Zap
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.model.Guidance
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.MAX_TODO_ITEMS
 import me.rerere.rikkahub.data.model.MAX_TODO_TEXT_CHARS
 import me.rerere.rikkahub.data.model.TodoItem
@@ -62,10 +69,19 @@ import me.rerere.rikkahub.data.model.removeTodoAt
 import me.rerere.rikkahub.data.model.setTodoStatusAt
 import me.rerere.rikkahub.data.model.toggleTodoCompletedAt
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import kotlin.math.roundToInt
+
+/** 卡片底部那组「是否插入 / 间隔」的取值 */
+internal data class TodoReminderUi(
+    val enabled: Boolean,
+    val interval: Int,
+)
 
 /**
- * 会话顶部的任务清单卡片。清单存在会话上, 压缩上下文不会丢。
- * 折叠时只显示当前进行中的一项, 点开看全部。
+ * 会话顶部的运行状态卡片：任务清单和生效中的引导合成一张，共用一次折叠。
+ *
+ * 清单存在会话上，压缩上下文不会丢；引导存在收件箱里，只活在这一轮会话。
+ * 折叠时只留一行摘要——有清单就显示正在做的那条，没有清单就显示第一条引导。
  *
  * [onTodosChange] 非空时开启手动模式：点标记完成/取消完成, 行尾「⋮」改状态、取消或移除,
  * 展开后底部能直接添加一条。写入走和 todo_write 同一个入口, 模型下一轮看到的就是改完的结果。
@@ -77,11 +93,19 @@ internal fun ConversationTodoCard(
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = false,
     onTodosChange: ((List<TodoItem>) -> Unit)? = null,
+    // 非空时展开区底部多一组开关和滑块，控制清单要不要插进请求、隔几步插一次
+    reminder: TodoReminderUi? = null,
+    onReminderChange: ((TodoReminderUi) -> Unit)? = null,
+    // 生效中的引导，和清单共用这张卡片和同一个折叠状态
+    guidances: List<Guidance> = emptyList(),
+    onGuidanceToggleMode: (Guidance) -> Unit = {},
+    onGuidanceRemove: (Guidance) -> Unit = {},
 ) {
-    if (todos.isEmpty()) return
+    if (todos.isEmpty() && guidances.isEmpty()) return
     var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
     // 正在输入新任务时整张卡片不折叠，否则手指一划输入框就没了
     var adding by remember { mutableStateOf(false) }
+    val hasTodos = todos.isNotEmpty()
     val editable = onTodosChange != null
     val completed = todos.count { it.status == TodoStatus.COMPLETED }
     val cancelled = todos.count { it.status == TodoStatus.CANCELLED }
@@ -93,8 +117,9 @@ internal fun ConversationTodoCard(
     val summary = when {
         expanded -> stringResource(R.string.chat_message_collapse_content)
         current != null -> current.content
-        cancelled > 0 -> stringResource(R.string.todo_nothing_left)
-        else -> stringResource(R.string.todo_all_done)
+        hasTodos && cancelled > 0 -> stringResource(R.string.todo_nothing_left)
+        hasTodos -> stringResource(R.string.todo_all_done)
+        else -> guidances.firstOrNull()?.displayTitle.orEmpty()
     }
 
     Surface(
@@ -110,7 +135,9 @@ internal fun ConversationTodoCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = stringResource(R.string.todo_title),
+                    text = stringResource(
+                        if (hasTodos) R.string.todo_title else R.string.guidance_panel_title
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -130,37 +157,197 @@ internal fun ConversationTodoCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    // 折叠时这一行就是清单的摘要：还有活就显示正在做的那条，
+                    // 折叠时这一行就是摘要：还有活就显示正在做的那条，
                     // 一条不剩了才说「全部完成」或「已无可做项」
                     modifier = Modifier.weight(1f),
                 )
+                // 清单和引导同时在时，右边标一下引导有几条，省得展开才知道
+                if (hasTodos && guidances.isNotEmpty()) {
+                    Icon(
+                        imageVector = HugeIcons.Zap,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        text = guidances.size.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
             AnimatedVisibility(visible = expanded) {
                 Column(
                     modifier = Modifier.padding(top = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
-                    todos.forEachIndexed { index, item ->
-                        TodoRow(
-                            item = item,
-                            editable = editable,
-                            onToggle = { onTodosChange?.invoke(todos.toggleTodoCompletedAt(index)) },
-                            onSetStatus = { status ->
-                                onTodosChange?.invoke(todos.setTodoStatusAt(index, status))
-                            },
-                            onRemove = { onTodosChange?.invoke(todos.removeTodoAt(index)) },
-                        )
+                    if (hasTodos) {
+                        todos.forEachIndexed { index, item ->
+                            TodoRow(
+                                item = item,
+                                editable = editable,
+                                onToggle = { onTodosChange?.invoke(todos.toggleTodoCompletedAt(index)) },
+                                onSetStatus = { status ->
+                                    onTodosChange?.invoke(todos.setTodoStatusAt(index, status))
+                                },
+                                onRemove = { onTodosChange?.invoke(todos.removeTodoAt(index)) },
+                            )
+                        }
+                        if (editable) {
+                            TodoAddRow(
+                                adding = adding,
+                                onAddingChange = { adding = it },
+                                full = todos.size >= MAX_TODO_ITEMS,
+                                onAdd = { text -> onTodosChange?.invoke(todos.addTodo(text)) },
+                            )
+                        }
+                        if (reminder != null) {
+                            ReminderControls(
+                                reminder = reminder,
+                                onChange = { onReminderChange?.invoke(it) },
+                            )
+                        }
                     }
-                    if (editable) {
-                        TodoAddRow(
-                            adding = adding,
-                            onAddingChange = { adding = it },
-                            full = todos.size >= MAX_TODO_ITEMS,
-                            onAdd = { text -> onTodosChange?.invoke(todos.addTodo(text)) },
-                        )
+                    if (guidances.isNotEmpty()) {
+                        if (hasTodos) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                            )
+                        }
+                        guidances.forEach { guidance ->
+                            GuidanceRow(
+                                guidance = guidance,
+                                onToggleMode = { onGuidanceToggleMode(guidance) },
+                                onRemove = { onGuidanceRemove(guidance) },
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+/** 一条生效中的引导：整行可点切模式，右边叉取消 */
+@Composable
+private fun GuidanceRow(
+    guidance: Guidance,
+    onToggleMode: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleMode() }
+            .padding(vertical = 3.dp),
+    ) {
+        Icon(
+            imageVector = HugeIcons.Zap,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.secondary,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = guidance.displayTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = guidance.content,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Text(
+                text = stringResource(
+                    if (guidance.mode == GuidanceMode.SINGLE) {
+                        R.string.guidance_mode_single
+                    } else {
+                        R.string.guidance_mode_repeat
+                    }
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        // 用卡片自己的小按钮：IconButton 自带 48dp 触摸区，会把这一行撑胖
+        SmallIconAction(
+            icon = HugeIcons.Cancel01,
+            contentDescription = stringResource(R.string.guidance_remove),
+            onClick = onRemove,
+        )
+    }
+}
+
+/** 清单插不插、隔几步插一次。放在展开区底部，折叠时不占地方 */
+@Composable
+private fun ReminderControls(
+    reminder: TodoReminderUi,
+    onChange: (TodoReminderUi) -> Unit,
+) {
+    Column(modifier = Modifier.padding(top = 10.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.todo_reminder_enabled),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = stringResource(R.string.todo_reminder_enabled_desc),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = reminder.enabled,
+                onCheckedChange = { onChange(reminder.copy(enabled = it)) },
+            )
+        }
+        if (reminder.enabled) {
+            val interval = reminder.interval.coerceIn(1, 4)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.todo_reminder_interval),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = stringResource(R.string.todo_reminder_interval_value, interval),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Slider(
+                value = interval.toFloat(),
+                onValueChange = { onChange(reminder.copy(interval = it.roundToInt().coerceIn(1, 4))) },
+                valueRange = 1f..4f,
+                steps = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

@@ -20,6 +20,13 @@ data class AgentRequest(
     val providerSetting: ProviderSetting,
     val messages: List<UIMessage>,
     val tools: List<Tool> = emptyList(),
+    /**
+     * 只参与执行、不声明给模型的工具。
+     *
+     * 应用注入的合成调用（引导、任务清单）如果被模型照着历史误调，会落到这里拿到一句说明，
+     * 而不是让这一步以「Tool xxx not found」的堆栈收尾。
+     */
+    val executorOnlyTools: List<Tool> = emptyList(),
     val stream: Boolean = true,
     /** 最多请求模型的次数 */
     val maxSteps: Int = 256,

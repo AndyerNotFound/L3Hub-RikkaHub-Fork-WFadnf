@@ -2647,4 +2647,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_guidance_interval">引导插入间隔</string>
   <string name="assistant_page_guidance_interval_desc">每隔几个工具批次插入一次引导。1 最跟手、也最费 token；4 最省，改方向生效得慢一些。</string>
   <string name="assistant_page_guidance_interval_value">%1$d 轮</string>
+  <string name="todo_reminder_enabled">插入任务清单</string>
+  <string name="todo_reminder_enabled_desc">每一批工具之后把当前清单发给模型</string>
+  <string name="todo_reminder_interval">间隔</string>
+  <string name="todo_reminder_interval_value">%1$d 轮</string>
 </resources>

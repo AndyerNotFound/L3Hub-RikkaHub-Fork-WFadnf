@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.TodoStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -44,17 +45,17 @@ class GuidanceInjectionTest {
     fun `tool call ids stay inside the provider limit`() {
         // OpenAI 系的 tool_call_id 上限 40 字符，超了整条请求会被拒；前缀 2 位 + 16 位十六进制
         assertEquals(18, guidanceToolPart(Guidance(content = "x"), step = 1).toolCallId.length)
-        assertEquals(18, todoReminderToolPart(todos)!!.toolCallId.length)
+        assertEquals(18, todoReminderToolPart(todos, step = 1)!!.toolCallId.length)
     }
 
     @Test
     fun `an empty todo list yields no reminder`() {
-        assertNull(todoReminderToolPart(emptyList()))
+        assertNull(todoReminderToolPart(emptyList(), step = 1))
     }
 
     @Test
     fun `todo reminder carries the rendered list`() {
-        val part = todoReminderToolPart(todos)!!
+        val part = todoReminderToolPart(todos, step = 1)!!
 
         assertEquals(TODO_REMINDER_TOOL_NAME, part.toolName)
         assertEquals(buildTodoPrompt(todos), part.todoReminderText())
@@ -85,9 +86,26 @@ class GuidanceInjectionTest {
     }
 
     @Test
+    fun `a tool call the model made itself is not mistaken for an injection`() {
+        // 模型照着历史误调同名工具时，id 是 provider 给的，没有注入前缀
+        val hallucinated = UIMessagePart.Tool(
+            toolCallId = "toolu_01ABC",
+            toolName = TODO_REMINDER_TOOL_NAME,
+            input = "{}",
+            output = listOf(UIMessagePart.Text("whatever")),
+        )
+
+        assertFalse(hallucinated.isInjectedTool())
+        assertNull(hallucinated.todoReminderText())
+        assertFalse(
+            UIMessage(role = MessageRole.ASSISTANT, parts = listOf(hallucinated)).hasTodoReminder()
+        )
+    }
+
+    @Test
     fun `guidance text is only read from guidance tools`() {
         val guidance = guidanceToolPart(Guidance(content = "看这里"), step = 1)
-        val todoPart = todoReminderToolPart(todos)!!
+        val todoPart = todoReminderToolPart(todos, step = 1)!!
 
         assertEquals("看这里", guidance.guidanceText())
         assertNull(todoPart.guidanceText())

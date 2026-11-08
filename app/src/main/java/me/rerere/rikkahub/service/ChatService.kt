@@ -47,6 +47,7 @@ import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.guidanceToolPart
 import me.rerere.rikkahub.data.ai.isInjectedTool
 import me.rerere.rikkahub.data.ai.stepsSinceLastGuidance
+import me.rerere.rikkahub.data.ai.stepsSinceLastTodoReminder
 import me.rerere.rikkahub.data.ai.todoReminderToolPart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
@@ -1074,7 +1075,7 @@ class ChatService(
      */
     private suspend fun ConversationSession.takeInjectionParts(
         current: UIMessage?,
-        guidanceInterval: Int,
+        assistant: Assistant,
     ): List<UIMessagePart> {
         val parts = mutableListOf<UIMessagePart>()
         parts += inbox.takeNotices()
@@ -1085,23 +1086,34 @@ class ChatService(
         // 说明中间没有跑过新的工具批次，这一批已经在消息里了
         if (current.parts.lastOrNull()?.isInjectedTool() == true) return parts
 
-        // 清单每一批都补一份：它是任务进度的锚点，模型跑偏时靠它拉回来。
-        // 只有「这一批刚写完清单」时跳过——那条工具结果里已经是同一份，紧接着再贴一遍是回声
-        val lastTool = (current.parts.lastOrNull() as? UIMessagePart.Tool)?.takeIf { it.isExecuted }
-        val justWroteTodos = lastTool != null &&
-            (lastTool.toolName == TODO_WRITE_TOOL_NAME || lastTool.toolName == TODO_UPDATE_TOOL_NAME)
-        if (!justWroteTodos) {
-            todoReminderToolPart(state.value.todos)?.let { parts += it }
+        val step = current.stepCount ?: 0
+
+        // 清单：开关关掉就整块跳过；间隔没到也跳过。只有「这一批刚写完清单」时不重复贴，
+        // 那条工具结果里已经是同一份，紧接着再补一遍是回声
+        if (assistant.todoReminderEnabled && current.todoReminderDue(assistant.todoReminderInterval)) {
+            todoReminderToolPart(state.value.todos, step)?.let { parts += it }
         }
 
         // 引导按助手的插入间隔走；单轮的不等，它只有一次机会，当批就该生效
-        val step = current.stepCount ?: 0
         val sinceLastGuidance = current.stepsSinceLastGuidance()
-        val repeatingDue = sinceLastGuidance == null || sinceLastGuidance >= guidanceInterval.coerceIn(1, 4)
+        val repeatingDue = sinceLastGuidance == null ||
+            sinceLastGuidance >= assistant.guidanceInterval.coerceIn(1, 4)
         inbox.takeGuidances(includeRepeating = repeatingDue).forEach { guidance ->
             parts += guidanceToolPart(guidance, step)
         }
         return parts
+    }
+
+    /** 这一批该不该补清单：刚写完清单不补，间隔没到也不补 */
+    private fun UIMessage.todoReminderDue(interval: Int): Boolean {
+        val lastTool = (parts.lastOrNull() as? UIMessagePart.Tool)?.takeIf { it.isExecuted }
+        if (lastTool != null &&
+            (lastTool.toolName == TODO_WRITE_TOOL_NAME || lastTool.toolName == TODO_UPDATE_TOOL_NAME)
+        ) {
+            return false
+        }
+        val sinceLast = stepsSinceLastTodoReminder()
+        return sinceLast == null || sinceLast >= interval.coerceIn(1, 4)
     }
 
     /**
@@ -1472,7 +1484,7 @@ class ChatService(
                         .let { it == CompressAttempt.COMPRESSED }
                 },
                 takePendingParts = { current ->
-                    session.takeInjectionParts(current, turn.assistant.guidanceInterval)
+                    session.takeInjectionParts(current, turn.assistant)
                 },
             )
             var finishReason: AgentFinishReason? = null

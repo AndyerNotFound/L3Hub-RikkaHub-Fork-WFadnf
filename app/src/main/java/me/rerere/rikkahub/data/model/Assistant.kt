@@ -32,9 +32,13 @@ data class Assistant(
     val streamOutput: Boolean = true,
     /**
      * 引导插入间隔：每隔几步插一次多轮引导，1 表示每步都插。
-     * 任务清单不受这个间隔约束：每一批工具之后都补一份（模型这一批刚写过清单时跳过）。
+     * 任务清单有自己的开关和间隔，见 [todoReminderEnabled] / [todoReminderInterval]。
      */
     val guidanceInterval: Int = 1,
+    /** 是否把任务清单插进请求：关掉后工具间隙和请求尾部都不再补清单 */
+    val todoReminderEnabled: Boolean = true,
+    /** 清单插入间隔：每隔几步补一份，1 表示每步都补 */
+    val todoReminderInterval: Int = 1,
     // 关闭后这个助手不再发系统通知（生成完成 / 进度 / 压缩状态）
     val enableNotification: Boolean = true,
     // 计划模式：只允许只读工具，写文件/执行命令/改仓库一律拒绝

@@ -277,7 +277,8 @@ internal class AgentLoop(
         errorOutput("[${e.javaClass.name}] ${e.message}\n${e.stackTraceToString()}")
     }
 
-    private fun findTool(name: String) = request.tools.find { it.name == name }
+    private fun findTool(name: String) =
+        request.tools.find { it.name == name } ?: request.executorOnlyTools.find { it.name == name }
 
     private suspend fun update(updated: UIMessage) {
         message = updated

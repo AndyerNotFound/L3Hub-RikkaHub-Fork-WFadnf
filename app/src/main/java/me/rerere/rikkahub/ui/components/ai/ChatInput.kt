@@ -123,6 +123,7 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionItem
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
+import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
@@ -327,21 +328,37 @@ fun ChatInput(
             // 想再看回来（比如手动点错了、要取消完成）就关掉设置里的「完成后收起任务清单」。
             val hideCompletedTodos = LocalSettings.current.displaySetting.hideCompletedTodoCard &&
                 todos.isNotEmpty() && todos.all { it.status == TodoStatus.COMPLETED }
-            if (todos.isNotEmpty() && !hideCompletedTodos) {
+            val showTodoSection = todos.isNotEmpty() && !hideCompletedTodos
+            // 清单和引导共用一张卡片、一次折叠：两样都在时只有一颗展开箭头
+            if (showTodoSection || visibleQueue.guidances.isNotEmpty()) {
                 ConversationTodoCard(
-                    todos = todos,
+                    todos = if (showTodoSection) todos else emptyList(),
                     onTodosChange = onTodosChange,
+                    reminder = if (showTodoSection) {
+                        TodoReminderUi(
+                            enabled = assistant.todoReminderEnabled,
+                            interval = assistant.todoReminderInterval,
+                        )
+                    } else {
+                        null
+                    },
+                    onReminderChange = { next ->
+                        onUpdateAssistant(
+                            assistant.copy(
+                                todoReminderEnabled = next.enabled,
+                                todoReminderInterval = next.interval,
+                            )
+                        )
+                    },
+                    guidances = visibleQueue.guidances,
+                    onGuidanceToggleMode = onGuidanceToggleMode,
+                    onGuidanceRemove = onGuidanceRemove,
                     modifier = Modifier
                         .fillMaxWidth()
                         .adaptiveHorizontalPadding(12.dp)
                         .padding(vertical = 4.dp),
                 )
             }
-            GuidancePanel(
-                guidances = visibleQueue.guidances,
-                onToggleMode = onGuidanceToggleMode,
-                onRemove = onGuidanceRemove,
-            )
             MessageQueuePanel(
                 state = visibleQueue,
                 onRemove = onRemoveQueuedMessage,

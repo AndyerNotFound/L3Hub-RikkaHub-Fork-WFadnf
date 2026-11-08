@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
+import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.buildTodoPrompt
@@ -20,6 +21,11 @@ import kotlin.uuid.Uuid
 const val GUIDANCE_TOOL_NAME = "guidance"
 const val TODO_REMINDER_TOOL_NAME = "todo_reminder"
 
+// 注入的调用 id 前缀。模型照着历史误调同名工具时，provider 给的是它自己的 id，
+// 没有这个前缀，据此还分得清「应用插的」和「模型自己调的」
+private const val GUIDANCE_ID_PREFIX = "g_"
+private const val TODO_ID_PREFIX = "t_"
+
 /**
  * 把一条引导包成工具调用。
  *
@@ -28,7 +34,7 @@ const val TODO_REMINDER_TOOL_NAME = "todo_reminder"
  * [step] 是插入时的步号，间隔靠它计算，见 [stepsSinceLastGuidance]。
  */
 fun guidanceToolPart(guidance: Guidance, step: Int): UIMessagePart.Tool = UIMessagePart.Tool(
-    toolCallId = shortToolCallId("g_"),
+    toolCallId = shortToolCallId(GUIDANCE_ID_PREFIX),
     toolName = GUIDANCE_TOOL_NAME,
     // 记下这是第几步插的，间隔按步号算；不能用「相邻 part」推批次，
     // 连续两步都只吐工具调用、中间没有文本时，两个批次会挤成一段
@@ -37,12 +43,12 @@ fun guidanceToolPart(guidance: Guidance, step: Int): UIMessagePart.Tool = UIMess
 )
 
 /** 把当前清单包成工具调用；没有清单时返回 null */
-fun todoReminderToolPart(todos: List<TodoItem>): UIMessagePart.Tool? {
+fun todoReminderToolPart(todos: List<TodoItem>, step: Int): UIMessagePart.Tool? {
     if (todos.isEmpty()) return null
     return UIMessagePart.Tool(
-        toolCallId = shortToolCallId("t_"),
+        toolCallId = shortToolCallId(TODO_ID_PREFIX),
         toolName = TODO_REMINDER_TOOL_NAME,
-        input = "{}",
+        input = """{"step":$step}""",
         output = listOf(UIMessagePart.Text(buildTodoPrompt(todos))),
     )
 }
@@ -56,9 +62,35 @@ fun todoReminderToolPart(todos: List<TodoItem>): UIMessagePart.Tool? {
 private fun shortToolCallId(prefix: String): String =
     prefix + Uuid.random().toString().replace("-", "").take(16)
 
-/** 应用注入的合成调用（引导或清单） */
-fun UIMessagePart.isInjectedTool(): Boolean =
-    this is UIMessagePart.Tool && (toolName == GUIDANCE_TOOL_NAME || toolName == TODO_REMINDER_TOOL_NAME)
+/** 应用注入的合成调用（引导或清单）：名字对得上，id 也得是注入时给的那个前缀 */
+fun UIMessagePart.isInjectedTool(): Boolean {
+    val tool = this as? UIMessagePart.Tool ?: return false
+    return when (tool.toolName) {
+        GUIDANCE_TOOL_NAME -> tool.toolCallId.startsWith(GUIDANCE_ID_PREFIX)
+        TODO_REMINDER_TOOL_NAME -> tool.toolCallId.startsWith(TODO_ID_PREFIX)
+        else -> false
+    }
+}
+
+/**
+ * 模型照着历史误调合成调用时的兜底。
+ *
+ * 只参与执行、不声明给模型（[me.rerere.ai.agent.AgentRequest.executorOnlyTools]），
+ * 所以不会诱导它去调；真调了也只是拿到一句说明。
+ */
+fun injectedToolFallback(name: String) = Tool(
+    name = name,
+    description = "Injected by the app after each tool batch; never call it.",
+    isReadOnly = true,
+    execute = {
+        listOf(
+            UIMessagePart.Text(
+                "This note is injected by the app automatically and takes no input. " +
+                    "You never need to call \"$name\"; continue with the task."
+            )
+        )
+    },
+)
 
 /**
  * 从上一次插引导之后，这一步又跑了几步。
@@ -67,10 +99,17 @@ fun UIMessagePart.isInjectedTool(): Boolean =
  * 步号取自消息上的 [UIMessage.stepCount]，不能用「连续工具 part」去推：
  * 模型连续两步都只吐工具调用、中间没有文本时，两批会挤成一段，间隔就永远数不到。
  */
-fun UIMessage.stepsSinceLastGuidance(): Int? {
+fun UIMessage.stepsSinceLastGuidance(): Int? =
+    stepsSinceLastInjection { it.isInjectedTool() && it.toolName == GUIDANCE_TOOL_NAME }
+
+/** 从上一次补清单之后又走了几步；null 表示还没补过 */
+fun UIMessage.stepsSinceLastTodoReminder(): Int? =
+    stepsSinceLastInjection { it.isInjectedTool() && it.toolName == TODO_REMINDER_TOOL_NAME }
+
+private fun UIMessage.stepsSinceLastInjection(match: (UIMessagePart.Tool) -> Boolean): Int? {
     val injectedAt = parts
         .filterIsInstance<UIMessagePart.Tool>()
-        .lastOrNull { it.toolName == GUIDANCE_TOOL_NAME }
+        .lastOrNull(match)
         ?.inputAsJson()
         // 模型幻觉出来的同名调用参数不是我们写的，取不到步号就当没插过
         ?.let { element -> (element as? JsonObject)?.get("step") as? JsonPrimitive }
@@ -81,11 +120,12 @@ fun UIMessage.stepsSinceLastGuidance(): Int? {
 
 /** 这条消息里有没有注入过清单 */
 fun UIMessage.hasTodoReminder(): Boolean =
-    parts.any { it is UIMessagePart.Tool && it.toolName == TODO_REMINDER_TOOL_NAME }
+    parts.filterIsInstance<UIMessagePart.Tool>()
+        .any { it.isInjectedTool() && it.toolName == TODO_REMINDER_TOOL_NAME }
 
 /** 引导的正文；模型自己幻觉出来的同名调用（没执行、没输出）不算，免得吞掉工具卡片 */
 fun UIMessagePart.Tool.guidanceText(): String? =
-    if (toolName == GUIDANCE_TOOL_NAME && isExecuted) {
+    if (isInjectedTool() && isExecuted) {
         output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }.ifBlank { null }
     } else {
         null
@@ -93,7 +133,7 @@ fun UIMessagePart.Tool.guidanceText(): String? =
 
 /** 清单提醒的正文；同样只认应用注入的那一种 */
 fun UIMessagePart.Tool.todoReminderText(): String? =
-    if (toolName == TODO_REMINDER_TOOL_NAME && isExecuted) {
+    if (isInjectedTool() && isExecuted) {
         output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }.ifBlank { null }
     } else {
         null

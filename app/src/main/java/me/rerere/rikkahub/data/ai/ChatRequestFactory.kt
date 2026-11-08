@@ -19,6 +19,9 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.GUIDANCE_TOOL_NAME
+import me.rerere.rikkahub.data.ai.TODO_REMINDER_TOOL_NAME
+import me.rerere.rikkahub.data.ai.injectedToolFallback
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
 import me.rerere.rikkahub.data.ai.prompts.buildMergeCompressPrompt
 import me.rerere.rikkahub.data.ai.prompts.buildPartialCompressPrompt
@@ -142,7 +145,8 @@ class ChatRequestFactory(
             conversationSystemPrompt = conversation.customSystemPrompt,
             workspaceCwds = workspaceCwds,
             memories = if (assistant.enableMemory) memoryRepository.getFiles(assistant.memoryId) else emptyList(),
-            todos = conversation.todos,
+            // 开关关掉后连请求尾部也不再贴清单：用户关的是「清单进请求」，不是只关工具间隙那一份
+            todos = if (assistant.todoReminderEnabled) conversation.todos else emptyList(),
             tools = chatToolFactory.createTools(
                 settings = settings,
                 assistant = assistant,
@@ -182,6 +186,11 @@ class ChatRequestFactory(
             providerSetting = turn.providerSetting,
             messages = messages,
             tools = turn.tools,
+            // 合成调用不声明给模型，但模型可能照着历史去调同名工具；这里只负责接住
+            executorOnlyTools = listOf(
+                injectedToolFallback(GUIDANCE_TOOL_NAME),
+                injectedToolFallback(TODO_REMINDER_TOOL_NAME),
+            ),
             stream = turn.assistant.streamOutput,
             retry = turn.settings.retryPolicy(),
         )

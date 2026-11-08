@@ -2645,4 +2645,8 @@
   <string name="assistant_page_guidance_interval">Guidance interval</string>
   <string name="assistant_page_guidance_interval_desc">Insert guidance once every N tool batches. 1 is the most responsive and the most token-heavy; 4 is the leanest.</string>
   <string name="assistant_page_guidance_interval_value">%1$d turns</string>
+  <string name="todo_reminder_enabled">Insert task list</string>
+  <string name="todo_reminder_enabled_desc">Send the current list to the model after each tool batch</string>
+  <string name="todo_reminder_interval">Interval</string>
+  <string name="todo_reminder_interval_value">%1$d turns</string>
 </resources>
