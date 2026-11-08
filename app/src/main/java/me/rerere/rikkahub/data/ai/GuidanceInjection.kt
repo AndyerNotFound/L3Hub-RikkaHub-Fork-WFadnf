@@ -125,7 +125,7 @@ fun UIMessage.hasTodoReminder(): Boolean =
 
 /** 引导的正文；模型自己幻觉出来的同名调用（没执行、没输出）不算，免得吞掉工具卡片 */
 fun UIMessagePart.Tool.guidanceText(): String? =
-    if (isInjectedTool() && isExecuted) {
+    if (isInjectedTool() && toolName == GUIDANCE_TOOL_NAME && isExecuted) {
         output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }.ifBlank { null }
     } else {
         null
@@ -133,7 +133,7 @@ fun UIMessagePart.Tool.guidanceText(): String? =
 
 /** 清单提醒的正文；同样只认应用注入的那一种 */
 fun UIMessagePart.Tool.todoReminderText(): String? =
-    if (isInjectedTool() && isExecuted) {
+    if (isInjectedTool() && toolName == TODO_REMINDER_TOOL_NAME && isExecuted) {
         output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }.ifBlank { null }
     } else {
         null
