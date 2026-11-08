@@ -99,7 +99,7 @@ object ApplyPatchToolUI : ToolUIRenderer {
     override fun Preview(context: ToolUIContext, onDismissRequest: () -> Unit) {
         Column(
             modifier = Modifier
-                .fillMaxHeight(0.8f)
+                .toolPreviewSize()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(6.dp),

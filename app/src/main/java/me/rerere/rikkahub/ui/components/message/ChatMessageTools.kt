@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
+import android.content.res.Configuration
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +59,8 @@ import me.rerere.rikkahub.data.ai.todoReminderText
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
+import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
+import me.rerere.rikkahub.ui.components.message.tools.ToolDetailRequest
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
@@ -245,6 +250,9 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     }
 
     val displaySetting = LocalSettings.current.displaySetting
+    // 横屏时详情交给聊天页的右侧看板；没有宿主（或竖屏）就还是弹 BottomSheet
+    val toolDetailHost = LocalToolDetailHost.current
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var showResult by remember { mutableStateOf(false) }
     var showDenyDialog by remember { mutableStateOf(false) }
     var expanded by remember(tool.toolCallId, displaySetting.showToolCallOutput) {
@@ -324,7 +332,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        onClick = { showResult = true },
+        onClick = {
+            if (landscape && toolDetailHost != null) {
+                toolDetailHost.request = ToolDetailRequest(
+                    context = context,
+                    renderer = renderer,
+                    outputUnparsable = outputUnparsable,
+                )
+            } else {
+                showResult = true
+            }
+        },
         content = if (hasExtraContent) {
             {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

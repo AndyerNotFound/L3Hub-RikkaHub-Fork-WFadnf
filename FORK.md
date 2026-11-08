@@ -1016,6 +1016,14 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   `RikkahubTheme` 新增 `applyUiScale` 开关，嵌套主题不再把界面缩放乘第二遍
 - 键盘弹出时看板用 `imePadding()` 往上收，终端底部那一行不会被盖住
 
+### 横屏的工具调用详情
+
+- 横屏时点开工具调用不再弹 `ModalBottomSheet`，改成页面内从右侧滑入的看板：
+  `ChatPage` 提供 `ToolDetailHostState`，`ChatMessageTools` 只把请求塞进去
+- 走的是普通 Compose 覆盖，不另开窗口，所以不会把已经隐藏的状态栏带回来；
+  竖屏与没有宿主时仍用原来的 BottomSheet
+- 面板里预览铺满高度（`LocalToolPreviewFullHeight`），BottomSheet 里仍留 20% 给手势区
+
 ### 清单与引导收进右栏
 
 - `ChatSidePane` 新增 `Status`（清单与引导）：和输入区上方那张卡片是同一个

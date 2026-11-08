@@ -122,7 +122,7 @@ object EditFileToolUI : ToolUIRenderer {
         val stats = remember(diff) { parseDiffStats(diff) }
         Column(
             modifier = Modifier
-                .fillMaxHeight(0.8f)
+                .toolPreviewSize()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -270,7 +270,7 @@ private fun FileContentSummary(text: String, path: String?, loading: Boolean) {
 private fun FileContentPreview(path: String?, code: String) {
     Column(
         modifier = Modifier
-            .fillMaxHeight(0.8f)
+            .toolPreviewSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -365,7 +365,7 @@ object ShellToolUI : ToolUIRenderer {
         val stderr = content.getStringContent("stderr").orEmpty()
         Column(
             modifier = Modifier
-                .fillMaxHeight(0.8f)
+                .toolPreviewSize()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),

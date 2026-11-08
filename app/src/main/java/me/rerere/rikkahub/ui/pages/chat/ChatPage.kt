@@ -153,6 +153,8 @@ import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvide
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
+import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.EditedFilesList
 import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
@@ -338,7 +340,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
+    // 横屏的工具调用详情：挂在页面最外层，从右侧滑入，不另开窗口
+    val toolDetailHost = remember { ToolDetailHostState() }
     Box(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalToolDetailHost provides toolDetailHost) {
         if (threePaneLayout) {
             val baseDensity = LocalDensity.current
             // 横屏三栏：整块缩到 75%。三列并排后每列都只剩竖屏的三分之一宽，
@@ -470,6 +475,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 )
             }
         }
+        }
+        ToolDetailSidePanel(host = toolDetailHost)
     }
 }
 

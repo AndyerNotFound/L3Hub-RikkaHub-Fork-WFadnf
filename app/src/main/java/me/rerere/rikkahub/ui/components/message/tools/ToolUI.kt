@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -68,6 +69,15 @@ data class ToolUIContext(
  * 在 [ToolUIRegistry] 注册后, 聊天消息中对应的工具调用将使用该渲染器展示;
  * 未注册的工具 fallback 到接口的默认实现 (通用标题/图标 + JSON 详情)
  */
+/**
+ * 详情内容的高度。
+ *
+ * BottomSheet 里留 20% 给手势区；右侧看板里没有这个顾虑，铺满更好看。
+ */
+@Composable
+fun Modifier.toolPreviewSize(): Modifier =
+    if (LocalToolPreviewFullHeight.current) fillMaxSize() else fillMaxHeight(0.8f)
+
 interface ToolUIRenderer {
     /** 渲染器对应的工具名 */
     val toolName: String
@@ -174,7 +184,7 @@ fun DefaultToolPreview(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxHeight(0.8f)
+            .toolPreviewSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
