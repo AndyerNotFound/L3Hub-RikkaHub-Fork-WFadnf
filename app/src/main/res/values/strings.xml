@@ -2626,4 +2626,7 @@
   <string name="guide_messages_page_empty_hint">Presets you can drop into a running turn from the quick message menu.</string>
   <string name="guide_messages_page_add_title">Add Guidance Prompt</string>
   <string name="guide_messages_page_edit_title">Edit Guidance Prompt</string>
+  <string name="assistant_page_guidance_interval">Guidance interval</string>
+  <string name="assistant_page_guidance_interval_desc">Insert guidance once every N tool batches. 1 is the most responsive and the most token-heavy; 4 is the leanest.</string>
+  <string name="assistant_page_guidance_interval_value">%1$d turns</string>
 </resources>

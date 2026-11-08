@@ -30,6 +30,11 @@ data class Assistant(
     // 上下文消息条数上限, 超出后阶梯式截断; 0 表示不限制
     val contextMessageLimit: Int = 0,
     val streamOutput: Boolean = true,
+    /**
+     * 引导插入间隔：每隔几步插一次多轮引导，1 表示每步都插。
+     * 任务清单不受这个间隔约束：每一批工具之后都补一份（模型这一批刚写过清单时跳过）。
+     */
+    val guidanceInterval: Int = 1,
     // 关闭后这个助手不再发系统通知（生成完成 / 进度 / 压缩状态）
     val enableNotification: Boolean = true,
     // 计划模式：只允许只读工具，写文件/执行命令/改仓库一律拒绝

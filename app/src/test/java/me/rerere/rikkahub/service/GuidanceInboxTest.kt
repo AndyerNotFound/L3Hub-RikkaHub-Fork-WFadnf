@@ -43,6 +43,18 @@ class GuidanceInboxTest {
     }
 
     @Test
+    fun `a one-shot guidance goes out while repeating ones are held back`() {
+        val inbox = ConversationInbox()
+        inbox.addGuidance(guidance("一次"))
+        inbox.addGuidance(guidance("常驻", GuidanceMode.REPEAT))
+
+        val taken = inbox.takeGuidances(includeRepeating = false)
+
+        assertEquals(listOf("一次"), taken.map { it.content })
+        assertEquals(listOf("常驻"), inbox.state.value.guidances.map { it.content })
+    }
+
+    @Test
     fun `removing a guidance drops it from the next take`() {
         val inbox = ConversationInbox()
         val item = guidance("停一下")

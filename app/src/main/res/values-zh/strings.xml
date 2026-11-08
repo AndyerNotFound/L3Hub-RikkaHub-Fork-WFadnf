@@ -2628,4 +2628,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="guide_messages_page_empty_hint">在快捷消息选单里，把它们直接放进正在跑的这一轮。</string>
   <string name="guide_messages_page_add_title">新增引导提示词</string>
   <string name="guide_messages_page_edit_title">编辑引导提示词</string>
+  <string name="assistant_page_guidance_interval">引导插入间隔</string>
+  <string name="assistant_page_guidance_interval_desc">每隔几个工具批次插入一次引导。1 最跟手、也最费 token；4 最省，改方向生效得慢一些。</string>
+  <string name="assistant_page_guidance_interval_value">%1$d 轮</string>
 </resources>
