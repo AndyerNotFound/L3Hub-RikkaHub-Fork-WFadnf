@@ -202,6 +202,8 @@ fun ChatInput(
     liftedBy: androidx.compose.ui.unit.Dp = 0.dp,
     // 嵌在页面内容里时由外层负责键盘和导航栏 inset，避免重复留白
     applyWindowInsets: Boolean = true,
+    // 输入区上方的底部渐变遮罩；横屏三栏里消息本来就有边界，不再压这一层
+    showScrim: Boolean = true,
 ) {
     val toaster = LocalToaster.current
     val terminalStyle = settings.displaySetting.terminalStyle
@@ -300,7 +302,7 @@ fun ChatInput(
     val scrimColor = MaterialTheme.colorScheme.background
     val imeInsets = WindowInsets.ime
     // 嵌在空会话页面中间时不需要底部渐变遮罩
-    val scrimModifier = if (applyWindowInsets) {
+    val scrimModifier = if (applyWindowInsets && showScrim) {
         Modifier.drawWithCache {
             val brush = Brush.verticalGradient(
                 colors = listOf(scrimColor.copy(alpha = 0f), scrimColor),

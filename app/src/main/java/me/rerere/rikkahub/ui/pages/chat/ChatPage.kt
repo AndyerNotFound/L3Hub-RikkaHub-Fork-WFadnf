@@ -1116,6 +1116,8 @@ private fun ChatPageContent(
             modifier = modifier,
             liftedBy = liftedBy,
             applyWindowInsets = applyWindowInsets,
+            // 横屏三栏去掉输入区上方的渐变遮罩
+            showScrim = !threePane,
         )
     }
 
