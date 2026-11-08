@@ -552,18 +552,19 @@ private fun ChatPageContent(
         selectedPaneName?.let { name -> openPanes.firstOrNull { it.name == name } }
     }
 
+    // 对标签的操作一律直接读状态，不读这一帧的 openPanes：连点两下时后者还是旧值
     fun openTab(pane: ChatSidePane) {
-        if (openPanes.none { it == pane }) {
+        if (openPaneNames.none { it == pane.name }) {
             openPaneNames = openPaneNames + pane.name
         }
         selectedPaneName = pane.name
     }
 
     fun closeTab(pane: ChatSidePane) {
-        val remaining = openPanes.filterNot { it == pane }
-        openPaneNames = remaining.map { it.name }
-        if (selectedPane == pane) {
-            selectedPaneName = remaining.lastOrNull()?.name
+        val remaining = openPaneNames.filterNot { it == pane.name }
+        openPaneNames = remaining
+        if (selectedPaneName == pane.name || selectedPaneName !in remaining) {
+            selectedPaneName = remaining.lastOrNull()
         }
     }
 
@@ -587,13 +588,16 @@ private fun ChatPageContent(
 
     // 收掉右栏当前的标签页
     fun closePane() {
-        if (threePane) selectedPane?.let { closeTab(it) }
+        if (!threePane) return
+        val name = selectedPaneName?.takeIf { it in openPaneNames } ?: openPaneNames.firstOrNull()
+        name?.let { target -> ChatSidePane.entries.firstOrNull { it.name == target } }
+            ?.let { closeTab(it) }
     }
 
     // 顶栏「详情」：横屏是右栏的标签页，竖屏还是顶栏底下那块的展开
     fun toggleDetailsPane() {
         if (threePane) {
-            if (selectedPane == ChatSidePane.Details) {
+            if (selectedPaneName == ChatSidePane.Details.name) {
                 closeTab(ChatSidePane.Details)
             } else {
                 openTab(ChatSidePane.Details)
@@ -605,7 +609,7 @@ private fun ChatPageContent(
 
     fun dismissFiles() {
         if (threePane) {
-            if (openPanes.any { it == ChatSidePane.Files }) closeTab(ChatSidePane.Files)
+            if (openPaneNames.contains(ChatSidePane.Files.name)) closeTab(ChatSidePane.Files)
         } else {
             showFilesSheet = false
         }
@@ -625,7 +629,7 @@ private fun ChatPageContent(
         // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
         if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
         lastAutoOpenedTurn = turnId
-        if (openPanes.none { it == ChatSidePane.Changes }) {
+        if (openPaneNames.none { it == ChatSidePane.Changes.name }) {
             openPaneNames = openPaneNames + ChatSidePane.Changes.name
         }
     }
