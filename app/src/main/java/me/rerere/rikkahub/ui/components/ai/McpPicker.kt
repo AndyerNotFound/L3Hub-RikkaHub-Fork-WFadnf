@@ -41,10 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.ArrowLeft01
-import me.rerere.hugeicons.stroke.Icon1stBracket
 import me.rerere.hugeicons.stroke.McpServer
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
@@ -225,6 +224,9 @@ internal fun McpPickerPage(
                     Icon(HugeIcons.ArrowLeft01, contentDescription = stringResource(R.string.back))
                 }
             },
+            actions = {
+                McpRefreshButton(mcpManager)
+            },
         )
         AnimatedVisibility(
             visible = loading,
@@ -288,20 +290,7 @@ fun McpPicker(
                 shapes = ListItemDefaults.segmentedShapes(index = index, count = enabledServers.size),
                 colors = colors,
                 leadingContent = {
-                    when (status) {
-                        McpStatus.Idle -> Icon(HugeIcons.Icon1stBracket, null)
-                        McpStatus.Connected -> Icon(HugeIcons.McpServer, null)
-                        McpStatus.Connecting,
-                        is McpStatus.Reconnecting,
-                        McpStatus.Authorizing -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-
-                        is McpStatus.Error,
-                        McpStatus.NeedsAuthorization -> Icon(
-                            imageVector = HugeIcons.Alert01,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    McpStatusLight(status = status)
                 },
                 // ListItem 测量时会读 supporting 的基线判断是否多行，这里放多子节点布局会在测量中提前放置子节点，
                 // 触发 Compose UI 1.12 的 "LayoutNode not found in RectList" 崩溃 (#2179)，所以只放单个 Text
@@ -344,6 +333,31 @@ fun McpPicker(
                     }
                 }
             }
+        }
+    }
+}
+
+/** 子页头部的手动刷新：重新探测全部服务器的连接状态。 */
+@Composable
+private fun McpRefreshButton(mcpManager: McpManager) {
+    val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
+    val refreshing = status.values.any {
+        it == McpStatus.Connecting || it == McpStatus.Authorizing || it is McpStatus.Reconnecting
+    }
+    IconButton(
+        onClick = { mcpManager.refreshAllConnections() },
+        enabled = !refreshing,
+    ) {
+        if (refreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                imageVector = HugeIcons.Refresh01,
+                contentDescription = stringResource(R.string.mcp_picker_refresh),
+            )
         }
     }
 }

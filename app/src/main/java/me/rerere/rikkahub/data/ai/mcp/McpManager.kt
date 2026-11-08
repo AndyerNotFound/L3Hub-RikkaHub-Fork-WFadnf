@@ -137,6 +137,15 @@ class McpManager(
 
     suspend fun syncAll() = sessionRegistry.syncAll()
 
+    /**
+     * 手动刷新全部连接：断开的重新连，已连接的重新同步工具列表。
+     *
+     * 跑在 appScope 上，弹窗关掉也继续，进度照样回写到 [syncingStatus]。
+     */
+    fun refreshAllConnections() {
+        appScope.launch { sessionRegistry.syncAll() }
+    }
+
     fun startAuthorization(config: McpServerConfig, context: Context) {
         oauthCoordinator.startAuthorization(config, context)
     }
