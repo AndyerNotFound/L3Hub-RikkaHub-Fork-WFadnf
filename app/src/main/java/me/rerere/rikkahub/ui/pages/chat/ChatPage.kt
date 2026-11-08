@@ -266,6 +266,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val threePaneLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
     // 左栏在横屏里是一列，不是抽屉：默认展开，顶栏的菜单按钮负责收合
     var sidebarOpen by rememberSaveable { mutableStateOf(true) }
+    // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
+    LaunchedEffect(threePaneLayout) {
+        if (threePaneLayout && drawerState.isOpen) {
+            drawerState.close()
+        }
+    }
 
     val openSettingsFromDrawer: () -> Unit = {
         // 不先收抽屉：设置页整屏盖上来时它跟着一起退场，
@@ -360,7 +366,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                                 settings = setting,
                                 onNewChat = startNewChat,
                                 onOpenSettings = openSettingsFromDrawer,
-                                onCloseDrawer = { sidebarOpen = false },
+                                // 不传 onCloseDrawer：点会话时左栏要留着，它是常驻列不是抽屉
                                 avatarHero = sidebarOpen,
                                 hazeState = backgroundHazeState,
                                 widthOverride = LANDSCAPE_SIDEBAR_WIDTH,
