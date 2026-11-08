@@ -433,7 +433,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     threePane = false,
                     sidebarOpen = drawerState.isOpen,
                     onOpenSidebar = { scope.launch { drawerState.open() } },
-                    chatWidth = 0.dp,
                     backgroundHazeState = backgroundHazeState,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
@@ -459,8 +458,8 @@ private fun ChatPageContent(
     threePane: Boolean,
     sidebarOpen: Boolean,
     onOpenSidebar: () -> Unit,
-    // 中列宽度：横屏固定，收起左栏时中列左移、右栏变宽
-    chatWidth: Dp,
+    // 中列宽度：横屏三栏时定宽，收起左栏时中列左移、右栏变宽；null 表示没有右栏，中列吃满全宽
+    chatWidth: Dp? = null,
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
@@ -1095,7 +1094,14 @@ private fun ChatPageContent(
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
         CompositionLocalProvider(LocalTurnChangesInSidePanel provides threePane) {
         Row(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.width(chatWidth).fillMaxHeight()) {
+        // 横屏中列按定宽排，余量留给右栏；竖屏没有右栏，中列必须吃满整宽
+        Box(
+            modifier = if (chatWidth != null) {
+                Modifier.width(chatWidth).fillMaxHeight()
+            } else {
+                Modifier.fillMaxSize()
+            },
+        ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
