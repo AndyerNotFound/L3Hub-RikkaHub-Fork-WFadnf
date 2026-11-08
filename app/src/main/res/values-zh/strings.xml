@@ -708,6 +708,15 @@
   <string name="setting_display_page_voice_listen_while_replying_title">语音模式回复时继续聆听</string>
   <string name="setting_display_page_voice_listen_while_replying_desc">模型回复期间说的话会加入队列，回复结束后自动发送。关闭后，回复（及朗读）结束前麦克风保持关闭，适合一问一答的对话</string>
   <string name="setting_display_page_auto_play_tts_title">生成后自动播放TTS</string>
+  <string name="setting_display_page_display_mode_title">显示模式</string>
+  <string name="setting_display_page_display_mode_portrait">竖屏</string>
+  <string name="setting_display_page_display_mode_portrait_desc">始终竖屏显示</string>
+  <string name="setting_display_page_display_mode_landscape">横屏</string>
+  <string name="setting_display_page_display_mode_landscape_desc">始终横屏，聊天页会切到右侧栏布局</string>
+  <string name="setting_display_page_display_mode_auto">自动</string>
+  <string name="setting_display_page_display_mode_auto_desc">按重力感应旋转，不受系统方向锁影响</string>
+  <string name="setting_display_page_display_mode_system">跟随系统</string>
+  <string name="setting_display_page_display_mode_system_desc">由系统的自动旋转开关决定</string>
   <string name="setting_display_page_chat_font_family_default">默认</string>
   <string name="setting_display_page_chat_font_family_custom">自定义</string>
   <string name="setting_display_page_chat_font_family_monospace">等宽字体</string>

@@ -187,6 +187,24 @@ enum class ContextMeterStyle {
     RING,
 }
 
+/**
+ * 屏幕方向。落到窗口上的映射在 RouteActivity 里（DisplayModeOrientation.kt）。
+ *
+ * 注意 Android 16 起，targetSdk 36+ 在最小宽度 ≥ 600dp 的屏幕上会忽略固定方向，
+ * 竖屏/横屏只是手机上的行为；自动与跟随系统不受这条限制。
+ */
+@Serializable
+enum class DisplayMode {
+    PORTRAIT,
+    LANDSCAPE,
+
+    /** 按重力感应转，不管系统有没有开自动旋转 */
+    AUTO,
+
+    /** 不表态，系统自动旋转开关说了算 */
+    SYSTEM,
+}
+
 /** 页面/列表过渡的速度手感，只在没关动效时生效。 */
 @Serializable
 enum class AnimationSpeed {
@@ -290,6 +308,8 @@ data class DisplaySetting(
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
     val conversationSortOrder: ConversationSortOrder = ConversationSortOrder.UPDATE_TIME,
+    // 屏幕方向：竖屏 / 横屏 / 自动 / 跟随系统
+    val displayMode: DisplayMode = DisplayMode.SYSTEM,
 )
 
 @Serializable

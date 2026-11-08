@@ -5,13 +5,16 @@ import android.graphics.Typeface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -54,6 +57,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.ContextMeterStyle
+import me.rerere.rikkahub.data.datastore.DisplayMode
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FileUtils
@@ -67,10 +71,12 @@ import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.plus
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
@@ -150,6 +156,28 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // 屏幕方向：点一下从四个模式里选
+            var showDisplayModeDialog by remember { mutableStateOf(false) }
+            CardGroup {
+                item(
+                    onClick = { showDisplayModeDialog = true },
+                    supportingContent = { Text(displaySetting.displayMode.description) },
+                    trailingContent = { CardGroupValue(displaySetting.displayMode.label) },
+                ) {
+                    Text(stringResource(R.string.setting_display_page_display_mode_title))
+                }
+            }
+            if (showDisplayModeDialog) {
+                DisplayModePickerDialog(
+                    selected = displaySetting.displayMode,
+                    onSelect = { mode ->
+                        updateDisplaySetting(displaySetting.copy(displayMode = mode))
+                        showDisplayModeDialog = false
+                    },
+                    onDismiss = { showDisplayModeDialog = false },
+                )
+            }
+
             CardGroup(
                 title = { Text(stringResource(R.string.setting_page_message_display_settings)) },
             ) {
@@ -706,3 +734,65 @@ private val AnimationSpeed.description: String
         AnimationSpeed.FAST -> stringResource(R.string.setting_display_page_animation_speed_fast_desc)
         AnimationSpeed.GENTLE -> stringResource(R.string.setting_display_page_animation_speed_gentle_desc)
     }
+
+private val DisplayMode.label: String
+    @Composable get() = stringResource(
+        when (this) {
+            DisplayMode.PORTRAIT -> R.string.setting_display_page_display_mode_portrait
+            DisplayMode.LANDSCAPE -> R.string.setting_display_page_display_mode_landscape
+            DisplayMode.AUTO -> R.string.setting_display_page_display_mode_auto
+            DisplayMode.SYSTEM -> R.string.setting_display_page_display_mode_system
+        }
+    )
+
+private val DisplayMode.description: String
+    @Composable get() = stringResource(
+        when (this) {
+            DisplayMode.PORTRAIT -> R.string.setting_display_page_display_mode_portrait_desc
+            DisplayMode.LANDSCAPE -> R.string.setting_display_page_display_mode_landscape_desc
+            DisplayMode.AUTO -> R.string.setting_display_page_display_mode_auto_desc
+            DisplayMode.SYSTEM -> R.string.setting_display_page_display_mode_system_desc
+        }
+    )
+
+/** 显示模式四选一；每项带一句说明，「自动」和「跟随系统」的差别不写清楚容易选错 */
+@Composable
+private fun DisplayModePickerDialog(
+    selected: DisplayMode,
+    onSelect: (DisplayMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AnimatedAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_display_page_display_mode_title)) },
+        text = {
+            Column {
+                DisplayMode.entries.forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(mode) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = mode == selected, onClick = { onSelect(mode) })
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(mode.label)
+                            Text(
+                                text = mode.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
+}

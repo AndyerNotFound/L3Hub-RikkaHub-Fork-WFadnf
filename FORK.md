@@ -918,3 +918,24 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 - 后台任务弹层从 `ChatInputContent` 提到了 `ChatPageContent` 一层，横屏才放得进侧栏
 - 新增字符串 `chat_page_side_panel_files`（附件与工具），目前只补了 `values`、`values-zh`、`values-zh-rTW`，
   其余语言走英文回退，需要时跑 `bun tools/i18n/src/cli.ts translate-missing`
+
+## 显示模式（2026-11-09）
+
+设置 → 界面偏好设置 顶部新增「显示模式」，点开四选一：
+
+| 选项 | 落到窗口上的值 | 说明 |
+|---|---|---|
+| 竖屏 | `SCREEN_ORIENTATION_PORTRAIT` | 固定竖屏 |
+| 横屏 | `SCREEN_ORIENTATION_LANDSCAPE` | 固定横屏，聊天页走上面那套右侧栏 |
+| 自动 | `SCREEN_ORIENTATION_SENSOR` | 跟重力感应，系统方向锁拦不住，不转倒竖屏 |
+| 跟随系统 | `SCREEN_ORIENTATION_UNSPECIFIED` | 什么都不锁，系统自动旋转开关说了算（也是默认值） |
+
+- 存 `DisplaySetting.displayMode`（`Settings.kt`），默认 `SYSTEM`；老数据缺这个键时按默认值解出来，
+  备份导入导出跟着 `display_setting` 那一块走，不用额外迁移
+- 落在 `RouteActivity`：`LaunchedEffect(displayMode) { requestedOrientation = ... }`，改完即时生效；
+  映射单独放在 `ui/activity/DisplayModeOrientation.kt`
+- 平台限制：targetSdk 36+ 起，最小宽度 ≥ 600dp 的屏幕会忽略固定竖屏 / 横屏（Android 16 的适配规则），
+  手机（sw < 600dp）不受影响。`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` 只恢复 resizability、
+  不恢复方向锁，API 37 起连这个属性也没有了，所以没有加。自动与跟随系统用的两个值不在忽略名单里，
+  任何屏幕都生效
+- 只作用于 `RouteActivity`（主界面）。锁屏页、安全模式页仍跟随系统，它们是过场页面
