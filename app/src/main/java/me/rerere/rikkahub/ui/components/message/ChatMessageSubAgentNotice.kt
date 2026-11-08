@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,8 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,16 +21,29 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiBrain01
@@ -39,6 +53,8 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedAlertDialog
 
 /**
@@ -114,45 +130,19 @@ fun ChatMessageSubAgentNotice(
                     tint = colorScheme.onSurfaceVariant,
                 )
             }
-            // 贴着标题行开，锚点就是这一行；菜单项最多两条，不给它单独做一套气泡菜单
-            if (hasActions) {
-                DropdownMenu(
-                    expanded = menuExpanded,
+            // 贴着标题行开，锚点就是这一行；菜单项最多两条，单独做一套带进退场的小菜单。
+            // 只有收起动画演完（onDismissRequest）才会把 menuExpanded 置 false，从这里整块离开组合
+            if (hasActions && menuExpanded) {
+                NoticeActionMenu(
                     onDismissRequest = { menuExpanded = false },
-                ) {
-                    if (onEdit != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_message_sub_agent_notice_edit)) },
-                            leadingIcon = { Icon(HugeIcons.Edit01, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                draft = message.toText().trim()
-                                editing = true
-                            },
-                        )
-                    }
-                    if (onDelete != null) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = stringResource(R.string.delete),
-                                    color = colorScheme.error,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.Delete01,
-                                    contentDescription = null,
-                                    tint = colorScheme.error,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete?.invoke()
-                            },
-                        )
-                    }
-                }
+                    onEdit = onEdit?.let {
+                        {
+                            draft = message.toText().trim()
+                            editing = true
+                        }
+                    },
+                    onDelete = onDelete,
+                )
             }
         }
         AnimatedVisibility(visible = expanded) {
@@ -202,5 +192,174 @@ fun ChatMessageSubAgentNotice(
                 }
             },
         )
+    }
+}
+
+private val NoticeMenuMargin = 8.dp
+
+// 展开动画的起始缩放：从贴着标题行的那个角长出来，不从 0 开始
+private const val NoticeMenuExpandFromScale = 0.88f
+
+/**
+ * 子代理通知的长按菜单：贴着标题行原地展开。
+ *
+ * 展开时从贴住标题行的那个角长出来，收起沿原路缩回去；反向动画演完才让外层把菜单拿掉，
+ * 否则点一下窗口就没了，看不出收起的过渡。
+ */
+@Composable
+private fun NoticeActionMenu(
+    onDismissRequest: () -> Unit,
+    onEdit: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
+) {
+    val enterSpec = rememberSpatialSpec<Float>()
+    val exitSpec = rememberFastSpatialSpec<Float>()
+    val progress = remember { Animatable(0f) }
+    var closing by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // 展开原点跟着菜单位置走：落在标题行下方从左上角长出来，翻到上方从左下角长回去
+    var originY by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val marginPx = with(density) { NoticeMenuMargin.roundToPx() }
+    val positionProvider = remember(marginPx) {
+        NoticeMenuPositionProvider(marginPx) { placedBelow ->
+            originY = if (placedBelow) 0f else 1f
+        }
+    }
+    // 条目上的动作等菜单收回去再执行，避免点完立刻换界面把收起动画截断
+    val dismissAfter: (() -> Unit) -> Unit = { action ->
+        if (!closing) {
+            pendingAction = action
+            closing = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, enterSpec)
+    }
+    LaunchedEffect(closing) {
+        if (!closing) return@LaunchedEffect
+        progress.animateTo(0f, exitSpec)
+        val action = pendingAction
+        pendingAction = null
+        action?.invoke()
+        onDismissRequest()
+    }
+
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = { closing = true },
+        properties = PopupProperties(
+            focusable = true,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+    ) {
+        // 外面这层留白是给阴影的：popup 窗口会把边界外的绘制裁掉，不留白就看不到阴影
+        Box(modifier = Modifier.padding(NoticeMenuMargin)) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(min = 172.dp, max = 220.dp)
+                    .graphicsLayer {
+                        val shown = progress.value
+                        // 弹簧会过冲，透明度夹回 0..1，缩放那点回弹留着
+                        alpha = shown.coerceIn(0f, 1f)
+                        val scale = NoticeMenuExpandFromScale +
+                            (1f - NoticeMenuExpandFromScale) * shown
+                        scaleX = scale
+                        scaleY = scale
+                        transformOrigin = TransformOrigin(0f, originY)
+                    },
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 8.dp,
+            ) {
+                Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                    onEdit?.let { action ->
+                        NoticeMenuItem(
+                            icon = HugeIcons.Edit01,
+                            label = stringResource(R.string.chat_message_sub_agent_notice_edit),
+                            onClick = { dismissAfter(action) },
+                        )
+                    }
+                    onDelete?.let { action ->
+                        NoticeMenuItem(
+                            icon = HugeIcons.Delete01,
+                            label = stringResource(R.string.delete),
+                            destructive = true,
+                            onClick = { dismissAfter(action) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoticeMenuItem(
+    icon: ImageVector,
+    label: String,
+    destructive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (destructive) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = contentColor,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+        )
+    }
+}
+
+/**
+ * 菜单优先落在标题行下方，放不下翻到上方，水平方向从标题行左缘展开并收进窗口。
+ * [onPlacedBelow] 告诉菜单这次落在哪一侧，决定展开动画的原点。
+ */
+private class NoticeMenuPositionProvider(
+    private val marginPx: Int,
+    private val onPlacedBelow: (Boolean) -> Unit,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val below = anchorBounds.bottom
+        val above = anchorBounds.top - popupContentSize.height
+        val bottomLimit = (windowSize.height - popupContentSize.height - marginPx)
+            .coerceAtLeast(marginPx)
+        val y = when {
+            below + popupContentSize.height <= windowSize.height - marginPx -> below
+            above >= marginPx -> above
+            // 两边都放不下时往空间大的一侧贴边
+            anchorBounds.center.y < windowSize.height / 2 -> bottomLimit
+            else -> marginPx
+        }
+        val x = anchorBounds.left
+            .coerceAtMost(windowSize.width - popupContentSize.width - marginPx)
+            .coerceAtLeast(marginPx)
+        onPlacedBelow(y >= anchorBounds.bottom)
+        return IntOffset(x, y)
     }
 }
