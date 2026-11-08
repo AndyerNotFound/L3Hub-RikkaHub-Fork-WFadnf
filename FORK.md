@@ -881,26 +881,37 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   这次保持 fork 的 SSH 实现不动，相关文件整体回到 fork 版本，`SshJumpHostTest` 不引入。
   以后要跳板机时，需要把上述两处 fork 修复移植到新的 `connectSession` / `SshProbeResult` 上
 
-## 横屏右侧栏（2026-11-09）
+## 横屏三栏（2026-11-09）
 
 横屏时屏幕只有 400dp 出头的高度，聊天页原来那些 `ModalBottomSheet`（附件面板、用量、任务树、模型列表、后台任务）
-一开就把聊天区压在下面，顶栏「详情」从上面拉下来又吃掉一小半高度。现在横屏把这些覆盖层改放到贴右边的一栏里，
-竖屏照旧走原来的弹层。
+一开就把聊天区压在下面。现在横屏改成三列：左列是原来的会话抽屉，中间是聊天区，右列是标签页式的看板，
+整块 UI 缩到 75%。竖屏照旧走原来的弹层。
 
-### 判定与状态
+### 判定与缩放
 
-- 判定只看窗口：宽 > 高，且宽 ≥ 600dp → `sidePanelLayout`（`ChatPage.kt` 里用 `currentWindowDpSize()` 算，
-  不跟着 `isBigScreen` 走：后者要求 1100dp，横屏手机永远够不到）
-- 侧栏面板由 `ChatSidePanel.kt` 承载：`ChatSidePane` 枚举列出能放进来的六种面板，
-  每种自带宽度比例与上限（任务树、模型列表是双栏布局，给得更宽），宿主负责玻璃底板、
-  从右侧滑入的进出场、点外部关闭、返回键关闭
-- 竖屏那几个开关（`showFilesSheet` 等）保持不变，`openPane()` 负责按当前布局二选一，
-  `closePane()` 收侧栏并顺手归位竖屏开关；转屏时 `LaunchedEffect(sidePanelLayout)` 把还开着的那一个搬到对侧，
-  不会一边关掉、另一边没人接
+- 判定只看窗口：宽 > 高，且宽 ≥ 600dp → `threePaneLayout`（`ChatPage.kt` 里用 `currentWindowDpSize()` 算）
+- 整块 UI 用 `LocalDensity` 缩到 0.75（`LANDSCAPE_UI_SCALE`）：字号、行高、控件一起缩；
+  insets 按密度换算，物理高度不变
+- 左列宽度 300dp（`LANDSCAPE_SIDEBAR_WIDTH`），默认展开，顶栏菜单按钮做宽度动画收合
+- 右列宽度按整窗算：`宽 / 0.75 × 0.34`，夹在 300–440dp 之间；左列开合时右列不变宽窄
+
+### 右列：浏览器标签页
+
+- `ChatSidePanel.kt` 的 `ChatSidePane` 枚举是能开的看板：会话详情、任务树、本轮改动、用量、附件与工具、
+  模型、后台任务；看板自己不再画标题行，标题归标签条
+- `ChatSidePanelColumn` 画玻璃底板和 `SecondaryScrollableTabRow` 标签条，末尾的 `+` 打开「新建标签页」菜单
+  （已经开着的打勾）；标签上的 × 关闭，关完最后一个退化成「新标签页」列表
+- 和上一版的浮窗不同：不是模态的，不盖聊天区，点聊天区也不会收起来，没有返回键接管
+- 顶栏在横屏只留菜单（收合左栏）、新建会话、会话菜单三项；模型胶囊、详情、任务树都收进右列标签页
+
+### 本轮改动
+
+`EditedFilesList`（消息下面那一行）在横屏只对最后一条消息隐藏，开关由 `ChatPageContent` 通过
+`LocalTurnChangesInSidePanel` 提供。右列的「本轮改动」标签页复用同一个 composable（`TurnChangesPane`），
+一轮里第一次改文件时自动把标签开出来，但不抢当前看板；同一轮手动关掉以后不会再弹回来。
+历史轮次的改动仍然挂在各自的回复下面。
 
 ### 复用的内容
-
-原来这几种覆盖层都是「弹层 + 内容」写在一个 composable 里，这次把内容拆出来复用，竖屏行为不变：
 
 | 内容 | 抽出 | 竖屏外壳 |
 |---|---|---|
@@ -908,16 +919,17 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 | 子代理任务树 | `SubAgentTaskTree` | `SubAgentTaskSheet` |
 | 后台命令 | `BackgroundTasksContent` | `BackgroundTasksSheet` |
 | 模型列表 | `ModelListContent`（新增 `modifier`） | `ModelListSheet` |
-| 会话详情 | `ConversationDetailsPanel`（新增 `embedded`） | 顶栏下方展开 |
-
-`embedded = true` 的详情面板不再套自己的底板（外面已有玻璃底），标题行的收起箭头换成关闭叉。
+| 会话详情 | `ConversationDetailsPanel`（新增 `embedded`、`showHeader`） | 顶栏下方展开 |
+| 本轮改动 | `EditedFilesList` / `TurnChangesPane` | 消息下方那一行 |
 
 ### 没动的地方
 
 - 确认类对话框（压缩后发送、删除会话）和终端输出 / 终端模型选择仍是对话框，它们本来就小，不吃高度
-- 后台任务弹层从 `ChatInputContent` 提到了 `ChatPageContent` 一层，横屏才放得进侧栏
-- 新增字符串 `chat_page_side_panel_files`（附件与工具），目前只补了 `values`、`values-zh`、`values-zh-rTW`，
-  其余语言走英文回退，需要时跑 `bun tools/i18n/src/cli.ts translate-missing`
+- 后台任务弹层从 `ChatInputContent` 提到了 `ChatPageContent` 一层，横屏才放得进右列
+- 终端风格横屏同样走三栏，终端顶栏只留 MENU / NEW / HELP
+- 新增字符串 `chat_page_side_panel_model`、`chat_page_side_panel_new_tab`、`chat_page_side_panel_empty`、
+  `chat_page_side_panel_close_tab`、`chat_page_turn_changes_empty`，补了 `values`、`values-zh`、`values-zh-rTW`，
+  其余语言走英文回退
 
 ## 显示模式（2026-11-09）
 
@@ -926,7 +938,7 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 | 选项 | 落到窗口上的值 | 说明 |
 |---|---|---|
 | 竖屏 | `SCREEN_ORIENTATION_PORTRAIT` | 固定竖屏 |
-| 横屏 | `SCREEN_ORIENTATION_LANDSCAPE` | 固定横屏，聊天页走上面那套右侧栏 |
+| 横屏 | `SCREEN_ORIENTATION_LANDSCAPE` | 固定横屏，聊天页走上面那套三栏 |
 | 自动 | `SCREEN_ORIENTATION_SENSOR` | 跟重力感应，系统方向锁拦不住，不转倒竖屏 |
 | 跟随系统 | `SCREEN_ORIENTATION_UNSPECIFIED` | 什么都不锁，系统自动旋转开关说了算（也是默认值） |
 
