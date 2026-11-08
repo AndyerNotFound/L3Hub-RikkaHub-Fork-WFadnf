@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
+import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
@@ -197,6 +198,14 @@ fun RikkahubTheme(
                 // 弹窗的进出场跟页面转场共用一档速度：用户在设置里调快以后，
                 // 不该只有页面收住了、弹窗还按默认时长慢慢滑
                 CompositionLocalProvider(
+                    // 这一档原本只在 RouteActivity 里提供，而那份在 RikkahubTheme 内部：
+                    // 下面两行在这里求值，读到的永远是默认的 SYSTEM，弹窗曲线便不跟设置走。
+                    // 提到主题这一层，页面转场、菜单、弹窗才都读到同一档。
+                    LocalAnimationSpeed provides if (settings.displaySetting.disableAnimations) {
+                        AnimationSpeed.SYSTEM
+                    } else {
+                        settings.displaySetting.animationSpeed
+                    },
                     LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
                     LocalDialogExitSpec provides rememberFastSpatialSpec<Float>(),
                 ) {

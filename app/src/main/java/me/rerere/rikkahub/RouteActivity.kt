@@ -72,7 +72,6 @@ import me.rerere.ui.toast.Toaster
 import me.rerere.ui.toast.rememberToasterState
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.AppLockStateStore
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
@@ -160,7 +159,6 @@ import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
-import me.rerere.rikkahub.ui.theme.LocalAnimationSpeed
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
@@ -463,12 +461,6 @@ class RouteActivity : ComponentActivity() {
                 LocalSettings provides settings,
                 LocalButtonShadow provides settings.displaySetting.buttonShadow,
                 LocalToaster provides toastState,
-                // 关了动效就固定回 SYSTEM：那时 motionScheme 是 snap，速度档位不该再生效
-                LocalAnimationSpeed provides if (settings.displaySetting.disableAnimations) {
-                    AnimationSpeed.SYSTEM
-                } else {
-                    settings.displaySetting.animationSpeed
-                },
                 LocalTTSState provides tts,
                 LocalASRState provides asr,
             ) {
