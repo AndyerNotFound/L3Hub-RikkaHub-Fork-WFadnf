@@ -756,3 +756,47 @@ git rebase upstream/master
 ## 许可证
 
 AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整源码。
+
+## 同步上游 3.1.2（2026-11-08）
+
+并入了 `upstream/master` 的 11 个提交（3.1.2 与之前的 preview 累积改动），与本 fork 相关的部分如下。
+
+### 消息概览（重做）
+
+- 概览不再由顶栏按钮左右换页，改为**左滑进入**：`ChatListSwipe.kt` 用 `Animatable<Float>` 记进度，
+  聊天页与概览页按同一进度整体平移；顶栏菜单仍可切换，返回键先退出概览
+- 概览 UI 换成上游的 `ChatListPreview.kt`：按轮次分组、搜索命中片段高亮、当前阅读位置标记、
+  附件/收藏/工具调用图标；聊天页自己的 `LazyListState` 不动，概览用独立的 `previewListState`
+- fork 原来的内联 `ChatListPreview`（在 `ChatList.kt` 里）与它专用的 `extractMatchingSnippet` /
+  `buildHighlightedText` 一并删除，改用上游文件里的实现
+- `ChatSuggestionsRow` / `MessageJumper` 挪到 `ChatListOverlays.kt`（上游结构），fork 的
+  “滚回最新消息用短动画”保留
+
+### 顶栏对话菜单
+
+- 原「消息概览」图标按钮改成三点菜单：**概览 / 导出 / 删除**；空会话时三项置灰
+- 「导出」不再直接弹面板，而是进入消息多选（默认全选），确认后再选格式；
+  多选状态 `ChatSelectionState` 提到 `ChatPage` 一层，消息长按「分享」与顶栏菜单共用同一份状态
+- 删除会话在菜单里带确认框，确认后删除并回到新会话页
+
+### 导出
+
+- 采用上游重写的 `ChatExportSheet`：先选 Markdown / 图片 / XML，再选**保存**（系统另存为）
+  或**分享**；文件先写临时目录，保存时等用户选完位置再拷贝
+- fork 原有的 XML 导出保留为第三种格式，`buildXmlExport` 仍把子代理回投记成 `system`
+
+### 其他并入项
+
+- 世界书条目支持长按拖拽排序（`PromptPage.kt`，`ReorderableColumn`）
+- 行内公式紧贴标点或中文时也能渲染（bettertext 0.1.5）
+- 收藏模型去重：`SettingsNormalization` 里 `favoriteModels.distinct()`，收藏按钮按最新设置判断
+- 删除对话时同步删除该会话的消息收藏（`FavoriteDAO.deleteNodeFavoritesOfConversation`）
+- 历史页改为上游的多选删除：长按进入多选、底部操作栏、`BackHandler` 退出多选
+- 历史图片压缩结果缓存（`ImageEncodeCache`）
+
+### 未并入
+
+- **SSH 跳板机**（`e011970c`）：上游把连接重构成 endpoint + `ProxyJump` 隧道，
+  与 fork 的认证失败指纹、远程目录探测（`SshProbeResult.remoteDirIssue`）改动叠在同一段代码上。
+  这次保持 fork 的 SSH 实现不动，相关文件整体回到 fork 版本，`SshJumpHostTest` 不引入。
+  以后要跳板机时，需要把上述两处 fork 修复移植到新的 `connectSession` / `SshProbeResult` 上

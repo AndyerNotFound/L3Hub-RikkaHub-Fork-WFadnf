@@ -33,7 +33,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -78,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -94,10 +100,13 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Share04
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
@@ -462,6 +471,9 @@ private fun ChatPageContent(
     }
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
+    val previewListState = rememberLazyListState()
+    val selectionState = rememberChatSelectionState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
@@ -512,8 +524,11 @@ private fun ChatPageContent(
     }
 
     // 消息滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
-    val listScrolledUnderTopBar by remember(chatListState) {
-        derivedStateOf { chatListState.canScrollBackward }
+    // 概览页有自己的列表，切过去后跟着它判断
+    val listScrolledUnderTopBar by remember(chatListState, previewListState) {
+        derivedStateOf {
+            if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
+        }
     }
 
     fun terminalMessages(): List<me.rerere.ai.ui.UIMessage> = currentMessages
@@ -803,6 +818,11 @@ private fun ChatPageContent(
 
     TTSAutoPlay(vm = vm, setting = setting)
 
+    // 概览页按返回键先回聊天页，不再直接退出会话
+    BackHandler(previewMode) {
+        previewMode = false
+    }
+
     @Composable
     fun ChatInputContent(
         todos: List<TodoItem> = emptyList(),
@@ -942,16 +962,22 @@ private fun ChatPageContent(
                         conversation = conversation,
                         bigScreen = bigScreen,
                         drawerState = drawerState,
-                        previewMode = previewMode,
                         onNewChat = {
                             navigateToChatPage(navController)
                         },
-                        onClickMenu = {
-                            previewMode = !previewMode
-                        },
                         onShowTaskTree = { showTaskTree = true },
                         onShowModelPicker = { chatModelListState.open() },
-                        showCapsuleBackground = !previewMode && listScrolledUnderTopBar,
+                        onShowOverview = {
+                            selectionState.selecting = false
+                            previewMode = true
+                        },
+                        onExport = {
+                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
+                            previewMode = false
+                            selectionState.start(conversation.messageNodes.map { it.id })
+                        },
+                        onDelete = { showDeleteConfirm = true },
+                        showCapsuleBackground = listScrolledUnderTopBar,
                     )
                 }
             },
@@ -1028,10 +1054,13 @@ private fun ChatPageContent(
                     innerPadding = innerPadding,
                     conversation = conversation,
                     state = chatListState,
+                    previewListState = previewListState,
+                    selectionState = selectionState,
                     loading = loadingJob != null,
                     onCreateNewChat = onCreateNewChat,
                     processingStatus = processingStatus,
                     previewMode = previewMode,
+                    onPreviewModeChange = { previewMode = it },
                     settings = setting,
                     hazeState = hazeState,
                     bubbleHazeState = backgroundHazeState,
@@ -1159,6 +1188,22 @@ private fun ChatPageContent(
                 },
             )
         }
+
+        RikkaConfirmDialog(
+            show = showDeleteConfirm,
+            title = stringResource(R.string.confirm_delete),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = {
+                showDeleteConfirm = false
+                scope.launch {
+                    vm.deleteConversation(conversation).join()
+                    navigateToChatPage(navController)
+                }
+            },
+            onDismiss = { showDeleteConfirm = false },
+            text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
+        )
 
         if (showFilesSheet) {
             ChatFilesPickerSheet(
@@ -1300,12 +1345,13 @@ private fun TopBar(
     conversation: Conversation,
     drawerState: DrawerState,
     bigScreen: Boolean,
-    previewMode: Boolean,
     showCapsuleBackground: Boolean,
-    onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,
     onShowModelPicker: () -> Unit,
+    onShowOverview: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -1467,17 +1513,16 @@ private fun TopBar(
                         )
                     }
 
-                    IconButton(onClick = { onClickMenu() }, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
-                            "Chat Options",
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-
                     IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
                         Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(20.dp))
                     }
+
+                    ChatPageMenu(
+                        enabled = conversation.messageNodes.isNotEmpty(),
+                        onShowOverview = onShowOverview,
+                        onExport = onExport,
+                        onDelete = onDelete,
+                    )
 
                 }
             }
@@ -1674,5 +1719,85 @@ private fun EmptyChatHero(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+// 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰
+@Composable
+private fun ChatPageMenu(
+    enabled: Boolean,
+    onShowOverview: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    @Composable
+    fun MenuItem(
+        text: String,
+        icon: ImageVector,
+        index: Int,
+        count: Int,
+        destructive: Boolean = false,
+        onClick: () -> Unit,
+    ) {
+        DropdownMenuItem(
+            text = { Text(text) },
+            onClick = {
+                expanded = false
+                onClick()
+            },
+            shape = MenuDefaults.itemShape(index = index, count = count).shape,
+            leadingIcon = { Icon(icon, contentDescription = null) },
+            enabled = enabled,
+            colors = if (destructive) {
+                val errorColor = MaterialTheme.colorScheme.error
+                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
+            } else {
+                MenuDefaults.itemColors()
+            },
+        )
+    }
+
+    Box {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp)) {
+            Icon(
+                HugeIcons.MoreVertical,
+                stringResource(R.string.more_options),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenuPopup(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
+                MenuItem(
+                    text = stringResource(R.string.chat_page_conversation_map),
+                    icon = HugeIcons.LeftToRightListBullet,
+                    index = 0,
+                    count = 2,
+                    onClick = onShowOverview,
+                )
+                MenuItem(
+                    text = stringResource(R.string.export_title),
+                    icon = HugeIcons.Share04,
+                    index = 1,
+                    count = 2,
+                    onClick = onExport,
+                )
+            }
+            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 1)) {
+                MenuItem(
+                    text = stringResource(R.string.delete),
+                    icon = HugeIcons.Delete01,
+                    index = 0,
+                    count = 1,
+                    destructive = true,
+                    onClick = onDelete,
+                )
+            }
+        }
     }
 }
