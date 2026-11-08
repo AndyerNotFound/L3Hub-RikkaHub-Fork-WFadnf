@@ -120,7 +120,17 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.AssistantLocalTool,
     is Screen.AssistantInjections -> SettingSection.Assistant
 
-    is Screen.Extensions -> SettingSection.Extensions
+    // 扩展功能下面的这些管理页也归在「扩展功能」里，打开后左栏不消失
+    is Screen.Extensions,
+    is Screen.QuickMessages,
+    is Screen.Prompts,
+    is Screen.Skills,
+    is Screen.SkillDetail,
+    is Screen.Workspaces,
+    is Screen.WorkspaceDetail,
+    is Screen.WorkspaceTerminal,
+    is Screen.WorkspaceFileEditor,
+    is Screen.WorkspaceSshEditor -> SettingSection.Extensions
 
     is Screen.SettingModels -> SettingSection.Models
     is Screen.SettingProvider, is Screen.SettingProviderDetail, is Screen.ModelEditor -> SettingSection.Providers
@@ -131,7 +141,7 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingWeb -> SettingSection.Web
     is Screen.Backup -> SettingSection.Backup
     is Screen.SettingFiles -> SettingSection.Files
-    is Screen.SettingAbout -> SettingSection.About
+    is Screen.SettingAbout, is Screen.SettingDonate, is Screen.Debug -> SettingSection.About
     is Screen.Log -> SettingSection.Log
     else -> null
 }

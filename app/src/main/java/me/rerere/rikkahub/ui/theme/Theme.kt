@@ -23,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
@@ -178,7 +180,15 @@ fun RikkahubTheme(
         }
     }
 
+    // 界面缩放：整棵 UI 用放大后的密度绘制，dp 和 sp 一起变；1.0 时保持原样
+    val baseDensity = LocalDensity.current
+    val uiScale = settings.displaySetting.uiScale.coerceIn(0.5f, 2f)
+    val scaledDensity = remember(baseDensity, uiScale) {
+        if (uiScale == 1f) baseDensity else Density(baseDensity.density * uiScale, baseDensity.fontScale)
+    }
+
     CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,

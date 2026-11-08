@@ -501,6 +501,23 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     }
                 }
                 formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_ui_scale_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_ui_scale_desc)) },
+                    trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).toInt()}%") },
+                ) {
+                    Slider(
+                        value = displaySetting.uiScale,
+                        onValueChange = { ratio ->
+                            // 5% 一档：0.5、0.55 … 2.0
+                            val snapped = (ratio * 20f).roundToInt() / 20f
+                            updateDisplaySetting(displaySetting.copy(uiScale = snapped))
+                        },
+                        valueRange = 0.5f..2f,
+                        steps = 29,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                formItem(
                     headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
                     trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
                 ) {

@@ -13,6 +13,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -508,9 +510,13 @@ class RouteActivity : ComponentActivity() {
                     val windowDpSize = currentWindowDpSize()
                     val landscape = windowDpSize.width > windowDpSize.height
                     val currentScreen = backStack.lastOrNull() as? Screen
+                    // 扩展管理页现在也算设置页，但从聊天抽屉直接进来时栈里没有分区页，
+                    // 这时只显示单页，不凭空挂一条没有选中的左栏
+                    val hasSectionPage = backStack.any { it is Screen && it.isSettingSectionPage() }
                     val showSettingRail = landscape &&
                         windowDpSize.width >= 700.dp &&
-                        currentScreen?.isSettingBoard() == true
+                        currentScreen?.isSettingBoard() == true &&
+                        hasSectionPage
                     // 横屏收起状态栏：顶栏贴到屏幕顶边，竖向空间全给内容
                     HideStatusBarInLandscape(landscape)
                     // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
@@ -537,6 +543,24 @@ class RouteActivity : ComponentActivity() {
                     // 中列 / 右列的分割比例，拖分隔条改；默认中列窄一点，详情页宽一点
                     var settingSplit by rememberSaveable { mutableStateOf(0.42f) }
                     val settingContentWidth = (windowDpSize.width - 224.dp).coerceAtLeast(1.dp)
+                    // 右列展开 / 收起：宽度比例做动画，关闭时这段宽度平滑还给中列。
+                    // 拖动时切回 snap，手柄不能落后于手指
+                    var rightColumnResizing by remember { mutableStateOf(false) }
+                    val rightColumnFraction by animateFloatAsState(
+                        targetValue = if (splitSettingColumns) 1f - settingSplit else 0f,
+                        animationSpec = if (rightColumnResizing) {
+                            snap()
+                        } else {
+                            MaterialTheme.motionScheme.defaultSpatialSpec()
+                        },
+                        label = "settingRightColumn",
+                    )
+                    // 收起动画进行时右列栈已经空了，用最后一次的内容把这一段演完
+                    var lastRightStack by remember { mutableStateOf(emptyList<NavKey>()) }
+                    LaunchedEffect(rightStack) {
+                        if (rightStack.isNotEmpty()) lastRightStack = rightStack
+                    }
+                    val shownRightStack = if (rightStack.isNotEmpty()) rightStack else lastRightStack
 
                     // 导航条目只构造一份，中列和右列的两个 NavDisplay 共用
                     val navEntries = entryProvider {
@@ -845,7 +869,7 @@ class RouteActivity : ComponentActivity() {
                             rememberNavInputGuardDecorator<NavKey>(),
                         ),
                         modifier = Modifier
-                            .weight(settingSplit)
+                            .weight(1f - rightColumnFraction)
                             .fillMaxHeight(),
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
                         // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
@@ -895,22 +919,24 @@ class RouteActivity : ComponentActivity() {
                     )
 
                     // 右列：只放设置页里的下钻页，进出用淡入淡出，不再做上下滑
-                    if (splitSettingColumns) {
+                    if (rightColumnFraction > 0.001f) {
                         ColumnResizeHandle(
                             onDrag = { delta ->
                                 settingSplit = (settingSplit + delta.value / settingContentWidth.value)
                                     .coerceIn(0.28f, 0.66f)
                             },
+                            onDragStart = { rightColumnResizing = true },
+                            onDragEnd = { rightColumnResizing = false },
                         )
                         NavDisplay(
-                            backStack = rightStack,
+                            backStack = shownRightStack,
                             entryDecorators = listOf(
                                 rememberSaveableStateHolderNavEntryDecorator(),
                                 rememberViewModelStoreNavEntryDecorator(),
                                 rememberNavInputGuardDecorator<NavKey>(),
                             ),
                             modifier = Modifier
-                                .weight(1f - settingSplit)
+                                .weight(rightColumnFraction)
                                 .fillMaxHeight(),
                             onBack = { navController.popBackStack() },
                             transitionSpec = { fadeIn() togetherWith fadeOut() },
