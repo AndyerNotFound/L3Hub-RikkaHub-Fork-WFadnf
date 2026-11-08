@@ -1347,10 +1347,10 @@ private fun ChatFilesPickerSheet(
     }
 }
 
-// 顶栏按钮统一尺寸：48dp 的按钮配 24dp 的图标，正好是 M3 的最小触控尺寸，
-// 按钮和图标按原来的 2:1 同步放大，圆角、间距关系都不变。
-private val TopBarButtonSize = 48.dp
-private val TopBarButtonIconSize = 24.dp
+// 顶栏按钮统一尺寸：45dp 的按钮配 22.5dp 的图标（原来是 40dp/20dp，等比放大 12.5%），
+// 按钮和图标保持 2:1，圆角、间距关系都不变。
+private val TopBarButtonSize = 45.dp
+private val TopBarButtonIconSize = 22.5.dp
 
 @Composable
 private fun TopBar(
