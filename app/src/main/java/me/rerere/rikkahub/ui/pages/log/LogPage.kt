@@ -504,7 +504,7 @@ private fun TextLogCard(log: LogEntry.TextLog, onExport: () -> Unit) {
                     Text(
                         text = log.message,
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = JetBrainsMono
+                        fontFamily = JetbrainsMono
                     )
                 }
             }
@@ -556,7 +556,7 @@ private fun rememberLogExporter(): LogExporter {
             scope.launch {
                 val saved = withContext(Dispatchers.IO) {
                     runCatching {
-                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                        context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
                             output.write(content.toByteArray())
                         } ?: error("openOutputStream returned null for $uri")
                     }.isSuccess

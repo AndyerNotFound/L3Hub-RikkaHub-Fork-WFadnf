@@ -33,8 +33,33 @@ object LogExport {
             LogExportFile.serializer(),
             LogExportFile(
                 exportedAt = exportedAt,
-                logs = logs,
+                logs = logs.map { it.redacted() },
             )
         )
     }
+}
+
+/** 凭据类请求头，导出时按名字遮掉：这份文件是要发给别人的。 */
+private val SENSITIVE_HEADERS = setOf(
+    "authorization",
+    "proxy-authorization",
+    "api-key",
+    "x-api-key",
+    "x-goog-api-key",
+    "cookie",
+    "set-cookie",
+)
+
+private const val REDACTED_VALUE = "██"
+
+private fun Map<String, String>.redacted(): Map<String, String> =
+    mapValues { (name, value) -> if (name.lowercase() in SENSITIVE_HEADERS) REDACTED_VALUE else value }
+
+private fun LogEntry.redacted(): LogEntry = when (this) {
+    is LogEntry.RequestLog -> copy(
+        requestHeaders = requestHeaders.redacted(),
+        responseHeaders = responseHeaders.redacted(),
+    )
+
+    is LogEntry.TextLog -> this
 }

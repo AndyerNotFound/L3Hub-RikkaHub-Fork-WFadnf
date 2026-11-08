@@ -8,12 +8,13 @@ import kotlinx.serialization.json.long
 import me.rerere.common.android.LogEntry
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 导出文件是给人看、也给脚本读的，结构要稳。这里钉住三件最容易改坏的事：
- * 顶层带 logs 数组、请求日志的字段原样带出、没有日志时也能导出一个合法文件。
+ * 导出文件是给人看、也给脚本读的，结构要稳。这里钉住四件事：
+ * 顶层带 logs 数组、请求日志的字段原样带出、凭据类请求头在文件里被遮掉、没有日志时也能导出一个合法文件。
  */
 class LogExportTest {
     private val requestLog = LogEntry.RequestLog(
@@ -21,10 +22,16 @@ class LogExportTest {
         timestamp = 1_700_000_000_000,
         url = "https://api.example.com/v1/chat/completions",
         method = "POST",
-        requestHeaders = mapOf("Authorization" to "Bearer redacted"),
+        requestHeaders = mapOf(
+            "X-Trace-Id" to "trace-1",
+            "Authorization" to "Bearer sk-live-123",
+        ),
         requestBody = "{\"model\":\"m\"}",
         responseCode = 200,
-        responseHeaders = mapOf("Content-Type" to "application/json"),
+        responseHeaders = mapOf(
+            "Content-Type" to "application/json",
+            "Set-Cookie" to "session=abc",
+        ),
         durationMs = 42,
     )
 
@@ -46,9 +53,25 @@ class LogExportTest {
         assertEquals(200, exported["responseCode"]!!.jsonPrimitive.int)
         assertEquals(42L, exported["durationMs"]!!.jsonPrimitive.long)
         assertEquals(
-            "Bearer redacted",
-            exported["requestHeaders"]!!.jsonObject["Authorization"]!!.jsonPrimitive.content
+            "trace-1",
+            exported["requestHeaders"]!!.jsonObject["X-Trace-Id"]!!.jsonPrimitive.content
         )
+    }
+
+    @Test
+    fun `credential headers are redacted in the file`() {
+        val json = LogExport.toJson(listOf(requestLog))
+        assertFalse(json.contains("sk-live-123"))
+        assertFalse(json.contains("session=abc"))
+
+        val exported = JsonInstant.parseToJsonElement(json).jsonObject["logs"]!!.jsonArray.single().jsonObject
+        val requestHeaders = exported["requestHeaders"]!!.jsonObject
+        assertEquals("██", requestHeaders["Authorization"]!!.jsonPrimitive.content)
+        assertEquals("trace-1", requestHeaders["X-Trace-Id"]!!.jsonPrimitive.content)
+
+        val responseHeaders = exported["responseHeaders"]!!.jsonObject
+        assertEquals("██", responseHeaders["Set-Cookie"]!!.jsonPrimitive.content)
+        assertEquals("application/json", responseHeaders["Content-Type"]!!.jsonPrimitive.content)
     }
 
     @Test
