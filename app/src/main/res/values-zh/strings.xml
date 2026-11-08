@@ -292,6 +292,7 @@
   <string name="chat_page_details_no_workspace">未绑定工作区</string>
   <string name="chat_page_details_reasoning">推理</string>
   <string name="chat_page_details_session">会话</string>
+  <string name="chat_page_side_panel_files">附件与工具</string>
   <string name="chat_page_details_title">会话详情</string>
   <string name="chat_page_details_tool_builtin_image">图像生成</string>
   <string name="chat_page_details_tool_builtin_search">模型内置搜索</string>

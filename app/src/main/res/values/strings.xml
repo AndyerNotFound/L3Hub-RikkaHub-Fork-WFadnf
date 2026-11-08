@@ -292,6 +292,7 @@
   <string name="chat_page_details_no_workspace">No workspace bound</string>
   <string name="chat_page_details_reasoning">Reasoning</string>
   <string name="chat_page_details_session">Session</string>
+  <string name="chat_page_side_panel_files">Attachments &amp; tools</string>
   <string name="chat_page_details_title">Conversation details</string>
   <string name="chat_page_details_tool_builtin_image">Image generation</string>
   <string name="chat_page_details_tool_builtin_search">Model search</string>

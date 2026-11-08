@@ -373,6 +373,8 @@ fun ModelListContent(
     state: ModelListState,
     onSelect: (Model) -> Unit,
     onDismiss: () -> Unit,
+    // 高度由外层决定：底部弹层里是 80% 半屏，横屏右侧栏里铺满整栏
+    modifier: Modifier = Modifier.fillMaxHeight(0.8f),
 ) {
     val coroutineScope = rememberCoroutineScope()
     val settingsStore = koinInject<SettingsStore>()
@@ -382,7 +384,7 @@ fun ModelListContent(
     Column(
         modifier = Modifier
             .padding(8.dp)
-            .fillMaxHeight(0.8f)
+            .then(modifier)
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

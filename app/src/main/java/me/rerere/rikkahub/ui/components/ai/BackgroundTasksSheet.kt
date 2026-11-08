@@ -69,6 +69,29 @@ fun BackgroundTasksSheet(
     onStop: suspend (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        BackgroundTasksContent(
+            tasks = tasks,
+            onStop = onStop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+        )
+    }
+}
+
+/** 任务列表本体：不含外层 sheet，横屏时整块放进右侧栏 */
+@Composable
+fun BackgroundTasksContent(
+    tasks: List<BackgroundShellTask>,
+    onStop: suspend (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scope = rememberCoroutineScope()
     var selectedId by remember { mutableStateOf<String?>(null) }
     // 终止要等宽限期，等待期间按钮显示进行中
@@ -88,36 +111,27 @@ fun BackgroundTasksSheet(
     }
     val selected = tasks.find { it.id == selectedId }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.8f)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (selected != null) {
-                BackHandler { selectedId = null }
-                TaskDetail(
-                    task = selected,
-                    now = now,
-                    stopping = selected.id in stopping,
-                    onBack = { selectedId = null },
-                    onStop = { stop(selected.id) },
-                )
-            } else {
-                TaskList(
-                    tasks = tasks,
-                    now = now,
-                    stopping = stopping,
-                    onSelect = { selectedId = it },
-                    onStop = stop,
-                )
-            }
+        if (selected != null) {
+            BackHandler { selectedId = null }
+            TaskDetail(
+                task = selected,
+                now = now,
+                stopping = selected.id in stopping,
+                onBack = { selectedId = null },
+                onStop = { stop(selected.id) },
+            )
+        } else {
+            TaskList(
+                tasks = tasks,
+                now = now,
+                stopping = stopping,
+                onSelect = { selectedId = it },
+                onStop = stop,
+            )
         }
     }
 }

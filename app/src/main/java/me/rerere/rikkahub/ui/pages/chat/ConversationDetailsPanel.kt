@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +34,7 @@ import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.R
@@ -72,6 +75,9 @@ internal fun ConversationDetailsPanel(
     hazeState: HazeState,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
+    // 嵌在横屏右侧栏里时不再套一层底板：外面已经有玻璃底和关法，
+    // 这里只把内容铺满，标题行的收起图标换成关闭
+    embedded: Boolean = false,
 ) {
     // 面板最多占半屏，超出的部分在面板内部滚动，不去挤聊天列表
     val maxHeight = minOf(DetailsPanelMaxHeight, LocalConfiguration.current.screenHeightDp.dp * 0.4f)
@@ -113,18 +119,22 @@ internal fun ConversationDetailsPanel(
     }
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .glassSurface(
-                shape = DetailsPanelShape,
-                baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                hazeState = hazeState,
-                radius = 16.dp,
-                minAlpha = 0.9f,
-            ),
-        shape = DetailsPanelShape,
-        color = if (canGlassPane(hazeState)) {
+        modifier = if (embedded) {
+            modifier.fillMaxSize()
+        } else {
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .glassSurface(
+                    shape = DetailsPanelShape,
+                    baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    hazeState = hazeState,
+                    radius = 16.dp,
+                    minAlpha = 0.9f,
+                )
+        },
+        shape = if (embedded) RectangleShape else DetailsPanelShape,
+        color = if (embedded || canGlassPane(hazeState)) {
             Color.Transparent
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
@@ -132,8 +142,7 @@ internal fun ConversationDetailsPanel(
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
-            modifier = Modifier
-                .heightIn(max = maxHeight)
+            modifier = (if (embedded) Modifier.fillMaxSize() else Modifier.heightIn(max = maxHeight))
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -159,8 +168,10 @@ internal fun ConversationDetailsPanel(
                 }
                 IconButton(onClick = onCollapse, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = HugeIcons.ArrowUp01,
-                        contentDescription = stringResource(R.string.chat_page_details_collapse),
+                        imageVector = if (embedded) HugeIcons.Cancel01 else HugeIcons.ArrowUp01,
+                        contentDescription = stringResource(
+                            if (embedded) R.string.close else R.string.chat_page_details_collapse,
+                        ),
                         modifier = Modifier.size(18.dp),
                     )
                 }
