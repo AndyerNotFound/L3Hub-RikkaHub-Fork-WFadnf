@@ -5,6 +5,9 @@ import kotlin.uuid.Uuid
 
 private const val MAX_RECENT_LOGS = 100
 
+/** 一条日志除字符串内容外的粗略开销（对象头、时间戳、id 等），用来估体积。 */
+private const val LOG_ENTRY_OVERHEAD_BYTES = 64L
+
 @Serializable
 sealed class LogEntry {
     abstract val id: Uuid
@@ -36,9 +39,26 @@ sealed class LogEntry {
 }
 
 object Logging {
+    /** 请求日志默认开着：真出问题时要先让用户去把开关打开再复现，这一趟就白跑了。 */
+    const val DEFAULT_REQUEST_LOGGING_ENABLED = true
+
+    /** 默认上限 4 MB：一次对话请求连请求体也就几十 KB，够放几十条，又不会把内存顶起来。 */
+    const val DEFAULT_MAX_LOG_BYTES: Long = 4L * 1024 * 1024
+
+    /** 上限的下限，和界面上滑块的最小一档对齐。 */
+    const val MIN_MAX_LOG_BYTES: Long = 32L * 1024
+
     private val recentLogs = arrayListOf<LogEntry>()
+
+    // 与 recentLogs 同下标：每条日志估算出来的体积，用来在不重新序列化的情况下算总量
+    private val recentLogBytes = arrayListOf<Long>()
+    private var totalBytes = 0L
+
     @Volatile
-    private var requestLoggingEnabled = false
+    private var requestLoggingEnabled = DEFAULT_REQUEST_LOGGING_ENABLED
+
+    @Volatile
+    private var maxLogBytes = DEFAULT_MAX_LOG_BYTES
 
     fun log(tag: String, message: String) {
         addLog(LogEntry.TextLog(tag = tag, message = message))
@@ -55,12 +75,36 @@ object Logging {
         requestLoggingEnabled = enabled
     }
 
+    fun getMaxLogBytes(): Long = maxLogBytes
+
+    /** 改上限时顺手把已经超出的旧日志清掉，不必等下一次写入。 */
+    fun setMaxLogBytes(bytes: Long) {
+        maxLogBytes = bytes.coerceAtLeast(MIN_MAX_LOG_BYTES)
+        synchronized(recentLogs) {
+            trimToLimits()
+        }
+    }
+
     private fun addLog(entry: LogEntry) {
+        val bytes = entry.estimatedBytes()
         synchronized(recentLogs) {
             recentLogs.add(0, entry)
-            if (recentLogs.size > MAX_RECENT_LOGS) {
-                recentLogs.removeLastOrNull()
-            }
+            recentLogBytes.add(0, bytes)
+            totalBytes += bytes
+            trimToLimits()
+        }
+    }
+
+    /**
+     * 条数和体积两道闸，超了就从最旧的删起。
+     *
+     * 最新一条不删：上限调到 32 KB 时，一次带图片的请求自己就超了，把刚记下的那条删掉等于什么都没记。
+     */
+    private fun trimToLimits() {
+        while (recentLogs.size > MAX_RECENT_LOGS || (totalBytes > maxLogBytes && recentLogs.size > 1)) {
+            val index = recentLogs.lastIndex
+            recentLogs.removeAt(index)
+            totalBytes -= recentLogBytes.removeAt(index)
         }
     }
 
@@ -85,6 +129,36 @@ object Logging {
     fun clear() {
         synchronized(recentLogs) {
             recentLogs.clear()
+            recentLogBytes.clear()
+            totalBytes = 0L
         }
     }
+}
+
+/**
+ * 估一条日志占多少字节，用来按体积淘汰。
+ *
+ * 不真的编码一遍：按字符宽度累加，ASCII 一个字节、中文两三个字节。算的是容量，不需要精确到字节。
+ */
+private fun String?.utf8Size(): Long = this?.fold(0L) { total, char ->
+    total + when {
+        char.code < 0x80 -> 1L
+        char.code < 0x800 -> 2L
+        else -> 3L
+    }
+} ?: 0L
+
+private fun Map<String, String>.headersSize(): Long {
+    var bytes = 0L
+    forEach { (key, value) -> bytes += key.utf8Size() + value.utf8Size() }
+    return bytes
+}
+
+private fun LogEntry.estimatedBytes(): Long = when (this) {
+    is LogEntry.RequestLog -> LOG_ENTRY_OVERHEAD_BYTES +
+        tag.utf8Size() + url.utf8Size() + method.utf8Size() +
+        requestBody.utf8Size() + error.utf8Size() +
+        requestHeaders.headersSize() + responseHeaders.headersSize()
+
+    is LogEntry.TextLog -> LOG_ENTRY_OVERHEAD_BYTES + tag.utf8Size() + message.utf8Size()
 }

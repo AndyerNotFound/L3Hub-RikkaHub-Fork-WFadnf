@@ -21,12 +21,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +52,7 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.LogPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.terminal.Card
@@ -62,11 +65,15 @@ import me.rerere.rikkahub.utils.JsonInstantPretty
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun LogPage() {
     var logs by remember { mutableStateOf(Logging.getRecentLogs()) }
     var requestLoggingEnabled by remember { mutableStateOf(Logging.isRequestLoggingEnabled()) }
+    var maxLogBytes by remember { mutableStateOf(Logging.getMaxLogBytes()) }
+    val context = LocalContext.current
+    val logPreferences = remember(context) { LogPreferences(context) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val exporter = rememberLogExporter()
     // 导出顺序和列表顺序取同一份，免得"看到的是降序、导出的是另一个顺序"
@@ -106,6 +113,15 @@ fun LogPage() {
             onRequestLoggingChange = {
                 requestLoggingEnabled = it
                 Logging.setRequestLoggingEnabled(it)
+                logPreferences.requestLoggingEnabled = it
+            },
+            maxLogBytes = maxLogBytes,
+            onMaxLogBytesChange = {
+                maxLogBytes = it
+                Logging.setMaxLogBytes(it)
+                logPreferences.maxBytes = it
+                // 调低上限会立刻删掉旧记录，列表跟着重取，免得屏幕上还留着缓冲里已经没有的条目
+                logs = Logging.getRecentLogs()
             },
             onExport = { exporter.export(it) },
             modifier = Modifier
@@ -120,6 +136,8 @@ private fun UnifiedLogList(
     logs: List<LogEntry>,
     requestLoggingEnabled: Boolean,
     onRequestLoggingChange: (Boolean) -> Unit,
+    maxLogBytes: Long,
+    onMaxLogBytesChange: (Long) -> Unit,
     onExport: (List<LogEntry>) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -137,6 +155,16 @@ private fun UnifiedLogList(
                 enabled = requestLoggingEnabled,
                 onEnabledChange = onRequestLoggingChange
             )
+        }
+
+        // 不记录的时候上限没有意义，收起来，省得看着像还有个开关在起作用
+        if (requestLoggingEnabled) {
+            item {
+                LogSizeLimitCard(
+                    maxBytes = maxLogBytes,
+                    onMaxBytesChange = onMaxLogBytesChange,
+                )
+            }
         }
 
         items(logs, key = { it.id }, contentType = { it.javaClass.simpleName }) { log ->
@@ -574,6 +602,80 @@ private fun rememberLogExporter(): LogExporter {
         LogExporter { logs ->
             pending = LogExport.toJson(logs)
             launcher.launch(LogExport.fileName())
+        }
+    }
+}
+
+/** 上限的档位：32 KB 起，一路翻倍到 1024 MB，滑块上一格就是一档。 */
+private val LOG_SIZE_OPTIONS: List<Long> = buildList {
+    var bytes = Logging.MIN_MAX_LOG_BYTES
+    while (bytes <= 1024L * 1024 * 1024) {
+        add(bytes)
+        bytes *= 2
+    }
+}
+
+private fun formatLogSize(bytes: Long): String = when {
+    bytes >= 1024L * 1024 -> "${bytes / (1024L * 1024)} MB"
+    bytes >= 1024L -> "${bytes / 1024} KB"
+    else -> "$bytes B"
+}
+
+private fun nearestLogSizeIndex(bytes: Long): Int {
+    val index = LOG_SIZE_OPTIONS.indexOfFirst { it >= bytes }
+    return if (index >= 0) index else LOG_SIZE_OPTIONS.lastIndex
+}
+
+@Composable
+private fun LogSizeLimitCard(
+    maxBytes: Long,
+    onMaxBytesChange: (Long) -> Unit,
+) {
+    // 拖动时先只动草稿，松手才落盘：滑过一整条轨道会写十几次磁盘
+    var draft by remember(maxBytes) { mutableFloatStateOf(nearestLogSizeIndex(maxBytes).toFloat()) }
+    val selected = LOG_SIZE_OPTIONS[draft.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)]
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CustomColors.cardColorsOnSurfaceContainer,
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Log size limit",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Oldest logs are removed once the limit is reached",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = formatLogSize(selected),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Slider(
+                value = draft,
+                onValueChange = { draft = it },
+                valueRange = 0f..LOG_SIZE_OPTIONS.lastIndex.toFloat(),
+                steps = LOG_SIZE_OPTIONS.size - 2,
+                onValueChangeFinished = {
+                    onMaxBytesChange(
+                        LOG_SIZE_OPTIONS[draft.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)]
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

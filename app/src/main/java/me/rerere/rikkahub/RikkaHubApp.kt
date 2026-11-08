@@ -24,9 +24,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.heartbeat.HeartbeatScheduler
+import me.rerere.rikkahub.data.datastore.LogPreferences
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
@@ -69,6 +71,9 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 请求日志的开关和上限存在本地偏好里，网络层只认 Logging 里的内存值，起任何服务之前先灌进去
+        applyRequestLogPreferences()
+
         // Restore files and settings before eager Koin singletons or workers can access them.
         try {
             val restored = runBlocking(Dispatchers.IO) {
@@ -279,6 +284,16 @@ class RikkaHubApp : Application() {
             }.onFailure {
                 Log.e(TAG, "startWebServerIfEnabled failed", it)
             }
+        }
+    }
+
+    private fun applyRequestLogPreferences() {
+        runCatching {
+            val preferences = LogPreferences(this)
+            Logging.setRequestLoggingEnabled(preferences.requestLoggingEnabled)
+            Logging.setMaxLogBytes(preferences.maxBytes)
+        }.onFailure {
+            Log.e(TAG, "applyRequestLogPreferences failed", it)
         }
     }
 
