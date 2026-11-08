@@ -617,7 +617,9 @@ private fun ChatListNormal(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .topFadingEdge(innerPadding.calculateTopPadding() + 24.dp)
+                    // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
+                    // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
+                    .topFadingEdge(minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp))
                     .nestedScroll(createPullConnection)
                     .hazeSource(state = hazeState),
             ) {

@@ -35,6 +35,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.subagent.dispatchableSubAgents
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -44,10 +45,12 @@ import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.utils.formatNumber
+import me.rerere.workspace.WorkspaceShellStatus
 
 private val DetailsPanelShape = RoundedCornerShape(22.dp)
-private val DetailsPanelMaxHeight = 420.dp
+private val DetailsPanelMaxHeight = 340.dp
 private val DetailsLabelWidth = 52.dp
 
 /**
@@ -71,14 +74,29 @@ internal fun ConversationDetailsPanel(
     modifier: Modifier = Modifier,
 ) {
     // 面板最多占半屏，超出的部分在面板内部滚动，不去挤聊天列表
-    val maxHeight = minOf(DetailsPanelMaxHeight, LocalConfiguration.current.screenHeightDp.dp * 0.5f)
+    val maxHeight = minOf(DetailsPanelMaxHeight, LocalConfiguration.current.screenHeightDp.dp * 0.4f)
     val boundWorkspaces = boundWorkspacesOf(workspaces, assistant)
+    // 只剩真正会注册工具的服务器：全部工具被关掉的服务器在 McpManager 里不会产出任何工具
     val mcpServers = settings.mcpServers
         .filter { it.commonOptions.enable && it.id in assistant.mcpServers }
-        .map { server ->
-            server.commonOptions.name.ifBlank { "MCP" } to server.commonOptions.tools.count { it.enable }
+        .mapNotNull { server ->
+            val enabledTools = server.commonOptions.tools.count { it.enable }
+            if (enabledTools == 0) {
+                null
+            } else {
+                server.commonOptions.name.ifBlank { "MCP" } to enabledTools
+            }
         }
-    val toolTags = buildToolTags(assistant, model, mcpServers)
+    val usableWorkspace = boundWorkspaces.any { it.shellStatus == WorkspaceShellStatus.READY.name }
+    val subAgentDispatchable =
+        dispatchableSubAgents(assistant, settings.assistants).isNotEmpty()
+    val toolTags = buildToolTags(
+        assistant = assistant,
+        model = model,
+        mcpServers = mcpServers,
+        usableWorkspace = usableWorkspace,
+        subAgentDispatchable = subAgentDispatchable,
+    )
 
     val provider = model?.findProvider(settings.providers)
     val modelName = model?.displayName?.ifBlank { model.modelId }
@@ -168,10 +186,7 @@ internal fun ConversationDetailsPanel(
                 )
             }
 
-            DetailsSection(
-                title = stringResource(R.string.chat_page_details_tools),
-                trailing = toolTags.size.toString(),
-            ) {
+            DetailsSection(title = stringResource(R.string.chat_page_details_tools)) {
                 if (toolTags.isEmpty()) {
                     Text(
                         text = stringResource(R.string.chat_page_details_no_tools),
@@ -253,6 +268,8 @@ private fun buildToolTags(
     assistant: Assistant,
     model: Model?,
     mcpServers: List<Pair<String, Int>>,
+    usableWorkspace: Boolean,
+    subAgentDispatchable: Boolean,
 ): List<String> {
     val tags = mutableListOf<String>()
     if (assistant.enableMemory) {
@@ -264,7 +281,8 @@ private fun buildToolTags(
             }
         )
     }
-    if (assistant.allWorkspaceIds.isNotEmpty()) {
+    // createWorkspaceTools 只接受 shell 就绪的工作区，其余 id 一个工具都不会注册
+    if (assistant.allWorkspaceIds.isNotEmpty() && usableWorkspace) {
         val permission = if (assistant.planMode) {
             stringResource(R.string.assistant_page_execution_permission_read_only)
         } else {
@@ -273,7 +291,11 @@ private fun buildToolTags(
         tags += stringResource(R.string.chat_page_details_tool_workspace, permission)
         tags += stringResource(R.string.chat_page_details_tool_todo)
     }
-    assistant.localTools.forEach { option -> tags += option.displayLabel() }
+    assistant.localTools.forEach { option ->
+        // 派发工具还要有可派发的目标，光勾了开关并不生成 dispatch_sub_agent
+        if (option == LocalToolOption.SubAgent && !subAgentDispatchable) return@forEach
+        tags += option.displayLabel()
+    }
     if (assistant.enableWebSearch && model?.tools?.contains(BuiltInTools.Search) != true) {
         tags += stringResource(R.string.chat_page_details_tool_web_search)
     }
@@ -292,9 +314,9 @@ private fun buildToolTags(
     assistant.enabledSkills.sorted().forEach { skill ->
         tags += stringResource(R.string.chat_page_details_tool_skill, skill)
     }
+    // 计数是服务器里实际启用的工具数，列表已经滤掉 0 的服务器
     mcpServers.forEach { (name, count) ->
-        tags += stringResource(R.string.chat_page_details_tool_mcp, name) +
-            if (count > 0) " · $count" else ""
+        tags += stringResource(R.string.chat_page_details_tool_mcp, name) + " ($count)"
     }
     return tags
 }
@@ -367,6 +389,8 @@ private fun DetailLine(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(DetailsLabelWidth),
         )
         Text(
@@ -399,8 +423,11 @@ private fun WorkspaceLine(workspace: WorkspaceEntity) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // 本地已就绪的工作区只给路径；未就绪的补一句状态，说明为什么没有工作区工具
+            val status = workspace.statusLabel()
+            val showStatus = workspace.isSsh() || workspace.shellStatus != WorkspaceShellStatus.READY.name
             Text(
-                text = workspace.workspaceDir(),
+                text = if (showStatus) "${workspace.workspaceDir()} · $status" else workspace.workspaceDir(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
