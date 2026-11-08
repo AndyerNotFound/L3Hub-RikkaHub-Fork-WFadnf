@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,13 +32,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -49,7 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -71,6 +72,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -83,6 +85,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -148,6 +151,9 @@ import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvide
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.EditedFilesList
+import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
+import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -255,14 +261,14 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
-    val windowAdaptiveInfo = currentWindowDpSize()
-    val isBigScreen =
-        windowAdaptiveInfo.width > windowAdaptiveInfo.height && windowAdaptiveInfo.width >= 1100.dp
-
-    // 进入大屏（永久抽屉）模式时重置抽屉状态为关闭，
-    // 避免从横屏旋转回竖屏后，模态抽屉残留为打开状态且无法关闭（#1304）
-    LaunchedEffect(isBigScreen) {
-        if (isBigScreen && drawerState.isOpen) {
+    val windowDpSize = currentWindowDpSize()
+    // 横屏三栏：宽度够同时放下聊天区和左右两列才启用（见 ChatSidePanel.kt）
+    val threePaneLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
+    // 左栏在横屏里是一列，不是抽屉：默认展开，顶栏的菜单按钮负责收合
+    var sidebarOpen by rememberSaveable { mutableStateOf(true) }
+    // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
+    LaunchedEffect(threePaneLayout) {
+        if (threePaneLayout && drawerState.isOpen) {
             drawerState.close()
         }
     }
@@ -273,7 +279,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         navController.navigate(Screen.Setting)
     }
     val startNewChat: () -> Unit = {
-        if (!isBigScreen) scope.launch { drawerState.close() }
+        // 横屏三栏没有模态抽屉可收；竖屏收一下，免得新会话页还被挡着
+        if (!threePaneLayout) scope.launch { drawerState.close() }
         navigateToChatPage(navController, Uuid.random())
     }
 
@@ -325,48 +332,73 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    when {
-        isBigScreen -> {
-            PermanentNavigationDrawer(
-                drawerContent = {
-                    // 大屏的抽屉是和正文并排的一栏，背后没有背景层可取样，保持实色底板
-                    ChatDrawerContent(
+        if (threePaneLayout) {
+            val baseDensity = LocalDensity.current
+            // 横屏三栏：整块缩到 75%。三列并排后每列都只剩竖屏的三分之一宽，
+            // 字号、行高、控件一起缩，信息量才塞得回去
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = baseDensity.density * LANDSCAPE_UI_SCALE,
+                    fontScale = baseDensity.fontScale,
+                ),
+            ) {
+                // 右栏宽度按整窗算，左栏开合时它不跟着变宽变窄
+                val sidePanelWidth = ((windowDpSize.width / LANDSCAPE_UI_SCALE) * 0.34f)
+                    .coerceIn(300.dp, 440.dp)
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // 左栏：原来的抽屉内容，横屏里并排放，宽度动画负责开合
+                    val sidebarWidth by animateDpAsState(
+                        targetValue = if (sidebarOpen) LANDSCAPE_SIDEBAR_WIDTH else 0.dp,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        label = "chatSidebarWidth",
+                    )
+                    if (sidebarWidth > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .width(sidebarWidth)
+                                .fillMaxHeight()
+                                .clipToBounds(),
+                        ) {
+                            ChatDrawerContent(
+                                navController = navController,
+                                current = conversation,
+                                vm = vm,
+                                settings = setting,
+                                onNewChat = startNewChat,
+                                onOpenSettings = openSettingsFromDrawer,
+                                // 不传 onCloseDrawer：点会话时左栏要留着，它是常驻列不是抽屉
+                                avatarHero = sidebarOpen,
+                                hazeState = backgroundHazeState,
+                                widthOverride = LANDSCAPE_SIDEBAR_WIDTH,
+                            )
+                        }
+                    }
+                    ChatPageContent(
+                        onStartVoiceMode = startVoiceMode,
+                        onCreateNewChat = startNewChat,
+                        inputState = inputState,
+                        loadingJob = loadingJob,
+                        processingStatus = processingStatus,
+                        setting = setting,
+                        conversation = conversation,
+                        folderWorkspaceName = folderWorkspaceName,
                         navController = navController,
-                        current = conversation,
                         vm = vm,
-                        settings = setting,
-                        onNewChat = startNewChat,
-                        onOpenSettings = openSettingsFromDrawer,
-                        // 常驻栏一直可见，头像随时能当共享元素
-                        avatarHero = true,
+                        chatListState = chatListState,
+                        assistant = assistant,
+                        currentChatModel = currentChatModel,
+                        threePane = true,
+                        sidebarOpen = sidebarOpen,
+                        onOpenSidebar = { sidebarOpen = !sidebarOpen },
+                        sidePanelWidth = sidePanelWidth,
+                        backgroundHazeState = backgroundHazeState,
+                        errors = errors,
+                        onDismissError = { vm.dismissError(it) },
+                        onClearAllErrors = { vm.clearAllErrors() },
                     )
                 }
-            ) {
-                ChatPageContent(
-                    onStartVoiceMode = startVoiceMode,
-                    onCreateNewChat = startNewChat,
-                    inputState = inputState,
-                    loadingJob = loadingJob,
-                    processingStatus = processingStatus,
-                    setting = setting,
-                    conversation = conversation,
-                    folderWorkspaceName = folderWorkspaceName,
-                    drawerState = drawerState,
-                    navController = navController,
-                    vm = vm,
-                    chatListState = chatListState,
-                    assistant = assistant,
-                    currentChatModel = currentChatModel,
-                    bigScreen = true,
-                    backgroundHazeState = backgroundHazeState,
-                    errors = errors,
-                    onDismissError = { vm.dismissError(it) },
-                    onClearAllErrors = { vm.clearAllErrors() },
-                )
             }
-        }
-
-        else -> {
+        } else {
             ModalNavigationDrawer(
                 drawerState = drawerState,
                 drawerContent = {
@@ -393,13 +425,15 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     setting = setting,
                     conversation = conversation,
                     folderWorkspaceName = folderWorkspaceName,
-                    drawerState = drawerState,
                     navController = navController,
                     vm = vm,
                     chatListState = chatListState,
                     assistant = assistant,
                     currentChatModel = currentChatModel,
-                    bigScreen = false,
+                    threePane = false,
+                    sidebarOpen = drawerState.isOpen,
+                    onOpenSidebar = { scope.launch { drawerState.open() } },
+                    sidePanelWidth = 0.dp,
                     backgroundHazeState = backgroundHazeState,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
@@ -407,8 +441,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 )
             }
         }
-    }
-
     }
 }
 
@@ -420,11 +452,15 @@ private fun ChatPageContent(
     loadingJob: Job?,
     processingStatus: String? = null,
     setting: Settings,
-    bigScreen: Boolean,
     conversation: Conversation,
     // 文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定（见 ChatPage 顶部）
     folderWorkspaceName: String?,
-    drawerState: DrawerState,
+    // 横屏三栏：中间是聊天区，右栏是标签页式的看板（见 ChatSidePanel.kt）
+    threePane: Boolean,
+    sidebarOpen: Boolean,
+    onOpenSidebar: () -> Unit,
+    // 右栏宽度，只有 threePane 时用得上
+    sidePanelWidth: Dp,
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
@@ -440,9 +476,6 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
-    // 横屏、并且宽度够同时放下聊天区和一栏：覆盖层改走右侧栏（见 ChatSidePanel.kt）
-    val windowDpSize = currentWindowDpSize()
-    val sidePanelLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
     // currentMessages 是 getter，每次访问都新建一份列表；同一帧里有多处要用，算一次就够。
     // 它只依赖 messageNodes，按节点列表做键不会漏掉分支切换。
     val currentMessages = remember(conversation.messageNodes) { conversation.currentMessages }
@@ -504,17 +537,41 @@ private fun ChatPageContent(
         type = ModelType.CHAT,
     )
     var terminalOutput by remember { mutableStateOf<String?>(null) }
-    // 横屏右侧栏当前显示的面板。竖屏时它一直是 null，覆盖层还是走上面那几个弹层
-    var sidePane by remember { mutableStateOf<ChatSidePane?>(null) }
+    // 横屏三栏的右栏：一个看板一个标签页，顺序就是标签条上的顺序
+    var openPaneNames by rememberSaveable { mutableStateOf(listOf(ChatSidePane.Details.name)) }
+    var selectedPaneName by rememberSaveable { mutableStateOf<String?>(ChatSidePane.Details.name) }
     // 后台任务弹层从输入框里提到这一层：横屏要能把它放进右侧栏
     var showBackgroundTasks by remember { mutableStateOf(false) }
     val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
     val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
 
-    // 打开某个覆盖层：横屏进右侧栏，其余情况还是原来的弹层 / 对话框
+    val openPanes = remember(openPaneNames) {
+        openPaneNames.mapNotNull { name -> ChatSidePane.entries.firstOrNull { it.name == name } }
+    }
+    val selectedPane = remember(selectedPaneName, openPanes) {
+        selectedPaneName?.let { name -> openPanes.firstOrNull { it.name == name } }
+    }
+
+    // 对标签的操作一律直接读状态，不读这一帧的 openPanes：连点两下时后者还是旧值
+    fun openTab(pane: ChatSidePane) {
+        if (openPaneNames.none { it == pane.name }) {
+            openPaneNames = openPaneNames + pane.name
+        }
+        selectedPaneName = pane.name
+    }
+
+    fun closeTab(pane: ChatSidePane) {
+        val remaining = openPaneNames.filterNot { it == pane.name }
+        openPaneNames = remaining
+        if (selectedPaneName == pane.name || selectedPaneName !in remaining) {
+            selectedPaneName = remaining.lastOrNull()
+        }
+    }
+
+    // 打开某个覆盖层：横屏进右栏的标签页，竖屏还是原来的弹层 / 对话框
     fun openPane(pane: ChatSidePane) {
-        if (sidePanelLayout) {
-            sidePane = pane
+        if (threePane) {
+            openTab(pane)
             return
         }
         when (pane) {
@@ -524,67 +581,56 @@ private fun ChatPageContent(
             ChatSidePane.TaskTree -> showTaskTree = true
             ChatSidePane.ModelPicker -> chatModelListState.open()
             ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
+            // 本轮改动在竖屏是消息下面那一行，没有对应的弹层
+            ChatSidePane.Changes -> Unit
         }
     }
 
-    // 收掉横屏右侧栏，顺手把竖屏那侧的开关也归位
+    // 收掉右栏当前的标签页
     fun closePane() {
-        when (sidePane) {
-            ChatSidePane.Details -> showDetails = false
-            ChatSidePane.Usage -> showUsageSheet = false
-            ChatSidePane.Files -> showFilesSheet = false
-            ChatSidePane.TaskTree -> showTaskTree = false
-            ChatSidePane.ModelPicker -> chatModelListState.close()
-            ChatSidePane.BackgroundTasks -> showBackgroundTasks = false
-            null -> Unit
-        }
-        sidePane = null
+        if (!threePane) return
+        val name = selectedPaneName?.takeIf { it in openPaneNames } ?: openPaneNames.firstOrNull()
+        name?.let { target -> ChatSidePane.entries.firstOrNull { it.name == target } }
+            ?.let { closeTab(it) }
     }
 
-    // 顶栏「详情」：横屏是右侧栏的开合，竖屏还是顶栏底下那块的展开
+    // 顶栏「详情」：横屏是右栏的标签页，竖屏还是顶栏底下那块的展开
     fun toggleDetailsPane() {
-        if (sidePanelLayout) {
-            sidePane = if (sidePane == ChatSidePane.Details) null else ChatSidePane.Details
+        if (threePane) {
+            if (selectedPaneName == ChatSidePane.Details.name) {
+                closeTab(ChatSidePane.Details)
+            } else {
+                openTab(ChatSidePane.Details)
+            }
         } else {
             showDetails = !showDetails
         }
     }
 
     fun dismissFiles() {
-        showFilesSheet = false
-        if (sidePane == ChatSidePane.Files) sidePane = null
+        if (threePane) {
+            if (openPaneNames.contains(ChatSidePane.Files.name)) closeTab(ChatSidePane.Files)
+        } else {
+            showFilesSheet = false
+        }
     }
 
-    // 转屏时把还开着的覆盖层换个位置接着显示，别让它在另一边凭空消失
-    LaunchedEffect(sidePanelLayout) {
-        if (sidePanelLayout) {
-            sidePane = when {
-                showFilesSheet -> ChatSidePane.Files
-                showTaskTree -> ChatSidePane.TaskTree
-                showUsageSheet -> ChatSidePane.Usage
-                showBackgroundTasks -> ChatSidePane.BackgroundTasks
-                showDetails -> ChatSidePane.Details
-                chatModelListState.visible -> ChatSidePane.ModelPicker
-                else -> null
-            }
-            showFilesSheet = false
-            showTaskTree = false
-            showUsageSheet = false
-            showBackgroundTasks = false
-            showDetails = false
-            chatModelListState.close()
-        } else {
-            // 转回竖屏时把还开着的那一个还给对应的弹层，不让它凭空消失
-            when (sidePane) {
-                ChatSidePane.Details -> showDetails = true
-                ChatSidePane.Usage -> showUsageSheet = true
-                ChatSidePane.Files -> showFilesSheet = true
-                ChatSidePane.TaskTree -> showTaskTree = true
-                ChatSidePane.ModelPicker -> chatModelListState.open()
-                ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
-                null -> Unit
-            }
-            sidePane = null
+    // 本轮改动：横屏收进右栏。一轮里第一次改文件时把标签页开出来，但不抢当前看板
+    val lastAssistantMessage = remember(currentMessages) {
+        currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
+    }
+    val turnEditedFiles = remember(lastAssistantMessage) {
+        lastAssistantMessage?.let { editedFilesIn(it.parts) }.orEmpty()
+    }
+    var lastAutoOpenedTurn by remember { mutableStateOf<Uuid?>(null) }
+    LaunchedEffect(threePane, lastAssistantMessage?.id, turnEditedFiles) {
+        if (!threePane || turnEditedFiles.isEmpty()) return@LaunchedEffect
+        val turnId = lastAssistantMessage?.id ?: return@LaunchedEffect
+        // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
+        if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
+        lastAutoOpenedTurn = turnId
+        if (openPaneNames.none { it == ChatSidePane.Changes.name }) {
+            openPaneNames = openPaneNames + ChatSidePane.Changes.name
         }
     }
 
@@ -1046,7 +1092,12 @@ private fun ChatPageContent(
                     .hazeSource(backgroundHazeState),
             )
         }
+        // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
+        CompositionLocalProvider(LocalTurnChangesInSidePanel provides threePane) {
+        Row(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
         Scaffold(
+            modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
                     if (setting.displaySetting.terminalStyle) {
@@ -1056,8 +1107,8 @@ private fun ChatPageContent(
                             modelName = currentChatModel?.displayName ?: "no-model",
                             contextTokens = contextTokens,
                             maxContextTokens = currentChatModel?.maxContextTokens,
-                            bigScreen = bigScreen,
-                            onMenu = { scope.launch { drawerState.open() } },
+                            compact = threePane,
+                            onMenu = onOpenSidebar,
                             onNewChat = { navigateToChatPage(navController) },
                             onTaskTree = { openPane(ChatSidePane.TaskTree) },
                             onUsage = { openPane(ChatSidePane.Usage) },
@@ -1070,8 +1121,9 @@ private fun ChatPageContent(
                             assistant = assistant,
                             chatModel = currentChatModel,
                             conversation = conversation,
-                            bigScreen = bigScreen,
-                            drawerState = drawerState,
+                            threePane = threePane,
+                            sidebarOpen = sidebarOpen,
+                            onOpenSidebar = onOpenSidebar,
                             onNewChat = {
                                 navigateToChatPage(navController)
                             },
@@ -1097,7 +1149,7 @@ private fun ChatPageContent(
 
                     // 详情面板从顶栏下方展开：高度动画带着聊天内容一起让位，收起时再退回
                     AnimatedVisibility(
-                        visible = showDetails && !setting.displaySetting.terminalStyle && !sidePanelLayout,
+                        visible = showDetails && !setting.displaySetting.terminalStyle && !threePane,
                         enter = expandVertically(
                             expandFrom = Alignment.Top,
                             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -1117,9 +1169,7 @@ private fun ChatPageContent(
                             messageCount = currentMessages.size,
                             lorebookInjectionCount = lorebookInjectionCount,
                             hazeState = backgroundHazeState,
-                            onCollapse = {
-                                if (sidePanelLayout) closePane() else showDetails = false
-                            },
+                            onCollapse = { showDetails = false },
                             modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                         )
                     }
@@ -1279,12 +1329,20 @@ private fun ChatPageContent(
             }
         }
 
-        // 横屏：覆盖层收进右侧栏。下半屏不再被弹层占掉，聊天区和输入框都还看得见
-        if (sidePanelLayout) {
-            ChatSidePanelHost(
-                pane = sidePane,
-                onDismiss = { closePane() },
-                hazeState = hazeState,
+        }
+        // 横屏三栏：右栏是标签页式的看板，聊天区不再被弹层盖住
+        if (threePane) {
+            ChatSidePanelColumn(
+                panes = openPanes,
+                selected = selectedPane,
+                onSelect = { selectedPaneName = it.name },
+                onOpen = { openTab(it) },
+                onClose = { closeTab(it) },
+                modifier = Modifier
+                    .width(sidePanelWidth)
+                    .padding(start = 4.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+                // 右栏背后是页面背景，取背景那份 Haze 源；聊天内容的源只覆盖左边
+                hazeState = backgroundHazeState,
             ) { pane ->
                 when (pane) {
                     ChatSidePane.Details -> ConversationDetailsPanel(
@@ -1299,6 +1357,26 @@ private fun ChatPageContent(
                         hazeState = backgroundHazeState,
                         onCollapse = { closePane() },
                         embedded = true,
+                        // 标签条已经有标题，内容里不再重复一行
+                        showHeader = false,
+                    )
+
+                    ChatSidePane.TaskTree -> SubAgentTaskTree(
+                        conversationId = conversation.id,
+                        onOpenConversation = { id ->
+                            closePane()
+                            navigateToChatPage(navController, chatId = id)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        showTitle = false,
+                    )
+
+                    ChatSidePane.Changes -> TurnChangesPane(
+                        parts = lastAssistantMessage?.parts.orEmpty(),
+                        assistant = assistant,
+                        conversationId = conversation.id,
+                        hasChanges = turnEditedFiles.isNotEmpty(),
+                        modifier = Modifier.fillMaxSize(),
                     )
 
                     ChatSidePane.Usage -> Column(
@@ -1306,7 +1384,7 @@ private fun ChatPageContent(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 20.dp)
-                            .padding(bottom = 24.dp),
+                            .padding(top = 4.dp, bottom = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ConversationUsageDetails(
@@ -1329,16 +1407,6 @@ private fun ChatPageContent(
                         modifier = Modifier.fillMaxSize(),
                     )
 
-                    ChatSidePane.TaskTree -> SubAgentTaskTree(
-                        conversationId = conversation.id,
-                        onOpenConversation = { id ->
-                            closePane()
-                            navigateToChatPage(navController, chatId = id)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        showTitle = false,
-                    )
-
                     ChatSidePane.ModelPicker -> ModelListContent(
                         state = chatModelListState,
                         onSelect = { model -> vm.setChatModel(model) },
@@ -1357,9 +1425,11 @@ private fun ChatPageContent(
                 }
             }
         }
+        }
+        }
 
         // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
-        if (showBackgroundTasks && !sidePanelLayout) {
+        if (showBackgroundTasks && !threePane) {
             BackgroundTasksSheet(
                 tasks = backgroundTasks,
                 onStop = vm::stopBackgroundTask,
@@ -1390,7 +1460,7 @@ private fun ChatPageContent(
             )
         }
 
-        if (showUsageSheet && !sidePanelLayout) {
+        if (showUsageSheet && !threePane) {
             // 默认允许半展开，show() 会先停在半屏，得用手再拉一次；这里只留 Hidden / Expanded
             val usageSheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
@@ -1419,7 +1489,7 @@ private fun ChatPageContent(
             }
         }
 
-        if (showTaskTree && !sidePanelLayout) {
+        if (showTaskTree && !threePane) {
             SubAgentTaskSheet(
                 conversationId = conversation.id,
                 hazeState = backgroundHazeState,
@@ -1447,7 +1517,7 @@ private fun ChatPageContent(
             text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
         )
 
-        if (showFilesSheet && !sidePanelLayout) {
+        if (showFilesSheet && !threePane) {
             ChatFilesPickerSheet(
                 inputState = inputState,
                 setting = setting,
@@ -1484,7 +1554,7 @@ private fun ChatPageContent(
         }
 
         // 横屏用右侧栏里的那份，这里只在竖屏组合
-        if (!sidePanelLayout) {
+        if (!threePane) {
             ModelListSheet(state = chatModelListState) { model ->
                 vm.setChatModel(model)
             }
@@ -1614,6 +1684,49 @@ private fun ChatFilesPickerContent(
     }
 }
 
+// 横屏三栏的整体缩放：0.75 就是整体缩小 25%
+private const val LANDSCAPE_UI_SCALE = 0.75f
+
+// 横屏三栏左栏的宽度（缩放后的 dp）
+private val LANDSCAPE_SIDEBAR_WIDTH = 300.dp
+
+/** 右栏的「本轮改动」标签页：和消息下面那一行同源，只是换了个位置 */
+@Composable
+private fun TurnChangesPane(
+    parts: List<UIMessagePart>,
+    assistant: Assistant,
+    conversationId: Uuid,
+    hasChanges: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (!hasChanges) {
+        Box(
+            modifier = modifier.padding(24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.chat_page_turn_changes_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(top = 4.dp, bottom = 16.dp),
+    ) {
+        EditedFilesList(
+            parts = parts,
+            assistant = assistant,
+            conversationId = conversationId,
+            isLastMessage = true,
+        )
+    }
+}
+
 // 顶栏按钮统一尺寸：45dp 的按钮配 22.5dp 的图标（原来是 40dp/20dp，等比放大 12.5%），
 // 按钮和图标保持 2:1，圆角、间距关系都不变。
 private val TopBarButtonSize = 45.dp
@@ -1626,8 +1739,9 @@ private fun TopBar(
     assistant: Assistant,
     chatModel: Model?,
     conversation: Conversation,
-    drawerState: DrawerState,
-    bigScreen: Boolean,
+    threePane: Boolean,
+    sidebarOpen: Boolean,
+    onOpenSidebar: () -> Unit,
     showCapsuleBackground: Boolean,
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,
@@ -1638,8 +1752,6 @@ private fun TopBar(
     detailsExpanded: Boolean,
     onToggleDetails: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    val toaster = LocalToaster.current
     val effect = settings.displaySetting.effectiveBackgroundEffect
     val terminal = settings.displaySetting.terminalStyle
     // 顶栏按钮是「玻璃底」，透明度读玻璃透明度，而不是气泡用的模糊不透明度
@@ -1670,46 +1782,54 @@ private fun TopBar(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (!bigScreen) {
-                        val navShape = when {
-                            terminal -> RoundedCornerShape(2.dp)
-                            LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
-                            else -> CircleShape
-                        }
-                        val navColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        Surface(
-                            onClick = {
-                                scope.launch { drawerState.open() }
-                            },
-                            modifier = Modifier
-                                .size(TopBarButtonSize)
-                                .appButtonShadow(navShape, 2.dp)
-                                .clip(navShape)
-                                .background(effectColor(navColor))
-                                .then(
-                                    if (effectBorder != null) {
-                                        Modifier.border(effectBorder, navShape)
-                                    } else {
-                                        Modifier
-                                    }
-                                )
-                                .chatInputHaze(
-                                    hazeState = hazeState,
-                                    displaySetting = settings.displaySetting,
-                                    containerColor = navColor,
-                                    alpha = glassAlpha,
-                                    shape = navShape,
-                                ),
-                            shape = navShape,
-                            color = Color.Transparent,
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(TopBarButtonIconSize))
-                            }
+                    val navShape = when {
+                        terminal -> RoundedCornerShape(2.dp)
+                        LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
+                        else -> CircleShape
+                    }
+                    val navColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    // 横屏三栏里这是左栏的开合，竖屏还是把抽屉拉出来
+                    Surface(
+                        onClick = onOpenSidebar,
+                        modifier = Modifier
+                            .size(TopBarButtonSize)
+                            .appButtonShadow(navShape, 2.dp)
+                            .clip(navShape)
+                            .background(effectColor(navColor))
+                            .then(
+                                if (effectBorder != null) {
+                                    Modifier.border(effectBorder, navShape)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .chatInputHaze(
+                                hazeState = hazeState,
+                                displaySetting = settings.displaySetting,
+                                containerColor = navColor,
+                                alpha = glassAlpha,
+                                shape = navShape,
+                            ),
+                        shape = navShape,
+                        color = Color.Transparent,
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                HugeIcons.Menu03,
+                                "Messages",
+                                modifier = Modifier.size(TopBarButtonIconSize),
+                                // 左栏展开时按钮提亮，和详情按钮同一套反馈
+                                tint = if (threePane && sidebarOpen) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    LocalContentColor.current
+                                },
+                            )
                         }
                     }
 
-                    if (chatModel != null) {
+                    // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里
+                    if (!threePane && chatModel != null) {
                         // 模型 + 供应商两个图标并成一个胶囊，高度和右侧按钮组一致
                         val modelPillShape = if (terminal) {
                             RoundedCornerShape(2.dp)
@@ -1790,26 +1910,29 @@ private fun TopBar(
                         .padding(horizontal = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
-                        Icon(
-                            HugeIcons.Layers01,
-                            stringResource(R.string.chat_page_details_button),
-                            modifier = Modifier.size(TopBarButtonIconSize),
-                            // 展开时按钮跟着提亮，顶栏一眼能看出详情面板是开着的
-                            tint = if (detailsExpanded) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                LocalContentColor.current
-                            },
-                        )
-                    }
+                    // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
+                    if (!threePane) {
+                        IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
+                            Icon(
+                                HugeIcons.Layers01,
+                                stringResource(R.string.chat_page_details_button),
+                                modifier = Modifier.size(TopBarButtonIconSize),
+                                // 展开时按钮跟着提亮，顶栏一眼能看出详情面板是开着的
+                                tint = if (detailsExpanded) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    LocalContentColor.current
+                                },
+                            )
+                        }
 
-                    IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
-                        Icon(
-                            HugeIcons.Flowchart01,
-                            stringResource(R.string.chat_task_tree_button),
-                            modifier = Modifier.size(TopBarButtonIconSize),
-                        )
+                        IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
+                            Icon(
+                                HugeIcons.Flowchart01,
+                                stringResource(R.string.chat_task_tree_button),
+                                modifier = Modifier.size(TopBarButtonIconSize),
+                            )
+                        }
                     }
 
                     IconButton(onClick = { onNewChat() }, modifier = Modifier.size(TopBarButtonSize)) {

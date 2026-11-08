@@ -79,7 +79,8 @@ fun TerminalChatTopBar(
     modelName: String,
     contextTokens: Int?,
     maxContextTokens: Int?,
-    bigScreen: Boolean,
+    // 横屏三栏：任务树和用量都在右栏的标签页里，顶栏不再重复入口
+    compact: Boolean = false,
     onMenu: () -> Unit,
     onNewChat: () -> Unit,
     onTaskTree: () -> Unit,
@@ -133,10 +134,12 @@ fun TerminalChatTopBar(
                     .horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (!bigScreen) TerminalTextButton("MENU", onMenu)
+                TerminalTextButton("MENU", onMenu)
                 TerminalTextButton("NEW", onNewChat)
-                TerminalTextButton("TREE", onTaskTree)
-                TerminalTextButton("USAGE", onUsage)
+                if (!compact) {
+                    TerminalTextButton("TREE", onTaskTree)
+                    TerminalTextButton("USAGE", onUsage)
+                }
                 TerminalTextButton("HELP", onHelp)
             }
             Text(

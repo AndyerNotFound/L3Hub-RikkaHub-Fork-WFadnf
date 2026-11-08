@@ -563,12 +563,15 @@ fun ChatMessage(
             }
         }
 
-        EditedFilesList(
-            parts = message.parts,
-            assistant = assistant,
-            conversationId = conversationId,
-            isLastMessage = lastMessage,
-        )
+        // 横屏三栏时「本轮改动」收进右侧栏，消息下面不再重复挂一行
+        if (!(lastMessage && LocalTurnChangesInSidePanel.current)) {
+            EditedFilesList(
+                parts = message.parts,
+                assistant = assistant,
+                conversationId = conversationId,
+                isLastMessage = lastMessage,
+            )
+        }
 
         ProvideTextStyle(textStyle) {
             ChatMessageNerdLine(message = message)

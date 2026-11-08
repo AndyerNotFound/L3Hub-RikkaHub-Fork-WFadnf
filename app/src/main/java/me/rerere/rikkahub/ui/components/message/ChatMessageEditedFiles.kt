@@ -29,6 +29,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +72,20 @@ private val WORKSPACE_FILE_TOOL_NAMES = setOf(
     "workspace_shell",
 )
 
+/**
+ * 横屏三栏时「本轮改动」那一行收进右侧栏，消息下面不再重复挂一遍。
+ * 只影响最后一条：历史轮次的改动仍然留在各自的回复下面。
+ */
+internal val LocalTurnChangesInSidePanel = staticCompositionLocalOf { false }
+
+/** 一条助手消息里这一轮改过的文件：消息下面那一行和右栏的改动页共用同一份 */
+internal fun editedFilesIn(parts: List<UIMessagePart>): List<String> {
+    return parts.filterIsInstance<UIMessagePart.Tool>()
+        .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
+        .flatMap { tool -> tool.editedPaths() }
+        .distinct()
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun EditedFilesList(
@@ -80,12 +95,7 @@ internal fun EditedFilesList(
     isLastMessage: Boolean = false,
 ) {
     val workspaceId = assistant?.primaryWorkspaceId?.toString() ?: return
-    val editedFiles = remember(parts) {
-        parts.filterIsInstance<UIMessagePart.Tool>()
-            .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
-            .flatMap { tool -> tool.editedPaths() }
-            .distinct()
-    }
+    val editedFiles = remember(parts) { editedFilesIn(parts) }
     if (editedFiles.isEmpty()) return
 
     val context = LocalContext.current

@@ -78,6 +78,8 @@ internal fun ConversationDetailsPanel(
     // 嵌在横屏右侧栏里时不再套一层底板：外面已经有玻璃底和关法，
     // 这里只把内容铺满，标题行的收起图标换成关闭
     embedded: Boolean = false,
+    // 右栏的标签条已经写着标题，内容里不再重复一行（关闭也在标签上的 ×）
+    showHeader: Boolean = true,
 ) {
     // 面板最多占半屏，超出的部分在面板内部滚动，不去挤聊天列表
     val maxHeight = minOf(DetailsPanelMaxHeight, LocalConfiguration.current.screenHeightDp.dp * 0.4f)
@@ -147,33 +149,35 @@ internal fun ConversationDetailsPanel(
                 .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.chat_page_details_title),
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                    )
-                    if (provider != null) {
+            if (showHeader) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = provider.name,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            text = stringResource(R.string.chat_page_details_title),
+                            style = MaterialTheme.typography.titleSmallEmphasized,
+                        )
+                        if (provider != null) {
+                            Text(
+                                text = provider.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    IconButton(onClick = onCollapse, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = if (embedded) HugeIcons.Cancel01 else HugeIcons.ArrowUp01,
+                            contentDescription = stringResource(
+                                if (embedded) R.string.close else R.string.chat_page_details_collapse,
+                            ),
+                            modifier = Modifier.size(18.dp),
                         )
                     }
-                }
-                IconButton(onClick = onCollapse, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = if (embedded) HugeIcons.Cancel01 else HugeIcons.ArrowUp01,
-                        contentDescription = stringResource(
-                            if (embedded) R.string.close else R.string.chat_page_details_collapse,
-                        ),
-                        modifier = Modifier.size(18.dp),
-                    )
                 }
             }
 

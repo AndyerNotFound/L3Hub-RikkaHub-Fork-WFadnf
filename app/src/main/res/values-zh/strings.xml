@@ -293,6 +293,11 @@
   <string name="chat_page_details_reasoning">推理</string>
   <string name="chat_page_details_session">会话</string>
   <string name="chat_page_side_panel_files">附件与工具</string>
+  <string name="chat_page_side_panel_model">模型</string>
+  <string name="chat_page_side_panel_new_tab">新建标签页</string>
+  <string name="chat_page_side_panel_empty">还没有打开看板，点右上角的 + 新建一个</string>
+  <string name="chat_page_side_panel_close_tab">关闭标签页</string>
+  <string name="chat_page_turn_changes_empty">本轮还没有文件改动</string>
   <string name="chat_page_details_title">会话详情</string>
   <string name="chat_page_details_tool_builtin_image">图像生成</string>
   <string name="chat_page_details_tool_builtin_search">模型内置搜索</string>

@@ -1,36 +1,32 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,11 +36,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
@@ -53,149 +51,239 @@ import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 
 /**
- * 横屏右侧栏能承载的面板。
+ * 横屏三栏时右侧栏里的看板，一个看板就是一个标签页。
  *
  * 这些内容原来都是盖在屏幕下半截的 [androidx.compose.material3.ModalBottomSheet]，
  * 或者顶栏底下拉开的详情页。横屏时屏幕只有 400dp 出头的高度，弹层一开聊天区就没了，
- * 所以改成贴右边的一栏：宽度够放下内容，聊天区也还留着。
+ * 所以改成固定的一列：标签条切换看板，聊天区始终留在中间。
  */
 internal enum class ChatSidePane(
-    // 面板占聊天区宽度的比例，第二个值是上限：模型列表和任务树本身是双栏布局，要更宽
-    val widthFraction: Float,
-    val maxWidth: Dp,
-    // 面板自己画标题和关闭按钮；null 表示内容自带标题行（会话详情、模型列表）
-    @StringRes val titleRes: Int? = null,
+    // 标签页上的名字。看板自己不再画标题行，标题归标签条
+    @StringRes val titleRes: Int,
 ) {
-    Details(0.38f, 420.dp, null),
-    Usage(0.38f, 420.dp, R.string.chat_message_usage_title),
-    Files(0.42f, 460.dp, R.string.chat_page_side_panel_files),
-    TaskTree(0.52f, 560.dp, R.string.task_tree_title),
-    ModelPicker(0.54f, 580.dp, null),
-    BackgroundTasks(0.42f, 480.dp, R.string.background_tasks_title),
+    Details(R.string.chat_page_details_button),
+    TaskTree(R.string.task_tree_title),
+    Changes(R.string.turn_diff_this_turn),
+    Usage(R.string.chat_message_usage_title),
+    Files(R.string.chat_page_side_panel_files),
+    ModelPicker(R.string.chat_page_side_panel_model),
+    BackgroundTasks(R.string.background_tasks_title),
 }
 
 /**
- * 右侧栏的宿主：底板、进出场动画、点外部关闭、返回键关闭。
+ * 右侧栏的宿主：一块玻璃底板，上面一条浏览器风格的标签条，下面放当前看板。
  *
- * 面板是模态的，和它替掉的那些弹层一样——点聊天区任何位置都会收起来。
- * 内容由调用方按 [ChatSidePane] 给出，宿主不管里面是什么。
+ * 和上一版的浮窗不同，它不是模态的——不会盖住聊天区、点聊天区也不会收起来，
+ * 收法只有两个：标签上的 ×，或者把最后一个标签关掉（退化成「新标签页」）。
  */
 @Composable
-internal fun ChatSidePanelHost(
-    pane: ChatSidePane?,
-    onDismiss: () -> Unit,
-    hazeState: HazeState?,
-    content: @Composable ColumnScope.(ChatSidePane) -> Unit,
+internal fun ChatSidePanelColumn(
+    panes: List<ChatSidePane>,
+    selected: ChatSidePane?,
+    onSelect: (ChatSidePane) -> Unit,
+    onOpen: (ChatSidePane) -> Unit,
+    onClose: (ChatSidePane) -> Unit,
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+    content: @Composable (ChatSidePane) -> Unit,
 ) {
-    // 退场动画期间 pane 已经是 null，留一份最后的值：否则面板往外滑的时候里面先空掉，
-    // 看起来像闪了一下
-    var lastPane by remember { mutableStateOf(pane) }
-    SideEffect {
-        if (pane != null) lastPane = pane
-    }
-    val shown = pane ?: lastPane
-
     val terminal = LocalTerminalMode.current
     val shape = if (terminal) {
         RectangleShape
     } else {
-        RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+        RoundedCornerShape(24.dp)
     }
     val containerColor = if (terminal) {
         TerminalPalette.Background
     } else {
         MaterialTheme.colorScheme.surfaceContainerLow
     }
-    val scrimColor = if (terminal) {
-        Color.Black.copy(alpha = 0.42f)
-    } else {
-        MaterialTheme.colorScheme.scrim.copy(alpha = 0.18f)
-    }
+    // 选中的标签被关掉、或恢复出来的选中项已经不在标签里时，退到第一个，别让内容区空着
+    val active = selected?.takeIf { it in panes } ?: panes.firstOrNull()
 
-    BackHandler(enabled = pane != null, onBack = onDismiss)
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val available = maxWidth
-        val fraction = shown?.widthFraction ?: 0.4f
-        val cap = shown?.maxWidth ?: 460.dp
-        // 先按比例算，再夹住：不低于 300dp（再窄放不下两栏内容），不超过每种面板自己的上限，
-        // 也不能超过可用宽度。窗口宽到 800dp 以上时比例才真正起作用
-        val panelWidth = (available * fraction)
-            .coerceIn(minOf(300.dp, available), available)
-            .coerceAtMost(cap)
-
-        AnimatedVisibility(
-            visible = pane != null,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(scrimColor)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss,
-                    ),
-            )
-        }
-
-        AnimatedVisibility(
-            visible = pane != null,
-            modifier = Modifier.align(Alignment.CenterEnd),
-            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
-        ) {
-            Surface(
-                modifier = Modifier
-                    .width(panelWidth)
-                    .fillMaxHeight()
-                    .appButtonShadow(shape, 6.dp)
-                    .glassSurface(
-                        shape = shape,
-                        baseColor = containerColor,
-                        hazeState = hazeState,
-                        radius = 16.dp,
-                        // 大块浮层：只糊注册过的源，正文不在源里，透明度留低了文字会透上来
-                        minAlpha = 0.95f,
-                    ),
+    Surface(
+        modifier = modifier
+            .fillMaxHeight()
+            .appButtonShadow(shape, 6.dp)
+            .glassSurface(
                 shape = shape,
-                color = if (canGlassPane(hazeState)) Color.Transparent else containerColor,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Column(
+                baseColor = containerColor,
+                hazeState = hazeState,
+                radius = 16.dp,
+                // 大块浮层：只糊注册过的源，正文不在源里，透明度留低了文字会透上来
+                minAlpha = 0.95f,
+            ),
+        shape = shape,
+        color = if (canGlassPane(hazeState)) Color.Transparent else containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            if (panes.isEmpty()) {
+                EmptyTabPage(
+                    onOpen = onOpen,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                ChatSidePanelTabStrip(
+                    panes = panes,
+                    selected = active,
+                    onSelect = onSelect,
+                    onOpen = onOpen,
+                    onClose = onClose,
+                )
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding(),
+                        .fillMaxWidth()
+                        .weight(1f),
                 ) {
-                    val titleRes = shown?.titleRes
-                    if (titleRes != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 20.dp, top = 8.dp, end = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                    active?.let { pane -> content(pane) }
+                }
+            }
+        }
+    }
+}
+
+/** 标签条：横向滚动的标签 + 末尾的「新建标签页」。样式和终端页的分页条一致 */
+@Composable
+private fun ChatSidePanelTabStrip(
+    panes: List<ChatSidePane>,
+    selected: ChatSidePane?,
+    onSelect: (ChatSidePane) -> Unit,
+    onOpen: (ChatSidePane) -> Unit,
+    onClose: (ChatSidePane) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val selectedIndex = panes.indexOf(selected).coerceAtLeast(0)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 4.dp, top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SecondaryScrollableTabRow(
+            selectedTabIndex = selectedIndex,
+            modifier = Modifier.weight(1f),
+            edgePadding = 0.dp,
+            minTabWidth = 104.dp,
+            containerColor = Color.Transparent,
+        ) {
+            panes.forEach { pane ->
+                Tab(
+                    selected = pane == selected,
+                    onClick = { onSelect(pane) },
+                    modifier = Modifier
+                        .height(38.dp)
+                        .widthIn(min = 104.dp, max = 200.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(pane.titleRes),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        IconButton(
+                            onClick = { onClose(pane) },
+                            modifier = Modifier.size(28.dp),
                         ) {
-                            Text(
-                                text = stringResource(titleRes),
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f),
+                            Icon(
+                                imageVector = HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.chat_page_side_panel_close_tab),
+                                modifier = Modifier.size(14.dp),
                             )
-                            IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                                Icon(
-                                    imageVector = HugeIcons.Cancel01,
-                                    contentDescription = stringResource(R.string.close),
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
                         }
                     }
-                    if (shown != null) {
-                        content(shown)
-                    }
                 }
+            }
+        }
+
+        Box {
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Add01,
+                    contentDescription = stringResource(R.string.chat_page_side_panel_new_tab),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                ChatSidePane.entries.forEach { pane ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(pane.titleRes)) },
+                        onClick = {
+                            menuExpanded = false
+                            onOpen(pane)
+                        },
+                        // 已经开着的看板打勾，点了等于切过去
+                        trailingIcon = if (pane in panes) {
+                            {
+                                Icon(
+                                    imageVector = HugeIcons.Tick01,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 一个标签都不剩时的「新标签页」：把能开的看板直接列出来，点一下就开 */
+@Composable
+private fun EmptyTabPage(
+    onOpen: (ChatSidePane) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.chat_page_side_panel_new_tab),
+            style = MaterialTheme.typography.titleSmallEmphasized,
+        )
+        Text(
+            text = stringResource(R.string.chat_page_side_panel_empty),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ChatSidePane.entries.forEach { pane ->
+            Surface(
+                onClick = { onOpen(pane) },
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(pane.titleRes),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
             }
         }
     }

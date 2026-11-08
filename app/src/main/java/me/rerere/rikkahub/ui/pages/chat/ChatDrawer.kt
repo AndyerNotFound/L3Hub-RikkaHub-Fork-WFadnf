@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -155,6 +156,8 @@ fun ChatDrawerContent(
     avatarHero: Boolean = false,
     // 抽屉底板的玻璃取样源（聊天页的背景层）。没有源时 canGlassPane 返回 false，底板退回实色
     hazeState: HazeState? = null,
+    // 横屏三栏的左栏宽度由列宽决定，不再按窗口比例算
+    widthOverride: Dp? = null,
 ) {
     val scope = rememberCoroutineScope()
     // 抽屉还在收起时列表仍然可点，两次点击的导航落地顺序由动画时长决定
@@ -176,7 +179,7 @@ fun ChatDrawerContent(
     // 矮屏（如手表、横屏手机）上顶部固定会把会话列表挤没，改为跟随列表一起滚动
     val windowHeight = LocalWindowInfo.current.containerDpSize.height
     val windowWidth = LocalWindowInfo.current.containerDpSize.width
-    val drawerWidth = minOf(DRAWER_WIDTH_BASE * DRAWER_WIDTH_SCALE, windowWidth)
+    val drawerWidth = widthOverride ?: minOf(DRAWER_WIDTH_BASE * DRAWER_WIDTH_SCALE, windowWidth)
     val scrollableHeader = windowHeight < 640.dp
     // header 是否占掉 LazyColumn 的第 0 位，决定保存/恢复滚动位置时要不要补一位
     val listHeaderCount = if (scrollableHeader) 1 else 0
