@@ -503,7 +503,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 formItem(
                     headlineContent = { Text(stringResource(R.string.setting_display_page_ui_scale_title)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_ui_scale_desc)) },
-                    trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).toInt()}%") },
+                    trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).roundToInt()}%") },
                 ) {
                     Slider(
                         value = displaySetting.uiScale,
