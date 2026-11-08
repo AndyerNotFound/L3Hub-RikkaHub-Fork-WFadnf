@@ -611,6 +611,7 @@ private fun ChatPageContent(
             ChatSidePane.Files -> showFilesSheet = true
             // 工作区文件只在横屏右栏里出现；竖屏从输入框的附件 / 工作区入口进
             ChatSidePane.Workspace -> Unit
+            ChatSidePane.Terminal -> Unit
             ChatSidePane.TaskTree -> showTaskTree = true
             ChatSidePane.ModelPicker -> chatModelListState.open()
             ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
@@ -1482,6 +1483,12 @@ private fun ChatPageContent(
                     )
 
                     ChatSidePane.Workspace -> WorkspaceFilesPane(
+                        workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
+                        workspaces = workspaces,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    ChatSidePane.Terminal -> WorkspaceTerminalPane(
                         workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
                         workspaces = workspaces,
                         modifier = Modifier.fillMaxSize(),

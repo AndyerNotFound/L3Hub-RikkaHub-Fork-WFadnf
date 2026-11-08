@@ -84,7 +84,8 @@ fun WorkspaceTerminalPage(id: String) {
         workspace?.let(sessionManager::ensureSession)
     }
 
-    RikkahubTheme(colorMode = ColorMode.DARK) {
+    // 外层已经按界面缩放算过一次，嵌套主题不要再乘一遍
+    RikkahubTheme(colorMode = ColorMode.DARK, applyUiScale = false) {
         Scaffold { innerPadding ->
             WorkspaceTerminalContent(
                 root = root,
@@ -281,7 +282,7 @@ private fun WorkspaceTerminalContent(
 }
 
 @Composable
-private fun WorkspaceTerminalTabContent(
+internal fun WorkspaceTerminalTabContent(
     tab: WorkspaceTerminalTab,
     modifier: Modifier = Modifier,
 ) {

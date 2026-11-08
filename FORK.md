@@ -1005,6 +1005,15 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   及之前的条目，右列显示它之后的条目。返回键先退右列的详情，再退中列
 - 中列 / 右列的比例可拖（0.28–0.66），右列进出只做淡入淡出
 
+### 工作区终端看板
+
+- `ChatSidePane` 新增 `Terminal`：复用 `WorkspaceTerminalSessionManager`，和整页的终端页
+  共享同一批会话与标签，切过去还能接上
+- 顶部是工作区下拉、终端页签下拉、新建与关闭；面板窄，不搬整页那条 160dp 宽的标签条
+- 终端固定深色：嵌套一层 `RikkahubTheme(colorMode = DARK, applyUiScale = false)`。
+  `RikkahubTheme` 新增 `applyUiScale` 开关，嵌套主题不再把界面缩放乘第二遍
+- 键盘弹出时看板用 `imePadding()` 往上收，终端底部那一行不会被盖住
+
 ### 清单与引导收进右栏
 
 - `ChatSidePane` 新增 `Status`（清单与引导）：和输入区上方那张卡片是同一个
@@ -1017,7 +1026,7 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 
 - 左栏不再用圆角：横屏是常驻一列，竖屏滑出来也贴边，`drawerShape` 固定 `RectangleShape`
 - 横屏不再盖背景图上的全屏渐变遮罩（`AssistantBackground(scrim = !threePane)`），
-  竖屏保持原样
+  竖屏保持原样；输入区上方那条底部渐变也一起去掉（`ChatInput(showScrim = false)`）
 
 ## 界面缩放、右列动画与扩展页归属（2026-11-09）
 

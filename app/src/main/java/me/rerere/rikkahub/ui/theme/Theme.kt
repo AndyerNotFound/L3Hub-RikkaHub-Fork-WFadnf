@@ -96,6 +96,8 @@ fun RikkahubTheme(
      * 窗口外的滑动和点击都会先落到浮窗身上，下面的应用再也收不到。
      */
     wrapContent: Boolean = false,
+    /** 嵌套主题（终端页之类）已经在外层缩放过一次，这里再乘一次会叠乘 */
+    applyUiScale: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val settings by rememberUserSettingsState()
@@ -182,7 +184,7 @@ fun RikkahubTheme(
 
     // 界面缩放：整棵 UI 用放大后的密度绘制，dp 和 sp 一起变；1.0 时保持原样
     val baseDensity = LocalDensity.current
-    val uiScale = settings.displaySetting.uiScale.coerceIn(0.5f, 2f)
+    val uiScale = if (applyUiScale) settings.displaySetting.uiScale.coerceIn(0.5f, 2f) else 1f
     val scaledDensity = remember(baseDensity, uiScale) {
         if (uiScale == 1f) baseDensity else Density(baseDensity.density * uiScale, baseDensity.fontScale)
     }

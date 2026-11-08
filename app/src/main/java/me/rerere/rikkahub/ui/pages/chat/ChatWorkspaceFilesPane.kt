@@ -309,7 +309,7 @@ internal fun WorkspaceFilesPane(
 }
 
 @Composable
-private fun WorkspaceName(
+internal fun WorkspaceName(
     bound: List<WorkspaceEntity>,
     current: WorkspaceEntity,
     onSelect: (WorkspaceEntity) -> Unit,

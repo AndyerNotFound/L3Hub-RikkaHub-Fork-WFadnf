@@ -294,6 +294,7 @@
   <string name="chat_page_details_session">会话</string>
   <string name="chat_page_side_panel_files">附件与工具</string>
   <string name="chat_page_side_panel_workspace">工作区文件</string>
+  <string name="chat_page_side_panel_terminal">工作区终端</string>
   <string name="chat_page_side_panel_status">清单与引导</string>
   <string name="chat_page_status_empty">这个会话还没有任务清单或引导</string>
   <string name="chat_page_workspace_empty">这个会话没有绑定工作区</string>
