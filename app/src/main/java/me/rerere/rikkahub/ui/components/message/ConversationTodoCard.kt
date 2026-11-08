@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +71,11 @@ import me.rerere.rikkahub.data.model.setTodoStatusAt
 import me.rerere.rikkahub.data.model.toggleTodoCompletedAt
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import kotlin.math.roundToInt
+
+/**
+ * 横屏三栏时清单与引导收进右栏的看板，输入区上方那张卡片不再重复。
+ */
+internal val LocalConversationStatusInSidePanel = staticCompositionLocalOf { false }
 
 /** 卡片底部那组「是否插入 / 间隔」的取值 */
 internal data class TodoReminderUi(

@@ -155,6 +155,7 @@ import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.EditedFilesList
 import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
+import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
@@ -615,6 +616,8 @@ private fun ChatPageContent(
             ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
             // 本轮改动在竖屏是消息下面那一行，没有对应的弹层
             ChatSidePane.Changes -> Unit
+            // 清单与引导在竖屏还是输入区上方那张卡片
+            ChatSidePane.Status -> Unit
         }
     }
 
@@ -663,6 +666,15 @@ private fun ChatPageContent(
         lastAutoOpenedTurn = turnId
         if (openPaneNames.none { it == ChatSidePane.Changes.name }) {
             openPaneNames = openPaneNames + ChatSidePane.Changes.name
+        }
+    }
+
+    // 清单与引导：横屏收进右栏，出现时把标签页开出来，不抢当前看板
+    val hasStatusContent = conversation.todos.isNotEmpty() || messageQueue.guidances.isNotEmpty()
+    LaunchedEffect(threePane, hasStatusContent) {
+        if (!threePane || !hasStatusContent) return@LaunchedEffect
+        if (openPaneNames.none { it == ChatSidePane.Status.name }) {
+            openPaneNames = openPaneNames + ChatSidePane.Status.name
         }
     }
 
@@ -1127,7 +1139,11 @@ private fun ChatPageContent(
             )
         }
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
-        CompositionLocalProvider(LocalTurnChangesInSidePanel provides threePane) {
+        CompositionLocalProvider(
+            LocalTurnChangesInSidePanel provides threePane,
+            // 横屏时清单与引导收进右栏，输入区不再重复渲染
+            LocalConversationStatusInSidePanel provides threePane,
+        ) {
         Row(modifier = Modifier.fillMaxSize()) {
         // 横屏中列按定宽排，余量留给右栏；竖屏没有右栏，中列必须吃满整宽
         Box(
@@ -1413,6 +1429,18 @@ private fun ChatPageContent(
                         },
                         modifier = Modifier.fillMaxSize(),
                         showTitle = false,
+                    )
+
+                    ChatSidePane.Status -> ConversationStatusPane(
+                        todos = conversation.todos,
+                        guidances = messageQueue.guidances,
+                        assistant = assistant,
+                        hideCompletedTodos = setting.displaySetting.hideCompletedTodoCard,
+                        onTodosChange = vm::updateTodos,
+                        onUpdateAssistant = vm::updateAssistant,
+                        onGuidanceToggleMode = vm::toggleGuidanceMode,
+                        onGuidanceRemove = vm::removeGuidance,
+                        modifier = Modifier.fillMaxSize(),
                     )
 
                     ChatSidePane.Changes -> TurnChangesPane(

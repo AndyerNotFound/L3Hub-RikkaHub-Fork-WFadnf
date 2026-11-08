@@ -44,7 +44,7 @@ import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.ui.theme.JetBrainsMono
+import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.compose.koinInject
@@ -218,7 +218,7 @@ internal fun WorkspaceFilesPane(
                 else -> SelectionContainer {
                     Text(
                         text = previewText,
-                        fontFamily = JetBrainsMono,
+                        fontFamily = JetbrainsMono,
                         fontSize = 11.sp,
                         lineHeight = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface,

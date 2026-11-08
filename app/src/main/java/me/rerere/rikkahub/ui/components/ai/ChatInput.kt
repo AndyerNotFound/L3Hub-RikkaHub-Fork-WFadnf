@@ -123,6 +123,7 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionItem
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
+import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
@@ -330,7 +331,7 @@ fun ChatInput(
                 todos.isNotEmpty() && todos.all { it.status == TodoStatus.COMPLETED }
             val showTodoSection = todos.isNotEmpty() && !hideCompletedTodos
             // 清单和引导共用一张卡片、一次折叠：两样都在时只有一颗展开箭头
-            if (showTodoSection || visibleQueue.guidances.isNotEmpty()) {
+            if (!LocalConversationStatusInSidePanel.current && (showTodoSection || visibleQueue.guidances.isNotEmpty())) {
                 ConversationTodoCard(
                     todos = if (showTodoSection) todos else emptyList(),
                     onTodosChange = onTodosChange,
