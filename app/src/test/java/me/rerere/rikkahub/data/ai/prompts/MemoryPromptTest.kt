@@ -54,6 +54,9 @@ class MemoryPromptTest {
         assertTrue(prompt.contains("Memory is read-only"))
         assertFalse(prompt.contains("## When to write"))
         assertFalse(prompt.contains("<memory_format>"))
+        // 只读丢的是写入说明，不是记忆本身
+        assertEquals("- [stated] Name is Lin", prompt.block("profile"))
+        assertTrue(prompt.block("memory_listing").startsWith("/topics/food.md |"))
     }
 
     @Test
