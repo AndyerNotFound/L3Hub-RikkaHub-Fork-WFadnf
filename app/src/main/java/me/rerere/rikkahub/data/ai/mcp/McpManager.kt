@@ -11,11 +11,15 @@ import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.ui.UIMessagePart
@@ -32,6 +36,8 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import kotlin.io.encoding.Base64
 import kotlin.uuid.Uuid
+
+private const val MANUAL_REFRESH_TIMEOUT_MS = 90_000L
 
 /**
  * MCP 子系统的公共入口。
@@ -136,6 +142,35 @@ class McpManager(
     suspend fun removeClient(config: McpServerConfig) = sessionRegistry.removeClient(config)
 
     suspend fun syncAll() = sessionRegistry.syncAll()
+
+    private var refreshJob: Job? = null
+    private val _refreshing = MutableStateFlow(false)
+
+    /** 手动刷新是否正在跑。只认按钮触发的那一次，不把别的服务器的重连退避算进来。 */
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    /**
+     * 手动刷新全部连接：断开的重新连，已连接的重新同步工具列表。
+     *
+     * 跑在 appScope 上，弹窗关掉也继续，进度照样回写到 [syncingStatus]。
+     * 连点只保留一次，避免同一批服务器排队重跑。
+     */
+    fun refreshAllConnections() {
+        // 只在 UI 线程调用；同一时间只保留一次刷新
+        if (refreshJob?.isActive == true) return
+        refreshJob = appScope.launch {
+            _refreshing.value = true
+            try {
+                // 一台接受连接却一直不回包的服务器能拖到 OkHttp 的 10 分钟读超时，
+                // 手动刷新给个上限，超时就收摊，别把按钮按在那里转十分钟。
+                withTimeoutOrNull(MANUAL_REFRESH_TIMEOUT_MS) {
+                    sessionRegistry.syncAll()
+                } ?: sessionRegistry.failStuckRefresh()
+            } finally {
+                _refreshing.value = false
+            }
+        }
+    }
 
     fun startAuthorization(config: McpServerConfig, context: Context) {
         oauthCoordinator.startAuthorization(config, context)

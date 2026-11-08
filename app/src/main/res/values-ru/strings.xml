@@ -2555,4 +2555,11 @@
   <string name="chat_page_select_all">Выбрать все</string>
   <string name="chat_page_deselect_all">Снять все</string>
   <string name="chat_page_clear_selection">Снять выделение</string>
+  <string name="mcp_picker_refresh">Обновить состояние подключения</string>
+  <string name="mcp_status_connected">Подключено</string>
+  <string name="mcp_status_connecting">Подключение…</string>
+  <string name="mcp_status_disconnected">Отключено</string>
+  <string name="setting_mcp_page_export">Экспорт конфигурации MCP</string>
+  <string name="setting_mcp_page_export_failed">Не удалось выполнить экспорт: %1$s</string>
+  <string name="setting_mcp_page_export_success">Конфигурация MCP экспортирована</string>
 </resources>

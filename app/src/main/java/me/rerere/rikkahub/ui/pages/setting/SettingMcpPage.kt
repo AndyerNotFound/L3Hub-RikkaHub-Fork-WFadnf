@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -50,24 +51,23 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.AlertCircle
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.FileExport
 import me.rerere.hugeicons.stroke.FileImport
-import me.rerere.hugeicons.stroke.McpServer
-import me.rerere.hugeicons.stroke.MessageBlocked
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
+import me.rerere.rikkahub.data.ai.mcp.exportMcpServersToJson
+import me.rerere.rikkahub.data.ai.mcp.parseMcpServersFromJson
+import me.rerere.rikkahub.ui.components.ai.McpStatusLight
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
@@ -75,6 +75,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -84,8 +85,11 @@ import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
@@ -93,6 +97,37 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     val mcpConfigs = settings.mcpServers
     val navController = LocalNavController.current
     var showImportDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+    val exportScope = rememberCoroutineScope()
+    // 导出的是设置里的真源，不是这份组合里的快照
+    val exportConfig = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        exportScope.launch {
+            try {
+                val json = exportMcpServersToJson(vm.settings.value.mcpServers)
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray())
+                    } ?: error("cannot open output stream")
+                }
+                toaster.show(
+                    context.getString(R.string.setting_mcp_page_export_success),
+                    type = ToastType.Success,
+                )
+            } catch (e: CancellationException) {
+                // 离开页面导致的取消不是导出失败，别弹假提示
+                throw e
+            } catch (e: Exception) {
+                toaster.show(
+                    context.getString(R.string.setting_mcp_page_export_failed, e.message ?: ""),
+                    type = ToastType.Error,
+                )
+            }
+        }
+    }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         topBar = {
@@ -104,6 +139,19 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            val timestamp = LocalDateTime.now()
+                                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                            exportConfig.launch("mcp_servers_$timestamp.json")
+                        },
+                        enabled = mcpConfigs.isNotEmpty(),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.FileExport,
+                            contentDescription = stringResource(R.string.setting_mcp_page_export),
+                        )
+                    }
                     IconButton(
                         onClick = {
                             showImportDialog = true
@@ -133,16 +181,13 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         val mcpManager = koinInject<McpManager>()
         val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
-        val scope = rememberCoroutineScope()
         val state = rememberPullToRefreshState()
         val loading = status.values.any { it == McpStatus.Connecting || it is McpStatus.Reconnecting }
         val layoutDirection = LocalLayoutDirection.current
         PullToRefreshBox(
             isRefreshing = loading,
             onRefresh = {
-                scope.launch {
-                    mcpManager.syncAll()
-                }
+                mcpManager.refreshAllConnections()
             },
             state = state,
             modifier = Modifier.fillMaxSize()
@@ -266,24 +311,7 @@ private fun McpServerItem(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            when (status) {
-                McpStatus.Idle -> Icon(HugeIcons.MessageBlocked, null)
-                McpStatus.Connecting -> CircularProgressIndicator(
-                    modifier = Modifier.size(
-                        24.dp
-                    )
-                )
-
-                McpStatus.Connected -> Icon(HugeIcons.McpServer, null)
-                is McpStatus.Reconnecting -> CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
-                )
-                is McpStatus.Error -> Icon(HugeIcons.AlertCircle, null)
-                McpStatus.NeedsAuthorization -> Icon(HugeIcons.AlertCircle, null)
-                McpStatus.Authorizing -> CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            McpStatusLight(status = status)
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -384,24 +412,6 @@ private fun McpServerItem(
         onDismiss = { showDeleteDialog = false },
     ) {
         Text(stringResource(R.string.common_delete_confirm_message, item.commonOptions.name))
-    }
-}
-
-private fun parseMcpServersFromJson(json: String): List<McpServerConfig> {
-    val root = Json.parseToJsonElement(json).jsonObject
-    val mcpServers = root["mcpServers"]?.jsonObject ?: return emptyList()
-    return mcpServers.entries.mapNotNull { (name, element) ->
-        val obj = element.jsonObject
-        val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: "streamable_http"
-        val url = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-        val headers = obj["headers"]?.jsonObject?.entries?.map { (k, v) ->
-            k to (v.jsonPrimitive.contentOrNull ?: "")
-        } ?: emptyList()
-        val commonOptions = McpCommonOptions(name = name, headers = headers)
-        when (type) {
-            "sse" -> McpServerConfig.SseTransportServer(commonOptions = commonOptions, url = url)
-            else -> McpServerConfig.StreamableHTTPServer(commonOptions = commonOptions, url = url)
-        }
     }
 }
 

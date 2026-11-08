@@ -2553,4 +2553,11 @@
   <string name="chat_page_select_all">Alle auswählen</string>
   <string name="chat_page_deselect_all">Alle abwählen</string>
   <string name="chat_page_clear_selection">Auswahl aufheben</string>
+  <string name="mcp_picker_refresh">Verbindungsstatus aktualisieren</string>
+  <string name="mcp_status_connected">Verbunden</string>
+  <string name="mcp_status_connecting">Verbinde…</string>
+  <string name="mcp_status_disconnected">Getrennt</string>
+  <string name="setting_mcp_page_export">MCP-Konfiguration exportieren</string>
+  <string name="setting_mcp_page_export_failed">Export fehlgeschlagen: %1$s</string>
+  <string name="setting_mcp_page_export_success">MCP-Konfiguration exportiert</string>
 </resources>

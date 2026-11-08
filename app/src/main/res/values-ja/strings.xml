@@ -2555,4 +2555,11 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_page_select_all">すべて選択</string>
   <string name="chat_page_deselect_all">すべて選択解除</string>
   <string name="chat_page_clear_selection">選択を解除</string>
+  <string name="mcp_picker_refresh">接続状態を更新</string>
+  <string name="mcp_status_connected">接続済み</string>
+  <string name="mcp_status_connecting">接続中</string>
+  <string name="mcp_status_disconnected">未接続</string>
+  <string name="setting_mcp_page_export">MCP設定をエクスポート</string>
+  <string name="setting_mcp_page_export_failed">エクスポートに失敗しました：%1$s</string>
+  <string name="setting_mcp_page_export_success">MCP設定をエクスポートしました</string>
 </resources>
