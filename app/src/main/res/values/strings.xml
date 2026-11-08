@@ -293,6 +293,8 @@
   <string name="chat_page_details_reasoning">Reasoning</string>
   <string name="chat_page_details_session">Session</string>
   <string name="chat_page_side_panel_files">Attachments &amp; tools</string>
+  <string name="chat_page_side_panel_workspace">Workspace files</string>
+  <string name="chat_page_workspace_empty">No workspace is bound to this conversation</string>
   <string name="chat_page_side_panel_model">Model</string>
   <string name="chat_page_side_panel_new_tab">New tab</string>
   <string name="chat_page_side_panel_empty">No panels open. Use the + button to open one.</string>

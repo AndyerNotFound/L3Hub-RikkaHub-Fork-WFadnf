@@ -66,6 +66,7 @@ internal enum class ChatSidePane(
     Changes(R.string.turn_diff_this_turn),
     Usage(R.string.chat_message_usage_title),
     Files(R.string.chat_page_side_panel_files),
+    Workspace(R.string.chat_page_side_panel_workspace),
     ModelPicker(R.string.chat_page_side_panel_model),
     BackgroundTasks(R.string.background_tasks_title),
 }

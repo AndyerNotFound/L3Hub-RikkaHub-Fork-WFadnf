@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -318,8 +319,8 @@ fun ChatDrawerContent(
         }
     }
 
-    // 全宽组件模式下抽屉也是方边，和页面的卡片保持一致
-    val drawerShape = adaptiveShape(LocalSettings.current.displaySetting.uiCornerRadius.dp)
+    // 左栏不要圆角：横屏它是常驻的一列，竖屏滑出来也是一整块边，圆角会让它像浮在页面上的卡片
+    val drawerShape = RectangleShape
     // 底板自己就是一块玻璃：取背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
     ModalDrawerSheet(
         modifier = Modifier

@@ -136,6 +136,10 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     else -> null
 }
 
+/** 左栏自己的一级页：这些页面落在中列，它们的下钻页落在右列 */
+internal fun Screen.isSettingSectionPage(): Boolean =
+    this is Screen.Setting || SettingSection.entries.any { it.screen == this }
+
 /** 设置相关的页面：这些路由上才显示左列 */
 internal fun Screen.isSettingBoard(): Boolean {
     // 模型编辑是聚焦编辑页，它自己就要三栏的宽度，不再挂设置栏

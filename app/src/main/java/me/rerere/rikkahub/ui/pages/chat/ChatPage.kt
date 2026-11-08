@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -147,6 +148,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
@@ -266,6 +268,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val threePaneLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
     // 左栏在横屏里是一列，不是抽屉：默认展开，顶栏的菜单按钮负责收合
     var sidebarOpen by rememberSaveable { mutableStateOf(true) }
+    // 横屏三栏的列宽：拖分隔条改，关掉页面重进还在
+    var sidebarWidthDp by rememberSaveable { mutableStateOf(LANDSCAPE_SIDEBAR_WIDTH.value) }
+    var chatWidthDp by rememberSaveable { mutableStateOf(0f) }
+    var sidebarResizing by remember { mutableStateOf(false) }
     // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
     LaunchedEffect(threePaneLayout) {
         if (threePaneLayout && drawerState.isOpen) {
@@ -342,14 +348,23 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     fontScale = baseDensity.fontScale,
                 ),
             ) {
-                // 中列宽度固定：收起左栏时它整体左移，腾出来的宽度给右栏
-                val chatWidth = ((windowDpSize.width / LANDSCAPE_UI_SCALE) * 0.4f)
-                    .coerceIn(360.dp, 640.dp)
+                // 三列在缩放后的坐标系里量：整块窗口先除回 0.75
+                val totalWidth = windowDpSize.width / LANDSCAPE_UI_SCALE
+                val maxChatWidth = (totalWidth - (if (sidebarOpen) sidebarWidthDp else 0f).dp - 260.dp)
+                    .coerceAtLeast(320.dp)
+                // 中列默认按窗口比例，拖过以后按拖出来的宽度
+                val chatWidth = (if (chatWidthDp > 0f) chatWidthDp.dp else (totalWidth * 0.4f))
+                    .coerceIn(320.dp, maxChatWidth)
                 Row(modifier = Modifier.fillMaxSize()) {
                     // 左栏：原来的抽屉内容，横屏里并排放，宽度动画负责开合
                     val sidebarWidth by animateDpAsState(
-                        targetValue = if (sidebarOpen) LANDSCAPE_SIDEBAR_WIDTH else 0.dp,
-                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        targetValue = if (sidebarOpen) sidebarWidthDp.dp else 0.dp,
+                        // 拖动时不要弹簧，手柄和边缘之间不能有一帧的滞后
+                        animationSpec = if (sidebarResizing) {
+                            snap()
+                        } else {
+                            MaterialTheme.motionScheme.defaultSpatialSpec()
+                        },
                         label = "chatSidebarWidth",
                     )
                     if (sidebarWidth > 0.dp) {
@@ -369,9 +384,16 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                                 // 不传 onCloseDrawer：点会话时左栏要留着，它是常驻列不是抽屉
                                 avatarHero = sidebarOpen,
                                 hazeState = backgroundHazeState,
-                                widthOverride = LANDSCAPE_SIDEBAR_WIDTH,
+                                widthOverride = sidebarWidthDp.dp,
                             )
                         }
+                        ColumnResizeHandle(
+                            onDrag = { delta ->
+                                sidebarWidthDp = (sidebarWidthDp + delta.value).coerceIn(200f, 440f)
+                            },
+                            onDragStart = { sidebarResizing = true },
+                            onDragEnd = { sidebarResizing = false },
+                        )
                     }
                     ChatPageContent(
                         onStartVoiceMode = startVoiceMode,
@@ -391,6 +413,13 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         sidebarOpen = sidebarOpen,
                         onOpenSidebar = { sidebarOpen = !sidebarOpen },
                         chatWidth = chatWidth,
+                        onChatResize = { delta ->
+                            val maxChat = (totalWidth - (if (sidebarOpen) sidebarWidthDp else 0f).dp - 260.dp)
+                                .coerceAtLeast(320.dp)
+                            // 读状态本身，不读这一帧的 chatWidth：一次手势里可能连来好几个事件
+                            val current = if (chatWidthDp > 0f) chatWidthDp.dp else (totalWidth * 0.4f)
+                            chatWidthDp = (current + delta).coerceIn(320.dp, maxChat).value
+                        },
                         backgroundHazeState = backgroundHazeState,
                         errors = errors,
                         onDismissError = { vm.dismissError(it) },
@@ -460,6 +489,8 @@ private fun ChatPageContent(
     onOpenSidebar: () -> Unit,
     // 中列宽度：横屏三栏时定宽，收起左栏时中列左移、右栏变宽；null 表示没有右栏，中列吃满全宽
     chatWidth: Dp? = null,
+    // 拖动中列与右栏之间的分隔条
+    onChatResize: (Dp) -> Unit = {},
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
@@ -577,6 +608,8 @@ private fun ChatPageContent(
             ChatSidePane.Details -> showDetails = true
             ChatSidePane.Usage -> showUsageSheet = true
             ChatSidePane.Files -> showFilesSheet = true
+            // 工作区文件只在横屏右栏里出现；竖屏从输入框的附件 / 工作区入口进
+            ChatSidePane.Workspace -> Unit
             ChatSidePane.TaskTree -> showTaskTree = true
             ChatSidePane.ModelPicker -> chatModelListState.open()
             ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
@@ -1089,6 +1122,8 @@ private fun ChatPageContent(
                 modifier = Modifier
                     .hazeSource(hazeState)
                     .hazeSource(backgroundHazeState),
+                // 横屏三栏不再盖渐变遮罩，背景图原样透出来
+                scrim = !threePane,
             )
         }
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
@@ -1338,6 +1373,7 @@ private fun ChatPageContent(
         }
         // 横屏三栏：右栏是标签页式的看板，聊天区不再被弹层盖住
         if (threePane) {
+            ColumnResizeHandle(onDrag = onChatResize)
             ChatSidePanelColumn(
                 panes = openPanes,
                 selected = selectedPane,
@@ -1412,6 +1448,12 @@ private fun ChatPageContent(
                         attachmentPickerActions = attachmentPickerActions,
                         onStartVoiceMode = onStartVoiceMode,
                         onDismiss = { closePane() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    ChatSidePane.Workspace -> WorkspaceFilesPane(
+                        workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
+                        workspaces = workspaces,
                         modifier = Modifier.fillMaxSize(),
                     )
 

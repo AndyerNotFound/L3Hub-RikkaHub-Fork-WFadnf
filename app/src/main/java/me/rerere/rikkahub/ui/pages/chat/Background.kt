@@ -18,7 +18,12 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 
 @Composable
-fun AssistantBackground(setting: Settings, modifier: Modifier) {
+fun AssistantBackground(
+    setting: Settings,
+    modifier: Modifier,
+    // 背景图上的全屏渐变遮罩：竖屏留着压住亮部、保证正文可读；横屏三栏里去掉
+    scrim: Boolean = true,
+) {
     val assistant = setting.getCurrentAssistant()
     if (assistant.useGradientBackground) {
         MeshGradientBackground(modifier = modifier)
@@ -45,19 +50,21 @@ fun AssistantBackground(setting: Settings, modifier: Modifier) {
                     )
             )
 
-            // 全屏渐变遮罩
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                backgroundColor.copy(alpha = 0.2f),
-                                backgroundColor.copy(alpha = 0.5f)
+            if (scrim) {
+                // 全屏渐变遮罩
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    backgroundColor.copy(alpha = 0.2f),
+                                    backgroundColor.copy(alpha = 0.5f)
+                                )
                             )
                         )
-                    )
-            )
+                )
+            }
         }
     }
 }

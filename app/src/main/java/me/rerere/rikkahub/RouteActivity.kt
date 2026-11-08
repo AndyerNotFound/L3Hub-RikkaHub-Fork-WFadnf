@@ -41,6 +41,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -82,6 +83,7 @@ import coil3.network.cachecontrol.CacheControlCacheStrategy
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
+import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.ui.toast.Toaster
@@ -164,6 +166,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
+import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
@@ -516,97 +519,27 @@ class RouteActivity : ComponentActivity() {
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                         label = "settingRailWidth",
                     )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            // 横屏的挖孔在侧边：整块内容让开它，insets 被消费后子页面里的顶栏
-                            // 不会再各自让一遍（否则三栏里中列会离左栏多出一段刘海宽的空当）
-                            .then(
-                                if (landscape) {
-                                    Modifier.windowInsetsPadding(
-                                        WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
-                                    )
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                    ) {
-                    if (settingRailWidth > 0.dp) {
-                        Box(
-                            modifier = Modifier
-                                .width(settingRailWidth)
-                                .fillMaxHeight()
-                                .clipToBounds(),
-                        ) {
-                            SettingRail(
-                                current = currentScreen,
-                                // 换分区时把上一分区的详情页收掉，返回只回到设置首页
-                                onNavigate = { target ->
-                                    navController.navigate(target) {
-                                        popUpTo(Screen.Setting)
-                                        launchSingleTop = true
-                                    }
-                                },
-                            )
-                        }
+                    // 设置三列：中列停在分区页，页内下钻的详情页挂到右列
+                    val backStackSnapshot = backStack.toList()
+                    val sectionIndex = backStackSnapshot.indexOfLast { it is Screen && it.isSettingSectionPage() }
+                    val splitSettingColumns = showSettingRail &&
+                        sectionIndex >= 0 && sectionIndex < backStackSnapshot.lastIndex
+                    val middleStack = if (splitSettingColumns) {
+                        backStackSnapshot.subList(0, sectionIndex + 1).toList()
+                    } else {
+                        backStackSnapshot
                     }
-                    NavDisplay(
-                        backStack = backStack,
-                        entryDecorators = listOf(
-                            rememberSaveableStateHolderNavEntryDecorator(),
-                            rememberViewModelStoreNavEntryDecorator(),
-                            // 转场期间离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题）。
-                            // 这一层把它的输入吞掉，不会再误触已经离场那一页的按钮
-                            rememberNavInputGuardDecorator<NavKey>(),
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
-                        // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
-                        // 不然连按两下会一次退两层
-                        onBack = { navController.popBackStack() },
-                        // 有源条目的页面：位移交给容器变换去演，这里只留淡入淡出，免得两层动画打架
-                        // 没有源条目的页面（抽屉、聊天流里的入口）：从下方滑入、向下滑出，比纯淡出更有方向感
-                        transitionSpec = {
-                            val target = targetState as? Screen
-                            val enterFromTop = (target as? Screen.Chat)?.enterFromTop
-                            when {
-                                // 侧边栏点进来的会话：抽屉先收回去，会话页再从点击项那一侧落下来
-                                enterFromTop != null ->
-                                    (slideInVertically(animationSpec = pageSlideSpec) { if (enterFromTop) -it else it } + fadeIn()) togetherWith fadeOut()
+                    val rightStack = if (splitSettingColumns) {
+                        backStackSnapshot.subList(sectionIndex + 1, backStackSnapshot.size).toList()
+                    } else {
+                        emptyList()
+                    }
+                    // 中列 / 右列的分割比例，拖分隔条改；默认中列窄一点，详情页宽一点
+                    var settingSplit by rememberSaveable { mutableStateOf(0.42f) }
+                    val settingContentWidth = (windowDpSize.width - 224.dp).coerceAtLeast(1.dp)
 
-                                target?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> (slideInVertically(animationSpec = pageSlideSpec) { it } + fadeIn()) togetherWith fadeOut()
-                            }
-                        },
-                        popTransitionSpec = {
-                            val initial = initialState as? Screen
-                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
-                            when {
-                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
-                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
-                                    animationSpec = pageSlideSpec,
-                                ) { if (enterFromTop) -it else it } + fadeOut())
-
-                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
-                            }
-                        },
-                        predictivePopTransitionSpec = {
-                            val initial = initialState as? Screen
-                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
-                            when {
-                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
-                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
-                                    animationSpec = pageSlideSpec,
-                                ) { if (enterFromTop) -it else it } + fadeOut())
-
-                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
-                            }
-                        },
-                        entryProvider = entryProvider {
+                    // 导航条目只构造一份，中列和右列的两个 NavDisplay 共用
+                    val navEntries = entryProvider {
                             // 转场交给 display 级的 transitionSpec：抽屉点进来的会话要按 enterFromTop
                             // 从对应一侧落下，entry 级 metadata 会把整套 spec 盖掉
                             entry<Screen.Chat> { key ->
@@ -866,8 +799,126 @@ class RouteActivity : ComponentActivity() {
                             heroEntry<Screen.Stats> {
                                 StatsPage()
                             }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // 横屏的挖孔在侧边：整块内容让开它，insets 被消费后子页面里的顶栏
+                            // 不会再各自让一遍（否则三栏里中列会离左栏多出一段刘海宽的空当）
+                            .then(
+                                if (landscape) {
+                                    Modifier.windowInsetsPadding(
+                                        WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
+                    if (settingRailWidth > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .width(settingRailWidth)
+                                .fillMaxHeight()
+                                .clipToBounds(),
+                        ) {
+                            SettingRail(
+                                current = currentScreen,
+                                // 换分区时把上一分区的详情页收掉，返回只回到设置首页
+                                onNavigate = { target ->
+                                    navController.navigate(target) {
+                                        popUpTo(Screen.Setting)
+                                        launchSingleTop = true
+                                    }
+                                },
+                            )
                         }
+                    }
+                    NavDisplay(
+                        backStack = middleStack,
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator(),
+                            // 转场期间离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题）。
+                            // 这一层把它的输入吞掉，不会再误触已经离场那一页的按钮
+                            rememberNavInputGuardDecorator<NavKey>(),
+                        ),
+                        modifier = Modifier
+                            .weight(settingSplit)
+                            .fillMaxHeight(),
+                        // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
+                        // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
+                        // 不然连按两下会一次退两层
+                        onBack = { navController.popBackStack() },
+                        // 有源条目的页面：位移交给容器变换去演，这里只留淡入淡出，免得两层动画打架
+                        // 没有源条目的页面（抽屉、聊天流里的入口）：从下方滑入、向下滑出，比纯淡出更有方向感
+                        transitionSpec = {
+                            val target = targetState as? Screen
+                            val enterFromTop = (target as? Screen.Chat)?.enterFromTop
+                            when {
+                                // 侧边栏点进来的会话：抽屉先收回去，会话页再从点击项那一侧落下来
+                                enterFromTop != null ->
+                                    (slideInVertically(animationSpec = pageSlideSpec) { if (enterFromTop) -it else it } + fadeIn()) togetherWith fadeOut()
+
+                                target?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
+                                else -> (slideInVertically(animationSpec = pageSlideSpec) { it } + fadeIn()) togetherWith fadeOut()
+                            }
+                        },
+                        popTransitionSpec = {
+                            val initial = initialState as? Screen
+                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
+                            when {
+                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
+                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
+                                    animationSpec = pageSlideSpec,
+                                ) { if (enterFromTop) -it else it } + fadeOut())
+
+                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
+                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
+                            }
+                        },
+                        predictivePopTransitionSpec = {
+                            val initial = initialState as? Screen
+                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
+                            when {
+                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
+                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
+                                    animationSpec = pageSlideSpec,
+                                ) { if (enterFromTop) -it else it } + fadeOut())
+
+                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
+                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
+                            }
+                        },
+                        entryProvider = navEntries,
                     )
+
+                    // 右列：只放设置页里的下钻页，进出用淡入淡出，不再做上下滑
+                    if (splitSettingColumns) {
+                        ColumnResizeHandle(
+                            onDrag = { delta ->
+                                settingSplit = (settingSplit + delta.value / settingContentWidth.value)
+                                    .coerceIn(0.28f, 0.66f)
+                            },
+                        )
+                        NavDisplay(
+                            backStack = rightStack,
+                            entryDecorators = listOf(
+                                rememberSaveableStateHolderNavEntryDecorator(),
+                                rememberViewModelStoreNavEntryDecorator(),
+                                rememberNavInputGuardDecorator<NavKey>(),
+                            ),
+                            modifier = Modifier
+                                .weight(1f - settingSplit)
+                                .fillMaxHeight(),
+                            onBack = { navController.popBackStack() },
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                            predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                            entryProvider = navEntries,
+                        )
+                    }
                     }
                     if (BuildConfig.DEBUG) {
                         Text(
