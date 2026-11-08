@@ -197,13 +197,26 @@ internal class McpSessionRegistry(
         sessions.values.toList().forEach { session -> syncSession(session) }
     }
 
-    /** 手动刷新超时：把停在 Connecting 的会话改记为错误，免得界面一直转圈。 */
+    /**
+     * 手动刷新超时：给停在 Connecting 的会话收个尾，免得界面一直转圈。
+     *
+     * 客户端还在说明连接本身是好的，只是工具列表没同步完，恢复成已连接；
+     * 客户端已清空的才是真正没连上，记为错误。别把可用连接标红。
+     */
     fun failStuckRefresh() {
         statusStore.status.value
             .filterValues { it == McpStatus.Connecting }
             .keys
             .forEach { configId ->
-                statusStore.update(configId, McpStatus.Error("刷新超时，请稍后重试"))
+                val stillConnected = sessions[configId]?.client != null
+                statusStore.update(
+                    configId,
+                    if (stillConnected) {
+                        McpStatus.Connected
+                    } else {
+                        McpStatus.Error("刷新超时，请稍后重试")
+                    },
+                )
             }
     }
 
@@ -262,7 +275,10 @@ internal class McpSessionRegistry(
                 Log.i(TAG, "Connected MCP server ${config.id} (${config.commonOptions.name})")
                 ConnectResult.Success
             } catch (e: CancellationException) {
-                closeClient(sdkClient, config.commonOptions.name)
+                // 取消也要把 client 关干净；已取消的上下文里 close() 会直接抛，得护住
+                withContext(NonCancellable) {
+                    closeClient(sdkClient, config.commonOptions.name)
+                }
                 throw e
             } catch (e: Exception) {
                 closeClient(sdkClient, config.commonOptions.name)
