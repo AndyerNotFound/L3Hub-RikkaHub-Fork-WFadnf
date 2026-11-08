@@ -342,9 +342,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     fontScale = baseDensity.fontScale,
                 ),
             ) {
-                // 右栏宽度按整窗算，左栏开合时它不跟着变宽变窄
-                val sidePanelWidth = ((windowDpSize.width / LANDSCAPE_UI_SCALE) * 0.34f)
-                    .coerceIn(300.dp, 440.dp)
+                // 中列宽度固定：收起左栏时它整体左移，腾出来的宽度给右栏
+                val chatWidth = ((windowDpSize.width / LANDSCAPE_UI_SCALE) * 0.4f)
+                    .coerceIn(360.dp, 640.dp)
                 Row(modifier = Modifier.fillMaxSize()) {
                     // 左栏：原来的抽屉内容，横屏里并排放，宽度动画负责开合
                     val sidebarWidth by animateDpAsState(
@@ -390,7 +390,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         threePane = true,
                         sidebarOpen = sidebarOpen,
                         onOpenSidebar = { sidebarOpen = !sidebarOpen },
-                        sidePanelWidth = sidePanelWidth,
+                        chatWidth = chatWidth,
                         backgroundHazeState = backgroundHazeState,
                         errors = errors,
                         onDismissError = { vm.dismissError(it) },
@@ -433,7 +433,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     threePane = false,
                     sidebarOpen = drawerState.isOpen,
                     onOpenSidebar = { scope.launch { drawerState.open() } },
-                    sidePanelWidth = 0.dp,
+                    chatWidth = 0.dp,
                     backgroundHazeState = backgroundHazeState,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
@@ -459,8 +459,8 @@ private fun ChatPageContent(
     threePane: Boolean,
     sidebarOpen: Boolean,
     onOpenSidebar: () -> Unit,
-    // 右栏宽度，只有 threePane 时用得上
-    sidePanelWidth: Dp,
+    // 中列宽度：横屏固定，收起左栏时中列左移、右栏变宽
+    chatWidth: Dp,
     navController: Navigator,
     vm: ChatVM,
     chatListState: LazyListState,
@@ -1095,7 +1095,7 @@ private fun ChatPageContent(
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
         CompositionLocalProvider(LocalTurnChangesInSidePanel provides threePane) {
         Row(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+        Box(modifier = Modifier.width(chatWidth).fillMaxHeight()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
@@ -1338,8 +1338,10 @@ private fun ChatPageContent(
                 onSelect = { selectedPaneName = it.name },
                 onOpen = { openTab(it) },
                 onClose = { closeTab(it) },
+                // 右栏吃掉剩余宽度：左栏收起时中列左移，空出来的位置全给它
                 modifier = Modifier
-                    .width(sidePanelWidth)
+                    .weight(1f)
+                    .fillMaxHeight()
                     .padding(start = 4.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                 // 右栏背后是页面背景，取背景那份 Haze 源；聊天内容的源只覆盖左边
                 hazeState = backgroundHazeState,

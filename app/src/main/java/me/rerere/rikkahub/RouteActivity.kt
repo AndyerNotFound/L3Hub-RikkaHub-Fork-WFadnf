@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -21,11 +22,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -41,6 +46,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -146,6 +152,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
+import me.rerere.rikkahub.ui.pages.setting.SettingRail
+import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
@@ -482,6 +490,39 @@ class RouteActivity : ComponentActivity() {
                     // 默认那个弹簧偏匀速，看起来像线性
                     val pageSlideSpec = rememberSpatialSpec<IntOffset>()
                     val navController = LocalNavController.current
+                    // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
+                    // 栏本身不参与转场，NavDisplay 一直待在同一个槽位里，进出设置不会重建。
+                    val windowDpSize = currentWindowDpSize()
+                    val currentScreen = backStack.lastOrNull() as? Screen
+                    val showSettingRail = windowDpSize.width > windowDpSize.height &&
+                        windowDpSize.width >= 700.dp &&
+                        currentScreen?.isSettingBoard() == true
+                    // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
+                    val settingRailWidth by animateDpAsState(
+                        targetValue = if (showSettingRail) 224.dp else 0.dp,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        label = "settingRailWidth",
+                    )
+                    Row(modifier = Modifier.fillMaxSize()) {
+                    if (settingRailWidth > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .width(settingRailWidth)
+                                .fillMaxHeight()
+                                .clipToBounds(),
+                        ) {
+                            SettingRail(
+                                current = currentScreen,
+                                // 换分区时把上一分区的详情页收掉，返回只回到设置首页
+                                onNavigate = { target ->
+                                    navController.navigate(target) {
+                                        popUpTo(Screen.Setting)
+                                        launchSingleTop = true
+                                    }
+                                },
+                            )
+                        }
+                    }
                     NavDisplay(
                         backStack = backStack,
                         entryDecorators = listOf(
@@ -491,7 +532,9 @@ class RouteActivity : ComponentActivity() {
                             // 这一层把它的输入吞掉，不会再误触已经离场那一页的按钮
                             rememberNavInputGuardDecorator<NavKey>(),
                         ),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
                         // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
                         // 不然连按两下会一次退两层
@@ -798,6 +841,7 @@ class RouteActivity : ComponentActivity() {
                             }
                         }
                     )
+                    }
                     if (BuildConfig.DEBUG) {
                         Text(
                             text = "[开发模式]",
