@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.Guidance
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.localFileUrls
 import kotlin.uuid.Uuid
 
@@ -42,6 +44,8 @@ data class QueuedNotice(
 data class InboxState(
     val items: List<InboxItem> = emptyList(),
     val paused: Boolean = false,
+    /** 生效中的引导，按加入顺序；单轮的插入一次后自动移除 */
+    val guidances: List<Guidance> = emptyList(),
 ) {
     val messages: List<QueuedMessage> get() = items.filterIsInstance<QueuedMessage>()
     val notices: List<QueuedNotice> get() = items.filterIsInstance<QueuedNotice>()
@@ -157,6 +161,47 @@ class ConversationInbox {
         if (notices.isEmpty()) return emptyList()
         mutableState.value = current.copy(items = current.items.filterNot { it is QueuedNotice })
         return notices.map { it.notice }
+    }
+
+    /** 加入一条引导；单轮和多轮的区别只在取出时 */
+    @Synchronized
+    fun addGuidance(guidance: Guidance) {
+        if (guidance.content.isBlank()) return
+        mutableState.value = state.value.copy(guidances = state.value.guidances + guidance)
+    }
+
+    /** 切换某条引导的生效方式；找不到时什么也不做 */
+    @Synchronized
+    fun setGuidanceMode(id: Uuid, mode: GuidanceMode) {
+        val current = state.value
+        if (current.guidances.none { it.id == id && it.mode != mode }) return
+        mutableState.value = current.copy(
+            guidances = current.guidances.map { if (it.id == id) it.copy(mode = mode) else it },
+        )
+    }
+
+    /** 用户手动取消一条引导 */
+    @Synchronized
+    fun removeGuidance(id: Uuid) {
+        val current = state.value
+        if (current.guidances.none { it.id == id }) return
+        mutableState.value = current.copy(guidances = current.guidances.filterNot { it.id == id })
+    }
+
+    /**
+     * 取出这一批要插入的引导，并把单轮的从收件箱删掉。
+     * 多轮的留在原处，下一次工具批次再取一遍——「插入后继续生效」就是这里。
+     */
+    @Synchronized
+    fun takeGuidances(): List<Guidance> {
+        val current = state.value
+        if (current.guidances.isEmpty()) return emptyList()
+        val taken = current.guidances
+        val remaining = taken.filter { it.mode == GuidanceMode.REPEAT }
+        if (remaining.size != taken.size) {
+            mutableState.value = current.copy(guidances = remaining)
+        }
+        return taken
     }
 
     @Synchronized

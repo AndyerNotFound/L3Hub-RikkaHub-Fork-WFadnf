@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.transformers
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.hasTodoReminder
 import me.rerere.rikkahub.data.ai.tools.TODO_UPDATE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.buildTodoPrompt
@@ -46,6 +47,9 @@ internal fun List<UIMessage>.withTodoState(todos: List<TodoItem>): List<UIMessag
     if (alreadyInContext) return this
 
     val prompt = buildTodoPrompt(todos)
+    // 这一轮已经在工具间隙注入过清单（合成的 todo_reminder 工具调用）：那一份来自会话的实时值，
+    // 而这里的 todos 是轮次开始时的快照，再贴一遍只会让同一个请求里出现两份不一样的清单
+    if (lastOrNull()?.hasTodoReminder() == true) return this
     // 最后一条已经是 user 时不要新增一条：连续两条 user 有的 provider 会合并、有的会报错，
     // 直接并进它的 parts。中途（最后一条是 assistant）才追加一条 synthetic user。
     val last = last()

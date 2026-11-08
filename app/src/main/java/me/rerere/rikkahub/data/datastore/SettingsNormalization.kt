@@ -65,6 +65,7 @@ internal fun Settings.withoutInvalidReferences(): Settings {
     val validModelIds by lazy { settings.providers.flatMap { it.models }.mapTo(HashSet()) { it.id } }
     val asrProviders = settings.asrProviders.distinctBy { it.id }
     return settings.copy(
+        guideMessages = settings.guideMessages.distinctBy { it.id },
         providers = settings.providers.distinctBy { it.id }.map { provider ->
             provider.copyProvider(models = provider.models.distinctBy { model -> model.id })
         },

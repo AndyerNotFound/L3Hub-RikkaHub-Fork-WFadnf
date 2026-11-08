@@ -17,6 +17,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -45,18 +47,25 @@ import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
+
+/** 分页：0 是快捷消息，1 是引导提示词 */
+private const val TAB_MESSAGES = 0
+private const val TAB_GUIDES = 1
 
 @Composable
 fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    var selectedTab by rememberSaveable { mutableStateOf(TAB_MESSAGES) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<QuickMessage?>(null) }
     var deleteTarget by remember { mutableStateOf<QuickMessage?>(null) }
+
+    val isGuideTab = selectedTab == TAB_GUIDES
+    val messages = if (isGuideTab) settings.guideMessages else settings.quickMessages
 
     Scaffold(
         topBar = {
@@ -72,41 +81,69 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
                 Icon(HugeIcons.Add01, contentDescription = null)
             }
         },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
         ) {
-            if (settings.quickMessages.isEmpty()) {
-                item {
-                    ExtensionEmptyState(
-                        message = stringResource(R.string.quick_messages_page_empty_title),
-                        description = stringResource(R.string.quick_messages_page_empty_hint),
-                        icon = HugeIcons.Zap,
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = !isGuideTab,
+                    onClick = { selectedTab = TAB_MESSAGES },
+                    text = { Text(stringResource(R.string.quick_messages_tab_messages)) },
+                )
+                Tab(
+                    selected = isGuideTab,
+                    onClick = { selectedTab = TAB_GUIDES },
+                    text = { Text(stringResource(R.string.quick_messages_tab_guides)) },
+                )
+            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (messages.isEmpty()) {
+                    item {
+                        ExtensionEmptyState(
+                            message = stringResource(
+                                if (isGuideTab) R.string.guide_messages_page_empty_title
+                                else R.string.quick_messages_page_empty_title
+                            ),
+                            description = stringResource(
+                                if (isGuideTab) R.string.guide_messages_page_empty_hint
+                                else R.string.quick_messages_page_empty_hint
+                            ),
+                            icon = HugeIcons.Zap,
+                        )
+                    }
+                }
+
+                items(messages, key = { it.id }) { quickMessage ->
+                    QuickMessageCard(
+                        quickMessage = quickMessage,
+                        onEdit = { editTarget = quickMessage },
+                        onDelete = { deleteTarget = quickMessage },
                     )
                 }
-            }
-
-            items(settings.quickMessages, key = { it.id }) { quickMessage ->
-                QuickMessageCard(
-                    quickMessage = quickMessage,
-                    onEdit = { editTarget = quickMessage },
-                    onDelete = { deleteTarget = quickMessage },
-                )
             }
         }
     }
 
     if (showAddDialog) {
         EditQuickMessageDialog(
-            title = stringResource(R.string.quick_messages_page_add_title),
+            title = stringResource(
+                if (isGuideTab) R.string.guide_messages_page_add_title
+                else R.string.quick_messages_page_add_title
+            ),
             initialQuickMessage = null,
             onDismiss = { showAddDialog = false },
             onConfirm = { title, content ->
-                vm.addQuickMessage(title, content)
+                if (isGuideTab) vm.addGuideMessage(title, content) else vm.addQuickMessage(title, content)
                 showAddDialog = false
             },
         )
@@ -114,16 +151,15 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
 
     editTarget?.let { quickMessage ->
         EditQuickMessageDialog(
-            title = stringResource(R.string.quick_messages_page_edit_title),
+            title = stringResource(
+                if (isGuideTab) R.string.guide_messages_page_edit_title
+                else R.string.quick_messages_page_edit_title
+            ),
             initialQuickMessage = quickMessage,
             onDismiss = { editTarget = null },
             onConfirm = { title, content ->
-                vm.updateQuickMessage(
-                    quickMessage.copy(
-                        title = title,
-                        content = content,
-                    )
-                )
+                val updated = quickMessage.copy(title = title, content = content)
+                if (isGuideTab) vm.updateGuideMessage(updated) else vm.updateQuickMessage(updated)
                 editTarget = null
             },
         )
@@ -135,7 +171,9 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
         confirmText = stringResource(R.string.delete),
         dismissText = stringResource(R.string.cancel),
         onConfirm = {
-            deleteTarget?.let { vm.deleteQuickMessage(it.id) }
+            deleteTarget?.let { message ->
+                if (isGuideTab) vm.deleteGuideMessage(message.id) else vm.deleteQuickMessage(message.id)
+            }
             deleteTarget = null
         },
         onDismiss = { deleteTarget = null },

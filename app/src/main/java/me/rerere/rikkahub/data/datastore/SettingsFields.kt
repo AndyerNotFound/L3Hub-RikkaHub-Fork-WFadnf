@@ -190,6 +190,7 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         json(MODE_INJECTIONS, Settings::modeInjections) { copy(modeInjections = it) },
         json(LOREBOOKS, Settings::lorebooks) { copy(lorebooks = it) },
         json(QUICK_MESSAGES, Settings::quickMessages) { copy(quickMessages = it) },
+        json(GUIDE_MESSAGES, Settings::guideMessages) { copy(guideMessages = it) },
 
         // 备份提醒
         json(BACKUP_REMINDER_CONFIG, Settings::backupReminderConfig) { copy(backupReminderConfig = it) },

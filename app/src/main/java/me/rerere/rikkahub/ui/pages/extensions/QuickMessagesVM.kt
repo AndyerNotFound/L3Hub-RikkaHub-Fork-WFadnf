@@ -41,6 +41,35 @@ class QuickMessagesVM(
         )
     }
 
+    fun addGuideMessage(title: String, content: String) {
+        updateGuideMessages(
+            settings.value.guideMessages + QuickMessage(
+                title = title,
+                content = content,
+            )
+        )
+    }
+
+    fun updateGuideMessage(updated: QuickMessage) {
+        updateGuideMessages(
+            settings.value.guideMessages.map { message ->
+                if (message.id == updated.id) updated else message
+            }
+        )
+    }
+
+    fun deleteGuideMessage(id: Uuid) {
+        updateGuideMessages(
+            settings.value.guideMessages.filterNot { message -> message.id == id }
+        )
+    }
+
+    private fun updateGuideMessages(guideMessages: List<QuickMessage>) {
+        viewModelScope.launch {
+            settingsStore.update { settings -> settings.copy(guideMessages = guideMessages) }
+        }
+    }
+
     private fun updateQuickMessages(quickMessages: List<QuickMessage>) {
         val validIds = quickMessages.map { it.id }.toSet()
         viewModelScope.launch {

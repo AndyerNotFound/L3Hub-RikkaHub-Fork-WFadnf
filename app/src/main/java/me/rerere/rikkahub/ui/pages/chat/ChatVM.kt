@@ -36,6 +36,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.Guidance
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.NodeFavoriteTarget
 import me.rerere.rikkahub.data.model.TodoItem
@@ -285,6 +287,28 @@ class ChatVM(
         if (content.isEmptyInputMessage()) return false
 
         return chatService.sendMessage(_conversationId, content, answer, interject)
+    }
+
+    /** 加入一条引导；预设用多轮，手输的用单轮，卡片上还能再切 */
+    fun addGuidance(title: String, content: String, mode: GuidanceMode) {
+        chatService.addGuidance(
+            conversationId = _conversationId,
+            content = content,
+            title = title,
+            mode = mode,
+        )
+    }
+
+    fun toggleGuidanceMode(guidance: Guidance) {
+        chatService.setGuidanceMode(
+            conversationId = _conversationId,
+            guidanceId = guidance.id,
+            mode = if (guidance.mode == GuidanceMode.SINGLE) GuidanceMode.REPEAT else GuidanceMode.SINGLE,
+        )
+    }
+
+    fun removeGuidance(guidance: Guidance) {
+        chatService.removeGuidance(_conversationId, guidance.id)
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {

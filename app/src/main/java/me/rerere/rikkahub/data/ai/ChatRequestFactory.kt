@@ -159,7 +159,8 @@ class ChatRequestFactory(
 
     /**
      * 本轮交给 runAgent 的请求和钩子。[messages] 的最后一条是助手消息时从它继续，否则新建一条助手消息。
-     * [processingStatus] 用来显示 OCR 这类输入转换的进度；[takePendingParts] 取出要在请求模型前写进助手消息的通知。
+     * [processingStatus] 用来显示 OCR 这类输入转换的进度；[takePendingParts] 取出要在请求模型前写进助手消息的
+     * 通知和合成工具调用（引导、任务清单），参数是本轮正在写的助手消息，第一步还没有内容时为 null。
      */
     fun createAgent(
         turn: ChatTurnContext,
@@ -168,7 +169,7 @@ class ChatRequestFactory(
         pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
         beforeStep: suspend (List<UIMessage>) -> List<UIMessage>? = { null },
         onContextOverflow: suspend (Throwable) -> Boolean = { false },
-        takePendingParts: suspend () -> List<UIMessagePart> = { emptyList() },
+        takePendingParts: suspend (UIMessage?) -> List<UIMessagePart> = { emptyList() },
     ): Pair<AgentRequest, AgentHooks> {
         val injectedMessages = mutableListOf<UIMessage>()
         // 和钩子同名，提前取个别名，免得 override 里写成自己调自己
@@ -217,7 +218,7 @@ class ChatRequestFactory(
                         .onGenerationFinish(outputTransformers, context, turn.model, turn.assistant, turn.settings)
                 }
 
-            override suspend fun pendingParts() = takePendingParts()
+            override suspend fun pendingParts(current: UIMessage?) = takePendingParts(current)
         }
         return request to hooks
     }

@@ -2582,4 +2582,18 @@
   <string name="chat_page_select_all">Select all</string>
   <string name="chat_page_deselect_all">Deselect all</string>
   <string name="chat_page_clear_selection">Clear selection</string>
+  <string name="guidance_panel_title">Guidance</string>
+  <string name="guidance_mode_single">One-shot</string>
+  <string name="guidance_mode_repeat">Repeat</string>
+  <string name="guidance_remove">Remove guidance</string>
+  <string name="guidance_added">Added as guidance: injected the next time the model calls a tool</string>
+  <string name="guidance_tool_label">Guidance</string>
+  <string name="todo_reminder_tool_label">Task list</string>
+  <string name="quick_messages_tab_messages">Quick messages</string>
+  <string name="quick_messages_tab_guides">Guidance prompts</string>
+  <string name="quick_messages_guide_section">Guidance messages</string>
+  <string name="guide_messages_page_empty_title">No Guidance Prompts</string>
+  <string name="guide_messages_page_empty_hint">Presets you can drop into a running turn from the quick message menu.</string>
+  <string name="guide_messages_page_add_title">Add Guidance Prompt</string>
+  <string name="guide_messages_page_edit_title">Edit Guidance Prompt</string>
 </resources>

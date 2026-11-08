@@ -112,6 +112,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Guidance
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.TodoStatus
@@ -184,6 +185,12 @@ fun ChatInput(
     onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
     onFinishEditQueuedMessage: (Uuid, List<UIMessagePart>?) -> Unit = { _, _ -> },
     onResumeMessageQueue: () -> Unit = {},
+    // 引导提示词预设：点选后加进本轮；长按快捷消息按钮把输入框里的内容直接当引导发出去
+    guideMessages: List<QuickMessage> = emptyList(),
+    onAddGuidance: (QuickMessage) -> Unit = {},
+    onSendAsGuidance: () -> Unit = {},
+    onGuidanceToggleMode: (Guidance) -> Unit = {},
+    onGuidanceRemove: (Guidance) -> Unit = {},
     runningBackgroundTasks: Int = 0,
     onShowBackgroundTasks: () -> Unit = {},
     onStartVoiceMode: (() -> Unit)? = null,
@@ -330,6 +337,11 @@ fun ChatInput(
                         .padding(vertical = 4.dp),
                 )
             }
+            GuidancePanel(
+                guidances = visibleQueue.guidances,
+                onToggleMode = onGuidanceToggleMode,
+                onRemove = onGuidanceRemove,
+            )
             MessageQueuePanel(
                 state = visibleQueue,
                 onRemove = onRemoveQueuedMessage,
@@ -581,9 +593,15 @@ fun ChatInput(
                                     contentDescription = stringResource(R.string.more_options),
                                 )
                             }
-                            if (quickMessages.isNotEmpty()) {
-                                QuickMessageButton(quickMessages = quickMessages, state = state)
-                            }
+                            // 一直显示：长按它是把输入框内容当引导发出去的入口，
+                            // 没有预设时也得能按，否则这个手势就藏起来了
+                            QuickMessageButton(
+                                quickMessages = quickMessages,
+                                guideMessages = guideMessages,
+                                state = state,
+                                onAddGuidance = onAddGuidance,
+                                onSendAsGuidance = onSendAsGuidance,
+                            )
                         }
                         val trailingActions: @Composable () -> Unit = {
                             asrButton()
@@ -607,6 +625,9 @@ fun ChatInput(
                                 modifier = Modifier.fillMaxWidth(),
                                 showQuickMessageButton = false,
                                 fullscreenOnOverflow = true,
+                                guideMessages = guideMessages,
+                                onAddGuidance = onAddGuidance,
+                                onSendAsGuidance = onSendAsGuidance,
                                 contentPadding = PaddingValues(
                                     // 卡片左右内边距变大时，把输入框自己的内缩减回去，
                                     // 文字可用宽度保持不变，行数就不会因为拖滑块而变
@@ -665,6 +686,9 @@ fun ChatInput(
                             assistant = assistant,
                             completionProviders = completionProviders,
                             onSendMessage = { sendMessage() },
+                            guideMessages = guideMessages,
+                            onAddGuidance = onAddGuidance,
+                            onSendAsGuidance = onSendAsGuidance,
                         )
 
                         Row(
@@ -884,6 +908,9 @@ private fun TextInputRow(
     modifier: Modifier = Modifier,
     showQuickMessageButton: Boolean = true,
     fullscreenOnOverflow: Boolean = false,
+    guideMessages: List<QuickMessage> = emptyList(),
+    onAddGuidance: (QuickMessage) -> Unit = {},
+    onSendAsGuidance: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
     onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
 ) {
@@ -1078,9 +1105,15 @@ private fun TextInputRow(
                     }
                 }
             },
-            leadingIcon = if (showQuickMessageButton && quickMessages.isNotEmpty()) {
+            leadingIcon = if (showQuickMessageButton) {
                 {
-                    QuickMessageButton(quickMessages = quickMessages, state = state)
+                    QuickMessageButton(
+                        quickMessages = quickMessages,
+                        guideMessages = guideMessages,
+                        state = state,
+                        onAddGuidance = onAddGuidance,
+                        onSendAsGuidance = onSendAsGuidance,
+                    )
                 }
             } else null,
         )
@@ -1179,20 +1212,50 @@ private fun ChatInputState.applyCompletion(
 @Composable
 private fun QuickMessageButton(
     quickMessages: List<QuickMessage>,
+    guideMessages: List<QuickMessage>,
     state: ChatInputState,
+    onAddGuidance: (QuickMessage) -> Unit,
+    onSendAsGuidance: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    IconButton(
-        onClick = {
-            expanded = !expanded
-        }) {
-        Icon(HugeIcons.Zap, null)
+    Box {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .testTag("chat_quick_message_button")
+                .combinedClickable(
+                    onClick = { expanded = !expanded },
+                    // 长按：输入框里的内容不进这一轮的消息，直接作为引导插进正在跑的工具间隙。
+                    // 输入框是空的时候退回成展开选单，别让长按变成什么都没发生
+                    onLongClick = {
+                        // 判的是文字而不是 isEmpty：只有附件时引导没有内容可取，退回成展开选单
+                        if (state.textContent.text.isBlank()) {
+                            expanded = !expanded
+                        } else {
+                            expanded = false
+                            onSendAsGuidance()
+                        }
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(HugeIcons.Zap, null, modifier = Modifier.size(18.dp))
+        }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 360.dp)
         ) {
+            if (quickMessages.isEmpty() && guideMessages.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.quick_messages_page_empty_title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
             quickMessages.forEach { quickMessage ->
                 Surface(
                     onClick = {
@@ -1217,6 +1280,42 @@ private fun QuickMessageButton(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                }
+            }
+            // 引导提示词单独一区：点选后不进输入框，直接加进本轮的工具间隙
+            if (guideMessages.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.quick_messages_guide_section),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 4.dp),
+                )
+                guideMessages.forEach { guide ->
+                    Surface(
+                        onClick = {
+                            onAddGuidance(guide)
+                            expanded = false
+                        },
+                        color = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp)
+                        ) {
+                            Text(
+                                text = guide.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = guide.content,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }

@@ -190,6 +190,7 @@ private val SAMPLE = Settings(
     modeInjections = listOf(PromptInjection.ModeInjection(id = id(14), name = "mode")),
     lorebooks = listOf(Lorebook(id = id(12), name = "lorebook")),
     quickMessages = listOf(QuickMessage(id = id(13), title = "hi")),
+    guideMessages = listOf(QuickMessage(id = id(41), title = "guide", content = "keep it")),
     webServerEnabled = true,
     webServerPort = 9090,
     webServerJwtEnabled = true,
@@ -267,6 +268,7 @@ private val STORED_KEYS = setOf(
     "mode_injections",
     "lorebooks",
     "quick_messages",
+    "guide_messages",
     "backup_reminder_config",
     "sponsor_alert_dismissed_at",
 )

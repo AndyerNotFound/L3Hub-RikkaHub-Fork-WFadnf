@@ -2584,4 +2584,18 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_select_all">全选</string>
   <string name="chat_page_deselect_all">取消全选</string>
   <string name="chat_page_clear_selection">清除选择</string>
+  <string name="guidance_panel_title">引导</string>
+  <string name="guidance_mode_single">单轮</string>
+  <string name="guidance_mode_repeat">多轮</string>
+  <string name="guidance_remove">取消引导</string>
+  <string name="guidance_added">已加入引导，模型下一次调用工具时注入</string>
+  <string name="guidance_tool_label">引导</string>
+  <string name="todo_reminder_tool_label">任务清单</string>
+  <string name="quick_messages_tab_messages">快捷消息</string>
+  <string name="quick_messages_tab_guides">引导提示词</string>
+  <string name="quick_messages_guide_section">引导消息</string>
+  <string name="guide_messages_page_empty_title">无引导提示词</string>
+  <string name="guide_messages_page_empty_hint">在快捷消息选单里，把它们直接放进正在跑的这一轮。</string>
+  <string name="guide_messages_page_add_title">新增引导提示词</string>
+  <string name="guide_messages_page_edit_title">编辑引导提示词</string>
 </resources>

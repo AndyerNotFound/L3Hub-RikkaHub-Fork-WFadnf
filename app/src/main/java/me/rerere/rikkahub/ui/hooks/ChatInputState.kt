@@ -29,6 +29,11 @@ class ChatInputState {
         editingAttachmentUrls = emptySet()
     }
 
+    /** 只清文字，附件留在输入框里：引导只取文字，连着把图一块清掉等于悄悄丢了附件 */
+    fun clearText() {
+        textContent.setTextAndPlaceCursorAtEnd("")
+    }
+
     fun isEditing() = editingMessage != null
 
     fun setMessageText(text: String) {

@@ -59,12 +59,16 @@ interface AgentHooks {
     suspend fun finishStep(message: UIMessage, newPartsFrom: Int): UIMessage = message
 
     /**
-     * 请求模型之前、[prepareStep] 之前调用，返回要追加到本轮助手消息末尾的 part，通常是 [UIMessagePart.Notice]。
+     * 请求模型之前、[prepareStep] 之前调用，返回要追加到本轮助手消息末尾的 part，
+     * 通常是 [UIMessagePart.Notice]，或者是应用合成的工具调用（引导、任务清单）。
      *
      * 只在轮到模型回复时调用：新的一轮开始时，一批工具执行完之后，或消息以通知结尾时；续写已有的回复时不调用，
      * 否则追加的内容会变成新的一轮。返回的 part 会立即写回消息，调用方取出后应当不再重复返回。
+     *
+     * [current] 是本轮正在写的助手消息，新的一轮还没有内容时为 null。调用方靠它判断这一批要追加的
+     * 内容是不是已经在消息里了——比如清单没变过就不必再贴一遍。
      */
-    suspend fun pendingParts(): List<UIMessagePart> = emptyList()
+    suspend fun pendingParts(current: UIMessage?): List<UIMessagePart> = emptyList()
 }
 
 data class StepRequest(

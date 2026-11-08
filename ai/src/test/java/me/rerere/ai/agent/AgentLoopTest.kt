@@ -645,6 +645,32 @@ class AgentLoopTest {
         assertEquals(0, noticeHooks.calls)
         assertTrue(message.parts.none { it is UIMessagePart.Notice })
     }
+
+    @Test
+    fun `pending parts are told which message they extend`() = runTest {
+        val currents = mutableListOf<UIMessage?>()
+        val recording = object : AgentHooks by PendingHooks(hooks) {
+            override suspend fun pendingParts(current: UIMessage?): List<UIMessagePart> {
+                currents += current
+                return emptyList()
+            }
+        }
+        provider.stream {
+            toolCall("call-1", "search")
+            finish()
+        }
+        provider.stream {
+            text("done")
+            finish()
+        }
+
+        runToEnd(request(tools = listOf(tool("search"))), recording)
+
+        // 第一步还没有助手消息；工具执行完之后，钩子才拿得到带工具结果的那条
+        assertEquals(2, currents.size)
+        assertNull(currents[0])
+        assertEquals(listOf("search"), currents[1]?.getTools()?.map { it.toolName })
+    }
 }
 
 /** 按调用顺序依次返回预设的响应，并记录每次请求 */
@@ -721,7 +747,7 @@ private class PendingHooks(
     private val batches = ArrayDeque(batches.toList())
     var calls = 0
 
-    override suspend fun pendingParts(): List<UIMessagePart> {
+    override suspend fun pendingParts(current: UIMessage?): List<UIMessagePart> {
         calls++
         return batches.removeFirstOrNull().orEmpty()
     }

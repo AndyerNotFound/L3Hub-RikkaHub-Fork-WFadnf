@@ -44,6 +44,11 @@ import me.rerere.rikkahub.data.ai.ChatTurnContext
 import me.rerere.rikkahub.data.ai.ConversationMetaGenerator
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
+import me.rerere.rikkahub.data.ai.guidanceToolPart
+import me.rerere.rikkahub.data.ai.isInjectedTool
+import me.rerere.rikkahub.data.ai.lastTodoReminderText
+import me.rerere.rikkahub.data.ai.todoReminderText
+import me.rerere.rikkahub.data.ai.todoReminderToolPart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
 import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_COMPLETED
@@ -69,6 +74,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ContextTrim
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.Guidance
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.autoCompressBudget
 import me.rerere.rikkahub.data.model.autoCompressKeepMessages
@@ -1021,6 +1028,59 @@ class ChatService(
         dispatchInbox(conversationId)
     }
 
+    /**
+     * 加入一条引导。
+     *
+     * 单轮的在下一个工具间隙插一次就从收件箱删掉；多轮的每一批工具之后都会再插一次，直到 [removeGuidance]。
+     * 生成中加进去的，这一轮的下一步就能看到；空闲时加进去的，等下一轮真正跑起工具再插——
+     * 它管的是「跑到一半改方向」，不是「代替下一条消息」。
+     */
+    fun addGuidance(
+        conversationId: Uuid,
+        content: String,
+        title: String = "",
+        mode: GuidanceMode = GuidanceMode.SINGLE,
+    ) {
+        if (content.isBlank()) return
+        sessionManager.getOrCreate(conversationId).inbox.addGuidance(
+            Guidance(title = title.trim(), content = content.trim(), mode = mode),
+        )
+    }
+
+    fun setGuidanceMode(conversationId: Uuid, guidanceId: Uuid, mode: GuidanceMode) {
+        sessionManager.getOrCreate(conversationId).inbox.setGuidanceMode(guidanceId, mode)
+    }
+
+    fun removeGuidance(conversationId: Uuid, guidanceId: Uuid) {
+        sessionManager.getOrCreate(conversationId).inbox.removeGuidance(guidanceId)
+    }
+
+    /**
+     * 这一批要插进本轮的合成工具调用。
+     *
+     * 通知排在最前，清单居中，引导排在最后——模型最后读到的是用户新给的指令。
+     * 清单只在内容变过时插一次；没变就交给请求尾部的 TodoStateTransformer，那里每一步都会贴，
+     * 这里再贴一遍只是重复。
+     *
+     * [current] 为 null 表示这是一轮的第一步，模型还没动过手。这时只放通知，不插引导和清单：
+     * 否则回答开头会凭空出现一条工具调用，而引导本来该出现在「跑到一半」的时候。
+     */
+    private suspend fun ConversationSession.takeInjectionParts(current: UIMessage?): List<UIMessagePart> {
+        val parts = mutableListOf<UIMessagePart>()
+        parts += inbox.takeNotices()
+        if (current == null) return parts
+        // 上下文超限后这一步会重装，[appendPendingParts] 会被再调一次；末尾还是上一次插进去的合成调用，
+        // 说明中间没有跑过新的工具批次，这一批已经在消息里了
+        if (current.parts.lastOrNull()?.isInjectedTool() == true) return parts
+
+        todoReminderToolPart(state.value.todos)
+            ?.takeIf { current.lastTodoReminderText() != it.todoReminderText() }
+            ?.let { parts += it }
+
+        inbox.takeGuidances().forEach { guidance -> parts += guidanceToolPart(guidance) }
+        return parts
+    }
+
     /** 会话空闲时从收件箱开始下一轮：先发用户输入，只剩通知时单独开一轮 */
     private fun dispatchInbox(conversationId: Uuid): Job? {
         val session = sessionManager.get(conversationId) ?: return null
@@ -1358,7 +1418,7 @@ class ChatService(
                         .also { loopOverflowCompress = it }
                         .let { it == CompressAttempt.COMPRESSED }
                 },
-                takePendingParts = session.inbox::takeNotices,
+                takePendingParts = { current -> session.takeInjectionParts(current) },
             )
             var finishReason: AgentFinishReason? = null
             try {

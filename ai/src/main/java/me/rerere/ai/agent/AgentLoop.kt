@@ -129,7 +129,7 @@ internal class AgentLoop(
     private suspend fun appendPendingParts() {
         val current = message
         if (current != null && !current.parts.lastOrNull().isModelsTurn()) return
-        val parts = hooks.pendingParts()
+        val parts = hooks.pendingParts(current)
         if (parts.isEmpty()) return
         val base = current ?: UIMessage(role = MessageRole.ASSISTANT, parts = emptyList())
         update(base.copy(parts = base.parts + parts))

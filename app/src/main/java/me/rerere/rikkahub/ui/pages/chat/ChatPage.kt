@@ -120,6 +120,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.isContextLimitReached
@@ -854,6 +855,21 @@ private fun ChatPageContent(
             onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
             onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
             onResumeMessageQueue = vm::resumeMessageQueue,
+            guideMessages = setting.guideMessages,
+            // 预设是长期约束，默认多轮；手输的一次性提醒默认单轮，卡片上点一下就能换
+            onAddGuidance = { preset ->
+                vm.addGuidance(preset.title, preset.content, GuidanceMode.REPEAT)
+            },
+            onSendAsGuidance = {
+                val text = inputState.textContent.text.toString().trim()
+                if (text.isNotEmpty()) {
+                    vm.addGuidance(title = "", content = text, mode = GuidanceMode.SINGLE)
+                    inputState.clearText()
+                    toaster.show(context.getString(R.string.guidance_added), type = ToastType.Info)
+                }
+            },
+            onGuidanceToggleMode = vm::toggleGuidanceMode,
+            onGuidanceRemove = vm::removeGuidance,
             runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
             onShowBackgroundTasks = { showBackgroundTasks = true },
             loading = loadingJob != null,

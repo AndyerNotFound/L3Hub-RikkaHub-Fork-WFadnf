@@ -100,6 +100,9 @@ data class Settings(
     val modeInjections: List<PromptInjection.ModeInjection> = DEFAULT_MODE_INJECTIONS,
     val lorebooks: List<Lorebook> = emptyList(),
     val quickMessages: List<QuickMessage> = emptyList(),
+    // 引导提示词：生成过程中从快捷消息选单里加入的预设，和快捷消息分开存，
+    // 因为前者插进正在跑的回合，后者是下一轮的用户消息
+    val guideMessages: List<QuickMessage> = emptyList(),
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,
     val webServerJwtEnabled: Boolean = false,

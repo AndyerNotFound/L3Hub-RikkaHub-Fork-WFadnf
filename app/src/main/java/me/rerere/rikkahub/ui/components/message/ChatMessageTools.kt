@@ -51,6 +51,8 @@ import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.guidanceText
+import me.rerere.rikkahub.data.ai.todoReminderText
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
@@ -131,6 +133,68 @@ fun ChainOfThoughtScope.ChatMessageNoticeStep(notice: UIMessagePart.Notice) {
     )
 }
 
+/** 应用注入的引导：模型看到的是工具结果，界面上是一张提示卡片 */
+@Composable
+fun ChainOfThoughtScope.GuidanceToolStep(text: String) {
+    ChainOfThoughtStep(
+        icon = {
+            Icon(
+                imageVector = HugeIcons.Notification01,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = LocalContentColor.current.copy(alpha = 0.7f),
+            )
+        },
+        label = {
+            Text(
+                text = stringResource(R.string.guidance_tool_label),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        content = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    )
+}
+
+/** 应用注入的任务清单：每次清单变动后在工具间隙补一份 */
+@Composable
+fun ChainOfThoughtScope.TodoReminderToolStep(text: String) {
+    ChainOfThoughtStep(
+        icon = {
+            Icon(
+                imageVector = HugeIcons.Tick01,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = LocalContentColor.current.copy(alpha = 0.7f),
+            )
+        },
+        label = {
+            Text(
+                text = stringResource(R.string.todo_reminder_tool_label),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        content = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    )
+}
+
 @Composable
 fun ChainOfThoughtScope.ChatMessageToolStep(
     tool: UIMessagePart.Tool,
@@ -139,6 +203,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
+    // 引导和任务清单是应用注入的合成工具调用：模型没有真的调用过它们，
+    // 走下面的通用渲染会显示成一个不存在的工具，这里单独画成提示卡片
+    tool.guidanceText()?.let { text ->
+        GuidanceToolStep(text = text)
+        return
+    }
+    tool.todoReminderText()?.let { text ->
+        TodoReminderToolStep(text = text)
+        return
+    }
+
     // ask_user 是交互式问答流程, 不走注册式渲染框架
     if (tool.toolName == ASK_USER_TOOL_NAME) {
         AskUserToolStep(tool = tool, loading = loading, onToolAnswer = onToolAnswer)
