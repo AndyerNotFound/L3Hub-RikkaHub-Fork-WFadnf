@@ -627,6 +627,86 @@ app/.../web/dto/WebDto.kt / routes/FolderRoutes.kt   DTO 字段与绑定接口
 未验证：这次没有跑 Gradle（Termux 上不编译）。`app/schemas/.../36.json` 要等第一次构建由 Room 生成，
 生成后需要一起提交，否则下一次加表/加列时自动迁移会缺上一版 schema。
 
+## 引导提示词（fork 新增）
+
+消息队列管的是「下一轮说什么」，引导管的是「这一轮跑到一半改方向」：生成过程中追加一句指令，
+插进正在跑的工具间隙，模型下一步就读到它，不用掐断再重发。
+
+实现上没有新增协议，也不动 agent 循环：引导被包成一条**合成的工具调用**（tool_use + tool_result）
+写进当前助手消息，和真实工具结果一样进请求、进落库、进导出。
+
+```kotlin
+UIMessagePart.Tool(
+    toolCallId = "g_<16 位十六进制>",   // 不带连字符：OpenAI 的 tool_call_id 上限 40 字符，整套 uuid 会到 45
+    toolName = "guidance",             // 不注册进工具表，模型调不到；声明了反而会诱导它去调用
+    input = "{}",
+    output = listOf(UIMessagePart.Text(引导正文)),
+)
+```
+
+- 工具名 `guidance` / `todo_reminder` 都不在工具表里。各家 provider 转换时只按「已执行的 Tool part」成组序列化，
+  不校验名字是否声明过，所以不需要为它们常驻一个工具。
+- 每次插入都用新的 `toolCallId`：同一条助手消息里出现两个相同 id 的 tool_use，Anthropic 会整条拒掉。
+
+### 什么时候插
+
+注入点是 `ChatService.takeInjectionParts(current)`，挂在 `AgentHooks.pendingParts` 上
+（钩子这一版多带了一个参数：本轮正在写的助手消息，第一步还没有内容时为 null）。顺序固定为
+**通知 → 任务清单 → 引导**——模型最后读到的是用户新给的指令。
+
+- 本轮第一步（`current == null`）只放通知，不插引导和清单：否则回答开头会凭空出现一条工具调用，
+  而引导本意是「跑到一半」才出现。
+- 末尾已经是合成调用时整批跳过：上下文超限后这一步会重装，`appendPendingParts` 会被再调一次，
+  而中间没有跑过新的工具批次，这一批已经在消息里了。
+- 清单只在**文本和上一次注入的不一样**时插；没变就交给请求尾部的 `TodoStateTransformer`（它每一步都会贴），
+  `withTodoState` 看到末尾已有清单提醒时也不再另附一份——否则同一个请求里会出现两份不一样的清单。
+
+### 单轮与多轮
+
+| 模式 | 语义 | 来源 |
+|---|---|---|
+| 单轮 `SINGLE` | 插一次就从收件箱删掉 | 手输的一句提醒 |
+| 多轮 `REPEAT` | 每一批工具之后都再插一次，直到取消 | 预设（长期约束） |
+
+多轮会在一轮长对话里反复出现同一段话，这是「持续生效」的代价，卡片上点一下就能切成单轮、点叉取消。
+
+待发出的引导放在会话收件箱（`ConversationInbox.guidances`）里，不落库：它和消息队列一样是运行时的控制项，
+插进去之后就变成消息的一部分，随消息一起持久化。
+
+### 界面
+
+- 输入框左侧的闪电按钮：点开是选单，上半截是快捷消息（进输入框），下半截「引导消息」直接加进本轮；
+  **长按**把输入框里的内容当引导发出去（输入框为空时长按退回成展开选单）。
+  快捷消息为空时这个按钮也留着，否则长按这个手势就藏起来了。
+- 输入框上方的引导卡片：一行一条，点一下切换单轮/多轮，右边叉取消；单轮的插入后自己消失。
+- 扩展页的「快捷消息」拆成两个 Tab：`快捷消息` 与 `引导提示词`（预设存 `Settings.guideMessages`，
+  和快捷消息分开存，因为前者插进正在跑的回合、后者是下一轮的用户消息）。
+
+改动文件：
+
+```
+ai/.../agent/Agent.kt                            pendingParts 带上本轮消息
+ai/.../agent/AgentLoop.kt                        把 current 传给钩子
+app/.../data/model/Guidance.kt                   新增：Guidance / GuidanceMode
+app/.../data/ai/GuidanceInjection.kt             新增：合成工具调用、注入内容识别、清单文本读取
+app/.../service/ConversationInbox.kt             引导的加入/取用/切换模式/取消
+app/.../service/ChatService.kt                   takeInjectionParts：通知 + 清单去重 + 引导
+app/.../data/ai/ChatRequestFactory.kt            takePendingParts 传入本轮消息
+app/.../data/ai/transformers/TodoStateTransformer.kt  末尾已有清单提醒时不再重贴
+app/.../data/datastore/Settings*.kt              guide_messages 字段与序列化
+app/.../ui/components/ai/GuidancePanel.kt        新增：生效中的引导卡片
+app/.../ui/components/ai/ChatInput.kt            闪电按钮的引导区与长按、引导卡片插在队列上方
+app/.../ui/components/message/ChatMessageTools.kt 合成调用画成提示卡片，不走通用工具渲染
+app/.../ui/pages/chat/ChatPage.kt, ChatVM.kt     接线
+app/.../ui/pages/extensions/QuickMessages*.kt    两个 Tab，预设增删改
+```
+
+单测：`GuidanceInjectionTest`（合成调用的形状、id 唯一与长度、清单文本）、`GuidanceInboxTest`（单轮/多轮的取用语义、
+取消、顺序、空串）、`AgentLoopTest` 新增一条（钩子拿到的 current 取值）、`SettingsFieldsTest` 覆盖新键。
+
+未验证：这次没有跑 Gradle（Termux 上不编译），第一个真机包要重点看两处——长按手势在有无预设时都能用，
+以及多轮引导在一轮里插入多次后 provider 是否照常接受。
+
 ## 还要做的
 
 1. **签名**：在 `local.properties`（已 gitignore）加四项，之后所有版本都用同一个 keystore，否则无法覆盖升级
