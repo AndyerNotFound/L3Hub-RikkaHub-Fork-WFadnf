@@ -20,6 +20,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +47,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -53,6 +59,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -74,6 +83,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import me.rerere.rikkahub.utils.AppLanguage
+import me.rerere.rikkahub.utils.getActivity
 import me.rerere.ui.toast.Toaster
 import me.rerere.ui.toast.rememberToasterState
 import kotlinx.coroutines.launch
@@ -493,17 +503,34 @@ class RouteActivity : ComponentActivity() {
                     // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
                     // 栏本身不参与转场，NavDisplay 一直待在同一个槽位里，进出设置不会重建。
                     val windowDpSize = currentWindowDpSize()
+                    val landscape = windowDpSize.width > windowDpSize.height
                     val currentScreen = backStack.lastOrNull() as? Screen
-                    val showSettingRail = windowDpSize.width > windowDpSize.height &&
+                    val showSettingRail = landscape &&
                         windowDpSize.width >= 700.dp &&
                         currentScreen?.isSettingBoard() == true
+                    // 横屏收起状态栏：顶栏贴到屏幕顶边，竖向空间全给内容
+                    HideStatusBarInLandscape(landscape)
                     // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
                     val settingRailWidth by animateDpAsState(
                         targetValue = if (showSettingRail) 224.dp else 0.dp,
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                         label = "settingRailWidth",
                     )
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // 横屏的挖孔在侧边：整块内容让开它，insets 被消费后子页面里的顶栏
+                            // 不会再各自让一遍（否则三栏里中列会离左栏多出一段刘海宽的空当）
+                            .then(
+                                if (landscape) {
+                                    Modifier.windowInsetsPadding(
+                                        WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
                     if (settingRailWidth > 0.dp) {
                         Box(
                             modifier = Modifier
@@ -905,6 +932,41 @@ private inline fun <reified K : Screen> EntryProviderScope<NavKey>.heroEntry(
         HeroPage(key.heroKey()) {
             content(key)
         }
+    }
+}
+
+/**
+ * 横屏隐藏状态栏，让页面顶栏直接贴到屏幕顶边；回到竖屏再显示出来。
+ *
+ * 判据用窗口尺寸而不是 Configuration：Activity 的 configChanges 含 orientation，转屏不重建，
+ * 只能听测量结果。onResume 再补一次，转屏发生在后台时回来也能对上。
+ */
+@Composable
+private fun HideStatusBarInLandscape(landscape: Boolean) {
+    val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val controller = remember(view) {
+        view.context.getActivity()?.let { WindowCompat.getInsetsController(it.window, view) }
+    }
+    DisposableEffect(controller, lifecycleOwner, landscape) {
+        val applyBars = {
+            val bars = controller
+            if (bars != null) {
+                if (landscape) {
+                    bars.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    bars.hide(WindowInsetsCompat.Type.statusBars())
+                } else {
+                    bars.show(WindowInsetsCompat.Type.statusBars())
+                }
+            }
+        }
+        applyBars()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) applyBars()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }
 
