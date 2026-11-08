@@ -29,13 +29,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
+import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
+import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageUpload
+import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
+import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
@@ -44,8 +48,8 @@ import me.rerere.rikkahub.Screen
 /**
  * 横屏两栏时设置页左列的一级选项。
  *
- * 每一项对应设置首页上的一张卡片；「本轮」只做设置分区，助手 / 扩展 / 备份这类独立管理页
- * 仍在首页卡片里进，不塞进这条栏。
+ * 每一项对应设置首页上的一张卡片，顺序也跟首页一致；助手 / 扩展功能 / 数据备份 / 请求日志
+ * 这些独立管理页同样收进来，横屏时不用再退回首页点一层。
  */
 internal enum class SettingSection(
     @StringRes val titleRes: Int,
@@ -53,6 +57,8 @@ internal enum class SettingSection(
     val screen: Screen,
 ) {
     Preferences(R.string.setting_page_preferences, HugeIcons.Settings03, Screen.SettingPreferences),
+    Assistant(R.string.setting_page_assistant, HugeIcons.LookTop, Screen.Assistant),
+    Extensions(R.string.setting_page_extensions, HugeIcons.Package, Screen.Extensions),
     Models(R.string.setting_page_default_model, HugeIcons.AiMagic, Screen.SettingModels),
     Providers(R.string.setting_page_providers, HugeIcons.Brain02, Screen.SettingProvider),
     Search(R.string.setting_page_search_service, HugeIcons.GlobalSearch, Screen.SettingSearch),
@@ -60,12 +66,18 @@ internal enum class SettingSection(
     Media(R.string.setting_page_media, HugeIcons.Image02, Screen.SettingMedia),
     Mcp(R.string.setting_page_mcp, HugeIcons.McpServer, Screen.SettingMcp),
     Web(R.string.setting_page_web_server, HugeIcons.ServerStack01, Screen.SettingWeb),
+    Backup(R.string.setting_page_data_backup, HugeIcons.Database02, Screen.Backup),
     Files(R.string.setting_page_chat_storage, HugeIcons.ImageUpload, Screen.SettingFiles),
     About(R.string.setting_page_about, HugeIcons.Clapping01, Screen.SettingAbout),
+    Log(R.string.setting_page_request_logs, HugeIcons.Bookshelf01, Screen.Log),
 }
 
 private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
-    R.string.setting_page_general_settings to listOf(SettingSection.Preferences),
+    R.string.setting_page_general_settings to listOf(
+        SettingSection.Preferences,
+        SettingSection.Assistant,
+        SettingSection.Extensions,
+    ),
     R.string.setting_page_model_and_services to listOf(
         SettingSection.Models,
         SettingSection.Providers,
@@ -75,8 +87,14 @@ private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
         SettingSection.Mcp,
         SettingSection.Web,
     ),
-    R.string.setting_page_data_settings to listOf(SettingSection.Files),
-    R.string.setting_page_more to listOf(SettingSection.About),
+    R.string.setting_page_data_settings to listOf(
+        SettingSection.Backup,
+        SettingSection.Files,
+    ),
+    R.string.setting_page_more to listOf(
+        SettingSection.About,
+        SettingSection.Log,
+    ),
 )
 
 /** 当前路由落在哪一节；详情页跟着它的一级页走，首页（完全没有选中）返回 null */
@@ -90,6 +108,20 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingTheme,
     is Screen.SettingPalette -> SettingSection.Preferences
 
+    is Screen.Assistant,
+    is Screen.AssistantDetail,
+    is Screen.AssistantBasic,
+    is Screen.AssistantPrompt,
+    is Screen.AssistantMemory,
+    is Screen.MemoryFile,
+    is Screen.AssistantRequest,
+    is Screen.AssistantHeartbeat,
+    is Screen.AssistantMcp,
+    is Screen.AssistantLocalTool,
+    is Screen.AssistantInjections -> SettingSection.Assistant
+
+    is Screen.Extensions -> SettingSection.Extensions
+
     is Screen.SettingModels -> SettingSection.Models
     is Screen.SettingProvider, is Screen.SettingProviderDetail, is Screen.ModelEditor -> SettingSection.Providers
     is Screen.SettingSearch, is Screen.SettingSearchDetail -> SettingSection.Search
@@ -97,8 +129,10 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingMedia, is Screen.SettingMediaProviderDetail -> SettingSection.Media
     is Screen.SettingMcp, is Screen.SettingMcpDetail -> SettingSection.Mcp
     is Screen.SettingWeb -> SettingSection.Web
+    is Screen.Backup -> SettingSection.Backup
     is Screen.SettingFiles -> SettingSection.Files
     is Screen.SettingAbout -> SettingSection.About
+    is Screen.Log -> SettingSection.Log
     else -> null
 }
 
@@ -137,7 +171,7 @@ internal fun SettingRail(
             Text(
                 text = stringResource(R.string.settings),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 10.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp),
             )
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -150,7 +184,7 @@ internal fun SettingRail(
                             text = stringResource(titleRes),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 4.dp),
+                            modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 2.dp),
                         )
                     }
                     items(sections, key = { it.name }) { section ->
@@ -188,14 +222,14 @@ private fun SettingRailItem(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = section.icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(17.dp),
             )
             Text(
                 text = stringResource(section.titleRes),
