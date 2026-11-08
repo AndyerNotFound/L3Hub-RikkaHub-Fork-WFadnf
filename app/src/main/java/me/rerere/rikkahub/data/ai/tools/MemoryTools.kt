@@ -41,10 +41,12 @@ private const val IF_VERSION_DESCRIPTION =
  * 记忆库的读写工具，[assistantId] 决定操作哪个记忆库（助手自己的或全局的）。
  *
  * 何时读、何时写由 system prompt 里的记忆片段约束，这里只描述每个工具本身。
+ * [allowWrite] 为 false 时只返回读取工具；后台整理始终需要写入，默认保留全部。
  */
 fun buildMemoryTools(
     repository: MemoryRepository,
     assistantId: String,
+    allowWrite: Boolean = true,
 ): List<Tool> = listOf(
     Tool(
         name = MemoryToolNames.READ,
@@ -203,7 +205,7 @@ fun buildMemoryTools(
             }
         }
     ),
-)
+).filter { allowWrite || it.name !in MemoryToolNames.WRITES }
 
 /** 这次工具调用成功改动的记忆文件路径；不是写工具、还没执行或写入被拒绝时返回 null */
 fun UIMessagePart.Tool.memoryWritePath(): String? {

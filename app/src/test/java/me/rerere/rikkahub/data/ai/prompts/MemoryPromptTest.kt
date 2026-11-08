@@ -47,6 +47,24 @@ class MemoryPromptTest {
     }
 
     @Test
+    fun `read-only memory prompt keeps the reading rules and asks for no write`() {
+        val prompt = buildMemoryPrompt(listOf(profile, food), canWrite = false)
+
+        assertTrue(prompt.contains("## When to read"))
+        assertTrue(prompt.contains("Memory is read-only"))
+        assertFalse(prompt.contains("## When to write"))
+        assertFalse(prompt.contains("<memory_format>"))
+    }
+
+    @Test
+    fun `writable memory prompt still explains how to write`() {
+        val prompt = buildMemoryPrompt(listOf(profile, food), canWrite = true)
+
+        assertTrue(prompt.contains("## When to write"))
+        assertTrue(prompt.contains("<memory_format>"))
+    }
+
+    @Test
     fun `consolidation input carries the memory state and each conversation's new turns`() {
         val input = buildMemoryConsolidationInput(
             files = listOf(profile, food),

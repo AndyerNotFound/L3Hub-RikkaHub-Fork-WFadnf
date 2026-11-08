@@ -89,7 +89,13 @@ class ChatToolFactory(
         )
         val tools = buildList {
             if (assistant.enableMemory) {
-                addAll(buildMemoryTools(memoryRepository, assistant.memoryId))
+                addAll(
+                    buildMemoryTools(
+                        repository = memoryRepository,
+                        assistantId = assistant.memoryId,
+                        allowWrite = assistant.enableMemoryWrite,
+                    )
+                )
             }
             if (shouldUseExternalWebSearch(assistant, model)) {
                 addAll(createSearchTools(settings))

@@ -367,7 +367,7 @@ class ChatRequestFactory(
                 // 记忆
                 if (assistant.enableMemory) {
                     appendLine()
-                    append(buildMemoryPrompt(turn.memories))
+                    append(buildMemoryPrompt(turn.memories, canWrite = assistant.enableMemoryWrite))
                 }
                 // 工具prompt
                 tools.forEach { tool ->

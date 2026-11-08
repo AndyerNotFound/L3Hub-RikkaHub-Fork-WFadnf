@@ -133,6 +133,22 @@ class MemoryToolsTest {
     }
 
     @Test
+    fun `read-only tools can still read and list but provide no way to write`() = runBlocking {
+        repository.writeFile("assistant", "/profile.md", "- [stated] Name is Lin\n")
+        val readOnly = buildMemoryTools(repository, "assistant", allowWrite = false).associateBy { it.name }
+
+        assertEquals(setOf(MemoryToolNames.READ, MemoryToolNames.LIST), readOnly.keys)
+
+        val output = readOnly.getValue(MemoryToolNames.READ)
+            .execute(buildJsonObject { put("path", "/profile.md") })
+        val read = Json.parseToJsonElement((output.single() as UIMessagePart.Text).text).jsonObject
+        assertEquals(
+            "- [stated] Name is Lin\n",
+            read.getValue("files").jsonArray.single().jsonObject.string("content"),
+        )
+    }
+
+    @Test
     fun `memory_delete removes the file and memory_list reflects it`() = runBlocking {
         repository.writeFile("assistant", "/people/mom.md", "content")
         repository.writeFile("assistant", "/topics/food.md", "content")

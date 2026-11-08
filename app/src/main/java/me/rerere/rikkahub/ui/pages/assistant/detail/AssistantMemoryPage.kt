@@ -451,6 +451,19 @@ private fun MemorySettingsTab(
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory)) },
             )
             switchItem(
+                checked = assistant.enableMemoryWrite,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            enableMemoryWrite = it
+                        )
+                    )
+                },
+                enabled = assistant.enableMemory,
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_write_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_write)) },
+            )
+            switchItem(
                 checked = assistant.useGlobalMemory,
                 onCheckedChange = {
                     onUpdateAssistant(

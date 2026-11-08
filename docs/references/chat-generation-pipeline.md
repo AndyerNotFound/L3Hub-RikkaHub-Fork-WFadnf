@@ -151,7 +151,7 @@ onSuccess
 4. **Workspace Tools**（`createWorkspaceToolsIfReady`）— Workspace Shell 就绪时注入，含 `workspace_shell`
 5. **Skill Tools**（`createSkillTools`）— 助手启用的 Skill 列表
 6. **MCP Tools** — 所有已连接 MCP 服务器的工具，命名格式 `mcp__{serverName}__{toolName}`
-7. **Memory Tools**（`buildMemoryTools`，内置于 GenerationHandler）— `enableMemory = true` 时，支持记忆的增删改
+7. **Memory Tools**（`buildMemoryTools`，由 `ChatToolFactory` 组装）— `enableMemory = true` 时注册；`enableMemoryWrite = false` 时只注册 `memory_read` / `memory_list`，记忆只读
 
 ### 工具审批状态机
 

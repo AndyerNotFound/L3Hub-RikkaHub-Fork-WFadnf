@@ -37,6 +37,7 @@ data class Assistant(
     // 工作区工具的审批档位：只读 / 读写 / 审批 / 自动
     val executionPermission: ExecutionPermission = ExecutionPermission.APPROVAL,
     val enableMemory: Boolean = false,
+    val enableMemoryWrite: Boolean = true, // 允许对话里的助手修改记忆; 关闭后只提供读取工具
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val autoConsolidateMemory: Boolean = true, // 对话停下来后在后台自动整理记忆; 关闭后只能手动整理
     val dreamingModelId: Uuid? = null, // 整理记忆(Dreaming)用的模型, 为 null 跟随全局

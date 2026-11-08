@@ -91,6 +91,8 @@
   <string name="assistant_page_memory">Memory</string>
   <string name="assistant_page_memory_count">Memory: %d</string>
   <string name="assistant_page_memory_desc">When memory is enabled, the assistant remembers what you tell it and uses it in later conversations. Memories are organized in the background once a chat pauses. This feature requires the model to support tool calls to work properly</string>
+  <string name="assistant_page_memory_write">Allow memory changes</string>
+  <string name="assistant_page_memory_write_desc">When off, the assistant can still read memory but cannot save, edit or forget anything in chat. Background organization still follows Auto dream</string>
   <string name="assistant_page_message_template">Message Content Template</string>
   <string name="assistant_page_message_template_desc">Controls the content format of chat messages before being sent to the LLM, usually no need to modify</string>
   <string name="assistant_page_message_template_missing_message">Template does not contain {{ message }}, user messages will not be sent</string>
