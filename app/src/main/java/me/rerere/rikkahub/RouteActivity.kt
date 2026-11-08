@@ -869,7 +869,8 @@ class RouteActivity : ComponentActivity() {
                             rememberNavInputGuardDecorator<NavKey>(),
                         ),
                         modifier = Modifier
-                            .weight(1f - rightColumnFraction)
+                            // 弹簧会过冲，权重必须钳在正数区间
+                            .weight((1f - rightColumnFraction).coerceIn(0.001f, 1f))
                             .fillMaxHeight(),
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
                         // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
@@ -936,7 +937,7 @@ class RouteActivity : ComponentActivity() {
                                 rememberNavInputGuardDecorator<NavKey>(),
                             ),
                             modifier = Modifier
-                                .weight(rightColumnFraction)
+                                .weight(rightColumnFraction.coerceAtLeast(0.001f))
                                 .fillMaxHeight(),
                             onBack = { navController.popBackStack() },
                             transitionSpec = { fadeIn() togetherWith fadeOut() },
