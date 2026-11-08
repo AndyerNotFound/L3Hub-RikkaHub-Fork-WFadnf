@@ -51,7 +51,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
@@ -105,9 +107,11 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
         exportScope.launch {
             runCatching {
                 val json = exportMcpServersToJson(vm.settings.value.mcpServers)
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    output.write(json.toByteArray())
-                } ?: error("cannot open output stream")
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray())
+                    } ?: error("cannot open output stream")
+                }
             }.onSuccess {
                 toaster.show(
                     context.getString(R.string.setting_mcp_page_export_success),

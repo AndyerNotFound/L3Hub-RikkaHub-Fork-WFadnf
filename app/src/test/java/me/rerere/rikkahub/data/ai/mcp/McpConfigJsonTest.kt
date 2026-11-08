@@ -36,12 +36,51 @@ class McpConfigJsonTest {
     }
 
     @Test
+    fun `export keeps streamable http transport`() {
+        val server = McpServerConfig.StreamableHTTPServer(
+            commonOptions = McpCommonOptions(name = "http"),
+            url = "https://example.com/mcp",
+        )
+
+        val restored = parseMcpServersFromJson(exportMcpServersToJson(listOf(server))).single()
+
+        assertTrue(restored is McpServerConfig.StreamableHTTPServer)
+        assertEquals("https://example.com/mcp", restored.serverUrl)
+    }
+
+    @Test
     fun `export keeps disabled servers and duplicate names`() {
         val exported = exportMcpServersToJson(listOf(sse(name = "dup"), sse(name = "dup", enable = false)))
 
         val restored = parseMcpServersFromJson(exported)
         assertEquals(listOf("dup", "dup"), restored.map { it.commonOptions.name })
         assertEquals(listOf(true, false), restored.map { it.commonOptions.enable })
+    }
+
+    @Test
+    fun `export merges duplicate headers and drops blank names`() {
+        val server = sse().copy(
+            commonOptions = sse().commonOptions.copy(
+                headers = listOf("X-Tag" to "a", "X-Tag" to "b", "" to "junk"),
+            )
+        )
+
+        val restored = parseMcpServersFromJson(exportMcpServersToJson(listOf(server))).single()
+
+        assertEquals(listOf("X-Tag" to "a, b"), restored.commonOptions.headers)
+    }
+
+    @Test
+    fun `export drops tools without a name`() {
+        val server = sse().copy(
+            commonOptions = sse().commonOptions.copy(
+                tools = listOf(McpTool(name = ""), McpTool(name = "ok")),
+            )
+        )
+
+        val restored = parseMcpServersFromJson(exportMcpServersToJson(listOf(server))).single()
+
+        assertEquals(listOf("ok"), restored.commonOptions.tools.map { it.name })
     }
 
     @Test
@@ -59,6 +98,14 @@ class McpConfigJsonTest {
         assertFalse(exported.contains("client-secret"))
         assertFalse(exported.contains("access-token"))
         assertFalse(exported.contains("refresh-token"))
+    }
+
+    @Test
+    fun `empty export imports as empty list`() {
+        assertEquals(
+            emptyList<McpServerConfig>(),
+            parseMcpServersFromJson(exportMcpServersToJson(emptyList())),
+        )
     }
 
     @Test
@@ -87,7 +134,7 @@ class McpConfigJsonTest {
 
     @Test
     fun `import skips entries without url`() {
-        val json = """
+        val arrayJson = """
             {
               "mcpServers": [
                 {"name": "no-url"},
@@ -95,10 +142,18 @@ class McpConfigJsonTest {
               ]
             }
         """.trimIndent()
+        val objectJson = """{"mcpServers": {"no-url": {"type": "sse"}}}"""
 
-        val restored = parseMcpServersFromJson(json)
+        val restored = parseMcpServersFromJson(arrayJson)
 
         assertEquals(listOf("ok"), restored.map { it.commonOptions.name })
         assertTrue(restored.single() is McpServerConfig.StreamableHTTPServer)
+        assertTrue(parseMcpServersFromJson(objectJson).isEmpty())
+    }
+
+    @Test
+    fun `import returns empty when mcpServers is missing or not a container`() {
+        assertTrue(parseMcpServersFromJson("""{"foo": 1}""").isEmpty())
+        assertTrue(parseMcpServersFromJson("""{"mcpServers": "nope"}""").isEmpty())
     }
 }

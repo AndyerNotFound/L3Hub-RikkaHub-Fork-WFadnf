@@ -11,8 +11,11 @@ import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -137,13 +140,28 @@ class McpManager(
 
     suspend fun syncAll() = sessionRegistry.syncAll()
 
+    private var refreshJob: Job? = null
+    private val _refreshing = MutableStateFlow(false)
+
+    /** 手动刷新是否正在跑。只认按钮触发的那一次，不把别的服务器的重连退避算进来。 */
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     /**
      * 手动刷新全部连接：断开的重新连，已连接的重新同步工具列表。
      *
      * 跑在 appScope 上，弹窗关掉也继续，进度照样回写到 [syncingStatus]。
+     * 连点只保留一次，避免同一批服务器排队重跑。
      */
     fun refreshAllConnections() {
-        appScope.launch { sessionRegistry.syncAll() }
+        if (refreshJob?.isActive == true) return
+        refreshJob = appScope.launch {
+            _refreshing.value = true
+            try {
+                sessionRegistry.syncAll()
+            } finally {
+                _refreshing.value = false
+            }
+        }
     }
 
     fun startAuthorization(config: McpServerConfig, context: Context) {

@@ -340,10 +340,7 @@ fun McpPicker(
 /** 子页头部的手动刷新：重新探测全部服务器的连接状态。 */
 @Composable
 private fun McpRefreshButton(mcpManager: McpManager) {
-    val status by mcpManager.syncingStatus.collectAsStateWithLifecycle()
-    val refreshing = status.values.any {
-        it == McpStatus.Connecting || it == McpStatus.Authorizing || it is McpStatus.Reconnecting
-    }
+    val refreshing by mcpManager.refreshing.collectAsStateWithLifecycle()
     IconButton(
         onClick = { mcpManager.refreshAllConnections() },
         enabled = !refreshing,

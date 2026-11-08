@@ -2553,4 +2553,11 @@
   <string name="chat_page_select_all">تحديد الكل</string>
   <string name="chat_page_deselect_all">إلغاء تحديد الكل</string>
   <string name="chat_page_clear_selection">إلغاء التحديد</string>
+  <string name="mcp_picker_refresh">تحديث حالة الاتصال</string>
+  <string name="mcp_status_connected">متصل</string>
+  <string name="mcp_status_connecting">جارٍ الاتصال</string>
+  <string name="mcp_status_disconnected">غير متصل</string>
+  <string name="setting_mcp_page_export">تصدير إعدادات MCP</string>
+  <string name="setting_mcp_page_export_failed">فشل التصدير: %1$s</string>
+  <string name="setting_mcp_page_export_success">تم تصدير إعدادات MCP</string>
 </resources>

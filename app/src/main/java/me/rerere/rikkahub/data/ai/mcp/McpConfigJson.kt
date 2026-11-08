@@ -68,15 +68,14 @@ fun exportMcpServersToJson(servers: List<McpServerConfig>): String {
 /**
  * 解析 MCP 配置 JSON，支持本应用的导出格式和标准的 mcpServers 对象格式。
  *
- * @throws IllegalArgumentException JSON 结构不认识或缺少 mcpServers 字段
+ * 结构不认识时返回空列表，交给导入弹窗提示“没有有效配置”；JSON 语法错误照常抛出。
  */
 fun parseMcpServersFromJson(json: String): List<McpServerConfig> {
     val root = McpConfigJson.parseToJsonElement(json).jsonObject
     return when (val servers = root["mcpServers"]) {
-        null -> throw IllegalArgumentException("mcpServers field is missing")
         is JsonArray -> servers.mapNotNull { it.toExportedConfig() }
         is JsonObject -> servers.entries.mapNotNull { (name, element) -> element.toLegacyConfig(name) }
-        else -> throw IllegalArgumentException("mcpServers must be an object or an array")
+        else -> emptyList()
     }
 }
 
@@ -88,10 +87,12 @@ private fun McpServerConfig.toExportEntry(): McpServerEntry = McpServerEntry(
     },
     url = serverUrl,
     enable = commonOptions.enable,
-    // 设置页“添加请求头”后没填名字会留下空行，空名头发不出去，也不值得写进导出文件
+    // 设置页“添加请求头”后没填名字会留下空行，空名头发不出去，也不值得写进导出文件。
+    // 同名请求头按 HTTP 语义合并成逗号分隔的一条，比只留最后一行少丢信息。
     headers = commonOptions.headers
         .filter { it.first.isNotBlank() }
-        .associate { it.first to it.second },
+        .groupBy({ it.first }, { it.second })
+        .mapValues { (_, values) -> values.joinToString(", ") },
     // 工具 schema 会在连接时重新同步，导出只保留名字和开关，免得文件被 schema 撑爆
     tools = commonOptions.tools
         .filter { it.name.isNotBlank() }
