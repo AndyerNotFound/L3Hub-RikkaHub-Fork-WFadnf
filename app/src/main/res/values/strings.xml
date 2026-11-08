@@ -292,6 +292,7 @@
   <string name="chat_page_details_no_workspace">No workspace bound</string>
   <string name="chat_page_details_reasoning">Reasoning</string>
   <string name="chat_page_details_session">Session</string>
+  <string name="chat_page_side_panel_files">Attachments &amp; tools</string>
   <string name="chat_page_details_title">Conversation details</string>
   <string name="chat_page_details_tool_builtin_image">Image generation</string>
   <string name="chat_page_details_tool_builtin_search">Model search</string>
@@ -714,6 +715,15 @@
   <string name="setting_display_page_voice_listen_while_replying_title">Keep listening during replies in voice mode</string>
   <string name="setting_display_page_voice_listen_while_replying_desc">Speech while the model is replying is queued and sent afterward. Turn off to pause the microphone until the reply finishes (and is read aloud), for one-question-one-answer conversations.</string>
   <string name="setting_display_page_auto_play_tts_title">Auto-play TTS After Generation</string>
+  <string name="setting_display_page_display_mode_title">Display mode</string>
+  <string name="setting_display_page_display_mode_portrait">Portrait</string>
+  <string name="setting_display_page_display_mode_portrait_desc">Always upright</string>
+  <string name="setting_display_page_display_mode_landscape">Landscape</string>
+  <string name="setting_display_page_display_mode_landscape_desc">Always landscape; the chat page switches to the right sidebar layout</string>
+  <string name="setting_display_page_display_mode_auto">Auto</string>
+  <string name="setting_display_page_display_mode_auto_desc">Rotate with the sensor, ignoring the system rotation lock</string>
+  <string name="setting_display_page_display_mode_system">Follow system</string>
+  <string name="setting_display_page_display_mode_system_desc">Decided by the system auto-rotate switch</string>
   <string name="setting_display_page_chat_font_family_default">Default</string>
   <string name="setting_display_page_chat_font_family_custom">Custom</string>
   <string name="setting_display_page_chat_font_family_monospace">Monospace</string>

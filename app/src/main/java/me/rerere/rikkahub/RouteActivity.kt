@@ -83,6 +83,7 @@ import me.rerere.rikkahub.service.MediaCreationForegroundService
 import me.rerere.rikkahub.ui.activity.AppLockActivity
 import me.rerere.rikkahub.ui.activity.AppLockScreen
 import me.rerere.rikkahub.ui.activity.SafeModeActivity
+import me.rerere.rikkahub.ui.activity.activityOrientation
 import me.rerere.rikkahub.ui.components.ui.TTSController
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -245,6 +246,12 @@ class RouteActivity : ComponentActivity() {
                 var locked by remember { mutableStateOf(appLockState.shouldLock()) }
                 val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
                 val awaitingSettings = settings.init && !locked && appLockState.leftAt != 0L
+
+                // 显示模式：竖屏 / 横屏 / 自动 / 跟随系统。改动即时生效；
+                // 大屏机型上系统会忽略固定方向，见 DisplayModeOrientation.kt
+                LaunchedEffect(settings.displaySetting.displayMode) {
+                    requestedOrientation = settings.displaySetting.displayMode.activityOrientation
+                }
 
                 fun launchLockActivity() {
                     if (isFinishing || isDestroyed) return

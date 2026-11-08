@@ -252,6 +252,7 @@
   <string name="chat_message_tool_submit">提交</string>
   <string name="chat_page_cancel">取消</string>
   <string name="chat_page_check_fast_model_settings">檢查快速模型設定</string>
+  <string name="chat_page_side_panel_files">附件與工具</string>
   <string name="chat_page_clear_all_errors">清除全部</string>
   <string name="chat_page_compress_additional_prompt">額外指示（選填）</string>
   <string name="chat_page_compress_additional_prompt_hint">指定要保留或聚焦的內容</string>
@@ -625,6 +626,15 @@
   <string name="setting_display_page_auto_collapse_thinking_title">自動折疊思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助理訊息產生完成後自動播放語音</string>
   <string name="setting_display_page_auto_play_tts_title">產生後自動播放 TTS</string>
+  <string name="setting_display_page_display_mode_title">顯示模式</string>
+  <string name="setting_display_page_display_mode_portrait">直向</string>
+  <string name="setting_display_page_display_mode_portrait_desc">固定直向顯示</string>
+  <string name="setting_display_page_display_mode_landscape">橫向</string>
+  <string name="setting_display_page_display_mode_landscape_desc">固定橫向，聊天頁會切到右側欄版面</string>
+  <string name="setting_display_page_display_mode_auto">自動</string>
+  <string name="setting_display_page_display_mode_auto_desc">依重力感應旋轉，不受系統方向鎖影響</string>
+  <string name="setting_display_page_display_mode_system">跟隨系統</string>
+  <string name="setting_display_page_display_mode_system_desc">由系統的自動旋轉開關決定</string>
   <string name="setting_display_page_chat_font_family_default">預設</string>
   <string name="setting_display_page_chat_font_family_monospace">等寬字體</string>
   <string name="setting_display_page_chat_font_family_serif">Serif</string>

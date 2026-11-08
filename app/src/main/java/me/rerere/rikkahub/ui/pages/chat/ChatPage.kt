@@ -134,11 +134,13 @@ import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.ai.BackgroundTasksContent
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
+import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
@@ -438,6 +440,9 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
+    // 横屏、并且宽度够同时放下聊天区和一栏：覆盖层改走右侧栏（见 ChatSidePanel.kt）
+    val windowDpSize = currentWindowDpSize()
+    val sidePanelLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
     // currentMessages 是 getter，每次访问都新建一份列表；同一帧里有多处要用，算一次就够。
     // 它只依赖 messageNodes，按节点列表做键不会漏掉分支切换。
     val currentMessages = remember(conversation.messageNodes) { conversation.currentMessages }
@@ -499,11 +504,94 @@ private fun ChatPageContent(
         type = ModelType.CHAT,
     )
     var terminalOutput by remember { mutableStateOf<String?>(null) }
+    // 横屏右侧栏当前显示的面板。竖屏时它一直是 null，覆盖层还是走上面那几个弹层
+    var sidePane by remember { mutableStateOf<ChatSidePane?>(null) }
+    // 后台任务弹层从输入框里提到这一层：横屏要能把它放进右侧栏
+    var showBackgroundTasks by remember { mutableStateOf(false) }
+    val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
     val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
+
+    // 打开某个覆盖层：横屏进右侧栏，其余情况还是原来的弹层 / 对话框
+    fun openPane(pane: ChatSidePane) {
+        if (sidePanelLayout) {
+            sidePane = pane
+            return
+        }
+        when (pane) {
+            ChatSidePane.Details -> showDetails = true
+            ChatSidePane.Usage -> showUsageSheet = true
+            ChatSidePane.Files -> showFilesSheet = true
+            ChatSidePane.TaskTree -> showTaskTree = true
+            ChatSidePane.ModelPicker -> chatModelListState.open()
+            ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
+        }
+    }
+
+    // 收掉横屏右侧栏，顺手把竖屏那侧的开关也归位
+    fun closePane() {
+        when (sidePane) {
+            ChatSidePane.Details -> showDetails = false
+            ChatSidePane.Usage -> showUsageSheet = false
+            ChatSidePane.Files -> showFilesSheet = false
+            ChatSidePane.TaskTree -> showTaskTree = false
+            ChatSidePane.ModelPicker -> chatModelListState.close()
+            ChatSidePane.BackgroundTasks -> showBackgroundTasks = false
+            null -> Unit
+        }
+        sidePane = null
+    }
+
+    // 顶栏「详情」：横屏是右侧栏的开合，竖屏还是顶栏底下那块的展开
+    fun toggleDetailsPane() {
+        if (sidePanelLayout) {
+            sidePane = if (sidePane == ChatSidePane.Details) null else ChatSidePane.Details
+        } else {
+            showDetails = !showDetails
+        }
+    }
+
+    fun dismissFiles() {
+        showFilesSheet = false
+        if (sidePane == ChatSidePane.Files) sidePane = null
+    }
+
+    // 转屏时把还开着的覆盖层换个位置接着显示，别让它在另一边凭空消失
+    LaunchedEffect(sidePanelLayout) {
+        if (sidePanelLayout) {
+            sidePane = when {
+                showFilesSheet -> ChatSidePane.Files
+                showTaskTree -> ChatSidePane.TaskTree
+                showUsageSheet -> ChatSidePane.Usage
+                showBackgroundTasks -> ChatSidePane.BackgroundTasks
+                showDetails -> ChatSidePane.Details
+                chatModelListState.visible -> ChatSidePane.ModelPicker
+                else -> null
+            }
+            showFilesSheet = false
+            showTaskTree = false
+            showUsageSheet = false
+            showBackgroundTasks = false
+            showDetails = false
+            chatModelListState.close()
+        } else {
+            // 转回竖屏时把还开着的那一个还给对应的弹层，不让它凭空消失
+            when (sidePane) {
+                ChatSidePane.Details -> showDetails = true
+                ChatSidePane.Usage -> showUsageSheet = true
+                ChatSidePane.Files -> showFilesSheet = true
+                ChatSidePane.TaskTree -> showTaskTree = true
+                ChatSidePane.ModelPicker -> chatModelListState.open()
+                ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
+                null -> Unit
+            }
+            sidePane = null
+        }
+    }
+
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
         setting = setting,
-        onAttachmentAdded = { showFilesSheet = false },
+        onAttachmentAdded = { dismissFiles() },
     )
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
@@ -683,9 +771,9 @@ private fun ChatPageContent(
                 }
             }
             "compress" -> vm.handleCompressContext(command.args, keepRecentMessages = 0)
-            "usage" -> showUsageSheet = true
-            "tree" -> showTaskTree = true
-            "files" -> showFilesSheet = true
+            "usage" -> openPane(ChatSidePane.Usage)
+            "tree" -> openPane(ChatSidePane.TaskTree)
+            "files" -> openPane(ChatSidePane.Files)
             "voice" -> onStartVoiceMode()
             "stop" -> vm.stopGeneration()
             "title" -> {
@@ -800,7 +888,7 @@ private fun ChatPageContent(
                 }
             }
             "mcp" -> navController.navigate(Screen.SettingMcp)
-            "workspace" -> showFilesSheet = true
+            "workspace" -> openPane(ChatSidePane.Files)
             "settings" -> navController.navigate(Screen.Setting)
             "terminal" -> {
                 when (command.args.lowercase()) {
@@ -845,17 +933,7 @@ private fun ChatPageContent(
         liftedBy: Dp = 0.dp,
         applyWindowInsets: Boolean = true,
     ) {
-        val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
         val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
-        val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
-        var showBackgroundTasks by remember { mutableStateOf(false) }
-        if (showBackgroundTasks) {
-            BackgroundTasksSheet(
-                tasks = backgroundTasks,
-                onStop = vm::stopBackgroundTask,
-                onDismiss = { showBackgroundTasks = false },
-            )
-        }
         ChatInput(
             onStartVoiceMode = onStartVoiceMode,
             voiceState = voiceState,
@@ -882,7 +960,7 @@ private fun ChatPageContent(
             onGuidanceToggleMode = vm::toggleGuidanceMode,
             onGuidanceRemove = vm::removeGuidance,
             runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
-            onShowBackgroundTasks = { showBackgroundTasks = true },
+            onShowBackgroundTasks = { openPane(ChatSidePane.BackgroundTasks) },
             loading = loadingJob != null,
             settings = setting,
             assistant = assistant,
@@ -897,7 +975,7 @@ private fun ChatPageContent(
                 }
             },
             injectedLorebookCount = lorebookInjectionCount,
-            onShowUsage = { showUsageSheet = true },
+            onShowUsage = { openPane(ChatSidePane.Usage) },
             hazeState = hazeState,
             completionProviders = completionProviders,
             onCancelClick = {
@@ -943,7 +1021,7 @@ private fun ChatPageContent(
             onUpdateChatModel = vm::setChatModel,
             onUpdateAssistant = vm::updateAssistant,
             onMoreClick = {
-                showFilesSheet = true
+                openPane(ChatSidePane.Files)
             },
             modifier = modifier,
             liftedBy = liftedBy,
@@ -981,8 +1059,8 @@ private fun ChatPageContent(
                             bigScreen = bigScreen,
                             onMenu = { scope.launch { drawerState.open() } },
                             onNewChat = { navigateToChatPage(navController) },
-                            onTaskTree = { showTaskTree = true },
-                            onUsage = { showUsageSheet = true },
+                            onTaskTree = { openPane(ChatSidePane.TaskTree) },
+                            onUsage = { openPane(ChatSidePane.Usage) },
                             onHelp = { terminalOutput = terminalHelpText { context.getString(it) } },
                         )
                     } else {
@@ -997,8 +1075,8 @@ private fun ChatPageContent(
                             onNewChat = {
                                 navigateToChatPage(navController)
                             },
-                            onShowTaskTree = { showTaskTree = true },
-                            onShowModelPicker = { chatModelListState.open() },
+                            onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
+                            onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
                             onShowOverview = {
                                 selectionState.selecting = false
                                 previewMode = true
@@ -1010,14 +1088,16 @@ private fun ChatPageContent(
                             },
                             onDelete = { showDeleteConfirm = true },
                             showCapsuleBackground = listScrolledUnderTopBar,
+                            // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
+                            // 这个提亮只在竖屏（顶栏底下展开）时看得见
                             detailsExpanded = showDetails,
-                            onToggleDetails = { showDetails = !showDetails },
+                            onToggleDetails = { toggleDetailsPane() },
                         )
                     }
 
                     // 详情面板从顶栏下方展开：高度动画带着聊天内容一起让位，收起时再退回
                     AnimatedVisibility(
-                        visible = showDetails && !setting.displaySetting.terminalStyle,
+                        visible = showDetails && !setting.displaySetting.terminalStyle && !sidePanelLayout,
                         enter = expandVertically(
                             expandFrom = Alignment.Top,
                             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -1037,7 +1117,9 @@ private fun ChatPageContent(
                             messageCount = currentMessages.size,
                             lorebookInjectionCount = lorebookInjectionCount,
                             hazeState = backgroundHazeState,
-                            onCollapse = { showDetails = false },
+                            onCollapse = {
+                                if (sidePanelLayout) closePane() else showDetails = false
+                            },
                             modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                         )
                     }
@@ -1057,10 +1139,10 @@ private fun ChatPageContent(
                             queuedCount = messageQueue.messages.size,
                             onSubmit = sendInput,
                             onStop = vm::stopGeneration,
-                            onFiles = { showFilesSheet = true },
+                            onFiles = { openPane(ChatSidePane.Files) },
                             onVoice = onStartVoiceMode,
                             onModel = { showTerminalModelPicker = true },
-                            onUsage = { showUsageSheet = true },
+                            onUsage = { openPane(ChatSidePane.Usage) },
                             onCommand = { runTerminalCommand(it) },
                             assistant = assistant,
                             onUpdateAssistant = vm::updateAssistant,
@@ -1093,10 +1175,10 @@ private fun ChatPageContent(
                                 queuedCount = messageQueue.messages.size,
                                 onSubmit = sendInput,
                                 onStop = vm::stopGeneration,
-                                onFiles = { showFilesSheet = true },
+                                onFiles = { openPane(ChatSidePane.Files) },
                                 onVoice = onStartVoiceMode,
                                 onModel = { showTerminalModelPicker = true },
-                                onUsage = { showUsageSheet = true },
+                                onUsage = { openPane(ChatSidePane.Usage) },
                                 onCommand = { runTerminalCommand(it) },
                                 assistant = assistant,
                                 onUpdateAssistant = vm::updateAssistant,
@@ -1197,6 +1279,94 @@ private fun ChatPageContent(
             }
         }
 
+        // 横屏：覆盖层收进右侧栏。下半屏不再被弹层占掉，聊天区和输入框都还看得见
+        if (sidePanelLayout) {
+            ChatSidePanelHost(
+                pane = sidePane,
+                onDismiss = { closePane() },
+                hazeState = hazeState,
+            ) { pane ->
+                when (pane) {
+                    ChatSidePane.Details -> ConversationDetailsPanel(
+                        assistant = assistant,
+                        model = currentChatModel,
+                        settings = setting,
+                        workspaces = workspaces,
+                        folderWorkspaceName = folderWorkspaceName,
+                        contextTokens = contextTokens,
+                        messageCount = currentMessages.size,
+                        lorebookInjectionCount = lorebookInjectionCount,
+                        hazeState = backgroundHazeState,
+                        onCollapse = { closePane() },
+                        embedded = true,
+                    )
+
+                    ChatSidePane.Usage -> Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ConversationUsageDetails(
+                            messages = currentMessages,
+                            contextLength = currentChatModel?.effectiveContextWindow,
+                        )
+                    }
+
+                    ChatSidePane.Files -> ChatFilesPickerContent(
+                        inputState = inputState,
+                        setting = setting,
+                        conversation = conversation,
+                        folderWorkspaceName = folderWorkspaceName,
+                        assistant = assistant,
+                        chatModel = currentChatModel,
+                        vm = vm,
+                        attachmentPickerActions = attachmentPickerActions,
+                        onStartVoiceMode = onStartVoiceMode,
+                        onDismiss = { closePane() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    ChatSidePane.TaskTree -> SubAgentTaskTree(
+                        conversationId = conversation.id,
+                        onOpenConversation = { id ->
+                            closePane()
+                            navigateToChatPage(navController, chatId = id)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        showTitle = false,
+                    )
+
+                    ChatSidePane.ModelPicker -> ModelListContent(
+                        state = chatModelListState,
+                        onSelect = { model -> vm.setChatModel(model) },
+                        onDismiss = { closePane() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    ChatSidePane.BackgroundTasks -> BackgroundTasksContent(
+                        tasks = backgroundTasks,
+                        onStop = vm::stopBackgroundTask,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 16.dp),
+                    )
+                }
+            }
+        }
+
+        // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
+        if (showBackgroundTasks && !sidePanelLayout) {
+            BackgroundTasksSheet(
+                tasks = backgroundTasks,
+                onStop = vm::stopBackgroundTask,
+                onDismiss = { showBackgroundTasks = false },
+            )
+        }
+
         if (showCompressAndSendDialog) {
             AnimatedAlertDialog(
                 onDismissRequest = { showCompressAndSendDialog = false },
@@ -1220,7 +1390,7 @@ private fun ChatPageContent(
             )
         }
 
-        if (showUsageSheet) {
+        if (showUsageSheet && !sidePanelLayout) {
             // 默认允许半展开，show() 会先停在半屏，得用手再拉一次；这里只留 Hidden / Expanded
             val usageSheetState = rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
@@ -1249,7 +1419,7 @@ private fun ChatPageContent(
             }
         }
 
-        if (showTaskTree) {
+        if (showTaskTree && !sidePanelLayout) {
             SubAgentTaskSheet(
                 conversationId = conversation.id,
                 hazeState = backgroundHazeState,
@@ -1277,7 +1447,7 @@ private fun ChatPageContent(
             text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
         )
 
-        if (showFilesSheet) {
+        if (showFilesSheet && !sidePanelLayout) {
             ChatFilesPickerSheet(
                 inputState = inputState,
                 setting = setting,
@@ -1313,8 +1483,11 @@ private fun ChatPageContent(
             )
         }
 
-        ModelListSheet(state = chatModelListState) { model ->
-            vm.setChatModel(model)
+        // 横屏用右侧栏里的那份，这里只在竖屏组合
+        if (!sidePanelLayout) {
+            ModelListSheet(state = chatModelListState) { model ->
+                vm.setChatModel(model)
+            }
         }
     }
     }
@@ -1333,6 +1506,46 @@ private fun ChatFilesPickerSheet(
     onStartVoiceMode: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val filesSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+    )
+    ModalBottomSheet(
+        sheetState = filesSheetState,
+        onDismissRequest = onDismiss,
+    ) {
+        ChatFilesPickerContent(
+            inputState = inputState,
+            setting = setting,
+            conversation = conversation,
+            folderWorkspaceName = folderWorkspaceName,
+            assistant = assistant,
+            chatModel = chatModel,
+            vm = vm,
+            attachmentPickerActions = attachmentPickerActions,
+            onStartVoiceMode = onStartVoiceMode,
+            onDismiss = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** 附件、工作区、搜索、扩展这些入口的本体：不含外层弹层，横屏时整块放进右侧栏 */
+@Composable
+private fun ChatFilesPickerContent(
+    inputState: ChatInputState,
+    setting: Settings,
+    conversation: Conversation,
+    folderWorkspaceName: String?,
+    assistant: Assistant,
+    chatModel: Model?,
+    vm: ChatVM,
+    attachmentPickerActions: ChatAttachmentPickerActions,
+    onStartVoiceMode: () -> Unit,
+    onDismiss: () -> Unit,
+    // 弹层里保持 wrap：sheet 的高度跟着内容走，别被撑成整屏；侧栏里传 fillMaxSize
+    modifier: Modifier = Modifier,
+) {
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -1343,14 +1556,7 @@ private fun ChatFilesPickerSheet(
         onDismiss()
     }
 
-    val filesSheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-    )
-    ModalBottomSheet(
-        sheetState = filesSheetState,
-        onDismissRequest = { dismissAll() },
-    ) {
+    Box(modifier = modifier) {
         FilesPicker(
             conversation = conversation,
             folderWorkspaceName = folderWorkspaceName,

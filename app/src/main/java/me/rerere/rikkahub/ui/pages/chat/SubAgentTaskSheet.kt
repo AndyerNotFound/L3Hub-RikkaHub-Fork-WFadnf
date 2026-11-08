@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,6 +85,10 @@ private data class FlatAgent(
 
 private const val MAX_TREE_DEPTH = 6
 
+// 拆出 SubAgentTaskTree 之后标题行也算在它的高度里了，弹层这边补回来，
+// 竖屏的总高和改造前一致（标题 titleMedium + 上下各 8dp）
+private val TaskTreeTitleHeight = 40.dp
+
 @Composable
 fun SubAgentTaskSheet(
     conversationId: Uuid,
@@ -91,6 +96,46 @@ fun SubAgentTaskSheet(
     onOpenConversation: (Uuid) -> Unit,
     // 底板玻璃的取样源；没有源时退回实色底，见 canGlassPane
     hazeState: HazeState? = null,
+) {
+    // 默认 sheetState 允许半展开，show() 会停到半屏：看起来就是「打开后往下掉一截」
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
+    val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        // 只改底板，sheet 自己的 scrim / 手势不变
+        shape = GlassSheetShape,
+        // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层
+        // 会让 sheet 的锚定失效（面板跑到屏幕中间、不盖住底栏）。这里只把底色做成接近不透明的半透明。
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(
+            alpha = if (canGlassPane(hazeState)) 0.96f else 1f,
+        ),
+        // 同抽屉：底色可能变透明，内容色显式钉住
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        SubAgentTaskTree(
+            conversationId = conversationId,
+            onOpenConversation = onOpenConversation,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(bodyHeight + TaskTreeTitleHeight),
+        )
+    }
+}
+
+/** 任务树本体：不含外层 sheet，横屏时整块放进右侧栏 */
+@Composable
+internal fun SubAgentTaskTree(
+    conversationId: Uuid,
+    onOpenConversation: (Uuid) -> Unit,
+    modifier: Modifier = Modifier,
+    // 侧栏自己画标题行，这里就不再重复一个
+    showTitle: Boolean = true,
 ) {
     val repository: ConversationRepository = koinInject()
     var previewId by remember { mutableStateOf<Uuid?>(null) }
@@ -136,38 +181,18 @@ fun SubAgentTaskSheet(
             delay(1000)
         }
     }
-    // 默认 sheetState 允许半展开，show() 会停到半屏：看起来就是「打开后往下掉一截」
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
-    val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        // 只改底板，sheet 自己的 scrim / 手势不变
-        shape = GlassSheetShape,
-        // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层
-        // 会让 sheet 的锚定失效（面板跑到屏幕中间、不盖住底栏）。这里只把底色做成接近不透明的半透明。
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(
-            alpha = if (canGlassPane(hazeState)) 0.96f else 1f,
-        ),
-        // 同抽屉：底色可能变透明，内容色显式钉住
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier) {
+        if (showTitle) {
             Text(
                 text = stringResource(R.string.task_tree_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
+        }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (flat.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(bodyHeight),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -179,11 +204,7 @@ fun SubAgentTaskSheet(
                     )
                 }
             } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(bodyHeight),
-                ) {
+                Row(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         modifier = Modifier
                             .width(140.dp)

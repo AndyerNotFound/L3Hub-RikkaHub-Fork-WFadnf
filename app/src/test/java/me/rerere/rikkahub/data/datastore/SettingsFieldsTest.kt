@@ -128,7 +128,7 @@ private val SAMPLE = Settings(
     developerMode = true,
     appLockEnabled = true,
     appLockTimeoutMinutes = 15,
-    displaySetting = DisplaySetting(userNickname = "me"),
+    displaySetting = DisplaySetting(userNickname = "me", displayMode = DisplayMode.LANDSCAPE),
     networkSetting = NetworkSetting(
         userAgent = "agent",
         retryMaxCount = 5,
