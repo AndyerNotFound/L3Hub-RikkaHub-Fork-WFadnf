@@ -96,6 +96,18 @@ fun List<TodoItem>.removeTodoAt(index: Int): List<TodoItem> {
 }
 
 /**
+ * 清单里还有没有没做完的项。
+ *
+ * 全部完成或全部取消之后就不必再提醒模型了：那份清单里没有任何可执行的信息，
+ * 每一批再贴一遍只是往上下文里塞同一段「都做完了」。
+ *
+ * 只管提醒。界面那张卡片另有开关（hideCompletedTodoCard），判的是「全部完成」，
+ * 取消项也算占位，两者不是一回事，不要合并。
+ */
+fun List<TodoItem>.hasActiveTodo(): Boolean =
+    any { it.status == TodoStatus.PENDING || it.status == TodoStatus.IN_PROGRESS }
+
+/**
  * 追加一条。空文本和超上限都不改清单，返回原样。
  *
  * 一律以未开始加入：留一个 status 参数的话，调用方传 IN_PROGRESS 就能造出两条进行中，

@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.model.estimateMessageTokens
 import me.rerere.rikkahub.data.model.estimateTokens
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
+import me.rerere.rikkahub.data.model.hasActiveTodo
 import me.rerere.rikkahub.data.model.withWorkspaceBinding
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -145,8 +146,12 @@ class ChatRequestFactory(
             conversationSystemPrompt = conversation.customSystemPrompt,
             workspaceCwds = workspaceCwds,
             memories = if (assistant.enableMemory) memoryRepository.getFiles(assistant.memoryId) else emptyList(),
-            // 开关关掉后连请求尾部也不再贴清单：用户关的是「清单进请求」，不是只关工具间隙那一份
-            todos = if (assistant.todoReminderEnabled) conversation.todos else emptyList(),
+            // 开关关掉、或者清单已经全部完成/取消时，请求尾部也不再贴：没有可执行的项就没什么可提醒的
+            todos = if (assistant.todoReminderEnabled && conversation.todos.hasActiveTodo()) {
+                conversation.todos
+            } else {
+                emptyList()
+            },
             tools = chatToolFactory.createTools(
                 settings = settings,
                 assistant = assistant,

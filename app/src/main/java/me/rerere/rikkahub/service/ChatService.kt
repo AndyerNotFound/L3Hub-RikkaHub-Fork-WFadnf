@@ -87,6 +87,7 @@ import me.rerere.rikkahub.data.model.autoCompressRetainedBudget
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
+import me.rerere.rikkahub.data.model.hasActiveTodo
 import me.rerere.rikkahub.data.model.editMessage
 import me.rerere.rikkahub.data.model.estimateMessageTokens
 import me.rerere.rikkahub.data.model.estimateTokens
@@ -1090,7 +1091,10 @@ class ChatService(
 
         // 清单：开关关掉就整块跳过；间隔没到也跳过。只有「这一批刚写完清单」时不重复贴，
         // 那条工具结果里已经是同一份，紧接着再补一遍是回声
-        if (assistant.todoReminderEnabled && current.todoReminderDue(assistant.todoReminderInterval)) {
+        if (assistant.todoReminderEnabled &&
+            state.value.todos.hasActiveTodo() &&
+            current.todoReminderDue(assistant.todoReminderInterval)
+        ) {
             todoReminderToolPart(state.value.todos, step)?.let { parts += it }
         }
 

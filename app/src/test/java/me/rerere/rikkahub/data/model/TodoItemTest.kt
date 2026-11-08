@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,6 +20,15 @@ class TodoItemTest {
         item("edit", TodoStatus.IN_PROGRESS),
         item("test"),
     )
+
+    @Test
+    fun `a finished list has nothing left to remind`() {
+        assertTrue(sample.hasActiveTodo())
+        assertFalse(listOf(item("done", TodoStatus.COMPLETED)).hasActiveTodo())
+        assertFalse(listOf(item("dropped", TodoStatus.CANCELLED)).hasActiveTodo())
+        assertFalse(listOf(item("done", TodoStatus.COMPLETED), item("dropped", TodoStatus.CANCELLED)).hasActiveTodo())
+        assertFalse(emptyList<TodoItem>().hasActiveTodo())
+    }
 
     @Test
     fun `tapping a pending item marks it completed`() {
