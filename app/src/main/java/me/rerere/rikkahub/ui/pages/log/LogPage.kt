@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.pages.log
 
 import android.content.ClipData
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,11 +25,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ClipEntry
@@ -36,12 +40,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.JsonTree
@@ -61,6 +68,9 @@ fun LogPage() {
     var logs by remember { mutableStateOf(Logging.getRecentLogs()) }
     var requestLoggingEnabled by remember { mutableStateOf(Logging.isRequestLoggingEnabled()) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val exporter = rememberLogExporter()
+    // 导出顺序和列表顺序取同一份，免得"看到的是降序、导出的是另一个顺序"
+    val sortedLogs = remember(logs) { logs.sortedByDescending { it.timestamp } }
 
     Scaffold(
         topBar = {
@@ -68,6 +78,12 @@ fun LogPage() {
                 title = { Text("Logs") },
                 navigationIcon = { BackButton() },
                 actions = {
+                    IconButton(
+                        onClick = { exporter.export(sortedLogs) },
+                        enabled = sortedLogs.isNotEmpty(),
+                    ) {
+                        Icon(HugeIcons.Download04, "Export all logs")
+                    }
                     IconButton(
                         onClick = {
                             Logging.clear()
@@ -85,12 +101,13 @@ fun LogPage() {
         containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         UnifiedLogList(
-            logs = logs,
+            logs = sortedLogs,
             requestLoggingEnabled = requestLoggingEnabled,
             onRequestLoggingChange = {
                 requestLoggingEnabled = it
                 Logging.setRequestLoggingEnabled(it)
             },
+            onExport = { exporter.export(it) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
@@ -103,12 +120,12 @@ private fun UnifiedLogList(
     logs: List<LogEntry>,
     requestLoggingEnabled: Boolean,
     onRequestLoggingChange: (Boolean) -> Unit,
+    onExport: (List<LogEntry>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedLog by remember { mutableStateOf<LogEntry.RequestLog?>(null) }
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     val scope = rememberCoroutineScope()
-    val sortedLogs = remember(logs) { logs.sortedByDescending { it.timestamp } }
 
     LazyColumn(
         modifier = modifier,
@@ -122,17 +139,21 @@ private fun UnifiedLogList(
             )
         }
 
-        items(sortedLogs, key = { it.id }, contentType = { it.javaClass.simpleName }) { log ->
+        items(logs, key = { it.id }, contentType = { it.javaClass.simpleName }) { log ->
             when (log) {
                 is LogEntry.RequestLog -> RequestLogCard(
                     log = log,
                     onClick = {
                         selectedLog = log
                         scope.launch { sheetState.show() }
-                    }
+                    },
+                    onExport = { onExport(listOf(log)) },
                 )
 
-                is LogEntry.TextLog -> TextLogCard(log = log)
+                is LogEntry.TextLog -> TextLogCard(
+                    log = log,
+                    onExport = { onExport(listOf(log)) },
+                )
             }
         }
     }
@@ -183,7 +204,11 @@ private fun RequestLoggingSwitchCard(
 }
 
 @Composable
-private fun RequestLogCard(log: LogEntry.RequestLog, onClick: () -> Unit) {
+private fun RequestLogCard(
+    log: LogEntry.RequestLog,
+    onClick: () -> Unit,
+    onExport: () -> Unit,
+) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
     Card(
@@ -192,64 +217,73 @@ private fun RequestLogCard(log: LogEntry.RequestLog, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         colors = CustomColors.cardColorsOnSurfaceContainer,
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = log.method,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = dateFormat.format(Date(log.timestamp)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Text(
-                text = log.url,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = JetbrainsMono,
-                maxLines = 2
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                log.responseCode?.let { code ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "Status: $code",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (code in 200..299) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
+                        text = log.method,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                }
-                log.durationMs?.let { duration ->
                     Text(
-                        text = "${duration}ms",
+                        text = dateFormat.format(Date(log.timestamp)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+
+                Text(
+                    text = log.url,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = JetbrainsMono,
+                    maxLines = 2
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    log.responseCode?.let { code ->
+                        Text(
+                            text = "Status: $code",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (code in 200..299) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+                        )
+                    }
+                    log.durationMs?.let { duration ->
+                        Text(
+                            text = "${duration}ms",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                log.error?.let { error ->
+                    Text(
+                        text = "Error: $error",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
-            log.error?.let { error ->
-                Text(
-                    text = "Error: $error",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+            ExportLogButton(onClick = onExport)
         }
     }
 }
@@ -431,37 +465,115 @@ private fun HeaderItem(key: String, value: String) {
 }
 
 @Composable
-private fun TextLogCard(log: LogEntry.TextLog) {
+private fun TextLogCard(log: LogEntry.TextLog, onExport: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CustomColors.cardColorsOnSurfaceContainer,
     ) {
-        SelectionContainer {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = log.tag,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            SelectionContainer(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.padding(
+                        start = 12.dp,
+                        top = 12.dp,
+                        end = 4.dp,
+                        bottom = 12.dp,
                     )
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = log.tag,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = dateFormat.format(Date(log.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Text(
-                        text = dateFormat.format(Date(log.timestamp)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = log.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = JetBrainsMono
                     )
                 }
-                Text(
-                    text = log.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = JetbrainsMono
-                )
             }
+
+            ExportLogButton(onClick = onExport)
+        }
+    }
+}
+
+/** 卡片右侧的「导出这一条」按钮，两种卡片共用。 */
+@Composable
+private fun ExportLogButton(onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.padding(top = 2.dp, end = 2.dp),
+    ) {
+        Icon(
+            imageVector = HugeIcons.Download04,
+            contentDescription = "Export this log",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * 单条和全部共用一条导出路径：按当前时间取文件名，选定位置后把内容写进去，最后报一句结果。
+ *
+ * 内容先放在 pending 里，是因为系统文件选择器异步返回 Uri，回调里拿不到点击那一刻的数据。
+ */
+@Stable
+private class LogExporter(
+    private val write: (List<LogEntry>) -> Unit,
+) {
+    fun export(logs: List<LogEntry>) = write(logs)
+}
+
+@Composable
+private fun rememberLogExporter(): LogExporter {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf<String?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        val content = pending
+        pending = null
+        if (uri != null && content != null) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            output.write(content.toByteArray())
+                        } ?: error("openOutputStream returned null for $uri")
+                    }.isSuccess
+                }
+                Toast.makeText(
+                    context,
+                    if (saved) "Logs exported" else "Export failed",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    return remember(launcher) {
+        LogExporter { logs ->
+            pending = LogExport.toJson(logs)
+            launcher.launch(LogExport.fileName())
         }
     }
 }
