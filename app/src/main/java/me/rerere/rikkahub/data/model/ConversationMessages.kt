@@ -25,13 +25,14 @@ internal fun Conversation.deleteMessage(messageId: Uuid): Conversation? {
 }
 
 /**
- * 用 [parts] 替换消息的内容，作为原节点的新分支；压缩检查点原地改写。消息不存在时原样返回。
+ * 用 [parts] 替换消息的内容，作为原节点的新分支；压缩检查点和子代理通知原地改写。消息不存在时原样返回。
  */
 internal fun Conversation.editMessage(messageId: Uuid, parts: List<UIMessagePart>): Conversation {
     val node = getMessageNodeByMessageId(messageId) ?: return this
     val original = node.messages.first { it.id == messageId }
-    val edited = if (original.isContextCheckpoint) {
-        // 摘要原地改写：新建分支会丢掉检查点标记，删除摘要时还会露出旧版本。
+    val edited = if (original.isContextCheckpoint || original.isSubAgentNotice) {
+        // 没有分支选择器的消息只能原地改写：新建分支会丢掉检查点标记，
+        // 分出去的那一版在界面上既看不到也删不掉，删除当前分支时旧正文还会翻出来。
         original.copy(parts = parts)
     } else {
         UIMessage(

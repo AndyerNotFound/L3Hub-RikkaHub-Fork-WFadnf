@@ -1823,6 +1823,8 @@
   <string name="search_picker_off_description">The model answers only from what it already knows and will not access the web.</string>
   <string name="chat_page_compress_checkpoint_title">Earlier messages compressed into a summary</string>
   <string name="chat_message_sub_agent_notice_title">Sub-agent task completed</string>
+  <string name="chat_message_sub_agent_notice_edit">Edit content</string>
+  <string name="chat_message_sub_agent_notice_edit_title">Edit sub-agent result</string>
   <string name="chat_message_sub_agent_notice_hint">Returned automatically by the system</string>
   <string name="chat_page_compress_checkpoint_hint">Messages above this line are no longer sent to the model; this summary replaces them. Delete the summary to send the full history again.</string>
   <string name="chat_page_compress_blocked_generating">Stop the generation before compressing the context</string>

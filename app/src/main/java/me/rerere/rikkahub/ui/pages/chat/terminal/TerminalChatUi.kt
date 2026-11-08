@@ -551,10 +551,20 @@ fun TerminalModelPickerDialog(
     onSelect: (Model) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val grouped = settings.providers.mapNotNull { provider ->
-        val models = provider.models.filter { it.type == me.rerere.ai.provider.ModelType.CHAT }
-        if (models.isEmpty()) null else provider to models
-    }
+    // 跟普通模式的模型选择保持一致：按提供商分组排序，未分组和未知分组排在最后；
+    // sortedBy 是稳定排序，同组内仍按设置里的提供商顺序
+    val groupRank = settings.providerGroups.withIndex().associate { (index, name) -> name to index }
+    val grouped = settings.providers
+        .sortedBy { provider ->
+            when (val group = settings.providerGroupAssignments[provider.id.toString()]) {
+                null -> settings.providerGroups.size + 1
+                else -> groupRank[group] ?: settings.providerGroups.size
+            }
+        }
+        .mapNotNull { provider ->
+            val models = provider.models.filter { it.type == me.rerere.ai.provider.ModelType.CHAT }
+            if (models.isEmpty()) null else provider to models
+        }
     AnimatedDialog(onDismissRequest = onDismiss) {
         Surface(
             color = TerminalPalette.Background,

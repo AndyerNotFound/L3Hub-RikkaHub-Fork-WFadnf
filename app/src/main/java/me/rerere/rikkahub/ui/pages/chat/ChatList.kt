@@ -183,6 +183,9 @@ fun ChatList(
     onClearAllErrors: () -> Unit = {},
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
+    // 子代理通知的编辑/删除；都不传时通知只读（预览、导出这类复用）
+    onEditSubAgentNotice: ((UIMessage, String) -> Unit)? = null,
+    onDeleteSubAgentNotice: ((UIMessage) -> Unit)? = null,
     onForkMessage: (UIMessage) -> Unit = {},
     onDelete: (UIMessage) -> Unit = {},
     onUpdateMessage: (MessageNode) -> Unit = {},
@@ -247,6 +250,8 @@ fun ChatList(
                 onClearAllErrors = onClearAllErrors,
                 onRegenerate = onRegenerate,
                 onEdit = onEdit,
+                onEditSubAgentNotice = onEditSubAgentNotice,
+                onDeleteSubAgentNotice = onDeleteSubAgentNotice,
                 onForkMessage = onForkMessage,
                 onDelete = onDelete,
                 onUpdateMessage = onUpdateMessage,
@@ -321,6 +326,8 @@ private fun ChatListNormal(
     onClearAllErrors: () -> Unit,
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
+    onEditSubAgentNotice: ((UIMessage, String) -> Unit)?,
+    onDeleteSubAgentNotice: ((UIMessage) -> Unit)?,
     onForkMessage: (UIMessage) -> Unit,
     onDelete: (UIMessage) -> Unit,
     onUpdateMessage: (MessageNode) -> Unit,
@@ -666,6 +673,10 @@ private fun ChatListNormal(
                                 },
                                 onEdit = {
                                     onEdit(node.currentMessage)
+                                },
+                                onEditSubAgentNotice = onEditSubAgentNotice,
+                                onDeleteSubAgentNotice = onDeleteSubAgentNotice?.let { delete ->
+                                    { delete(node.currentMessage) }
                                 },
                                 onFork = {
                                     onForkMessage(node.currentMessage)

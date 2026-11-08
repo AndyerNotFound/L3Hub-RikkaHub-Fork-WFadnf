@@ -97,6 +97,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -1050,6 +1051,14 @@ private fun ChatPageContent(
                     },
                 )
             } else {
+                // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
+                val deleteMessage: (UIMessage) -> Unit = { message ->
+                    if (loadingJob != null) {
+                        vm.showDeleteBlockedWhileGeneratingError()
+                    } else {
+                        vm.deleteMessage(message)
+                    }
+                }
                 ChatList(
                     innerPadding = innerPadding,
                     conversation = conversation,
@@ -1074,19 +1083,21 @@ private fun ChatPageContent(
                         inputState.editingMessage = it.id
                         inputState.setContents(it.parts)
                     },
+                    onEditSubAgentNotice = { message, text ->
+                        // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
+                        vm.handleMessageEdit(
+                            parts = listOf(UIMessagePart.Text(text)),
+                            messageId = message.id,
+                        )
+                    },
                     onForkMessage = {
                         scope.launch {
                             val fork = vm.forkMessage(message = it)
                             navigateToChatPage(navController, chatId = fork.id)
                         }
                     },
-                    onDelete = {
-                        if (loadingJob != null) {
-                            vm.showDeleteBlockedWhileGeneratingError()
-                        } else {
-                            vm.deleteMessage(it)
-                        }
-                    },
+                    onDelete = deleteMessage,
+                    onDeleteSubAgentNotice = deleteMessage,
                     onUpdateMessage = { newNode ->
                         vm.selectMessageNode(newNode.id, newNode.selectIndex)
                     },
@@ -1336,6 +1347,11 @@ private fun ChatFilesPickerSheet(
     }
 }
 
+// 顶栏按钮统一尺寸：原来是 40dp 的按钮配 20dp 的图标，这里整组放大 12.5%，
+// 按钮和图标同比例放大，圆角、间距、间距关系都不变。
+private val TopBarButtonSize = 45.dp
+private val TopBarButtonIconSize = 22.5.dp
+
 @Composable
 private fun TopBar(
     hazeState: HazeState,
@@ -1397,7 +1413,7 @@ private fun TopBar(
                                 scope.launch { drawerState.open() }
                             },
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(TopBarButtonSize)
                                 .appButtonShadow(navShape, 2.dp)
                                 .clip(navShape)
                                 .background(effectColor(navColor))
@@ -1419,7 +1435,7 @@ private fun TopBar(
                             color = Color.Transparent,
                         ) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(20.dp))
+                                Icon(HugeIcons.Menu03, "Messages", modifier = Modifier.size(TopBarButtonIconSize))
                             }
                         }
                     }
@@ -1437,7 +1453,7 @@ private fun TopBar(
                         val provider = chatModel.findProvider(settings.providers)
                         Row(
                             modifier = Modifier
-                                .height(40.dp)
+                                .height(TopBarButtonSize)
                                 .appButtonShadow(modelPillShape, 2.dp)
                                 .clip(modelPillShape)
                                 .background(effectColor(modelPillColor))
@@ -1505,16 +1521,16 @@ private fun TopBar(
                         .padding(horizontal = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onShowTaskTree, modifier = Modifier.size(40.dp)) {
+                    IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
                         Icon(
                             HugeIcons.Flowchart01,
                             stringResource(R.string.chat_task_tree_button),
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(TopBarButtonIconSize),
                         )
                     }
 
-                    IconButton(onClick = { onNewChat() }, modifier = Modifier.size(40.dp)) {
-                        Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(20.dp))
+                    IconButton(onClick = { onNewChat() }, modifier = Modifier.size(TopBarButtonSize)) {
+                        Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(TopBarButtonIconSize))
                     }
 
                     ChatPageMenu(
@@ -1760,11 +1776,11 @@ private fun ChatPageMenu(
     }
 
     Box {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp)) {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(TopBarButtonSize)) {
             Icon(
                 HugeIcons.MoreVertical,
                 stringResource(R.string.more_options),
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(TopBarButtonIconSize),
             )
         }
         DropdownMenuPopup(

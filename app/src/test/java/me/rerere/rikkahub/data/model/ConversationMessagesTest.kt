@@ -68,6 +68,19 @@ class ConversationMessagesTest {
     }
 
     @Test
+    fun `editing a sub-agent notice rewrites it in place and keeps the flag`() {
+        val notice = UIMessage.user("result").copy(isSubAgentNotice = true)
+        val conversation = conversationOf(notice.toMessageNode())
+
+        val node = conversation.editMessage(notice.id, listOf(UIMessagePart.Text("edited"))).messageNodes.single()
+
+        // 通知没有分支选择器，改写必须原地生效，否则界面上既看不到新分支也删不掉旧正文
+        assertEquals(listOf(notice.id), node.messages.map { it.id })
+        assertTrue(node.currentMessage.isSubAgentNotice)
+        assertEquals("edited", node.currentMessage.toText())
+    }
+
+    @Test
     fun `translation is set on the matching message without switching branches`() {
         val first = UIMessage.assistant("first")
         val second = UIMessage.assistant("second")

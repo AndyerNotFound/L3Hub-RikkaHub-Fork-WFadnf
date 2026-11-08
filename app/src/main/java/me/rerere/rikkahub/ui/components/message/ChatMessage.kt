@@ -173,6 +173,10 @@ fun ChatMessage(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (MessageNode) -> Unit,
+    // 子代理回传通知的正文改写与删除：它不是用户气泡，编辑走自己的弹窗，不占聊天输入框。
+    // 两个回调都不传时这条通知是只读的（子会话预览、提示词预览），长按不弹菜单
+    onEditSubAgentNotice: ((UIMessage, String) -> Unit)? = null,
+    onDeleteSubAgentNotice: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
@@ -193,7 +197,12 @@ fun ChatMessage(
         return
     }
     if (message.isSubAgentNotice) {
-        ChatMessageSubAgentNotice(message = message, modifier = modifier)
+        ChatMessageSubAgentNotice(
+            message = message,
+            modifier = modifier,
+            onEdit = onEditSubAgentNotice?.let { edit -> { text: String -> edit(message, text) } },
+            onDelete = onDeleteSubAgentNotice,
+        )
         return
     }
     // 助手消息在第一个 token 之前也可能只有 Notice，那时要走下面的流程才有加载状态和操作栏
