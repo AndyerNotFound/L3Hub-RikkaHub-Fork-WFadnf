@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.ui.UIMessagePart
@@ -35,6 +36,8 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import kotlin.io.encoding.Base64
 import kotlin.uuid.Uuid
+
+private const val MANUAL_REFRESH_TIMEOUT_MS = 90_000L
 
 /**
  * MCP 子系统的公共入口。
@@ -153,11 +156,16 @@ class McpManager(
      * 连点只保留一次，避免同一批服务器排队重跑。
      */
     fun refreshAllConnections() {
+        // 只在 UI 线程调用；同一时间只保留一次刷新
         if (refreshJob?.isActive == true) return
         refreshJob = appScope.launch {
             _refreshing.value = true
             try {
-                sessionRegistry.syncAll()
+                // 一台接受连接却一直不回包的服务器能拖到 OkHttp 的 10 分钟读超时，
+                // 手动刷新给个上限，超时就收摊，别把按钮按在那里转十分钟。
+                withTimeoutOrNull(MANUAL_REFRESH_TIMEOUT_MS) {
+                    sessionRegistry.syncAll()
+                } ?: sessionRegistry.failStuckRefresh()
             } finally {
                 _refreshing.value = false
             }

@@ -197,6 +197,16 @@ internal class McpSessionRegistry(
         sessions.values.toList().forEach { session -> syncSession(session) }
     }
 
+    /** 手动刷新超时：把停在 Connecting 的会话改记为错误，免得界面一直转圈。 */
+    fun failStuckRefresh() {
+        statusStore.status.value
+            .filterValues { it == McpStatus.Connecting }
+            .keys
+            .forEach { configId ->
+                statusStore.update(configId, McpStatus.Error("刷新超时，请稍后重试"))
+            }
+    }
+
     private suspend fun connectSession(
         session: McpSession,
         requestedConfig: McpServerConfig,

@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,19 +106,21 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         exportScope.launch {
-            runCatching {
+            try {
                 val json = exportMcpServersToJson(vm.settings.value.mcpServers)
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.use { output ->
                         output.write(json.toByteArray())
                     } ?: error("cannot open output stream")
                 }
-            }.onSuccess {
                 toaster.show(
                     context.getString(R.string.setting_mcp_page_export_success),
                     type = ToastType.Success,
                 )
-            }.onFailure { e ->
+            } catch (e: CancellationException) {
+                // 离开页面导致的取消不是导出失败，别弹假提示
+                throw e
+            } catch (e: Exception) {
                 toaster.show(
                     context.getString(R.string.setting_mcp_page_export_failed, e.message ?: ""),
                     type = ToastType.Error,

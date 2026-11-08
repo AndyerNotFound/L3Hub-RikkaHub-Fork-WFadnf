@@ -8,7 +8,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 
 /**
  * MCP 配置的导出与导入。
@@ -68,10 +67,11 @@ fun exportMcpServersToJson(servers: List<McpServerConfig>): String {
 /**
  * 解析 MCP 配置 JSON，支持本应用的导出格式和标准的 mcpServers 对象格式。
  *
- * 结构不认识时返回空列表，交给导入弹窗提示“没有有效配置”；JSON 语法错误照常抛出。
+ * 顶层不是对象、缺少 mcpServers 或类型不对时返回空列表，交给导入弹窗提示“没有有效配置”；
+ * JSON 语法错误照常抛出。
  */
 fun parseMcpServersFromJson(json: String): List<McpServerConfig> {
-    val root = McpConfigJson.parseToJsonElement(json).jsonObject
+    val root = McpConfigJson.parseToJsonElement(json) as? JsonObject ?: return emptyList()
     return when (val servers = root["mcpServers"]) {
         is JsonArray -> servers.mapNotNull { it.toExportedConfig() }
         is JsonObject -> servers.entries.mapNotNull { (name, element) -> element.toLegacyConfig(name) }

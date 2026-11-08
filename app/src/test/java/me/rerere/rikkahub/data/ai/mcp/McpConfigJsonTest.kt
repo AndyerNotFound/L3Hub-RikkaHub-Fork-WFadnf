@@ -152,8 +152,16 @@ class McpConfigJsonTest {
     }
 
     @Test
-    fun `import returns empty when mcpServers is missing or not a container`() {
+    fun `import returns empty when root or mcpServers is not a container`() {
+        assertTrue(parseMcpServersFromJson("[]").isEmpty())
         assertTrue(parseMcpServersFromJson("""{"foo": 1}""").isEmpty())
         assertTrue(parseMcpServersFromJson("""{"mcpServers": "nope"}""").isEmpty())
+    }
+
+    @Test
+    fun `import rejects malformed json`() {
+        val error = runCatching { parseMcpServersFromJson("{") }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
     }
 }
