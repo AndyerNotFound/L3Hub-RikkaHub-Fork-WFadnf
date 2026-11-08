@@ -138,27 +138,22 @@ object Logging {
 /**
  * 估一条日志占多少字节，用来按体积淘汰。
  *
- * 不真的编码一遍：按字符宽度累加，ASCII 一个字节、中文两三个字节。算的是容量，不需要精确到字节。
+ * 按 2 字节/字符算：这些字符串是留在堆里的，用户看到的"上限"就该贴着内存占用来，
+ * 而不是导出成 UTF-8 文件时的大小。不求精确，卡的是容量。
  */
-private fun String?.utf8Size(): Long = this?.fold(0L) { total, char ->
-    total + when {
-        char.code < 0x80 -> 1L
-        char.code < 0x800 -> 2L
-        else -> 3L
-    }
-} ?: 0L
+private fun String?.heapBytes(): Long = (this?.length ?: 0) * 2L
 
-private fun Map<String, String>.headersSize(): Long {
+private fun Map<String, String>.headersBytes(): Long {
     var bytes = 0L
-    forEach { (key, value) -> bytes += key.utf8Size() + value.utf8Size() }
+    forEach { (name, value) -> bytes += name.heapBytes() + value.heapBytes() }
     return bytes
 }
 
 private fun LogEntry.estimatedBytes(): Long = when (this) {
     is LogEntry.RequestLog -> LOG_ENTRY_OVERHEAD_BYTES +
-        tag.utf8Size() + url.utf8Size() + method.utf8Size() +
-        requestBody.utf8Size() + error.utf8Size() +
-        requestHeaders.headersSize() + responseHeaders.headersSize()
+        tag.heapBytes() + url.heapBytes() + method.heapBytes() +
+        requestBody.heapBytes() + error.heapBytes() +
+        requestHeaders.headersBytes() + responseHeaders.headersBytes()
 
-    is LogEntry.TextLog -> LOG_ENTRY_OVERHEAD_BYTES + tag.utf8Size() + message.utf8Size()
+    is LogEntry.TextLog -> LOG_ENTRY_OVERHEAD_BYTES + tag.heapBytes() + message.heapBytes()
 }
