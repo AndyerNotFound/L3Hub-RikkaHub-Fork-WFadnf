@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -53,6 +54,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +66,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -819,22 +822,26 @@ private fun ModelSettingsForm(
     parentProvider: ProviderSetting? = null,
     modifier: Modifier = Modifier,
 ) {
-    val pagerState = rememberPagerState { ModelFormTab.entries.size }
-
-    fun setModelId(id: String) {
-        val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
-        val outputModality = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id)
-        val abilities = ModelRegistry.MODEL_ABILITIES.getData(id)
-        onModelChange(
-            model.copy(
-                modelId = id,
-                displayName = id,
-                inputModalities = inputModality,
-                outputModalities = outputModality,
-                abilities = abilities
-            )
-        )
+    // 横屏宽屏：标签 / 基础字段 / 其余选项分三列，一屏看全，不用来回翻页
+    val windowDpSize = currentWindowDpSize()
+    val wide = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 700.dp
+    if (wide) {
+        ModelSettingsWideForm(model, onModelChange, isEdit, parentProvider, modifier)
+    } else {
+        ModelSettingsPagerForm(model, onModelChange, isEdit, parentProvider, modifier)
     }
+}
+
+/** 窄屏：原来的标签 + 翻页 */
+@Composable
+private fun ModelSettingsPagerForm(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    isEdit: Boolean,
+    parentProvider: ProviderSetting?,
+    modifier: Modifier = Modifier,
+) {
+    val pagerState = rememberPagerState { ModelFormTab.entries.size }
 
     Column(modifier = modifier) {
         PagerTabs(
@@ -856,70 +863,8 @@ private fun ModelSettingsForm(
                             .padding(vertical = 16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        OutlinedTextField(
-                            value = model.modelId,
-                            onValueChange = {
-                                if (isEdit) {
-                                    onModelChange(model.copy(modelId = it.trim()))
-                                } else {
-                                    setModelId(it.trim())
-                                }
-                            },
-                            label = { Text(stringResource(R.string.setting_provider_page_model_id)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                if (!isEdit) {
-                                    Text(stringResource(R.string.setting_provider_page_model_id_placeholder))
-                                }
-                            },
-                        )
-
-                        OutlinedTextField(
-                            value = model.displayName,
-                            onValueChange = {
-                                onModelChange(model.copy(displayName = it))
-                            },
-                            label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                if (!isEdit) {
-                                    Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
-                                }
-                            }
-                        )
-
-                        ModelTypeSelector(
-                            selectedType = model.type,
-                            onTypeSelected = {
-                                onModelChange(model.copy(type = it))
-                            }
-                        )
-
-                        ModelModalitySelector(
-                            model = model,
-                            inputModalities = model.inputModalities,
-                            onUpdateInputModalities = {
-                                onModelChange(model.copy(inputModalities = it))
-                            },
-                            outputModalities = model.outputModalities,
-                            onUpdateOutputModalities = {
-                                onModelChange(model.copy(outputModalities = it))
-                            }
-                        )
-
-                        if (model.type == ModelType.CHAT) {
-                            ModalAbilitySelector(
-                                abilities = model.abilities,
-                                onUpdateAbilities = {
-                                    onModelChange(model.copy(abilities = it))
-                                }
-                            )
-
-                            ModelContextThresholdFields(
-                                model = model,
-                                onModelChange = onModelChange,
-                            )
-                        }
+                        ModelIdentityFields(model, onModelChange, isEdit)
+                        ModelBasicOptions(model, onModelChange)
                     }
                 }
 
@@ -932,30 +877,7 @@ private fun ModelSettingsForm(
                             .padding(vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // 覆盖配置是提供商的独立副本，账号凭据不能复制出去，账号型提供商不支持覆盖
-                        if (parentProvider !is ProviderSetting.Account) {
-                            ProviderOverrideSettings(
-                                providerOverride = model.providerOverwrite,
-                                onUpdateProviderOverride = { providerOverride ->
-                                    onModelChange(model.copy(providerOverwrite = providerOverride))
-                                },
-                                parentProvider = parentProvider
-                            )
-                        }
-
-                        CustomHeaders(
-                            headers = model.customHeaders,
-                            onUpdate = { headers ->
-                                onModelChange(model.copy(customHeaders = headers))
-                            }
-                        )
-
-                        CustomBodies(
-                            customBodies = model.customBodies,
-                            onUpdate = { bodies ->
-                                onModelChange(model.copy(customBodies = bodies))
-                            }
-                        )
+                        ModelAdvancedOptions(model, onModelChange, parentProvider)
                     }
                 }
 
@@ -971,6 +893,250 @@ private fun ModelSettingsForm(
             }
         }
     }
+}
+
+/**
+ * 宽屏：最左是标签，中列是模型 ID / 名称 / 类型，右列是当前标签的其余选项。
+ *
+ * 中列常驻：切标签时只有右列换内容，改完 ID 再去看高级设置不用滚回去找字段。
+ */
+@Composable
+private fun ModelSettingsWideForm(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    isEdit: Boolean,
+    parentProvider: ProviderSetting?,
+    modifier: Modifier = Modifier,
+) {
+    var selectedTab by rememberSaveable { mutableStateOf(ModelFormTab.BASIC) }
+
+    Row(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .width(176.dp)
+                .fillMaxHeight()
+                .padding(top = 12.dp, end = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            ModelFormTab.entries.forEach { tab ->
+                ModelFormTabItem(
+                    tab = tab,
+                    selected = tab == selectedTab,
+                    onClick = { selectedTab = tab },
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .width(280.dp)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ModelIdentityFields(model, onModelChange, isEdit)
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            when (selectedTab) {
+                ModelFormTab.BASIC -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 8.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    ModelBasicOptions(model, onModelChange)
+                }
+
+                ModelFormTab.ADVANCED -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 8.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    ModelAdvancedOptions(model, onModelChange, parentProvider)
+                }
+
+                ModelFormTab.BUILT_IN_TOOLS -> BuiltInToolsSettings(
+                    tools = model.tools,
+                    onUpdateTools = { tools ->
+                        onModelChange(model.copy(tools = tools))
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelFormTabItem(
+    tab: ModelFormTab,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            Color.Transparent
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = tab.icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(text = tab.label, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** 模型身份：ID、名称、类型。窄屏在基础页顶部，宽屏固定在中列 */
+@Composable
+private fun ModelIdentityFields(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    isEdit: Boolean,
+) {
+    fun setModelId(id: String) {
+        val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
+        val outputModality = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id)
+        val abilities = ModelRegistry.MODEL_ABILITIES.getData(id)
+        onModelChange(
+            model.copy(
+                modelId = id,
+                displayName = id,
+                inputModalities = inputModality,
+                outputModalities = outputModality,
+                abilities = abilities
+            )
+        )
+    }
+
+    OutlinedTextField(
+        value = model.modelId,
+        onValueChange = {
+            if (isEdit) {
+                onModelChange(model.copy(modelId = it.trim()))
+            } else {
+                setModelId(it.trim())
+            }
+        },
+        label = { Text(stringResource(R.string.setting_provider_page_model_id)) },
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = {
+            if (!isEdit) {
+                Text(stringResource(R.string.setting_provider_page_model_id_placeholder))
+            }
+        },
+    )
+
+    OutlinedTextField(
+        value = model.displayName,
+        onValueChange = {
+            onModelChange(model.copy(displayName = it))
+        },
+        label = { Text(stringResource(if (isEdit) R.string.setting_provider_page_model_name else R.string.setting_provider_page_model_display_name)) },
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = {
+            if (!isEdit) {
+                Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
+            }
+        }
+    )
+
+    ModelTypeSelector(
+        selectedType = model.type,
+        onTypeSelected = {
+            onModelChange(model.copy(type = it))
+        }
+    )
+}
+
+/** 基础设置里除身份以外的部分：模态、能力、上下文门限 */
+@Composable
+private fun ModelBasicOptions(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+) {
+    ModelModalitySelector(
+        model = model,
+        inputModalities = model.inputModalities,
+        onUpdateInputModalities = {
+            onModelChange(model.copy(inputModalities = it))
+        },
+        outputModalities = model.outputModalities,
+        onUpdateOutputModalities = {
+            onModelChange(model.copy(outputModalities = it))
+        }
+    )
+
+    if (model.type == ModelType.CHAT) {
+        ModalAbilitySelector(
+            abilities = model.abilities,
+            onUpdateAbilities = {
+                onModelChange(model.copy(abilities = it))
+            }
+        )
+
+        ModelContextThresholdFields(
+            model = model,
+            onModelChange = onModelChange,
+        )
+    }
+}
+
+/** 高级设置：覆盖配置、自定义请求头和请求体 */
+@Composable
+private fun ModelAdvancedOptions(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    parentProvider: ProviderSetting?,
+) {
+    // 覆盖配置是提供商的独立副本，账号凭据不能复制出去，账号型提供商不支持覆盖
+    if (parentProvider !is ProviderSetting.Account) {
+        ProviderOverrideSettings(
+            providerOverride = model.providerOverwrite,
+            onUpdateProviderOverride = { providerOverride ->
+                onModelChange(model.copy(providerOverwrite = providerOverride))
+            },
+            parentProvider = parentProvider
+        )
+    }
+
+    CustomHeaders(
+        headers = model.customHeaders,
+        onUpdate = { headers ->
+            onModelChange(model.copy(customHeaders = headers))
+        }
+    )
+
+    CustomBodies(
+        customBodies = model.customBodies,
+        onUpdate = { bodies ->
+            onModelChange(model.copy(customBodies = bodies))
+        }
+    )
 }
 
 @Composable

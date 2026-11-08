@@ -893,7 +893,8 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 - 整块 UI 用 `LocalDensity` 缩到 0.75（`LANDSCAPE_UI_SCALE`）：字号、行高、控件一起缩；
   insets 按密度换算，物理高度不变
 - 左列宽度 300dp（`LANDSCAPE_SIDEBAR_WIDTH`），默认展开，顶栏菜单按钮做宽度动画收合
-- 右列宽度按整窗算：`宽 / 0.75 × 0.34`，夹在 300–440dp 之间；左列开合时右列不变宽窄
+- 中列宽度固定：`宽 / 0.75 × 0.4`，夹在 360–640dp；收起左栏时中列整体左移、宽度不变，
+  腾出来的空间全部给右列（右列是 `weight(1f)`，跟着动画一路变宽）
 
 ### 右列：浏览器标签页
 
@@ -930,6 +931,40 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 - 新增字符串 `chat_page_side_panel_model`、`chat_page_side_panel_new_tab`、`chat_page_side_panel_empty`、
   `chat_page_side_panel_close_tab`、`chat_page_turn_changes_empty`，补了 `values`、`values-zh`、`values-zh-rTW`，
   其余语言走英文回退
+
+## 横屏两栏：设置与模型编辑（2026-11-09）
+
+横屏宽屏（宽 > 高且 ≥ 700dp）时，设置相关页面改成左栏 + 右栏：
+左栏是常驻的一级选项（`SettingRail.kt`），右栏是当前页面。模型编辑页单独走三栏。
+
+### 设置分区栏
+
+- 只在设置相关路由上出现：`Screen.isSettingBoard()`（`Setting*` 与 `ModelEditor`，
+  后者除外——它自己就要三栏的宽度，见下）
+- `SettingSection` 枚举列出栏里的一级项（偏好设置 / 默认模型 / 提供商 / 搜索 / 语音 / 媒体 / MCP /
+  Web 服务器 / 聊天存储 / 关于），详情页按 `Screen.settingSection()` 高亮所属一级项
+- 栏挂在 `RouteActivity` 的 `NavDisplay` 外层：`Row { SettingRail(...); NavDisplay(weight(1f)) }`。
+  `NavDisplay` 一直待在同一个槽位，进出设置不会重建；点栏里的项时 `popUpTo(Screen.Setting)` +
+  `launchSingleTop`，换分区不会把上一分区的详情页留在栈里
+- 设置首页在右栏照常显示（头像、提醒、四组卡片），相当于桌面端的「主页」；
+  助手 / 扩展 / 备份这类独立管理页仍在首页卡片里进，不塞进这条栏
+
+### 模型编辑三栏
+
+`ModelSettingsForm` 按窗口分成两套：
+
+| 窗口 | 布局 |
+|---|---|
+| 窄屏 / 竖屏 | 原来的 `PagerTabs` + `HorizontalPager` |
+| 横屏 ≥ 700dp | 最左是标签列（基础设置 / 高级设置 / 内置工具），中列固定显示模型 ID、名称、类型，右列是当前标签的其余选项 |
+
+中列常驻：切标签只换右列，改完 ID 再去看高级设置不用滚回去找字段。
+
+### 复用的内容
+
+- `ModelIdentityFields`（ID / 名称 / 类型）、`ModelBasicOptions`（模态 / 能力 / 上下文门限）、
+  `ModelAdvancedOptions`（覆盖配置 / 请求头 / 请求体）从原表单里拆出来，两套布局共用
+- 新增字符串 `setting_page_more`（更多），只补了 `values`、`values-zh`、`values-zh-rTW`
 
 ## 显示模式（2026-11-09）
 
