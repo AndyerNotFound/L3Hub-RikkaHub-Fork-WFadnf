@@ -46,11 +46,11 @@ import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.guidanceToolPart
 import me.rerere.rikkahub.data.ai.isInjectedTool
-import me.rerere.rikkahub.data.ai.lastTodoReminderText
-import me.rerere.rikkahub.data.ai.todoReminderText
+import me.rerere.rikkahub.data.ai.stepsSinceLastGuidance
 import me.rerere.rikkahub.data.ai.todoReminderToolPart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.prompts.buildCompressPrompt
+import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_NOTICE_FRAMING
 import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_COMPLETED
 import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_FAILED
 import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_RUNNING
@@ -60,6 +60,8 @@ import me.rerere.rikkahub.data.ai.subagent.subAgentLabel
 import me.rerere.rikkahub.data.ai.subagent.formatSubAgentRoundResult
 import me.rerere.rikkahub.data.ai.subagent.formatSubAgentResults
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
+import me.rerere.rikkahub.data.ai.tools.TODO_UPDATE_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.chat.DraftRestore
 import me.rerere.rikkahub.data.chat.DraftStore
@@ -829,7 +831,8 @@ class ChatService(
 
     /**
      * background 子代理完成后调用：父会话空闲就立刻把结果当作一条用户消息投递；
-     * 正在生成、停在工具审批上或还没打开时先攒着，等这一轮结束或下次打开会话时合并投递。
+     * 正在生成时由 [takeSubAgentNotices] 在下一个工具间隙插进当前这一轮；
+     * 停在工具审批上或还没打开时先攒着，等这一轮结束或下次打开会话时合并投递。
      */
     suspend fun deliverSubAgentResult(
         parentConversationId: Uuid,
@@ -1059,26 +1062,76 @@ class ChatService(
      * 这一批要插进本轮的合成工具调用。
      *
      * 通知排在最前，清单居中，引导排在最后——模型最后读到的是用户新给的指令。
-     * 清单只在内容变过时插一次；没变就交给请求尾部的 TodoStateTransformer，那里每一步都会贴，
-     * 这里再贴一遍只是重复。
+     * 清单每一批都补一份（模型这一批刚写过清单时跳过），不受引导间隔约束；
+     * 它带的是当前进度，不是一次性指令。
      *
      * [current] 为 null 表示这是一轮的第一步，模型还没动过手。这时只放通知，不插引导和清单：
      * 否则回答开头会凭空出现一条工具调用，而引导本来该出现在「跑到一半」的时候。
+     *
+     * 引导按助手上的 [guidanceInterval] 隔步插：1 是每步都插，4 是每四步插一次。
+     * 步号记在合成调用的参数里，按 [UIMessage.stepCount] 的差值算；还没插过的这一步立刻插。
+     * 间隔只挡多轮引导，单轮的当批就插——它只有一次机会。
      */
-    private suspend fun ConversationSession.takeInjectionParts(current: UIMessage?): List<UIMessagePart> {
+    private suspend fun ConversationSession.takeInjectionParts(
+        current: UIMessage?,
+        guidanceInterval: Int,
+    ): List<UIMessagePart> {
         val parts = mutableListOf<UIMessagePart>()
         parts += inbox.takeNotices()
+        // 子代理结果也在这里进来：父会话正在跑的时候，结果不该等到这一轮收尾才被看到
+        parts += takeSubAgentNotices()
         if (current == null) return parts
         // 上下文超限后这一步会重装，[appendPendingParts] 会被再调一次；末尾还是上一次插进去的合成调用，
         // 说明中间没有跑过新的工具批次，这一批已经在消息里了
         if (current.parts.lastOrNull()?.isInjectedTool() == true) return parts
 
-        todoReminderToolPart(state.value.todos)
-            ?.takeIf { current.lastTodoReminderText() != it.todoReminderText() }
-            ?.let { parts += it }
+        // 清单每一批都补一份：它是任务进度的锚点，模型跑偏时靠它拉回来。
+        // 只有「这一批刚写完清单」时跳过——那条工具结果里已经是同一份，紧接着再贴一遍是回声
+        val lastTool = (current.parts.lastOrNull() as? UIMessagePart.Tool)?.takeIf { it.isExecuted }
+        val justWroteTodos = lastTool != null &&
+            (lastTool.toolName == TODO_WRITE_TOOL_NAME || lastTool.toolName == TODO_UPDATE_TOOL_NAME)
+        if (!justWroteTodos) {
+            todoReminderToolPart(state.value.todos)?.let { parts += it }
+        }
 
-        inbox.takeGuidances().forEach { guidance -> parts += guidanceToolPart(guidance) }
+        // 引导按助手的插入间隔走；单轮的不等，它只有一次机会，当批就该生效
+        val step = current.stepCount ?: 0
+        val sinceLastGuidance = current.stepsSinceLastGuidance()
+        val repeatingDue = sinceLastGuidance == null || sinceLastGuidance >= guidanceInterval.coerceIn(1, 4)
+        inbox.takeGuidances(includeRepeating = repeatingDue).forEach { guidance ->
+            parts += guidanceToolPart(guidance, step)
+        }
         return parts
+    }
+
+    /**
+     * 父会话正在这一轮里跑时，把子代理回传结果直接插进这一步。
+     *
+     * 走 Notice 而不是合成工具调用：它和后台命令结束是同一类运行时事件，展开后是一条
+     * 合成 user 消息，位置就在工具结果之后。框架语要跟着正文一起发，模型才知道这不是用户说的。
+     *
+     * 和 [flushSubAgentResults] 共用 [deliveringSubAgentResults] 这把锁：父会话刚空闲的
+     * 那一瞬间，两条路会同时看到同一批结果。谁先拿到锁谁投，另一条看到已经被 commit 的空队列。
+     *
+     * 代价是 commit 早于消息真正落库：这一步如果在中途失败，这一批就没了。窗口和
+     * [flushSubAgentResults] 的「已入队」窗口一样大，是已知的取舍。
+     */
+    private suspend fun ConversationSession.takeSubAgentNotices(): List<UIMessagePart.Notice> {
+        synchronized(deliveringSubAgentResults) {
+            if (!deliveringSubAgentResults.add(id)) return emptyList()
+        }
+        try {
+            val pending = subAgentResultStore.peekDeliverable(id)
+            if (pending.isEmpty) return emptyList()
+            val notice = UIMessagePart.Notice(
+                title = context.getString(R.string.chat_message_sub_agent_notice_title),
+                text = SUB_AGENT_NOTICE_FRAMING + "\n" + formatSubAgentResults(pending.texts),
+            )
+            subAgentResultStore.commit(id, pending)
+            return listOf(notice)
+        } finally {
+            synchronized(deliveringSubAgentResults) { deliveringSubAgentResults.remove(id) }
+        }
     }
 
     /** 会话空闲时从收件箱开始下一轮：先发用户输入，只剩通知时单独开一轮 */
@@ -1418,7 +1471,9 @@ class ChatService(
                         .also { loopOverflowCompress = it }
                         .let { it == CompressAttempt.COMPRESSED }
                 },
-                takePendingParts = { current -> session.takeInjectionParts(current) },
+                takePendingParts = { current ->
+                    session.takeInjectionParts(current, turn.assistant.guidanceInterval)
+                },
             )
             var finishReason: AgentFinishReason? = null
             try {

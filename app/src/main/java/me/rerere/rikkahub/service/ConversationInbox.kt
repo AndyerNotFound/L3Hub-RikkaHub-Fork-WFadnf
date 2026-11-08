@@ -191,16 +191,25 @@ class ConversationInbox {
     /**
      * 取出这一批要插入的引导，并把单轮的从收件箱删掉。
      * 多轮的留在原处，下一次工具批次再取一遍——「插入后继续生效」就是这里。
+     *
+     * [includeRepeating] 为 false 时只取单轮的：引导的插入间隔没到，多轮的这一批先不动，
+     * 但单轮的一次指令不该陪着一起等。
      */
     @Synchronized
-    fun takeGuidances(): List<Guidance> {
+    fun takeGuidances(includeRepeating: Boolean = true): List<Guidance> {
         val current = state.value
         if (current.guidances.isEmpty()) return emptyList()
-        val taken = current.guidances
-        val remaining = taken.filter { it.mode == GuidanceMode.REPEAT }
-        if (remaining.size != taken.size) {
-            mutableState.value = current.copy(guidances = remaining)
+        val taken = current.guidances.filter { includeRepeating || it.mode == GuidanceMode.SINGLE }
+        if (taken.isEmpty()) return emptyList()
+        val takenIds = taken.mapTo(HashSet()) { it.id }
+        val remaining = current.guidances.filter { guidance ->
+            when {
+                guidance.id !in takenIds -> true
+                // 多轮的取走后放回去，单轮的取走即删
+                else -> guidance.mode == GuidanceMode.REPEAT && includeRepeating
+            }
         }
+        mutableState.value = current.copy(guidances = remaining)
         return taken
     }
 

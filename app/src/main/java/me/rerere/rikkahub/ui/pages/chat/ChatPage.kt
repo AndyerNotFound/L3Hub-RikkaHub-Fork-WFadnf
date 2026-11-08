@@ -3,6 +3,11 @@ package me.rerere.rikkahub.ui.pages.chat
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,6 +108,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
+import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MoreVertical
@@ -451,6 +457,9 @@ private fun ChatPageContent(
     val lorebookInjectionCount = remember(conversation.messageNodes, assistant.lorebookIds, setting.lorebooks) {
         collectLorebookInjections(currentMessages, assistant, setting.lorebooks).size
     }
+    // 详情面板要显示工作区名字和路径，跟着仓库的列表数据走
+    val workspaces by remember(workspaceRepository) { workspaceRepository.listFlow() }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
 
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
@@ -477,6 +486,8 @@ private fun ChatPageContent(
     val previewListState = rememberLazyListState()
     val selectionState = rememberChatSelectionState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
+    var showDetails by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
@@ -959,46 +970,77 @@ private fun ChatPageContent(
         }
         Scaffold(
             topBar = {
-                if (setting.displaySetting.terminalStyle) {
-                    TerminalChatTopBar(
-                        title = conversation.title,
-                        assistantName = assistant.name,
-                        modelName = currentChatModel?.displayName ?: "no-model",
-                        contextTokens = contextTokens,
-                        maxContextTokens = currentChatModel?.maxContextTokens,
-                        bigScreen = bigScreen,
-                        onMenu = { scope.launch { drawerState.open() } },
-                        onNewChat = { navigateToChatPage(navController) },
-                        onTaskTree = { showTaskTree = true },
-                        onUsage = { showUsageSheet = true },
-                        onHelp = { terminalOutput = terminalHelpText { context.getString(it) } },
-                    )
-                } else {
-                    TopBar(
-                        hazeState = backgroundHazeState,
-                        settings = setting,
-                        assistant = assistant,
-                        chatModel = currentChatModel,
-                        conversation = conversation,
-                        bigScreen = bigScreen,
-                        drawerState = drawerState,
-                        onNewChat = {
-                            navigateToChatPage(navController)
-                        },
-                        onShowTaskTree = { showTaskTree = true },
-                        onShowModelPicker = { chatModelListState.open() },
-                        onShowOverview = {
-                            selectionState.selecting = false
-                            previewMode = true
-                        },
-                        onExport = {
-                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
-                            previewMode = false
-                            selectionState.start(conversation.messageNodes.map { it.id })
-                        },
-                        onDelete = { showDeleteConfirm = true },
-                        showCapsuleBackground = listScrolledUnderTopBar,
-                    )
+                Column {
+                    if (setting.displaySetting.terminalStyle) {
+                        TerminalChatTopBar(
+                            title = conversation.title,
+                            assistantName = assistant.name,
+                            modelName = currentChatModel?.displayName ?: "no-model",
+                            contextTokens = contextTokens,
+                            maxContextTokens = currentChatModel?.maxContextTokens,
+                            bigScreen = bigScreen,
+                            onMenu = { scope.launch { drawerState.open() } },
+                            onNewChat = { navigateToChatPage(navController) },
+                            onTaskTree = { showTaskTree = true },
+                            onUsage = { showUsageSheet = true },
+                            onHelp = { terminalOutput = terminalHelpText { context.getString(it) } },
+                        )
+                    } else {
+                        TopBar(
+                            hazeState = backgroundHazeState,
+                            settings = setting,
+                            assistant = assistant,
+                            chatModel = currentChatModel,
+                            conversation = conversation,
+                            bigScreen = bigScreen,
+                            drawerState = drawerState,
+                            onNewChat = {
+                                navigateToChatPage(navController)
+                            },
+                            onShowTaskTree = { showTaskTree = true },
+                            onShowModelPicker = { chatModelListState.open() },
+                            onShowOverview = {
+                                selectionState.selecting = false
+                                previewMode = true
+                            },
+                            onExport = {
+                                // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
+                                previewMode = false
+                                selectionState.start(conversation.messageNodes.map { it.id })
+                            },
+                            onDelete = { showDeleteConfirm = true },
+                            showCapsuleBackground = listScrolledUnderTopBar,
+                            detailsExpanded = showDetails,
+                            onToggleDetails = { showDetails = !showDetails },
+                        )
+                    }
+
+                    // 详情面板从顶栏下方展开：高度动画带着聊天内容一起让位，收起时再退回
+                    AnimatedVisibility(
+                        visible = showDetails && !setting.displaySetting.terminalStyle,
+                        enter = expandVertically(
+                            expandFrom = Alignment.Top,
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                        ) + fadeIn(),
+                        exit = shrinkVertically(
+                            shrinkTowards = Alignment.Top,
+                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                        ) + fadeOut(),
+                    ) {
+                        ConversationDetailsPanel(
+                            assistant = assistant,
+                            model = currentChatModel,
+                            settings = setting,
+                            workspaces = workspaces,
+                            folderWorkspaceName = folderWorkspaceName,
+                            contextTokens = contextTokens,
+                            messageCount = currentMessages.size,
+                            lorebookInjectionCount = lorebookInjectionCount,
+                            hazeState = backgroundHazeState,
+                            onCollapse = { showDetails = false },
+                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -1387,6 +1429,8 @@ private fun TopBar(
     onShowOverview: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
+    detailsExpanded: Boolean,
+    onToggleDetails: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -1540,6 +1584,20 @@ private fun TopBar(
                         .padding(horizontal = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
+                        Icon(
+                            HugeIcons.Layers01,
+                            stringResource(R.string.chat_page_details_button),
+                            modifier = Modifier.size(TopBarButtonIconSize),
+                            // 展开时按钮跟着提亮，顶栏一眼能看出详情面板是开着的
+                            tint = if (detailsExpanded) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                LocalContentColor.current
+                            },
+                        )
+                    }
+
                     IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
                         Icon(
                             HugeIcons.Flowchart01,

@@ -231,6 +231,31 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
+            // 只影响多轮引导的重复频率：清单提醒按内容变化走，不看这个间隔
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_guidance_interval)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_guidance_interval_desc)) },
+                trailingContent = {
+                    Text(
+                        text = stringResource(
+                            R.string.assistant_page_guidance_interval_value,
+                            assistant.guidanceInterval.coerceIn(1, 4),
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+            ) {
+                Slider(
+                    value = assistant.guidanceInterval.coerceIn(1, 4).toFloat(),
+                    onValueChange = {
+                        onUpdate(assistant.copy(guidanceInterval = it.roundToInt().coerceIn(1, 4)))
+                    },
+                    valueRange = 1f..4f,
+                    steps = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             switchItem(
                 checked = assistant.enableNotification,
                 onCheckedChange = { onUpdate(assistant.copy(enableNotification = it)) },
