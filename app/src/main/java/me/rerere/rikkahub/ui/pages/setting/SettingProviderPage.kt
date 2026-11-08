@@ -43,7 +43,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -91,6 +90,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.heroSource
+import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceString
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
@@ -107,12 +107,6 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
-// 未分组那一栏的 key 和折叠状态都单独占一个名字，用户完全可以把分组叫 "ungrouped"，
-// 命名分组统一带 "group:" 前缀，两边不会撞在一起
-private const val UNGROUPED_KEY = "ungrouped"
-
-private fun groupKey(name: String?): String = name?.let { "group:$it" } ?: UNGROUPED_KEY
-
 // 提供商页的列表条目：分组标题和提供商各自是一个可拖拽条目。
 // 拖标题就是排分组，拖提供商就是排组内顺序，两者共用同一份 LazyColumn 下标。
 private sealed interface ProviderListEntry {
@@ -122,7 +116,7 @@ private sealed interface ProviderListEntry {
         val name: String?,
         val count: Int,
     ) : ProviderListEntry {
-        override val key: String get() = groupKey(name)
+        override val key: String get() = providerGroupKey(name)
     }
 
     data class ProviderRow(
@@ -158,16 +152,23 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     // 一个分组都没有时保持原来的平铺列表，不给只用默认分组的用户硬塞一个「未分组」标题
     val grouped = settings.providerGroups.isNotEmpty()
     val orderedGroups = remember(settings.providerGroups, settings.providers, settings.providerGroupAssignments) {
-        val assigned = settings.providers.mapNotNull { provider ->
-            settings.providerGroupAssignments[provider.id.toString()]
-        }.distinct()
-        buildList {
-            settings.providerGroups.forEach { name -> if (name in assigned) add(name) }
-            assigned.filterNot { it in settings.providerGroups }.sorted().forEach { add(it) }
-        }
+        settings.orderedProviderGroups()
     }
-    // 折叠状态只活在这一页，和模型选择侧栏一样，离开再进来默认展开
-    val collapsedGroups = remember { mutableStateMapOf<String, Boolean>() }
+    // 折叠状态落在 SharedPreferences 里：进详情页再返回、切主题重建、杀进程之后分组仍收着。
+    // 这是纯界面状态，不进 Settings
+    val collapsedGroupsPref = rememberSharedPreferenceString(COLLAPSED_GROUPS_KEY)
+    val collapsedGroups = remember(
+        collapsedGroupsPref.value,
+        settings.providerGroups,
+        settings.providers,
+        settings.providerGroupAssignments,
+    ) {
+        settings.pruneCollapsedGroups(decodeCollapsedGroups(collapsedGroupsPref.value))
+    }
+    fun setGroupCollapsed(key: String, collapsed: Boolean) {
+        val updated = if (collapsed) collapsedGroups + key else collapsedGroups - key
+        collapsedGroupsPref.value = encodeCollapsedGroups(settings.pruneCollapsedGroups(updated))
+    }
 
     // 有提供商的分组才占位置；一个命名分组都没有时退回平铺，不单独给「未分组」加标题
     val groupSections = orderedGroups.map { name ->
@@ -183,13 +184,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         buildList {
             groupSections.forEach { (groupName, groupProviders) ->
                 add(ProviderListEntry.GroupHeader(groupName, groupProviders.size))
-                if (collapsedGroups[groupKey(groupName)] != true) {
+                if (providerGroupKey(groupName) !in collapsedGroups) {
                     groupProviders.forEach { add(ProviderListEntry.ProviderRow(it, groupName)) }
                 }
             }
             if (ungroupedProviders.isNotEmpty()) {
                 add(ProviderListEntry.GroupHeader(null, ungroupedProviders.size))
-                if (collapsedGroups[UNGROUPED_KEY] != true) {
+                if (UNGROUPED_GROUP_KEY !in collapsedGroups) {
                     ungroupedProviders.forEach { add(ProviderListEntry.ProviderRow(it, null)) }
                 }
             }
@@ -215,15 +216,8 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 if (targetName == null || targetName == fromName) {
                     return@rememberReorderableLazyListState
                 }
-                vm.updateSettings { latest ->
-                    // 空分组不显示，但留在原来的槽位：只重排看得见的名字
-                    val groups = latest.providerGroups.toMutableList()
-                    val fromIndex = groups.indexOf(fromName)
-                    val toIndex = groups.indexOf(targetName)
-                    if (fromIndex == -1 || toIndex == -1) return@updateSettings latest
-                    groups.add(toIndex, groups.removeAt(fromIndex))
-                    latest.copy(providerGroups = groups)
-                }
+                // 空分组不显示，但留在原来的槽位：只重排看得见的名字
+                vm.updateSettings { latest -> latest.reorderProviderGroup(fromName, targetName) }
             }
 
             // 提供商：只在同一组里换位置。跨组会改动分组归属，不在这个手势里做
@@ -234,25 +228,11 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 val movedProvider = fromEntry.provider
                 val targetProvider = toEntry.provider
                 vm.updateSettings { latest ->
-                    val sameGroup = latest.providers.filter { provider ->
-                        latest.providerGroupAssignments[provider.id.toString()] == group
-                    }
-                    val fromIndex = sameGroup.indexOfFirst { it.id == movedProvider.id }
-                    val toIndex = sameGroup.indexOfFirst { it.id == targetProvider.id }
-                    if (fromIndex == -1 || toIndex == -1 || fromIndex == toIndex) {
-                        return@updateSettings latest
-                    }
-                    val reordered = sameGroup.toMutableList().apply {
-                        add(toIndex, removeAt(fromIndex))
-                    }
-                    // 把组内新顺序写回全局列表里这一组占的槽位，别的提供商不动
-                    val slots = latest.providers.indices.filter { index ->
-                        latest.providerGroupAssignments[latest.providers[index].id.toString()] == group
-                    }
-                    if (slots.size != reordered.size) return@updateSettings latest
-                    val providers = latest.providers.toMutableList()
-                    slots.forEachIndexed { index, slot -> providers[slot] = reordered[index] }
-                    latest.copy(providers = providers)
+                    latest.reorderProviderWithinGroup(
+                        movedId = movedProvider.id,
+                        targetId = targetProvider.id,
+                        group = group,
+                    )
                 }
             }
         }
@@ -275,7 +255,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         // 搜索词可能把新提供商过滤掉
         searchQuery = ""
         // 新提供商没有分组，落在未分组里；它被折叠时滚不过去
-        collapsedGroups[UNGROUPED_KEY] = false
+        if (UNGROUPED_GROUP_KEY in collapsedGroups) setGroupCollapsed(UNGROUPED_GROUP_KEY, false)
         pendingScrollId = provider.id.toString()
         vm.updateSettings { latest ->
             // 连点时第二次写入已经能看到第一次的结果，避免出现重复 id
@@ -379,9 +359,9 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                         ),
                                     name = entry.name,
                                     count = entry.count,
-                                    collapsed = collapsedGroups[entry.key] == true,
+                                    collapsed = entry.key in collapsedGroups,
                                     onClick = {
-                                        collapsedGroups[entry.key] = collapsedGroups[entry.key] != true
+                                        setGroupCollapsed(entry.key, entry.key !in collapsedGroups)
                                     },
                                 )
                             }
