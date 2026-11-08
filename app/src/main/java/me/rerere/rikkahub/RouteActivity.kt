@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -859,6 +860,28 @@ class RouteActivity : ComponentActivity() {
                             )
                         }
                     }
+                    // 设置中列不再随右列变宽被压缩：宽度固定成「右列最窄时」的宽度，
+                    // 右列更宽时从右边盖上来，列表不会跟着来回重排
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                    ) {
+                        val contentWidth = maxWidth
+                        val minRightFraction = 0.34f
+                        val middleTargetWidth = if (splitSettingColumns) {
+                            contentWidth * (1f - minRightFraction)
+                        } else {
+                            contentWidth
+                        }
+                        val middleColumnWidth by animateDpAsState(
+                            targetValue = middleTargetWidth,
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                            label = "settingMiddleWidth",
+                        )
+                        val rightColumnWidth = (contentWidth * rightColumnFraction)
+                            .coerceIn(1.dp, contentWidth)
+
                     NavDisplay(
                         backStack = middleStack,
                         entryDecorators = listOf(
@@ -869,8 +892,7 @@ class RouteActivity : ComponentActivity() {
                             rememberNavInputGuardDecorator<NavKey>(),
                         ),
                         modifier = Modifier
-                            // 弹簧会过冲，权重必须钳在正数区间
-                            .weight((1f - rightColumnFraction).coerceIn(0.001f, 1f))
+                            .width(middleColumnWidth)
                             .fillMaxHeight(),
                         // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
                         // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
@@ -919,8 +941,15 @@ class RouteActivity : ComponentActivity() {
                         entryProvider = navEntries,
                     )
 
-                    // 右列：只放设置页里的下钻页，进出用淡入淡出，不再做上下滑
+                    // 右列：只放设置页里的下钻页，进出用淡入淡出；宽度超出中列留出的那部分时，
+                    // 从右边盖住中列，而不是把中列压窄
                     if (rightColumnFraction > 0.001f) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .width(rightColumnWidth)
+                                .fillMaxHeight(),
+                        ) {
                         ColumnResizeHandle(
                             onDrag = { delta ->
                                 settingSplit = (settingSplit + delta.value / settingContentWidth.value)
@@ -937,7 +966,7 @@ class RouteActivity : ComponentActivity() {
                                 rememberNavInputGuardDecorator<NavKey>(),
                             ),
                             modifier = Modifier
-                                .weight(rightColumnFraction.coerceAtLeast(0.001f))
+                                .weight(1f)
                                 .fillMaxHeight(),
                             onBack = { navController.popBackStack() },
                             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -945,6 +974,8 @@ class RouteActivity : ComponentActivity() {
                             predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
                             entryProvider = navEntries,
                         )
+                        }
+                    }
                     }
                     }
                     if (BuildConfig.DEBUG) {
