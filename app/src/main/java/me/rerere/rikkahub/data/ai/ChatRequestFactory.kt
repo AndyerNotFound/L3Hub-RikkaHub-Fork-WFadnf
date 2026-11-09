@@ -191,7 +191,7 @@ class ChatRequestFactory(
             providerSetting = turn.providerSetting,
             messages = messages,
             tools = turn.tools,
-            // 合成调用不声明给模型，但模型可能照着历史去调同名工具；这里只负责接住
+            // 合成调用不声明给模型，请求里也会展开成 user 消息；这里只负责接住模型误调同名工具
             executorOnlyTools = listOf(
                 injectedToolFallback(GUIDANCE_TOOL_NAME),
                 injectedToolFallback(TODO_REMINDER_TOOL_NAME),
@@ -423,8 +423,10 @@ class ChatRequestFactory(
                 todos = turn.todos,
             )
         }
-        // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效
-        val requestMessages = transformedMessages.expandNotices()
+        // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效。
+        // 合成调用（引导、清单）也在这里换成 user 消息：模型一旦在历史里看到自己调过一个没声明过的工具，
+        // 下一步就会照着再调一次，拿回一个空结果
+        val requestMessages = transformedMessages.expandNotices().expandInjectedTools()
         val params = TextGenerationParams(
             model = turn.model,
             temperature = assistant.temperature,

@@ -14,14 +14,15 @@ import kotlin.uuid.Uuid
 /**
  * 引导和清单注入用的合成工具名。
  *
- * 它们不进工具表：模型调不到，历史里却是一条标准的 tool_use + tool_result。
+ * 它们不进工具表，落库时是一条标准的 tool_use + tool_result，组装请求时由
+ * [expandInjectedTools] 换成 user 消息——模型看不到这个工具名，才不会照着历史去调它。
  * 各家 provider 转换时只按已执行的 Tool part 分组序列化，不校验工具名是否声明过，
- * 所以不需要为它们常驻声明一个工具——声明反而会诱导模型真的去调用。
+ * 所以不需要为它们常驻声明一个工具；声明反而会诱导模型真的去调用。
  */
 const val GUIDANCE_TOOL_NAME = "guidance"
 const val TODO_REMINDER_TOOL_NAME = "todo_reminder"
 
-// 注入的调用 id 前缀。模型照着历史误调同名工具时，provider 给的是它自己的 id，
+// 注入的调用 id 前缀。模型误调同名工具时，provider 给的是它自己的 id，
 // 没有这个前缀，据此还分得清「应用插的」和「模型自己调的」
 private const val GUIDANCE_ID_PREFIX = "g_"
 private const val TODO_ID_PREFIX = "t_"
@@ -73,10 +74,10 @@ fun UIMessagePart.isInjectedTool(): Boolean {
 }
 
 /**
- * 模型照着历史误调合成调用时的兜底。
+ * 模型误调合成调用时的兜底。
  *
  * 只参与执行、不声明给模型（[me.rerere.ai.agent.AgentRequest.executorOnlyTools]），
- * 所以不会诱导它去调；真调了也只是拿到一句说明。
+ * 请求里也已经展开成 user 消息；正常看不到这个名字，真调了只是拿到一句说明。
  */
 fun injectedToolFallback(name: String) = Tool(
     name = name,
@@ -138,3 +139,36 @@ fun UIMessagePart.Tool.todoReminderText(): String? =
     } else {
         null
     }
+
+/**
+ * 把注入的合成调用（引导、清单）还原成 user 消息再发给模型。
+ *
+ * 合成调用只是落库和界面的载体：模型在历史里看到自己「调用」过一个没声明过的工具，
+ * 下一步就会照着去调它，拿回一个空结果。展开后模型看到的只是一条中途追加的 user 消息，
+ * 位置仍在工具结果之后，和 [me.rerere.ai.agent.expandNotices] 展开通知是同一层。
+ *
+ * 只在组装请求时调用，消息本身不动——界面靠合成调用画提示卡片、算插入间隔。
+ */
+fun List<UIMessage>.expandInjectedTools(): List<UIMessage> = flatMap { message ->
+    if (message.parts.none { it is UIMessagePart.Tool && it.isInjectedTool() }) {
+        return@flatMap listOf(message)
+    }
+    buildList {
+        val buffer = mutableListOf<UIMessagePart>()
+        fun flush() {
+            if (buffer.isNotEmpty()) add(message.copy(parts = buffer.toList()))
+            buffer.clear()
+        }
+        message.parts.forEach { part ->
+            val tool = part as? UIMessagePart.Tool
+            val text = tool?.guidanceText() ?: tool?.todoReminderText()
+            if (text != null) {
+                flush()
+                add(UIMessage.user(text).copy(createdAt = message.createdAt, isSynthetic = true))
+            } else {
+                buffer.add(part)
+            }
+        }
+        flush()
+    }
+}

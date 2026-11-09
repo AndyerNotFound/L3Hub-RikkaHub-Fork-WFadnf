@@ -633,19 +633,22 @@ app/.../web/dto/WebDto.kt / routes/FolderRoutes.kt   DTO 字段与绑定接口
 插进正在跑的工具间隙，模型下一步就读到它，不用掐断再重发。
 
 实现上没有新增协议，也不动 agent 循环：引导被包成一条**合成的工具调用**（tool_use + tool_result）
-写进当前助手消息，和真实工具结果一样进请求、进落库、进导出。
+写进当前助手消息，随消息一起落库、导出；组装请求时再展开成一条 user 消息，模型在历史里看不到这个工具。
 
 ```kotlin
 UIMessagePart.Tool(
     toolCallId = "g_<16 位十六进制>",   // 不带连字符：OpenAI 的 tool_call_id 上限 40 字符，整套 uuid 会到 45
     toolName = "guidance",             // 不注册进工具表，模型调不到；声明了反而会诱导它去调用
-    input = "{}",
+    input = """{"step":2}""",          // 插在第几步，引导间隔按它算
     output = listOf(UIMessagePart.Text(引导正文)),
 )
 ```
 
 - 工具名 `guidance` / `todo_reminder` 都不在工具表里。各家 provider 转换时只按「已执行的 Tool part」成组序列化，
   不校验名字是否声明过，所以不需要为它们常驻一个工具。
+- 合成调用只在落库和界面上存在。组装请求时 `expandInjectedTools` 把它拆成一条 **user 消息**（和通知的
+  `expandNotices` 同一层，位置仍在工具结果之后）；模型在历史里看不到 `tool_use`，否则它会以为自己有这个工具，
+  照着再调一次，拿回一个空结果。
 - 每次插入都用新的 `toolCallId`：同一条助手消息里出现两个相同 id 的 tool_use，Anthropic 会整条拒掉。
 
 ### 什么时候插

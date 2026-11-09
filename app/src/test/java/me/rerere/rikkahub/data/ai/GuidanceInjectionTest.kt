@@ -111,4 +111,48 @@ class GuidanceInjectionTest {
         assertNull(todoPart.guidanceText())
         assertNull(guidance.todoReminderText())
     }
+
+    @Test
+    fun `injected calls become user messages before the request`() {
+        val read = UIMessagePart.Tool(
+            toolCallId = "call_1",
+            toolName = "read",
+            input = "{}",
+            output = listOf(UIMessagePart.Text("ok")),
+        )
+        val reminder = todoReminderToolPart(todos, step = 2)!!
+        val guidance = guidanceToolPart(Guidance(content = "先别改 app/"), step = 2)
+        val assistant = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(read, reminder, guidance, UIMessagePart.Text("继续")),
+            stepCount = 2,
+        )
+
+        val expanded = listOf(assistant).expandInjectedTools()
+
+        // 真实工具调用留在助手消息里；两条注入各拆成一条 user 消息，模型看到的顺序不变
+        assertEquals(
+            listOf(MessageRole.ASSISTANT, MessageRole.USER, MessageRole.USER, MessageRole.ASSISTANT),
+            expanded.map { it.role },
+        )
+        assertEquals(1, expanded[0].parts.size)
+        assertEquals(buildTodoPrompt(todos), (expanded[1].parts.single() as UIMessagePart.Text).text)
+        assertEquals("先别改 app/", (expanded[2].parts.single() as UIMessagePart.Text).text)
+        assertEquals("继续", (expanded[3].parts.single() as UIMessagePart.Text).text)
+        assertTrue(expanded.flatMap { it.parts }.none { it is UIMessagePart.Tool && it.isInjectedTool() })
+    }
+
+    @Test
+    fun `a model made tool call with an injected name is left alone`() {
+        // 没有注入前缀，就是模型自己调的：展开只认应用插的那一种
+        val hallucinated = UIMessagePart.Tool(
+            toolCallId = "toolu_01ABC",
+            toolName = GUIDANCE_TOOL_NAME,
+            input = "{}",
+            output = listOf(UIMessagePart.Text("whatever")),
+        )
+        val assistant = UIMessage(role = MessageRole.ASSISTANT, parts = listOf(hallucinated))
+
+        assertEquals(listOf(assistant), listOf(assistant).expandInjectedTools())
+    }
 }
