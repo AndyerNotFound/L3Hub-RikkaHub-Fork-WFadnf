@@ -58,6 +58,7 @@ import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.data.datastore.UiStyle
+import me.rerere.rikkahub.ui.theme.LocalMiuixCornerRadius
 import me.rerere.rikkahub.ui.theme.LocalUiStyle
 import me.rerere.rikkahub.ui.theme.miuixPressFeedbackType
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
@@ -500,8 +501,7 @@ private fun CardGroupPreview() {
     }
 }
 
-private val MiuixCardCorner = 20.dp
-private val MiuixCardSpacing = 8.dp
+private val MiuixCardSpacing = 4.dp
 
 /**
  * Miuix 模式下的分组：每一项一张可点的 Miuix 卡。
@@ -551,7 +551,7 @@ private fun MiuixCardGroup(
 private fun MiuixCardGroupItem(item: CardGroupItem) {
     MiuixCard(
         modifier = item.modifier.fillMaxWidth(),
-        cornerRadius = adaptiveCornerRadius(MiuixCardCorner),
+        cornerRadius = LocalMiuixCornerRadius.current,
         pressFeedbackType = miuixPressFeedbackType(),
         onClick = item.onClick,
     ) {

@@ -202,6 +202,7 @@ fun RikkahubTheme(
         LocalFullWidthComponents provides fullWidthComponents,
         LocalUiStyle provides uiStyle,
         LocalMiuixPressFeedback provides settings.displaySetting.miuixPressFeedback,
+        LocalMiuixCornerRadius provides settings.displaySetting.miuixCornerRadius.dp,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,

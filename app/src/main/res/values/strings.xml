@@ -2668,4 +2668,5 @@
   <string name="setting_page_miuix_press_feedback_tilt">Tilt</string>
   <string name="setting_page_miuix_overscroll">Stretch overscroll</string>
   <string name="setting_page_miuix_overscroll_desc">Use the Miuix stretch effect when scrolling past the ends</string>
+  <string name="setting_page_miuix_corner_radius">Card corner radius</string>
 </resources>

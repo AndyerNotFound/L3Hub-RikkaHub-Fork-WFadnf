@@ -281,6 +281,8 @@ data class DisplaySetting(
     val miuixPressFeedback: MiuixPressFeedback = MiuixPressFeedback.SINK,
     // Miuix 的滚动回弹，关掉沿用系统的
     val miuixOverscroll: Boolean = true,
+    // Miuix 卡片的圆角（dp）
+    val miuixCornerRadius: Int = 16,
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,

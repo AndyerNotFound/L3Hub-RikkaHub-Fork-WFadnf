@@ -2670,4 +2670,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_miuix_press_feedback_tilt">倾斜</string>
   <string name="setting_page_miuix_overscroll">拉伸回弹</string>
   <string name="setting_page_miuix_overscroll_desc">滚到尽头时使用 Miuix 的拉伸效果</string>
+  <string name="setting_page_miuix_corner_radius">卡片圆角</string>
 </resources>
