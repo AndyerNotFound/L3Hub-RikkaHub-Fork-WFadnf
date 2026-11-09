@@ -245,7 +245,8 @@ fun RikkahubTheme(
                     if (uiStyle == UiStyle.MIUIX) {
                         MiuixRootTheme(
                             dark = effectiveDark,
-                            followThemeColor = settings.displaySetting.miuixFollowThemeColor,
+                            colorSource = settings.displaySetting.miuixColorSource,
+                            palette = settings.displaySetting.miuixPalette,
                             overscroll = settings.displaySetting.miuixOverscroll,
                             content = body,
                         )

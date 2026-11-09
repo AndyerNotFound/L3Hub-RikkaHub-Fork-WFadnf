@@ -233,6 +233,34 @@ enum class MiuixPressFeedback {
     TILT,
 }
 
+/** Miuix 的配色从哪来。 */
+@Serializable
+enum class MiuixColorSource {
+    /** 跟随当前界面：直接映射调色板与位置层，跟原生页面是同一套底色 */
+    THEME,
+
+    /** 从主题主色自动生成，风格由 [MiuixPalette] 决定 */
+    GENERATED,
+
+    /** Miuix 自带的那套蓝色 */
+    DEFAULT,
+}
+
+/** 自动生成配色时的风格（对应 Miuix 的 ThemePaletteStyle）。 */
+@Serializable
+enum class MiuixPalette {
+    TONAL_SPOT,
+    NEUTRAL,
+    VIBRANT,
+    EXPRESSIVE,
+    RAINBOW,
+    FRUIT_SALAD,
+    MONOCHROME,
+    FIDELITY,
+    CONTENT,
+    CMF,
+}
+
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
@@ -275,8 +303,9 @@ data class DisplaySetting(
     // 界面风格：切到 Miuix 后整棵树的骨架组件（卡片分组、开关）换成 Miuix 的实现，
     // 水波纹与滚动回弹也交给 Miuix。没迁过去的页面保持原来样子。
     val uiStyle: UiStyle = UiStyle.NATIVE,
-    // Miuix 的配色从当前主题主色推导；关掉就用 Miuix 自带的蓝
-    val miuixFollowThemeColor: Boolean = true,
+    // Miuix 的配色从哪来；自动生成时配色风格才有意义
+    val miuixColorSource: MiuixColorSource = MiuixColorSource.THEME,
+    val miuixPalette: MiuixPalette = MiuixPalette.TONAL_SPOT,
     // Miuix 组件的按压反馈
     val miuixPressFeedback: MiuixPressFeedback = MiuixPressFeedback.SINK,
     // Miuix 的滚动回弹，关掉沿用系统的

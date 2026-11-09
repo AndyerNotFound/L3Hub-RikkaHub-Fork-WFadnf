@@ -2660,8 +2660,6 @@
   <string name="setting_page_ui_style_native">Native</string>
   <string name="setting_page_ui_style_miuix">Miuix</string>
   <string name="setting_page_miuix_group">Miuix</string>
-  <string name="setting_page_miuix_follow_theme_color">Follow theme color</string>
-  <string name="setting_page_miuix_follow_theme_color_desc">Build Miuix colors from the primary color of the current theme</string>
   <string name="setting_page_miuix_press_feedback">Press feedback</string>
   <string name="setting_page_miuix_press_feedback_none">None</string>
   <string name="setting_page_miuix_press_feedback_sink">Sink</string>
@@ -2669,4 +2667,20 @@
   <string name="setting_page_miuix_overscroll">Stretch overscroll</string>
   <string name="setting_page_miuix_overscroll_desc">Use the Miuix stretch effect when scrolling past the ends</string>
   <string name="setting_page_miuix_corner_radius">Card corner radius</string>
+  <string name="setting_page_miuix_color_source">Color source</string>
+  <string name="setting_page_miuix_color_source_theme">Follow UI</string>
+  <string name="setting_page_miuix_color_source_generated">Generated</string>
+  <string name="setting_page_miuix_color_source_default">Miuix default</string>
+  <string name="setting_page_miuix_palette">Palette style</string>
+  <string name="setting_page_miuix_palette_desc">Only applies when colors are generated</string>
+  <string name="setting_page_miuix_palette_tonal_spot">Tonal spot</string>
+  <string name="setting_page_miuix_palette_neutral">Neutral</string>
+  <string name="setting_page_miuix_palette_vibrant">Vibrant</string>
+  <string name="setting_page_miuix_palette_expressive">Expressive</string>
+  <string name="setting_page_miuix_palette_rainbow">Rainbow</string>
+  <string name="setting_page_miuix_palette_fruit_salad">Fruit salad</string>
+  <string name="setting_page_miuix_palette_monochrome">Monochrome</string>
+  <string name="setting_page_miuix_palette_fidelity">Fidelity</string>
+  <string name="setting_page_miuix_palette_content">Content</string>
+  <string name="setting_page_miuix_palette_cmf">CMF</string>
 </resources>

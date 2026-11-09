@@ -63,6 +63,7 @@ import me.rerere.rikkahub.ui.theme.LocalUiStyle
 import me.rerere.rikkahub.ui.theme.miuixPressFeedbackType
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
@@ -549,9 +550,16 @@ private fun MiuixCardGroup(
 
 @Composable
 private fun MiuixCardGroupItem(item: CardGroupItem) {
+    val cornerRadius = LocalMiuixCornerRadius.current
+    val shape = RoundedCornerShape(cornerRadius)
+    // 和原生分支同一套判断：开了模糊特效就把卡片的实色底交给玻璃层
+    val glass = LocalSettings.current.displaySetting.enableBlurEffect
     MiuixCard(
-        modifier = item.modifier.fillMaxWidth(),
-        cornerRadius = LocalMiuixCornerRadius.current,
+        modifier = item.modifier
+            .fillMaxWidth()
+            .glassSurface(shape = shape, baseColor = MaterialTheme.colorScheme.surfaceBright),
+        cornerRadius = cornerRadius,
+        colors = if (glass) MiuixCardDefaults.defaultColors(color = Color.Transparent) else MiuixCardDefaults.defaultColors(),
         pressFeedbackType = miuixPressFeedbackType(),
         onClick = item.onClick,
     ) {

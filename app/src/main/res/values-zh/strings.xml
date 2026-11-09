@@ -2662,8 +2662,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_ui_style_native">原生</string>
   <string name="setting_page_ui_style_miuix">Miuix</string>
   <string name="setting_page_miuix_group">Miuix</string>
-  <string name="setting_page_miuix_follow_theme_color">跟随主题色</string>
-  <string name="setting_page_miuix_follow_theme_color_desc">Miuix 的配色从当前主题的主色推导</string>
   <string name="setting_page_miuix_press_feedback">按压反馈</string>
   <string name="setting_page_miuix_press_feedback_none">无</string>
   <string name="setting_page_miuix_press_feedback_sink">下沉</string>
@@ -2671,4 +2669,20 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_miuix_overscroll">拉伸回弹</string>
   <string name="setting_page_miuix_overscroll_desc">滚到尽头时使用 Miuix 的拉伸效果</string>
   <string name="setting_page_miuix_corner_radius">卡片圆角</string>
+  <string name="setting_page_miuix_color_source">配色来源</string>
+  <string name="setting_page_miuix_color_source_theme">跟随界面</string>
+  <string name="setting_page_miuix_color_source_generated">自动生成</string>
+  <string name="setting_page_miuix_color_source_default">Miuix 默认</string>
+  <string name="setting_page_miuix_palette">配色风格</string>
+  <string name="setting_page_miuix_palette_desc">仅在自动生成配色时生效</string>
+  <string name="setting_page_miuix_palette_tonal_spot">柔和</string>
+  <string name="setting_page_miuix_palette_neutral">中性</string>
+  <string name="setting_page_miuix_palette_vibrant">鲜艳</string>
+  <string name="setting_page_miuix_palette_expressive">表现力</string>
+  <string name="setting_page_miuix_palette_rainbow">彩虹</string>
+  <string name="setting_page_miuix_palette_fruit_salad">混合</string>
+  <string name="setting_page_miuix_palette_monochrome">单色</string>
+  <string name="setting_page_miuix_palette_fidelity">保真</string>
+  <string name="setting_page_miuix_palette_content">内容色</string>
+  <string name="setting_page_miuix_palette_cmf">CMF</string>
 </resources>
