@@ -1,6 +1,23 @@
 package me.rerere.rikkahub.ui.terminal
 
+import androidx.compose.ui.state.ToggleableState
+import me.rerere.rikkahub.data.datastore.UiStyle
+import me.rerere.rikkahub.ui.theme.LocalMiuixCornerRadius
+import me.rerere.rikkahub.ui.theme.LocalUiStyle
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.Checkbox as MiuixCheckbox
+import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
+import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
+import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
+import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -134,6 +151,19 @@ fun Button(
     content: @Composable RowScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixButton(
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                colors = MiuixButtonDefaults.buttonColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.Button(
             onClick = onClick,
             modifier = modifier,
@@ -298,6 +328,15 @@ fun IconButton(
     content: @Composable () -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixIconButton(
+                onClick = onClick,
+                modifier = modifier,
+                enabled = enabled,
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.IconButton(
             onClick = onClick,
             modifier = modifier,
@@ -371,6 +410,18 @@ fun Card(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCard(
+                modifier = modifier,
+                cornerRadius = LocalMiuixCornerRadius.current,
+                colors = MiuixCardDefaults.defaultColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.Card(modifier, shape, colors, elevation, border, content)
         return
     }
@@ -390,6 +441,19 @@ fun Card(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCard(
+                modifier = modifier,
+                cornerRadius = LocalMiuixCornerRadius.current,
+                colors = MiuixCardDefaults.defaultColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                onClick = if (enabled) onClick else null,
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.Card(
             onClick = onClick,
             modifier = modifier,
@@ -416,6 +480,18 @@ fun OutlinedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCard(
+                modifier = modifier.border(border, RoundedCornerShape(LocalMiuixCornerRadius.current)),
+                cornerRadius = LocalMiuixCornerRadius.current,
+                colors = MiuixCardDefaults.defaultColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.OutlinedCard(modifier, shape, colors, elevation, border, content)
         return
     }
@@ -435,6 +511,19 @@ fun OutlinedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCard(
+                modifier = modifier.border(border, RoundedCornerShape(LocalMiuixCornerRadius.current)),
+                cornerRadius = LocalMiuixCornerRadius.current,
+                colors = MiuixCardDefaults.defaultColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                onClick = if (enabled) onClick else null,
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.OutlinedCard(
             onClick = onClick,
             modifier = modifier,
@@ -460,6 +549,18 @@ fun ElevatedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCard(
+                modifier = modifier,
+                cornerRadius = LocalMiuixCornerRadius.current,
+                colors = MiuixCardDefaults.defaultColors(
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                ),
+                content = content,
+            )
+            return
+        }
         androidx.compose.material3.ElevatedCard(modifier, shape, colors, elevation, content)
         return
     }
@@ -479,6 +580,33 @@ fun TopAppBar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            Column(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .background(MiuixTheme.colorScheme.surface)
+                    .windowInsetsPadding(windowInsets),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    navigationIcon()
+                    Box(
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        CompositionLocalProvider(
+                            LocalContentColor provides MiuixTheme.colorScheme.onSurface
+                        ) {
+                            title()
+                        }
+                    }
+                    actions()
+                }
+            }
+            return
+        }
         androidx.compose.material3.TopAppBar(
             title = title,
             modifier = modifier,
@@ -523,6 +651,14 @@ fun HorizontalDivider(
     color: Color = DividerDefaults.color,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixHorizontalDivider(
+                modifier = modifier,
+                thickness = thickness,
+                color = MiuixTheme.colorScheme.dividerLine,
+            )
+            return
+        }
         androidx.compose.material3.HorizontalDivider(modifier, thickness, color)
         return
     }
@@ -565,6 +701,15 @@ fun Switch(
     interactionSource: MutableInteractionSource? = null,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = modifier,
+                enabled = enabled,
+            )
+            return
+        }
         androidx.compose.material3.Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -595,6 +740,17 @@ fun Checkbox(
     interactionSource: MutableInteractionSource? = null,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixCheckbox(
+                state = ToggleableState(checked),
+                onClick = onCheckedChange?.takeIf { enabled }?.let { callback ->
+                    { callback(!checked) }
+                },
+                modifier = modifier,
+                enabled = enabled,
+            )
+            return
+        }
         androidx.compose.material3.Checkbox(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -624,6 +780,15 @@ fun RadioButton(
     interactionSource: MutableInteractionSource? = null,
 ) {
     if (!LocalTerminalMode.current) {
+        if (LocalUiStyle.current == UiStyle.MIUIX) {
+            MiuixRadioButton(
+                selected = selected,
+                onClick = if (enabled && onClick != null) onClick else null,
+                modifier = modifier,
+                enabled = enabled,
+            )
+            return
+        }
         androidx.compose.material3.RadioButton(
             selected = selected,
             onClick = onClick,
