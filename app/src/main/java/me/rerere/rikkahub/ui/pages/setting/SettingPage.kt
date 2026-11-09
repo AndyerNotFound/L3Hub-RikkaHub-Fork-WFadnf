@@ -62,12 +62,15 @@ import me.rerere.hugeicons.stroke.Moon02
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.hugeicons.stroke.Tiktok
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.MiuixPressFeedback
+import me.rerere.rikkahub.data.datastore.UiStyle
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -257,6 +260,36 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     }
+                    formItem {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            CardGroupIcon(HugeIcons.Sparkles, containerColor = containerColor, contentColor = contentColor)
+                            Text(stringResource(R.string.setting_page_ui_style))
+                        }
+                        ConnectedChoiceButtons(
+                            options = UiStyle.entries,
+                            selected = settings.displaySetting.uiStyle,
+                            onSelect = { style ->
+                                vm.updateSettings { latest ->
+                                    latest.copy(displaySetting = latest.displaySetting.copy(uiStyle = style))
+                                }
+                            },
+                        ) { style, selected ->
+                            ConnectedChoiceLabel(
+                                text = when (style) {
+                                    UiStyle.NATIVE -> stringResource(R.string.setting_page_ui_style_native)
+                                    UiStyle.MIUIX -> stringResource(R.string.setting_page_ui_style_miuix)
+                                },
+                                selected = selected,
+                                icon = when (style) {
+                                    UiStyle.NATIVE -> HugeIcons.SmartPhone01
+                                    UiStyle.MIUIX -> HugeIcons.Sparkles
+                                },
+                            )
+                        }
+                    }
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferences) },
                         heroScreen = Screen.SettingPreferences,
@@ -278,6 +311,70 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
                     )
+                }
+            }
+
+            if (settings.displaySetting.uiStyle == UiStyle.MIUIX) {
+                item("miuixSettings") {
+                    val containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    CardGroup(
+                        title = { Text(stringResource(R.string.setting_page_miuix_group)) },
+                    ) {
+                        switchItem(
+                            checked = settings.displaySetting.miuixFollowThemeColor,
+                            onCheckedChange = { enabled ->
+                                vm.updateSettings { latest ->
+                                    latest.copy(displaySetting = latest.displaySetting.copy(miuixFollowThemeColor = enabled))
+                                }
+                            },
+                            leadingContent = {
+                                CardGroupIcon(HugeIcons.Sparkles, containerColor = containerColor, contentColor = contentColor)
+                            },
+                            supportingContent = { Text(stringResource(R.string.setting_page_miuix_follow_theme_color_desc)) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_miuix_follow_theme_color)) },
+                        )
+                        formItem {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                CardGroupIcon(HugeIcons.Sparkles, containerColor = containerColor, contentColor = contentColor)
+                                Text(stringResource(R.string.setting_page_miuix_press_feedback))
+                            }
+                            ConnectedChoiceButtons(
+                                options = MiuixPressFeedback.entries,
+                                selected = settings.displaySetting.miuixPressFeedback,
+                                onSelect = { feedback ->
+                                    vm.updateSettings { latest ->
+                                        latest.copy(displaySetting = latest.displaySetting.copy(miuixPressFeedback = feedback))
+                                    }
+                                },
+                            ) { feedback, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (feedback) {
+                                        MiuixPressFeedback.NONE -> stringResource(R.string.setting_page_miuix_press_feedback_none)
+                                        MiuixPressFeedback.SINK -> stringResource(R.string.setting_page_miuix_press_feedback_sink)
+                                        MiuixPressFeedback.TILT -> stringResource(R.string.setting_page_miuix_press_feedback_tilt)
+                                    },
+                                    selected = selected,
+                                )
+                            }
+                        }
+                        switchItem(
+                            checked = settings.displaySetting.miuixOverscroll,
+                            onCheckedChange = { enabled ->
+                                vm.updateSettings { latest ->
+                                    latest.copy(displaySetting = latest.displaySetting.copy(miuixOverscroll = enabled))
+                                }
+                            },
+                            leadingContent = {
+                                CardGroupIcon(HugeIcons.Sparkles, containerColor = containerColor, contentColor = contentColor)
+                            },
+                            supportingContent = { Text(stringResource(R.string.setting_page_miuix_overscroll_desc)) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_miuix_overscroll)) },
+                        )
+                    }
                 }
             }
 

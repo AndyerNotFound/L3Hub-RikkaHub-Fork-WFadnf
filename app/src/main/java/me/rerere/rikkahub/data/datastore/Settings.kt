@@ -218,6 +218,21 @@ enum class AnimationSpeed {
     GENTLE,
 }
 
+/** 整套界面走哪套组件：原生 Material 3，或 Miuix（HyperOS 风格）。 */
+@Serializable
+enum class UiStyle {
+    NATIVE,
+    MIUIX,
+}
+
+/** Miuix 组件的按压反馈：按下时不动、整体下沉、或轻微倾斜。 */
+@Serializable
+enum class MiuixPressFeedback {
+    NONE,
+    SINK,
+    TILT,
+}
+
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
@@ -257,6 +272,15 @@ data class DisplaySetting(
     val fontSizeRatio: Float = 1.0f,
     // 整个界面的缩放（0.5–2.0）：改的是应用自己的密度，dp 与 sp 一起缩放
     val uiScale: Float = 1.0f,
+    // 界面风格：切到 Miuix 后整棵树的骨架组件（卡片分组、开关）换成 Miuix 的实现，
+    // 水波纹与滚动回弹也交给 Miuix。没迁过去的页面保持原来样子。
+    val uiStyle: UiStyle = UiStyle.NATIVE,
+    // Miuix 的配色从当前主题主色推导；关掉就用 Miuix 自带的蓝
+    val miuixFollowThemeColor: Boolean = true,
+    // Miuix 组件的按压反馈
+    val miuixPressFeedback: MiuixPressFeedback = MiuixPressFeedback.SINK,
+    // Miuix 的滚动回弹，关掉沿用系统的
+    val miuixOverscroll: Boolean = true,
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,

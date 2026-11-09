@@ -57,7 +57,12 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.data.datastore.UiStyle
+import me.rerere.rikkahub.ui.theme.LocalUiStyle
+import me.rerere.rikkahub.ui.theme.miuixPressFeedbackType
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 
@@ -401,6 +406,10 @@ fun CardGroup(
 ) {
     val scope = CardGroupScopeImpl()
     scope.content()
+    if (LocalUiStyle.current == UiStyle.MIUIX) {
+        MiuixCardGroup(modifier = modifier, title = title, scope = scope)
+        return
+    }
 
     Column(modifier = modifier) {
         if (title != null) {
@@ -487,6 +496,95 @@ private fun CardGroupPreview() {
                     )
                 }
             }
+        }
+    }
+}
+
+private val MiuixCardCorner = 20.dp
+private val MiuixCardSpacing = 8.dp
+
+/**
+ * Miuix 模式下的分组：每一项一张可点的 Miuix 卡。
+ *
+ * 原生那套是一整组拼成一块（首尾 20dp、中间 4dp、间距 2dp）；Miuix 的卡片只有统一圆角，
+ * 拼不出这种接缝，所以改成每项独立一张、间距拉开。按压反馈交给 Miuix（设置里可选下沉或倾斜），
+ * 水波纹与滚动回弹由外层 MiuixTheme 提供。
+ */
+@Composable
+private fun MiuixCardGroup(
+    modifier: Modifier = Modifier,
+    title: (@Composable () -> Unit)? = null,
+    scope: CardGroupScopeImpl,
+) {
+    Column(modifier = modifier) {
+        if (title != null) {
+            CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.primary) {
+                ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
+                    Box(modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)) {
+                        title()
+                    }
+                }
+            }
+        }
+        val expandSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
+            snap<IntSize>()
+        } else {
+            rememberSpatialSpec<IntSize>()
+        }
+        val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        scope.items.fastForEachIndexed { _, item ->
+            AnimatedVisibility(
+                visible = item.visible,
+                enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
+                exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),
+            ) {
+                Column {
+                    MiuixCardGroupItem(item = item)
+                    Spacer(modifier = Modifier.height(MiuixCardSpacing))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixCardGroupItem(item: CardGroupItem) {
+    MiuixCard(
+        modifier = item.modifier.fillMaxWidth(),
+        cornerRadius = adaptiveCornerRadius(MiuixCardCorner),
+        pressFeedbackType = miuixPressFeedbackType(),
+        onClick = item.onClick,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
+                Row(
+                    // 和原生一致：带说明文字时两侧内容靠上对齐
+                    verticalAlignment = if (item.supportingContent != null) Alignment.Top else Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    item.leadingContent?.invoke()
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        item.headlineContent?.let { headline ->
+                            ProvideTextStyle(MaterialTheme.typography.bodyLarge, headline)
+                        }
+                        item.supportingContent?.let { supporting ->
+                            CompositionLocalProvider(
+                                LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+                            ) {
+                                ProvideTextStyle(MaterialTheme.typography.bodyMedium, supporting)
+                            }
+                        }
+                    }
+                    item.trailingContent?.invoke()
+                }
+            }
+            item.formContent?.invoke(this)
         }
     }
 }

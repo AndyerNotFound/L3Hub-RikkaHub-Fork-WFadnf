@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
+import me.rerere.rikkahub.data.datastore.UiStyle
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
@@ -129,6 +130,8 @@ fun RikkahubTheme(
     val terminal = settings.displaySetting.terminalStyle
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
+    // 界面风格：Miuix 模式下整棵树套一层 MiuixTheme，骨架组件各自走 Miuix 实现
+    val uiStyle = settings.displaySetting.uiStyle
     val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme, terminal) {
         if (terminal) {
             TerminalColorScheme
@@ -197,6 +200,8 @@ fun RikkahubTheme(
         LocalOverscrollFactory provides null,
         LocalTerminalMode provides terminal,
         LocalFullWidthComponents provides fullWidthComponents,
+        LocalUiStyle provides uiStyle,
+        LocalMiuixPressFeedback provides settings.displaySetting.miuixPressFeedback,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
@@ -221,14 +226,29 @@ fun RikkahubTheme(
                     LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
                     LocalDialogExitSpec provides rememberFastSpatialSpec<Float>(),
                 ) {
-                    if (wrapContent) {
-                        content()
-                    } else {
-                        // 编辑模式：全屏盖一层取色器，点哪算哪
-                        Box(modifier = Modifier.fillMaxSize()) {
+                    val body: @Composable () -> Unit = {
+                        if (wrapContent) {
                             content()
-                            ColorProbeOverlay()
+                        } else {
+                            // 编辑模式：全屏盖一层取色器，点哪算哪
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                content()
+                                ColorProbeOverlay()
+                            }
                         }
+                    }
+                    // Miuix 模式下整棵树外面套一层 MiuixTheme：组件拿得到 Miuix 的色板与字号，
+                    // 水波纹和滚动回弹也换成 Miuix 的。没迁过去的 Material 页面照常渲染，
+                    // 只是共用这一层 LocalIndication。
+                    if (uiStyle == UiStyle.MIUIX) {
+                        MiuixRootTheme(
+                            dark = effectiveDark,
+                            followThemeColor = settings.displaySetting.miuixFollowThemeColor,
+                            overscroll = settings.displaySetting.miuixOverscroll,
+                            content = body,
+                        )
+                    } else {
+                        body()
                     }
                 }
             },

@@ -2658,4 +2658,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="todo_reminder_enabled_desc">每一批工具之后把当前清单发给模型</string>
   <string name="todo_reminder_interval">间隔</string>
   <string name="todo_reminder_interval_value">%1$d 轮</string>
+  <string name="setting_page_ui_style">界面风格</string>
+  <string name="setting_page_ui_style_native">原生</string>
+  <string name="setting_page_ui_style_miuix">Miuix</string>
+  <string name="setting_page_miuix_group">Miuix</string>
+  <string name="setting_page_miuix_follow_theme_color">跟随主题色</string>
+  <string name="setting_page_miuix_follow_theme_color_desc">Miuix 的配色从当前主题的主色推导</string>
+  <string name="setting_page_miuix_press_feedback">按压反馈</string>
+  <string name="setting_page_miuix_press_feedback_none">无</string>
+  <string name="setting_page_miuix_press_feedback_sink">下沉</string>
+  <string name="setting_page_miuix_press_feedback_tilt">倾斜</string>
+  <string name="setting_page_miuix_overscroll">拉伸回弹</string>
+  <string name="setting_page_miuix_overscroll_desc">滚到尽头时使用 Miuix 的拉伸效果</string>
 </resources>
