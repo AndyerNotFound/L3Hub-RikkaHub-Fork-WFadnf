@@ -234,6 +234,10 @@ dependencies {
     implementation(libs.androidx.material3.adaptive)
     implementation(libs.androidx.material3.adaptive.layout)
 
+    // Miuix (HyperOS 风格组件库, Maven Central, Apache-2.0)
+    implementation(libs.miuix)
+    implementation(libs.miuix.icons)
+
     // Navigation 3
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
