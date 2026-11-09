@@ -2661,11 +2661,11 @@
   <string name="setting_page_ui_style_miuix">Miuix</string>
   <string name="setting_page_miuix_group">Miuix</string>
   <string name="setting_page_miuix_follow_theme_color">Follow theme color</string>
-  <string name="setting_page_miuix_follow_theme_color_desc">Build Miuix colors from the current theme's primary color</string>
+  <string name="setting_page_miuix_follow_theme_color_desc">Build Miuix colors from the primary color of the current theme</string>
   <string name="setting_page_miuix_press_feedback">Press feedback</string>
   <string name="setting_page_miuix_press_feedback_none">None</string>
   <string name="setting_page_miuix_press_feedback_sink">Sink</string>
   <string name="setting_page_miuix_press_feedback_tilt">Tilt</string>
   <string name="setting_page_miuix_overscroll">Stretch overscroll</string>
-  <string name="setting_page_miuix_overscroll_desc">Use Miuix's stretch effect when scrolling past the ends</string>
+  <string name="setting_page_miuix_overscroll_desc">Use the Miuix stretch effect when scrolling past the ends</string>
 </resources>
