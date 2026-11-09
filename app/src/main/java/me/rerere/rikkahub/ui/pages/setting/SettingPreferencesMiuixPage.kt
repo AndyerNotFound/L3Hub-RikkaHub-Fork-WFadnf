@@ -54,6 +54,7 @@ fun SettingPreferencesMiuixPage(embedded: Boolean = false, vm: SettingVM = koinV
     }
 
     val colorSource = settings.displaySetting.miuixColorSource
+    val currentPaletteLabel = settings.displaySetting.miuixPalette.label()
     val paletteEnabled = colorSource == MiuixColorSource.GENERATED
     var paletteExpanded by remember { mutableStateOf(false) }
 
@@ -65,7 +66,8 @@ fun SettingPreferencesMiuixPage(embedded: Boolean = false, vm: SettingVM = koinV
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            CardGroup {
+            Box {
+                CardGroup {
                 formItem {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -90,30 +92,14 @@ fun SettingPreferencesMiuixPage(embedded: Boolean = false, vm: SettingVM = koinV
                         )
                     }
                 }
-                Box {
-                    item(
+                item(
                         onClick = if (paletteEnabled) {
                             { paletteExpanded = true }
                         } else null,
                         headlineContent = { Text(stringResource(R.string.setting_page_miuix_palette)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_miuix_palette_desc)) },
-                        trailingContent = { Text(settings.displaySetting.miuixPalette.label()) },
-                    )
-                    DropdownMenu(
-                        expanded = paletteExpanded,
-                        onDismissRequest = { paletteExpanded = false },
-                    ) {
-                        MiuixPalette.entries.forEach { palette ->
-                            DropdownMenuItem(
-                                text = { Text(palette.label()) },
-                                onClick = {
-                                    updateDisplay { it.copy(miuixPalette = palette) }
-                                    paletteExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
+                        trailingContent = { Text(currentPaletteLabel) },
+                )
                 formItem {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -162,6 +148,21 @@ fun SettingPreferencesMiuixPage(embedded: Boolean = false, vm: SettingVM = koinV
                     supportingContent = { Text(stringResource(R.string.setting_page_miuix_overscroll_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_page_miuix_overscroll)) },
                 )
+                }
+                DropdownMenu(
+                    expanded = paletteExpanded,
+                    onDismissRequest = { paletteExpanded = false },
+                ) {
+                    MiuixPalette.entries.forEach { palette ->
+                        DropdownMenuItem(
+                            text = { Text(paletteLabel(palette)) },
+                            onClick = {
+                                updateDisplay { it.copy(miuixPalette = palette) }
+                                paletteExpanded = false
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -198,8 +199,8 @@ fun SettingPreferencesMiuixPage(embedded: Boolean = false, vm: SettingVM = koinV
 }
 
 @Composable
-private fun MiuixPalette.label(): String = stringResource(
-    when (this) {
+private fun paletteLabel(palette: MiuixPalette): String = stringResource(
+    when (palette) {
         MiuixPalette.TONAL_SPOT -> R.string.setting_page_miuix_palette_tonal_spot
         MiuixPalette.NEUTRAL -> R.string.setting_page_miuix_palette_neutral
         MiuixPalette.VIBRANT -> R.string.setting_page_miuix_palette_vibrant
@@ -209,6 +210,8 @@ private fun MiuixPalette.label(): String = stringResource(
         MiuixPalette.MONOCHROME -> R.string.setting_page_miuix_palette_monochrome
         MiuixPalette.FIDELITY -> R.string.setting_page_miuix_palette_fidelity
         MiuixPalette.CONTENT -> R.string.setting_page_miuix_palette_content
-        MiuixPalette.CMF -> R.string.setting_page_miuix_palette_cmf
     }
 )
+
+@Composable
+private fun MiuixPalette.label(): String = paletteLabel(this)

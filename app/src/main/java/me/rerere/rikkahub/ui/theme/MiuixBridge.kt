@@ -106,7 +106,6 @@ private fun MiuixPalette.toMiuixStyle(): ThemePaletteStyle = when (this) {
     MiuixPalette.MONOCHROME -> ThemePaletteStyle.Monochrome
     MiuixPalette.FIDELITY -> ThemePaletteStyle.Fidelity
     MiuixPalette.CONTENT -> ThemePaletteStyle.Content
-    MiuixPalette.CMF -> ThemePaletteStyle.Cmf
 }
 
 /**

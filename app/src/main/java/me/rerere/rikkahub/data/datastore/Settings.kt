@@ -258,7 +258,6 @@ enum class MiuixPalette {
     MONOCHROME,
     FIDELITY,
     CONTENT,
-    CMF,
 }
 
 @Serializable
