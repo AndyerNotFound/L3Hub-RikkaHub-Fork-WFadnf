@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,7 +54,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -91,7 +89,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.jsonArray
@@ -131,13 +128,11 @@ import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.urlDecode
@@ -162,7 +157,6 @@ fun ChatMessage(
     model: Model? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
-    messageIndex: Int = 0,
     // 与上一条消息同组（同角色连续）：气泡上沿收紧，头像/模型名只在组首出现
     joinedToPrevious: Boolean = false,
     // 与下一条消息同组：气泡下沿收紧
@@ -217,7 +211,6 @@ fun ChatMessage(
         return
     }
     val settings = LocalSettings.current.displaySetting
-    val terminalStyle = settings.terminalStyle
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
@@ -242,8 +235,8 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    // 用户消息的长按菜单贴着气泡原地开；终端风格没有气泡，仍旧走底部弹窗
-    val inPlaceMenu = message.role == MessageRole.USER && !terminalStyle
+    // 用户消息的长按菜单贴着气泡原地开
+    val inPlaceMenu = message.role == MessageRole.USER
     val onSelectAndCopy: () -> Unit = { showSelectCopySheet = true }
     val onWebViewPreview: () -> Unit = {
         val textContent = message.parts
@@ -299,9 +292,7 @@ fun ChatMessage(
     }
     Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = if (terminalStyle) {
-            Alignment.Start
-        } else if (message.role == MessageRole.USER) {
+        horizontalAlignment = if (message.role == MessageRole.USER) {
             Alignment.End
         } else {
             Alignment.Start
@@ -310,38 +301,27 @@ fun ChatMessage(
     ) {
         // 同组后续消息不再重复头像/模型名，否则气泡之间会被头像行顶开，接不到一起。
         // 想让每条消息都显示头像，把 joinedToPrevious 从这个判断里去掉即可。
-        val showMessageHeader = !message.parts.isEmptyUIMessage() &&
-            (!joinedToPrevious || terminalStyle)
+        val showMessageHeader = !message.parts.isEmptyUIMessage() && !joinedToPrevious
         if (showMessageHeader) {
-            if (terminalStyle) {
-                TerminalMessageHeader(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                ChatMessageAssistantAvatar(
                     message = message,
                     model = model,
                     assistant = assistant,
                     loading = loading,
-                    index = messageIndex,
+                    modifier = Modifier.weight(1f)
                 )
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    ChatMessageAssistantAvatar(
-                        message = message,
-                        model = model,
-                        assistant = assistant,
-                        loading = loading,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ChatMessageUserAvatar(
-                        message = message,
-                        avatar = settings.userAvatar,
-                        nickname = settings.userNickname,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                ChatMessageUserAvatar(
+                    message = message,
+                    avatar = settings.userAvatar,
+                    nickname = settings.userNickname,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
         val appSettings = LocalSettings.current
@@ -411,60 +391,31 @@ fun ChatMessage(
                             )
                         }
                     } else {
-                        if (settings.terminalStyle) {
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = "│",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = TerminalPalette.GreenDim,
-                                )
-                                Spacer(Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    MessagePartsBlock(
-                                        assistant = assistant,
-                                        role = message.role,
-                                        parts = message.parts,
-                                        annotations = message.annotations,
-                                        loading = loading,
-                                        model = model,
-                                        onToolApproval = onToolApproval,
-                                        onToolAnswer = onToolAnswer,
-                                        onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                                        onUserMessageLongClick = onUserMessageLongClick,
-                                        hazeState = hazeState,
-                                        joinedToPrevious = joinedToPrevious,
-                                        joinedToNext = joinedToNext,
-                                    )
-                                }
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(MessageBlockGap),
-                                horizontalAlignment = if (message.role == MessageRole.USER) {
-                                    Alignment.End
-                                } else {
-                                    Alignment.Start
-                                },
-                            ) {
-                                MessagePartsBlock(
-                                    assistant = assistant,
-                                    role = message.role,
-                                    parts = message.parts,
-                                    annotations = message.annotations,
-                                    loading = loading,
-                                    model = model,
-                                    onToolApproval = onToolApproval,
-                                    onToolAnswer = onToolAnswer,
-                                    onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                                    onUserMessageLongClick = onUserMessageLongClick,
-                                    userMessageMenu = userMessageMenu,
-                                    hazeState = hazeState,
-                                    joinedToPrevious = joinedToPrevious,
-                                    joinedToNext = joinedToNext,
-                                )
-                            }
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(MessageBlockGap),
+                            horizontalAlignment = if (message.role == MessageRole.USER) {
+                                Alignment.End
+                            } else {
+                                Alignment.Start
+                            },
+                        ) {
+                            MessagePartsBlock(
+                                assistant = assistant,
+                                role = message.role,
+                                parts = message.parts,
+                                annotations = message.annotations,
+                                loading = loading,
+                                model = model,
+                                onToolApproval = onToolApproval,
+                                onToolAnswer = onToolAnswer,
+                                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                                onUserMessageLongClick = onUserMessageLongClick,
+                                userMessageMenu = userMessageMenu,
+                                hazeState = hazeState,
+                                joinedToPrevious = joinedToPrevious,
+                                joinedToNext = joinedToNext,
+                            )
                         }
                     }
                 }
@@ -498,48 +449,16 @@ fun ChatMessage(
             }
         }
 
-        if (terminalStyle && !message.parts.isEmptyUIMessage()) {
-            Text(
-                text = "└" + "─".repeat(160),
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = TerminalPalette.Border,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-            )
-        }
-
         val showActions = if (lastMessage) {
             !loading
         } else {
             message.parts.isEmptyUIMessage().not()
         }
-        // 普通气泡里的用户消息把操作收进长按菜单，气泡下面不再挂按钮；
-        // 终端风格没有气泡，行内按钮照旧。
-        val showActionRow = showActions && (terminalStyle || message.role != MessageRole.USER)
+        // 普通气泡里的用户消息把操作收进长按菜单，气泡下面不再挂按钮
+        val showActionRow = showActions && message.role != MessageRole.USER
 
         val motionScheme = MaterialTheme.motionScheme
-        if (terminalStyle) {
-            if (showActionRow) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    TerminalMessageAction("copy") { context.copyMessageToClipboard(message) }
-                    TerminalMessageAction("retry") { onRegenerate() }
-                    if (message.role == MessageRole.USER) {
-                        TerminalMessageAction("edit", onEdit)
-                    }
-                    TerminalMessageAction("more") { showActionsSheet = true }
-                }
-            }
-        } else AnimatedVisibility(
+        AnimatedVisibility(
             visible = showActionRow,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
@@ -578,7 +497,7 @@ fun ChatMessage(
         }
 
     }
-    // 用户消息的菜单在气泡里原地弹，这里只剩助手消息和终端风格的底部弹窗
+    // 用户消息的菜单在气泡里原地弹，这里只剩助手消息的底部弹窗
     if (showActionsSheet && !inPlaceMenu) {
         ChatMessageActionsSheet(
             message = message,
@@ -717,7 +636,7 @@ private fun MessagePartsBlock(
     }
 
     // 用户消息里的图片/文件统一收进气泡里的矩形卡片，文本再长也不会把它们挤没
-    if (role == MessageRole.USER && !settings.displaySetting.terminalStyle) {
+    if (role == MessageRole.USER) {
         UserMessageContent(
             parts = parts,
             assistant = assistant,
@@ -875,46 +794,26 @@ private fun MessagePartsBlock(
                         }
                         val textContent = @Composable {
                             if (role == MessageRole.USER) {
-                                if (settings.displaySetting.terminalStyle) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .animateContentSize(),
-                                    ) {
-                                        CollapsibleUserMessageText(
-                                            text = part.text,
-                                            assistant = assistant,
-                                            onClickCitation = handleClickCitation,
-                                        )
-                                    }
-                                } else {
-                                    ChatMessageBubble(
-                                        role = role,
-                                        color = LocalUiSlots.current.userBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                        hazeState = hazeState,
-                                        joinedToPrevious = joinedToPrevious,
-                                        joinedToNext = joinedToNext,
-                                        onClick = { onUserMessageClick?.invoke() },
-                                        // 用户气泡不占满整行，和助手的回复错开；全宽模式下贴到边
-                                        modifier = Modifier
-                                            .padding(start = adaptiveHorizontalPaddingValue(24.dp))
-                                            .animateContentSize(),
-                                    ) {
-                                        CollapsibleUserMessageText(
-                                            text = part.text,
-                                            assistant = assistant,
-                                            onClickCitation = handleClickCitation,
-                                        )
-                                    }
-                                }
-                            } else {
-                                if (settings.displaySetting.terminalStyle) {
-                                    TerminalTypewriterMarkdown(
-                                        content = renderedText,
-                                        streaming = streamingText,
+                                ChatMessageBubble(
+                                    role = role,
+                                    color = LocalUiSlots.current.userBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                    hazeState = hazeState,
+                                    joinedToPrevious = joinedToPrevious,
+                                    joinedToNext = joinedToNext,
+                                    onClick = { onUserMessageClick?.invoke() },
+                                    // 用户气泡不占满整行，和助手的回复错开；全宽模式下贴到边
+                                    modifier = Modifier
+                                        .padding(start = adaptiveHorizontalPaddingValue(24.dp))
+                                        .animateContentSize(),
+                                ) {
+                                    CollapsibleUserMessageText(
+                                        text = part.text,
+                                        assistant = assistant,
                                         onClickCitation = handleClickCitation,
                                     )
-                                } else if (settings.displaySetting.showAssistantBubble) {
+                                }
+                            } else {
+                                if (settings.displaySetting.showAssistantBubble) {
                                     ChatMessageBubble(
                                         role = role,
                                         color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
@@ -1099,127 +998,6 @@ private fun CollapsibleUserMessageText(
             )
         }
     }
-}
-
-@Composable
-private fun TerminalTypewriterMarkdown(
-    content: String,
-    streaming: Boolean,
-    onClickCitation: (String) -> Unit,
-) {
-    val latest = rememberUpdatedState(content)
-    var visible by remember { mutableIntStateOf(if (streaming) 0 else content.length) }
-    LaunchedEffect(streaming) {
-        if (!streaming) {
-            // 流结束后把尾巴快速补完，仍然保留逐字观感
-            visible = visible.coerceIn(0, latest.value.length)
-            while (visible < latest.value.length) {
-                delay(16)
-                val remaining = latest.value.length - visible
-                visible = minOf(latest.value.length, visible + maxOf(8, remaining / 3))
-            }
-            return@LaunchedEffect
-        }
-        if (visible == 0 && content.isNotEmpty()) visible = minOf(12, content.length)
-        var lastNanos = System.nanoTime()
-        while (true) {
-            delay(16)
-            val target = latest.value.length
-            if (visible > target) visible = target
-            val backlog = target - visible
-            if (backlog <= 0) {
-                lastNanos = System.nanoTime()
-                continue
-            }
-            val now = System.nanoTime()
-            val seconds = ((now - lastNanos) / 1_000_000_000.0).coerceIn(0.001, 0.1)
-            lastNanos = now
-            // 上游来得快时按积压加速，保证不会越拖越远；慢下来后再回到正常打字速度
-            val charsPerSecond = when {
-                backlog > 1200 -> 12_000.0
-                backlog > 320 -> 4_200.0
-                backlog > 96 -> 1_200.0
-                else -> 240.0
-            }
-            val step = maxOf(1, (charsPerSecond * seconds).toInt())
-            visible = minOf(target, visible + step)
-        }
-    }
-    val shown = content.take(visible.coerceIn(0, content.length))
-    val printing = visible < content.length
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (printing) Modifier else Modifier.animateContentSize()),
-    ) {
-        MarkdownBlock(
-            content = if (printing) "$shown▋" else shown,
-            streaming = printing && streaming,
-            onClickCitation = onClickCitation,
-        )
-    }
-}
-
-@Composable
-private fun TerminalMessageHeader(
-    message: UIMessage,
-    model: Model?,
-    assistant: Assistant?,
-    loading: Boolean,
-    index: Int,
-) {
-    val isUser = message.role == MessageRole.USER
-    val userName = if (isUser) {
-        "user"
-    } else {
-        assistant?.name?.trim()?.replace(Regex("\\s+"), "-")?.lowercase()?.takeIf { it.isNotBlank() }
-            ?: model?.modelId?.substringAfterLast('/')?.lowercase()
-            ?: "assistant"
-    }
-    val time = "%02d:%02d:%02d".format(
-        message.createdAt.hour,
-        message.createdAt.minute,
-        message.createdAt.second,
-    )
-    val prompt = if (isUser) {
-        "user@l3hub:~\$"
-    } else {
-        "λ $userName@l3hub:~\$"
-    }
-    val rule = "─".repeat(160)
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "┌─[%02d][%s] $time  $prompt $rule".format(index, if (isUser) "U" else "A"),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = if (isUser) TerminalPalette.Amber else TerminalPalette.Green,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (loading) {
-            Text(
-                text = "│ processing... ▋",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = TerminalPalette.GreenDim,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TerminalMessageAction(label: String, onClick: () -> Unit) {
-    Text(
-        text = "[$label]",
-        style = MaterialTheme.typography.labelSmall,
-        fontFamily = FontFamily.Monospace,
-        color = TerminalPalette.GreenDim,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-    )
 }
 
 private val BubbleCorner = 24.dp

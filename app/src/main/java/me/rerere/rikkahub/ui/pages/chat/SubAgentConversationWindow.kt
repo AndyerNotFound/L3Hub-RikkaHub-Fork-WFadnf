@@ -256,7 +256,6 @@ private fun MessagePreview(
                     assistant = assistant,
                     conversationId = conversation.id,
                     lastMessage = index == conversation.messageNodes.lastIndex,
-                    messageIndex = index,
                     onFork = {},
                     onRegenerate = {},
                     onEdit = {},

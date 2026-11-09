@@ -59,7 +59,6 @@ import me.rerere.rikkahub.data.model.TokenBucket
 import me.rerere.rikkahub.data.model.TokenDestination
 import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
@@ -436,7 +435,6 @@ private fun TokenDestinationSection(
     breakdown: TokenBreakdown,
     modifier: Modifier = Modifier,
 ) {
-    val terminal = LocalSettings.current.displaySetting.terminalStyle
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -470,7 +468,6 @@ private fun TokenDestinationSection(
             TokenStackBar(
                 buckets = breakdown.promptBuckets,
                 total = breakdown.promptTotal,
-                terminal = terminal,
             )
             breakdown.promptBuckets.forEach { bucket ->
                 UsageDetailRow(
@@ -497,7 +494,6 @@ private fun TokenDestinationSection(
             TokenStackBar(
                 buckets = breakdown.completionBuckets,
                 total = breakdown.completionTotal,
-                terminal = terminal,
             )
             breakdown.completionBuckets.forEach { bucket ->
                 UsageDetailRow(
@@ -546,53 +542,24 @@ private fun destinationColor(destination: TokenDestination): Color {
 private fun TokenStackBar(
     buckets: List<TokenBucket>,
     total: Int,
-    terminal: Boolean,
 ) {
     if (total <= 0 || buckets.isEmpty()) return
     val colors = buckets.map { destinationColor(it.destination) }
-    if (terminal) {
-        val cells = 28
-        val allocated = buckets.map { (it.tokens.toFloat() / total * cells).toInt() }.toMutableList()
-        var remaining = cells - allocated.sum()
-        var index = 0
-        while (remaining > 0) {
-            allocated[index % allocated.size] += 1
-            remaining -= 1
-            index += 1
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-            allocated.forEachIndexed { i, count ->
-                if (count > 0) {
-                    Text(
-                        text = "█".repeat(count),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = if (colors[i] == MaterialTheme.colorScheme.outline) {
-                            TerminalPalette.GreenDim
-                        } else {
-                            colors[i]
-                        },
-                    )
-                }
-            }
-        }
-    } else {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(10.dp)
-                .clip(RoundedCornerShape(3.dp)),
-        ) {
-            var x = 0f
-            buckets.forEachIndexed { i, bucket ->
-                val width = size.width * bucket.tokens / total
-                drawRect(
-                    color = colors[i],
-                    topLeft = Offset(x, 0f),
-                    size = Size((width - 1.dp.toPx()).coerceAtLeast(1f), size.height),
-                )
-                x += width
-            }
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(RoundedCornerShape(3.dp)),
+    ) {
+        var x = 0f
+        buckets.forEachIndexed { i, bucket ->
+            val width = size.width * bucket.tokens / total
+            drawRect(
+                color = colors[i],
+                topLeft = Offset(x, 0f),
+                size = Size((width - 1.dp.toPx()).coerceAtLeast(1f), size.height),
+            )
+            x += width
         }
     }
 }

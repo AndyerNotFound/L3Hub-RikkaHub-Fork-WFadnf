@@ -83,13 +83,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -170,30 +167,18 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
-import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalChatInput
-import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalChatTopBar
-import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalModelPickerDialog
-import me.rerere.rikkahub.ui.pages.chat.terminal.TerminalOutputDialog
-import me.rerere.rikkahub.ui.pages.chat.terminal.parseTerminalCommand
-import me.rerere.rikkahub.ui.pages.chat.terminal.terminalHelpText
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
-import me.rerere.rikkahub.ui.theme.TerminalPalette
-import me.rerere.rikkahub.ui.theme.TerminalTheme
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.utils.base64Decode
-import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.navigateToChatPage
-import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
-import java.io.File
-import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
@@ -568,13 +553,11 @@ private fun ChatPageContent(
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
-    var showTerminalModelPicker by remember { mutableStateOf(false) }
     val chatModelListState = rememberModelListState(
         modelId = assistant.chatModelId,
         providers = setting.providers,
         type = ModelType.CHAT,
     )
-    var terminalOutput by remember { mutableStateOf<String?>(null) }
     // 横屏三栏的右栏：一个看板一个标签页，顺序就是标签条上的顺序
     var openPaneNames by rememberSaveable { mutableStateOf(listOf(ChatSidePane.Details.name)) }
     var selectedPaneName by rememberSaveable { mutableStateOf<String?>(ChatSidePane.Details.name) }
@@ -694,7 +677,7 @@ private fun ChatPageContent(
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
 
-    // 终端与普通输入共用的发送入口：模型、上下文门限检查都走这里
+    // 发送入口：模型、上下文门限检查都走这里
     val sendInput: () -> Unit = {
         if (currentChatModel == null) {
             toaster.show(context.getString(R.string.media_creation_page_select_model_first), type = ToastType.Error)
@@ -729,281 +712,6 @@ private fun ChatPageContent(
     val listScrolledUnderTopBar by remember(chatListState, previewListState) {
         derivedStateOf {
             if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
-        }
-    }
-
-    fun terminalMessages(): List<me.rerere.ai.ui.UIMessage> = currentMessages
-
-    fun terminalMessageAt(arg: String, defaultAssistant: Boolean = false): me.rerere.ai.ui.UIMessage? {
-        val index = arg.trim().toIntOrNull()
-        return if (index != null) {
-            terminalMessages().getOrNull(index)
-        } else if (defaultAssistant) {
-            terminalMessages().lastOrNull { it.role == MessageRole.ASSISTANT }
-        } else {
-            terminalMessages().lastOrNull()
-        }
-    }
-
-    fun terminalConversationMarkdown(): String = buildString {
-        appendLine("# ${conversation.title.ifBlank { "conversation" }}")
-        appendLine()
-        terminalMessages().forEach { message ->
-            val role = when (message.role) {
-                MessageRole.USER -> "User"
-                MessageRole.ASSISTANT -> "Assistant"
-                else -> "System"
-            }
-            appendLine("## $role")
-            appendLine()
-            appendLine(message.toText())
-            appendLine()
-        }
-    }
-
-    fun runTerminalCommand(raw: String) {
-        val command = parseTerminalCommand(raw) ?: return
-        var clearInput = true
-        when (command.name) {
-            "help" -> terminalOutput = terminalHelpText { context.getString(it) }
-            "status" -> terminalOutput = buildString {
-                appendLine("assistant : ${assistant.name.ifBlank { "assistant" }}")
-                appendLine("model     : ${currentChatModel?.displayName ?: "no-model"}")
-                appendLine("context   : ${contextTokens ?: 0} / ${currentChatModel?.maxContextTokens ?: "-"}")
-                appendLine("messages  : ${currentMessages.size}")
-                appendLine("speed     : ${usageTokenSpeed?.let { "%.1f tok/s".format(it) } ?: "-"}")
-                append("queue     : ${messageQueue.messages.size}")
-            }
-            "model" -> {
-                if (command.args.isBlank()) {
-                    showTerminalModelPicker = true
-                } else {
-                    val models = setting.providers.flatMap { it.models }
-                        .filter { it.type == ModelType.CHAT }
-                    val query = command.args.lowercase()
-                    val matches = models.filter {
-                        it.displayName.lowercase().contains(query) ||
-                            it.modelId.lowercase().contains(query)
-                    }
-                    when {
-                        matches.size == 1 -> {
-                            vm.setChatModel(matches.first())
-                            val picked = matches.first()
-                            terminalOutput = "model -> ${picked.displayName.ifBlank { picked.modelId }}"
-                        }
-                        matches.isEmpty() -> terminalOutput = "no model matched: ${command.args}"
-                        else -> terminalOutput = buildString {
-                            appendLine("multiple matches, use a longer name:")
-                            matches.take(20).forEach {
-                                appendLine("  ${it.displayName.ifBlank { it.modelId }}  [${it.modelId}]")
-                            }
-                        }
-                    }
-                }
-            }
-            "new" -> navigateToChatPage(navController)
-            "messages" -> terminalOutput = buildString {
-                terminalMessages().forEachIndexed { index, message ->
-                    val role = if (message.role == MessageRole.USER) "U" else "A"
-                    val preview = message.toText().lineSequence().firstOrNull().orEmpty().take(72)
-                    appendLine("[%02d] %s %s".format(index, role, preview))
-                }
-            }
-            "send" -> {
-                if (command.args.isBlank()) {
-                    terminalOutput = "usage: /send <text>"
-                } else {
-                    vm.handleMessageSend(listOf(UIMessagePart.Text(command.args)))
-                    scope.launch {
-                        delay(100.milliseconds)
-                        chatListState.animateScrollToItem(
-                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                        )
-                    }
-                }
-            }
-            "retry" -> {
-                val message = terminalMessageAt(command.args, defaultAssistant = true)
-                if (message == null) {
-                    terminalOutput = "no assistant message to regenerate"
-                } else {
-                    vm.regenerateAtMessage(message)
-                }
-            }
-            "edit" -> {
-                val message = terminalMessageAt(command.args)
-                if (message == null) {
-                    terminalOutput = "message not found: ${command.args}"
-                } else {
-                    inputState.editingMessage = message.id
-                    inputState.setContents(message.parts)
-                    clearInput = false
-                }
-            }
-            "delete" -> {
-                val message = terminalMessageAt(command.args)
-                when {
-                    message == null -> terminalOutput = "message not found: ${command.args}"
-                    loadingJob != null -> vm.showDeleteBlockedWhileGeneratingError()
-                    else -> vm.deleteMessage(message)
-                }
-            }
-            "copy" -> {
-                val message = terminalMessageAt(command.args)
-                if (message == null) {
-                    terminalOutput = "message not found: ${command.args}"
-                } else {
-                    context.copyMessageToClipboard(message)
-                    toaster.show(context.getString(R.string.chat_page_message_copied), type = ToastType.Success)
-                }
-            }
-            "branch" -> {
-                val message = terminalMessageAt(command.args)
-                if (message == null) {
-                    terminalOutput = "message not found: ${command.args}"
-                } else {
-                    scope.launch {
-                        val fork = vm.forkMessage(message)
-                        navigateToChatPage(navController, chatId = fork.id)
-                    }
-                }
-            }
-            "compress" -> vm.handleCompressContext(command.args, keepRecentMessages = 0)
-            "usage" -> openPane(ChatSidePane.Usage)
-            "tree" -> openPane(ChatSidePane.TaskTree)
-            "files" -> openPane(ChatSidePane.Files)
-            "voice" -> onStartVoiceMode()
-            "stop" -> vm.stopGeneration()
-            "title" -> {
-                if (command.args.isBlank()) {
-                    terminalOutput = "usage: /title <text>"
-                } else {
-                    vm.updateTitle(command.args)
-                    terminalOutput = "title -> ${command.args}"
-                }
-            }
-            "pin" -> {
-                vm.updatePinnedStatus(conversation)
-                terminalOutput = if (conversation.isPinned) "unpinned" else "pinned"
-            }
-            "search" -> {
-                val enabled = when (command.args.lowercase()) {
-                    "on", "1", "true", "yes" -> true
-                    "off", "0", "false", "no" -> false
-                    else -> null
-                }
-                if (enabled == null) {
-                    terminalOutput = "usage: /search on|off"
-                } else {
-                    vm.updateSearch(enableWebSearch = enabled, builtInSearch = enabled)
-                    terminalOutput = "web search -> ${if (enabled) "on" else "off"}"
-                }
-            }
-            "export" -> {
-                val markdown = terminalConversationMarkdown()
-                context.writeClipboardText(markdown)
-                terminalOutput = "conversation copied as markdown (${markdown.length} chars)"
-            }
-            "save" -> {
-                val markdown = terminalConversationMarkdown()
-                val dir = File(context.getExternalFilesDir(null), "exports").apply { mkdirs() }
-                val file = File(dir, "conversation-${conversation.id}-${System.currentTimeMillis()}.md")
-                runCatching { file.writeText(markdown) }
-                    .onSuccess { terminalOutput = "saved -> ${file.absolutePath}" }
-                    .onFailure { terminalOutput = "save failed: ${it.message}" }
-            }
-            "assistant" -> {
-                if (command.args.isBlank()) {
-                    terminalOutput = buildString {
-                        appendLine("assistants:")
-                        setting.assistants.forEach { item ->
-                            val mark = if (item.id == conversation.assistantId) "*" else " "
-                            appendLine("$mark ${item.name.ifBlank { "assistant" }}  [${item.id}]")
-                        }
-                    }
-                } else {
-                    val query = command.args.lowercase()
-                    val matches = setting.assistants.filter { it.name.lowercase().contains(query) }
-                    when {
-                        matches.size == 1 -> {
-                            vm.moveConversationToAssistant(conversation, matches.first().id)
-                            terminalOutput = "assistant -> ${matches.first().name}"
-                        }
-                        matches.isEmpty() -> terminalOutput = "no assistant matched: ${command.args}"
-                        else -> terminalOutput = buildString {
-                            appendLine("multiple matches:")
-                            matches.take(20).forEach { appendLine("  ${it.name}") }
-                        }
-                    }
-                }
-            }
-            "chats" -> navController.navigate(Screen.History)
-            "favorite" -> navController.navigate(Screen.Favorite)
-            "open" -> {
-                val id = runCatching { Uuid.parse(command.args.trim()) }.getOrNull()
-                if (id == null) {
-                    terminalOutput = "usage: /open <conversation-id>\ncurrent: ${conversation.id}"
-                } else {
-                    navigateToChatPage(navController, chatId = id)
-                }
-            }
-            "close" -> {
-                scope.launch {
-                    vm.deleteConversation(conversation)
-                    navController.popBackStack()
-                }
-            }
-            "fav" -> {
-                val message = terminalMessageAt(command.args)
-                val node = message?.let { target ->
-                    conversation.messageNodes.firstOrNull { node -> node.messages.any { it.id == target.id } }
-                }
-                if (node == null) {
-                    terminalOutput = "message not found: ${command.args}"
-                } else {
-                    val wasFavorite = node.isFavorite
-                    vm.toggleMessageFavorite(node)
-                    val label = if (wasFavorite) "unfavorited" else "favorited"
-                    terminalOutput = "$label -> [${node.messages.first().id}]"
-                }
-            }
-            "switch" -> {
-                val node = conversation.messageNodes.lastOrNull { it.messages.size > 1 }
-                val index = command.args.trim().toIntOrNull()
-                if (node == null || index == null) {
-                    terminalOutput = "usage: /switch <0..${node?.messages?.lastIndex ?: 0}>"
-                } else {
-                    vm.selectMessageNode(node.id, index.coerceIn(0, node.messages.lastIndex))
-                    terminalOutput = "branch -> $index"
-                }
-            }
-            "translate" -> {
-                val message = terminalMessageAt(command.args, defaultAssistant = true)
-                if (message == null) {
-                    terminalOutput = "no assistant message to translate"
-                } else {
-                    vm.translateMessage(message, Locale.forLanguageTag(setting.translateTargetLanguage))
-                }
-            }
-            "mcp" -> navController.navigate(Screen.SettingMcp)
-            "workspace" -> openPane(ChatSidePane.Files)
-            "settings" -> navController.navigate(Screen.Setting)
-            "terminal" -> {
-                when (command.args.lowercase()) {
-                    "on", "1", "true" -> vm.updateSettings {
-                        it.copy(displaySetting = it.displaySetting.copy(terminalStyle = true))
-                    }
-                    "off", "0", "false" -> vm.updateSettings {
-                        it.copy(displaySetting = it.displaySetting.copy(terminalStyle = false))
-                    }
-                    else -> terminalOutput = "usage: /terminal on|off"
-                }
-            }
-            "clear" -> inputState.clearInput()
-            else -> terminalOutput = context.getString(R.string.chat_page_terminal_unknown_command, command.name)
-        }
-        if (clearInput && command.name != "clear") {
-            inputState.clearInput()
         }
     }
 
@@ -1129,25 +837,18 @@ private fun ChatPageContent(
         )
     }
 
-    TerminalTheme(enabled = setting.displaySetting.terminalStyle) {
     Surface(
-        color = if (setting.displaySetting.terminalStyle) {
-            TerminalPalette.Background
-        } else {
-            LocalUiSlots.current.pageBackground
-        },
+        color = LocalUiSlots.current.pageBackground,
         modifier = Modifier.fillMaxSize()
     ) {
-        if (!setting.displaySetting.terminalStyle) {
-            AssistantBackground(
-                setting = setting,
-                modifier = Modifier
-                    .hazeSource(hazeState)
-                    .hazeSource(backgroundHazeState),
-                // 横屏三栏不再盖渐变遮罩，背景图原样透出来
-                scrim = !threePane,
-            )
-        }
+        AssistantBackground(
+            setting = setting,
+            modifier = Modifier
+                .hazeSource(hazeState)
+                .hazeSource(backgroundHazeState),
+            // 横屏三栏不再盖渐变遮罩，背景图原样透出来
+            scrim = !threePane,
+        )
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
         CompositionLocalProvider(
             LocalTurnChangesInSidePanel provides threePane,
@@ -1167,56 +868,40 @@ private fun ChatPageContent(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
-                    if (setting.displaySetting.terminalStyle) {
-                        TerminalChatTopBar(
-                            title = conversation.title,
-                            assistantName = assistant.name,
-                            modelName = currentChatModel?.displayName ?: "no-model",
-                            contextTokens = contextTokens,
-                            maxContextTokens = currentChatModel?.maxContextTokens,
-                            compact = threePane,
-                            onMenu = onOpenSidebar,
-                            onNewChat = { navigateToChatPage(navController) },
-                            onTaskTree = { openPane(ChatSidePane.TaskTree) },
-                            onUsage = { openPane(ChatSidePane.Usage) },
-                            onHelp = { terminalOutput = terminalHelpText { context.getString(it) } },
-                        )
-                    } else {
-                        TopBar(
-                            hazeState = backgroundHazeState,
-                            settings = setting,
-                            assistant = assistant,
-                            chatModel = currentChatModel,
-                            conversation = conversation,
-                            threePane = threePane,
-                            sidebarOpen = sidebarOpen,
-                            onOpenSidebar = onOpenSidebar,
-                            onNewChat = {
-                                navigateToChatPage(navController)
-                            },
-                            onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
-                            onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
-                            onShowOverview = {
-                                selectionState.selecting = false
-                                previewMode = true
-                            },
-                            onExport = {
-                                // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
-                                previewMode = false
-                                selectionState.start(conversation.messageNodes.map { it.id })
-                            },
-                            onDelete = { showDeleteConfirm = true },
-                            showCapsuleBackground = listScrolledUnderTopBar,
-                            // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
-                            // 这个提亮只在竖屏（顶栏底下展开）时看得见
-                            detailsExpanded = showDetails,
-                            onToggleDetails = { toggleDetailsPane() },
-                        )
-                    }
+                    TopBar(
+                        hazeState = backgroundHazeState,
+                        settings = setting,
+                        assistant = assistant,
+                        chatModel = currentChatModel,
+                        conversation = conversation,
+                        threePane = threePane,
+                        sidebarOpen = sidebarOpen,
+                        onOpenSidebar = onOpenSidebar,
+                        onNewChat = {
+                            navigateToChatPage(navController)
+                        },
+                        onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
+                        onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
+                        onShowOverview = {
+                            selectionState.selecting = false
+                            previewMode = true
+                        },
+                        onExport = {
+                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
+                            previewMode = false
+                            selectionState.start(conversation.messageNodes.map { it.id })
+                        },
+                        onDelete = { showDeleteConfirm = true },
+                        showCapsuleBackground = listScrolledUnderTopBar,
+                        // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
+                        // 这个提亮只在竖屏（顶栏底下展开）时看得见
+                        detailsExpanded = showDetails,
+                        onToggleDetails = { toggleDetailsPane() },
+                    )
 
                     // 详情面板从顶栏下方展开：高度动画带着聊天内容一起让位，收起时再退回
                     AnimatedVisibility(
-                        visible = showDetails && !setting.displaySetting.terminalStyle && !threePane,
+                        visible = showDetails && !threePane,
                         enter = expandVertically(
                             expandFrom = Alignment.Top,
                             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -1244,30 +929,7 @@ private fun ChatPageContent(
             },
             bottomBar = {
                 if (currentMessages.isNotEmpty()) {
-                    if (setting.displaySetting.terminalStyle) {
-                        TerminalChatInput(
-                            state = inputState,
-                            settings = setting,
-                            chatModel = currentChatModel,
-                            todos = conversation.todos,
-                            contextTokens = contextTokens,
-                            tokenSpeed = usageTokenSpeed,
-                            loading = loadingJob != null,
-                            queuedCount = messageQueue.messages.size,
-                            onSubmit = sendInput,
-                            onStop = vm::stopGeneration,
-                            onFiles = { openPane(ChatSidePane.Files) },
-                            onVoice = onStartVoiceMode,
-                            onModel = { showTerminalModelPicker = true },
-                            onUsage = { openPane(ChatSidePane.Usage) },
-                            onCommand = { runTerminalCommand(it) },
-                            assistant = assistant,
-                            onUpdateAssistant = vm::updateAssistant,
-                            onInterject = sendInterject,
-                        )
-                    } else {
-                        ChatInputContent(todos = conversation.todos)
-                    }
+                    ChatInputContent(todos = conversation.todos)
                 }
             },
             containerColor = Color.Transparent,
@@ -1279,35 +941,11 @@ private fun ChatPageContent(
                     slogan = setting.displaySetting.emptyChatSlogan,
                     hazeState = backgroundHazeState,
                     input = {
-                        if (setting.displaySetting.terminalStyle) {
-                            TerminalChatInput(
-                                modifier = Modifier.fillMaxWidth(),
-                                state = inputState,
-                                settings = setting,
-                                chatModel = currentChatModel,
-                                todos = conversation.todos,
-                                contextTokens = contextTokens,
-                                tokenSpeed = usageTokenSpeed,
-                                loading = loadingJob != null,
-                                queuedCount = messageQueue.messages.size,
-                                onSubmit = sendInput,
-                                onStop = vm::stopGeneration,
-                                onFiles = { openPane(ChatSidePane.Files) },
-                                onVoice = onStartVoiceMode,
-                                onModel = { showTerminalModelPicker = true },
-                                onUsage = { openPane(ChatSidePane.Usage) },
-                                onCommand = { runTerminalCommand(it) },
-                                assistant = assistant,
-                                onUpdateAssistant = vm::updateAssistant,
-                                onInterject = sendInterject,
-                            )
-                        } else {
-                            ChatInputContent(
-                                todos = conversation.todos,
-                                modifier = Modifier.fillMaxWidth(),
-                                applyWindowInsets = false,
-                            )
-                        }
+                        ChatInputContent(
+                            todos = conversation.todos,
+                            modifier = Modifier.fillMaxWidth(),
+                            applyWindowInsets = false,
+                        )
                     },
                 )
             } else {
@@ -1626,34 +1264,12 @@ private fun ChatPageContent(
             )
         }
 
-        terminalOutput?.let { output ->
-            TerminalOutputDialog(
-                title = "OUTPUT",
-                content = output,
-                onDismiss = { terminalOutput = null },
-            )
-        }
-
-        if (showTerminalModelPicker) {
-            TerminalModelPickerDialog(
-                settings = setting,
-                current = currentChatModel,
-                onSelect = { model ->
-                    vm.setChatModel(model)
-                    showTerminalModelPicker = false
-                    terminalOutput = "model -> ${model.displayName.ifBlank { model.modelId }}"
-                },
-                onDismiss = { showTerminalModelPicker = false },
-            )
-        }
-
         // 横屏用右侧栏里的那份，这里只在竖屏组合
         if (!threePane) {
             ModelListSheet(state = chatModelListState) { model ->
                 vm.setChatModel(model)
             }
         }
-    }
     }
 }
 
@@ -1847,19 +1463,14 @@ private fun TopBar(
     onToggleDetails: () -> Unit,
 ) {
     val effect = settings.displaySetting.effectiveBackgroundEffect
-    val terminal = settings.displaySetting.terminalStyle
     // 顶栏按钮是「玻璃底」，透明度读玻璃透明度，而不是气泡用的模糊不透明度
     val glassAlpha = settings.displaySetting.glassSurfaceAlpha
-    fun effectColor(base: Color): Color = if (terminal) {
-        base
-    } else {
-        when (effect) {
-            BackgroundEffectType.OFF -> base
-            BackgroundEffectType.BLUR -> base.copy(alpha = glassAlpha)
-            BackgroundEffectType.GLASS -> Color.Transparent
-        }
+    fun effectColor(base: Color): Color = when (effect) {
+        BackgroundEffectType.OFF -> base
+        BackgroundEffectType.BLUR -> base.copy(alpha = glassAlpha)
+        BackgroundEffectType.GLASS -> Color.Transparent
     }
-    val effectBorder = if (!terminal && effect == BackgroundEffectType.BLUR) {
+    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     } else {
         null
@@ -1877,7 +1488,6 @@ private fun TopBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val navShape = when {
-                        terminal -> RoundedCornerShape(2.dp)
                         LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
                         else -> CircleShape
                     }
@@ -1925,9 +1535,7 @@ private fun TopBar(
                     // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里
                     if (!threePane && chatModel != null) {
                         // 模型 + 供应商两个图标并成一个胶囊，高度和右侧按钮组一致
-                        val modelPillShape = if (terminal) {
-                            RoundedCornerShape(2.dp)
-                        } else if (LocalFullWidthComponents.current) {
+                        val modelPillShape = if (LocalFullWidthComponents.current) {
                             RoundedCornerShape(0.dp)
                         } else {
                             RoundedCornerShape(50)
@@ -1969,9 +1577,7 @@ private fun TopBar(
             }
         },
         actions = {
-            val pillShape = if (terminal) {
-                RoundedCornerShape(2.dp)
-            } else if (LocalFullWidthComponents.current) {
+            val pillShape = if (LocalFullWidthComponents.current) {
                 RoundedCornerShape(0.dp)
             } else {
                 RoundedCornerShape(50)
@@ -2083,107 +1689,12 @@ private fun EmptyChatContent(
 }
 
 @Composable
-private fun TerminalEmptyChatHero(assistant: Assistant) {
-    val rule = "─".repeat(160)
-    val logo = listOf(
-        "  _     _____ _   _ _   _ ____  ",
-        " | |   |___ /| | | | | | | __ ) ",
-        " | |     |_ \\| |_| | |_| |  _ \\ ",
-        " | |___ ___) |  _  |  _  | |_) |",
-        " |_____|____/|_| |_|_| |_|____/ ",
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 6.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Text(
-            text = "┌─[ L3HUB // TERMINAL ]$rule",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.Green,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        logo.forEach { line ->
-            Text(
-                text = "│ $line",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                lineHeight = 12.sp,
-                color = TerminalPalette.Green,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
-        Text(
-            text = "├$rule",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.Border,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        Text(
-            text = "│ [ OK ] session ready · ${assistant.name.ifBlank { "assistant" }}",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.GreenDim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "│ > waiting for input_",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.Green,
-            maxLines = 1,
-        )
-        Text(
-            text = stringResource(R.string.chat_page_terminal_hint_commands),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.GreenDim,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        Text(
-            text = stringResource(R.string.chat_page_terminal_hint_tools),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.GreenDim,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        Text(
-            text = "└$rule",
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalPalette.Border,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-    }
-}
-
-@Composable
 private fun EmptyChatHero(
     assistant: Assistant,
     slogan: String,
     hazeState: HazeState,
 ) {
     val settings = LocalSettings.current
-    if (settings.displaySetting.terminalStyle) {
-        TerminalEmptyChatHero(assistant = assistant)
-        return
-    }
     val effect = settings.displaySetting.effectiveBackgroundEffect
     val shape = RoundedCornerShape(28.dp)
     val baseColor = MaterialTheme.colorScheme.surfaceContainerLow

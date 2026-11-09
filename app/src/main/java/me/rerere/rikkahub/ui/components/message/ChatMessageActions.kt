@@ -290,7 +290,7 @@ fun ChatMessageActionsSheet(
     onToggleFavorite: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
     onDismissRequest: () -> Unit,
-    // 终端风格没有气泡、走这个弹窗，用户消息的分支切换还得从这儿进
+    // 弹窗顶部的一排快捷操作
     quickActions: (@Composable () -> Unit)? = null,
 ) {
     ModalBottomSheet(

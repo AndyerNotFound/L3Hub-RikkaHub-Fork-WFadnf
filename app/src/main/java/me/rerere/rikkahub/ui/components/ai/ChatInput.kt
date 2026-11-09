@@ -139,7 +139,6 @@ import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.appButtonShadow
@@ -206,24 +205,15 @@ fun ChatInput(
     showScrim: Boolean = true,
 ) {
     val toaster = LocalToaster.current
-    val terminalStyle = settings.displaySetting.terminalStyle
-    val containerColor = if (terminalStyle) TerminalPalette.Surface else LocalUiSlots.current.inputBar
+    val containerColor = LocalUiSlots.current.inputBar
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    val containerShape = if (terminalStyle) {
-        RoundedCornerShape(2.dp)
-    } else {
-        // 全宽模式下输入框也和屏幕两边齐平，圆角收成直角
-        adaptiveShape(settings.displaySetting.uiCornerRadius.dp)
-    }
+    // 全宽模式下输入框也和屏幕两边齐平，圆角收成直角
+    val containerShape = adaptiveShape(settings.displaySetting.uiCornerRadius.dp)
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
-    val innerShape = if (terminalStyle) {
-        RoundedCornerShape(2.dp)
-    } else {
-        adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
-    }
+    val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
     // 退出编辑态时收起思考编辑器，否则下次编辑另一条带思考的消息会自己弹出来
     LaunchedEffect(state.isEditing()) {
@@ -423,36 +413,22 @@ fun ChatInput(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(containerShape)
-                    .then(
-                        if (terminalStyle) {
-                            Modifier
-                        } else {
-                            Modifier.chatInputHaze(
-                                hazeState = hazeState,
-                                displaySetting = settings.displaySetting,
-                                containerColor = containerColor,
-                                shape = containerShape,
-                            )
-                        }
+                    .chatInputHaze(
+                        hazeState = hazeState,
+                        displaySetting = settings.displaySetting,
+                        containerColor = containerColor,
+                        shape = containerShape,
                     ),
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 border = BorderStroke(
                     1.dp,
-                    if (terminalStyle) {
-                        TerminalPalette.Border
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    },
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 ),
-                color = if (terminalStyle) {
-                    TerminalPalette.Surface
-                } else {
-                    when (settings.displaySetting.effectiveBackgroundEffect) {
-                        BackgroundEffectType.OFF -> containerColor
-                        BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
-                        BackgroundEffectType.GLASS -> Color.Transparent
-                    }
+                color = when (settings.displaySetting.effectiveBackgroundEffect) {
+                    BackgroundEffectType.OFF -> containerColor
+                    BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
+                    BackgroundEffectType.GLASS -> Color.Transparent
                 },
             ) {
                 Column(
@@ -471,17 +447,6 @@ fun ChatInput(
                                 .fillMaxWidth()
                                 .clickable { onUpdateAssistant(assistant.copy(planMode = false)) }
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
-                        )
-                    }
-                    if (terminalStyle) {
-                        Text(
-                            text = "┌─[ COMPOSE ]" + "─".repeat(160),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            color = TerminalPalette.GreenDim,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                         )
                     }
                     if (voiceState.phase != VoicePhase.Off) {
@@ -744,16 +709,6 @@ fun ChatInput(
                             sendButton()
                         }
                     }
-                    if (terminalStyle) {
-                        Text(
-                            text = "└─[ ENTER send · SHIFT+ENTER newline ]",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            color = TerminalPalette.GreenDim,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        )
-                    }
                 }
             }
 
@@ -785,9 +740,7 @@ private fun SendButton(
     modifier: Modifier = Modifier,
 ) {
     val showStop = loading && empty
-    val terminal = LocalSettings.current.displaySetting.terminalStyle
     val shape = when {
-        terminal -> RoundedCornerShape(2.dp)
         LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
         else -> CircleShape
     }
@@ -816,7 +769,7 @@ private fun SendButton(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .appButtonShadow(shape, if (terminal) 0.dp else 2.dp),
+                .appButtonShadow(shape, 2.dp),
             shape = shape,
             color = containerColor,
             content = {},
@@ -858,9 +811,7 @@ private fun ActionIconButton(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val terminal = LocalSettings.current.displaySetting.terminalStyle
     val shape = when {
-        terminal -> RoundedCornerShape(2.dp)
         LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
         else -> CircleShape
     }
@@ -868,7 +819,7 @@ private fun ActionIconButton(
         onClick = onClick,
         modifier = Modifier
             .size(30.dp)
-            .appButtonShadow(shape, if (terminal) 0.dp else 2.dp),
+            .appButtonShadow(shape, 2.dp),
         shape = shape,
         tonalElevation = 0.dp,
         color = Color.Transparent,
@@ -935,7 +886,6 @@ private fun TextInputRow(
     onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
-    val terminalStyle = settings.displaySetting.terminalStyle
     val fullWidth = LocalFullWidthComponents.current
     val filesManager: FilesManager = koinInject()
     val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
@@ -1066,30 +1016,17 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = if (terminalStyle || fullWidth) {
+            shape = if (fullWidth) {
                 RoundedCornerShape(0.dp)
             } else {
                 MaterialTheme.shapes.largeIncreased
             },
             placeholder = {
                 Text(
-                    text = stringResource(
-                        if (terminalStyle) R.string.chat_input_placeholder_terminal else R.string.chat_input_placeholder
-                    ),
+                    text = stringResource(R.string.chat_input_placeholder),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            },
-            prefix = if (terminalStyle) {
-                {
-                    Text(
-                        text = "$ ",
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        color = TerminalPalette.Green,
-                    )
-                }
-            } else {
-                null
             },
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(

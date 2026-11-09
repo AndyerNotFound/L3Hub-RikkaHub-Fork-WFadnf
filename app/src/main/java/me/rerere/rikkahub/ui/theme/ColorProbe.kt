@@ -193,11 +193,6 @@ fun ColorProbeOverlay() {
     var saveError by remember { mutableStateOf<String?>(null) }
 
     fun save(slot: UiSlot, argb: Long): Boolean {
-        // 终端风格：位置层整体走终端配色，调色板的位置覆盖不参与（见 Theme.kt），改了看不见
-        if (settings.displaySetting.terminalStyle) {
-            saveError = "终端风格下位置颜色不生效；请先关闭终端风格"
-            return false
-        }
         // 动态取色优先级高于调色板（见 Theme.kt），开了改了也看不见，先拦下说明
         if (settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             saveError = "已开启「跟随系统动态取色」，此修改不会生效；请先关闭动态取色"

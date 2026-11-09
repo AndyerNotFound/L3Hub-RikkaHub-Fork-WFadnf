@@ -128,41 +128,32 @@ fun RikkahubTheme(
             theme.getColorScheme(dark = darkTheme)
         }
     }
-    val terminal = settings.displaySetting.terminalStyle
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
     // 界面风格：Miuix 模式下整棵树套一层 MiuixTheme，骨架组件各自走 Miuix 实现
     val uiStyle = settings.displaySetting.uiStyle
-    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme, terminal) {
-        if (terminal) {
-            TerminalColorScheme
-        } else if (darkTheme && amoledDarkMode) {
+    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
+        if (darkTheme && amoledDarkMode) {
             colorScheme.amoledSurface()
         } else {
             colorScheme
         }
     }
-    // 位置层：终端模式下整体走终端配色，调色板的位置覆盖不参与
-    val uiSlots = remember(settings.palette, terminal, darkTheme, amoledDarkMode, colorSchemeConverted) {
-        val base = if (terminal) uiSlotsFrom(colorSchemeConverted)
-        else settings.palette.uiSlots(darkTheme, colorSchemeConverted)
-        // AMOLED 是显示级偏好，压黑优先级高于调色板的位置覆盖（底色槽）；
-        // 终端模式自带配色，不参与 AMOLED 压黑
-        if (!terminal && darkTheme && amoledDarkMode) base.amoledSlots() else base
+    // 位置层：调色板的位置覆盖
+    val uiSlots = remember(settings.palette, darkTheme, amoledDarkMode, colorSchemeConverted) {
+        val base = settings.palette.uiSlots(darkTheme, colorSchemeConverted)
+        // AMOLED 是显示级偏好，压黑优先级高于调色板的位置覆盖（底色槽）
+        if (darkTheme && amoledDarkMode) base.amoledSlots() else base
     }
-    // 全局字体：聊天字体可选应用到整个应用；终端风格始终等宽，不参与。
+    // 全局字体：聊天字体可选应用到整个应用。
     // 注意：这里/下面的 Typography 是同包顶层 val（Type.kt），不是类，
     // 勿在此文件加 import androidx.compose.material3.Typography（会改为解析成类导致编译错误）。
     val chatFontFamily = rememberChatFontFamily(settings.displaySetting)
-    val typography = remember(terminal, settings.displaySetting.fontApplyGlobal, chatFontFamily) {
-        when {
-            terminal -> terminalTypography(Typography)
-            settings.displaySetting.fontApplyGlobal -> Typography.withFontFamily(chatFontFamily)
-            else -> Typography
-        }
+    val typography = remember(settings.displaySetting.fontApplyGlobal, chatFontFamily) {
+        if (settings.displaySetting.fontApplyGlobal) Typography.withFontFamily(chatFontFamily) else Typography
     }
-    val extendColors = if (darkTheme || terminal) ExtendDarkColors else ExtendLightColors
-    val effectiveDark = darkTheme || terminal
+    val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
+    val effectiveDark = darkTheme
 
     // 更新状态栏图标颜色
     val view = LocalView.current
@@ -179,7 +170,7 @@ fun RikkahubTheme(
                 isAppearanceLightNavigationBars = !effectiveDark
             }
             onDispose {
-                // 嵌套主题（如终端的深色主题）退出时恢复原有系统栏图标颜色。
+                // 嵌套主题退出时恢复原有系统栏图标颜色。
                 controller.isAppearanceLightStatusBars = previousLightStatusBars
                 controller.isAppearanceLightNavigationBars = previousLightNavigationBars
             }
@@ -199,7 +190,6 @@ fun RikkahubTheme(
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
-        LocalTerminalMode provides terminal,
         LocalFullWidthComponents provides fullWidthComponents,
         LocalUiStyle provides uiStyle,
         LocalMiuixPressFeedback provides settings.displaySetting.miuixPressFeedback,
@@ -209,7 +199,6 @@ fun RikkahubTheme(
             colorScheme = colorSchemeConverted,
             typography = typography,
             shapes = when {
-                terminal -> TerminalShapes
                 fullWidthComponents -> SquareShapes
                 else -> MaterialTheme.shapes
             },

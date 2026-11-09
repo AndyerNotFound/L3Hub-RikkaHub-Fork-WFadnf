@@ -23,7 +23,6 @@ import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.blur.material3.Material3
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.theme.LocalTerminalMode
 
 /**
  * 玻璃底能取到的 Haze 源。
@@ -39,25 +38,25 @@ val LocalGlassHazeState = compositionLocalOf<HazeState?> { null }
 val DisplaySetting.glassSurfaceAlpha: Float
     get() = if (enableBlurEffect) glassOpacity.coerceIn(0f, 1f) else 1f
 
-/** 实色底换成同色半透明；关闭模糊特效（或终端风格）时原样返回。 */
+/** 实色底换成同色半透明；关闭模糊特效时原样返回。 */
 @Composable
 fun glassColor(base: Color): Color {
     val displaySetting = LocalSettings.current.displaySetting
-    if (!displaySetting.enableBlurEffect || LocalTerminalMode.current) return base
+    if (!displaySetting.enableBlurEffect) return base
     return base.copy(alpha = base.alpha * displaySetting.glassSurfaceAlpha)
 }
 
 /**
  * 浮层（抽屉 / BottomSheet）能不能真做成玻璃。
  *
- * 想糊出东西就得手上有一个 Haze 源，外加模糊特效开着、不是终端风格。缺任意一条时
+ * 想糊出东西就得手上有一个 Haze 源，外加模糊特效开着。缺任意一条时
  * [glassSurface] 只剩一层半透明 —— 浮层半透明却不模糊，底下的正文会直接透上来，
  * 比实色更难读，所以调用方按这个返回 false 保持原来的实色底。
  */
 @Composable
 fun canGlassPane(hazeState: HazeState? = LocalGlassHazeState.current): Boolean {
     val displaySetting = LocalSettings.current.displaySetting
-    return hazeState != null && displaySetting.enableBlurEffect && !LocalTerminalMode.current
+    return hazeState != null && displaySetting.enableBlurEffect
 }
 
 /**
@@ -78,8 +77,8 @@ fun Modifier.glassSurface(
     minAlpha: Float = 0f,
 ): Modifier {
     val displaySetting = LocalSettings.current.displaySetting
-    // 终端风格是一套纯字符的界面，不加玻璃；关闭模糊特效时同样一条 haze 都不挂
-    if (!displaySetting.enableBlurEffect || LocalTerminalMode.current) return this
+    // 关闭模糊特效时一条 haze 都不挂
+    if (!displaySetting.enableBlurEffect) return this
     val tint = baseColor.copy(
         alpha = maxOf(baseColor.alpha * displaySetting.glassSurfaceAlpha, minAlpha),
     )
@@ -108,7 +107,7 @@ val GlassSheetShape: Shape =
  */
 @Composable
 fun glassSegmentedButtonColors() = if (
-    !LocalSettings.current.displaySetting.enableBlurEffect || LocalTerminalMode.current
+    !LocalSettings.current.displaySetting.enableBlurEffect
 ) {
     SegmentedButtonDefaults.colors()
 } else {
@@ -122,11 +121,11 @@ fun glassSegmentedButtonColors() = if (
  * 开关配色：未选中的轨道（关着的时候它就是开关的「容器」）走玻璃底。
  *
  * 轨道淡下去以后形状全靠描边认，所以描边留 0.5 不透明度；选中态保持主色实心，
- * 「开着」得一眼看得出来。关闭模糊特效 / 终端风格时整份交回 M3 默认配色。
+ * 「开着」得一眼看得出来。关闭模糊特效时整份交回 M3 默认配色。
  */
 @Composable
 fun glassSwitchColors() = if (
-    !LocalSettings.current.displaySetting.enableBlurEffect || LocalTerminalMode.current
+    !LocalSettings.current.displaySetting.enableBlurEffect
 ) {
     SwitchDefaults.colors()
 } else {
@@ -139,7 +138,7 @@ fun glassSwitchColors() = if (
 /** FilterChip 配色：未选中是玻璃底，选中态是玻璃底的 secondaryContainer。 */
 @Composable
 fun glassFilterChipColors() = if (
-    !LocalSettings.current.displaySetting.enableBlurEffect || LocalTerminalMode.current
+    !LocalSettings.current.displaySetting.enableBlurEffect
 ) {
     FilterChipDefaults.filterChipColors()
 } else {
@@ -152,7 +151,7 @@ fun glassFilterChipColors() = if (
 /** AssistChip 配色：同上，只有一层玻璃底。 */
 @Composable
 fun glassAssistChipColors() = if (
-    !LocalSettings.current.displaySetting.enableBlurEffect || LocalTerminalMode.current
+    !LocalSettings.current.displaySetting.enableBlurEffect
 ) {
     AssistChipDefaults.assistChipColors()
 } else {

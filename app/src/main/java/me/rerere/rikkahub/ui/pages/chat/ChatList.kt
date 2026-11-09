@@ -86,7 +86,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -127,7 +126,6 @@ import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.fullWidthHorizontalInset
@@ -142,11 +140,10 @@ private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
 
-// 消息之间的纵向间距：原来由 LazyColumn 的 verticalArrangement 统一给 12dp（终端风格 8dp），
+// 消息之间的纵向间距：原来由 LazyColumn 的 verticalArrangement 统一给 12dp，
 // 现在改成 0，交给每个 item 按分组情况自己加，这样同组和跨组才能用不同的间距。
 private val MESSAGE_GAP_JOINED = 2.dp
 private val MESSAGE_GAP_ROLE_CHANGE = 16.dp
-private val MESSAGE_GAP_TERMINAL = 8.dp
 
 /**
  * 气泡分组用的角色：只有普通的气泡消息才参与分组。
@@ -593,26 +590,18 @@ private fun ChatListNormal(
         }
 
         ChatFontProvider(displaySetting = settings.displaySetting) {
-            val terminalStyle = settings.displaySetting.terminalStyle
             LazyColumn(
                 state = state,
                 // 顶部留白放进 contentPadding，让消息可以滚动到透明标题栏下面
-                contentPadding = if (terminalStyle) {
-                    PaddingValues(horizontal = 10.dp) + PaddingValues(
-                        top = innerPadding.calculateTopPadding(),
-                        bottom = 32.dp + innerPadding.calculateBottomPadding(),
-                    )
-                } else {
-                    // 全宽组件：左右不再留白，气泡/卡片的边缘直接对齐屏幕；
-                    // 刘海和侧边系统栏的安全区照样让出来
-                    PaddingValues(
-                        horizontal = adaptiveHorizontalPaddingValue(16.dp) + fullWidthHorizontalInset(),
-                        vertical = 16.dp,
-                    ) + PaddingValues(
-                        top = innerPadding.calculateTopPadding(),
-                        bottom = 32.dp + innerPadding.calculateBottomPadding(),
-                    )
-                },
+                // 全宽组件：左右不再留白，气泡/卡片的边缘直接对齐屏幕；
+                // 刘海和侧边系统栏的安全区照样让出来
+                contentPadding = PaddingValues(
+                    horizontal = adaptiveHorizontalPaddingValue(16.dp) + fullWidthHorizontalInset(),
+                    vertical = 16.dp,
+                ) + PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = 32.dp + innerPadding.calculateBottomPadding(),
+                ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier
@@ -623,26 +612,17 @@ private fun ChatListNormal(
                     .nestedScroll(createPullConnection)
                     .hazeSource(state = hazeState),
             ) {
-            if (terminalStyle) {
-                item(key = "TerminalSessionHeader") {
-                    TerminalSessionHeader(conversation = conversation)
-                }
-            }
             itemsIndexed(
                 items = conversation.messageNodes,
                 key = { index, item -> item.id },
             ) { index, node ->
                 // 同角色连续的两条消息算一组：气泡接缝两侧的圆角收小、间距压到最小
                 val groupRole = node.bubbleGroupRole()
-                val joinedToPrevious = !terminalStyle && groupRole != null &&
+                val joinedToPrevious = groupRole != null &&
                     conversation.messageNodes.getOrNull(index - 1)?.bubbleGroupRole() == groupRole
-                val joinedToNext = !terminalStyle && groupRole != null &&
+                val joinedToNext = groupRole != null &&
                     conversation.messageNodes.getOrNull(index + 1)?.bubbleGroupRole() == groupRole
-                val itemGap = when {
-                    terminalStyle -> MESSAGE_GAP_TERMINAL
-                    joinedToPrevious -> MESSAGE_GAP_JOINED
-                    else -> MESSAGE_GAP_ROLE_CHANGE
-                }
+                val itemGap = if (joinedToPrevious) MESSAGE_GAP_JOINED else MESSAGE_GAP_ROLE_CHANGE
                 MessageEnterSlide(
                     messageId = node.id,
                     animateEnter = node.id in enteringMessageIds,
@@ -706,7 +686,6 @@ private fun ChatListNormal(
                                 hazeState = bubbleHazeState,
                                 conversationId = conversation.id,
                                 lastMessage = index == lastMessageIndex,
-                                messageIndex = index,
                                 joinedToPrevious = joinedToPrevious,
                                 joinedToNext = joinedToNext,
                             )
@@ -718,11 +697,7 @@ private fun ChatListNormal(
             if (!loading && assistant?.allowConversationSystemPrompt == true && onConversationSystemPromptChange != null) {
                 item(key = "ConversationSystemPrompt") {
                     Column {
-                        Spacer(
-                            Modifier.height(
-                                if (terminalStyle) MESSAGE_GAP_TERMINAL else MESSAGE_GAP_ROLE_CHANGE
-                            )
-                        )
+                        Spacer(Modifier.height(MESSAGE_GAP_ROLE_CHANGE))
                         ConversationSystemPromptButton(
                             customSystemPrompt = conversation.customSystemPrompt,
                             onSystemPromptChange = onConversationSystemPromptChange,
@@ -738,7 +713,7 @@ private fun ChatListNormal(
                             start = 8.dp,
                             end = 8.dp,
                             bottom = 8.dp,
-                            top = if (terminalStyle) 8.dp else MESSAGE_GAP_ROLE_CHANGE,
+                            top = MESSAGE_GAP_ROLE_CHANGE,
                         ),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -816,7 +791,7 @@ private fun ChatListNormal(
 
             MessageNavBars(
                 messageCount = conversation.messageNodes.size,
-                firstMessageItemIndex = if (settings.displaySetting.terminalStyle) 1 else 0,
+                firstMessageItemIndex = 0,
                 state = state,
                 onLeft = settings.displaySetting.messageNavOnLeft,
                 modifier = Modifier.align(
@@ -901,49 +876,5 @@ private fun ChatListNormal(
             }
         }
 
-    }
-}
-
-/**
- * 提取包含搜索词的文本片段，确保匹配词在开头可见
- */
-@Composable
-private fun TerminalSessionHeader(conversation: Conversation) {
-    val rule = "─".repeat(160)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(1.dp),
-    ) {
-        Text(
-            text = "┌─[ L3HUB // SESSION ]$rule",
-            style = MaterialTheme.typography.labelSmall,
-            color = TerminalPalette.Green,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        Text(
-            text = "│ id=${conversation.id.toString().take(8)}  msg=${conversation.messageNodes.size}  title=${conversation.title.ifBlank { "untitled" }}",
-            style = MaterialTheme.typography.labelSmall,
-            color = TerminalPalette.GreenDim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "├$rule",
-            style = MaterialTheme.typography.labelSmall,
-            color = TerminalPalette.Border,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-        )
-        Text(
-            text = "│ TIME      ROLE  CONTENT",
-            style = MaterialTheme.typography.labelSmall,
-            color = TerminalPalette.Amber,
-            maxLines = 1,
-        )
     }
 }

@@ -26,7 +26,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.DashboardSpeed02
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.SimpleCache
 import me.rerere.rikkahub.utils.toDp
 import kotlinx.coroutines.delay
@@ -94,7 +93,6 @@ fun ProviderQuotaText(
 ) {
     if (!providerSetting.supportsQuota) return
 
-    val terminal = LocalSettings.current.displaySetting.terminalStyle
     val result = rememberProviderQuota(providerSetting, refreshIntervalMillis)
     val quota = result?.getOrNull()
     val text = when {
@@ -113,24 +111,18 @@ fun ProviderQuotaText(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!terminal) {
-            Icon(
-                imageVector = if (quota is ProviderQuota.UsageLimits) {
-                    HugeIcons.DashboardSpeed02
-                } else {
-                    HugeIcons.MoneyBag02
-                },
-                contentDescription = null,
-                modifier = Modifier.size(style.fontSize.toDp()),
-                tint = color.takeOrElse { LocalContentColor.current }
-            )
-        }
-        Text(
-            text = if (terminal) {
-                "${if (quota is ProviderQuota.UsageLimits) "%" else "$"} $text"
+        Icon(
+            imageVector = if (quota is ProviderQuota.UsageLimits) {
+                HugeIcons.DashboardSpeed02
             } else {
-                text
+                HugeIcons.MoneyBag02
             },
+            contentDescription = null,
+            modifier = Modifier.size(style.fontSize.toDp()),
+            tint = color.takeOrElse { LocalContentColor.current }
+        )
+        Text(
+            text = text,
             style = style,
             maxLines = 1,
             color = color

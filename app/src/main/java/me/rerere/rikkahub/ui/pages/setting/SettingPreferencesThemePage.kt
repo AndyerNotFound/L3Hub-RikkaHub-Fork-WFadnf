@@ -80,16 +80,6 @@ fun SettingPreferencesThemePage(embedded: Boolean = false, vm: SettingVM = koinV
                     supportingContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_title)) },
                 )
-                switchItem(
-                    checked = settings.displaySetting.terminalStyle,
-                    onCheckedChange = { enabled ->
-                        vm.updateSettings {
-                            it.copy(displaySetting = it.displaySetting.copy(terminalStyle = enabled))
-                        }
-                    },
-                    supportingContent = { Text(stringResource(R.string.setting_terminal_style_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_terminal_style)) },
-                )
             }
 
         }

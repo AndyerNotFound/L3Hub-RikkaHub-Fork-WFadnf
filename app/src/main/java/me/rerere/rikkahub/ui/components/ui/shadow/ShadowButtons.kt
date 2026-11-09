@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import me.rerere.rikkahub.ui.components.ui.glassColor
-import me.rerere.rikkahub.ui.theme.LocalTerminalMode
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import androidx.compose.material3.Button as MaterialButton
 import androidx.compose.material3.FilledIconButton as MaterialFilledIconButton
@@ -39,21 +38,6 @@ fun Button(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.Button(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -81,21 +65,6 @@ fun Button(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.Button(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shapes.shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialButton(
         onClick = onClick,
         shapes = shapes,
@@ -126,21 +95,6 @@ fun FilledTonalButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledTonalButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -171,21 +125,6 @@ fun FilledTonalButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shapes.shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledTonalButton(
         onClick = onClick,
         shapes = shapes,
@@ -217,21 +156,6 @@ fun OutlinedButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.OutlinedButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialOutlinedButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -262,21 +186,6 @@ fun TextButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.TextButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            elevation = elevation,
-            border = border,
-            contentPadding = contentPadding,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialTextButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -304,17 +213,6 @@ fun IconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.IconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            colors = colors,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialIconButton(
         onClick = onClick,
         modifier = modifier,
@@ -335,18 +233,6 @@ fun FilledIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledIconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledIconButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -368,18 +254,6 @@ fun FilledIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledIconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shapes.shape,
-            colors = colors,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledIconButton(
         onClick = onClick,
         shapes = shapes,
@@ -401,18 +275,6 @@ fun FilledTonalIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledTonalIconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledTonalIconButton(
         onClick = onClick,
         modifier = if (enabled) modifier.appButtonShadow(shape) else modifier,
@@ -434,18 +296,6 @@ fun FilledTonalIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalTerminalMode.current) {
-        me.rerere.rikkahub.ui.terminal.FilledTonalIconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shapes.shape,
-            colors = colors,
-            interactionSource = interactionSource,
-            content = content,
-        )
-        return
-    }
     MaterialFilledTonalIconButton(
         onClick = onClick,
         shapes = shapes,

@@ -932,7 +932,6 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 
 - 确认类对话框（压缩后发送、删除会话）和终端输出 / 终端模型选择仍是对话框，它们本来就小，不吃高度
 - 后台任务弹层从 `ChatInputContent` 提到了 `ChatPageContent` 一层，横屏才放得进右列
-- 终端风格横屏同样走三栏，终端顶栏只留 MENU / NEW / HELP
 - 新增字符串 `chat_page_side_panel_model`、`chat_page_side_panel_new_tab`、`chat_page_side_panel_empty`、
   `chat_page_side_panel_close_tab`、`chat_page_turn_changes_empty`，补了 `values`、`values-zh`、`values-zh-rTW`，
   其余语言走英文回退

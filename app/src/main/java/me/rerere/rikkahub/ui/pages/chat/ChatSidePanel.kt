@@ -34,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,8 +45,6 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
-import me.rerere.rikkahub.ui.theme.LocalTerminalMode
-import me.rerere.rikkahub.ui.theme.TerminalPalette
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 
 /**
@@ -90,17 +87,8 @@ internal fun ChatSidePanelColumn(
     hazeState: HazeState? = null,
     content: @Composable (ChatSidePane) -> Unit,
 ) {
-    val terminal = LocalTerminalMode.current
-    val shape = if (terminal) {
-        RectangleShape
-    } else {
-        RoundedCornerShape(24.dp)
-    }
-    val containerColor = if (terminal) {
-        TerminalPalette.Background
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
-    }
+    val shape = RoundedCornerShape(24.dp)
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     // 选中的标签被关掉、或恢复出来的选中项已经不在标签里时，退到第一个，别让内容区空着
     val active = selected?.takeIf { it in panes } ?: panes.firstOrNull()
 
