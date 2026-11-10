@@ -649,6 +649,8 @@ UIMessagePart.Tool(
 - 合成调用只在落库和界面上存在。组装请求时 `expandInjectedTools` 把它拆成一条 **user 消息**（和通知的
   `expandNotices` 同一层，位置仍在工具结果之后）；模型在历史里看不到 `tool_use`，否则它会以为自己有这个工具，
   照着再调一次，拿回一个空结果。
+- 「插入任务清单」按每一步的最新设置判断，不看这一轮开始时的快照：中途关掉，下一个工具间隙就停，
+  请求尾部和历史里已经插过的提醒也一起不再发（`includeTodoReminders = false`），关了开关不会还留着旧清单。
 - 每次插入都用新的 `toolCallId`：同一条助手消息里出现两个相同 id 的 tool_use，Anthropic 会整条拒掉。
 
 ### 什么时候插

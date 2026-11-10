@@ -155,4 +155,40 @@ class GuidanceInjectionTest {
 
         assertEquals(listOf(assistant), listOf(assistant).expandInjectedTools())
     }
+
+    @Test
+    fun `todo reminders are dropped from the request when the switch is off`() {
+        val read = UIMessagePart.Tool(
+            toolCallId = "call_1",
+            toolName = "read",
+            input = "{}",
+            output = listOf(UIMessagePart.Text("ok")),
+        )
+        val reminder = todoReminderToolPart(todos, step = 2)!!
+        val guidance = guidanceToolPart(Guidance(content = "先别改 app/"), step = 2)
+        val assistant = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(read, reminder, guidance, UIMessagePart.Text("继续")),
+            stepCount = 2,
+        )
+
+        val expanded = listOf(assistant).expandInjectedTools(includeTodoReminders = false)
+
+        // 清单提醒直接丢掉，历史里那几份也不再作为 user 消息进请求；引导仍然照常展开
+        assertEquals(
+            listOf(MessageRole.ASSISTANT, MessageRole.USER, MessageRole.ASSISTANT),
+            expanded.map { it.role },
+        )
+        assertEquals("先别改 app/", (expanded[1].parts.single() as UIMessagePart.Text).text)
+        assertTrue(
+            expanded.flatMap { it.parts }.none { part ->
+                part is UIMessagePart.Text && part.text.contains("Current task list")
+            }
+        )
+        assertTrue(
+            expanded.flatMap { it.parts }.none { part ->
+                part is UIMessagePart.Tool && part.todoReminderText() != null
+            }
+        )
+    }
 }

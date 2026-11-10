@@ -179,6 +179,10 @@ class ChatRequestFactory(
         beforeStep: suspend (List<UIMessage>) -> List<UIMessage>? = { null },
         onContextOverflow: suspend (Throwable) -> Boolean = { false },
         takePendingParts: suspend (UIMessage?) -> List<UIMessagePart> = { emptyList() },
+        // 清单的开关、间隔和内容都按最新状态读：一轮可能跑很久，用户中途关掉插入要当步生效。
+        // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
+        liveAssistant: suspend () -> Assistant = { turn.assistant },
+        liveTodos: suspend () -> List<TodoItem> = { turn.todos },
     ): Pair<AgentRequest, AgentHooks> {
         val injectedMessages = mutableListOf<UIMessage>()
         // 和钩子同名，提前取个别名，免得 override 里写成自己调自己
@@ -209,7 +213,13 @@ class ChatRequestFactory(
                 // 一步可能被重装（上下文超限），按 id 去重，同一条不会进两次
                 injectedMessages += pendingInjections()
                     .filterNot { message -> injectedMessages.any { it.id == message.id } }
-                val step = buildStep(turn, refreshed ?: messages, processingStatus)
+                val step = buildStep(
+                    turn = turn,
+                    messages = refreshed ?: messages,
+                    processingStatus = processingStatus,
+                    todoRemindersEnabled = liveAssistant().todoReminderEnabled,
+                    todos = liveTodos(),
+                )
                 return if (injectedMessages.isEmpty()) {
                     step
                 } else {
@@ -355,6 +365,9 @@ class ChatRequestFactory(
         respectMessageLimit: Boolean = true,
         transformers: List<InputMessageTransformer> = inputTransformers,
         includeTools: Boolean = true,
+        // 清单提醒的开关和内容；默认用 turn 的快照，循环里由调用方换成最新值
+        todoRemindersEnabled: Boolean = turn.assistant.todoReminderEnabled,
+        todos: List<TodoItem> = turn.todos,
     ): StepRequest {
         val assistant = turn.assistant
         val tools = if (includeTools) turn.tools else emptyList()
@@ -420,13 +433,16 @@ class ChatRequestFactory(
                 settings = turn.settings,
                 processingStatus = processingStatus,
                 workspaceCwds = turn.workspaceCwds,
-                todos = turn.todos,
+                // 开关关掉后尾部也不贴；清单快照可能是这一轮开始时的，循环里按最新值传
+                todos = if (todoRemindersEnabled) todos else emptyList(),
             )
         }
         // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效。
         // 合成调用（引导、清单）也在这里换成 user 消息：模型一旦在历史里看到自己调过一个没声明过的工具，
-        // 下一步就会照着再调一次，拿回一个空结果
-        val requestMessages = transformedMessages.expandNotices().expandInjectedTools()
+        // 下一步就会照着再调一次，拿回一个空结果。清单关掉后连历史里已经插过的那几份也不再发
+        val requestMessages = transformedMessages
+            .expandNotices()
+            .expandInjectedTools(includeTodoReminders = todoRemindersEnabled)
         val params = TextGenerationParams(
             model = turn.model,
             temperature = assistant.temperature,

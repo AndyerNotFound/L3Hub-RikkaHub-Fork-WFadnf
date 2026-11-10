@@ -1461,6 +1461,11 @@ class ChatService(
             }
             warnIfToolsUnavailable(turn, conversationId)
 
+            // 清单和引导的开关、间隔按最新设置走：一轮可能跑很久，用户中途关掉插入要当步生效。
+            // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
+            val liveAssistant: suspend () -> Assistant = {
+                settingsStore.awaitLoaded().getAssistantOf(session.state.value)
+            }
             val (request, hooks) = requestFactory.createAgent(
                 turn = turn,
                 messages = history,
@@ -1487,8 +1492,13 @@ class ChatService(
                         .also { loopOverflowCompress = it }
                         .let { it == CompressAttempt.COMPRESSED }
                 },
+                liveAssistant = liveAssistant,
+                // 全部完成或取消后不再贴，和轮次开始时的判断保持一致
+                liveTodos = {
+                    session.state.value.todos.takeIf { it.hasActiveTodo() } ?: emptyList()
+                },
                 takePendingParts = { current ->
-                    session.takeInjectionParts(current, turn.assistant)
+                    session.takeInjectionParts(current, liveAssistant())
                 },
             )
             var finishReason: AgentFinishReason? = null

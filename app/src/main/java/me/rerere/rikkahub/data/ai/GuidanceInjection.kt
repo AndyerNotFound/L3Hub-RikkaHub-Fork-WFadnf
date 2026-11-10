@@ -147,9 +147,14 @@ fun UIMessagePart.Tool.todoReminderText(): String? =
  * 下一步就会照着去调它，拿回一个空结果。展开后模型看到的只是一条中途追加的 user 消息，
  * 位置仍在工具结果之后，和 [me.rerere.ai.agent.expandNotices] 展开通知是同一层。
  *
+ * [includeTodoReminders] 为 false 时，历史里已经插过的清单提醒直接丢掉：用户关掉的是
+ * 「清单进请求」，不只是不再插新的。引导不受影响，它已经作为用户指令生效过了。
+ *
  * 只在组装请求时调用，消息本身不动——界面靠合成调用画提示卡片、算插入间隔。
  */
-fun List<UIMessage>.expandInjectedTools(): List<UIMessage> = flatMap { message ->
+fun List<UIMessage>.expandInjectedTools(
+    includeTodoReminders: Boolean = true,
+): List<UIMessage> = flatMap { message ->
     if (message.parts.none { it is UIMessagePart.Tool && it.isInjectedTool() }) {
         return@flatMap listOf(message)
     }
@@ -161,13 +166,22 @@ fun List<UIMessage>.expandInjectedTools(): List<UIMessage> = flatMap { message -
         }
         message.parts.forEach { part ->
             val tool = part as? UIMessagePart.Tool
-            val text = tool?.guidanceText() ?: tool?.todoReminderText()
-            if (text != null) {
+            val guidanceText = tool?.guidanceText()
+            if (guidanceText != null) {
                 flush()
-                add(UIMessage.user(text).copy(createdAt = message.createdAt, isSynthetic = true))
-            } else {
-                buffer.add(part)
+                add(UIMessage.user(guidanceText).copy(createdAt = message.createdAt, isSynthetic = true))
+                return@forEach
             }
+            val todoText = tool?.todoReminderText()
+            if (todoText != null) {
+                // 丢掉时不要 flush：提醒两边的内容留在同一条助手消息里，就像它从没插过
+                if (includeTodoReminders) {
+                    flush()
+                    add(UIMessage.user(todoText).copy(createdAt = message.createdAt, isSynthetic = true))
+                }
+                return@forEach
+            }
+            buffer.add(part)
         }
         flush()
     }
