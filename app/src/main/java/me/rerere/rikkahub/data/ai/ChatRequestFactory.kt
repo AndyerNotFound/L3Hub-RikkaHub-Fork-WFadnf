@@ -2,6 +2,9 @@ package me.rerere.rikkahub.data.ai
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.rerere.ai.agent.AgentHooks
 import me.rerere.ai.agent.AgentRequest
@@ -23,8 +26,6 @@ import me.rerere.rikkahub.data.ai.GUIDANCE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.TODO_REMINDER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.injectedToolFallback
 import me.rerere.rikkahub.data.ai.prompts.buildMemoryPrompt
-import me.rerere.rikkahub.data.ai.prompts.buildMergeCompressPrompt
-import me.rerere.rikkahub.data.ai.prompts.buildPartialCompressPrompt
 import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_NOTICE_FRAMING
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
@@ -50,7 +51,6 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MemoryFile
-import me.rerere.rikkahub.data.model.chunkMessagesForCompression
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.estimateMessageTokens
 import me.rerere.rikkahub.data.model.estimateTokens
@@ -111,16 +111,6 @@ class ChatRequestFactory(
         TodoStateTransformer,
     )
 
-    /**
-     * 分段压缩请求用的转换器：只保留把附件内容变成文本的那几个。
-     *
-     * 分段不追求提示词缓存，但文档正文和 OCR 文本必须进摘要——provider 不认识
-     * [UIMessagePart.Document]，跳过这部分等于把附件内容从历史里永久删掉。
-     * 时间提醒、注入、模板这类装饰性转换跳过，也不给分段预算添乱。
-     */
-    private val compressionContentTransformers: List<InputMessageTransformer> =
-        listOf(DocumentAsPromptTransformer, OcrTransformer)
-
     private val outputTransformers: List<OutputMessageTransformer> = listOf(
         ThinkTagTransformer,
         Base64ImageToLocalFileTransformer,
@@ -170,14 +160,14 @@ class ChatRequestFactory(
      * 本轮交给 runAgent 的请求和钩子。[messages] 的最后一条是助手消息时从它继续，否则新建一条助手消息。
      * [processingStatus] 用来显示 OCR 这类输入转换的进度；[takePendingParts] 取出要在请求模型前写进助手消息的
      * 通知和合成工具调用（引导、任务清单），参数是本轮正在写的助手消息，第一步还没有内容时为 null。
+     * [pauseAfterTools] 在一批工具执行完之后调用，返回 true 时这次运行以 Paused 结束。
      */
     fun createAgent(
         turn: ChatTurnContext,
         messages: List<UIMessage>,
         processingStatus: MutableStateFlow<String?>,
         pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
-        beforeStep: suspend (List<UIMessage>) -> List<UIMessage>? = { null },
-        onContextOverflow: suspend (Throwable) -> Boolean = { false },
+        pauseAfterTools: (UIMessage) -> Boolean = { false },
         takePendingParts: suspend (UIMessage?) -> List<UIMessagePart> = { emptyList() },
         // 清单的开关、间隔和内容都按最新状态读：一轮可能跑很久，用户中途关掉插入要当步生效。
         // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
@@ -185,8 +175,6 @@ class ChatRequestFactory(
         liveTodos: suspend () -> List<TodoItem> = { turn.todos },
     ): Pair<AgentRequest, AgentHooks> {
         val injectedMessages = mutableListOf<UIMessage>()
-        // 和钩子同名，提前取个别名，免得 override 里写成自己调自己
-        val contextOverflowHandler = onContextOverflow
         val request = AgentRequest(
             provider = usageRecorder.wrap(
                 providerManager.getProviderByType(turn.providerSetting),
@@ -206,16 +194,13 @@ class ChatRequestFactory(
         val hooks = object : AgentHooks {
             override suspend fun prepareStep(messages: List<UIMessage>): StepRequest {
                 Log.i(TAG, "prepareStep: ${turn.model.id}")
-                // 压缩这类会换掉历史的操作要在组装请求之前做，返回新的历史表示这一步必须按它重新组装；
-                // 放到请求发出去之后再处理，压缩就只能对下一次请求生效，这一步仍然带着旧上下文
-                val refreshed = beforeStep(messages)
                 // 外部注入消息在每一步请求前取一次，取到后这一步之后的步骤也要继续带上。
-                // 一步可能被重装（上下文超限），按 id 去重，同一条不会进两次
+                // 按 id 去重，同一条不会进两次
                 injectedMessages += pendingInjections()
                     .filterNot { message -> injectedMessages.any { it.id == message.id } }
                 val step = buildStep(
                     turn = turn,
-                    messages = refreshed ?: messages,
+                    messages = messages,
                     processingStatus = processingStatus,
                     todoRemindersEnabled = liveAssistant().todoReminderEnabled,
                     todos = liveTodos(),
@@ -226,9 +211,6 @@ class ChatRequestFactory(
                     step.copy(messages = step.messages + injectedMessages)
                 }
             }
-
-            override suspend fun onContextOverflow(error: Throwable): Boolean =
-                contextOverflowHandler(error)
 
             override suspend fun previewStep(message: UIMessage, newPartsFrom: Int) =
                 message.transformNewParts(newPartsFrom) {
@@ -243,6 +225,8 @@ class ChatRequestFactory(
                 }
 
             override suspend fun pendingParts(current: UIMessage?) = takePendingParts(current)
+
+            override suspend fun shouldPause(message: UIMessage) = pauseAfterTools(message)
         }
         return request to hooks
     }
@@ -253,45 +237,29 @@ class ChatRequestFactory(
      * 请求按正常对话组装（系统提示词、工具定义、参数和 sessionId 都相同），只在末尾追加压缩指令，
      * 前缀与上一轮对话一致，可以命中提示词缓存，模型也能看到工具调用和结果。
      * 工具定义必须保留：它属于请求前缀，去掉或改动 tool_choice 都会让缓存失效。
-     *
-     * 压缩范围本身也可能装不进模型窗口（这往往正是要压缩的原因）。这时分段摘要再合并：
-     * 把整段历史原样再发一次只会被同样拒绝，自动压缩就等于失效。
      */
     suspend fun generateCompressionSummary(
         turn: ChatTurnContext,
         messages: List<UIMessage>,
         compressPrompt: String,
     ): String {
-        val budget = turn.model.compressionInputBudget()
-        val chunks = if (budget == null) listOf(messages) else chunkMessagesForCompression(messages, budget)
-        val summary = if (chunks.size <= 1) {
-            // 用切完的那一份：单条消息自己超预算时会被截断，这里不能退回原文。
-            // 首条不是 user 的会话（比如助手预设消息开头的会话）同样要补一条，否则 Claude/Gemini 会拒绝
-            requestCompressionSummary(turn, chunks.single().withLeadingUserTurn(), compressPrompt)
-        } else {
-            Log.i(TAG, "generateCompressionSummary: split ${messages.size} messages into ${chunks.size} parts")
-            val partials = chunks.mapIndexed { index, chunk ->
-                requestCompressionSummary(
-                    turn = turn,
-                    messages = chunk.asCompressionChunk(),
-                    prompt = buildPartialCompressPrompt(
-                        part = index + 1,
-                        total = chunks.size,
-                        locale = Locale.getDefault().displayName,
-                    ),
-                    transformers = compressionContentTransformers,
-                )
-            }
-            // 合并阶段的内容是各段摘要，不是对话本身：一个转换器都不能过
-            requestCompressionSummary(
-                turn = turn,
-                messages = emptyList(),
-                prompt = buildMergeCompressPrompt(partials, compressPrompt),
-                transformers = emptyList(),
-                // 合并阶段只有摘要文本，不需要工具定义：省 token，也不给模型调工具的机会
-                includeTools = false,
-            )
+        // 组装请求要把全部历史过一遍输入转换器，长对话要算好几秒：不能放在调用方的主线程上，
+        // 这段纯计算里也检查不到取消。放进独立的协程，调用方取消时 await 立刻返回、不用等它算完。
+        val work = CoroutineScope(Dispatchers.IO).async { buildCompressionSummary(turn, messages, compressPrompt) }
+        return try {
+            work.await()
+        } finally {
+            work.cancel()
         }
+    }
+
+    private suspend fun buildCompressionSummary(
+        turn: ChatTurnContext,
+        messages: List<UIMessage>,
+        compressPrompt: String,
+    ): String {
+        // 首条不是 user 的会话（比如助手预设消息开头的会话）要补一条，否则 Claude/Gemini 会拒绝
+        val summary = requestCompressionSummary(turn, messages.withLeadingUserTurn(), compressPrompt)
         // 模型拒绝或答非所问时不满足七段结构，宁可压缩失败也别拿无效文本替换历史
         if (!summary.isUsableCompressionSummary()) {
             error(context.getString(R.string.chat_page_compress_malformed))
@@ -409,7 +377,7 @@ class ChatRequestFactory(
             // 压缩请求必须看到整个压缩范围：这里再按条数砍一次的话，被砍掉的中间那段
             // 既没进摘要、也不会留在检查点之后，模型以后再也看不到它
             val contextMessages = if (respectMessageLimit) {
-                messages.limitContext(assistant.contextMessageLimit)
+                messages.limitContext(assistant.contextMessageLimit).withContinuationHint()
             } else {
                 messages
             }
@@ -465,20 +433,31 @@ class ChatRequestFactory(
     }
 }
 
+private const val CONTINUATION_HINT =
+    "The conversation history before this point was replaced by the summary above. " +
+        "If a task was in progress, continue it from where it left off: do not reply to the summary itself, " +
+        "and do not ask the user to repeat anything."
+
+/**
+ * 检查点后面不是用户消息时（一轮中途压缩，后面直接是助手的回复或什么都没有），告诉模型接着干活，
+ * 否则它会把摘要当成用户发来的内容去回应。
+ *
+ * 按「后面不是用户消息」而不是「在末尾」判断：这一轮之后的请求里检查点仍然带着这段话，前缀不变，不影响提示词缓存。
+ */
+internal fun List<UIMessage>.withContinuationHint(): List<UIMessage> {
+    val index = indexOfLast { it.isContextCheckpoint }
+    if (index < 0 || getOrNull(index + 1)?.role == MessageRole.USER) return this
+    val checkpoint = this[index]
+    return toMutableList().also {
+        it[index] = checkpoint.copy(parts = checkpoint.parts + UIMessagePart.Text(CONTINUATION_HINT))
+    }
+}
+
 // 压缩请求的输出上限：够写七段摘要，又不至于把输入挤出窗口（max_tokens 也占窗口）
 private const val COMPRESSION_MAX_OUTPUT_TOKENS = 8_192
 private const val COMPRESSION_MIN_OUTPUT_TOKENS = 1_024
 // 摘要请求的固定开销：systemPrompt、工具定义与工具 prompt、压缩指令和估算误差
 private const val COMPRESSION_FIXED_INPUT_RESERVE = 12_288
-// 分段下限：预算再小也按这个切，否则会把历史切成几十段、每段一次请求
-private const val COMPRESSION_MIN_INPUT_BUDGET = 2_048
-
-/** 压缩请求每次最多输入多少 token；窗口未知时返回 null，表示不分段 */
-internal fun Model.compressionInputBudget(): Int? {
-    val window = compressionWindow() ?: return null
-    return (window - COMPRESSION_MAX_OUTPUT_TOKENS - COMPRESSION_FIXED_INPUT_RESERVE)
-        .coerceAtLeast(COMPRESSION_MIN_INPUT_BUDGET)
-}
 
 /** 摘要请求的 max_tokens：装得下就按输出上限，装不下就按窗口剩余空间收窄 */
 internal fun Model.compressionMaxTokens(inputTokens: Int): Int {
@@ -497,31 +476,7 @@ private fun Model.compressionWindow(): Int? = listOfNotNull(
 ).minOrNull()
 
 /**
- * 分段可能从助手消息开始（按 token 预算切的消息边界），而 Anthropic 要求首条是 user；
- * 一条超长消息按 part 拆开后还会出现连续同角色，Google 又要求 user/model 交替。
- * 这里合并相邻同角色消息，再补开头的 user。
- */
-private fun List<UIMessage>.asCompressionChunk(): List<UIMessage> {
-    // 显式给出元素类型：buildList 的 builder 是 @BuilderInference，先读 lastOrNull()
-    // 时元素类型还没定下来，K2 会报「receiver 类型尚未推断」
-    val merged = buildList<UIMessage> {
-        for (message in this@asCompressionChunk) {
-            val last = lastOrNull()
-            // 子代理通知有自己的 framing，并进普通用户消息会让两边都读错，当成边界
-            if (last != null && last.role == message.role &&
-                !last.isSubAgentNotice && !message.isSubAgentNotice
-            ) {
-                set(lastIndex, last.copy(parts = last.parts + message.parts))
-            } else {
-                add(message)
-            }
-        }
-    }
-    return merged.withLeadingUserTurn()
-}
-
-/**
- * 首条不是 user 时补一条说明。单段压缩不做同角色合并——那会改动请求前缀，
+ * 首条不是 user 时补一条说明。不做同角色合并——那会改动请求前缀，
  * 丢掉这一路本来能命中的提示词缓存。
  */
 private fun List<UIMessage>.withLeadingUserTurn(): List<UIMessage> =

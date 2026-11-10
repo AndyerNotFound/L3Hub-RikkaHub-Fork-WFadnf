@@ -102,48 +102,7 @@ class ConversationContextTokensTest {
         assertEquals(2_000, conversation.lastContextTokens())
     }
 
-    @Test
-    fun `estimate includes reasoning and image parts`() {
-        val conversation = conversation(
-            UIMessage(
-                role = MessageRole.ASSISTANT,
-                parts = listOf(
-                    UIMessagePart.Reasoning(reasoning = "思".repeat(400)),
-                    UIMessagePart.Image(url = "file:///tmp/image.png"),
-                ),
-            ),
-        )
-
-        assertEquals(404 + 768, conversation.estimateContextTokens())
-    }
-
     /** 旧版本按 token 数保留时会把检查点切在一条消息中间，这些会话仍要按 part 下标裁剪请求 */
-    @Test
-    fun `estimate excludes the summarized prefix of a legacy split message`() {
-        val split = UIMessage(
-            role = MessageRole.ASSISTANT,
-            parts = listOf(
-                UIMessagePart.Text("a".repeat(400)),
-                UIMessagePart.Text("b".repeat(400)),
-            ),
-        )
-        val source = Conversation(
-            assistantId = Uuid.random(),
-            messageNodes = listOf(
-                UIMessage.user("hello").toMessageNode(),
-                UIMessage.user("摘要").copy(
-                    isContextCheckpoint = true,
-                    contextStartMessageId = split.id,
-                    contextStartPartIndex = 1,
-                ).toMessageNode(),
-                split.toMessageNode(),
-            ),
-        )
-
-        // 检查点 4 + 2，切剩的后半段 4 + 100
-        assertEquals(4 + 2 + 4 + 100, source.estimateContextTokens())
-    }
-
     @Test
     fun `returns null without any reply`() {
         assertNull(conversation(UIMessage.user("hi")).lastContextTokens())
@@ -168,31 +127,5 @@ class ConversationContextTokensTest {
         )
 
         assertNull(live.lastContextTokens())
-    }
-
-    /**
-     * 回归：AgentLoop 跑在 flowOn 的产出侧，工具输出写回会话要经过通道。
-     * prepareStep 判断门限时会话里可能还没有这段输出，估算必须按这一步真正要发的消息算。
-     */
-    @Test
-    fun `list estimate sees the tool output the session does not have yet`() {
-        val session = conversation(UIMessage.user("hi"), assistantMessage(1))
-        val liveReply = UIMessage(
-            role = MessageRole.ASSISTANT,
-            parts = listOf(
-                UIMessagePart.Tool(
-                    toolCallId = "call",
-                    toolName = "read",
-                    input = "{}",
-                    output = listOf(UIMessagePart.Text("x".repeat(4_000))),
-                ),
-            ),
-        )
-        val live = session.currentMessages + liveReply
-
-        // 会话里只有 "hi"(5) + 空回复(4)；实时列表还要算上工具输出：
-        // 4 + "read"(1) + "{}"(1) + 4000 个 ASCII(1000) = 1006
-        assertEquals(9, session.estimateContextTokens())
-        assertEquals(1_015, live.estimateContextTokens())
     }
 }

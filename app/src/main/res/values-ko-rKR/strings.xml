@@ -1825,13 +1825,13 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_allowed_sub_agents_dialog_desc">이 어시스턴트가 파견할 수 있는 하위 에이전트를 선택하세요. 모두 선택하지 않으면 제한하지 않습니다</string>
   <string name="assistant_page_local_tools_sub_agent_title">하위 에이전트 파견</string>
   <string name="assistant_page_memory_auto_compress">자동 압축</string>
-  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 임계값에 도달하면 기록을 먼저 압축한 뒤 응답하며, 결과는 수동 압축과 같습니다</string>
+  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 임계값에 도달하면 기록을 요약으로 압축합니다. 응답이 끝난 뒤 한 번, 반복 압축이 켜져 있으면 도구 호출 사이에도 확인합니다. 결과는 수동 압축과 같습니다</string>
   <string name="assistant_page_memory_auto_compress_loop">반복 압축</string>
-  <string name="assistant_page_memory_auto_compress_loop_desc">모델 루프 중 요청이 컨텍스트 한도를 넘으면 자동으로 압축하고 현재 생성을 계속합니다. 최근 메시지는 위 설정대로 남습니다. 이번 질문과 생성 중인 응답만 남으면 질문은 요약되고 응답은 유지됩니다.</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">도구 호출 묶음이 끝날 때마다 컨텍스트 사용량을 확인하고, 임계값에 도달하면 압축한 뒤 현재 생성을 계속합니다. 끄면 응답이 끝난 뒤에만 압축합니다</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d개 메시지</string>
   <string name="assistant_page_memory_auto_compress_target">압축 후 유지</string>
   <string name="assistant_page_memory_auto_compress_target_range">범위: %1$d–%2$d</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">압축 대상에서 제외할 최근 컨텍스트 양입니다.</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">응답이 끝난 뒤 자동 압축할 때 최근 메시지를 요약 뒤에 그대로 남깁니다. 턴 도중의 압축은 요약만 남깁니다</string>
   <string name="assistant_page_memory_auto_compress_target_label">최근 유지</string>
   <string name="assistant_page_memory_auto_compress_threshold">발동 임계값</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN은 경고선, MAX는 최대 한도입니다</string>

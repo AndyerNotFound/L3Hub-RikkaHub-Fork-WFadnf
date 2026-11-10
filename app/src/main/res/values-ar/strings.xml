@@ -1823,13 +1823,13 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">اختر الوكلاء الفرعيين الذين يُسمح لهذا المساعد بإسناد المهام إليهم. عدم اختيار أي منهم يعني عدم وجود قيود.</string>
   <string name="assistant_page_local_tools_sub_agent_title">إسناد وكلاء فرعيين</string>
   <string name="assistant_page_memory_auto_compress">الضغط التلقائي</string>
-  <string name="assistant_page_memory_auto_compress_desc">عند بلوغ استخدام السياق العتبة، يُضغط السجل قبل الرد؛ والنتيجة مطابقة للضغط اليدوي</string>
+  <string name="assistant_page_memory_auto_compress_desc">عند بلوغ استخدام السياق العتبة، يُضغط السجل إلى ملخص: مرة بعد انتهاء الرد، ومرة بين نداءات الأدوات عند تفعيل الضغط الدوري. والنتيجة مطابقة للضغط اليدوي</string>
   <string name="assistant_page_memory_auto_compress_loop">الضغط الدوري</string>
-  <string name="assistant_page_memory_auto_compress_loop_desc">عندما يتجاوز الطلب حد السياق أثناء حلقة أدوات النموذج، يُضغط تلقائيًا ويستمر التوليد الحالي. تُحفظ الرسائل الأخيرة وفق الإعداد أعلاه؛ وإذا لم يبقَ سوى سؤال هذه الجولة والرد الجاري، يُلخّص السؤال ويُحتفظ بالرد.</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">بعد كل دفعة من نداءات الأدوات يُفحص استخدام السياق، وعند بلوغ العتبة يُضغط ثم يستمر التوليد الحالي. عند الإيقاف يقتصر الضغط على ما بعد انتهاء الرد</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d رسالة</string>
   <string name="assistant_page_memory_auto_compress_target">الاحتفاظ بعد الضغط</string>
   <string name="assistant_page_memory_auto_compress_target_range">النطاق: %1$d–%2$d</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">حجم السياق الأخير المستثنى من الضغط</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">عدد الرسائل الأخيرة التي تبقى كما هي بعد الضغط التلقائي في نهاية الرد. أما الضغط أثناء الجولة فيُبقي الملخص فقط</string>
   <string name="assistant_page_memory_auto_compress_target_label">الاحتفاظ بالأحدث</string>
   <string name="assistant_page_memory_auto_compress_threshold">عتبة التفعيل</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN هو خط التحذير المبدئي، وMAX هو الحد الأقصى</string>

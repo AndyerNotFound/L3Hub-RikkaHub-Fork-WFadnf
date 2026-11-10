@@ -19,7 +19,7 @@ class ConversationSessionManager(
     private val scope: CoroutineScope,
     private val store: ConversationStore,
     private val createInitialConversation: (Uuid) -> Conversation,
-    private val onGenerationFinished: (ConversationSession, Throwable?) -> Unit,
+    private val onGenerationFinished: (ConversationSession, Throwable?, SessionActivity?) -> Unit,
     // 会话没有页面引用也不在生成，被回收了
     private val onSessionRemoved: (Uuid) -> Unit = {},
 ) {
@@ -39,8 +39,8 @@ class ConversationSessionManager(
             scope = scope,
             store = store,
             onIdle = { removeIfIdle(session) },
-            onGenerationFinished = { id, cause ->
-                if (get(id) === session) onGenerationFinished(session, cause)
+            onGenerationFinished = { id, cause, activity ->
+                if (get(id) === session) onGenerationFinished(session, cause, activity)
             },
         )
         // Publish the actual registry, so collectors never observe a version before insertion.
@@ -109,6 +109,11 @@ class ConversationSessionManager(
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> =
         sessions.map { it[conversationId] }.distinctUntilChanged().flatMapLatest { session ->
             session?.generationJob ?: flowOf(null)
+        }
+
+    fun getActivityFlow(conversationId: Uuid): Flow<SessionActivity?> =
+        sessions.map { it[conversationId] }.distinctUntilChanged().flatMapLatest { session ->
+            session?.activity ?: flowOf(null)
         }
 
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> = sessions.flatMapLatest { current ->

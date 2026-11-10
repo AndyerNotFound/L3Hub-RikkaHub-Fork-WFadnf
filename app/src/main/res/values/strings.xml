@@ -2211,14 +2211,14 @@
   <string name="task_tree_state_failed">Failed</string>
 
   <string name="assistant_page_memory_auto_compress">Auto-compress</string>
-  <string name="assistant_page_memory_auto_compress_desc">Compress the history before replying once context usage reaches the threshold; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary once context usage reaches the threshold: after a reply ends, and between tool calls when loop compression is on; the result matches manual compression</string>
   <string name="assistant_page_memory_auto_compress_loop">Loop compression</string>
-  <string name="assistant_page_memory_auto_compress_loop_desc">When a request exceeds the context limit during the model tool loop, compress automatically and continue the current turn with the compressed history. Recent messages are kept as configured; when only the current question and the reply being generated remain, the question is summarized and the reply is kept.</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">Check context usage after each batch of tool calls and compress before continuing when the threshold is reached. When off, compression only happens after a reply ends.</string>
   <string name="assistant_page_memory_auto_compress_threshold">Trigger threshold</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the soft warning line, MAX is the hard limit</string>
   <string name="assistant_page_memory_auto_compress_target">Keep after compressing</string>
   <string name="assistant_page_memory_auto_compress_target_range">Value range: %1$d–%2$d</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">How much recent context stays outside the compression range</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">Recent messages kept verbatim after automatic compression at the end of a reply. Compression in the middle of a turn keeps only the summary.</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d messages</string>
   <string name="assistant_page_memory_auto_compress_target_label">Keep recent</string>
 

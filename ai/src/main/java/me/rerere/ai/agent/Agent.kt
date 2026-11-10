@@ -44,15 +44,6 @@ interface AgentHooks {
     suspend fun prepareStep(messages: List<UIMessage>): StepRequest
 
     /**
-     * 请求模型时上下文超限，provider 已经拒绝。
-     *
-     * 返回 true 表示调用方已经压缩、换掉了历史，这一步要按新的历史重新组装再发一次；
-     * 返回 false 时异常照常抛出。整轮重跑会让同一段历史（连已经执行完的工具结果）再发一遍，
-     * 所以超限的收尾放在这一步里做。
-     */
-    suspend fun onContextOverflow(error: Throwable): Boolean = false
-
-    /**
      * 生成过程中每次发出更新之前调用，返回值只用于这一次 [AgentEvent.MessageUpdated]，不会写回循环内部。
      * 适合 think 标签这类要边生成边展示、等这一步结束才真正处理的转换；[newPartsFrom] 的含义同 [finishStep]。
      */
@@ -76,6 +67,13 @@ interface AgentHooks {
      * 内容是不是已经在消息里了——比如清单没变过就不必再贴一遍。
      */
     suspend fun pendingParts(current: UIMessage?): List<UIMessagePart> = emptyList()
+
+    /**
+     * 一批工具执行完、再次请求模型之前调用，返回 true 时以 [AgentFinishReason.Paused] 结束这次运行。
+     *
+     * 这时 [message] 上的工具调用都已经有结果，调用方可以在这里改写历史（比如压缩上下文）再开始下一次运行。
+     */
+    suspend fun shouldPause(message: UIMessage): Boolean = false
 }
 
 data class StepRequest(
@@ -101,12 +99,15 @@ sealed interface AgentFinishReason {
     /** 有工具在等待用户审批；写入审批结果后，用这条消息再运行一次即可继续 */
     data class AwaitingApproval(val toolCallIds: Set<String>) : AgentFinishReason
 
+    /** [AgentHooks.shouldPause] 要求停下：工具都已经执行，模型还没有回复；再运行一次即可继续 */
+    data object Paused : AgentFinishReason
+
     /** 达到 [AgentRequest.maxSteps]，最后一步调用的工具已经执行，但模型还没有回复 */
     data object StepLimitReached : AgentFinishReason
 }
 
 /**
- * 运行 agent 循环：请求模型 → 执行工具 → 再请求模型，直到模型不再调用工具、有工具需要审批或达到步数上限。
+ * 运行 agent 循环：请求模型 → 执行工具 → 再请求模型，直到模型不再调用工具、有工具需要审批、调用方要求暂停或达到步数上限。
  *
  * 工具按调用顺序逐个执行，有任意一个需要审批时，同一批的工具都等审批后再一起执行。
  * 返回的 Flow 不切换调度器，Provider 请求和工具执行都在收集方的上下文里运行，需要时由调用方 flowOn。

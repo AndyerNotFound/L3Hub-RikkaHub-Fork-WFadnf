@@ -556,7 +556,7 @@ class ConversationSessionTest {
             scope,
             FakeConversationStore(),
             {},
-            { _, cause -> completions.add(cause) }
+            { _, cause, _ -> completions.add(cause) }
         )
         try {
             val save = CompletableDeferred<Unit>()
@@ -637,7 +637,7 @@ class ConversationSessionTest {
             scope,
             FakeConversationStore(),
             {},
-            { _, cause -> completions.add(cause) }
+            { _, cause, _ -> completions.add(cause) }
         )
         try {
             val releaseOld = CompletableDeferred<Unit>()

@@ -30,7 +30,7 @@ class ConversationSessionManagerTest {
             scope = scope,
             store = FakeConversationStore(),
             createInitialConversation = { Conversation.ofId(it) },
-            onGenerationFinished = { session, _ -> completions.add(session) },
+            onGenerationFinished = { session, _, _ -> completions.add(session) },
         )
 
         fun close() {

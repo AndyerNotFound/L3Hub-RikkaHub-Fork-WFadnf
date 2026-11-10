@@ -1972,13 +1972,13 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">勾選這個助手允許派發的子代理；全部不勾選表示不限制</string>
   <string name="assistant_page_local_tools_sub_agent_title">派發子代理</string>
   <string name="assistant_page_memory_auto_compress">自動壓縮</string>
-  <string name="assistant_page_memory_auto_compress_desc">上下文佔用達到閾值時，先壓縮歷史再回復，效果與手動壓縮一致</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文佔用達到閾值時，將歷史壓成摘要：一輪回覆結束後檢查一次，開啟迴圈壓縮時工具呼叫之間也會檢查；效果與手動壓縮一致</string>
   <string name="assistant_page_memory_auto_compress_loop">迴圈壓縮</string>
-  <string name="assistant_page_memory_auto_compress_loop_desc">模型迴圈中請求超出上下文上限時，自動壓縮並繼續當前生成；最近的訊息依上方設定保留；只剩本輪提問與生成中的回覆時，提問會進摘要、回覆保留</string>
+  <string name="assistant_page_memory_auto_compress_loop_desc">每批工具呼叫執行完後檢查一次上下文佔用，達到閾值就先壓縮再繼續目前生成；關閉後只在一輪回覆結束後壓縮</string>
   <string name="assistant_page_memory_auto_compress_messages">%1$d 條訊息</string>
   <string name="assistant_page_memory_auto_compress_target">壓縮後保留</string>
   <string name="assistant_page_memory_auto_compress_target_range">取值範圍 %1$d–%2$d</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">指定不參與壓縮的最近上下文量</string>
+  <string name="assistant_page_memory_auto_compress_target_desc">回覆結束後自動壓縮時，最近的這些訊息原樣保留在摘要之後；一輪中途的壓縮只保留摘要</string>
   <string name="assistant_page_memory_auto_compress_target_label">保留最近</string>
   <string name="assistant_page_memory_auto_compress_threshold">觸發閾值</string>
   <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 為預警線，MAX 為硬上限</string>

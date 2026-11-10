@@ -135,6 +135,7 @@ import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksContent
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
@@ -496,6 +497,7 @@ private fun ChatPageContent(
     backgroundHazeState: HazeState,
 ) {
     val scope = rememberCoroutineScope()
+    val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
@@ -964,6 +966,7 @@ private fun ChatPageContent(
                     previewListState = previewListState,
                     selectionState = selectionState,
                     loading = loadingJob != null,
+                    compressing = sessionActivity == SessionActivity.Compressing,
                     onCreateNewChat = onCreateNewChat,
                     processingStatus = processingStatus,
                     previewMode = previewMode,

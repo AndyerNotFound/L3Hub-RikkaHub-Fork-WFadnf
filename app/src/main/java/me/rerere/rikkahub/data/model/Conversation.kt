@@ -205,7 +205,7 @@ internal fun List<UIMessage>.lastContextTokens(): Int? =
  * 检查点之前的 usage 不算数：那份占用算的是压缩前的上下文。检查点之后的消息还要比时间，
  * 压缩后尾部那条回复会继续续写，续写刷新了 finishedAt 的那一份才是压缩之后的占用。
  *
- * 门限判据（[resolveContextUsage]）和 [lastContextTokens] 共用这一份定位，两边口径不会漂。
+ * 自动压缩的门限判据直接用它，检查点之前的那份占用不算数。
  */
 internal fun List<UIMessage>.measuredUsageIndex(): Int? {
     val checkpointIndex = indexOfLast { it.isContextCheckpoint }
