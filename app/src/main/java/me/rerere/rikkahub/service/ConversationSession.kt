@@ -333,6 +333,7 @@ class ConversationSession(
     @Synchronized
     fun cleanup() {
         _generationJob.value = null
+        _activity.value = null
         cancelJobs()
         idleCheckJob?.cancel()
         idleCheckJob = null
