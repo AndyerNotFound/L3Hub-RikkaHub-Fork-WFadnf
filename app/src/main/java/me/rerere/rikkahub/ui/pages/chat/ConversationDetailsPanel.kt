@@ -227,6 +227,30 @@ internal fun ConversationDetailsPanel(
                 )
             }
 
+            DetailsSection(
+                title = stringResource(R.string.chat_page_details_workspaces),
+                trailing = boundWorkspaces.size.takeIf { it > 0 }?.toString(),
+            ) {
+                if (boundWorkspaces.isEmpty()) {
+                    PlaceholderText(stringResource(R.string.chat_page_details_no_workspace))
+                } else {
+                    boundWorkspaces.forEach { workspace ->
+                        WorkspaceLine(workspace = workspace)
+                    }
+                }
+                if (folderWorkspaceName != null) {
+                    Text(
+                        text = if (folderWorkspaceName.isBlank()) {
+                            stringResource(R.string.chat_page_details_workspace_folder_unknown)
+                        } else {
+                            stringResource(R.string.chat_page_details_workspace_folder, folderWorkspaceName)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             DetailsSection(title = stringResource(R.string.chat_page_details_tools)) {
                 if (toolTags.isEmpty()) {
                     PlaceholderText(stringResource(R.string.chat_page_details_no_tools))
@@ -261,30 +285,6 @@ internal fun ConversationDetailsPanel(
                             }
                         }
                     }
-                }
-            }
-
-            DetailsSection(
-                title = stringResource(R.string.chat_page_details_workspaces),
-                trailing = boundWorkspaces.size.takeIf { it > 0 }?.toString(),
-            ) {
-                if (boundWorkspaces.isEmpty()) {
-                    PlaceholderText(stringResource(R.string.chat_page_details_no_workspace))
-                } else {
-                    boundWorkspaces.forEach { workspace ->
-                        WorkspaceLine(workspace = workspace)
-                    }
-                }
-                if (folderWorkspaceName != null) {
-                    Text(
-                        text = if (folderWorkspaceName.isBlank()) {
-                            stringResource(R.string.chat_page_details_workspace_folder_unknown)
-                        } else {
-                            stringResource(R.string.chat_page_details_workspace_folder, folderWorkspaceName)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
         }
