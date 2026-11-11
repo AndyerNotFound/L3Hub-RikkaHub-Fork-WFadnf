@@ -601,7 +601,7 @@ private fun ChatPageContent(
     // 会话详情展开时才解析一次请求快照：工具、系统提示词和本轮注入都按当前配置重新算
     val detailsPanelVisible =
         (showDetails && !threePane) || (threePane && selectedPane == ChatSidePane.Details)
-    val requestPreviewState by produceState(
+    val requestPreviewState by produceState<RequestPreviewUiState>(
         RequestPreviewUiState.Idle,
         detailsPanelVisible,
         assistant,
@@ -1060,8 +1060,9 @@ private fun ChatPageContent(
                         emptyHero = null,
                         )
                 }
-                // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区
-                AnimatedVisibility(
+                // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区。
+                // 外层有 RowScope，直接写 AnimatedVisibility 会解析到 RowScope 的扩展，这里显式用顶层版本
+                androidx.compose.animation.AnimatedVisibility(
                     visible = showDetails && !threePane,
                     modifier = Modifier
                         .align(Alignment.TopCenter)

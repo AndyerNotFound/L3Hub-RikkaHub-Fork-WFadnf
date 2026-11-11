@@ -352,7 +352,7 @@ private fun RequestPreviewSections(state: RequestPreviewUiState) {
                         Text(
                             text = preview.systemPrompt,
                             style = MaterialTheme.typography.bodySmall,
-                            fontFamily = JetBrainsMono,
+                            fontFamily = JetbrainsMono,
                         )
                     }
                 }
@@ -419,7 +419,7 @@ private fun ToolDescriptionRow(tool: ChatRequestPreviewTool) {
                 Text(
                     text = tool.instructions,
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = JetBrainsMono,
+                    fontFamily = JetbrainsMono,
                 )
             }
         }
@@ -452,7 +452,7 @@ private fun InjectionRow(injection: ChatRequestPreviewInjection) {
             Text(
                 text = injection.content.ifBlank { "—" },
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = JetBrainsMono,
+                fontFamily = JetbrainsMono,
                 modifier = Modifier.padding(start = 20.dp),
             )
         }
@@ -483,7 +483,7 @@ private fun ExpandRowHeader(
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
-            fontFamily = JetBrainsMono,
+            fontFamily = JetbrainsMono,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
