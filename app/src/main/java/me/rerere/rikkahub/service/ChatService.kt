@@ -194,6 +194,29 @@ class ChatService(
     private val subAgentWaits: SubAgentWaits,
     private val backgroundShellManager: BackgroundShellManager,
 ) {
+    /** 一次 agent 运行发给模型的消息，和回复要写进的节点 */
+    private class ReplyTarget(val history: List<UIMessage>, val nodeId: Uuid) {
+        /** 接着已有的助手消息写时是它的 id，新开回复时为空 */
+        val continuedMessageId: Uuid? get() = history.lastOrNull()?.takeIf { it.role == MessageRole.ASSISTANT }?.id
+    }
+
+    private fun replyTargetOf(conversation: Conversation, regenerateNodeId: Uuid?): ReplyTarget {
+        val nodes = conversation.messageNodes
+        val history = if (regenerateNodeId != null) {
+            val index = nodes.indexOfFirst { it.id == regenerateNodeId }
+            check(index != -1) { "Message node $regenerateNodeId not found" }
+            conversation.currentMessages.take(index)
+        } else {
+            conversation.currentMessages
+        }
+        val nodeId = when {
+            history.lastOrNull()?.role == MessageRole.ASSISTANT -> nodes[history.lastIndex].id
+            regenerateNodeId != null -> regenerateNodeId
+            else -> Uuid.random()
+        }
+        return ReplyTarget(history, nodeId)
+    }
+
     /** 一轮生成的结果 */
     private sealed interface TurnResult {
         data class Finished(val reason: AgentFinishReason) : TurnResult
@@ -1393,29 +1416,6 @@ class ChatService(
 
             session.setJob(job, cancelPrevious = false)
         }
-    }
-
-    /** 一次 agent 运行发给模型的消息，和回复要写进的节点 */
-    private class ReplyTarget(val history: List<UIMessage>, val nodeId: Uuid) {
-        /** 接着已有的助手消息写时是它的 id，新开回复时为空 */
-        val continuedMessageId: Uuid? get() = history.lastOrNull()?.takeIf { it.role == MessageRole.ASSISTANT }?.id
-    }
-
-    private fun replyTargetOf(conversation: Conversation, regenerateNodeId: Uuid?): ReplyTarget {
-        val nodes = conversation.messageNodes
-        val history = if (regenerateNodeId != null) {
-            val index = nodes.indexOfFirst { it.id == regenerateNodeId }
-            check(index != -1) { "Message node $regenerateNodeId not found" }
-            conversation.currentMessages.take(index)
-        } else {
-            conversation.currentMessages
-        }
-        val nodeId = when {
-            history.lastOrNull()?.role == MessageRole.ASSISTANT -> nodes[history.lastIndex].id
-            regenerateNodeId != null -> regenerateNodeId
-            else -> Uuid.random()
-        }
-        return ReplyTarget(history, nodeId)
     }
 
     // ---- 生成回复 ----

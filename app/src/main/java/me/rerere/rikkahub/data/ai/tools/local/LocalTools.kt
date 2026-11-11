@@ -7,6 +7,9 @@ import me.rerere.rikkahub.data.ai.subagent.dispatchableSubAgents
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.phoneuse.PhoneUseManager
+import me.rerere.rikkahub.phoneuse.isFloatingChatWindowOn
 import me.rerere.tts.provider.TTSManager
 import kotlin.uuid.Uuid
 
@@ -16,6 +19,8 @@ class LocalTools(
     private val ttsManager: TTSManager,
     private val settingsStore: SettingsStore,
     private val subAgentRunner: SubAgentRunner,
+    private val phoneUseManager: PhoneUseManager,
+    private val filesManager: FilesManager,
 ) {
     val javascriptTool by lazy { buildJavascriptTool() }
 
@@ -34,6 +39,21 @@ class LocalTools(
     val calendarCreateTool by lazy { buildCalendarCreateTool(context) }
 
     val chartDisplayTool by lazy { buildChartDisplayTool() }
+
+    val phoneUseTool by lazy {
+        buildPhoneUseTool(
+            ownPackageName = context.packageName,
+            manager = phoneUseManager,
+            isFloatingWindowOn = { isFloatingChatWindowOn(context, settingsStore.settingsFlow.value) },
+            saveScreenshot = { bytes ->
+                filesManager.createChatFilesByByteArrays(
+                    byteArrays = listOf(bytes),
+                    displayName = "screenshot.jpg",
+                    mimeType = "image/jpeg",
+                ).first().toString()
+            },
+        )
+    }
 
     fun getTools(
         options: List<LocalToolOption>,
@@ -75,6 +95,10 @@ class LocalTools(
                 tools.add(buildSubAgentTool(conversationId, subAgents, subAgentRunner))
                 tools.add(buildSubAgentAwaitTool(conversationId, subAgentRunner))
             }
+        }
+        // 不支持的渠道和系统版本上，之前在别处开过（比如导入的备份）也不提供
+        if (options.contains(LocalToolOption.PhoneUse) && PhoneUseManager.isSupported) {
+            tools.add(phoneUseTool)
         }
         return tools
     }

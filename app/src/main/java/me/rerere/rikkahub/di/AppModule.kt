@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.ai.subagent.SubAgentWaits
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.phoneuse.PhoneUseManager
 import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.rikkahub.service.ChatFloatingTracker
 import me.rerere.rikkahub.service.ChatNotificationManager
@@ -57,7 +58,19 @@ val appModule = module {
     }
 
     single {
-        LocalTools(get(), get(), get(), get(), get())
+        PhoneUseManager()
+    }
+
+    single {
+        LocalTools(
+            context = get(),
+            eventBus = get(),
+            ttsManager = get(),
+            settingsStore = get(),
+            subAgentRunner = get(),
+            phoneUseManager = get(),
+            filesManager = get(),
+        )
     }
 
     single {
@@ -115,6 +128,7 @@ val appModule = module {
             appScope = get(),
             tracker = get(),
             settingsStore = get(),
+            phoneUseManager = get(),
             lazyChatService = lazy { get() },
         )
     }

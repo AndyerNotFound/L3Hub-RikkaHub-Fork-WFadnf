@@ -350,6 +350,15 @@ enum class SessionActivity {
 }
 
 /** Serialize approval saves without cancelling earlier decisions; stopping cancels the whole chain. */
+/** 会话任务槽里的任务类型 */
+enum class SessionActivity {
+    /** 生成回复：发送、重新生成、审批后继续 */
+    Generating,
+
+    /** 压缩上下文：手动或自动 */
+    Compressing,
+}
+
 internal suspend fun afterPreviousGeneration(previous: Job?, block: suspend () -> Unit) {
     try {
         previous?.join()

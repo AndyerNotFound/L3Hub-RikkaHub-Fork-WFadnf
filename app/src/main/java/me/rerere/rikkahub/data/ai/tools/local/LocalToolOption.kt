@@ -40,4 +40,8 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("sub_agent")
     data object SubAgent : LocalToolOption()
+
+    @Serializable
+    @SerialName("phone_use")
+    data object PhoneUse : LocalToolOption()
 }
