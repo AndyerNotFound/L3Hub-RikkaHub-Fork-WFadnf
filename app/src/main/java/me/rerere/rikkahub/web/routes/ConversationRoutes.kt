@@ -20,7 +20,13 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
+import me.rerere.rikkahub.data.model.Guidance
+import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.web.dto.AddGuidanceRequest
+import me.rerere.rikkahub.web.dto.GuidanceDto
+import me.rerere.rikkahub.web.dto.SetGuidanceModeRequest
+import me.rerere.rikkahub.web.dto.SubAgentConversationDto
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.web.dto.ConversationDto
@@ -379,6 +385,79 @@ fun Route.conversationRoutes(
             call.respond(HttpStatusCode.Accepted, mapOf("status" to "accepted"))
         }
 
+        // GET /api/conversations/{id}/guidance - Pending guidance for the running turn
+        get("/{id}/guidance") {
+            val uuid = call.parameters["id"].toUuid("conversation id")
+            conversationRepo.requireConversation(uuid)
+            call.respond(
+                chatService.getInboxFlow(uuid).value.guidances.map { guidance -> guidance.toDto() }
+            )
+        }
+
+        // POST /api/conversations/{id}/guidance - Add guidance, returns the updated list
+        post("/{id}/guidance") {
+            val uuid = call.parameters["id"].toUuid("conversation id")
+            conversationRepo.requireConversation(uuid)
+            val request = call.receive<AddGuidanceRequest>()
+            if (request.content.isBlank()) {
+                throw BadRequestException("content must not be blank")
+            }
+            chatService.addGuidance(
+                conversationId = uuid,
+                content = request.content,
+                title = request.title,
+                mode = request.mode.toGuidanceMode(),
+            )
+            call.respond(
+                chatService.getInboxFlow(uuid).value.guidances.map { guidance -> guidance.toDto() }
+            )
+        }
+
+        // POST /api/conversations/{id}/guidance/{guidanceId}/mode - Switch single/repeat
+        post("/{id}/guidance/{guidanceId}/mode") {
+            val uuid = call.parameters["id"].toUuid("conversation id")
+            val guidanceId = call.parameters["guidanceId"].toUuid("guidance id")
+            conversationRepo.requireConversation(uuid)
+            val request = call.receive<SetGuidanceModeRequest>()
+            chatService.setGuidanceMode(uuid, guidanceId, request.mode.toGuidanceMode())
+            call.respond(
+                chatService.getInboxFlow(uuid).value.guidances.map { guidance -> guidance.toDto() }
+            )
+        }
+
+        // DELETE /api/conversations/{id}/guidance/{guidanceId} - Cancel one guidance
+        delete("/{id}/guidance/{guidanceId}") {
+            val uuid = call.parameters["id"].toUuid("conversation id")
+            val guidanceId = call.parameters["guidanceId"].toUuid("guidance id")
+            conversationRepo.requireConversation(uuid)
+            chatService.removeGuidance(uuid, guidanceId)
+            call.respond(
+                chatService.getInboxFlow(uuid).value.guidances.map { guidance -> guidance.toDto() }
+            )
+        }
+
+        // GET /api/conversations/{id}/subagents - Direct children of a sub-agent conversation
+        get("/{id}/subagents") {
+            val uuid = call.parameters["id"].toUuid("conversation id")
+            conversationRepo.requireConversation(uuid)
+            val generationJobs = chatService.getConversationJobs().first()
+            val children = conversationRepo.getChildConversationSummaries(uuid)
+            call.respond(
+                children.map { child ->
+                    SubAgentConversationDto(
+                        id = child.id.toString(),
+                        parentId = (child.parentConversationId ?: uuid).toString(),
+                        assistantId = child.assistantId.toString(),
+                        title = child.title,
+                        task = child.subAgentTask,
+                        state = child.subAgentState,
+                        isGenerating = generationJobs[child.id] != null,
+                        updateAt = child.updateAt.toEpochMilli(),
+                    )
+                }
+            )
+        }
+
         // SSE /api/conversations/{id}/stream - Stream conversation updates
         sse("/{id}/stream") {
             val id = call.parameters["id"] ?: return@sse
@@ -502,4 +581,19 @@ private fun validateConversationInjectionIds(
 
 private suspend fun ConversationRepository.requireConversation(id: Uuid) {
     if (!existsConversationById(id)) throw NotFoundException("Conversation not found")
+}
+
+private fun Guidance.toDto() = GuidanceDto(
+    id = id.toString(),
+    title = title,
+    content = content,
+    mode = when (mode) {
+        GuidanceMode.SINGLE -> "single"
+        GuidanceMode.REPEAT -> "repeat"
+    },
+)
+
+private fun String.toGuidanceMode(): GuidanceMode = when (trim().lowercase()) {
+    "repeat" -> GuidanceMode.REPEAT
+    else -> GuidanceMode.SINGLE
 }

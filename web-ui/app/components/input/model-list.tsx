@@ -9,6 +9,7 @@ import { getModelDisplayName } from "~/lib/display";
 import { cn } from "~/lib/utils";
 import api from "~/services/api";
 import type { ConversationDto, ProviderModel } from "~/types";
+import { ProviderQuotaBadge } from "~/components/input/provider-quota-badge";
 import { AIIcon } from "~/components/ui/ai-icon";
 import { Button } from "~/components/ui/button";
 import {
@@ -426,6 +427,13 @@ export function ModelList({
                     })}
                   </div>
                 </ScrollArea>
+
+                {selectedSection ? (
+                  <div className="text-muted-foreground flex items-center justify-between gap-2 px-0.5 text-[11px]">
+                    <span className="truncate">{selectedSection.providerName}</span>
+                    <ProviderQuotaBadge providerId={selectedSection.providerId} />
+                  </div>
+                ) : null}
 
                 <ScrollArea className="h-auto max-h-64 **:data-[slot=scroll-area-viewport]:max-h-64">
                   <div className="space-y-0.5">

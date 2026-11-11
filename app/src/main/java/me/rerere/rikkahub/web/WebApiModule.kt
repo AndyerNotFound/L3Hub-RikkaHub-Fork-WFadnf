@@ -17,10 +17,12 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import me.rerere.ai.provider.ProviderManager
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.web.dto.ErrorResponse
@@ -32,6 +34,8 @@ import me.rerere.rikkahub.web.routes.conversationRoutes
 import me.rerere.rikkahub.web.routes.eventsRoutes
 import me.rerere.rikkahub.web.routes.filesRoutes
 import me.rerere.rikkahub.web.routes.folderRoutes
+import me.rerere.rikkahub.web.routes.providerRoutes
+import me.rerere.rikkahub.web.routes.workspaceRoutes
 import me.rerere.rikkahub.web.routes.settingsRoutes
 import java.security.MessageDigest
 
@@ -58,7 +62,9 @@ fun Application.configureWebApi(
     chatService: ChatService,
     conversationRepo: ConversationRepository,
     folderRepo: FolderRepository,
+    workspaceRepo: WorkspaceRepository,
     settingsStore: SettingsStore,
+    providerManager: ProviderManager,
     filesManager: FilesManager
 ) {
     val jwtEnabled = settingsStore.settingsFlow.value.webServerJwtEnabled
@@ -158,6 +164,8 @@ fun Application.configureWebApi(
                     folderRoutes(chatService, folderRepo, settingsStore)
                     eventsRoutes(chatService, conversationRepo, folderRepo, settingsStore)
                     settingsRoutes(settingsStore)
+                    providerRoutes(settingsStore, providerManager)
+                    workspaceRoutes(workspaceRepo)
                     filesRoutes(filesManager, context)
                     assetsRoutes(context)
                 }
@@ -166,6 +174,8 @@ fun Application.configureWebApi(
                 folderRoutes(chatService, folderRepo, settingsStore)
                 eventsRoutes(chatService, conversationRepo, folderRepo, settingsStore)
                 settingsRoutes(settingsStore)
+                providerRoutes(settingsStore, providerManager)
+                workspaceRoutes(workspaceRepo)
                 filesRoutes(filesManager, context)
                 assetsRoutes(context)
             }

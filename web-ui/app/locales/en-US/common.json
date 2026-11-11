@@ -73,7 +73,16 @@
     "switch_assistant_failed": "Failed to switch assistant",
     "current": "Current",
     "switching": "Switching...",
-    "no_assistants_by_tag": "No assistants match the selected tags"
+    "no_assistants_by_tag": "No assistants match the selected tags",
+    "folder_bind_workspaces": "Bind workspaces to \"{{folder}}\"",
+    "folder_bind_workspaces_short": "Bind workspaces",
+    "folder_bind_description": "Conversations in this folder use this workspace set; the primary one is used for new conversations.",
+    "folder_bind_failed": "Failed to bind workspaces",
+    "folder_unbind_workspaces": "Unbind",
+    "folder_workspaces_bound": "Bound to workspaces",
+    "workspace_set_primary": "Set as primary",
+    "workspaces_loading": "Loading workspaces",
+    "workspaces_empty": "No workspaces yet. Create one in the app first."
   },
   "conversation_search": {
     "search_conversations": "Search conversations",
@@ -119,5 +128,8 @@
     "unlock": "Unlock",
     "unlocking": "Unlocking...",
     "unlock_failed": "Failed to unlock Web API access."
+  },
+  "common": {
+    "save": "Save"
   }
 }

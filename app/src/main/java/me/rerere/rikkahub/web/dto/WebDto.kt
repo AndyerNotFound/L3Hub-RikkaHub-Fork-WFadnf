@@ -74,6 +74,20 @@ data class UpdateConversationConfigRequest(
     val builtInSearch: Boolean? = null,
 )
 
+// 引导（生成中插话）：直接进会话收件箱，不走消息接口
+@Serializable
+data class AddGuidanceRequest(
+    val content: String,
+    val title: String = "",
+    // "single" 或 "repeat"，与 GuidanceMode 的序列名一致
+    val mode: String = "single",
+)
+
+@Serializable
+data class SetGuidanceModeRequest(
+    val mode: String,
+)
+
 @Serializable
 data class CreateFolderRequest(
     val name: String
@@ -182,6 +196,51 @@ data class FolderDto(
     val workspaceIds: List<String> = emptyList(),
 )
 
+// 文件夹绑定工作区用的精简列表；这里不需要 SSH 凭据等运行时配置
+@Serializable
+data class WorkspaceDto(
+    val id: String,
+    val name: String,
+    val type: String,
+)
+
+@Serializable
+data class GuidanceDto(
+    val id: String,
+    val title: String,
+    val content: String,
+    val mode: String,
+)
+
+@Serializable
+data class SubAgentConversationDto(
+    val id: String,
+    val parentId: String,
+    val assistantId: String,
+    val title: String,
+    val task: String? = null,
+    val state: String? = null,
+    val isGenerating: Boolean = false,
+    val updateAt: Long,
+)
+
+// 提供商额度：余额或订阅用量窗口，由各 Provider 的 getQuota 返回
+@Serializable
+data class ProviderQuotaDto(
+    // "balance" 或 "usage"
+    val type: String,
+    val value: String? = null,
+    val limitReached: Boolean = false,
+    val windows: List<ProviderQuotaWindowDto> = emptyList(),
+)
+
+@Serializable
+data class ProviderQuotaWindowDto(
+    val usedPercent: Double,
+    val windowMinutes: Int? = null,
+    val resetsAt: String? = null,
+)
+
 @Serializable
 data class PagedResult<T>(
     val items: List<T>,
@@ -219,6 +278,10 @@ data class ConversationDto(
     // 多工作区：workspaceId -> 相对工作区文件区的路径
     val workspaceCwds: Map<String, String> = emptyMap(),
     val folderId: String? = null,
+    // 子代理会话：挂在哪个父会话下，以及派发的任务与当前状态
+    val parentConversationId: String? = null,
+    val subAgentTask: String? = null,
+    val subAgentState: String? = null,
     val createAt: Long,
     val updateAt: Long,
     val isGenerating: Boolean = false
@@ -372,6 +435,9 @@ fun Conversation.toDto(isGenerating: Boolean = false) = ConversationDto(
     workspaceCwd = workspaceCwd,
     workspaceCwds = workspaceCwds,
     folderId = folderId?.toString(),
+    parentConversationId = parentConversationId?.toString(),
+    subAgentTask = subAgentTask,
+    subAgentState = subAgentState,
     createAt = createAt.toEpochMilli(),
     updateAt = updateAt.toEpochMilli(),
     isGenerating = isGenerating

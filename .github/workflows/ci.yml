@@ -81,3 +81,30 @@ jobs:
             **/build/reports/tests/**
             **/build/test-results/**
           if-no-files-found: warn
+
+  # web-ui 的构建只在发版时跑，平时的 Kotlin 单测看不到它。
+  # 这里单独跑类型检查，前端改动（尤其是后端 DTO 同步）在 PR 阶段就能红。
+  web-ui:
+    name: Web UI typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install web-ui deps
+        working-directory: web-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: web-ui
+        run: pnpm run typecheck

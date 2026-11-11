@@ -34,5 +34,24 @@
     "header": {
       "select_conversation": "Select a conversation"
     }
+  },
+  "subagents": {
+    "button": "Sub-agents",
+    "title": "Sub-agent tasks",
+    "description": "Tasks dispatched from this conversation. Open a row to view its own conversation.",
+    "loading": "Loading sub-agent tasks",
+    "empty": "No sub-agent tasks dispatched from this conversation",
+    "state_running": "Running",
+    "state_completed": "Completed",
+    "state_failed": "Failed"
+  },
+  "context_meter": {
+    "usage_title": "Context usage",
+    "context_used": "Current usage",
+    "prompt_tokens": "Prompt tokens",
+    "completion_tokens": "Completion tokens",
+    "cached_tokens": "Cached tokens",
+    "no_usage": "No usage recorded yet",
+    "limit_reached": "The MAX threshold is reached; compress the context before sending"
   }
 }
