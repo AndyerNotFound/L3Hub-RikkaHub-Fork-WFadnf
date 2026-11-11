@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -610,6 +611,7 @@ private fun RetryErrorCodePicker(
     ) {
         RETRY_ERROR_CODE_PRESETS.forEach { code ->
             FilterChip(
+                colors = glassFilterChipColors(),
                 selected = code in codes,
                 onClick = {
                     val next = if (code in codes) codes - code else codes + code

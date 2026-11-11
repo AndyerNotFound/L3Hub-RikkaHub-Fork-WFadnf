@@ -74,6 +74,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -379,6 +380,7 @@ private fun MediaUploadS3Tab(
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             AssetStorageType.entries.forEachIndexed { index, entry ->
                 SegmentedButton(
+                    colors = glassSegmentedButtonColors(),
                     selected = type == entry,
                     onClick = {
                         onUpdateSettings { latest -> latest.copy(assetStorageType = entry) }

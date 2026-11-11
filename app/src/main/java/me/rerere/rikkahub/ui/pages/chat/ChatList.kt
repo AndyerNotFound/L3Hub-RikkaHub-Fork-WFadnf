@@ -121,6 +121,7 @@ import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
+import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -835,12 +836,16 @@ private fun ChatListNormal(
             val fillColor = MaterialTheme.colorScheme.onSecondaryContainer
             Surface(
                 shape = CircleShape,
-                // 拉满换色，明确告诉用户"现在松手就会新建"
-                color = if (createPullArmed) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.secondaryContainer
-                },
+                // 拉满换色，明确告诉用户"现在松手就会新建"；
+                // 底色跟「玻璃透明度」走，0.7 的下限保证压着消息正文时还认得出是一块胶囊
+                color = glassOverlayColor(
+                    base = if (createPullArmed) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    },
+                    floor = 0.7f,
+                ),
                 tonalElevation = 3.dp,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

@@ -96,13 +96,14 @@ internal fun ChatSidePanelColumn(
         modifier = modifier
             .fillMaxHeight()
             .appButtonShadow(shape, 6.dp)
+            // 右栏并排在中列旁边，底下只有背景层，浓度基本交给「玻璃透明度」；
+            // 留 0.5 的下限是因为栏里全是列表与代码，压在彩色背景上再透就难读
             .glassSurface(
                 shape = shape,
                 baseColor = containerColor,
                 hazeState = hazeState,
                 radius = 16.dp,
-                // 大块浮层：只糊注册过的源，正文不在源里，透明度留低了文字会透上来
-                minAlpha = 0.95f,
+                minAlpha = 0.5f,
             ),
         shape = shape,
         color = if (canGlassPane(hazeState)) Color.Transparent else containerColor,

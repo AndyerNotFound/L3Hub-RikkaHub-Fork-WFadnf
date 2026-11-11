@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
 
 // 顶部栏按钮的浮动胶囊容器，背景效果与底部输入框保持一致；
 // 背景单独一层，按 [showBackground] 淡入淡出，按钮本身始终显示
@@ -45,6 +46,8 @@ fun ChatTopBarCapsule(
                         hazeState = hazeState,
                         displaySetting = displaySetting,
                         containerColor = containerColor,
+                        // 胶囊和顶栏其他按钮同属「玻璃底」，浓度读玻璃透明度
+                        alpha = displaySetting.glassSurfaceAlpha,
                         shape = CircleShape,
                     ),
                 shape = CircleShape,

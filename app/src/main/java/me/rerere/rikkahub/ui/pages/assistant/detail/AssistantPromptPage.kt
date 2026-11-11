@@ -85,6 +85,7 @@ import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TextArea
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -652,6 +653,7 @@ private fun AssistantRegexCard(
                         AssistantAffectScope.entries.forEach { scope ->
                             val selected = scope in regex.affectingScope
                             FilterChip(
+                                colors = glassFilterChipColors(),
                                 selected = selected,
                                 onClick = {
                                     val newScopes = if (selected) {

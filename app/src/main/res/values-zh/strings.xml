@@ -2273,7 +2273,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_blur_opacity_title">模糊不透明度</string>
   <string name="setting_display_page_blur_opacity_desc">模糊效果下气泡、输入框与顶栏按钮的着色强度，数值越低越通透</string>
   <string name="setting_display_page_glass_opacity_title">玻璃透明度</string>
-  <string name="setting_display_page_glass_opacity_desc">设置项、选项卡与顶栏按钮的玻璃背景着色强度，数值越低越通透；关闭模糊效果后恢复实色</string>
+  <string name="setting_display_page_glass_opacity_desc">气泡、输入框、顶栏、设置项与浮层的玻璃背景着色强度，数值越低越通透；关闭模糊效果后恢复实色</string>
   <string name="setting_display_page_full_width_title">全宽组件</string>
   <string name="setting_display_page_full_width_desc">气泡与卡片撑满屏幕、圆角改为直角；输入框与顶栏取消左右留白</string>
   <string name="setting_display_page_empty_slogan_title">新对话标语</string>

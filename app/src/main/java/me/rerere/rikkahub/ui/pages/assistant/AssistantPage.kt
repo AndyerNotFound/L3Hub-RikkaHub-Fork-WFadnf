@@ -67,6 +67,7 @@ import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -318,6 +319,7 @@ private fun AssistantTagsFilterRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         FilterChip(
+                            colors = glassFilterChipColors(),
                             onClick = {
                                 onUpdateSelectedTagIds(
                                     if (tag.id in selectedTagIds) {

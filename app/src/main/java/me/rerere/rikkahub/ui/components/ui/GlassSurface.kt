@@ -38,12 +38,38 @@ val LocalGlassHazeState = compositionLocalOf<HazeState?> { null }
 val DisplaySetting.glassSurfaceAlpha: Float
     get() = if (enableBlurEffect) glassOpacity.coerceIn(0f, 1f) else 1f
 
+/**
+ * 浮层与悬浮控件的着色浓度：仍然由滑杆线性控制，只是给一个读得清的下限 [floor]。
+ *
+ * 需要下限的层级有一个共同点 —— 底下压着**没被糊过的正文**：BottomSheet 在独立窗口里，
+ * 拿页面上的 haze 源取不到东西；抽屉和浮在列表上的小按钮同理。着色掉到下限以下，
+ * 正文会原样透上来，整块浮层看起来就像没有底板。
+ *
+ * 下限之内照样跟着滑杆走（0% 落在 [floor]，100% 落在 1），滑杆不会在这些组件上变成死值。
+ */
+fun DisplaySetting.glassOverlayAlpha(floor: Float): Float {
+    val min = floor.coerceIn(0f, 1f)
+    return min + (1f - min) * glassSurfaceAlpha
+}
+
 /** 实色底换成同色半透明；关闭模糊特效时原样返回。 */
 @Composable
 fun glassColor(base: Color): Color {
     val displaySetting = LocalSettings.current.displaySetting
     if (!displaySetting.enableBlurEffect) return base
     return base.copy(alpha = base.alpha * displaySetting.glassSurfaceAlpha)
+}
+
+/**
+ * 浮在正文上的小控件（消息跳转按钮、建议回复、下拉新建胶囊）的底色。
+ *
+ * 和 [glassColor] 的区别只有下限：这些控件体积小、底下又压着消息正文，全透明就点不准了。
+ */
+@Composable
+fun glassOverlayColor(base: Color, floor: Float = 0.6f): Color {
+    val displaySetting = LocalSettings.current.displaySetting
+    if (!displaySetting.enableBlurEffect) return base
+    return base.copy(alpha = base.alpha * displaySetting.glassOverlayAlpha(floor))
 }
 
 /**
@@ -73,14 +99,19 @@ fun Modifier.glassSurface(
     hazeState: HazeState? = LocalGlassHazeState.current,
     radius: Dp = 18.dp,
     // 大块浮层（抽屉、BottomSheet）必须给个不透明下限：haze 只糊注册过的源，
-    // 正文本身不在源里，35% 透明时文字会原样透上来，看着像没底板
+    // 正文本身不在源里，35% 透明时文字会原样透上来，看着像没底板。
+    // 下限之内仍然随滑杆变化，见 glassOverlayAlpha。
     minAlpha: Float = 0f,
 ): Modifier {
     val displaySetting = LocalSettings.current.displaySetting
     // 关闭模糊特效时一条 haze 都不挂
     if (!displaySetting.enableBlurEffect) return this
     val tint = baseColor.copy(
-        alpha = maxOf(baseColor.alpha * displaySetting.glassSurfaceAlpha, minAlpha),
+        alpha = if (minAlpha > 0f) {
+            displaySetting.glassOverlayAlpha(minAlpha)
+        } else {
+            baseColor.alpha * displaySetting.glassSurfaceAlpha
+        },
     )
     val pane = if (hazeState == null) {
         Modifier.background(tint)

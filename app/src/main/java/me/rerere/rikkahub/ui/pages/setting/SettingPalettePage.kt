@@ -86,6 +86,8 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
+import me.rerere.rikkahub.ui.components.ui.glassAssistChipColors
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.theme.ColorProbeState
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -521,14 +523,17 @@ private fun PaletteEditSheet(
             if (mode == 1) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AssistChip(
+                        colors = glassAssistChipColors(),
                         onClick = { colors = colors.probe() },
                         label = { Text(stringResource(R.string.setting_palette_page_fill_probe)) },
                     )
                     AssistChip(
+                        colors = glassAssistChipColors(),
                         onClick = { colors = colors.filledWith(0xFFFF00FFL) },
                         label = { Text(stringResource(R.string.setting_palette_page_fill_magenta)) },
                     )
                     AssistChip(
+                        colors = glassAssistChipColors(),
                         onClick = { colors = colors.filledWith(0xFF000000L) },
                         label = { Text(stringResource(R.string.setting_palette_page_fill_black)) },
                     )
@@ -555,11 +560,13 @@ private fun PaletteEditSheet(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
+                    colors = glassFilterChipColors(),
                     selected = mode == 0,
                     onClick = { mode = 0 },
                     label = { Text(stringResource(R.string.setting_palette_page_mode_slots)) },
                 )
                 FilterChip(
+                    colors = glassFilterChipColors(),
                     selected = mode == 1,
                     onClick = { mode = 1 },
                     label = { Text(stringResource(R.string.setting_palette_page_mode_roles)) },
@@ -1286,6 +1293,7 @@ private fun SeedColorCard(onApply: (PaletteColors, Boolean) -> Unit) {
             ) {
                 PaletteStyle.entries.forEach { candidate ->
                     FilterChip(
+                        colors = glassFilterChipColors(),
                         selected = style == candidate,
                         onClick = { style = candidate },
                         label = { Text(stringResource(candidate.labelRes)) },

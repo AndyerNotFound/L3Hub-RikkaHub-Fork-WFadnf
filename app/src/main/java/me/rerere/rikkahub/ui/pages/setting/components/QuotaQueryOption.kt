@@ -35,6 +35,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -82,6 +83,7 @@ fun SettingProviderQuotaQuery(
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         QuotaQueryMethod.entries.forEachIndexed { index, method ->
                             SegmentedButton(
+                                colors = glassSegmentedButtonColors(),
                                 selected = query.method == method,
                                 onClick = { onEdit(query.copy(method = method)) },
                                 shape = SegmentedButtonDefaults.itemShape(index, QuotaQueryMethod.entries.size),

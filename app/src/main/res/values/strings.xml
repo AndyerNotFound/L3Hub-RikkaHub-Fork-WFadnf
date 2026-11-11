@@ -2271,7 +2271,7 @@
   <string name="setting_display_page_blur_opacity_title">Blur opacity</string>
   <string name="setting_display_page_blur_opacity_desc">Tint strength of bubbles, input bar and top bar buttons under the blur effect; lower is more transparent</string>
   <string name="setting_display_page_glass_opacity_title">Glass opacity</string>
-  <string name="setting_display_page_glass_opacity_desc">Tint strength of the glass background on settings rows, tabs and top bar buttons; lower is more transparent, and solid colors return when the blur effect is off</string>
+  <string name="setting_display_page_glass_opacity_desc">Tint strength of the glass background on bubbles, the input bar, the top bar, settings rows and overlays; lower is more transparent, and solid colors return when the blur effect is off</string>
   <string name="setting_display_page_full_width_title">Full-width components</string>
   <string name="setting_display_page_full_width_desc">Bubbles and cards fill the screen edge to edge with square corners; the input bar and top bar drop their side padding</string>
   <string name="setting_display_page_empty_slogan_title">New conversation slogan</string>

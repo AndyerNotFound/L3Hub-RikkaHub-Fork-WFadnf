@@ -121,6 +121,7 @@ import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
+import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -1061,8 +1062,15 @@ private fun ChatMessageBubble(
     } else {
         Modifier
     }
+    // 气泡自己的着色层也跟着滑杆走：模糊档读模糊不透明度，玻璃档读玻璃透明度。
+    // 以前固定 0.65，滑杆拖到头气泡也停在同一浓度上，看着像没接设置。
+    val bubbleAlpha = when (effect) {
+        BackgroundEffectType.OFF -> 1f
+        BackgroundEffectType.BLUR -> displaySetting.blurOpacity
+        BackgroundEffectType.GLASS -> displaySetting.glassSurfaceAlpha
+    }.coerceIn(0f, 1f)
     val bubbleColor = if (useEffect) {
-        color.copy(alpha = color.alpha * 0.65f)
+        color.copy(alpha = color.alpha * bubbleAlpha)
     } else {
         color
     }

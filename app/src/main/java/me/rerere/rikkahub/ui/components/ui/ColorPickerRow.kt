@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.theme.alphaComponent
 import me.rerere.rikkahub.ui.theme.formatHexColor
 import me.rerere.rikkahub.ui.theme.hexDigitCount
@@ -182,11 +183,13 @@ fun ColorPickerRow(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
+                colors = glassFilterChipColors(),
                 selected = mode == ColorPickerMode.HSV,
                 onClick = { mode = ColorPickerMode.HSV },
                 label = { Text("HSV") },
             )
             FilterChip(
+                colors = glassFilterChipColors(),
                 selected = mode == ColorPickerMode.RGB,
                 onClick = { mode = ColorPickerMode.RGB },
                 label = { Text("RGB") },

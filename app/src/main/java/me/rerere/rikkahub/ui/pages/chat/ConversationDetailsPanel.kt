@@ -127,12 +127,14 @@ internal fun ConversationDetailsPanel(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
+                // 面板只是把顶栏下面的内容往下推，底下没有正文，浓度基本交给「玻璃透明度」；
+                // 留 0.5 的下限是因为这里全是小字，压在彩色背景上再透就看不清了
                 .glassSurface(
                     shape = DetailsPanelShape,
                     baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     hazeState = hazeState,
                     radius = 16.dp,
-                    minAlpha = 0.9f,
+                    minAlpha = 0.5f,
                 )
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,

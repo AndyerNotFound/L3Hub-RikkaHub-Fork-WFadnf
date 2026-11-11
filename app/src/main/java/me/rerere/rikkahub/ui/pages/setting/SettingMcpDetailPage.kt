@@ -79,6 +79,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -350,6 +351,7 @@ private fun McpCommonOptionsConfigure(
                 Text(stringResource(R.string.setting_mcp_page_enable))
                 Spacer(Modifier.weight(1f))
                 Switch(
+                    trackColorUnchecked = glassColor(MaterialTheme.colorScheme.surfaceVariant),
                     checked = config.commonOptions.enable,
                     onCheckedChange = { enabled ->
                         update(
@@ -712,6 +714,7 @@ private fun McpToolCard(
                         style = MaterialTheme.typography.labelSmall,
                     )
                     Switch(
+                        trackColorUnchecked = glassColor(MaterialTheme.colorScheme.surfaceVariant),
                         checked = tool.needsApproval,
                         onCheckedChange = onNeedsApprovalChange,
                         size = SwitchSize.Small
@@ -727,6 +730,7 @@ private fun McpToolCard(
                         style = MaterialTheme.typography.labelSmall,
                     )
                     Switch(
+                        trackColorUnchecked = glassColor(MaterialTheme.colorScheme.surfaceVariant),
                         checked = tool.enable,
                         onCheckedChange = onEnableChange,
                         size = SwitchSize.Small

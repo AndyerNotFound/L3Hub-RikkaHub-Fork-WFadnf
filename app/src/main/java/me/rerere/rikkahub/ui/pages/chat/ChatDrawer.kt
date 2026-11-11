@@ -387,7 +387,9 @@ fun ChatDrawerContent(
                 shape = drawerShape,
                 baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 hazeState = hazeState,
-                minAlpha = 0.92f,
+                // 抽屉压在会话列表上，取值不掉到 0.65 以下：再低正文会透上来。
+                // 下限之内仍然跟着「玻璃透明度」变化。
+                minAlpha = 0.65f,
             ),
         drawerShape = drawerShape,
         drawerContainerColor = if (canGlassPane(hazeState)) {

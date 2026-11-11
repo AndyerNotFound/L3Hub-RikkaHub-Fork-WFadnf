@@ -128,6 +128,7 @@ import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
@@ -1704,6 +1705,7 @@ private fun ContextThresholdPresetRow(
         ) {
             CONTEXT_THRESHOLD_PRESETS.forEach { value ->
                 FilterChip(
+                    colors = glassFilterChipColors(),
                     selected = selected == value,
                     onClick = { onSelect(value) },
                     label = {

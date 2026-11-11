@@ -47,6 +47,7 @@ import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
+import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -383,6 +384,7 @@ internal fun TavilyOptions(
         ) {
             depthOptions.forEachIndexed { index, depth ->
                 SegmentedButton(
+                    colors = glassSegmentedButtonColors(),
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
                     onClick = {
                         onUpdateOptions(options.copy(depth = depth))
@@ -471,6 +473,7 @@ internal fun DoubaoOptions(
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             modes.forEachIndexed { index, mode ->
                 SegmentedButton(
+                    colors = glassSegmentedButtonColors(),
                     shape = SegmentedButtonDefaults.itemShape(index, modes.size),
                     onClick = { onUpdateOptions(options.copy(mode = mode)) },
                     selected = options.mode == mode
@@ -588,6 +591,7 @@ internal fun SearchLinkUpOptions(
         ) {
             depthOptions.forEachIndexed { index, depth ->
                 SegmentedButton(
+                    colors = glassSegmentedButtonColors(),
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
                     onClick = {
                         onUpdateOptions(options.copy(depth = depth))
@@ -892,6 +896,7 @@ internal fun RikkaHubOptions(
         ) {
             depthOptions.forEachIndexed { index, depth ->
                 SegmentedButton(
+                    colors = glassSegmentedButtonColors(),
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = depthOptions.size),
                     onClick = {
                         onUpdateOptions(options.copy(depth = depth))

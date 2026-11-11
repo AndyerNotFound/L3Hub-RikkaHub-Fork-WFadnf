@@ -20,12 +20,16 @@ import dev.chrisbanes.haze.glass.material3.material3
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
 /**
  * 输入框容器的背景效果（模糊或玻璃），未开启时原样返回。
  *
  * 开启后容器本身需要保持透明，[containerColor] 由效果负责铺底和着色。
+ *
+ * [alpha] 留空时按效果取浓度：模糊读 [DisplaySetting.blurOpacity]（那一档只显示这个滑杆），
+ * 玻璃读 [DisplaySetting.glassOpacity]。以前玻璃档写死 0.3，滑杆在这一整类组件上是死的。
  */
 @Composable
 internal fun Modifier.chatInputHaze(
@@ -33,15 +37,21 @@ internal fun Modifier.chatInputHaze(
     displaySetting: DisplaySetting,
     containerColor: Color,
     shape: RoundedCornerShape,
-    // 顶栏图标按钮这类「玻璃底」读 glassOpacity，输入框和气泡读 blurOpacity
-    alpha: Float = displaySetting.blurOpacity,
+    // 顶栏图标按钮这类「玻璃底」显式传玻璃透明度；输入框和气泡留空
+    alpha: Float? = null,
 ): Modifier {
-    return when (displaySetting.effectiveBackgroundEffect) {
+    val effect = displaySetting.effectiveBackgroundEffect
+    val tintAlpha = (alpha ?: when (effect) {
+        BackgroundEffectType.OFF -> 1f
+        BackgroundEffectType.BLUR -> displaySetting.blurOpacity
+        BackgroundEffectType.GLASS -> displaySetting.glassSurfaceAlpha
+    }).coerceIn(0f, 1f)
+    return when (effect) {
         BackgroundEffectType.OFF -> this
 
         BackgroundEffectType.BLUR -> {
             val tint = containerColor.copy(
-                alpha = containerColor.alpha * alpha,
+                alpha = containerColor.alpha * tintAlpha,
             )
             hazeBlur(
                 input = HazeInput.Sources(hazeState),
@@ -53,9 +63,11 @@ internal fun Modifier.chatInputHaze(
 
         BackgroundEffectType.GLASS -> {
             val darkMode = LocalDarkMode.current
+            val tint = containerColor.copy(alpha = containerColor.alpha * tintAlpha)
+            // GlassStyle.material3 是 @Composable，必须在 remember 的 lambda 外面构造
             val baseStyle = GlassStyle.material3(
                 containerColor = containerColor,
-                tint = containerColor.copy(alpha = 0.3f),
+                tint = tint,
             )
             // 2.1.0 起样式按实例比较，记住它，避免每次重组都换一个新样式
             val style = remember(baseStyle, darkMode, shape) {

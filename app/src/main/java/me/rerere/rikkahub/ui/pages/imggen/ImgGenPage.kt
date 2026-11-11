@@ -100,6 +100,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
+import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.Card
@@ -861,6 +862,7 @@ private fun SettingsBottomSheet(
                 ) {
                     ImageGenSize.entries.forEach { sizeOption ->
                         FilterChip(
+                            colors = glassFilterChipColors(),
                             selected = size == sizeOption.value,
                             onClick = { vm.updateSize(sizeOption.value) },
                             label = { Text(sizeOption.value) }
