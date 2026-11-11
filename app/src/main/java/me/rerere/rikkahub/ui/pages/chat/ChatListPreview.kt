@@ -43,8 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.drop
@@ -134,7 +132,6 @@ internal fun ChatListPreview(
     chatListState: LazyListState,
     listState: LazyListState,
     settings: Settings,
-    hazeState: HazeState,
     onJumpToMessage: (Int) -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -188,8 +185,7 @@ internal fun ChatListPreview(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxSize()
-                .topFadingEdge(listTop)
-                .hazeSource(state = hazeState),
+                .topFadingEdge(listTop),
         ) {
             if (loaded && filtered.isEmpty()) {
                 item(key = PreviewEmptyKey) {

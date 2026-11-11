@@ -63,8 +63,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,9 +93,11 @@ import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import me.rerere.ai.core.MessageRole
@@ -196,6 +200,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
 
     val setting by vm.settings.collectAsStateWithLifecycle()
     val conversation by vm.conversation.collectAsStateWithLifecycle()
+    val conversationId = conversation.id
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
@@ -370,7 +375,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         ) {
                             ChatDrawerContent(
                                 navController = navController,
-                                current = conversation,
+                                currentConversationId = conversationId,
                                 vm = vm,
                                 settings = setting,
                                 onNewChat = startNewChat,
@@ -429,7 +434,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 sheet = {
                     ChatDrawerContent(
                         navController = navController,
-                        current = conversation,
+                        currentConversationId = conversationId,
                         vm = vm,
                         settings = setting,
                         onNewChat = startNewChat,
@@ -508,6 +513,8 @@ private fun ChatPageContent(
     // currentMessages 是 getter，每次访问都新建一份列表；同一帧里有多处要用，算一次就够。
     // 它只依赖 messageNodes，按节点列表做键不会漏掉分支切换。
     val currentMessages = remember(conversation.messageNodes) { conversation.currentMessages }
+    // 回调里读最新节点，但不在组合期订阅会话，否则每来一个 token 都会换一个新 lambda
+    val latestConversation by rememberUpdatedState(conversation)
 
     // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
     val contextTokens = remember(conversation.messageNodes) { conversation.lastContextTokens() }
@@ -521,8 +528,20 @@ private fun ChatPageContent(
         currentMessages.lastOrNull { it.usage != null }
     }
     val usageTokenSpeed = remember(lastUsageMessage) { lastUsageMessage?.usageTokenSpeed() }
-    val lorebookInjectionCount = remember(conversation.messageNodes, assistant.lorebookIds, setting.lorebooks) {
-        collectLorebookInjections(currentMessages, assistant, setting.lorebooks).size
+    // 每个 chunk 都会重建消息列表，世界书匹配要扫最近几轮的全文，不能放在组合里做
+    val lorebookInjectionCount by produceState(
+        0,
+        conversation.messageNodes,
+        assistant.lorebookIds,
+        setting.lorebooks,
+    ) {
+        value = if (assistant.lorebookIds.isEmpty()) {
+            0
+        } else {
+            withContext(Dispatchers.Default) {
+                collectLorebookInjections(currentMessages, assistant, setting.lorebooks).size
+            }
+        }
     }
     // 详情面板要显示工作区名字和路径，跟着仓库的列表数据走
     val workspaces by remember(workspaceRepository) { workspaceRepository.listFlow() }
@@ -555,7 +574,6 @@ private fun ChatPageContent(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
     var showDetails by rememberSaveable { mutableStateOf(false) }
-    val hazeState = rememberHazeState()
     var showFilesSheet by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
@@ -788,7 +806,7 @@ private fun ChatPageContent(
             },
             injectedLorebookCount = lorebookInjectionCount,
             onShowUsage = { openPane(ChatSidePane.Usage) },
-            hazeState = hazeState,
+            hazeState = backgroundHazeState,
             completionProviders = completionProviders,
             onCancelClick = {
                 vm.stopGeneration()
@@ -850,7 +868,6 @@ private fun ChatPageContent(
         AssistantBackground(
             setting = setting,
             modifier = Modifier
-                .hazeSource(hazeState)
                 .hazeSource(backgroundHazeState),
             // 横屏三栏不再盖渐变遮罩，背景图原样透出来
             scrim = !threePane,
@@ -879,7 +896,7 @@ private fun ChatPageContent(
                         settings = setting,
                         assistant = assistant,
                         chatModel = currentChatModel,
-                        conversation = conversation,
+                        hasMessages = conversation.messageNodes.isNotEmpty(),
                         threePane = threePane,
                         sidebarOpen = sidebarOpen,
                         onOpenSidebar = onOpenSidebar,
@@ -895,7 +912,7 @@ private fun ChatPageContent(
                         onExport = {
                             // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
                             previewMode = false
-                            selectionState.start(conversation.messageNodes.map { it.id })
+                            selectionState.start(latestConversation.messageNodes.map { it.id })
                         },
                         onDelete = { showDeleteConfirm = true },
                         showCapsuleBackground = listScrolledUnderTopBar,
@@ -976,7 +993,6 @@ private fun ChatPageContent(
                     previewMode = previewMode,
                     onPreviewModeChange = { previewMode = it },
                     settings = setting,
-                    hazeState = hazeState,
                     bubbleHazeState = backgroundHazeState,
                     errors = errors,
                     onDismissError = onDismissError,
@@ -1455,7 +1471,7 @@ private fun TopBar(
     settings: Settings,
     assistant: Assistant,
     chatModel: Model?,
-    conversation: Conversation,
+    hasMessages: Boolean,
     threePane: Boolean,
     sidebarOpen: Boolean,
     onOpenSidebar: () -> Unit,
@@ -1647,7 +1663,7 @@ private fun TopBar(
                     }
 
                     ChatPageMenu(
-                        enabled = conversation.messageNodes.isNotEmpty(),
+                        enabled = hasMessages,
                         onShowOverview = onShowOverview,
                         onExport = onExport,
                         onDelete = onDelete,

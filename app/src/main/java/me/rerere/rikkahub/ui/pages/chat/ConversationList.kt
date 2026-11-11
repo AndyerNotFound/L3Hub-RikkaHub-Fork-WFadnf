@@ -101,7 +101,7 @@ sealed class ConversationListItem {
 
 @Composable
 fun ColumnScope.ConversationList(
-    current: Conversation,
+    currentConversationId: Uuid,
     conversations: LazyPagingItems<ConversationListItem>,
     conversationJobs: Collection<Uuid>,
     listState: LazyListState,
@@ -121,9 +121,9 @@ fun ColumnScope.ConversationList(
     onDeleteSelected: (List<Conversation>) -> Unit = {},
     onPinSelected: (List<Conversation>) -> Unit = {},
 ) {
-    var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
+    var hasScrolledToCurrent by remember(currentConversationId) { mutableStateOf(false) }
     // 列表滚过（用户拖动/滚轮/旋钮，或本页程序化回顶）以后就不再自动把视口拽到当前会话
-    var userScrolled by remember(current.id) { mutableStateOf(false) }
+    var userScrolled by remember(currentConversationId) { mutableStateOf(false) }
     // 多选：长按菜单里进入，点条目切换选中
     var selectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateListOf<Uuid>() }
@@ -136,7 +136,7 @@ fun ColumnScope.ConversationList(
 
     // 换助手/换文件夹时旧的多选结果已经不在列表里，留着会让计数和实际删除数量对不上；
     // 同时放弃「滚到当前会话」，否则分页数据异步到达后会把父级的回顶又推翻。
-    // 该放弃是 sticky 的（只在本列表实例内、current.id 不变时有效），切会话会随 remember 复位
+    // 该放弃是 sticky 的（只在本列表实例内、currentConversationId 不变时有效），切会话会随 remember 复位
     var lastScopeKey by remember { mutableStateOf(scopeKey) }
     LaunchedEffect(scopeKey) {
         if (lastScopeKey == scopeKey) return@LaunchedEffect
@@ -197,7 +197,7 @@ fun ColumnScope.ConversationList(
     }
 
     LaunchedEffect(
-        current.id,
+        currentConversationId,
         conversations.itemCount,
         sectionDates,
         collapsedDates,
@@ -205,7 +205,7 @@ fun ColumnScope.ConversationList(
     ) {
         if (hasScrolledToCurrent || userScrolled) return@LaunchedEffect
         val itemIndex = conversations.itemSnapshotList.items.indexOfFirst {
-            (it as? ConversationListItem.Item)?.conversation?.id == current.id
+            (it as? ConversationListItem.Item)?.conversation?.id == currentConversationId
         }
         if (itemIndex < 0) return@LaunchedEffect
 
@@ -321,7 +321,7 @@ fun ColumnScope.ConversationList(
                         is ConversationListItem.Item -> {
                             ConversationItem(
                                 conversation = item.conversation,
-                                selected = item.conversation.id == current.id,
+                                selected = item.conversation.id == currentConversationId,
                                 loading = item.conversation.id in conversationJobs,
                                 selectionMode = selectionMode,
                                 checked = item.conversation.id in selectedIds,

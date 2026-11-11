@@ -50,7 +50,7 @@ import kotlin.uuid.Uuid
  */
 @Composable
 fun ColumnScope.ConversationSectionList(
-    current: Conversation,
+    currentConversationId: Uuid,
     items: List<ConversationListItem>,
     conversationJobs: Collection<Uuid> = emptyList(),
     listState: LazyListState,
@@ -71,7 +71,7 @@ fun ColumnScope.ConversationSectionList(
     onDeleteSelected: (List<Conversation>) -> Unit = {},
     onPinSelected: (List<Conversation>) -> Unit = {},
 ) {
-    var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
+    var hasScrolledToCurrent by remember(currentConversationId) { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateListOf<Uuid>() }
     fun selectedConversations(): List<Conversation> = items
@@ -166,7 +166,7 @@ fun ColumnScope.ConversationSectionList(
     }
 
     LaunchedEffect(
-        current.id,
+        currentConversationId,
         items,
         metas,
         collapsedDates,
@@ -175,7 +175,7 @@ fun ColumnScope.ConversationSectionList(
     ) {
         if (hasScrolledToCurrent) return@LaunchedEffect
         val itemIndex = items.indexOfFirst {
-            (it as? ConversationListItem.Item)?.conversation?.id == current.id
+            (it as? ConversationListItem.Item)?.conversation?.id == currentConversationId
         }
         if (itemIndex < 0) return@LaunchedEffect
 
@@ -295,7 +295,7 @@ fun ColumnScope.ConversationSectionList(
                             is ConversationListItem.Item -> {
                                 ConversationItem(
                                     conversation = item.conversation,
-                                    selected = item.conversation.id == current.id,
+                                    selected = item.conversation.id == currentConversationId,
                                     loading = item.conversation.id in conversationJobs,
                                     selectionMode = selectionMode,
                                     checked = item.conversation.id in selectedIds,

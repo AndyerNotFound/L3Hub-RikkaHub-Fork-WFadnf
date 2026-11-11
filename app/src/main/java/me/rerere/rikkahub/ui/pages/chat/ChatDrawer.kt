@@ -159,7 +159,7 @@ fun ChatDrawerContent(
     navController: Navigator,
     vm: ChatVM,
     settings: Settings,
-    current: Conversation,
+    currentConversationId: Uuid,
     onNewChat: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     // 大屏的抽屉是常驻栏，没有"收起来"这回事；只有模态抽屉会传这个
@@ -262,7 +262,7 @@ fun ChatDrawerContent(
     val onDeleteConversation: (Conversation) -> Unit = { conversation ->
         scope.launch {
             vm.deleteConversation(conversation).join()
-            if (conversation.id == current.id) {
+            if (conversation.id == currentConversationId) {
                 navigateToChatPage(navController)
             }
         }
@@ -282,7 +282,7 @@ fun ChatDrawerContent(
     val onDeleteSelectedConversations: (List<Conversation>) -> Unit = { list ->
         scope.launch {
             list.forEach { vm.deleteConversation(it).join() }
-            if (list.any { it.id == current.id }) {
+            if (list.any { it.id == currentConversationId }) {
                 navigateToChatPage(navController)
             }
         }
@@ -423,7 +423,7 @@ fun ChatDrawerContent(
                         }
                 }
                 ConversationSectionList(
-                    current = current,
+                    currentConversationId = currentConversationId,
                     items = verticalItems,
                     conversationJobs = conversationJobs.keys,
                     listState = verticalListState,
@@ -497,7 +497,7 @@ fun ChatDrawerContent(
                                 }
                         }
                         ConversationList(
-                            current = current,
+                            currentConversationId = currentConversationId,
                             conversations = items,
                             conversationJobs = conversationJobs.keys,
                             listState = listState,

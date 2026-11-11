@@ -140,6 +140,13 @@ private fun ReasoningContent(
         lineHeight = bodySmall.lineHeight * fontSizeRatio,
         fontFamily = LocalTextStyle.current.fontFamily,
     )
+    val renderedReasoning = remember(reasoning.reasoning, assistant?.regexes) {
+        reasoning.reasoning.replaceRegexes(
+            assistant = assistant,
+            scope = AssistantAffectScope.ASSISTANT,
+            visual = true,
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -176,11 +183,7 @@ private fun ReasoningContent(
     ) {
         val reasoningContent = @Composable {
             MarkdownBlock(
-                content = reasoning.reasoning.replaceRegexes(
-                    assistant = assistant,
-                    scope = AssistantAffectScope.ASSISTANT,
-                    visual = true,
-                ),
+                content = renderedReasoning,
                 style = reasoningTextStyle,
                 streaming = loading,
                 modifier = Modifier.fillMaxSize(),

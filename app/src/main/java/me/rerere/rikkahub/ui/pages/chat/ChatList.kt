@@ -95,7 +95,6 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.zIndex
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -175,7 +174,6 @@ fun ChatList(
     previewMode: Boolean,
     onPreviewModeChange: (Boolean) -> Unit,
     settings: Settings,
-    hazeState: HazeState,
     bubbleHazeState: HazeState? = null,
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
@@ -243,7 +241,6 @@ fun ChatList(
                 compressing = compressing,
                 processingStatus = processingStatus,
                 settings = settings,
-                hazeState = hazeState,
                 bubbleHazeState = bubbleHazeState,
                 errors = errors,
                 onDismissError = onDismissError,
@@ -284,7 +281,6 @@ fun ChatList(
                     chatListState = state,
                     listState = previewListState,
                     settings = settings,
-                    hazeState = hazeState,
                     onJumpToMessage = onJumpToMessage,
                 )
             }
@@ -320,7 +316,6 @@ private fun ChatListNormal(
     compressing: Boolean,
     processingStatus: String? = null,
     settings: Settings,
-    hazeState: HazeState,
     bubbleHazeState: HazeState? = null,
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
@@ -402,6 +397,8 @@ private fun ChatListNormal(
             .associateBy { it.id }
     }
     val lastMessageIndex = conversation.messageNodes.lastIndex
+    // 捕获这个值而不是整份会话，消息条的 lambda 才能跨 chunk 复用
+    val conversationId = conversation.id
 
     // 新消息入场：只有"尾部刚追加"的那几条会从屏幕下方滑进来，
     // 打开会话、加载历史、切换分支时列表尾部不会多出 id，所以都不会播。
@@ -613,8 +610,7 @@ private fun ChatListNormal(
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
                     // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
                     .topFadingEdge(minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp))
-                    .nestedScroll(createPullConnection)
-                    .hazeSource(state = hazeState),
+                    .nestedScroll(createPullConnection),
             ) {
             itemsIndexed(
                 items = conversation.messageNodes,
@@ -650,8 +646,11 @@ private fun ChatListNormal(
                         ) {
                             ChatMessage(
                                 node = node,
-                                model = node.currentMessage.modelId?.let(modelById::get)
-                                    ?: node.currentMessage.snapshotModel(),
+                                // 每帧重新 snapshotModel 会造出一个新对象，ChatMessage 就没法跳过
+                                model = remember(node) {
+                                    node.currentMessage.modelId?.let(modelById::get)
+                                        ?: node.currentMessage.snapshotModel()
+                                },
                                 assistant = assistant,
                                 loading = loading && !compressing && index == lastMessageIndex,
                                 onRegenerate = {
@@ -670,11 +669,14 @@ private fun ChatListNormal(
                                 onDelete = {
                                     onDelete(node.currentMessage)
                                 },
+                                // 读 conversationUpdated 而不是捕获当前的会话对象：
+                                // 否则每来一个 token 这里都会换一个新 lambda，旧消息也跟着整条重组
                                 onShare = {
-                                    selectionState.start(
-                                        conversation.messageNodes.map { it.id }
-                                            .subList(0, conversation.messageNodes.indexOf(node) + 1)
-                                    )
+                                    val nodes = conversationUpdated.messageNodes
+                                    val index = nodes.indexOfFirst { it.id == node.id }
+                                    if (index >= 0) {
+                                        selectionState.start(nodes.take(index + 1).map { it.id })
+                                    }
                                 },
                                 onUpdate = {
                                     onUpdateMessage(it)
@@ -688,7 +690,7 @@ private fun ChatListNormal(
                                 onToolApproval = onToolApproval,
                                 onToolAnswer = onToolAnswer,
                                 hazeState = bubbleHazeState,
-                                conversationId = conversation.id,
+                                conversationId = conversationId,
                                 lastMessage = index == lastMessageIndex,
                                 joinedToPrevious = joinedToPrevious,
                                 joinedToNext = joinedToNext,

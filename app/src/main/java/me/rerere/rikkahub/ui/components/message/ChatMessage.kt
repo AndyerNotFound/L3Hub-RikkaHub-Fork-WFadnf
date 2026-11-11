@@ -89,8 +89,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -143,7 +141,6 @@ import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
 // 一条消息内部各块（思考卡、正文气泡、附件、引用）之间的垂直间距。
@@ -582,7 +579,6 @@ private fun EarlierStepsToggle(
 // 思考链折叠时默认保留的尾部步骤数
 private const val COLLAPSED_VISIBLE_STEPS = 2
 
-@OptIn(FlowPreview::class)
 @Composable
 private fun MessagePartsBlock(
     assistant: Assistant?,
@@ -626,14 +622,19 @@ private fun MessagePartsBlock(
             }
         }
     }
-    LaunchedEffect(settings.displaySetting) {
-        snapshotFlow { partsState }
-            .debounce(50.milliseconds)
-            .collect { parts ->
-                if (parts.isNotEmpty() && loading && settings.displaySetting.enableMessageGenerationHapticEffect) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
-                }
+    // 生成时的触感按「新起一行」触发：不设时间窗，也不跟着每个 chunk 抖一次
+    LaunchedEffect(loading, settings.displaySetting.enableMessageGenerationHapticEffect) {
+        if (!loading || !settings.displaySetting.enableMessageGenerationHapticEffect) return@LaunchedEffect
+        fun lineCount(parts: List<UIMessagePart>): Int = parts.sumOf { part ->
+            (part as? UIMessagePart.Text)?.text?.count { it == '\n' } ?: 0
+        }
+        var lastLines = lineCount(partsState)
+        snapshotFlow { lineCount(partsState) }.collect { lines ->
+            if (lines > lastLines) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.KeyboardTap)
             }
+            lastLines = lines
+        }
     }
 
     // 用户消息里的图片/文件统一收进气泡里的矩形卡片，文本再长也不会把它们挤没
@@ -706,7 +707,7 @@ private fun MessagePartsBlock(
                     val chainBaseColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ChainOfThought(
                         modifier = Modifier
-                            .animateContentSize()
+                            .then(if (loading) Modifier else Modifier.animateContentSize())
                             .then(
                                 if (chainEffect != BackgroundEffectType.OFF && hazeState != null) {
                                     Modifier
