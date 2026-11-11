@@ -114,5 +114,17 @@
     "send_hint_enter": "Press Enter to send, Shift + Enter for newline",
     "send_hint_newline": "Press Shift + Enter to send, Enter for newline",
     "long_text_as_file": "Long text converted to file attachment"
+  },
+  "guidance": {
+    "button": "Guidance",
+    "title": "Guidance prompt",
+    "description": "Add an instruction mid-turn. It is inserted between tool calls without aborting the run.",
+    "placeholder": "What should this turn do next?",
+    "single": "Once",
+    "repeat": "Repeat",
+    "mode_toggle_hint": "Click to toggle once / repeat",
+    "add": "Add",
+    "add_failed": "Failed to add guidance",
+    "remove": "Remove guidance"
   }
 }

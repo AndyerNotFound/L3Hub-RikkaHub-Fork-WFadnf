@@ -206,7 +206,9 @@ val appModule = module {
             chatService = get(),
             conversationRepo = get(),
             folderRepo = get(),
+            workspaceRepo = get(),
             settingsStore = get(),
+            providerManager = get(),
             filesManager = get()
         )
     }

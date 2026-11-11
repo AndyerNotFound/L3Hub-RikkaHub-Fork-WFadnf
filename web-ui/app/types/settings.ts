@@ -16,6 +16,10 @@ export interface DisplaySetting {
   showLineNumbers: boolean;
   sendOnEnter: boolean;
   enableAutoScroll: boolean;
+  /** 输入框上方的上下文用量样式；OFF 关闭整块 */
+  contextMeterStyle?: "OFF" | "BAR" | "RING";
+  /** 用量显示绝对值还是百分比 */
+  contextMeterAbsolute?: boolean;
   fontSizeRatio: number;
   pasteLongTextAsFile: boolean;
   pasteLongTextThreshold: number;
@@ -117,6 +121,13 @@ export interface ProviderModel {
   outputModalities?: ModelModality[];
   abilities?: ModelAbility[];
   tools?: BuiltInTool[];
+  /** 上下文窗口大小（token） */
+  contextLength?: number;
+  /** 性能最佳点门限，超过后提醒 */
+  warnContextTokens?: number | null;
+  /** 性能骤降点门限，到达后禁止发送 */
+  maxContextTokens?: number | null;
+  enforceMaxContext?: boolean;
   [key: string]: unknown;
 }
 
@@ -154,6 +165,8 @@ export interface Settings {
   mcpServers: McpServerConfig[];
   searchServices: SearchServiceOption[];
   quickMessages?: QuickMessage[];
+  /** 引导提示词的预设，和快捷消息分开存 */
+  guideMessages?: QuickMessage[];
   searchServiceSelected: number;
   [key: string]: unknown;
 }

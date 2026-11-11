@@ -114,5 +114,17 @@
     "send_hint_enter": "按 Enter 发送，Shift + Enter 换行",
     "send_hint_newline": "按 Shift + Enter 发送，Enter 换行",
     "long_text_as_file": "长文本已转为文件附件"
+  },
+  "guidance": {
+    "button": "引导提示词",
+    "title": "引导提示词",
+    "description": "生成过程中追加一句指令，会插进正在跑的工具间隙，不打断这一轮。",
+    "placeholder": "这一轮接下来要改什么方向？",
+    "single": "单轮",
+    "repeat": "多轮",
+    "mode_toggle_hint": "点击切换单轮 / 多轮",
+    "add": "加入",
+    "add_failed": "加入引导失败",
+    "remove": "取消引导"
   }
 }

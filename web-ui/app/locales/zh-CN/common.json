@@ -73,7 +73,16 @@
     "switch_assistant_failed": "切换助手失败",
     "current": "当前",
     "switching": "切换中...",
-    "no_assistants_by_tag": "没有符合标签的助手"
+    "no_assistants_by_tag": "没有符合标签的助手",
+    "folder_bind_workspaces": "为「{{folder}}」绑定工作区",
+    "folder_bind_workspaces_short": "绑定工作区",
+    "folder_bind_description": "落在这个文件夹里的会话都用这组工作区；主工作区用于新会话。",
+    "folder_bind_failed": "绑定工作区失败",
+    "folder_unbind_workspaces": "解绑",
+    "folder_workspaces_bound": "已绑定工作区",
+    "workspace_set_primary": "设为主工作区",
+    "workspaces_loading": "正在读取工作区",
+    "workspaces_empty": "还没有工作区，先在应用里创建一个"
   },
   "conversation_search": {
     "search_conversations": "搜索对话",
@@ -119,5 +128,8 @@
     "unlock": "解锁",
     "unlocking": "正在解锁...",
     "unlock_failed": "Web API 解锁失败。"
+  },
+  "common": {
+    "save": "保存"
   }
 }

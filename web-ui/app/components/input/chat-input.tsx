@@ -55,6 +55,14 @@ export interface ChatInputProps {
   onCancelEdit?: () => void;
   onSuggestionClick?: (suggestion: string) => void;
   onExportConversation?: (includeReasoning: boolean) => void;
+  /** 输入框上方的上下文用量条 */
+  contextMeter?: React.ReactNode;
+  /** 工具栏里的上下文用量环 */
+  contextMeterInline?: React.ReactNode;
+  /** 输入框上方的引导卡片 */
+  guidancePanel?: React.ReactNode;
+  /** 工具栏里的引导按钮 */
+  guidanceButton?: React.ReactNode;
   className?: string;
 }
 
@@ -191,6 +199,10 @@ function ChatInputInner({
   onCancelEdit,
   onSuggestionClick,
   onExportConversation,
+  contextMeter,
+  contextMeterInline,
+  guidancePanel,
+  guidanceButton,
   className,
 }: ChatInputProps) {
   const { t } = useTranslation("input");
@@ -497,6 +509,8 @@ function ChatInputInner({
       )}
     >
       <div className="mx-auto w-full max-w-3xl px-4 py-4">
+        {contextMeter ? <div className="mb-1">{contextMeter}</div> : null}
+        {guidancePanel ? <div className="mb-2">{guidancePanel}</div> : null}
         <div
           className={cn(
             "relative flex flex-col gap-2 rounded-3xl border border-border/60 bg-muted/50 p-2.5 transition-colors focus-within:border-border",
@@ -705,6 +719,7 @@ function ChatInputInner({
                 conversation={conversation}
                 disabled={!canSwitchModel}
               />
+              {guidanceButton}
               <QuickMessageButton
                 quickMessages={quickMessages}
                 disabled={!canUseQuickMessage}
@@ -712,6 +727,7 @@ function ChatInputInner({
               />
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1">
+              {contextMeterInline}
               <ModelList
                 disabled={!canSwitchModel}
                 className="max-w-[120px] sm:max-w-56"

@@ -34,5 +34,24 @@
     "header": {
       "select_conversation": "请选择会话"
     }
+  },
+  "subagents": {
+    "button": "子代理",
+    "title": "子代理任务",
+    "description": "当前会话派发出去的子代理，点一行打开它自己的会话",
+    "loading": "正在读取子代理任务",
+    "empty": "当前会话还没有派发过子代理",
+    "state_running": "进行中",
+    "state_completed": "已完成",
+    "state_failed": "失败"
+  },
+  "context_meter": {
+    "usage_title": "上下文占用",
+    "context_used": "当前占用",
+    "prompt_tokens": "输入 token",
+    "completion_tokens": "输出 token",
+    "cached_tokens": "缓存命中",
+    "no_usage": "暂无用量记录",
+    "limit_reached": "已达到 MAX 门限，继续发送前请先压缩上下文"
   }
 }

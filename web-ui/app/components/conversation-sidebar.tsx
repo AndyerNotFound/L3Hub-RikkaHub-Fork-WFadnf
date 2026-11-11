@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
 import {
+  Boxes,
   Check,
   Folder,
   FolderInput,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { FolderWorkspacesDialog } from "~/components/chat/folder-workspaces-dialog";
 import { InfiniteScrollArea } from "~/components/extended/infinite-scroll-area";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -216,6 +218,11 @@ export interface ConversationSidebarProps {
   onRenameFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
   onMoveToFolder?: (conversationId: string, folderId: string | null) => Promise<void>;
+  onBindFolderWorkspaces?: (
+    id: string,
+    workspaceIds: string[],
+    workspaceId: string | null,
+  ) => Promise<void>;
 }
 
 interface ConversationListRowProps {
@@ -608,6 +615,11 @@ interface FolderBarProps {
   onCreate?: (name: string) => Promise<void>;
   onRename?: (id: string, name: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onBindWorkspaces?: (
+    id: string,
+    workspaceIds: string[],
+    workspaceId: string | null,
+  ) => Promise<void>;
 }
 
 function FolderBar({
@@ -617,8 +629,10 @@ function FolderBar({
   onCreate,
   onRename,
   onDelete,
+  onBindWorkspaces,
 }: FolderBarProps) {
   const { t } = useTranslation();
+  const [bindFolder, setBindFolder] = React.useState<FolderDto | null>(null);
 
   const handleCreate = React.useCallback(() => {
     if (!onCreate) return;
@@ -703,6 +717,12 @@ function FolderBar({
             >
               <Folder className="size-3" />
               <span className="max-w-[8rem] truncate">{folder.name}</span>
+              {folder.workspaceIds && folder.workspaceIds.length > 0 ? (
+                <Boxes
+                  className="size-3 opacity-70"
+                  aria-label={t("conversation_sidebar.folder_workspaces_bound")}
+                />
+              ) : null}
               {(onRename || onDelete) && (
                 <DropdownMenuTrigger asChild>
                   <span
@@ -717,7 +737,13 @@ function FolderBar({
                 </DropdownMenuTrigger>
               )}
             </div>
-            <DropdownMenuContent side="bottom" align="start" className="w-40">
+            <DropdownMenuContent side="bottom" align="start" className="w-44">
+              {onBindWorkspaces && (
+                <DropdownMenuItem onSelect={() => setBindFolder(folder)}>
+                  <Boxes className="size-4" />
+                  <span>{t("conversation_sidebar.folder_bind_workspaces_short")}</span>
+                </DropdownMenuItem>
+              )}
               {onRename && (
                 <DropdownMenuItem onSelect={() => handleRename(folder)}>
                   <Pencil className="size-4" />
@@ -746,6 +772,18 @@ function FolderBar({
           <FolderPlus className="size-3.5" />
         </button>
       )}
+
+      <FolderWorkspacesDialog
+        open={bindFolder != null}
+        folder={bindFolder}
+        onOpenChange={(open) => {
+          if (!open) setBindFolder(null);
+        }}
+        onSave={async (workspaceIds, workspaceId) => {
+          if (!bindFolder || !onBindWorkspaces) return;
+          await onBindWorkspaces(bindFolder.id, workspaceIds, workspaceId);
+        }}
+      />
     </div>
   );
 }
@@ -779,6 +817,7 @@ export const ConversationSidebar = React.memo(
     onRenameFolder,
     onDeleteFolder,
     onMoveToFolder,
+    onBindFolderWorkspaces,
   }: ConversationSidebarProps) => {
     const { t, i18n } = useTranslation();
     const { theme, setTheme, colorTheme, setColorTheme, customThemeCss, setCustomThemeCss } =
@@ -931,6 +970,7 @@ export const ConversationSidebar = React.memo(
                 onCreate={onCreateFolder}
                 onRename={onRenameFolder}
                 onDelete={onDeleteFolder}
+                onBindWorkspaces={onBindFolderWorkspaces}
               />
             )}
             <InfiniteScrollArea

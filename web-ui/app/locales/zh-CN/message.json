@@ -35,7 +35,9 @@
     "total_prompt_tokens": "累计输入 {{value}} tokens",
     "context_checkpoint": "以上内容已压缩为摘要",
     "context_checkpoint_hint": "分隔线以上的消息不再发送给模型，由这份摘要代替。删除摘要即可恢复发送完整历史。",
-    "context_checkpoint_delete_confirm": "确认删除这份摘要吗？删除后会重新向模型发送完整历史。"
+    "context_checkpoint_delete_confirm": "确认删除这份摘要吗？删除后会重新向模型发送完整历史。",
+    "subagent_notice_title": "子代理任务结果",
+    "subagent_notice_hint": "系统自动回传，不是你的输入"
   },
   "tool_part": {
     "memory_create": "创建记忆",

@@ -14,6 +14,11 @@ export interface UseFoldersResult {
   renameFolder: (id: string, name: string) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   moveConversationToFolder: (conversationId: string, folderId: string | null) => Promise<void>;
+  bindFolderWorkspaces: (
+    id: string,
+    workspaceIds: string[],
+    workspaceId: string | null,
+  ) => Promise<void>;
 }
 
 /**
@@ -98,6 +103,17 @@ export function useFolders(currentAssistantId: string | null): UseFoldersResult 
     [],
   );
 
+  const bindFolderWorkspaces = React.useCallback(
+    async (id: string, workspaceIds: string[], workspaceId: string | null) => {
+      await api.post<{ status: string }>(`folders/${id}/workspaces`, {
+        workspaceIds,
+        workspaceId,
+      });
+      await refreshFolders();
+    },
+    [refreshFolders],
+  );
+
   return {
     folders,
     selectedFolderId,
@@ -108,5 +124,6 @@ export function useFolders(currentAssistantId: string | null): UseFoldersResult 
     renameFolder,
     deleteFolder,
     moveConversationToFolder,
+    bindFolderWorkspaces,
   };
 }

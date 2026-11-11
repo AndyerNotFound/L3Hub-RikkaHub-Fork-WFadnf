@@ -25,6 +25,46 @@ export interface FolderDto {
   name: string;
   sortIndex: number;
   createAt: number;
+  /** 主工作区；文件夹绑定后落在里面的会话都用这组工作区 */
+  workspaceId?: string | null;
+  workspaceIds?: string[];
+}
+
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface GuidanceDto {
+  id: string;
+  title: string;
+  content: string;
+  mode: "single" | "repeat";
+}
+
+export interface SubAgentConversationDto {
+  id: string;
+  parentId: string;
+  assistantId: string;
+  title: string;
+  task?: string | null;
+  state?: string | null;
+  isGenerating: boolean;
+  updateAt: number;
+}
+
+export interface ProviderQuotaWindowDto {
+  usedPercent: number;
+  windowMinutes?: number | null;
+  resetsAt?: string | null;
+}
+
+export interface ProviderQuotaDto {
+  type: "none" | "balance" | "usage";
+  value?: string | null;
+  limitReached?: boolean;
+  windows?: ProviderQuotaWindowDto[];
 }
 
 /**
@@ -83,6 +123,8 @@ export interface MessageDto {
   translation?: string | null;
   /** 压缩检查点：此消息是它之前全部历史的摘要，之前的消息不再发送给模型 */
   isContextCheckpoint?: boolean;
+  /** 系统自动生成的子代理回投通知，不是用户输入 */
+  isSubAgentNotice?: boolean;
 }
 
 export interface MessageNodeDto {
@@ -105,6 +147,12 @@ export interface ConversationDto {
   workspaceCwd?: string | null;
   workspaceCwds?: Record<string, string>;
   folderId?: string | null;
+  /** 子代理会话挂在哪条父会话下 */
+  parentConversationId?: string | null;
+  /** 派发给子代理的任务原文 */
+  subAgentTask?: string | null;
+  /** running / completed / failed */
+  subAgentState?: string | null;
   createAt: number;
   updateAt: number;
   isGenerating: boolean;

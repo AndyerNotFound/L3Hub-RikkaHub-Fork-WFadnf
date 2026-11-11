@@ -650,7 +650,8 @@ Room 版本 35 → 36，走 `AutoMigration(35, 36)`。工作区被删除时 `Wor
 调 `FolderRepository.detachWorkspace`，把文件夹上的引用摘掉。
 
 Web API：`FolderDto` 多了 `workspaceId` / `workspaceIds`，新增 `POST /api/folders/{id}/workspaces`
-（body `{"workspaceIds": [...], "workspaceId": "..."}`，留空即解绑）。web-ui 前端还没做对应控件。
+（body `{"workspaceIds": [...], "workspaceId": "..."}`，留空即解绑）。web-ui 的文件夹菜单已做多选、
+主工作区星标与解绑，见下文「WebUI 原生功能」。
 
 改动文件：
 
@@ -761,6 +762,30 @@ app/.../ui/pages/extensions/QuickMessages*.kt    两个 Tab，预设增删改
 
 未验证：这次没有跑 Gradle（Termux 上不编译），第一个真机包要重点看两处——长按手势在有无预设时都能用，
 以及多轮引导在一轮里插入多次后 provider 是否照常接受。
+
+## WebUI 原生功能（2026-11-12）
+
+参照 `~/WorkSpace/rikka-gateway` 的注入补丁，把值得留下的功能做进 web-ui，数据一律走后端 API，
+不再由网关抓 DOM、估算 token 或篡改 SSE：
+
+- **上下文用量条**：输入框上方按模型的 WARN / MAX 画两条进度条，数据取最近一次回复的 `lastUsage`
+  （压缩检查点之前的 usage 不作数）；点开看输入 / 输出 / 缓存明细。沿用
+  `DisplaySetting.contextMeterStyle`（BAR / RING / OFF）与 `contextMeterAbsolute`。
+- **渠道额度**：`GET /api/providers/{id}/quota` 复用 app 的 `ProviderManager.getQuota`，
+  模型选择器与顶栏显示余额或订阅用量。对应网关的 `/__gw/bal`。
+- **引导提示词**：生成中插话走 `POST /api/conversations/{id}/guidance`（会话收件箱），
+  支持单轮 / 多轮、预设、取消；对应网关对 SSE 流的「插话」篡改。
+- **子代理任务**：`GET /api/conversations/{id}/subagents` 读 `getChildConversationSummaries`，
+  面板按树列出直接子会话，点一行跳到子会话；回投消息按 `isSubAgentNotice` 画成系统卡片。
+  对应网关的 `/__gw/mcp`。
+- **文件夹绑定工作区**：文件夹菜单多选工作区、星标主工作区，走已有的
+  `POST /api/folders/{id}/workspaces`；`GET /api/workspaces` 只回名称与类型。
+
+网关的配色、MD3 换肤与模型菜单折叠属于纯前端皮肤，web-ui 已有自己的主题和模型选择器，不重复实现；
+流式篡改（句末加喵）不移植。
+
+CI 增加 `Web UI typecheck` job：web-ui 平时只在发版时构建，类型检查现在每次 push 都跑；
+后端 DTO 与前端类型对不上会在 PR 阶段就红。
 
 ## 还要做的
 

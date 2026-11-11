@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowDown,
   ArrowUp,
+  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -634,6 +635,7 @@ export const ChatMessage = React.memo(({
   onFork,
   onToolApproval,
 }: ChatMessageProps) => {
+  const { t } = useTranslation("message");
   const isUser = message.role === "USER";
   const hasMessageContent = message.parts.some(hasRenderablePart);
   const showActions = isLastMessage ? !loading : hasMessageContent;
@@ -649,6 +651,32 @@ export const ChatMessage = React.memo(({
 
   if (message.isContextCheckpoint) {
     return <ChatMessageContextCheckpoint message={message} onEdit={onEdit} onDelete={onDelete} />;
+  }
+
+  // 子代理回投：系统通知，不是用户发言，单独画成卡片
+  if (message.isSubAgentNotice) {
+    return (
+      <div
+        className="border-primary/30 bg-primary/5 flex flex-col gap-2 rounded-2xl border border-dashed px-4 py-3"
+        data-message-role="subagent-notice"
+      >
+        <div className="text-primary flex items-center gap-1.5 text-xs font-medium">
+          <Bot className="size-3.5" />
+          {t("chat_message.subagent_notice_title")}
+        </div>
+        <div className="text-sm">
+          <MessageParts
+            parts={message.parts}
+            loading={false}
+            onToolApproval={onToolApproval}
+            onClickCitation={handleClickCitation}
+          />
+        </div>
+        <div className="text-muted-foreground text-[11px]">
+          {t("chat_message.subagent_notice_hint")}
+        </div>
+      </div>
+    );
   }
 
   // 运行时通知单独开一轮时存成 user 消息，网页端不展示通知，这里不留空气泡

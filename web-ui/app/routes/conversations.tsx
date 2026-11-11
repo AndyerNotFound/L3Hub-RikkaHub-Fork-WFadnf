@@ -13,7 +13,12 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from "~/components/extended/conversation";
+import { ContextUsageMeter } from "~/components/chat/context-usage-meter";
+import { GuidancePanel } from "~/components/chat/guidance-panel";
+import { SubAgentDialog } from "~/components/chat/subagent-dialog";
 import { ChatInput } from "~/components/input/chat-input";
+import { GuidanceButton } from "~/components/input/guidance-button";
+import { ProviderQuotaBadge } from "~/components/input/provider-quota-badge";
 import { ChatMessage } from "~/components/message/chat-message";
 import { Button } from "~/components/ui/button";
 import { Drawer, DrawerContent } from "~/components/ui/drawer";
@@ -24,6 +29,7 @@ import { useIsMobile } from "~/hooks/use-mobile";
 import { toConversationSummaryUpdate, useConversationList } from "~/hooks/use-conversation-list";
 import { useCurrentAssistant } from "~/hooks/use-current-assistant";
 import { useFolders } from "~/hooks/use-folders";
+import { useGuidance } from "~/hooks/use-guidance";
 import { useCurrentModel } from "~/hooks/use-current-model";
 import { getAssistantDisplayName, getModelDisplayName } from "~/lib/display";
 import { convertConversationToMarkdown, downloadMarkdown } from "~/lib/export-markdown";
@@ -48,7 +54,7 @@ import {
   type UIMessagePart,
   isNoticeOnly,
 } from "~/types";
-import { MessageSquare } from "lucide-react";
+import { GitBranch, MessageSquare } from "lucide-react";
 import Logo from "~/components/logo";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { useTranslation } from "react-i18next";
@@ -725,6 +731,7 @@ function ConversationsPageInner() {
     renameFolder,
     deleteFolder,
     moveConversationToFolder,
+    bindFolderWorkspaces,
   } = useFolders(currentAssistantId);
   const {
     conversations,
@@ -749,6 +756,23 @@ function ConversationsPageInner() {
   const { detail, detailLoading, detailError, selectedNodeMessages, resetDetail } =
     useConversationDetail(activeId, updateConversationSummary);
   const { currentModel, currentProvider } = useCurrentModel(detail);
+  const guidance = useGuidance(activeId);
+  const [subAgentOpen, setSubAgentOpen] = React.useState(false);
+
+  const selectedMessages = React.useMemo(
+    () => selectedNodeMessages.map(({ message }) => message),
+    [selectedNodeMessages],
+  );
+  const contextMeterStyle = settings?.displaySetting?.contextMeterStyle ?? "BAR";
+
+  const wasGeneratingRef = React.useRef(false);
+  React.useEffect(() => {
+    const generating = detail?.isGenerating ?? false;
+    if (wasGeneratingRef.current && !generating) {
+      void guidance.refresh();
+    }
+    wasGeneratingRef.current = generating;
+  }, [detail?.isGenerating, guidance.refresh]);
 
   const {
     draftKey,
@@ -1091,6 +1115,32 @@ function ConversationsPageInner() {
           value={inputText}
           attachments={inputAttachments}
           conversation={detail}
+          contextMeter={
+            contextMeterStyle === "RING" ? null : (
+              <ContextUsageMeter messages={selectedMessages} model={currentModel} />
+            )
+          }
+          contextMeterInline={
+            contextMeterStyle === "RING" ? (
+              <ContextUsageMeter messages={selectedMessages} model={currentModel} />
+            ) : null
+          }
+          guidancePanel={
+            activeId ? (
+              <GuidancePanel
+                guidances={guidance.guidances}
+                onToggleMode={guidance.setMode}
+                onRemove={guidance.remove}
+              />
+            ) : null
+          }
+          guidanceButton={
+            <GuidanceButton
+              disabled={!activeId}
+              presets={settings?.guideMessages ?? []}
+              onAdd={guidance.add}
+            />
+          }
           ready={draftKey !== null}
           isGenerating={detail?.isGenerating ?? false}
           disabled={detailLoading || Boolean(detailError)}
@@ -1150,6 +1200,7 @@ function ConversationsPageInner() {
         onRenameFolder={handleRenameFolder}
         onDeleteFolder={handleDeleteFolder}
         onMoveToFolder={handleMoveConversationToFolder}
+        onBindFolderWorkspaces={bindFolderWorkspaces}
       />
       <SidebarInset className="flex min-h-svh flex-col overflow-hidden">
         <div className="flex items-center gap-2 border-b px-4 py-3">
@@ -1161,11 +1212,27 @@ function ConversationsPageInner() {
                 : t("conversations.header.select_conversation")}
             </div>
             {currentModel && currentProvider ? (
-              <div className="truncate text-xs text-muted-foreground/80">
-                {`${getAssistantDisplayName(currentAssistant?.name)} / ${getModelDisplayName(currentModel.displayName, currentModel.modelId)} (${currentProvider.name})`}
+              <div className="text-muted-foreground/80 flex min-w-0 items-center gap-2 text-xs">
+                <span className="min-w-0 truncate">
+                  {`${getAssistantDisplayName(currentAssistant?.name)} / ${getModelDisplayName(currentModel.displayName, currentModel.modelId)} (${currentProvider.name})`}
+                </span>
+                <ProviderQuotaBadge providerId={currentProvider.id} />
               </div>
             ) : null}
           </div>
+          {activeId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1.5 rounded-full px-2 text-xs"
+              title={t("subagents.button")}
+              onClick={() => setSubAgentOpen(true)}
+            >
+              <GitBranch className="size-4" />
+              <span className="hidden sm:inline">{t("subagents.button")}</span>
+            </Button>
+          ) : null}
         </div>
 
         {!isMobile ? (
@@ -1197,6 +1264,13 @@ function ConversationsPageInner() {
         ) : (
           chatContent
         )}
+
+        <SubAgentDialog
+          open={subAgentOpen}
+          onOpenChange={setSubAgentOpen}
+          conversationId={activeId}
+          onOpenConversation={handleSelect}
+        />
 
         {isMobile && panel ? (
           <Drawer
