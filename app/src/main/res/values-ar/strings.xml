@@ -312,7 +312,6 @@
   <string name="chat_page_export_markdown_desc">تصدير المحادثة كملف Markdown</string>
   <string name="chat_page_export_share_via">مشاركة عبر</string>
   <string name="chat_page_export_success">تم التصدير إلى %1$s</string>
-  <string name="chat_page_folder_add">جديد</string>
   <string name="chat_page_folder_default">محادثة</string>
   <string name="chat_page_folder_unfiled">بدون مجلد</string>
   <string name="chat_page_folder_pill">مجلد المحادثة</string>

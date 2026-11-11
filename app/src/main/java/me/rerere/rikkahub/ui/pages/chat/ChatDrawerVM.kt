@@ -4,19 +4,13 @@ import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.PagingData
-import androidx.paging.cachedIn
-import androidx.paging.insertSeparators
-import androidx.paging.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -70,10 +64,6 @@ class ChatDrawerVM(
     // 文件夹绑定的写操作串行化，见 updateFolderWorkspaces
     private val folderWriteMutex = Mutex()
 
-    // 当前选中的文件夹筛选，null 表示「未归类」视图
-    private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
-    val selectedFolderId: StateFlow<Uuid?> = _selectedFolderId.asStateFlow()
-
     // 收起的日期分组。停在 SharedPreferences 里，而不是 SavedStateHandle：
     // 后者只活到这一份 activity 实例，换主题重进、从最近任务里恢复、冷启动都会回到展开态。
     // 折叠是用户自己收的，任何一次刷新都不该替他拉开
@@ -121,70 +111,12 @@ class ChatDrawerVM(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    /**
-     * 某个文件夹视图的会话分页。
-     *
-     * 每个文件夹单独取一份：切换文件夹时两份列表要同时在组合里做横向转场，
-     * 共用一条只跟着选中文件夹走的分页流，旧视图会拿到新视图的数据。
-     */
-    fun conversationsOf(folderId: Uuid?): Flow<PagingData<ConversationListItem>> =
+    // 所有会话按文件夹归堆，再依次插文件夹头、置顶头和周标题
+    private val lightConversations: Flow<List<Conversation>> =
         combine(assistantIdFlow, sortOrderFlow) { assistantId, sortOrder -> assistantId to sortOrder }
             .flatMapLatest { (assistantId, sortOrder) ->
-                val paging = if (folderId == null) {
-                    conversationRepo.getUnfiledConversationsOfAssistantPaging(assistantId, sortOrder)
-                } else {
-                    conversationRepo.getConversationsOfFolderPaging(assistantId, folderId, sortOrder)
-                }
-                paging.map { pagingData -> pagingData.withWeekHeaders(sortOrder) }
-            }
-            .cachedIn(viewModelScope)
-
-    private fun PagingData<Conversation>.withWeekHeaders(
-        sortOrder: ConversationSortOrder,
-    ): PagingData<ConversationListItem> =
-        map { ConversationListItem.Item(it) }
-            .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
-                when {
-                    after == null -> null
-                    after.conversation.isPinned -> {
-                        if (before == null) ConversationListItem.PinnedHeader else null
-                    }
-
-                    else -> {
-                        // 按周分组（周一开始），减少列表里过密的日期标题
-                        val afterWeek = after.conversation.sortDate(sortOrder).weekStart()
-                        val sameGroup = before != null &&
-                            !before.conversation.isPinned &&
-                            before.conversation.sortDate(sortOrder).weekStart() == afterWeek
-                        if (sameGroup) {
-                            null
-                        } else {
-                            ConversationListItem.DateHeader(
-                                date = afterWeek,
-                                label = getWeekLabel(afterWeek),
-                                sortOrder = sortOrder,
-                            )
-                        }
-                    }
-                }
-            }
-
-    private val verticalSortingFlow = settingsStore.settingsFlow
-        .map { it.displaySetting.drawerVerticalSorting }
-        .distinctUntilChanged()
-
-    // 竖向排序：所有会话按文件夹归堆，再依次插文件夹头、置顶头和周标题
-    // 开关关掉时不查这份全量清单，免得只为扁平视图白读一遍数据库
-    private val lightConversations: Flow<List<Conversation>> =
-        combine(verticalSortingFlow, assistantIdFlow, sortOrderFlow) { vertical, assistantId, sortOrder ->
-            Triple(vertical, assistantId, sortOrder)
-        }.flatMapLatest { (vertical, assistantId, sortOrder) ->
-            if (vertical) {
                 conversationRepo.getLightConversationsOfAssistant(assistantId, sortOrder)
-            } else {
-                flowOf(emptyList())
             }
-        }
 
     val verticalItems: StateFlow<List<ConversationListItem>> =
         combine(assistantIdFlow, sortOrderFlow, folders, lightConversations) { assistantId, sortOrder, folderList, conversations ->
@@ -238,16 +170,6 @@ class ChatDrawerVM(
         return items
     }
 
-    // 每个文件夹视图各自记住滚动位置；key 带 V2，早期版本存的是含 header 的绝对下标
-    fun scrollIndex(folderId: Uuid?): Int = savedStateHandle[scrollIndexKey(folderId)] ?: 0
-
-    fun scrollOffset(folderId: Uuid?): Int = savedStateHandle[scrollOffsetKey(folderId)] ?: 0
-
-    fun saveScrollPosition(folderId: Uuid?, index: Int, offset: Int) {
-        savedStateHandle[scrollIndexKey(folderId)] = index
-        savedStateHandle[scrollOffsetKey(folderId)] = offset
-    }
-
     val verticalScrollIndex: Int get() = savedStateHandle[KEY_VERTICAL_SCROLL_INDEX] ?: 0
     val verticalScrollOffset: Int get() = savedStateHandle[KEY_VERTICAL_SCROLL_OFFSET] ?: 0
 
@@ -256,29 +178,11 @@ class ChatDrawerVM(
         savedStateHandle[KEY_VERTICAL_SCROLL_OFFSET] = offset
     }
 
-    /** 换排序方式后旧下标不再适用，所有视图都回到顶部 */
+    /** 换排序方式后旧下标不再适用，回到顶部 */
     fun resetScrollPositions() {
         savedStateHandle.keys()
-            .filter { key -> key.startsWith("scrollIndexV2/") || key.startsWith("scrollOffsetV2/") || key.startsWith("verticalScroll") }
+            .filter { key -> key.startsWith("verticalScroll") }
             .forEach { key -> savedStateHandle.remove<Any>(key) }
-    }
-
-    private fun scrollIndexKey(folderId: Uuid?): String = "scrollIndexV2/${folderId ?: "unfiled"}"
-
-    private fun scrollOffsetKey(folderId: Uuid?): String = "scrollOffsetV2/${folderId ?: "unfiled"}"
-
-    init {
-        // 助手切换时重置文件夹筛选，回到「聊天」视图，
-        // 避免继续显示上一个助手文件夹内的会话（文件夹是助手内分组）
-        viewModelScope.launch {
-            assistantIdFlow.collect {
-                _selectedFolderId.value = null
-            }
-        }
-    }
-
-    fun selectFolder(folderId: Uuid?) {
-        _selectedFolderId.value = folderId
     }
 
     fun toggleDateCollapsed(date: LocalDate) {
@@ -301,25 +205,8 @@ class ChatDrawerVM(
         persistCollapsedFolders()
     }
 
-    /** 当前会话所在的文件夹被收起时由列表回调，保证打开的会话不会藏在折叠段里。 */
-    fun expandFolder(folderId: Uuid?) {
-        val key = folderCollapseKey(folderId)
-        if (key !in _collapsedFolders.value) return
-        _collapsedFolders.update { it - key }
-        persistCollapsedFolders()
-    }
-
     private fun persistCollapsedFolders() {
         context.writeStringSetPreference(KEY_COLLAPSED_FOLDERS, _collapsedFolders.value)
-    }
-
-    fun createFolder(name: String) {
-        val trimmed = name.trim()
-        if (trimmed.isEmpty()) return
-        viewModelScope.launch {
-            val assistantId = assistantIdFlow.first()
-            folderRepo.createFolder(assistantId, trimmed)
-        }
     }
 
     /**
@@ -359,9 +246,6 @@ class ChatDrawerVM(
         viewModelScope.launch {
             // 经 ChatService 删除：会同步清空活跃 session 内存态的 folderId，避免整对象保存写回已删文件夹
             chatService.deleteFolder(folderId)
-            if (_selectedFolderId.value == folderId) {
-                _selectedFolderId.value = null
-            }
         }
         return true
     }

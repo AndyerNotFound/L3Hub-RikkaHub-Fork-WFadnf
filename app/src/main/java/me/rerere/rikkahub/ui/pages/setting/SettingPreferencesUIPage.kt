@@ -179,17 +179,6 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
             }
 
             CardGroup(
-                title = { Text(stringResource(R.string.setting_page_sidebar_settings)) },
-            ) {
-                switchItem(
-                    checked = displaySetting.drawerVerticalSorting,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(drawerVerticalSorting = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_drawer_vertical_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_drawer_vertical_title)) },
-                )
-            }
-
-            CardGroup(
                 title = { Text(stringResource(R.string.setting_page_message_display_settings)) },
             ) {
                 switchItem(

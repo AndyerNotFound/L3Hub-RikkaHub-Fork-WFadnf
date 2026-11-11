@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -44,6 +43,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.LocalContentColor
@@ -114,6 +114,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
@@ -212,10 +213,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
 
-    // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹（#2133）
-    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = LocalContext.current as ComponentActivity)
-    val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
-    val folders by drawerVm.folders.collectAsStateWithLifecycle()
+    val folders by vm.folders.collectAsStateWithLifecycle()
     val folderBinding by vm.folderWorkspaceBinding.collectAsStateWithLifecycle()
     // 文件夹绑了工作区时，工作区入口只展示这份绑定，改要去抽屉的文件夹菜单里改。
     // 子代理会话自己没有分组，工作区来自父会话的文件夹，那个文件夹可能属于别的助手、这里查不到名字，
@@ -228,10 +226,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             else -> null
         }
     }
-    LaunchedEffect(selectedFolderId) {
-        vm.updateDraftFolder(selectedFolderId)
-    }
-
     // 竖屏的侧边栏：自己画的滑入抽屉（见 SlideOverDrawer），不用 Material 那个会回弹的弹簧
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     val drawerSlideSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
@@ -579,6 +573,7 @@ private fun ChatPageContent(
     val previewListState = rememberLazyListState()
     val selectionState = rememberChatSelectionState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
     // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -945,6 +940,7 @@ private fun ChatPageContent(
                         onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
                         onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
                         onSelectFolder = vm::updateFolder,
+                        onCreateFolder = { showCreateFolderDialog = true },
                         onShowOverview = {
                             selectionState.selecting = false
                             previewMode = true
@@ -1303,6 +1299,39 @@ private fun ChatPageContent(
             )
         }
 
+        if (showCreateFolderDialog) {
+            var folderName by remember { mutableStateOf("") }
+            AnimatedAlertDialog(
+                onDismissRequest = { showCreateFolderDialog = false },
+                title = { Text(stringResource(R.string.chat_page_create_folder)) },
+                text = {
+                    OutlinedTextField(
+                        value = folderName,
+                        onValueChange = { folderName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.chat_page_folder_name)) },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            vm.createFolder(folderName)
+                            showCreateFolderDialog = false
+                        },
+                        enabled = folderName.isNotBlank(),
+                    ) {
+                        Text(stringResource(R.string.chat_page_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateFolderDialog = false }) {
+                        Text(stringResource(R.string.chat_page_cancel))
+                    }
+                },
+            )
+        }
+
         RikkaConfirmDialog(
             show = showDeleteConfirm,
             title = stringResource(R.string.confirm_delete),
@@ -1529,6 +1558,7 @@ private fun TopBar(
     onShowTaskTree: () -> Unit,
     onShowModelPicker: () -> Unit,
     onSelectFolder: (Uuid?) -> Unit,
+    onCreateFolder: () -> Unit,
     onShowOverview: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
@@ -1558,6 +1588,7 @@ private fun TopBar(
                     folderId = folderId,
                     folders = folders,
                     onSelectFolder = onSelectFolder,
+                    onCreateFolder = onCreateFolder,
                     onShowModelPicker = onShowModelPicker,
                     hazeState = hazeState,
                     modifier = Modifier.padding(start = 2.dp),
@@ -1710,6 +1741,7 @@ private fun ChatModelFolderPill(
     folderId: Uuid?,
     folders: List<Folder>,
     onSelectFolder: (Uuid?) -> Unit,
+    onCreateFolder: () -> Unit,
     onShowModelPicker: () -> Unit,
     hazeState: HazeState,
     modifier: Modifier = Modifier,
@@ -1784,6 +1816,10 @@ private fun ChatModelFolderPill(
                     menuExpanded = false
                     onSelectFolder(selected)
                 },
+                onCreateFolder = {
+                    menuExpanded = false
+                    onCreateFolder()
+                },
             )
         }
 
@@ -1815,6 +1851,7 @@ private fun ChatFolderMenu(
     folders: List<Folder>,
     selectedFolderId: Uuid?,
     onSelect: (Uuid?) -> Unit,
+    onCreateFolder: () -> Unit,
 ) {
     DropdownMenu(
         expanded = expanded,
@@ -1845,6 +1882,12 @@ private fun ChatFolderMenu(
                 enabled = false,
             )
         }
+        HorizontalDivider()
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.chat_page_create_folder)) },
+            leadingIcon = { Icon(HugeIcons.FolderAdd, contentDescription = null) },
+            onClick = onCreateFolder,
+        )
     }
 }
 

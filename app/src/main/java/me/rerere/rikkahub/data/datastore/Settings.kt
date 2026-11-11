@@ -362,8 +362,6 @@ data class DisplaySetting(
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
     val conversationSortOrder: ConversationSortOrder = ConversationSortOrder.UPDATE_TIME,
-    // 侧边栏改为「文件夹 → 日期分组 → 会话」的竖向分组，不再用文件夹横条筛一份列表
-    val drawerVerticalSorting: Boolean = false,
     // 屏幕方向：竖屏 / 横屏 / 自动 / 跟随系统
     val displayMode: DisplayMode = DisplayMode.SYSTEM,
 )

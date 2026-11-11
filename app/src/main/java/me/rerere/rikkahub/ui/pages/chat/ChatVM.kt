@@ -242,11 +242,6 @@ class ChatVM(
         }
     }
 
-    // 新会话开始前归入抽屉里选中的文件夹
-    suspend fun updateDraftFolder(folderId: Uuid?) {
-        chatService.updateDraftConversationFolder(_conversationId, folderId)
-    }
-
     // 会话所在助手的文件夹，顶栏胶囊的选单用。文件夹属于助手，子代理会话或从别的助手打开的会话
     // 不能拿抽屉里当前助手的清单
     val folders: StateFlow<List<Folder>> = conversation
@@ -260,6 +255,16 @@ class ChatVM(
         if (conversation.value.folderId == folderId) return
         viewModelScope.launch {
             chatService.updateConversationFolder(_conversationId, folderId)
+        }
+    }
+
+    // 顶栏文件夹选单里新建文件夹，建好直接把当前会话放进去
+    fun createFolder(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            val folder = folderRepository.createFolder(conversation.value.assistantId, trimmed)
+            chatService.updateConversationFolder(_conversationId, folder.id)
         }
     }
 
