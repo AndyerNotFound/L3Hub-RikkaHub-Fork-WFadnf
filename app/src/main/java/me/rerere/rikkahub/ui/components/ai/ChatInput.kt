@@ -1175,6 +1175,7 @@ private fun QuickMessageButton(
     onSendAsGuidance: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val hapticFeedback = LocalHapticFeedback.current
     Box {
         Box(
             modifier = Modifier
