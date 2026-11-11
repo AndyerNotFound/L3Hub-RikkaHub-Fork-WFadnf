@@ -860,6 +860,21 @@ secret 没人读，已经从流程里去掉，仓库设置里可以一并删掉�
 - 正式版是 R8 全量混淆出来的，`proguard-rules.pro` 覆盖不到的反射装配（sshd、Koin、serialization 之类）
   只有装到真机才看得出来，发版前先自己装一遍跑核心功能
 
+## 会话详情：工具与提示词（2026-11-12）
+
+- 竖屏详情从顶栏下方展开改成浮层：挂在 `Scaffold` 内容层的 `Box` 里，不再占布局，
+  展开和收起都不会把聊天区推上推下
+- 浮层高度固定为可用屏幕高度的 75%（`DetailsPanelHeightFraction`），内容在面板内部滚动
+- 新增三块内容，数据来自 `ChatRequestFactory.createPreview`：
+  - 工具定义：`Tool.parameters()` 按 provider 相同的序列化方式转成 JSON，用 `JsonTree` 展开查看
+  - 工具说明：`Tool.description`，以及追加到系统提示词的 `Tool.systemPrompt`
+  - 当前提示词：按 `buildStep` 的同一套顺序拼系统提示词（用户提示词、计划模式、记忆、工具说明），
+    再套一遍 `PromptInjectionTransformer`，显示 `BEFORE/AFTER_SYSTEM_PROMPT` 注入后的结果
+- 原来的「提示注入」只显示数量，现在逐条列出模式注入与世界书条目的来源、位置和内容
+- 快照只在详情可见时计算：竖屏展开时算一次，横屏要选中右栏的「详情」标签才加载；
+  MCP 工具列表读内存里的设置，不会主动连服务器
+- 新字符串补了 `values` 与 `values-zh`，其余语言回退英文
+
 ## 和上游同步
 
 ```bash
@@ -959,7 +974,7 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
 | 子代理任务树 | `SubAgentTaskTree` | `SubAgentTaskSheet` |
 | 后台命令 | `BackgroundTasksContent` | `BackgroundTasksSheet` |
 | 模型列表 | `ModelListContent`（新增 `modifier`） | `ModelListSheet` |
-| 会话详情 | `ConversationDetailsPanel`（新增 `embedded`、`showHeader`） | 顶栏下方展开 |
+| 会话详情 | `ConversationDetailsPanel`（新增 `embedded`、`showHeader`） | 顶栏下方的浮层 |
 | 本轮改动 | `EditedFilesList` / `TurnChangesPane` | 消息下方那一行 |
 
 ### 没动的地方

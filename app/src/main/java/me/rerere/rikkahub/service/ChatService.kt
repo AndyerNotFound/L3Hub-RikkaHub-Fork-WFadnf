@@ -42,6 +42,7 @@ import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.ChatRequestFactory
+import me.rerere.rikkahub.data.ai.ChatRequestPreview
 import me.rerere.rikkahub.data.ai.ChatTurnContext
 import me.rerere.rikkahub.data.ai.ConversationMetaGenerator
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
@@ -404,6 +405,15 @@ class ChatService(
     suspend fun getConversation(conversationId: Uuid): Conversation? =
         sessionManager.get(conversationId)?.takeIf { it.isInitialized }?.state?.value
             ?: conversationRepo.getConversationById(conversationId)
+
+    /** 会话详情里展示的请求快照：工具、系统提示词和本轮注入，按当前设置重新解析一次 */
+    suspend fun buildRequestPreview(conversationId: Uuid): ChatRequestPreview =
+        withContext(Dispatchers.IO) {
+            val settings = settingsStore.awaitLoaded()
+            val conversation = getConversation(conversationId)
+                ?: error("Conversation not found: $conversationId")
+            requestFactory.createPreview(settings, conversation)
+        }
 
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> =
         sessionManager.getGenerationJobStateFlow(conversationId)

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -8,12 +10,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,6 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,11 +41,16 @@ import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.ChatRequestPreview
+import me.rerere.rikkahub.data.ai.ChatRequestPreviewInjection
+import me.rerere.rikkahub.data.ai.ChatRequestPreviewTool
 import me.rerere.rikkahub.data.ai.subagent.dispatchableSubAgents
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
@@ -45,16 +58,27 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.ExecutionPermission
+import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.ui.components.ai.label
+import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
+import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 
 private val DetailsPanelShape = RoundedCornerShape(22.dp)
-private val DetailsPanelMaxHeight = 340.dp
+private const val DetailsPanelHeightFraction = 0.75f
 private val DetailsLabelWidth = 52.dp
+
+/** 会话详情里新加的三块内容：工具定义、工具说明、当前提示词；由 ChatPage 按需加载 */
+internal sealed interface RequestPreviewUiState {
+    data object Idle : RequestPreviewUiState
+    data object Loading : RequestPreviewUiState
+    data class Ready(val preview: ChatRequestPreview) : RequestPreviewUiState
+    data class Failed(val message: String) : RequestPreviewUiState
+}
 
 /**
  * 顶栏下方展开的会话详情：当前会话固定下来的模型与推理等级、
@@ -71,7 +95,7 @@ internal fun ConversationDetailsPanel(
     folderWorkspaceName: String?,
     contextTokens: Int?,
     messageCount: Int,
-    lorebookInjectionCount: Int,
+    previewState: RequestPreviewUiState,
     hazeState: HazeState,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
@@ -81,8 +105,8 @@ internal fun ConversationDetailsPanel(
     // 右栏的标签条已经写着标题，内容里不再重复一行（关闭也在标签上的 ×）
     showHeader: Boolean = true,
 ) {
-    // 面板最多占半屏，超出的部分在面板内部滚动，不去挤聊天列表
-    val maxHeight = minOf(DetailsPanelMaxHeight, LocalConfiguration.current.screenHeightDp.dp * 0.4f)
+    // 竖屏浮层固定占全屏高度的 75%，内容在面板内部滚动，不再挤压聊天区
+    val panelHeight = LocalConfiguration.current.screenHeightDp.dp * DetailsPanelHeightFraction
     val boundWorkspaces = boundWorkspacesOf(workspaces, assistant)
     // 只剩真正会注册工具的服务器：全部工具被关掉的服务器在 McpManager 里不会产出任何工具
     val mcpServers = settings.mcpServers
@@ -119,6 +143,7 @@ internal fun ConversationDetailsPanel(
     } else {
         contextTokens?.formatNumber() ?: "—"
     }
+    val previewInjections = (previewState as? RequestPreviewUiState.Ready)?.preview?.injections
 
     Surface(
         modifier = if (embedded) {
@@ -127,14 +152,14 @@ internal fun ConversationDetailsPanel(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                // 面板只是把顶栏下面的内容往下推，底下没有正文，浓度基本交给「玻璃透明度」；
-                // 留 0.5 的下限是因为这里全是小字，压在彩色背景上再透就看不清了
+                // 浮层现在压在聊天内容上，聊天正文不在 haze 源里，太透会和面板小字糊在一起；
+                // 下限提到 0.88，和选字浮层一致，留一点玻璃质感但保证正文读得清
                 .glassSurface(
                     shape = DetailsPanelShape,
                     baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     hazeState = hazeState,
                     radius = 16.dp,
-                    minAlpha = 0.5f,
+                    minAlpha = 0.88f,
                 )
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,
@@ -146,7 +171,7 @@ internal fun ConversationDetailsPanel(
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
-            modifier = (if (embedded) Modifier.fillMaxSize() else Modifier.heightIn(max = maxHeight))
+            modifier = (if (embedded) Modifier.fillMaxSize() else Modifier.height(panelHeight))
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -205,11 +230,7 @@ internal fun ConversationDetailsPanel(
 
             DetailsSection(title = stringResource(R.string.chat_page_details_tools)) {
                 if (toolTags.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.chat_page_details_no_tools),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    PlaceholderText(stringResource(R.string.chat_page_details_no_tools))
                 } else {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -221,16 +242,35 @@ internal fun ConversationDetailsPanel(
                 }
             }
 
+            RequestPreviewSections(previewState)
+
+            if (previewInjections != null &&
+                (previewInjections.isNotEmpty() ||
+                    assistant.modeInjectionIds.isNotEmpty() ||
+                    assistant.lorebookIds.isNotEmpty())
+            ) {
+                DetailsSection(
+                    title = stringResource(R.string.chat_page_details_injection),
+                    trailing = previewInjections.size.takeIf { it > 0 }?.toString(),
+                ) {
+                    if (previewInjections.isEmpty()) {
+                        PlaceholderText(stringResource(R.string.chat_page_details_injection_empty))
+                    } else {
+                        previewInjections.forEach { injection ->
+                            key(injection.name, injection.position, injection.content) {
+                                InjectionRow(injection)
+                            }
+                        }
+                    }
+                }
+            }
+
             DetailsSection(
                 title = stringResource(R.string.chat_page_details_workspaces),
                 trailing = boundWorkspaces.size.takeIf { it > 0 }?.toString(),
             ) {
                 if (boundWorkspaces.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.chat_page_details_no_workspace),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    PlaceholderText(stringResource(R.string.chat_page_details_no_workspace))
                 } else {
                     boundWorkspaces.forEach { workspace ->
                         WorkspaceLine(workspace = workspace)
@@ -248,23 +288,226 @@ internal fun ConversationDetailsPanel(
                     )
                 }
             }
+        }
+    }
+}
 
-            if (assistant.modeInjectionIds.isNotEmpty() || assistant.lorebookIds.isNotEmpty() || lorebookInjectionCount > 0) {
-                DetailsSection(title = stringResource(R.string.chat_page_details_injection)) {
-                    Text(
-                        text = stringResource(
-                            R.string.chat_page_details_injection_value,
-                            assistant.modeInjectionIds.size,
-                            assistant.lorebookIds.size,
-                            lorebookInjectionCount,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+/** 工具定义 / 工具说明 / 当前提示词三块；加载失败时只报一次，不重复三遍 */
+@Composable
+private fun RequestPreviewSections(state: RequestPreviewUiState) {
+    when (state) {
+        RequestPreviewUiState.Idle,
+        RequestPreviewUiState.Loading -> DetailsSection(
+            title = stringResource(R.string.chat_page_details_tool_definitions),
+        ) {
+            PlaceholderText(stringResource(R.string.chat_page_details_preview_loading))
+        }
+
+        is RequestPreviewUiState.Failed -> DetailsSection(
+            title = stringResource(R.string.chat_page_details_tool_definitions),
+        ) {
+            PlaceholderText(
+                stringResource(R.string.chat_page_details_preview_failed, state.message),
+            )
+        }
+
+        is RequestPreviewUiState.Ready -> {
+            val preview = state.preview
+            DetailsSection(
+                title = stringResource(R.string.chat_page_details_tool_definitions),
+                trailing = preview.tools.size.takeIf { it > 0 }?.toString(),
+            ) {
+                if (preview.tools.isEmpty()) {
+                    PlaceholderText(stringResource(R.string.chat_page_details_tool_definitions_empty))
+                } else {
+                    preview.tools.forEach { tool ->
+                        key(tool.name) { ToolDefinitionRow(tool) }
+                    }
+                }
+            }
+
+            DetailsSection(
+                title = stringResource(R.string.chat_page_details_tool_description),
+                trailing = preview.tools.size.takeIf { it > 0 }?.toString(),
+            ) {
+                if (preview.tools.isEmpty()) {
+                    PlaceholderText(stringResource(R.string.chat_page_details_tool_description_empty))
+                } else {
+                    preview.tools.forEach { tool ->
+                        key(tool.name) { ToolDescriptionRow(tool) }
+                    }
+                }
+            }
+
+            DetailsSection(
+                title = stringResource(R.string.chat_page_details_prompt),
+                trailing = preview.systemPrompt.length
+                    .takeIf { it > 0 }
+                    ?.let { stringResource(R.string.chat_page_details_prompt_length, it.formatNumber()) },
+            ) {
+                if (preview.systemPrompt.isBlank()) {
+                    PlaceholderText(stringResource(R.string.chat_page_details_prompt_empty))
+                } else {
+                    SelectionContainer {
+                        Text(
+                            text = preview.systemPrompt,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = JetBrainsMono,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolDefinitionRow(tool: ChatRequestPreviewTool) {
+    var expanded by rememberSaveable(tool.name) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        ExpandRowHeader(
+            expanded = expanded,
+            title = tool.name,
+            onClick = { expanded = !expanded },
+        )
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.padding(start = 20.dp, top = 2.dp)) {
+                val parameters = tool.parameters
+                if (parameters == null) {
+                    PlaceholderText(stringResource(R.string.chat_page_details_tool_no_parameters))
+                } else {
+                    JsonTree(
+                        json = parameters,
+                        initialExpandLevel = 2,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ToolDescriptionRow(tool: ChatRequestPreviewTool) {
+    var expanded by rememberSaveable(tool.name) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        ExpandRowHeader(
+            expanded = expanded,
+            title = tool.name,
+            onClick = { expanded = !expanded },
+        )
+        Text(
+            text = tool.description.ifBlank {
+                stringResource(R.string.chat_page_details_tool_no_description)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = if (expanded) Int.MAX_VALUE else 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 20.dp),
+        )
+        AnimatedVisibility(visible = expanded && tool.instructions.isNotBlank()) {
+            Column(
+                modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_page_details_tool_instructions),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = tool.instructions,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = JetBrainsMono,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InjectionRow(injection: ChatRequestPreviewInjection) {
+    var expanded by rememberSaveable(injection.name, injection.position, injection.content) {
+        mutableStateOf(false)
+    }
+    val source = stringResource(
+        if (injection.isLorebook) {
+            R.string.chat_page_details_injection_source_lorebook
+        } else {
+            R.string.chat_page_details_injection_source_mode
+        }
+    )
+    val position = injection.position.displayLabel(injection.depth)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        ExpandRowHeader(
+            expanded = expanded,
+            title = injection.name.ifBlank {
+                stringResource(R.string.chat_page_details_injection_untitled)
+            },
+            trailing = "$source · $position",
+            onClick = { expanded = !expanded },
+        )
+        AnimatedVisibility(visible = expanded) {
+            Text(
+                text = injection.content.ifBlank { "—" },
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = JetBrainsMono,
+                modifier = Modifier.padding(start = 20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandRowHeader(
+    expanded: Boolean,
+    title: String,
+    onClick: () -> Unit,
+    trailing: String? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (expanded) HugeIcons.ArrowDown01 else HugeIcons.ArrowRight01,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontFamily = JetBrainsMono,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InjectionPosition.displayLabel(depth: Int): String = when (this) {
+    InjectionPosition.BEFORE_SYSTEM_PROMPT ->
+        stringResource(R.string.chat_page_details_injection_position_before_system)
+    InjectionPosition.AFTER_SYSTEM_PROMPT -> stringResource(R.string.chat_page_details_injection_position_after_system)
+    InjectionPosition.TOP_OF_CHAT -> stringResource(R.string.chat_page_details_injection_position_top_of_chat)
+    InjectionPosition.BOTTOM_OF_CHAT -> stringResource(R.string.chat_page_details_injection_position_bottom_of_chat)
+    InjectionPosition.AT_DEPTH -> stringResource(R.string.chat_page_details_injection_position_at_depth, depth)
 }
 
 /** 工作区列表按助手绑定的顺序给出，主工作区排在最前。 */
@@ -469,4 +712,13 @@ private fun ToolTag(text: String) {
             maxLines = 1,
         )
     }
+}
+
+@Composable
+private fun PlaceholderText(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

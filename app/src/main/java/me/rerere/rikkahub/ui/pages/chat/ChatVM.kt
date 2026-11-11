@@ -30,6 +30,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.ChatRequestPreview
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
@@ -440,6 +441,10 @@ class ChatVM(
             chatService.updateConversationSystemPrompt(_conversationId, systemPrompt)
         }
     }
+
+    /** 会话详情打开时读一次模型视角的请求快照；工具和 MCP 列表可能要等一会儿，由 ChatService 放到 IO 线程 */
+    suspend fun buildRequestPreview(): ChatRequestPreview =
+        chatService.buildRequestPreview(_conversationId)
 
     fun updateWorkspaceCwd(workspaceId: Uuid, workspaceCwd: String?) {
         viewModelScope.launch {

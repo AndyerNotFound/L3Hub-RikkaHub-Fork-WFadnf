@@ -6,11 +6,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.json.Json
 import me.rerere.ai.agent.AgentHooks
 import me.rerere.ai.agent.AgentRequest
 import me.rerere.ai.agent.StepRequest
 import me.rerere.ai.agent.expandNotices
 import me.rerere.ai.agent.withRetry
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
@@ -41,6 +43,7 @@ import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.TodoStateTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
+import me.rerere.rikkahub.data.ai.transformers.collectInjections
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transformThinkTags
 import me.rerere.rikkahub.data.ai.transformers.transforms
@@ -48,9 +51,10 @@ import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MemoryFile
+import me.rerere.rikkahub.data.model.PromptInjection
+import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.estimateMessageTokens
 import me.rerere.rikkahub.data.model.estimateTokens
@@ -99,6 +103,8 @@ class ChatRequestFactory(
     templateTransformer: TemplateTransformer,
     workspaceRepository: WorkspaceRepository,
 ) {
+    private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
+
     private val inputTransformers: List<InputMessageTransformer> = listOf(
         TimeReminderTransformer,
         PromptInjectionTransformer,
@@ -106,7 +112,7 @@ class ChatRequestFactory(
         DocumentAsPromptTransformer,
         OcrTransformer,
         templateTransformer,
-        WorkspaceReminderTransformer(workspaceRepository),
+        workspaceReminderTransformer,
         // 放在最后: 其它转换器可能插入消息, 清单要贴着最后一条真实 user 消息
         TodoStateTransformer,
     )
@@ -153,6 +159,71 @@ class ChatRequestFactory(
                 // 子代理会话是自己跑完的，没有人给它点审批
                 autoApproveTools = conversation.parentConversationId != null,
             ),
+        )
+    }
+
+    /**
+     * 会话详情用的请求快照：按当前配置重新解析工具和系统提示词，再把提示注入应用一遍。
+     *
+     * 只读操作，不会注册到会话状态里；MCP 工具列表这类需要等待的数据都由 suspend 接口给出。
+     */
+    suspend fun createPreview(settings: Settings, conversation: Conversation): ChatRequestPreview {
+        val turn = createContext(settings, conversation)
+        val messages = conversation.currentMessages
+        val baseSystemPrompt = buildSystemPrompt(turn = turn, messages = messages)
+        val baseSystemMessage = if (baseSystemPrompt.isBlank()) {
+            emptyList()
+        } else {
+            listOf(UIMessage.system(prompt = baseSystemPrompt).copy(isSynthetic = true))
+        }
+        // 注入要按实际请求的上下文范围匹配：buildStep 先做 limitContext，再跑输入转换器
+        val contextMessages = messages
+            .limitContext(turn.assistant.contextMessageLimit)
+            .withContinuationHint()
+        // 只跑会改系统提示词的那几个转换器，顺序和 inputTransformers 一致；OCR、文档解析会调模型，不在这里跑。
+        // 模板转换器会跳过合成消息，时间提醒和清单只往对话尾部加消息，系统提示词不受它们影响
+        val systemPrompt = (baseSystemMessage + contextMessages).transforms(
+            transformers = listOf(
+                PromptInjectionTransformer,
+                PlaceholderTransformer,
+                workspaceReminderTransformer,
+            ),
+            context = context,
+            model = turn.model,
+            assistant = turn.assistant,
+            settings = settings,
+            workspaceCwds = turn.workspaceCwds,
+        ).firstOrNull { it.role == MessageRole.SYSTEM }
+            ?.parts
+            ?.filterIsInstance<UIMessagePart.Text>()
+            ?.joinToString("") { it.text }
+            .orEmpty()
+        return ChatRequestPreview(
+            systemPrompt = systemPrompt,
+            tools = turn.tools.map { tool ->
+                ChatRequestPreviewTool(
+                    name = tool.name,
+                    description = tool.description,
+                    parameters = tool.parameters()?.let { schema ->
+                        requestPreviewJson.encodeToJsonElement(InputSchema.serializer(), schema)
+                    },
+                    instructions = tool.systemPrompt(turn.model, messages).trim(),
+                )
+            },
+            injections = collectInjections(
+                messages = contextMessages,
+                assistant = turn.assistant,
+                modeInjections = settings.modeInjections,
+                lorebooks = settings.lorebooks,
+            ).map { injection ->
+                ChatRequestPreviewInjection(
+                    name = injection.name,
+                    isLorebook = injection is PromptInjection.RegexInjection,
+                    position = injection.position,
+                    depth = injection.injectDepth,
+                    content = injection.content,
+                )
+            },
         )
     }
 
@@ -340,37 +411,7 @@ class ChatRequestFactory(
         val assistant = turn.assistant
         val tools = if (includeTools) turn.tools else emptyList()
         val baseMessages = buildList {
-            val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !turn.conversationSystemPrompt.isNullOrBlank()) {
-                        turn.conversationSystemPrompt
-                    } else {
-                        assistant.systemPrompt
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
-                    append(effectiveSystemPrompt)
-                }
-
-                // 计划模式：只读探索，先把方案讲清楚
-                if (assistant.planMode) {
-                    appendLine()
-                    append(
-                        "## Plan mode\n" +
-                            "Only read-only tools are available. File writes, git changes, test runs and non-read shell commands are rejected.\n" +
-                            "Explore the workspace, then present a concrete plan and ask the user to turn plan mode off before making changes."
-                    )
-                }
-                // 记忆
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(turn.memories, canWrite = assistant.enableMemoryWrite))
-                }
-                // 工具prompt
-                tools.forEach { tool ->
-                    appendLine()
-                    append(tool.systemPrompt(turn.model, messages))
-                }
-            }
+            val system = buildSystemPrompt(turn = turn, messages = messages, tools = tools)
             if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
@@ -431,6 +472,51 @@ class ChatRequestFactory(
         )
         return StepRequest(requestMessages, params)
     }
+}
+
+/** 系统提示词按固定顺序拼：用户提示词、计划模式、记忆、工具说明，顺序变了提示词缓存就失效 */
+private fun buildSystemPrompt(
+    turn: ChatTurnContext,
+    messages: List<UIMessage>,
+    tools: List<Tool> = turn.tools,
+): String {
+    val assistant = turn.assistant
+    return buildString {
+        val effectiveSystemPrompt =
+            if (assistant.allowConversationSystemPrompt && !turn.conversationSystemPrompt.isNullOrBlank()) {
+                turn.conversationSystemPrompt
+            } else {
+                assistant.systemPrompt
+            }
+        if (effectiveSystemPrompt.isNotBlank()) {
+            append(effectiveSystemPrompt)
+        }
+
+        // 计划模式：只读探索，先把方案讲清楚
+        if (assistant.planMode) {
+            appendLine()
+            append(
+                "## Plan mode\n" +
+                    "Only read-only tools are available. File writes, git changes, test runs and non-read shell commands are rejected.\n" +
+                    "Explore the workspace, then present a concrete plan and ask the user to turn plan mode off before making changes."
+            )
+        }
+        // 记忆
+        if (assistant.enableMemory) {
+            appendLine()
+            append(buildMemoryPrompt(turn.memories, canWrite = assistant.enableMemoryWrite))
+        }
+        // 工具prompt
+        tools.forEach { tool ->
+            appendLine()
+            append(tool.systemPrompt(turn.model, messages))
+        }
+    }
+}
+
+private val requestPreviewJson = Json {
+    encodeDefaults = true
+    explicitNulls = false
 }
 
 private const val CONTINUATION_HINT =

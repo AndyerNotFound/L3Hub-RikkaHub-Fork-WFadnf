@@ -93,6 +93,7 @@ import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -597,6 +598,36 @@ private fun ChatPageContent(
         selectedPaneName?.let { name -> openPanes.firstOrNull { it.name == name } }
     }
 
+    // 会话详情展开时才解析一次请求快照：工具、系统提示词和本轮注入都按当前配置重新算
+    val detailsPanelVisible =
+        (showDetails && !threePane) || (threePane && selectedPane == ChatSidePane.Details)
+    val requestPreviewState by produceState(
+        RequestPreviewUiState.Idle,
+        detailsPanelVisible,
+        assistant,
+        currentChatModel,
+        conversation.customSystemPrompt,
+        conversation.messageNodes.size,
+        conversation.workspaceCwds,
+        setting.modeInjections,
+        setting.lorebooks,
+        setting.mcpServers,
+        setting.assistants,
+    ) {
+        if (!detailsPanelVisible) {
+            value = RequestPreviewUiState.Idle
+            return@produceState
+        }
+        value = RequestPreviewUiState.Loading
+        value = try {
+            RequestPreviewUiState.Ready(vm.buildRequestPreview())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            RequestPreviewUiState.Failed(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     // 对标签的操作一律直接读状态，不读这一帧的 openPanes：连点两下时后者还是旧值
     fun openTab(pane: ChatSidePane) {
         if (openPaneNames.none { it == pane.name }) {
@@ -921,33 +952,6 @@ private fun ChatPageContent(
                         detailsExpanded = showDetails,
                         onToggleDetails = { toggleDetailsPane() },
                     )
-
-                    // 详情面板从顶栏下方展开：高度动画带着聊天内容一起让位，收起时再退回
-                    AnimatedVisibility(
-                        visible = showDetails && !threePane,
-                        enter = expandVertically(
-                            expandFrom = Alignment.Top,
-                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                        ) + fadeIn(),
-                        exit = shrinkVertically(
-                            shrinkTowards = Alignment.Top,
-                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                        ) + fadeOut(),
-                    ) {
-                        ConversationDetailsPanel(
-                            assistant = assistant,
-                            model = currentChatModel,
-                            settings = setting,
-                            workspaces = workspaces,
-                            folderWorkspaceName = folderWorkspaceName,
-                            contextTokens = contextTokens,
-                            messageCount = currentMessages.size,
-                            lorebookInjectionCount = lorebookInjectionCount,
-                            hazeState = backgroundHazeState,
-                            onCollapse = { showDetails = false },
-                            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
-                        )
-                    }
                 }
             },
             bottomBar = {
@@ -957,103 +961,135 @@ private fun ChatPageContent(
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
-            if (currentMessages.isEmpty()) {
-                EmptyChatContent(
-                    innerPadding = innerPadding,
-                    assistant = assistant,
-                    slogan = setting.displaySetting.emptyChatSlogan,
-                    hazeState = backgroundHazeState,
-                    input = {
-                        ChatInputContent(
-                            todos = conversation.todos,
-                            modifier = Modifier.fillMaxWidth(),
-                            applyWindowInsets = false,
-                        )
-                    },
-                )
-            } else {
-                // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
-                val deleteMessage: (UIMessage) -> Unit = { message ->
-                    if (loadingJob != null) {
-                        vm.showDeleteBlockedWhileGeneratingError()
-                    } else {
-                        vm.deleteMessage(message)
-                    }
-                }
-                ChatList(
-                    innerPadding = innerPadding,
-                    conversation = conversation,
-                    state = chatListState,
-                    previewListState = previewListState,
-                    selectionState = selectionState,
-                    loading = loadingJob != null,
-                    compressing = sessionActivity == SessionActivity.Compressing,
-                    onCreateNewChat = onCreateNewChat,
-                    processingStatus = processingStatus,
-                    previewMode = previewMode,
-                    onPreviewModeChange = { previewMode = it },
-                    settings = setting,
-                    bubbleHazeState = backgroundHazeState,
-                    errors = errors,
-                    onDismissError = onDismissError,
-                    onClearAllErrors = onClearAllErrors,
-                    onRegenerate = {
-                        vm.regenerateAtMessage(it)
-                    },
-                    onEdit = {
-                        inputState.editingMessage = it.id
-                        inputState.setContents(it.parts)
-                    },
-                    onEditSubAgentNotice = { message, text ->
-                        // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
-                        vm.handleMessageEdit(
-                            parts = listOf(UIMessagePart.Text(text)),
-                            messageId = message.id,
-                        )
-                    },
-                    onForkMessage = {
-                        scope.launch {
-                            val fork = vm.forkMessage(message = it)
-                            navigateToChatPage(navController, chatId = fork.id)
-                        }
-                    },
-                    onDelete = deleteMessage,
-                    onDeleteSubAgentNotice = deleteMessage,
-                    onUpdateMessage = { newNode ->
-                        vm.selectMessageNode(newNode.id, newNode.selectIndex)
-                    },
-                    onClickSuggestion = { suggestion ->
-                        inputState.editingMessage = null
-                        inputState.setMessageText(suggestion)
-                    },
-                    onTranslate = { message, locale ->
-                        vm.translateMessage(message, locale)
-                    },
-                    onClearTranslation = { message ->
-                        vm.clearTranslationField(message.id)
-                    },
-                    onJumpToMessage = { index ->
-                        previewMode = false
-                        scope.launch {
-                            // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
-                            // 现在算距离用的是预览页那份还没挂上的布局
-                            chatListState.requestScrollToItem(index)
-                        }
-                    },
-                    onToolApproval = { toolCallId, approved, reason ->
-                        vm.handleToolApproval(toolCallId, approved, reason)
-                    },
-                    onToolAnswer = { toolCallId, answer ->
-                        vm.handleToolAnswer(toolCallId, answer)
-                    },
-                    onToggleFavorite = { node ->
-                        vm.toggleMessageFavorite(node)
-                    },
-                    onConversationSystemPromptChange = { newPrompt ->
-                        vm.updateConversationSystemPrompt(newPrompt)
-                    },
-                    emptyHero = null,
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (currentMessages.isEmpty()) {
+                    EmptyChatContent(
+                        innerPadding = innerPadding,
+                        assistant = assistant,
+                        slogan = setting.displaySetting.emptyChatSlogan,
+                        hazeState = backgroundHazeState,
+                        input = {
+                            ChatInputContent(
+                                todos = conversation.todos,
+                                modifier = Modifier.fillMaxWidth(),
+                                applyWindowInsets = false,
+                            )
+                        },
                     )
+                } else {
+                    // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
+                    val deleteMessage: (UIMessage) -> Unit = { message ->
+                        if (loadingJob != null) {
+                            vm.showDeleteBlockedWhileGeneratingError()
+                        } else {
+                            vm.deleteMessage(message)
+                        }
+                    }
+                    ChatList(
+                        innerPadding = innerPadding,
+                        conversation = conversation,
+                        state = chatListState,
+                        previewListState = previewListState,
+                        selectionState = selectionState,
+                        loading = loadingJob != null,
+                        compressing = sessionActivity == SessionActivity.Compressing,
+                        onCreateNewChat = onCreateNewChat,
+                        processingStatus = processingStatus,
+                        previewMode = previewMode,
+                        onPreviewModeChange = { previewMode = it },
+                        settings = setting,
+                        bubbleHazeState = backgroundHazeState,
+                        errors = errors,
+                        onDismissError = onDismissError,
+                        onClearAllErrors = onClearAllErrors,
+                        onRegenerate = {
+                            vm.regenerateAtMessage(it)
+                        },
+                        onEdit = {
+                            inputState.editingMessage = it.id
+                            inputState.setContents(it.parts)
+                        },
+                        onEditSubAgentNotice = { message, text ->
+                            // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
+                            vm.handleMessageEdit(
+                                parts = listOf(UIMessagePart.Text(text)),
+                                messageId = message.id,
+                            )
+                        },
+                        onForkMessage = {
+                            scope.launch {
+                                val fork = vm.forkMessage(message = it)
+                                navigateToChatPage(navController, chatId = fork.id)
+                            }
+                        },
+                        onDelete = deleteMessage,
+                        onDeleteSubAgentNotice = deleteMessage,
+                        onUpdateMessage = { newNode ->
+                            vm.selectMessageNode(newNode.id, newNode.selectIndex)
+                        },
+                        onClickSuggestion = { suggestion ->
+                            inputState.editingMessage = null
+                            inputState.setMessageText(suggestion)
+                        },
+                        onTranslate = { message, locale ->
+                            vm.translateMessage(message, locale)
+                        },
+                        onClearTranslation = { message ->
+                            vm.clearTranslationField(message.id)
+                        },
+                        onJumpToMessage = { index ->
+                            previewMode = false
+                            scope.launch {
+                                // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
+                                // 现在算距离用的是预览页那份还没挂上的布局
+                                chatListState.requestScrollToItem(index)
+                            }
+                        },
+                        onToolApproval = { toolCallId, approved, reason ->
+                            vm.handleToolApproval(toolCallId, approved, reason)
+                        },
+                        onToolAnswer = { toolCallId, answer ->
+                            vm.handleToolAnswer(toolCallId, answer)
+                        },
+                        onToggleFavorite = { node ->
+                            vm.toggleMessageFavorite(node)
+                        },
+                        onConversationSystemPromptChange = { newPrompt ->
+                            vm.updateConversationSystemPrompt(newPrompt)
+                        },
+                        emptyHero = null,
+                        )
+                }
+                // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区
+                AnimatedVisibility(
+                    visible = showDetails && !threePane,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = innerPadding.calculateTopPadding())
+                        .fillMaxWidth(),
+                    enter = expandVertically(
+                        expandFrom = Alignment.Top,
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    ) + fadeIn(),
+                    exit = shrinkVertically(
+                        shrinkTowards = Alignment.Top,
+                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                    ) + fadeOut(),
+                ) {
+                    ConversationDetailsPanel(
+                        assistant = assistant,
+                        model = currentChatModel,
+                        settings = setting,
+                        workspaces = workspaces,
+                        folderWorkspaceName = folderWorkspaceName,
+                        contextTokens = contextTokens,
+                        messageCount = currentMessages.size,
+                        previewState = requestPreviewState,
+                        hazeState = backgroundHazeState,
+                        onCollapse = { showDetails = false },
+                        modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                    )
+                }
             }
         }
 
@@ -1084,7 +1120,7 @@ private fun ChatPageContent(
                         folderWorkspaceName = folderWorkspaceName,
                         contextTokens = contextTokens,
                         messageCount = currentMessages.size,
-                        lorebookInjectionCount = lorebookInjectionCount,
+                        previewState = requestPreviewState,
                         hazeState = backgroundHazeState,
                         onCollapse = { closePane() },
                         embedded = true,
