@@ -988,9 +988,6 @@
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">Configure MCP Servers</string>
   <string name="setting_page_message_display_settings">Message Display</string>
-  <string name="setting_page_sidebar_settings">Sidebar</string>
-  <string name="setting_display_page_drawer_vertical_title">Vertical sorting</string>
-  <string name="setting_display_page_drawer_vertical_desc">Arrange the sidebar by folder, then date, then chat.</string>
   <string name="setting_page_model_and_services">Models &amp; Services</string>
   <string name="setting_page_more">More</string>
   <string name="setting_page_no_share_app">No sharing app found</string>
@@ -1650,7 +1647,6 @@
   <string name="chat_page_folder_unfiled">Unfiled</string>
   <string name="chat_page_folder_pill">Conversation folder</string>
   <string name="chat_page_folder_empty">No folders yet</string>
-  <string name="chat_page_folder_add">New</string>
   <string name="chat_page_delete_folder_confirm">Delete folder "%1$s"? Conversations inside will not be deleted, only removed from the folder.</string>
   <string name="chat_page_folder_bind_workspace">Bind Workspace</string>
   <string name="chat_page_folder_workspace_hint">Conversations in this folder use these workspaces. Each conversation keeps its own binding, so it goes back to that after leaving the folder.</string>
@@ -1929,7 +1925,6 @@
   <string name="chat_page_sort_conversations">Sort chats</string>
   <string name="chat_page_sort_by_update_time">By last updated</string>
   <string name="chat_page_sort_by_create_time">By date created</string>
-  <string name="chat_page_folder_options">Folder options</string>
   <string name="memory_dreaming">Dreaming…</string>
   <string name="memory_dream_title">Dreaming</string>
   <string name="memory_dream_notification_text">Turning your chats into memories</string>

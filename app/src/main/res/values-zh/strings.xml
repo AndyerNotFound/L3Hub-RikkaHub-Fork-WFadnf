@@ -947,9 +947,6 @@
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">配置MCP服务器</string>
   <string name="setting_page_message_display_settings">消息显示</string>
-  <string name="setting_page_sidebar_settings">侧边栏</string>
-  <string name="setting_display_page_drawer_vertical_title">竖向排序</string>
-  <string name="setting_display_page_drawer_vertical_desc">按文件夹、日期分组、会话自上而下整理。</string>
   <string name="setting_page_model_and_services">模型与服务</string>
   <string name="setting_page_more">更多</string>
   <string name="setting_page_no_share_app">找不到分享应用</string>
@@ -1621,7 +1618,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_folder_unfiled">未归类</string>
   <string name="chat_page_folder_pill">会话文件夹</string>
   <string name="chat_page_folder_empty">暂无文件夹</string>
-  <string name="chat_page_folder_add">新建</string>
   <string name="chat_page_delete_folder_confirm">删除文件夹 "%1$s"？其中的对话不会被删除，只会从文件夹中移除。</string>
   <string name="chat_page_folder_bind_workspace">绑定工作区</string>
   <string name="chat_page_folder_workspace_hint">这个文件夹里的会话都用这组工作区；会话自己的绑定保持原样，移出文件夹就回到它。</string>
@@ -1923,7 +1919,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_sort_conversations">排序方式</string>
   <string name="chat_page_sort_by_update_time">按更新时间</string>
   <string name="chat_page_sort_by_create_time">按创建时间</string>
-  <string name="chat_page_folder_options">文件夹选项</string>
   <string name="memory_dreaming">做梦中…</string>
   <string name="assistant_page_memory_updated_at">更新于 %s</string>
   <string name="assistant_page_memory_section_you">你</string>
