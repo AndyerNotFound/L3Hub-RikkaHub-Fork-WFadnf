@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -1651,38 +1652,14 @@ private fun TopBar(
             }
         },
         actions = {
-            val pillShape = if (LocalFullWidthComponents.current) {
-                RoundedCornerShape(0.dp)
-            } else {
-                RoundedCornerShape(50)
-            }
-            val pillColor = MaterialTheme.colorScheme.surfaceContainerLow
             Row(
                 modifier = Modifier.padding(end = adaptiveHorizontalPaddingValue(8.dp)),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier
-                        .appButtonShadow(pillShape, 2.dp)
-                        .clip(pillShape)
-                        .background(effectColor(pillColor))
-                        .chatInputHaze(
-                            hazeState = hazeState,
-                            displaySetting = settings.displaySetting,
-                            containerColor = pillColor,
-                            shape = pillShape,
-                        )
-                        .then(
-                            if (effectBorder != null) {
-                                Modifier.border(effectBorder, pillShape)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .padding(horizontal = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                // 和左侧的会话胶囊共用同一个容器，入口之间同样用一条细线隔开，
+                // 顶栏两头的胶囊才是同一套东西
+                TopBarPill(settings = settings, hazeState = hazeState) {
                     // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
                     if (!threePane) {
                         IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
@@ -1699,6 +1676,8 @@ private fun TopBar(
                             )
                         }
 
+                        TopBarPillDivider()
+
                         IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
                             Icon(
                                 HugeIcons.Flowchart01,
@@ -1706,11 +1685,15 @@ private fun TopBar(
                                 modifier = Modifier.size(TopBarButtonIconSize),
                             )
                         }
+
+                        TopBarPillDivider()
                     }
 
                     IconButton(onClick = { onNewChat() }, modifier = Modifier.size(TopBarButtonSize)) {
                         Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(TopBarButtonIconSize))
                     }
+
+                    TopBarPillDivider()
 
                     ChatPageMenu(
                         enabled = hasMessages,
@@ -1718,10 +1701,74 @@ private fun TopBar(
                         onExport = onExport,
                         onDelete = onDelete,
                     )
-
                 }
             }
         },
+    )
+}
+
+
+/**
+ * 顶栏两侧共用的胶囊容器：同高、同圆角、同投影，模糊与描边也只有这一份实现。
+ *
+ * 里面的入口各自点击，段与段之间用 [TopBarPillDivider] 隔开。
+ * 关闭背景特效时容器自己铺实色，开着时着色交给 chatInputHaze。
+ */
+@Composable
+private fun TopBarPill(
+    settings: Settings,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val effect = settings.displaySetting.effectiveBackgroundEffect
+    val shape = if (LocalFullWidthComponents.current) {
+        RoundedCornerShape(0.dp)
+    } else {
+        RoundedCornerShape(50)
+    }
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+
+    Row(
+        modifier = modifier
+            .height(TopBarButtonSize)
+            .appButtonShadow(shape, 2.dp)
+            .clip(shape)
+            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
+            .chatInputHaze(
+                hazeState = hazeState,
+                displaySetting = settings.displaySetting,
+                containerColor = containerColor,
+                shape = shape,
+            )
+            // 描边画在模糊层之后，否则会被糊掉
+            .then(
+                if (effect == BackgroundEffectType.BLUR) {
+                    Modifier.border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        shape,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 入口按 45dp 铺满胶囊，不被 M3 的最小触控尺寸撑大，左右两侧才同高
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            content()
+        }
+    }
+}
+
+/** 胶囊里两个入口之间的细线：只切中间一段，胶囊还是一整块。 */
+@Composable
+private fun TopBarPillDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(18.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
     )
 }
 
@@ -1746,43 +1793,13 @@ private fun ChatModelFolderPill(
     hazeState: HazeState,
     modifier: Modifier = Modifier,
 ) {
-    val effect = settings.displaySetting.effectiveBackgroundEffect
-    val shape = if (LocalFullWidthComponents.current) {
-        RoundedCornerShape(0.dp)
-    } else {
-        RoundedCornerShape(50)
-    }
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    } else {
-        null
-    }
     val folder = folders.firstOrNull { it.id == folderId }
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = modifier
-            .height(TopBarButtonSize)
-            .appButtonShadow(shape, 2.dp)
-            .clip(shape)
-            // 着色交给 chatInputHaze，关闭特效时才自己铺实色
-            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
-            .chatInputHaze(
-                hazeState = hazeState,
-                displaySetting = settings.displaySetting,
-                containerColor = containerColor,
-                shape = shape,
-            )
-            // 描边画在模糊层之后，否则会被糊掉
-            .then(
-                if (effectBorder != null) {
-                    Modifier.border(effectBorder, shape)
-                } else {
-                    Modifier
-                }
-            ),
-        verticalAlignment = Alignment.CenterVertically,
+    TopBarPill(
+        settings = settings,
+        hazeState = hazeState,
+        modifier = modifier,
     ) {
         Box {
             Row(
@@ -1823,13 +1840,7 @@ private fun ChatModelFolderPill(
             )
         }
 
-        // 两个入口之间只留一条细线，胶囊还是一整块
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(18.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-        )
+        TopBarPillDivider()
 
         Row(
             modifier = Modifier
