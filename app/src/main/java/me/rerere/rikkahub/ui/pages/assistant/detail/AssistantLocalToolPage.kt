@@ -303,6 +303,7 @@ private fun AssistantLocalToolContent(
                         }
                     },
                 )
+            }
             toolItem(
                 option = LocalToolOption.SubAgent,
                 icon = HugeIcons.Flowchart01,

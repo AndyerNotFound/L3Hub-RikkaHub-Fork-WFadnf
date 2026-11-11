@@ -347,6 +347,7 @@ private fun LocalToolOption.displayLabel(): String = stringResource(
         LocalToolOption.ScreenTime -> R.string.assistant_page_local_tools_screen_time_title
         LocalToolOption.Calendar -> R.string.assistant_page_local_tools_calendar_title
         LocalToolOption.ChartDisplay -> R.string.assistant_page_local_tools_chart_display_title
+        LocalToolOption.PhoneUse -> R.string.assistant_page_local_tools_phone_use_title
         LocalToolOption.SubAgent -> R.string.assistant_page_local_tools_sub_agent_title
     }
 )
