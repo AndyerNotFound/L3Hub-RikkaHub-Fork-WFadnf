@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
@@ -207,7 +209,11 @@ internal fun ConversationDetailsPanel(
                 }
             }
 
-            DetailsSection(title = stringResource(R.string.chat_page_details_session)) {
+            DetailsSection(
+                title = stringResource(R.string.chat_page_details_session),
+                // 面板有标题行时用一条分割线把标题和内容分开；嵌在右栏时顶部直接开始，不画
+                showDivider = showHeader,
+            ) {
                 DetailLine(
                     label = stringResource(R.string.chat_page_details_assistant),
                     value = assistant.name.ifBlank { stringResource(R.string.chat_page_details_no_assistant) },
@@ -477,11 +483,13 @@ private fun ExpandRowHeader(
             imageVector = if (expanded) HugeIcons.ArrowDown01 else HugeIcons.ArrowRight01,
             contentDescription = null,
             modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
         )
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium,
             fontFamily = JetbrainsMono,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -610,28 +618,38 @@ private fun ExecutionPermission.displayLabel(): String = stringResource(
 private fun DetailsSection(
     title: String,
     trailing: String? = null,
+    showDivider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Column {
+        if (showDivider) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
             )
-            if (trailing != null) {
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = trailing,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                )
-            }
+            Spacer(Modifier.height(12.dp))
         }
-        content()
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (trailing != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = trailing,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
+            }
+            content()
+        }
     }
 }
 
