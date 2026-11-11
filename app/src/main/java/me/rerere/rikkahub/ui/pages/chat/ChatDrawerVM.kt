@@ -40,6 +40,7 @@ import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
@@ -90,9 +91,20 @@ class ChatDrawerVM(
     )
     val collapsedFolders: StateFlow<Set<String>> = _collapsedFolders.asStateFlow()
 
-    // 当前助手的文件夹列表（Room Flow，增删改自动刷新）
+    // 当前助手的文件夹列表（Room Flow，增删改自动刷新）。
+    // 顺序由内容决定，不看手工排列：按分组里最新一条会话的时间倒序，
+    // 没有会话的分组沉到最后，彼此之间保持建立顺序（sortedWith 是稳定排序）
     val folders: StateFlow<List<Folder>> = assistantIdFlow
-        .flatMapLatest { folderRepo.getFoldersOfAssistant(it) }
+        .flatMapLatest { assistantId ->
+            combine(
+                folderRepo.getFoldersOfAssistant(assistantId),
+                folderRepo.getFolderLatestActivity(assistantId),
+            ) { list, latestAt ->
+                list.sortedWith(
+                    compareByDescending<Folder> { latestAt[it.id] ?: Instant.MIN },
+                )
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 文件夹能绑定的工作区
@@ -223,31 +235,6 @@ class ChatDrawerVM(
         if (unfiled.isNotEmpty()) appendSection(null, unfiled)
         folders.forEach { folder -> appendSection(folder, byFolder[folder.id].orEmpty()) }
         return items
-    }
-
-    // 拖动排序是连发的，Room 回流慢一拍：以最近一次写下去的顺序为基准，
-    // 否则后一次会拿旧列表算位置，几次快速拖动就互相盖掉
-    private var lastReorderedIds: List<Uuid>? = null
-
-    /** 把文件夹拖到可见列表里的 [targetIndex]（0 起，不含「未归类」和「新建」） */
-    fun moveFolderTo(folderId: Uuid, targetIndex: Int) {
-        viewModelScope.launch {
-            folderWriteMutex.withLock {
-                val known = folders.value.map { it.id }
-                val base = lastReorderedIds
-                    ?.takeIf { ids -> ids.size == known.size && ids.toSet() == known.toSet() }
-                    ?: known
-                val ordered = base.toMutableList()
-                val from = ordered.indexOf(folderId)
-                if (from < 0) return@withLock
-                ordered.removeAt(from)
-                val to = targetIndex.coerceIn(0, ordered.size)
-                ordered.add(to, folderId)
-                if (ordered == base) return@withLock
-                lastReorderedIds = ordered
-                folderRepo.reorderFolders(ordered)
-            }
-        }
     }
 
     // 每个文件夹视图各自记住滚动位置；key 带 V2，早期版本存的是含 header 的绝对下标

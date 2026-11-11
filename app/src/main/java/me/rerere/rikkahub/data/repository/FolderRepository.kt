@@ -20,6 +20,12 @@ data class ConversationFolderRef(
     val parentConversationId: String = "",
 )
 
+/** 分组里最新一条会话的时间，文件夹按它排序 */
+data class FolderLatestActivity(
+    val folderId: String,
+    val latestAt: Long,
+)
+
 class FolderRepository(
     private val folderDAO: FolderDAO,
     private val conversationDAO: ConversationDAO,
@@ -28,6 +34,19 @@ class FolderRepository(
         return folderDAO.getFoldersOfAssistant(assistantId.toString())
             .map { list -> list.map { it.toFolder() } }
     }
+
+    /**
+     * 文件夹排序依据：每个分组里最新一条会话的时间。
+     *
+     * 没有会话的分组不会出现在结果里，排序时落到末尾。
+     */
+    fun getFolderLatestActivity(assistantId: Uuid): Flow<Map<Uuid, Instant>> =
+        conversationDAO.getFolderLatestActivity(assistantId.toString())
+            .map { rows ->
+                rows.mapNotNull { row ->
+                    row.folderId.toUuid()?.let { id -> id to Instant.ofEpochMilli(row.latestAt) }
+                }.toMap()
+            }
 
     suspend fun getFolderById(id: Uuid): Folder? {
         return folderDAO.getFolderById(id.toString())?.toFolder()
@@ -52,13 +71,6 @@ class FolderRepository(
 
     suspend fun renameFolder(id: Uuid, name: String) {
         folderDAO.rename(id.toString(), name)
-    }
-
-    /** 按给定顺序重写 sort_index，归一成 0..n-1 */
-    suspend fun reorderFolders(orderedIds: List<Uuid>) {
-        orderedIds.forEachIndexed { index, id ->
-            folderDAO.updateSortIndex(id.toString(), index)
-        }
     }
 
     /**

@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ContainedLoadingIndicator
@@ -115,7 +114,6 @@ import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.components.ui.glassSurface
-import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -137,8 +135,6 @@ import me.rerere.ui.components.Tooltip
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
 // 抽屉宽度：原来是写死的 300dp，按比例放大后还要跟屏幕宽度取小，免得窄屏上撑出屏幕
@@ -360,7 +356,6 @@ fun ChatDrawerContent(
                         folderWorkspaceDraft = folder.allWorkspaceIds
                         folderToBindWorkspace = folder
                     },
-                    onMove = drawerVm::moveFolderTo,
                     modifier = Modifier.weight(1f),
                 )
 
@@ -1149,21 +1144,9 @@ private fun FolderBar(
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
     onBindWorkspace: (Folder) -> Unit,
-    onMove: (Uuid, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
-        val movedId = folders.firstOrNull { it.id.toString() == from.key }?.id
-            ?: return@rememberReorderableLazyListState
-        // 「未归类」和「新建」不参与排序，拖到它们身上就收到两端
-        val targetIndex = when (to.key) {
-            "unfiled" -> 0
-            "add" -> folders.lastIndex
-            else -> folders.indexOfFirst { it.id.toString() == to.key }
-        }
-        if (targetIndex >= 0) onMove(movedId, targetIndex)
-    }
     LazyRow(
         state = listState,
         modifier = modifier,
@@ -1178,55 +1161,49 @@ private fun FolderBar(
                 onLongClick = {},
             )
         }
-        itemsIndexed(folders, key = { _, folder -> folder.id.toString() }) { _, folder ->
+        items(folders, key = { folder -> folder.id.toString() }) { folder ->
             var menuExpanded by remember { mutableStateOf(false) }
-            ReorderableItem(
-                state = reorderState,
-                key = folder.id.toString(),
-            ) { isDragging ->
-                Box {
-                    FolderChip(
-                        label = folder.name,
-                        icon = HugeIcons.Folder01,
-                        selected = selectedFolderId == folder.id,
-                        workspaceBound = folder.allWorkspaceIds.isNotEmpty(),
-                        // 长按改成拖拽排序；已经选中的文件夹再点一下打开菜单
-                        showMenuHint = selectedFolderId == folder.id,
-                        modifier = longPressReorder(isDragging),
+            Box {
+                FolderChip(
+                    label = folder.name,
+                    icon = HugeIcons.Folder01,
+                    selected = selectedFolderId == folder.id,
+                    workspaceBound = folder.allWorkspaceIds.isNotEmpty(),
+                    // 顺序由内容决定，长按不再拖动；选中后再点一下（或长按）打开菜单
+                    showMenuHint = selectedFolderId == folder.id,
+                    onClick = {
+                        if (selectedFolderId == folder.id) menuExpanded = true else onSelect(folder.id)
+                    },
+                    onLongClick = { menuExpanded = true },
+                )
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_rename)) },
+                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
                         onClick = {
-                            if (selectedFolderId == folder.id) menuExpanded = true else onSelect(folder.id)
-                        },
-                        onLongClick = {},
+                            onRename(folder)
+                            menuExpanded = false
+                        }
                     )
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_rename)) },
-                            leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
-                            onClick = {
-                                onRename(folder)
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
-                            leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
-                            onClick = {
-                                onBindWorkspace(folder)
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_delete)) },
-                            leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                            onClick = {
-                                onDelete(folder)
-                                menuExpanded = false
-                            }
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
+                        leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
+                        onClick = {
+                            onBindWorkspace(folder)
+                            menuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_delete)) },
+                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
+                        onClick = {
+                            onDelete(folder)
+                            menuExpanded = false
+                        }
+                    )
                 }
             }
         }

@@ -9,6 +9,7 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.repository.ConversationFolderRef
+import me.rerere.rikkahub.data.repository.FolderLatestActivity
 import me.rerere.rikkahub.data.repository.LightConversationEntity
 
 @Dao
@@ -51,6 +52,13 @@ interface ConversationDAO {
         "SELECT * FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, update_at DESC LIMIT :limit"
     )
     suspend fun getRecentConversationsOfAssistant(assistantId: String, limit: Int): List<ConversationEntity>
+
+    // 文件夹排序只看每个分组里最新一条会话的时间，不必把会话整份读出来
+    @Query(
+        "SELECT folder_id AS folderId, MAX(update_at) AS latestAt FROM conversationentity " +
+            "WHERE assistant_id = :assistantId AND folder_id != '' GROUP BY folder_id"
+    )
+    fun getFolderLatestActivity(assistantId: String): Flow<List<FolderLatestActivity>>
 
     // 竖向分组要一次拿到全部会话才能按文件夹归堆；只取清单列，不碰 nodes
     @Query(
