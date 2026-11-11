@@ -1254,6 +1254,9 @@
   <string name="chat_page_delete_folder">Удалить папку</string>
   <string name="chat_page_rename">Переименовать</string>
   <string name="chat_page_folder_default">Чат</string>
+  <string name="chat_page_folder_unfiled">Без папки</string>
+  <string name="chat_page_folder_pill">Папка беседы</string>
+  <string name="chat_page_folder_empty">Папок пока нет</string>
   <string name="chat_page_folder_add">Новая</string>
   <string name="chat_page_delete_folder_confirm">Удалить папку "%1$s"? Беседы внутри не будут удалены, только исключены из папки.</string>
   <string name="chat_page_delete_folder_generating">Некоторые беседы в этой папке все еще генерируются. Пожалуйста, остановите их перед удалением.</string>

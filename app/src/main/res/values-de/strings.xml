@@ -1245,6 +1245,9 @@
   <string name="chat_page_delete_folder">Ordner löschen</string>
   <string name="chat_page_rename">Umbenennen</string>
   <string name="chat_page_folder_default">Chat</string>
+  <string name="chat_page_folder_unfiled">Ohne Ordner</string>
+  <string name="chat_page_folder_pill">Gesprächsordner</string>
+  <string name="chat_page_folder_empty">Noch keine Ordner</string>
   <string name="chat_page_folder_add">Neu</string>
   <string name="chat_page_delete_folder_confirm">Ordner \"%1$s\" löschen? Die enthaltenen Unterhaltungen werden nicht gelöscht, sondern nur aus dem Ordner entfernt.</string>
   <string name="chat_page_delete_folder_generating">Einige Unterhaltungen in diesem Ordner generieren noch. Bitte stoppe sie, bevor du den Ordner löschst.</string>
