@@ -104,6 +104,17 @@ class ConversationRepository(
         }
     }
 
+    /** 抽屉的竖向分组用：全部会话的清单列，按文件夹归堆时再分组 */
+    fun getLightConversationsOfAssistant(
+        assistantId: Uuid,
+        sortOrder: ConversationSortOrder = ConversationSortOrder.UPDATE_TIME,
+    ): Flow<List<Conversation>> = conversationDAO
+        .getLightConversationsOfAssistant(
+            assistantId = assistantId.toString(),
+            sortByCreateTime = sortOrder == ConversationSortOrder.CREATE_TIME,
+        )
+        .map { entities -> entities.map { entity -> conversationSummaryToConversation(entity) } }
+
     fun getConversationsOfFolderPaging(
         assistantId: Uuid,
         folderId: Uuid,

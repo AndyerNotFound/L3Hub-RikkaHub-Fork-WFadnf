@@ -48,7 +48,7 @@ import kotlin.uuid.Uuid
 class ChatDrawerVM(
     private val context: Application,
     private val settingsStore: SettingsStore,
-    conversationRepo: ConversationRepository,
+    private val conversationRepo: ConversationRepository,
     private val folderRepo: FolderRepository,
     private val workspaceRepository: WorkspaceRepository,
     private val chatService: ChatService,
@@ -99,51 +99,176 @@ class ChatDrawerVM(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val conversations: Flow<PagingData<ConversationListItem>> =
-        combine(assistantIdFlow, _selectedFolderId, sortOrderFlow) { assistantId, folderId, sortOrder ->
-            Triple(assistantId, folderId, sortOrder)
-        }
-            .flatMapLatest { (assistantId, folderId, sortOrder) ->
+    /**
+     * 某个文件夹视图的会话分页。
+     *
+     * 每个文件夹单独取一份：切换文件夹时两份列表要同时在组合里做横向转场，
+     * 共用一条只跟着选中文件夹走的分页流，旧视图会拿到新视图的数据。
+     */
+    fun conversationsOf(folderId: Uuid?): Flow<PagingData<ConversationListItem>> =
+        combine(assistantIdFlow, sortOrderFlow) { assistantId, sortOrder -> assistantId to sortOrder }
+            .flatMapLatest { (assistantId, sortOrder) ->
                 val paging = if (folderId == null) {
                     conversationRepo.getUnfiledConversationsOfAssistantPaging(assistantId, sortOrder)
                 } else {
                     conversationRepo.getConversationsOfFolderPaging(assistantId, folderId, sortOrder)
                 }
-                paging.map { pagingData ->
-                    pagingData
-                        .map { ConversationListItem.Item(it) }
-                        .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
-                            when {
-                                after == null -> null
-                                after.conversation.isPinned -> {
-                                    if (before == null) ConversationListItem.PinnedHeader else null
-                                }
-
-                                else -> {
-                                    // 按周分组（周一开始），减少列表里过密的日期标题
-                                    val afterWeek = after.conversation.sortDate(sortOrder).weekStart()
-                                    val sameGroup = before != null &&
-                                        !before.conversation.isPinned &&
-                                        before.conversation.sortDate(sortOrder).weekStart() == afterWeek
-                                    if (sameGroup) {
-                                        null
-                                    } else {
-                                        ConversationListItem.DateHeader(
-                                            date = afterWeek,
-                                            label = getWeekLabel(afterWeek),
-                                            sortOrder = sortOrder,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                }
+                paging.map { pagingData -> pagingData.withWeekHeaders(sortOrder) }
             }
             .cachedIn(viewModelScope)
 
-    // key 带 v2：早期版本存的是含 header 的绝对下标，语义变了，旧值直接丢弃
-    val scrollIndex: Int get() = savedStateHandle["scrollIndexV2"] ?: 0
-    val scrollOffset: Int get() = savedStateHandle["scrollOffsetV2"] ?: 0
+    private fun PagingData<Conversation>.withWeekHeaders(
+        sortOrder: ConversationSortOrder,
+    ): PagingData<ConversationListItem> =
+        map { ConversationListItem.Item(it) }
+            .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
+                when {
+                    after == null -> null
+                    after.conversation.isPinned -> {
+                        if (before == null) ConversationListItem.PinnedHeader else null
+                    }
+
+                    else -> {
+                        // 按周分组（周一开始），减少列表里过密的日期标题
+                        val afterWeek = after.conversation.sortDate(sortOrder).weekStart()
+                        val sameGroup = before != null &&
+                            !before.conversation.isPinned &&
+                            before.conversation.sortDate(sortOrder).weekStart() == afterWeek
+                        if (sameGroup) {
+                            null
+                        } else {
+                            ConversationListItem.DateHeader(
+                                date = afterWeek,
+                                label = getWeekLabel(afterWeek),
+                                sortOrder = sortOrder,
+                            )
+                        }
+                    }
+                }
+            }
+
+    private val verticalSortingFlow = settingsStore.settingsFlow
+        .map { it.displaySetting.drawerVerticalSorting }
+        .distinctUntilChanged()
+
+    // 竖向排序：所有会话按文件夹归堆，再依次插文件夹头、置顶头和周标题
+    // 开关关掉时不查这份全量清单，免得只为扁平视图白读一遍数据库
+    private val lightConversations: Flow<List<Conversation>> =
+        combine(verticalSortingFlow, assistantIdFlow, sortOrderFlow) { vertical, assistantId, sortOrder ->
+            Triple(vertical, assistantId, sortOrder)
+        }.flatMapLatest { (vertical, assistantId, sortOrder) ->
+            if (vertical) {
+                conversationRepo.getLightConversationsOfAssistant(assistantId, sortOrder)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+
+    val verticalItems: StateFlow<List<ConversationListItem>> =
+        combine(assistantIdFlow, sortOrderFlow, folders, lightConversations) { assistantId, sortOrder, folderList, conversations ->
+            buildVerticalItems(
+                folders = folderList,
+                conversations = conversations.filter { it.assistantId == assistantId },
+                sortOrder = sortOrder,
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun buildVerticalItems(
+        folders: List<Folder>,
+        conversations: List<Conversation>,
+        sortOrder: ConversationSortOrder,
+    ): List<ConversationListItem> {
+        val byFolder = conversations.groupBy { it.folderId }
+        val items = mutableListOf<ConversationListItem>()
+
+        fun appendSection(folder: Folder?, conversationsOfFolder: List<Conversation>) {
+            items += ConversationListItem.FolderHeader(
+                folderId = folder?.id,
+                label = folder?.name ?: context.getString(R.string.chat_page_folder_default),
+            )
+            var pinnedHeaderAdded = false
+            var lastWeek: LocalDate? = null
+            conversationsOfFolder.forEach { conversation ->
+                if (conversation.isPinned) {
+                    if (!pinnedHeaderAdded) {
+                        items += ConversationListItem.PinnedHeader
+                        pinnedHeaderAdded = true
+                    }
+                } else {
+                    val week = conversation.sortDate(sortOrder).weekStart()
+                    if (week != lastWeek) {
+                        items += ConversationListItem.DateHeader(
+                            date = week,
+                            label = getWeekLabel(week),
+                            sortOrder = sortOrder,
+                        )
+                        lastWeek = week
+                    }
+                }
+                items += ConversationListItem.Item(conversation)
+            }
+        }
+
+        // 「未归类」排在最前，其余按文件夹自己的顺序；空文件夹也留下标题，拖拽排序时看得见落点
+        val unfiled = byFolder[null].orEmpty()
+        if (unfiled.isNotEmpty()) appendSection(null, unfiled)
+        folders.forEach { folder -> appendSection(folder, byFolder[folder.id].orEmpty()) }
+        return items
+    }
+
+    // 拖动排序是连发的，Room 回流慢一拍：以最近一次写下去的顺序为基准，
+    // 否则后一次会拿旧列表算位置，几次快速拖动就互相盖掉
+    private var lastReorderedIds: List<Uuid>? = null
+
+    /** 把文件夹拖到可见列表里的 [targetIndex]（0 起，不含「未归类」和「新建」） */
+    fun moveFolderTo(folderId: Uuid, targetIndex: Int) {
+        viewModelScope.launch {
+            folderWriteMutex.withLock {
+                val known = folders.value.map { it.id }
+                val base = lastReorderedIds
+                    ?.takeIf { ids -> ids.size == known.size && ids.toSet() == known.toSet() }
+                    ?: known
+                val ordered = base.toMutableList()
+                val from = ordered.indexOf(folderId)
+                if (from < 0) return@withLock
+                ordered.removeAt(from)
+                val to = targetIndex.coerceIn(0, ordered.size)
+                ordered.add(to, folderId)
+                if (ordered == base) return@withLock
+                lastReorderedIds = ordered
+                folderRepo.reorderFolders(ordered)
+            }
+        }
+    }
+
+    // 每个文件夹视图各自记住滚动位置；key 带 V2，早期版本存的是含 header 的绝对下标
+    fun scrollIndex(folderId: Uuid?): Int = savedStateHandle[scrollIndexKey(folderId)] ?: 0
+
+    fun scrollOffset(folderId: Uuid?): Int = savedStateHandle[scrollOffsetKey(folderId)] ?: 0
+
+    fun saveScrollPosition(folderId: Uuid?, index: Int, offset: Int) {
+        savedStateHandle[scrollIndexKey(folderId)] = index
+        savedStateHandle[scrollOffsetKey(folderId)] = offset
+    }
+
+    val verticalScrollIndex: Int get() = savedStateHandle[KEY_VERTICAL_SCROLL_INDEX] ?: 0
+    val verticalScrollOffset: Int get() = savedStateHandle[KEY_VERTICAL_SCROLL_OFFSET] ?: 0
+
+    fun saveVerticalScrollPosition(index: Int, offset: Int) {
+        savedStateHandle[KEY_VERTICAL_SCROLL_INDEX] = index
+        savedStateHandle[KEY_VERTICAL_SCROLL_OFFSET] = offset
+    }
+
+    /** 换排序方式后旧下标不再适用，所有视图都回到顶部 */
+    fun resetScrollPositions() {
+        savedStateHandle.keys()
+            .filter { key -> key.startsWith("scrollIndexV2/") || key.startsWith("scrollOffsetV2/") || key.startsWith("verticalScroll") }
+            .forEach { key -> savedStateHandle.remove<Any>(key) }
+    }
+
+    private fun scrollIndexKey(folderId: Uuid?): String = "scrollIndexV2/${folderId ?: "unfiled"}"
+
+    private fun scrollOffsetKey(folderId: Uuid?): String = "scrollOffsetV2/${folderId ?: "unfiled"}"
 
     init {
         // 助手切换时重置文件夹筛选，回到「聊天」视图，
@@ -155,13 +280,21 @@ class ChatDrawerVM(
         }
     }
 
-    fun saveScrollPosition(index: Int, offset: Int) {
-        savedStateHandle["scrollIndexV2"] = index
-        savedStateHandle["scrollOffsetV2"] = offset
-    }
-
     fun selectFolder(folderId: Uuid?) {
         _selectedFolderId.value = folderId
+    }
+
+    // 已经为哪些会话自动展开过所在分组。列表因数据刷新、切换文件夹重建时会重新跑定位逻辑，
+    // 这里认领一次就够，避免把用户刚刚收起的组又拉开
+    private val autoRevealedConversations = LinkedHashSet<Uuid>()
+
+    /** 第一次处理某个会话时返回 true；之后（包括列表重建）都返回 false */
+    fun claimAutoReveal(conversationId: Uuid): Boolean {
+        if (!autoRevealedConversations.add(conversationId)) return false
+        if (autoRevealedConversations.size > MAX_AUTO_REVEAL_MEMORY) {
+            autoRevealedConversations.remove(autoRevealedConversations.first())
+        }
+        return true
     }
 
     fun toggleDateCollapsed(date: LocalDate) {
@@ -256,6 +389,9 @@ class ChatDrawerVM(
 
     private companion object {
         const val KEY_COLLAPSED_DATES = "collapsedDates"
+        const val KEY_VERTICAL_SCROLL_INDEX = "verticalScrollIndex"
+        const val KEY_VERTICAL_SCROLL_OFFSET = "verticalScrollOffset"
+        const val MAX_AUTO_REVEAL_MEMORY = 32
     }
 
     private fun getWeekLabel(start: LocalDate): String {

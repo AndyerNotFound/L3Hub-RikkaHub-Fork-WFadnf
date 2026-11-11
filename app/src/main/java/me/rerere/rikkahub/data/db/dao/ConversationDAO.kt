@@ -52,6 +52,15 @@ interface ConversationDAO {
     )
     suspend fun getRecentConversationsOfAssistant(assistantId: String, limit: Int): List<ConversationEntity>
 
+    // 竖向分组要一次拿到全部会话才能按文件夹归堆；只取清单列，不碰 nodes
+    @Query(
+        "SELECT id, assistant_id as assistantId, title, is_pinned as isPinned, create_at as createAt, update_at as updateAt, folder_id as folderId FROM conversationentity WHERE assistant_id = :assistantId ORDER BY is_pinned DESC, CASE WHEN :sortByCreateTime THEN create_at ELSE update_at END DESC"
+    )
+    fun getLightConversationsOfAssistant(
+        assistantId: String,
+        sortByCreateTime: Boolean,
+    ): Flow<List<LightConversationEntity>>
+
     @Query(
         "SELECT * FROM conversationentity WHERE title LIKE '%' || :searchText || '%' ORDER BY is_pinned DESC, update_at DESC"
     )

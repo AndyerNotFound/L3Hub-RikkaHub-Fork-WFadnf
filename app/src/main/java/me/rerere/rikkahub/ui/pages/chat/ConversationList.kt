@@ -84,6 +84,11 @@ sealed class ConversationListItem {
         val sortOrder: ConversationSortOrder = ConversationSortOrder.UPDATE_TIME,
     ) : ConversationListItem()
     data object PinnedHeader : ConversationListItem()
+    // 竖向排序时的文件夹段标题，folderId 为 null 表示「未归类」
+    data class FolderHeader(
+        val folderId: Uuid?,
+        val label: String,
+    ) : ConversationListItem()
     data class Item(
         val conversation: Conversation
     ) : ConversationListItem()
@@ -98,6 +103,8 @@ fun ColumnScope.ConversationList(
     collapsedDates: Set<LocalDate> = emptySet(),
     onToggleDate: (LocalDate) -> Unit = {},
     onExpandDate: (LocalDate) -> Unit = {},
+    // 自动展开当前会话所在分组前先认领一次，列表刷新/重建时不重复拉开
+    claimAutoReveal: (Uuid) -> Boolean = { true },
     // 换助手/换文件夹时列表其实是另一份数据，多选等列表内状态要跟着重置
     scopeKey: Any? = null,
     modifier: Modifier = Modifier,
@@ -155,6 +162,11 @@ fun ColumnScope.ConversationList(
                     null
                 }
 
+                is ConversationListItem.FolderHeader -> {
+                    sectionDate = null
+                    null
+                }
+
                 else -> sectionDate
             }
         }
@@ -196,9 +208,11 @@ fun ColumnScope.ConversationList(
         if (itemIndex < 0) return@LaunchedEffect
 
         // 当前会话所在的周被收起时先展开，否则滚动会落在一个 0 高度的项上，打开的会话反而看不见
+        // 只为这个会话认领一次：这次之后用户再收起同一组，刷新列表也不再擅自拉开
+        val firstReveal = claimAutoReveal(current.id)
         val sectionDate = sectionDates.getOrNull(itemIndex)
         if (sectionDate != null && sectionDate in collapsedDates) {
-            onExpandDate(sectionDate)
+            if (firstReveal) onExpandDate(sectionDate)
             return@LaunchedEffect
         }
 
@@ -271,6 +285,7 @@ fun ColumnScope.ConversationList(
                     // key 带上排序方式，避免切换排序后列表锚定到另一种排序下的同日期分组而发生跳动
                     is ConversationListItem.DateHeader -> "date_${item.sortOrder}_${item.date}"
                     is ConversationListItem.PinnedHeader -> "pinned_header"
+                    is ConversationListItem.FolderHeader -> "folder_${item.folderId ?: "unfiled"}"
                     is ConversationListItem.Item -> item.conversation.id.toString()
                 }
             }
@@ -300,6 +315,8 @@ fun ColumnScope.ConversationList(
                         modifier = Modifier.animateItem()
                     )
                 }
+
+                is ConversationListItem.FolderHeader -> Unit
 
                 is ConversationListItem.Item -> {
                     ConversationItem(
@@ -352,7 +369,7 @@ fun ColumnScope.ConversationList(
 }
 
 @Composable
-private fun DateHeaderItem(
+internal fun DateHeaderItem(
     label: String,
     collapsed: Boolean,
     onToggle: () -> Unit,
@@ -361,9 +378,11 @@ private fun DateHeaderItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(glassColor(MaterialTheme.colorScheme.surfaceContainerLow))
+            // 不再铺一条底色，只留可点区域；圆角让水波纹收在标题这一行里
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onToggle)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -383,7 +402,7 @@ private fun DateHeaderItem(
 }
 
 @Composable
-private fun PinnedHeader(
+internal fun PinnedHeader(
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -410,7 +429,7 @@ private fun PinnedHeader(
 }
 
 @Composable
-private fun ConversationItem(
+internal fun ConversationItem(
     conversation: Conversation,
     selected: Boolean,
     loading: Boolean,
@@ -654,7 +673,7 @@ private fun ConversationItem(
 }
 
 @Composable
-private fun SelectionBar(
+internal fun SelectionBar(
     count: Int,
     onPin: () -> Unit,
     onDelete: () -> Unit,
