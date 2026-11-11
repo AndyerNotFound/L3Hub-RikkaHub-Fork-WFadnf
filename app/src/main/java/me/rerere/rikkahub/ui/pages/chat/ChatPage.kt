@@ -40,6 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -83,6 +84,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -111,12 +113,14 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
+import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Share04
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
@@ -129,6 +133,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.effectiveContextWindow
@@ -205,6 +210,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val assistant by vm.assistant.collectAsStateWithLifecycle()
+    // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
+    val conversationFolders by vm.folders.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹（#2133）
@@ -926,6 +933,8 @@ private fun ChatPageContent(
                         settings = setting,
                         assistant = assistant,
                         chatModel = currentChatModel,
+                        folderId = conversation.folderId,
+                        folders = conversationFolders,
                         hasMessages = conversation.messageNodes.isNotEmpty(),
                         threePane = threePane,
                         sidebarOpen = sidebarOpen,
@@ -935,6 +944,7 @@ private fun ChatPageContent(
                         },
                         onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
                         onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
+                        onSelectFolder = vm::updateFolder,
                         onShowOverview = {
                             selectionState.selecting = false
                             previewMode = true
@@ -1508,6 +1518,8 @@ private fun TopBar(
     settings: Settings,
     assistant: Assistant,
     chatModel: Model?,
+    folderId: Uuid?,
+    folders: List<Folder>,
     hasMessages: Boolean,
     threePane: Boolean,
     sidebarOpen: Boolean,
@@ -1516,6 +1528,7 @@ private fun TopBar(
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,
     onShowModelPicker: () -> Unit,
+    onSelectFolder: (Uuid?) -> Unit,
     onShowOverview: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
@@ -1534,7 +1547,23 @@ private fun TopBar(
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        title = {},
+        title = {
+            // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里。
+            // 胶囊放在标题位：这里只拿到菜单与右侧按钮之间的剩余宽度，文件夹名超长时按这份宽度截断，
+            // 放在导航位则会顶到右边的按钮上
+            if (!threePane && chatModel != null) {
+                ChatModelFolderPill(
+                    settings = settings,
+                    model = chatModel,
+                    folderId = folderId,
+                    folders = folders,
+                    onSelectFolder = onSelectFolder,
+                    onShowModelPicker = onShowModelPicker,
+                    hazeState = hazeState,
+                    modifier = Modifier.padding(start = 2.dp),
+                )
+            }
+        },
         navigationIcon = {
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                 Row(
@@ -1585,47 +1614,6 @@ private fun TopBar(
                                     LocalContentColor.current
                                 },
                             )
-                        }
-                    }
-
-                    // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里
-                    if (!threePane && chatModel != null) {
-                        // 模型 + 供应商两个图标并成一个胶囊，高度和右侧按钮组一致
-                        val modelPillShape = if (LocalFullWidthComponents.current) {
-                            RoundedCornerShape(0.dp)
-                        } else {
-                            RoundedCornerShape(50)
-                        }
-                        val modelPillColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        val provider = chatModel.findProvider(settings.providers)
-                        Row(
-                            modifier = Modifier
-                                .height(TopBarButtonSize)
-                                .appButtonShadow(modelPillShape, 2.dp)
-                                .clip(modelPillShape)
-                                .background(effectColor(modelPillColor))
-                                .chatInputHaze(
-                                    hazeState = hazeState,
-                                    displaySetting = settings.displaySetting,
-                                    containerColor = modelPillColor,
-                                    shape = modelPillShape,
-                                )
-                                .then(
-                                    if (effectBorder != null) {
-                                        Modifier.border(effectBorder, modelPillShape)
-                                    } else {
-                                        Modifier
-                                    }
-                                )
-                                .clickable(onClick = onShowModelPicker)
-                                .padding(horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AutoAIIcon(name = chatModel.modelId, color = Color.Transparent)
-                            if (provider != null) {
-                                AutoAIIcon(name = provider.name, color = Color.Transparent)
-                            }
                         }
                     }
                 }
@@ -1703,6 +1691,197 @@ private fun TopBar(
                 }
             }
         },
+    )
+}
+
+
+/**
+ * 顶栏的会话胶囊：左半边是会话文件夹，右边是当前模型。
+ *
+ * 两部分各点各的：文件夹打开选单，模型打开模型选择面板。整块放在 AppBar 的标题位，
+ * 标题位只拿到菜单按钮与右侧按钮之间的剩余宽度，文件夹名过长时按这份宽度截断。
+ * 供应商图标让位给文件名：标题位在手机上一共一百多 dp，两个图标加名字放不下，
+ * 供应商在模型选择面板里仍然看得到。
+ */
+@Composable
+private fun ChatModelFolderPill(
+    settings: Settings,
+    model: Model,
+    folderId: Uuid?,
+    folders: List<Folder>,
+    onSelectFolder: (Uuid?) -> Unit,
+    onShowModelPicker: () -> Unit,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+) {
+    val effect = settings.displaySetting.effectiveBackgroundEffect
+    val shape = if (LocalFullWidthComponents.current) {
+        RoundedCornerShape(0.dp)
+    } else {
+        RoundedCornerShape(50)
+    }
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    } else {
+        null
+    }
+    val folder = folders.firstOrNull { it.id == folderId }
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .height(TopBarButtonSize)
+            .appButtonShadow(shape, 2.dp)
+            .clip(shape)
+            // 着色交给 chatInputHaze，关闭特效时才自己铺实色
+            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
+            .chatInputHaze(
+                hazeState = hazeState,
+                displaySetting = settings.displaySetting,
+                containerColor = containerColor,
+                shape = shape,
+            )
+            // 描边画在模糊层之后，否则会被糊掉
+            .then(
+                if (effectBorder != null) {
+                    Modifier.border(effectBorder, shape)
+                } else {
+                    Modifier
+                }
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box {
+            Row(
+                modifier = Modifier
+                    .height(TopBarButtonSize)
+                    .clickable { menuExpanded = true }
+                    .padding(start = 8.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    HugeIcons.Folder01,
+                    stringResource(R.string.chat_page_folder_pill),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = folder?.name ?: stringResource(R.string.chat_page_folder_unfiled),
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            ChatFolderMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                folders = folders,
+                selectedFolderId = folderId,
+                onSelect = { selected ->
+                    menuExpanded = false
+                    onSelectFolder(selected)
+                },
+            )
+        }
+
+        // 两个入口之间只留一条细线，胶囊还是一整块
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(18.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+        )
+
+        Row(
+            modifier = Modifier
+                .height(TopBarButtonSize)
+                .clickable(onClick = onShowModelPicker)
+                .padding(start = 6.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AutoAIIcon(name = model.modelId, color = Color.Transparent)
+        }
+    }
+}
+
+// 胶囊里的文件夹选单：未归类排在最上面，当前归属打勾
+@Composable
+private fun ChatFolderMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    folders: List<Folder>,
+    selectedFolderId: Uuid?,
+    onSelect: (Uuid?) -> Unit,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+    ) {
+        Text(
+            text = stringResource(R.string.chat_page_folder_pill),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        FolderMenuItem(
+            label = stringResource(R.string.chat_page_folder_unfiled),
+            selected = selectedFolderId == null,
+            onClick = { onSelect(null) },
+        )
+        folders.forEach { folder ->
+            FolderMenuItem(
+                label = folder.name,
+                selected = folder.id == selectedFolderId,
+                onClick = { onSelect(folder.id) },
+            )
+        }
+        if (folders.isEmpty()) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.chat_page_folder_empty)) },
+                onClick = {},
+                enabled = false,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FolderMenuItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val trailingIcon: (@Composable () -> Unit)? = if (selected) {
+        {
+            Icon(
+                HugeIcons.Tick01,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    } else {
+        null
+    }
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        onClick = onClick,
+        leadingIcon = {
+            Icon(
+                HugeIcons.Folder01,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+        trailingIcon = trailingIcon,
     )
 }
 

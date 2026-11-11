@@ -1618,6 +1618,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_delete_folder">删除文件夹</string>
   <string name="chat_page_rename">重命名</string>
   <string name="chat_page_folder_default">聊天</string>
+  <string name="chat_page_folder_unfiled">未归类</string>
+  <string name="chat_page_folder_pill">会话文件夹</string>
+  <string name="chat_page_folder_empty">暂无文件夹</string>
   <string name="chat_page_folder_add">新建</string>
   <string name="chat_page_delete_folder_confirm">删除文件夹 "%1$s"？其中的对话不会被删除，只会从文件夹中移除。</string>
   <string name="chat_page_folder_bind_workspace">绑定工作区</string>

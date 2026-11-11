@@ -2066,6 +2066,18 @@ class ChatService(
     }
 
     /**
+     * 聊天页顶栏改会话文件夹：还没落过库的新会话只改内存，首次落库时一并写入；
+     * 已落库的会话只更新这一列。
+     */
+    suspend fun updateConversationFolder(conversationId: Uuid, folderId: Uuid?) {
+        updateColumn(
+            conversationId = conversationId,
+            transform = { it.copy(folderId = folderId) },
+            persist = { conversationRepo.updateConversationFolderId(conversationId, folderId) },
+        )
+    }
+
+    /**
      * 用户在聊天页改的单列字段：已落库的会话只写这一列，生成中也不会顺带写入还没生成完的回复；
      * 还没落过库的新会话整份落库，留下记录（没有内容的新会话仍然不写）。
      */
