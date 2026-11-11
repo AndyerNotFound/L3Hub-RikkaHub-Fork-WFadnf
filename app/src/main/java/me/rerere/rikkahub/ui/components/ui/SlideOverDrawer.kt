@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import me.rerere.rikkahub.R
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 
 private val DefaultSlideSpec = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
 
@@ -65,6 +68,7 @@ internal fun SlideOverDrawer(
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
+        val scope = rememberCoroutineScope()
         val containerWidth = with(density) { maxWidth.toPx() }
         val closeLabel = stringResource(R.string.close)
         val currentOnOpenChange by rememberUpdatedState(onOpenChange)
@@ -147,18 +151,21 @@ internal fun SlideOverDrawer(
                         // 状态一变，动画从手指停下的位置接着播完
                         currentOnOpenChange(targetOpen)
                     } else {
-                        // 松手弹回原状态
+                        // 松手弹回原状态。awaitEachGesture 是受限挂起作用域，不能直接调 animate，
+                        // 交给组合作用域起一个协程，手势结束也不影响它播完
                         animating = true
-                        try {
-                            animate(
-                                initialValue = offset,
-                                targetValue = if (open) 0f else -travel,
-                                animationSpec = currentSpec,
-                            ) { value, _ ->
-                                offset = value
+                        settleJob = scope.launch {
+                            try {
+                                animate(
+                                    initialValue = offset,
+                                    targetValue = if (open) 0f else -travel,
+                                    animationSpec = currentSpec,
+                                ) { value, _ ->
+                                    offset = value
+                                }
+                            } finally {
+                                animating = false
                             }
-                        } finally {
-                            animating = false
                         }
                     }
                 }
