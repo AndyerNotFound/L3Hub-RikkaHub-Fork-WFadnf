@@ -107,9 +107,6 @@ fun ColumnScope.ConversationList(
     listState: LazyListState,
     collapsedDates: Set<LocalDate> = emptySet(),
     onToggleDate: (LocalDate) -> Unit = {},
-    onExpandDate: (LocalDate) -> Unit = {},
-    // 自动展开当前会话所在分组前先认领一次，列表刷新/重建时不重复拉开
-    claimAutoReveal: (Uuid) -> Boolean = { true },
     // 换助手/换文件夹时列表其实是另一份数据，多选等列表内状态要跟着重置
     scopeKey: Any? = null,
     modifier: Modifier = Modifier,
@@ -212,12 +209,11 @@ fun ColumnScope.ConversationList(
         }
         if (itemIndex < 0) return@LaunchedEffect
 
-        // 当前会话所在的周被收起时先展开，否则滚动会落在一个 0 高度的项上，打开的会话反而看不见
-        // 只为这个会话认领一次：这次之后用户再收起同一组，刷新列表也不再擅自拉开
-        val firstReveal = claimAutoReveal(current.id)
+        // 当前会话所在的周被收起时保持收起：那是用户自己收的，刷新、切会话都不替他拉开；
+        // 也不往 0 高度的条目上滚，免得视口落到看不见的东西上
         val sectionDate = sectionDates.getOrNull(itemIndex)
         if (sectionDate != null && sectionDate in collapsedDates) {
-            if (firstReveal) onExpandDate(sectionDate)
+            hasScrolledToCurrent = true
             return@LaunchedEffect
         }
 

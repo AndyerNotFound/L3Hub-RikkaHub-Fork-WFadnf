@@ -38,6 +38,8 @@ import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.ui.hooks.readStringSetPreference
+import me.rerere.rikkahub.ui.hooks.writeStringSetPreference
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.DayOfWeek
 import java.time.Instant
@@ -72,22 +74,21 @@ class ChatDrawerVM(
     private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
     val selectedFolderId: StateFlow<Uuid?> = _selectedFolderId.asStateFlow()
 
-    // 收起的日期分组。放在 activity 级 VM 里，切换会话、关闭侧栏后不会被重置；
-    // 同时写进 SavedStateHandle，进程重建后和滚动位置保持同一份生命周期
+    // 收起的日期分组。停在 SharedPreferences 里，而不是 SavedStateHandle：
+    // 后者只活到这一份 activity 实例，换主题重进、从最近任务里恢复、冷启动都会回到展开态。
+    // 折叠是用户自己收的，任何一次刷新都不该替他拉开
     private val _collapsedDates = MutableStateFlow(
-        savedStateHandle.get<LongArray>(KEY_COLLAPSED_DATES)
-            ?.map { LocalDate.ofEpochDay(it) }
-            ?.toSet()
-            .orEmpty()
+        context.readStringSetPreference(KEY_COLLAPSED_DATES)
+            .mapNotNullTo(mutableSetOf<LocalDate>()) { raw ->
+                raw.toLongOrNull()?.let { LocalDate.ofEpochDay(it) }
+            }
+            .toSet()
     )
     val collapsedDates: StateFlow<Set<LocalDate>> = _collapsedDates.asStateFlow()
 
-    // 收起的文件夹段。竖排排序下文件夹头可点，收起后只剩标题；
-    // 和日期分组同一份生命周期：activity 级 VM + SavedStateHandle
+    // 收起的文件夹段。竖排排序下文件夹头可点，收起后只剩标题；与日期分组同一份存储
     private val _collapsedFolders = MutableStateFlow(
-        savedStateHandle.get<Array<String>>(KEY_COLLAPSED_FOLDERS)
-            ?.toSet()
-            .orEmpty()
+        context.readStringSetPreference(KEY_COLLAPSED_FOLDERS)
     )
     val collapsedFolders: StateFlow<Set<String>> = _collapsedFolders.asStateFlow()
 
@@ -280,19 +281,6 @@ class ChatDrawerVM(
         _selectedFolderId.value = folderId
     }
 
-    // 已经为哪些会话自动展开过所在分组。列表因数据刷新、切换文件夹重建时会重新跑定位逻辑，
-    // 这里认领一次就够，避免把用户刚刚收起的组又拉开
-    private val autoRevealedConversations = LinkedHashSet<Uuid>()
-
-    /** 第一次处理某个会话时返回 true；之后（包括列表重建）都返回 false */
-    fun claimAutoReveal(conversationId: Uuid): Boolean {
-        if (!autoRevealedConversations.add(conversationId)) return false
-        if (autoRevealedConversations.size > MAX_AUTO_REVEAL_MEMORY) {
-            autoRevealedConversations.remove(autoRevealedConversations.first())
-        }
-        return true
-    }
-
     fun toggleDateCollapsed(date: LocalDate) {
         _collapsedDates.update { dates ->
             if (date in dates) dates - date else dates + date
@@ -300,16 +288,11 @@ class ChatDrawerVM(
         persistCollapsedDates()
     }
 
-    /** 当前会话所在的周被收起时由列表回调，保证打开的会话不会藏在折叠组里。 */
-    fun expandDate(date: LocalDate) {
-        if (date !in _collapsedDates.value) return
-        _collapsedDates.update { it - date }
-        persistCollapsedDates()
-    }
-
     private fun persistCollapsedDates() {
-        savedStateHandle[KEY_COLLAPSED_DATES] =
-            _collapsedDates.value.map { it.toEpochDay() }.toLongArray()
+        context.writeStringSetPreference(
+            KEY_COLLAPSED_DATES,
+            _collapsedDates.value.mapTo(mutableSetOf<String>()) { it.toEpochDay().toString() },
+        )
     }
 
     fun toggleFolderCollapsed(folderId: Uuid?) {
@@ -327,7 +310,7 @@ class ChatDrawerVM(
     }
 
     private fun persistCollapsedFolders() {
-        savedStateHandle[KEY_COLLAPSED_FOLDERS] = _collapsedFolders.value.toTypedArray()
+        context.writeStringSetPreference(KEY_COLLAPSED_FOLDERS, _collapsedFolders.value)
     }
 
     fun createFolder(name: String) {
@@ -402,11 +385,11 @@ class ChatDrawerVM(
         with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     private companion object {
-        const val KEY_COLLAPSED_DATES = "collapsedDates"
-        const val KEY_COLLAPSED_FOLDERS = "collapsedFolders"
+        // 这两个是 SharedPreferences 的键，不再是 SavedStateHandle 的
+        const val KEY_COLLAPSED_DATES = "drawer_collapsed_dates"
+        const val KEY_COLLAPSED_FOLDERS = "drawer_collapsed_folders"
         const val KEY_VERTICAL_SCROLL_INDEX = "verticalScrollIndex"
         const val KEY_VERTICAL_SCROLL_OFFSET = "verticalScrollOffset"
-        const val MAX_AUTO_REVEAL_MEMORY = 32
     }
 
     private fun getWeekLabel(start: LocalDate): String {

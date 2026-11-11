@@ -89,6 +89,20 @@ fun Context.readBooleanPreference(key: String, defaultValue: Boolean = false): B
     return getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE).getBoolean(key, defaultValue)
 }
 
+fun Context.writeStringSetPreference(key: String, value: Set<String>) {
+    getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE).edit {
+        putStringSet(key, value)
+    }
+}
+
+// getStringSet 交回来的是内部实例，改它不会落盘，这里复制一份
+fun Context.readStringSetPreference(key: String, defaultValue: Set<String> = emptySet()): Set<String> {
+    return getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE)
+        .getStringSet(key, defaultValue)
+        ?.toSet()
+        ?: defaultValue
+}
+
 fun SharedPreferences.getStringFlowForKey(keyForString: String, defaultValue: String? = null) =
     callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->

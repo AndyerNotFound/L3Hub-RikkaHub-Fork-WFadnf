@@ -56,11 +56,8 @@ fun ColumnScope.ConversationSectionList(
     listState: LazyListState,
     collapsedDates: Set<LocalDate> = emptySet(),
     onToggleDate: (LocalDate) -> Unit = {},
-    onExpandDate: (LocalDate) -> Unit = {},
     collapsedFolders: Set<String> = emptySet(),
     onToggleFolder: (Uuid?) -> Unit = {},
-    onExpandFolder: (Uuid?) -> Unit = {},
-    claimAutoReveal: (Uuid) -> Boolean = { true },
     scopeKey: Any? = null,
     modifier: Modifier = Modifier,
     header: (@Composable () -> Unit)? = null,
@@ -182,16 +179,13 @@ fun ColumnScope.ConversationSectionList(
         }
         if (itemIndex < 0) return@LaunchedEffect
 
-        // 当前会话所在的文件夹段或周被收起时先展开一次；列表刷新后用户再收起，不重新拉开
-        val firstReveal = claimAutoReveal(current.id)
+        // 当前会话所在的文件夹段或周被收起时保持收起：那是用户自己收的，
+        // 列表刷新、切换会话、重进应用都不替他拉开，也不往 0 高度的条目上滚
         val meta = metas.getOrNull(itemIndex)
-        if (meta != null && isFolderCollapsed(meta.folderId)) {
-            if (firstReveal) onExpandFolder(meta.folderId)
-            return@LaunchedEffect
-        }
-        val sectionDate = meta?.date
-        if (sectionDate != null && sectionDate in collapsedDates) {
-            if (firstReveal) onExpandDate(sectionDate)
+        val hidden = meta != null &&
+            (isFolderCollapsed(meta.folderId) || meta.date?.let { it in collapsedDates } == true)
+        if (hidden) {
+            hasScrolledToCurrent = true
             return@LaunchedEffect
         }
 
