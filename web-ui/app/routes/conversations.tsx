@@ -731,6 +731,7 @@ function ConversationsPageInner() {
     renameFolder,
     deleteFolder,
     moveConversationToFolder,
+    bindFolderWorkspaces,
   } = useFolders(currentAssistantId);
   const {
     conversations,

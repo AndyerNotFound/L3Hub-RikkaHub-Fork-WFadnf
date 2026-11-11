@@ -44,16 +44,19 @@ export function FolderWorkspacesDialog({
     setPrimary(folder?.workspaceId ?? ids[0] ?? null);
   }, [folder, open]);
 
-  const toggle = React.useCallback((id: string) => {
-    setSelected((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+  const toggle = React.useCallback(
+    (id: string) => {
+      const next = selected.includes(id)
+        ? selected.filter((item) => item !== id)
+        : [...selected, id];
+      setSelected(next);
       setPrimary((currentPrimary) => {
         if (currentPrimary && next.includes(currentPrimary)) return currentPrimary;
         return next[0] ?? null;
       });
-      return next;
-    });
-  }, []);
+    },
+    [selected],
+  );
 
   const handleSave = React.useCallback(
     async (workspaceIds: string[], workspaceId: string | null) => {
