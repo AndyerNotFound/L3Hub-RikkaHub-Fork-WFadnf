@@ -202,18 +202,19 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 `files/workspaces/` 不参与备份：工作区文件可能很大，且更换设备后 proot 路径会变，按需自行导出。
 
-## 自动压缩（fork 设置项 + 上游核心）
+## 自动压缩（设置随助手，行为走上游）
 
-助手 → 记忆 → 「自动压缩」：开关、循环压缩、触发阈值（WARN / MAX）、压缩后保留的条数。
-底层使用上游 2026-11-10 的两个提交（`0cd90ef12` 按占比自动压缩、`bcc649abc` 一轮中途自动压缩），
-fork 不再自带判据、预算与截断算法。
+助手 → 记忆 → 「自动压缩」：只有开关与触发比例（`Assistant.autoCompress`、`Assistant.autoCompressRatio`，
+50%–95%，按 5% 取整）。用户偏好是每个助手各自一套，所以设置不放在全局偏好里；判据、时机与压缩范围全部采用上游
+2026-11-10 的两个提交（`0cd90ef12` 按占比自动压缩、`bcc649abc` 一轮中途自动压缩），fork 不再自带判据、预算、
+截断算法，也不再有「循环压缩」与「压缩后保留条数」两个选项——上游核心在一轮中途本来就会按比例再压，自动压缩也不留保留区。
 
 | 项 | 说明 |
 |---|---|
-| 触发时机 | 回复结束后、派发收件箱之前检查一次；开了「循环压缩」时，每批工具执行完再检查一次，达到阈值就压缩，之后的步骤写进检查点后面新的一条回复 |
-| 判据 | 最近一次请求的 usage（`lastContextTokens()` / `contextTokens()`）对比模型的 WARN/MAX 门限（`autoCompressLimit`）；检查点之前的 usage 不算数 |
+| 触发时机 | 回复结束后、派发收件箱之前检查一次；一轮中途每批工具执行完再检查一次，达到比例就压缩，之后的步骤写进检查点后面新的一条回复 |
+| 判据 | 最近一次请求的 usage（`lastContextTokens()` / `contextTokens()`）达到聊天模型上下文窗口乘以触发比例；检查点之前的 usage 不算数 |
 | 任务槽 | 压缩与生成共用会话任务槽（`SessionActivity.Compressing`）：期间新消息照常排队、停止生成可取消、重新生成先取消它。不再有 `compressMutex` 与上下文指纹 |
-| 压缩范围 | 上一个检查点之后到最近 N 条之前（N = 压缩后保留）；一轮中途的压缩不留保留区，整段进摘要 |
+| 压缩范围 | 上一个检查点之后到末尾；手动压缩可另填保留条数，自动压缩不留保留区，整段进摘要 |
 | 摘要输入 | 上一个检查点加检查点之后的原文；检查点之前的原文不再重发 |
 | 摘要 | 与手动压缩共用 `insertCompressionCheckpoint`，在原位置插入 `isContextCheckpoint` 摘要消息；请求按正常对话组装，前缀与上一轮一致 |
 | 状态 | `SessionActivity.Compressing` 让最后一条消息不再显示生成中；前台通知与 Live Update 显示「正在压缩……」 |
@@ -227,7 +228,7 @@ fork 不再自带判据、预算与截断算法。
 - `ai/agent/Agent.kt`、`AgentLoop.kt`：`AgentHooks.shouldPause` 与 `AgentFinishReason.Paused`
 - `service/ConversationSession.kt`：`SessionActivity`、`canStartNextTurn`、`autoCompressedReplyId`
 - `data/ai/ChatRequestFactory.kt`：`withContinuationHint`，检查点后面不是用户消息时补一句继续任务
-- `data/model/AutoCompress.kt`：助手设置与 WARN/MAX 门限换算；token 估算在 `TokenEstimate.kt`，
+- `data/model/AutoCompress.kt`：只剩触发比例的可选范围（滑块共用）；token 估算在 `TokenEstimate.kt`，
   只给用量看板与摘要请求的输出上限用
 
 ## 品牌与界面调整（fork）

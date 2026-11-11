@@ -81,8 +81,6 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Guidance
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
-import me.rerere.rikkahub.data.model.autoCompressKeepMessages
-import me.rerere.rikkahub.data.model.autoCompressLimit
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
 import me.rerere.rikkahub.data.model.deleteMessage
@@ -1484,8 +1482,6 @@ class ChatService(
                         processingStatus = session.processingStatus,
                         pauseAfterTools = pause@{ message ->
                             if (!canCompress || compressionUseless) return@pause false
-                            // 循环压缩关掉后，一轮中途不再压；回合结束后的自动压缩照常
-                            if (!turn.assistant.autoCompressLoop) return@pause false
                             // 同一条回复只试一次，压缩失败后接着它写时不再重试
                             if (message.id == session.autoCompressedReplyId) return@pause false
                             if (!reachesAutoCompressThreshold(turn.model, turn.assistant, message.contextTokens())) {
@@ -1756,13 +1752,10 @@ class ChatService(
             if (!reachesAutoCompressThreshold(model, assistant, conversation.lastContextTokens())) return null
 
             session.autoCompressedReplyId = reply.id
-            // 配置的保留条数比现有消息还多时至少留住最后一条，否则压不动、每轮都报错
-            val keep = assistant.autoCompressKeepMessages
-                .coerceAtMost((conversation.messageNodes.size - 1).coerceAtLeast(0))
             return launchCompressionJob(
                 session = session,
                 additionalPrompt = "",
-                keepRecentMessages = keep,
+                keepRecentMessages = 0,
                 // 建议是这一轮刚生成的，自动压缩不清掉
                 clearSuggestions = false,
             ) { result ->
@@ -1818,9 +1811,8 @@ class ChatService(
 
     /** 上下文占用是否已经达到这个助手的自动压缩门限 */
     private fun reachesAutoCompressThreshold(model: Model, assistant: Assistant, contextTokens: Int?): Boolean {
-        if (!assistant.autoCompress || contextTokens == null) return false
-        val limit = model.autoCompressLimit(assistant.autoCompressThreshold) ?: return false
-        return contextTokens >= limit
+        if (!assistant.autoCompress || contextTokens == null || model.contextLength <= 0) return false
+        return contextTokens >= model.contextLength * assistant.autoCompressRatio
     }
 
     /**

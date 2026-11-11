@@ -5,12 +5,10 @@ import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
@@ -34,7 +33,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -44,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -67,10 +66,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AutoCompressTarget
-import me.rerere.rikkahub.data.model.AutoCompressThreshold
+import me.rerere.rikkahub.data.model.AUTO_COMPRESS_THRESHOLD_RANGE
 import me.rerere.rikkahub.data.model.MemoryFile
-import me.rerere.rikkahub.data.model.autoCompressKeepMessages
 import me.rerere.rikkahub.data.model.groupByDirectory
 import me.rerere.rikkahub.data.model.memoryTitleOf
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -80,6 +77,7 @@ import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
@@ -90,7 +88,6 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.memory.resultText
 import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.RadioButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -281,9 +278,6 @@ private fun MemorySettingsTab(
 ) {
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
-    var showAutoCompressThresholdDialog by remember(assistant.id) { mutableStateOf(false) }
-    var showAutoCompressTargetDialog by remember(assistant.id) { mutableStateOf(false) }
-    var autoCompressTargetInput by remember(assistant.id) { mutableStateOf("") }
     val settings = LocalSettings.current
     val dreamingModelState = rememberModelListState(
         modelId = assistant.dreamingModelId,
@@ -326,101 +320,6 @@ private fun MemorySettingsTab(
             },
             dismissButton = {
                 TextButton(onClick = { showTimeReminderIntervalDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_cancel))
-                }
-            },
-        )
-    }
-
-    if (showAutoCompressThresholdDialog) {
-        AnimatedAlertDialog(
-            onDismissRequest = { showAutoCompressThresholdDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
-            text = {
-                Column {
-                    AutoCompressThreshold.entries.forEach { option ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onUpdateAssistant(assistant.copy(autoCompressThreshold = option))
-                                    showAutoCompressThresholdDialog = false
-                                }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(
-                                selected = assistant.autoCompressThreshold == option,
-                                onClick = null,
-                            )
-                            Text(
-                                text = option.name,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAutoCompressThresholdDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_cancel))
-                }
-            },
-        )
-    }
-
-    if (showAutoCompressTargetDialog) {
-        val parsed = autoCompressTargetInput.toIntOrNull()
-        // 上限防手滑：条数填得比现存消息还多，压缩永远找不到可压范围，界面却照旧显示「已开启」，
-        // 用户只会觉得压缩坏了
-        val minValue = 1
-        val maxValue = 500
-        val valid = parsed != null && parsed in minValue..maxValue
-        AnimatedAlertDialog(
-            onDismissRequest = { showAutoCompressTargetDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextField(
-                        value = autoCompressTargetInput,
-                        onValueChange = { autoCompressTargetInput = it },
-                        label = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target_label)) },
-                        isError = !valid,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        supportingText = {
-                            Text(
-                                stringResource(
-                                    R.string.assistant_page_memory_auto_compress_target_range,
-                                    minValue,
-                                    maxValue,
-                                )
-                            )
-                        },
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = valid,
-                    onClick = {
-                        parsed?.let {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    autoCompressTarget = AutoCompressTarget.MESSAGES,
-                                    autoCompressTargetValue = it,
-                                )
-                            )
-                        }
-                        showAutoCompressTargetDialog = false
-                    },
-                ) {
-                    Text(stringResource(R.string.assistant_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAutoCompressTargetDialog = false }) {
                     Text(stringResource(R.string.assistant_page_cancel))
                 }
             },
@@ -527,52 +426,27 @@ private fun MemorySettingsTab(
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
             )
-            switchItem(
-                visible = assistant.autoCompress,
-                checked = assistant.autoCompressLoop,
-                onCheckedChange = {
-                    onUpdateAssistant(assistant.copy(autoCompressLoop = it))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_memory_auto_compress_loop_desc))
-                },
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_loop)) },
-            )
-            item(
+            formItem(
                 visible = assistant.autoCompress,
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },
                 trailingContent = {
-                    Text(
-                        text = assistant.autoCompressThreshold.name,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    CardGroupValue("${(assistant.autoCompressRatio * 100).roundToInt()}%")
                 },
-                onClick = { showAutoCompressThresholdDialog = true },
-            )
-            item(
-                visible = assistant.autoCompress,
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target)) },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_target_desc)) },
-                trailingContent = {
-                    Text(
-                        text = stringResource(
-                            R.string.assistant_page_memory_auto_compress_messages,
-                            assistant.autoCompressKeepMessages,
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                onClick = {
-                    // 上限是后加的：存量配置可能已经越界，打开时先夹进区间，
-                    // 否则输入框一进来就是错误态、保存键禁用，用户不改数字就退不出去
-                    autoCompressTargetInput =
-                        assistant.autoCompressKeepMessages.coerceIn(1, 500).toString()
-                    showAutoCompressTargetDialog = true
-                },
-            )
+            ) {
+                Slider(
+                    value = assistant.autoCompressRatio,
+                    onValueChange = { value ->
+                        // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
+                        onUpdateAssistant(
+                            assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
+                        )
+                    },
+                    valueRange = AUTO_COMPRESS_THRESHOLD_RANGE,
+                    steps = 8,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         CardGroup {

@@ -2212,16 +2212,9 @@
   <string name="task_tree_state_failed">Failed</string>
 
   <string name="assistant_page_memory_auto_compress">Auto-compress</string>
-  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary once context usage reaches the threshold: after a reply ends, and between tool calls when loop compression is on; the result matches manual compression</string>
-  <string name="assistant_page_memory_auto_compress_loop">Loop compression</string>
-  <string name="assistant_page_memory_auto_compress_loop_desc">Check context usage after each batch of tool calls and compress before continuing when the threshold is reached. When off, compression only happens after a reply ends.</string>
-  <string name="assistant_page_memory_auto_compress_threshold">Trigger threshold</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the soft warning line, MAX is the hard limit</string>
-  <string name="assistant_page_memory_auto_compress_target">Keep after compressing</string>
-  <string name="assistant_page_memory_auto_compress_target_range">Value range: %1$d–%2$d</string>
-  <string name="assistant_page_memory_auto_compress_target_desc">Recent messages kept verbatim after automatic compression at the end of a reply. Compression in the middle of a turn keeps only the summary.</string>
-  <string name="assistant_page_memory_auto_compress_messages">%1$d messages</string>
-  <string name="assistant_page_memory_auto_compress_target_label">Keep recent</string>
+  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary once context usage exceeds the set ratio: once a reply ends, and during a turn after every tool batch; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_threshold">Trigger ratio</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">Relative to the context window of the chat model</string>
 
   <string name="about_page_fork_note">A modified version of RikkaHub</string>
   <string name="about_page_upstream">Upstream project</string>
@@ -2646,10 +2639,6 @@
   <string name="assistant_page_local_tools_phone_use_enable_service">Turn on \"RikkaHub Phone Use\" in the accessibility settings</string>
   <string name="assistant_page_local_tools_phone_use_floating_window_required">Turn on the background floating window first</string>
   <string name="phone_use_accessibility_description">Lets the AI assistant read the screen and perform taps, swipes and text input for you when you enable the Phone Use tool. Nothing is done unless the assistant is running a task you asked for.</string>
-  <string name="setting_display_page_auto_compress_title">Auto-compress Context</string>
-  <string name="setting_display_page_auto_compress_desc">After a reply, automatically compress the history into a summary when context usage exceeds the set ratio</string>
-  <string name="setting_display_page_auto_compress_threshold_title">Trigger Ratio</string>
-  <string name="setting_display_page_auto_compress_threshold_desc">Relative to the chat model\'s context window</string>
   <string name="error_title_auto_compress">Auto-compression failed</string>
   <string name="chat_message_tool_phone_use_observe">Read screen</string>
   <string name="chat_message_tool_phone_use_screenshot">Take screenshot</string>
