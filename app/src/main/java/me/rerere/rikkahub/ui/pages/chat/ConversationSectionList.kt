@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +27,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Conversation
@@ -41,6 +46,7 @@ import kotlin.uuid.Uuid
  *
  * 纵向分段不参与分页，数据由 [ChatDrawerVM.verticalItems] 归好堆后整份传进来；
  * 条目渲染与扁平列表共用同一批组件，长按菜单、多选和折叠行为保持一致。
+ * 文件夹段与周分组都能收起：收起状态由 [ChatDrawerVM] 持有，本组件只负责渲染与回调。
  */
 @Composable
 fun ColumnScope.ConversationSectionList(
@@ -51,6 +57,9 @@ fun ColumnScope.ConversationSectionList(
     collapsedDates: Set<LocalDate> = emptySet(),
     onToggleDate: (LocalDate) -> Unit = {},
     onExpandDate: (LocalDate) -> Unit = {},
+    collapsedFolders: Set<String> = emptySet(),
+    onToggleFolder: (Uuid?) -> Unit = {},
+    onExpandFolder: (Uuid?) -> Unit = {},
     claimAutoReveal: (Uuid) -> Boolean = { true },
     scopeKey: Any? = null,
     modifier: Modifier = Modifier,
@@ -92,32 +101,66 @@ fun ColumnScope.ConversationSectionList(
                 is ConversationListItem.FolderHeader -> {
                     folderId = item.folderId
                     date = null
-                    SectionMeta(key = "folder_${item.folderId ?: "unfiled"}", date = null)
+                    SectionMeta(
+                        key = "folder_${item.folderId ?: "unfiled"}",
+                        date = null,
+                        folderId = item.folderId,
+                    )
                 }
 
                 is ConversationListItem.PinnedHeader -> {
                     date = null
-                    SectionMeta(key = "pinned_${folderId ?: "unfiled"}", date = null)
+                    SectionMeta(
+                        key = "pinned_${folderId ?: "unfiled"}",
+                        date = null,
+                        folderId = folderId,
+                    )
                 }
 
                 is ConversationListItem.DateHeader -> {
                     date = item.date
-                    SectionMeta(key = "date_${folderId ?: "unfiled"}_${item.date}", date = item.date)
+                    SectionMeta(
+                        key = "date_${folderId ?: "unfiled"}_${item.date}",
+                        date = item.date,
+                        folderId = folderId,
+                    )
                 }
 
-                is ConversationListItem.Item ->
-                    SectionMeta(key = item.conversation.id.toString(), date = date)
+                is ConversationListItem.Item -> SectionMeta(
+                    key = item.conversation.id.toString(),
+                    date = date,
+                    folderId = folderId,
+                )
             }
         }
     }
 
+    // 每个文件夹段里有几条会话，收起后标题上还看得见数量
+    val folderCounts = remember(items) {
+        val counts = mutableMapOf<Uuid?, Int>()
+        var folderId: Uuid? = null
+        items.forEach { item ->
+            when (item) {
+                is ConversationListItem.FolderHeader -> folderId = item.folderId
+                is ConversationListItem.Item -> counts[folderId] = (counts[folderId] ?: 0) + 1
+                else -> Unit
+            }
+        }
+        counts
+    }
+
+    fun isFolderCollapsed(folderId: Uuid?): Boolean =
+        folderCollapseKey(folderId) in collapsedFolders
+
     // 折叠后看不见的会话不应该还留在选中集合里
-    LaunchedEffect(collapsedDates) {
+    LaunchedEffect(collapsedDates, collapsedFolders) {
         if (selectedIds.isEmpty()) return@LaunchedEffect
         val hiddenIds = items.mapIndexedNotNull { index, item ->
             val conversation = (item as? ConversationListItem.Item)?.conversation
                 ?: return@mapIndexedNotNull null
-            val hidden = metas.getOrNull(index)?.date?.let { it in collapsedDates } == true
+            val meta = metas.getOrNull(index)
+            val hidden = meta != null &&
+                (isFolderCollapsed(meta.folderId) || meta.date?.let { it in collapsedDates } == true)
             if (hidden) conversation.id else null
         }
         if (hiddenIds.isNotEmpty()) {
@@ -125,16 +168,28 @@ fun ColumnScope.ConversationSectionList(
         }
     }
 
-    LaunchedEffect(current.id, items, metas, collapsedDates, hasScrolledToCurrent) {
+    LaunchedEffect(
+        current.id,
+        items,
+        metas,
+        collapsedDates,
+        collapsedFolders,
+        hasScrolledToCurrent,
+    ) {
         if (hasScrolledToCurrent) return@LaunchedEffect
         val itemIndex = items.indexOfFirst {
             (it as? ConversationListItem.Item)?.conversation?.id == current.id
         }
         if (itemIndex < 0) return@LaunchedEffect
 
-        // 当前会话所在的周被收起时展开一次；列表刷新后用户再收起，不重新拉开
+        // 当前会话所在的文件夹段或周被收起时先展开一次；列表刷新后用户再收起，不重新拉开
         val firstReveal = claimAutoReveal(current.id)
-        val sectionDate = metas.getOrNull(itemIndex)?.date
+        val meta = metas.getOrNull(itemIndex)
+        if (meta != null && isFolderCollapsed(meta.folderId)) {
+            if (firstReveal) onExpandFolder(meta.folderId)
+            return@LaunchedEffect
+        }
+        val sectionDate = meta?.date
         if (sectionDate != null && sectionDate in collapsedDates) {
             if (firstReveal) onExpandDate(sectionDate)
             return@LaunchedEffect
@@ -206,73 +261,84 @@ fun ColumnScope.ConversationSectionList(
                 items = items,
                 key = { index, _ -> metas[index].key },
             ) { index, item ->
-                if (item is ConversationListItem.Item) {
-                    val sectionDate = metas.getOrNull(index)?.date
-                    if (sectionDate != null && sectionDate in collapsedDates) {
-                        return@itemsIndexed
-                    }
+                val meta = metas.getOrNull(index)
+                // 文件夹收起时整段（周标题、置顶头、会话）一起收，只剩文件夹标题；
+                // 周收起时只收会话。条目留在列表里交给高度动画收放，直接从数据里删掉就没有过渡了
+                val visible = when {
+                    meta == null -> true
+                    isFolderCollapsed(meta.folderId) -> item is ConversationListItem.FolderHeader
+                    item is ConversationListItem.Item ->
+                        meta.date?.let { it in collapsedDates } != true
+                    else -> true
                 }
 
-                Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                    when (item) {
-                        is ConversationListItem.FolderHeader -> {
-                            FolderSectionHeader(
-                                label = item.label,
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
+                CollapsibleSectionItem(visible = visible) {
+                    Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                        when (item) {
+                            is ConversationListItem.FolderHeader -> {
+                                FolderSectionHeader(
+                                    label = item.label,
+                                    count = folderCounts[item.folderId] ?: 0,
+                                    collapsed = isFolderCollapsed(item.folderId),
+                                    onToggle = { onToggleFolder(item.folderId) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
 
-                        is ConversationListItem.DateHeader -> {
-                            DateHeaderItem(
-                                label = item.label,
-                                collapsed = item.date in collapsedDates,
-                                onToggle = { onToggleDate(item.date) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
+                            is ConversationListItem.DateHeader -> {
+                                DateHeaderItem(
+                                    label = item.label,
+                                    collapsed = item.date in collapsedDates,
+                                    onToggle = { onToggleDate(item.date) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
 
-                        is ConversationListItem.PinnedHeader -> {
-                            PinnedHeader(modifier = Modifier.animateItem())
-                        }
+                            is ConversationListItem.PinnedHeader -> {
+                                PinnedHeader(modifier = Modifier.animateItem())
+                            }
 
-                        is ConversationListItem.Item -> {
-                            ConversationItem(
-                                conversation = item.conversation,
-                                selected = item.conversation.id == current.id,
-                                loading = item.conversation.id in conversationJobs,
-                                selectionMode = selectionMode,
-                                checked = item.conversation.id in selectedIds,
-                                onToggleSelection = {
-                                    if (item.conversation.id in selectedIds) {
-                                        selectedIds.remove(item.conversation.id)
-                                    } else {
-                                        selectedIds.add(item.conversation.id)
-                                    }
-                                },
-                                onEnterSelection = {
-                                    selectionMode = true
-                                    if (item.conversation.id !in selectedIds) selectedIds.add(item.conversation.id)
-                                },
-                                onClick = if (selectionMode) {
-                                    { conversation ->
-                                        if (conversation.id in selectedIds) {
-                                            selectedIds.remove(conversation.id)
+                            is ConversationListItem.Item -> {
+                                ConversationItem(
+                                    conversation = item.conversation,
+                                    selected = item.conversation.id == current.id,
+                                    loading = item.conversation.id in conversationJobs,
+                                    selectionMode = selectionMode,
+                                    checked = item.conversation.id in selectedIds,
+                                    onToggleSelection = {
+                                        if (item.conversation.id in selectedIds) {
+                                            selectedIds.remove(item.conversation.id)
                                         } else {
-                                            selectedIds.add(conversation.id)
+                                            selectedIds.add(item.conversation.id)
                                         }
-                                        Unit
-                                    }
-                                } else {
-                                    onClick
-                                },
-                                onDelete = onDelete,
-                                onRegenerateTitle = onRegenerateTitle,
-                                onPin = onPin,
-                                onMoveToAssistant = onMoveToAssistant,
-                                onMoveToFolder = onMoveToFolder,
-                                onRename = onRename,
-                                modifier = Modifier.animateItem(),
-                            )
+                                    },
+                                    onEnterSelection = {
+                                        selectionMode = true
+                                        if (item.conversation.id !in selectedIds) {
+                                            selectedIds.add(item.conversation.id)
+                                        }
+                                    },
+                                    onClick = if (selectionMode) {
+                                        { conversation ->
+                                            if (conversation.id in selectedIds) {
+                                                selectedIds.remove(conversation.id)
+                                            } else {
+                                                selectedIds.add(conversation.id)
+                                            }
+                                            Unit
+                                        }
+                                    } else {
+                                        onClick
+                                    },
+                                    onDelete = onDelete,
+                                    onRegenerateTitle = onRegenerateTitle,
+                                    onPin = onPin,
+                                    onMoveToAssistant = onMoveToAssistant,
+                                    onMoveToFolder = onMoveToFolder,
+                                    onRename = onRename,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
                         }
                     }
                 }
@@ -284,17 +350,25 @@ fun ColumnScope.ConversationSectionList(
 private data class SectionMeta(
     val key: String,
     val date: LocalDate?,
+    // 所属文件夹段，null 表示「未归类」
+    val folderId: Uuid?,
 )
 
 @Composable
 private fun FolderSectionHeader(
     label: String,
+    count: Int,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -309,6 +383,22 @@ private fun FolderSectionHeader(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (count > 0) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary,
         )
     }
 }

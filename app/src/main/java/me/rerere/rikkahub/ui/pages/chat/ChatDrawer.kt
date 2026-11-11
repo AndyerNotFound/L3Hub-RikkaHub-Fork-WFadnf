@@ -190,6 +190,7 @@ fun ChatDrawerContent(
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     val memoryDreaming by drawerVm.memoryDreaming.collectAsStateWithLifecycle()
     val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
+    val collapsedFolders by drawerVm.collapsedFolders.collectAsStateWithLifecycle()
     val verticalItems by drawerVm.verticalItems.collectAsStateWithLifecycle()
 
     // 矮屏（如手表、横屏手机）上顶部固定会把会话列表挤没，改为跟随列表一起滚动
@@ -342,6 +343,8 @@ fun ChatDrawerContent(
                     onSelect = { folderId ->
                         drawerVm.selectFolder(folderId)
                         if (settings.displaySetting.drawerVerticalSorting) {
+                            // 在文件夹横条上点一个分组，就是要看它里面的会话，收着的话先展开
+                            drawerVm.expandFolder(folderId)
                             val target = verticalItems.indexOfFirst {
                                 it is ConversationListItem.FolderHeader && it.folderId == folderId
                             }
@@ -430,6 +433,9 @@ fun ChatDrawerContent(
                     collapsedDates = collapsedDates,
                     onToggleDate = drawerVm::toggleDateCollapsed,
                     onExpandDate = drawerVm::expandDate,
+                    collapsedFolders = collapsedFolders,
+                    onToggleFolder = drawerVm::toggleFolderCollapsed,
+                    onExpandFolder = drawerVm::expandFolder,
                     claimAutoReveal = drawerVm::claimAutoReveal,
                     scopeKey = settings.assistantId to "vertical",
                     header = if (scrollableHeader) drawerHeader else null,

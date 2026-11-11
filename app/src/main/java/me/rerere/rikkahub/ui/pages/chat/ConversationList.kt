@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -291,80 +296,110 @@ fun ColumnScope.ConversationList(
             }
         ) { index ->
             val item = conversations[index]
-            // 已经收起的日期分组不渲染下面的会话；标题本身始终显示
-            if (item is ConversationListItem.Item) {
-                val sectionDate = sectionDates.getOrNull(index)
-                if (sectionDate != null && sectionDate in collapsedDates) {
-                    return@items
-                }
-            }
+            // 收起的日期分组只剩标题：条目留在列表里交给高度动画收放，直接从数据里删掉就没有过渡了
+            val sectionDate = sectionDates.getOrNull(index)
+            val visible = item !is ConversationListItem.Item ||
+                sectionDate == null ||
+                sectionDate !in collapsedDates
 
-            Box(modifier = Modifier.padding(bottom = 8.dp)) {
-            when (item) {
-                is ConversationListItem.DateHeader -> {
-                    DateHeaderItem(
-                        label = item.label,
-                        collapsed = item.date in collapsedDates,
-                        onToggle = { onToggleDate(item.date) },
-                        modifier = Modifier.animateItem()
-                    )
-                }
+            CollapsibleSectionItem(visible = visible) {
+                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                    when (item) {
+                        is ConversationListItem.DateHeader -> {
+                            DateHeaderItem(
+                                label = item.label,
+                                collapsed = item.date in collapsedDates,
+                                onToggle = { onToggleDate(item.date) },
+                                modifier = Modifier.animateItem()
+                            )
+                        }
 
-                is ConversationListItem.PinnedHeader -> {
-                    PinnedHeader(
-                        modifier = Modifier.animateItem()
-                    )
-                }
+                        is ConversationListItem.PinnedHeader -> {
+                            PinnedHeader(
+                                modifier = Modifier.animateItem()
+                            )
+                        }
 
-                is ConversationListItem.FolderHeader -> Unit
+                        is ConversationListItem.FolderHeader -> Unit
 
-                is ConversationListItem.Item -> {
-                    ConversationItem(
-                        conversation = item.conversation,
-                        selected = item.conversation.id == current.id,
-                        loading = item.conversation.id in conversationJobs,
-                        selectionMode = selectionMode,
-                        checked = item.conversation.id in selectedIds,
-                        onToggleSelection = {
-                            if (item.conversation.id in selectedIds) {
-                                selectedIds.remove(item.conversation.id)
-                            } else {
-                                selectedIds.add(item.conversation.id)
-                            }
-                        },
-                        onEnterSelection = {
-                            selectionMode = true
-                            if (item.conversation.id !in selectedIds) selectedIds.add(item.conversation.id)
-                        },
-                        onClick = if (selectionMode) {
-                            { conversation ->
-                                if (conversation.id in selectedIds) {
-                                    selectedIds.remove(conversation.id)
+                        is ConversationListItem.Item -> {
+                            ConversationItem(
+                                conversation = item.conversation,
+                                selected = item.conversation.id == current.id,
+                                loading = item.conversation.id in conversationJobs,
+                                selectionMode = selectionMode,
+                                checked = item.conversation.id in selectedIds,
+                                onToggleSelection = {
+                                    if (item.conversation.id in selectedIds) {
+                                        selectedIds.remove(item.conversation.id)
+                                    } else {
+                                        selectedIds.add(item.conversation.id)
+                                    }
+                                },
+                                onEnterSelection = {
+                                    selectionMode = true
+                                    if (item.conversation.id !in selectedIds) {
+                                        selectedIds.add(item.conversation.id)
+                                    }
+                                },
+                                onClick = if (selectionMode) {
+                                    { conversation ->
+                                        if (conversation.id in selectedIds) {
+                                            selectedIds.remove(conversation.id)
+                                        } else {
+                                            selectedIds.add(conversation.id)
+                                        }
+                                        Unit
+                                    }
                                 } else {
-                                    selectedIds.add(conversation.id)
-                                }
-                                Unit
-                            }
-                        } else {
-                            onClick
-                        },
-                        onDelete = onDelete,
-                        onRegenerateTitle = onRegenerateTitle,
-                        onPin = onPin,
-                        onMoveToAssistant = onMoveToAssistant,
-                        onMoveToFolder = onMoveToFolder,
-                        onRename = onRename,
-                        modifier = Modifier.animateItem()
-                    )
-                }
+                                    onClick
+                                },
+                                onDelete = onDelete,
+                                onRegenerateTitle = onRegenerateTitle,
+                                onPin = onPin,
+                                onMoveToAssistant = onMoveToAssistant,
+                                onMoveToFolder = onMoveToFolder,
+                                onRename = onRename,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
 
-                null -> {
-                    // Placeholder for loading state
+                        null -> {
+                            // Placeholder for loading state
+                        }
+                    }
                 }
-            }
             }
         }
     }
+    }
+}
+
+// 分组收起的时长：短到跟手，长到看得见高度在收
+private const val SECTION_TOGGLE_DURATION_MS = 220
+
+/**
+ * 分组折叠时条目在这一层收放。
+ *
+ * LazyColumn 里把条目从数据里删掉只会淡出，没有高度变化；把条目留在列表里，
+ * 交给 [expandVertically] / [shrinkVertically] 收放，才有展开与收起的过程。
+ * 收起完成后条目高度为 0，仍然留在列表里，滚动与下标定位因此不受影响。
+ */
+@Composable
+internal fun CollapsibleSectionItem(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = expandVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +
+            fadeIn(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
+        exit = shrinkVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +
+            fadeOut(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
+    ) {
+        content()
     }
 }
 

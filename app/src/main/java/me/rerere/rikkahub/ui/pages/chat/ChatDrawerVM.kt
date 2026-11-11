@@ -81,6 +81,15 @@ class ChatDrawerVM(
     )
     val collapsedDates: StateFlow<Set<LocalDate>> = _collapsedDates.asStateFlow()
 
+    // 收起的文件夹段。竖排排序下文件夹头可点，收起后只剩标题；
+    // 和日期分组同一份生命周期：activity 级 VM + SavedStateHandle
+    private val _collapsedFolders = MutableStateFlow(
+        savedStateHandle.get<Array<String>>(KEY_COLLAPSED_FOLDERS)
+            ?.toSet()
+            .orEmpty()
+    )
+    val collapsedFolders: StateFlow<Set<String>> = _collapsedFolders.asStateFlow()
+
     // 当前助手的文件夹列表（Room Flow，增删改自动刷新）
     val folders: StateFlow<List<Folder>> = assistantIdFlow
         .flatMapLatest { folderRepo.getFoldersOfAssistant(it) }
@@ -316,6 +325,24 @@ class ChatDrawerVM(
             _collapsedDates.value.map { it.toEpochDay() }.toLongArray()
     }
 
+    fun toggleFolderCollapsed(folderId: Uuid?) {
+        val key = folderCollapseKey(folderId)
+        _collapsedFolders.update { keys -> if (key in keys) keys - key else keys + key }
+        persistCollapsedFolders()
+    }
+
+    /** 当前会话所在的文件夹被收起时由列表回调，保证打开的会话不会藏在折叠段里。 */
+    fun expandFolder(folderId: Uuid?) {
+        val key = folderCollapseKey(folderId)
+        if (key !in _collapsedFolders.value) return
+        _collapsedFolders.update { it - key }
+        persistCollapsedFolders()
+    }
+
+    private fun persistCollapsedFolders() {
+        savedStateHandle[KEY_COLLAPSED_FOLDERS] = _collapsedFolders.value.toTypedArray()
+    }
+
     fun createFolder(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
@@ -389,6 +416,7 @@ class ChatDrawerVM(
 
     private companion object {
         const val KEY_COLLAPSED_DATES = "collapsedDates"
+        const val KEY_COLLAPSED_FOLDERS = "collapsedFolders"
         const val KEY_VERTICAL_SCROLL_INDEX = "verticalScrollIndex"
         const val KEY_VERTICAL_SCROLL_OFFSET = "verticalScrollOffset"
         const val MAX_AUTO_REVEAL_MEMORY = 32
@@ -411,3 +439,6 @@ class ChatDrawerVM(
         }
     }
 }
+
+/** 文件夹折叠状态的键；folderId 为 null 时表示「未归类」那一段 */
+internal fun folderCollapseKey(folderId: Uuid?): String = folderId?.toString() ?: "unfiled"
