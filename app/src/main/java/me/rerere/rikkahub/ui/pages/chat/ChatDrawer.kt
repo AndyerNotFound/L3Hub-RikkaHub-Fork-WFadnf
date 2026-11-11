@@ -303,9 +303,16 @@ fun ChatDrawerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text(
+                    text = stringResource(R.string.chat_page_conversation_history),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp),
+                )
                 ConversationSortButton(
                     sortOrder = settings.displaySetting.conversationSortOrder,
                     onSortOrderChange = { sortOrder ->

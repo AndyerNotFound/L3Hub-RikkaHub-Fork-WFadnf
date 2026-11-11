@@ -274,6 +274,7 @@
   <string name="chat_page_export_share_via">Поделиться через</string>
   <string name="chat_page_export_success">Экспортировано в %1$s</string>
   <string name="chat_page_history">История чата</string>
+  <string name="chat_page_conversation_history">История бесед</string>
   <string name="chat_page_menu_ai_translator">AI-переводчик</string>
   <string name="chat_page_menu_image_generation">Генерация изображений</string>
   <string name="chat_page_message_count">%d сообщений</string>
