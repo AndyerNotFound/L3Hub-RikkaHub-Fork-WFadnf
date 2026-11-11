@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.theme
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
@@ -53,5 +55,19 @@ fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
         AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.fastSpatialSpec()
         AnimationSpeed.FAST -> spring<T>(dampingRatio = 0.95f, stiffness = 1400f)
         AnimationSpeed.GENTLE -> spring<T>(dampingRatio = 0.8f, stiffness = 420f)
+    }
+}
+
+/**
+ * 侧边栏这类整块滑入滑出的位移动画：只做平移，不要 expressive 弹簧在落位时的那一下回弹。
+ * 档位和页面转场共用，关掉动效时直接跳变。
+ */
+@Composable
+fun <T> rememberSlideSpec(animated: Boolean = true): FiniteAnimationSpec<T> {
+    if (!animated) return snap()
+    return when (LocalAnimationSpeed.current) {
+        AnimationSpeed.SYSTEM -> tween(durationMillis = 300, easing = FastOutSlowInEasing)
+        AnimationSpeed.FAST -> tween(durationMillis = 180, easing = FastOutSlowInEasing)
+        AnimationSpeed.GENTLE -> tween(durationMillis = 420, easing = FastOutSlowInEasing)
     }
 }

@@ -40,7 +40,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -50,7 +49,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -59,7 +57,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -159,6 +156,7 @@ import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePan
 import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -175,6 +173,7 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
@@ -223,7 +222,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         vm.updateDraftFolder(selectedFolderId)
     }
 
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    // 竖屏的侧边栏：自己画的滑入抽屉（见 SlideOverDrawer），不用 Material 那个会回弹的弹簧
+    var drawerOpen by rememberSaveable { mutableStateOf(false) }
+    val drawerSlideSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
     // 背景层（AssistantBackground）单独一份 Haze 源：抽屉和浮层的玻璃都取它，
     // 取聊天列表会把正文一起糊进来。提到这一层是为了抽屉也拿得到
     val backgroundHazeState = rememberHazeState()
@@ -237,16 +238,14 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         }
     }
 
-    // Handle back press when drawer is open
-    BackHandler(enabled = drawerState.isOpen) {
-        scope.launch {
-            drawerState.close()
-        }
+    // 抽屉开着时接管返回键
+    BackHandler(enabled = drawerOpen) {
+        drawerOpen = false
     }
 
     // Clear input focus so popup transitions cannot reopen the keyboard.
-    LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen) {
+    LaunchedEffect(drawerOpen) {
+        if (drawerOpen) {
             focusManager.clearFocus(force = true)
             softwareKeyboardController?.hide()
         }
@@ -263,8 +262,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     var sidebarResizing by remember { mutableStateOf(false) }
     // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
     LaunchedEffect(threePaneLayout) {
-        if (threePaneLayout && drawerState.isOpen) {
-            drawerState.close()
+        if (threePaneLayout && drawerOpen) {
+            drawerOpen = false
         }
     }
 
@@ -275,7 +274,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
     val startNewChat: () -> Unit = {
         // 横屏三栏没有模态抽屉可收；竖屏收一下，免得新会话页还被挡着
-        if (!threePaneLayout) scope.launch { drawerState.close() }
+        if (!threePaneLayout) drawerOpen = false
         navigateToChatPage(navController, Uuid.random())
     }
 
@@ -349,13 +348,16 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     .coerceIn(320.dp, maxChatWidth)
                 Row(modifier = Modifier.fillMaxSize()) {
                     // 左栏：原来的抽屉内容，横屏里并排放，宽度动画负责开合
+                    val sidebarSlideSpec = rememberSlideSpec<Dp>(
+                        animated = !setting.displaySetting.disableAnimations,
+                    )
                     val sidebarWidth by animateDpAsState(
                         targetValue = if (sidebarOpen) sidebarWidthDp.dp else 0.dp,
                         // 拖动时不要弹簧，手柄和边缘之间不能有一帧的滞后
                         animationSpec = if (sidebarResizing) {
                             snap()
                         } else {
-                            MaterialTheme.motionScheme.defaultSpatialSpec()
+                            sidebarSlideSpec
                         },
                         label = "chatSidebarWidth",
                     )
@@ -420,9 +422,11 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 }
             }
         } else {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
+            SlideOverDrawer(
+                open = drawerOpen,
+                onOpenChange = { drawerOpen = it },
+                animationSpec = drawerSlideSpec,
+                sheet = {
                     ChatDrawerContent(
                         navController = navController,
                         current = conversation,
@@ -430,12 +434,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         settings = setting,
                         onNewChat = startNewChat,
                         onOpenSettings = openSettingsFromDrawer,
-                        onCloseDrawer = { drawerState.close() },
-                        // 收起状态的模态抽屉在屏幕外，这时别让头像参与转场
-                        avatarHero = drawerState.isOpen,
+                        onCloseDrawer = { drawerOpen = false },
+                        // 收起状态的抽屉在屏幕外，这时别让头像参与转场
+                        avatarHero = drawerOpen,
                         hazeState = backgroundHazeState,
                     )
-                }
+                },
             ) {
                 ChatPageContent(
                     onStartVoiceMode = startVoiceMode,
@@ -452,8 +456,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     assistant = assistant,
                     currentChatModel = currentChatModel,
                     threePane = false,
-                    sidebarOpen = drawerState.isOpen,
-                    onOpenSidebar = { scope.launch { drawerState.open() } },
+                    sidebarOpen = drawerOpen,
+                    onOpenSidebar = { drawerOpen = true },
                     backgroundHazeState = backgroundHazeState,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
