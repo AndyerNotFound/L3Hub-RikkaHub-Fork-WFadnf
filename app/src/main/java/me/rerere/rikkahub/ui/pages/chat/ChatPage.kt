@@ -210,8 +210,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val assistant by vm.assistant.collectAsStateWithLifecycle()
-    // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
-    val conversationFolders by vm.folders.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹（#2133）
@@ -514,6 +512,8 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
+    // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
+    val conversationFolders by vm.folders.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
