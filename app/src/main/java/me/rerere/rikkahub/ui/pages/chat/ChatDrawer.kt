@@ -1,7 +1,13 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,8 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ContainedLoadingIndicator
@@ -38,6 +46,7 @@ import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +55,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -56,6 +66,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -104,6 +115,7 @@ import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -117,6 +129,7 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -124,6 +137,8 @@ import me.rerere.ui.components.Tooltip
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
 // 抽屉宽度：原来是写死的 300dp，按比例放大后还要跟屏幕宽度取小，免得窄屏上撑出屏幕
@@ -170,12 +185,12 @@ fun ChatDrawerContent(
     val activity = context as ComponentActivity
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
 
-    val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val bindableWorkspaces by drawerVm.workspaces.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     val memoryDreaming by drawerVm.memoryDreaming.collectAsStateWithLifecycle()
     val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
+    val verticalItems by drawerVm.verticalItems.collectAsStateWithLifecycle()
 
     // 矮屏（如手表、横屏手机）上顶部固定会把会话列表挤没，改为跟随列表一起滚动
     val windowHeight = LocalWindowInfo.current.containerDpSize.height
@@ -185,35 +200,21 @@ fun ChatDrawerContent(
     // header 是否占掉 LazyColumn 的第 0 位，决定保存/恢复滚动位置时要不要补一位
     val listHeaderCount = if (scrollableHeader) 1 else 0
 
-    val conversationListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = drawerVm.scrollIndex.toListItemIndex(listHeaderCount),
-        initialFirstVisibleItemScrollOffset = drawerVm.scrollOffset,
-    )
-
-    LaunchedEffect(conversationListState, listHeaderCount) {
-        snapshotFlow {
-            conversationListState.firstVisibleItemIndex to
-                conversationListState.firstVisibleItemScrollOffset
+    // 文件夹横条的顺序决定横向转场方向：点右边那个从右侧推入，点左边那个反向
+    val folderOrder = remember(folders) {
+        buildList<Uuid?> {
+            add(null)
+            folders.forEach { add(it.id) }
         }
-            .distinctUntilChanged()
-            .collectLatest { (index, offset) ->
-                delay(SCROLL_POSITION_SAVE_DELAY_MS)
-                drawerVm.saveScrollPosition(
-                    (index - listHeaderCount).coerceAtLeast(0),
-                    offset,
-                )
-            }
     }
-
-    // 切助手/切文件夹等于换了一份列表：回到顶部，多选由 ConversationList 按 scopeKey 重置
-    val listScopeKey = settings.assistantId to selectedFolderId
-    var lastListScopeKey by remember { mutableStateOf(listScopeKey) }
-    LaunchedEffect(listScopeKey) {
-        if (lastListScopeKey != listScopeKey) {
-            lastListScopeKey = listScopeKey
-            conversationListState.scrollToItem(0)
-            drawerVm.saveScrollPosition(0, 0)
-        }
+    val folderSlideSpec = rememberSpatialSpec<IntOffset>()
+    val drawerSortOrder = settings.displaySetting.conversationSortOrder
+    // 换排序方式时重建列表状态，回到顶部，不留在另一种排序下的位置
+    val verticalListState = remember(drawerSortOrder) {
+        LazyListState(
+            firstVisibleItemIndex = drawerVm.verticalScrollIndex.toListItemIndex(listHeaderCount),
+            firstVisibleItemScrollOffset = drawerVm.verticalScrollOffset,
+        )
     }
 
     val conversationJobs by vm.conversationJobs.collectAsStateWithLifecycle(
@@ -246,6 +247,54 @@ fun ChatDrawerContent(
     var folderToBindWorkspace by remember { mutableStateOf<Folder?>(null) }
     // 这次勾选的草稿：Room 回流要一个来回，草稿保证连续点几下不会互相盖掉
     var folderWorkspaceDraft by remember { mutableStateOf<Set<Uuid>>(emptySet()) }
+
+    // 扁平与竖向两种列表共用同一批回调，省得两处各写一份后行为走样
+    fun openConversation(conversation: Conversation, index: Int?, itemCount: Int) {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastConversationOpenAt < 400L) return
+        lastConversationOpenAt = now
+        // 点的是列表上半部分就从上方落进来，下半部分从下方升上来
+        val fromTop = index != null && index * 2 < itemCount
+        scope.launch {
+            // 先把抽屉收回去再换会话，两段动画分开走，别叠在一起
+            onCloseDrawer?.invoke()
+            navigateToChatPage(navController, conversation.id, enterFromTop = fromTop)
+        }
+    }
+
+    val onDeleteConversation: (Conversation) -> Unit = { conversation ->
+        scope.launch {
+            vm.deleteConversation(conversation).join()
+            if (conversation.id == current.id) {
+                navigateToChatPage(navController)
+            }
+        }
+    }
+    val onRenameConversation: (Conversation, String) -> Unit = { conversation, title ->
+        vm.updateTitle(conversation.id, title)
+    }
+    val onPinConversation: (Conversation) -> Unit = { vm.updatePinnedStatus(it) }
+    val onMoveConversationToAssistant: (Conversation) -> Unit = {
+        conversationToMove = it
+        showMoveToAssistantSheet = true
+    }
+    val onMoveConversationToFolder: (Conversation) -> Unit = {
+        conversationToMoveFolder = it
+        showMoveToFolderSheet = true
+    }
+    val onDeleteSelectedConversations: (List<Conversation>) -> Unit = { list ->
+        scope.launch {
+            list.forEach { vm.deleteConversation(it).join() }
+            if (list.any { it.id == current.id }) {
+                navigateToChatPage(navController)
+            }
+        }
+    }
+    val onPinSelectedConversations: (List<Conversation>) -> Unit = { list ->
+        // 有未置顶的就全部置顶，否则全部取消置顶
+        val target = list.any { !it.isPinned }
+        list.filter { it.isPinned != target }.forEach { vm.updatePinnedStatus(it) }
+    }
 
     val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
     var updateChecksEnabled by remember(updateCheckDisabledUntil) {
@@ -290,7 +339,17 @@ fun ChatDrawerContent(
                 FolderBar(
                     folders = folders,
                     selectedFolderId = selectedFolderId,
-                    onSelect = { drawerVm.selectFolder(it) },
+                    onSelect = { folderId ->
+                        drawerVm.selectFolder(folderId)
+                        if (settings.displaySetting.drawerVerticalSorting) {
+                            val target = verticalItems.indexOfFirst {
+                                it is ConversationListItem.FolderHeader && it.folderId == folderId
+                            }
+                            if (target >= 0) {
+                                scope.launch { verticalListState.scrollToItem(target + listHeaderCount) }
+                            }
+                        }
+                    },
                     onCreate = { showCreateFolderDialog = true },
                     onRename = { folderToRename = it },
                     onDelete = { folderToDelete = it },
@@ -298,6 +357,7 @@ fun ChatDrawerContent(
                         folderWorkspaceDraft = folder.allWorkspaceIds
                         folderToBindWorkspace = folder
                     },
+                    onMove = drawerVm::moveFolderTo,
                     modifier = Modifier.weight(1f),
                 )
 
@@ -312,7 +372,7 @@ fun ChatDrawerContent(
                             )
                         }
                         // 换排序后回到顶部，否则会停留在原来滚动到的位置
-                        scope.launch { conversationListState.scrollToItem(0) }
+                        drawerVm.resetScrollPositions()
                     },
                 )
             }
@@ -348,76 +408,125 @@ fun ChatDrawerContent(
                 drawerHeader()
             }
 
-            ConversationList(
-                current = current,
-                conversations = conversations,
-                conversationJobs = conversationJobs.keys,
-                listState = conversationListState,
-                collapsedDates = collapsedDates,
-                onToggleDate = drawerVm::toggleDateCollapsed,
-                onExpandDate = drawerVm::expandDate,
-                scopeKey = listScopeKey,
-                header = if (scrollableHeader) drawerHeader else null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                onClick = { conversation ->
-                    val now = SystemClock.uptimeMillis()
-                    if (now - lastConversationOpenAt >= 400L) {
-                        lastConversationOpenAt = now
-                        // 点的是列表上半部分就从上方落进来，下半部分从下方升上来。
-                        // 列表里是日期分组和会话混排，只有 Item 那一条才带会话
-                        val index = (0 until conversations.itemCount)
-                            .firstOrNull {
-                                (conversations.peek(it) as? ConversationListItem.Item)?.conversation?.id == conversation.id
+            if (settings.displaySetting.drawerVerticalSorting) {
+                LaunchedEffect(verticalListState, listHeaderCount) {
+                    snapshotFlow {
+                        verticalListState.firstVisibleItemIndex to verticalListState.firstVisibleItemScrollOffset
+                    }
+                        .distinctUntilChanged()
+                        .collectLatest { (index, offset) ->
+                            delay(SCROLL_POSITION_SAVE_DELAY_MS)
+                            drawerVm.saveVerticalScrollPosition(
+                                (index - listHeaderCount).coerceAtLeast(0),
+                                offset,
+                            )
+                        }
+                }
+                ConversationSectionList(
+                    current = current,
+                    items = verticalItems,
+                    conversationJobs = conversationJobs.keys,
+                    listState = verticalListState,
+                    collapsedDates = collapsedDates,
+                    onToggleDate = drawerVm::toggleDateCollapsed,
+                    onExpandDate = drawerVm::expandDate,
+                    claimAutoReveal = drawerVm::claimAutoReveal,
+                    scopeKey = settings.assistantId to "vertical",
+                    header = if (scrollableHeader) drawerHeader else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    onClick = { conversation ->
+                        val index = verticalItems.indexOfFirst {
+                            (it as? ConversationListItem.Item)?.conversation?.id == conversation.id
+                        }
+                        openConversation(conversation, index.takeIf { it >= 0 }, verticalItems.size)
+                    },
+                    onRegenerateTitle = { vm.generateTitle(it, true) },
+                    onRename = onRenameConversation,
+                    onDelete = onDeleteConversation,
+                    onPin = onPinConversation,
+                    onMoveToAssistant = onMoveConversationToAssistant,
+                    onMoveToFolder = onMoveConversationToFolder,
+                    onDeleteSelected = onDeleteSelectedConversations,
+                    onPinSelected = onPinSelectedConversations,
+                )
+            } else {
+                // 换文件夹时整页横向推进：方向跟着文件夹横条的顺序走
+                AnimatedContent(
+                    targetState = selectedFolderId,
+                    transitionSpec = {
+                        val from = folderOrder.indexOf(initialState)
+                        val to = folderOrder.indexOf(targetState)
+                        val forward = from < 0 || to < 0 || to >= from
+                        (slideInHorizontally(animationSpec = folderSlideSpec) { width ->
+                            if (forward) width else -width
+                        } + fadeIn()) togetherWith
+                            (slideOutHorizontally(animationSpec = folderSlideSpec) { width ->
+                                if (forward) -width else width
+                            } + fadeOut())
+                    },
+                    label = "folderViews",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clipToBounds(),
+                ) { folderId ->
+                    key(folderId) {
+                        val items = remember(folderId, settings.assistantId) {
+                            drawerVm.conversationsOf(folderId)
+                        }.collectAsLazyPagingItems()
+                        val listState = remember(drawerSortOrder, folderId) {
+                            LazyListState(
+                                firstVisibleItemIndex = drawerVm.scrollIndex(folderId).toListItemIndex(listHeaderCount),
+                                firstVisibleItemScrollOffset = drawerVm.scrollOffset(folderId),
+                            )
+                        }
+                        LaunchedEffect(listState, folderId, listHeaderCount) {
+                            snapshotFlow {
+                                listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
                             }
-                        val fromTop = index != null && index * 2 < conversations.itemCount
-                        scope.launch {
-                            // 先把抽屉收回去再换会话，两段动画分开走，别叠在一起
-                            onCloseDrawer?.invoke()
-                            navigateToChatPage(navController, conversation.id, enterFromTop = fromTop)
+                                .distinctUntilChanged()
+                                .collectLatest { (index, offset) ->
+                                    delay(SCROLL_POSITION_SAVE_DELAY_MS)
+                                    drawerVm.saveScrollPosition(
+                                        folderId,
+                                        (index - listHeaderCount).coerceAtLeast(0),
+                                        offset,
+                                    )
+                                }
                         }
+                        ConversationList(
+                            current = current,
+                            conversations = items,
+                            conversationJobs = conversationJobs.keys,
+                            listState = listState,
+                            collapsedDates = collapsedDates,
+                            onToggleDate = drawerVm::toggleDateCollapsed,
+                            onExpandDate = drawerVm::expandDate,
+                            claimAutoReveal = drawerVm::claimAutoReveal,
+                            scopeKey = settings.assistantId to folderId,
+                            header = if (scrollableHeader) drawerHeader else null,
+                            modifier = Modifier.fillMaxSize(),
+                            onClick = { conversation ->
+                                val index = (0 until items.itemCount)
+                                    .firstOrNull {
+                                        (items.peek(it) as? ConversationListItem.Item)?.conversation?.id == conversation.id
+                                    }
+                                openConversation(conversation, index, items.itemCount)
+                            },
+                            onRegenerateTitle = { vm.generateTitle(it, true) },
+                            onRename = onRenameConversation,
+                            onDelete = onDeleteConversation,
+                            onPin = onPinConversation,
+                            onMoveToAssistant = onMoveConversationToAssistant,
+                            onMoveToFolder = onMoveConversationToFolder,
+                            onDeleteSelected = onDeleteSelectedConversations,
+                            onPinSelected = onPinSelectedConversations,
+                        )
                     }
-                },
-                onRegenerateTitle = {
-                    vm.generateTitle(it, true)
-                },
-                onRename = { conversation, title ->
-                    vm.updateTitle(conversation.id, title)
-                },
-                onDelete = {
-                    scope.launch {
-                        vm.deleteConversation(it).join()
-                        if (it.id == current.id) {
-                            navigateToChatPage(navController)
-                        }
-                    }
-                },
-                onPin = {
-                    vm.updatePinnedStatus(it)
-                },
-                onMoveToAssistant = {
-                    conversationToMove = it
-                    showMoveToAssistantSheet = true
-                },
-                onMoveToFolder = {
-                    conversationToMoveFolder = it
-                    showMoveToFolderSheet = true
-                },
-                onDeleteSelected = { list ->
-                    scope.launch {
-                        list.forEach { vm.deleteConversation(it).join() }
-                        if (list.any { it.id == current.id }) {
-                            navigateToChatPage(navController)
-                        }
-                    }
-                },
-                onPinSelected = { list ->
-                    // 有未置顶的就全部置顶，否则全部取消置顶
-                    val target = list.any { !it.isPinned }
-                    list.filter { it.isPinned != target }.forEach { vm.updatePinnedStatus(it) }
-                },
-            )
+                }
+            }
 
             if (memoryDreaming) {
                 MemoryDreamingEntry(
@@ -1034,14 +1143,28 @@ private fun FolderBar(
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
     onBindWorkspace: (Folder) -> Unit,
+    onMove: (Uuid, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+        val movedId = folders.firstOrNull { it.id.toString() == from.key }?.id
+            ?: return@rememberReorderableLazyListState
+        // 「未归类」和「新建」不参与排序，拖到它们身上就收到两端
+        val targetIndex = when (to.key) {
+            "unfiled" -> 0
+            "add" -> folders.lastIndex
+            else -> folders.indexOfFirst { it.id.toString() == to.key }
+        }
+        if (targetIndex >= 0) onMove(movedId, targetIndex)
+    }
     LazyRow(
+        state = listState,
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        item {
+        item(key = "unfiled") {
             FolderChip(
                 label = stringResource(R.string.chat_page_folder_default),
                 selected = selectedFolderId == null,
@@ -1049,49 +1172,59 @@ private fun FolderBar(
                 onLongClick = {},
             )
         }
-        items(folders) { folder ->
+        itemsIndexed(folders, key = { _, folder -> folder.id.toString() }) { _, folder ->
             var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                FolderChip(
-                    label = folder.name,
-                    icon = HugeIcons.Folder01,
-                    selected = selectedFolderId == folder.id,
-                    workspaceBound = folder.allWorkspaceIds.isNotEmpty(),
-                    onClick = { onSelect(folder.id) },
-                    onLongClick = { menuExpanded = true },
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_rename)) },
-                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
+            ReorderableItem(
+                state = reorderState,
+                key = folder.id.toString(),
+            ) { isDragging ->
+                Box {
+                    FolderChip(
+                        label = folder.name,
+                        icon = HugeIcons.Folder01,
+                        selected = selectedFolderId == folder.id,
+                        workspaceBound = folder.allWorkspaceIds.isNotEmpty(),
+                        // 长按改成拖拽排序；已经选中的文件夹再点一下打开菜单
+                        showMenuHint = selectedFolderId == folder.id,
+                        modifier = longPressReorder(isDragging),
                         onClick = {
-                            onRename(folder)
-                            menuExpanded = false
-                        }
+                            if (selectedFolderId == folder.id) menuExpanded = true else onSelect(folder.id)
+                        },
+                        onLongClick = {},
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
-                        leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
-                        onClick = {
-                            onBindWorkspace(folder)
-                            menuExpanded = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_delete)) },
-                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                        onClick = {
-                            onDelete(folder)
-                            menuExpanded = false
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_rename)) },
+                            leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
+                            onClick = {
+                                onRename(folder)
+                                menuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
+                            leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
+                            onClick = {
+                                onBindWorkspace(folder)
+                                menuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_delete)) },
+                            leadingIcon = { Icon(HugeIcons.Delete01, null) },
+                            onClick = {
+                                onDelete(folder)
+                                menuExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
-        item {
+        item(key = "add") {
             FolderChip(
                 label = stringResource(R.string.chat_page_folder_add),
                 icon = HugeIcons.FolderAdd,
@@ -1167,6 +1300,9 @@ private fun FolderChip(
     icon: ImageVector? = null,
     // 这个分组绑了工作区：用一个小标记说明「这堆聊天共用一个工作区」
     workspaceBound: Boolean = false,
+    // 选中态右侧的箭头：提示再点一下会打开文件夹菜单
+    showMenuHint: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = CircleShape,
@@ -1175,7 +1311,7 @@ private fun FolderChip(
         } else {
             glassColor(MaterialTheme.colorScheme.surfaceContainerLow)
         },
-        modifier = Modifier
+        modifier = modifier
             .clip(CircleShape)
             .combinedClickable(
                 onClick = onClick,
@@ -1202,6 +1338,14 @@ private fun FolderChip(
                     contentDescription = null,
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (showMenuHint) {
+                Icon(
+                    imageVector = HugeIcons.ArrowDown01,
+                    contentDescription = stringResource(R.string.chat_page_folder_options),
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

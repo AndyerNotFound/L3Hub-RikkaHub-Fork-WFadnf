@@ -54,6 +54,13 @@ class FolderRepository(
         folderDAO.rename(id.toString(), name)
     }
 
+    /** 按给定顺序重写 sort_index，归一成 0..n-1 */
+    suspend fun reorderFolders(orderedIds: List<Uuid>) {
+        orderedIds.forEachIndexed { index, id ->
+            folderDAO.updateSortIndex(id.toString(), index)
+        }
+    }
+
     /**
      * 改文件夹绑定的工作区。
      *
