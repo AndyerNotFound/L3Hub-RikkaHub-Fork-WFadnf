@@ -89,6 +89,7 @@ import me.rerere.rikkahub.data.model.editMessage
 import me.rerere.rikkahub.data.model.fillModelSnapshots
 import me.rerere.rikkahub.data.model.fork
 import me.rerere.rikkahub.data.model.getAssistantOf
+import me.rerere.rikkahub.data.model.autoCompressTriggerTokens
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.getStoredAssistantOf
 import me.rerere.rikkahub.data.model.insertContextCheckpoint
@@ -1811,8 +1812,9 @@ class ChatService(
 
     /** 上下文占用是否已经达到这个助手的自动压缩门限 */
     private fun reachesAutoCompressThreshold(model: Model, assistant: Assistant, contextTokens: Int?): Boolean {
-        if (!assistant.autoCompress || contextTokens == null || model.contextLength <= 0) return false
-        return contextTokens >= model.contextLength * assistant.autoCompressRatio
+        if (!assistant.autoCompress || contextTokens == null) return false
+        val limit = model.autoCompressTriggerTokens(assistant) ?: return false
+        return contextTokens >= limit
     }
 
     /**

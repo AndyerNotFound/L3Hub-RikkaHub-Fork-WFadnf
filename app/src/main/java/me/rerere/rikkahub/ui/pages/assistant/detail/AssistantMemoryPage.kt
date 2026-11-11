@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -67,6 +70,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AUTO_COMPRESS_THRESHOLD_RANGE
+import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
 import me.rerere.rikkahub.data.model.memoryTitleOf
@@ -88,6 +92,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.memory.resultText
 import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.RadioButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -277,6 +282,7 @@ private fun MemorySettingsTab(
     onUpdateAssistant: (Assistant) -> Unit,
 ) {
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
+    var showAutoCompressThresholdDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
     val settings = LocalSettings.current
     val dreamingModelState = rememberModelListState(
@@ -320,6 +326,44 @@ private fun MemorySettingsTab(
             },
             dismissButton = {
                 TextButton(onClick = { showTimeReminderIntervalDialog = false }) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
+
+    if (showAutoCompressThresholdDialog) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showAutoCompressThresholdDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
+            text = {
+                Column {
+                    AutoCompressThreshold.entries.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onUpdateAssistant(assistant.copy(autoCompressThreshold = option))
+                                    showAutoCompressThresholdDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = assistant.autoCompressThreshold == option,
+                                onClick = null,
+                            )
+                            Text(
+                                text = option.name,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAutoCompressThresholdDialog = false }) {
                     Text(stringResource(R.string.assistant_page_cancel))
                 }
             },
@@ -447,6 +491,19 @@ private fun MemorySettingsTab(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            item(
+                visible = assistant.autoCompress,
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },
+                trailingContent = {
+                    Text(
+                        text = assistant.autoCompressThreshold.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                onClick = { showAutoCompressThresholdDialog = true },
+            )
         }
 
         CardGroup {

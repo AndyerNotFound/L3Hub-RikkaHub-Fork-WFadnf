@@ -2214,9 +2214,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_state_failed">失败</string>
 
   <string name="assistant_page_memory_auto_compress">自动压缩</string>
-  <string name="assistant_page_memory_auto_compress_desc">上下文占用超过设定比例时，把历史压成摘要：一轮回复结束后检查一次，一轮中途每批工具执行完也会检查；效果与手动压缩一致</string>
-  <string name="assistant_page_memory_auto_compress_threshold">触发比例</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">相对于聊天模型的上下文窗口</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文占用到达触发比例或预警线（先到者）时，把历史压成摘要：一轮回复结束后检查一次，一轮中途每批工具执行完也会检查；效果与手动压缩一致</string>
+  <string name="assistant_page_memory_auto_compress_ratio">触发比例</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">相对于聊天模型的上下文窗口</string>
+  <string name="assistant_page_memory_auto_compress_threshold">预警线</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 为预警线，MAX 为硬上限；与触发比例取先到者</string>
 
   <string name="about_page_fork_note">基于 RikkaHub 的修改版本</string>
   <string name="about_page_upstream">上游项目</string>

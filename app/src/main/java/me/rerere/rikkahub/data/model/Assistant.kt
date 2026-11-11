@@ -53,6 +53,7 @@ data class Assistant(
     // 上下文占用达到聊天模型窗口的这个比例后自动压缩，效果与手动压缩一致（插入检查点摘要）
     val autoCompress: Boolean = false,
     val autoCompressRatio: Float = 0.8f,
+    val autoCompressThreshold: AutoCompressThreshold = AutoCompressThreshold.WARN,
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),

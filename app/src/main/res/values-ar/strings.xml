@@ -1823,9 +1823,11 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">اختر الوكلاء الفرعيين الذين يُسمح لهذا المساعد بإسناد المهام إليهم. عدم اختيار أي منهم يعني عدم وجود قيود.</string>
   <string name="assistant_page_local_tools_sub_agent_title">إسناد وكلاء فرعيين</string>
   <string name="assistant_page_memory_auto_compress">الضغط التلقائي</string>
-  <string name="assistant_page_memory_auto_compress_desc">عند تجاوز استخدام السياق النسبة المحددة، يُضغط السجل إلى ملخص: مرة بعد انتهاء الرد، وأثناء الدور بعد كل دفعة من استدعاءات الأدوات؛ والنتيجة مطابقة للضغط اليدوي</string>
-  <string name="assistant_page_memory_auto_compress_threshold">نسبة التشغيل</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">بالنسبة إلى نافذة سياق نموذج المحادثة</string>
+  <string name="assistant_page_memory_auto_compress_desc">عند بلوغ استخدام السياق نسبة التشغيل أو خط التحذير، أيهما أسبق، يُضغط السجل إلى ملخص: مرة بعد انتهاء الرد، وأثناء الدور بعد كل دفعة من استدعاءات الأدوات؛ والنتيجة مطابقة للضغط اليدوي</string>
+  <string name="assistant_page_memory_auto_compress_ratio">نسبة التشغيل</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">بالنسبة إلى نافذة سياق نموذج المحادثة</string>
+  <string name="assistant_page_memory_auto_compress_threshold">خط التحذير</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN خط التحذير وMAX الحد الأقصى؛ يُضغط عند أول ما يتحقق منهما مع نسبة التشغيل</string>
   <string name="assistant_page_plan_mode">وضع التخطيط</string>
   <string name="assistant_page_plan_mode_desc">يُسمح بأدوات القراءة فقط؛ تُرفض كتابة الملفات وتعديل المستودع وتنفيذ الأوامر. مناسب للاستكشاف قبل التنفيذ</string>
   <string name="assistant_page_sub_agent">تعيينه كوكيل فرعي</string>

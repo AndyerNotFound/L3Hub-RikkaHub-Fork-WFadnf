@@ -1972,9 +1972,11 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">勾選這個助手允許派發的子代理；全部不勾選表示不限制</string>
   <string name="assistant_page_local_tools_sub_agent_title">派發子代理</string>
   <string name="assistant_page_memory_auto_compress">自動壓縮</string>
-  <string name="assistant_page_memory_auto_compress_desc">上下文佔用超過設定比例時，把歷史壓成摘要：一輪回覆結束後檢查一次，一輪中途每批工具執行完也會檢查；效果與手動壓縮一致</string>
-  <string name="assistant_page_memory_auto_compress_threshold">觸發比例</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">相對於聊天模型的上下文視窗</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文佔用到達觸發比例或預警線（先到者）時，把歷史壓成摘要：一輪回覆結束後檢查一次，一輪中途每批工具執行完也會檢查；效果與手動壓縮一致</string>
+  <string name="assistant_page_memory_auto_compress_ratio">觸發比例</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">相對於聊天模型的上下文視窗</string>
+  <string name="assistant_page_memory_auto_compress_threshold">預警線</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 為預警線，MAX 為硬上限；與觸發比例取先到者</string>
   <string name="assistant_page_sub_agent">設為子代理</string>
   <string name="assistant_page_sub_agent_desc">其他助手可透過 dispatch_sub_agent 工具將任務派發給該助手。子代理在獨立會話中執行，不共享當前上下文</string>
   <string name="backup_page_import_from_markdown">從 Markdown 匯入</string>

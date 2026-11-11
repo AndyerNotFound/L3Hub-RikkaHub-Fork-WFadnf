@@ -1826,9 +1826,11 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">Wähle die Sub-Agents, an die dieser Assistent Aufgaben verteilen darf. Ohne Auswahl sind alle erlaubt.</string>
   <string name="assistant_page_local_tools_sub_agent_title">Sub-Agents verteilen</string>
   <string name="assistant_page_memory_auto_compress">Automatisch komprimieren</string>
-  <string name="assistant_page_memory_auto_compress_desc">Überschreitet die Kontextauslastung den eingestellten Anteil, wird der Verlauf zu einer Zusammenfassung verdichtet: einmal nach einer Antwort und während eines Durchlaufs nach jedem Werkzeug-Batch; das Ergebnis entspricht der manuellen Komprimierung</string>
-  <string name="assistant_page_memory_auto_compress_threshold">Auslöseanteil</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">Relativ zum Kontextfenster des Chat-Modells</string>
+  <string name="assistant_page_memory_auto_compress_desc">Erreicht die Kontextauslastung den Auslöseanteil oder die Warnlinie — je nachdem, was zuerst eintritt —, wird der Verlauf zu einer Zusammenfassung verdichtet: einmal nach einer Antwort und während eines Durchlaufs nach jedem Werkzeug-Batch; das Ergebnis entspricht der manuellen Komprimierung</string>
+  <string name="assistant_page_memory_auto_compress_ratio">Auslöseanteil</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">Relativ zum Kontextfenster des Chat-Modells</string>
+  <string name="assistant_page_memory_auto_compress_threshold">Warnlinie</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN ist die Warnlinie, MAX das harte Limit; komprimiert wird, sobald einer davon zusammen mit dem Auslöseanteil zuerst erreicht ist</string>
   <string name="assistant_page_plan_mode">Planungsmodus</string>
   <string name="assistant_page_plan_mode_desc">Nur lesende Tools erlaubt: Dateischreiben, Änderungen am Repository und Befehlsausführung werden abgelehnt. Geeignet zum Erkunden vor dem Handeln</string>
   <string name="assistant_page_sub_agent">Als Sub-Agent festlegen</string>

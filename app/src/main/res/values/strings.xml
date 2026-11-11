@@ -2212,9 +2212,11 @@
   <string name="task_tree_state_failed">Failed</string>
 
   <string name="assistant_page_memory_auto_compress">Auto-compress</string>
-  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary once context usage exceeds the set ratio: once a reply ends, and during a turn after every tool batch; the result matches manual compression</string>
-  <string name="assistant_page_memory_auto_compress_threshold">Trigger ratio</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">Relative to the context window of the chat model</string>
+  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary when context usage reaches the trigger ratio or the warning line, whichever comes first: once a reply ends, and during a turn after every tool batch; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_ratio">Trigger ratio</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">Relative to the context window of the chat model</string>
+  <string name="assistant_page_memory_auto_compress_threshold">Warning line</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the warning line, MAX the hard limit; compression fires at whichever comes first with the trigger ratio</string>
 
   <string name="about_page_fork_note">A modified version of RikkaHub</string>
   <string name="about_page_upstream">Upstream project</string>

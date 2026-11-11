@@ -1825,9 +1825,11 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_allowed_sub_agents_dialog_desc">이 어시스턴트가 파견할 수 있는 하위 에이전트를 선택하세요. 모두 선택하지 않으면 제한하지 않습니다</string>
   <string name="assistant_page_local_tools_sub_agent_title">하위 에이전트 파견</string>
   <string name="assistant_page_memory_auto_compress">자동 압축</string>
-  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 설정한 비율을 넘으면 기록을 요약으로 압축합니다. 답변이 끝난 뒤 한 번, 한 턴 도중에는 도구 실행 묶음이 끝날 때마다 확인합니다. 수동 압축과 결과가 같습니다</string>
-  <string name="assistant_page_memory_auto_compress_threshold">발동 비율</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">채팅 모델의 컨텍스트 창 기준</string>
+  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 발동 비율이나 경고선 중 먼저 도달한 쪽에 이르면 기록을 요약으로 압축합니다. 답변이 끝난 뒤 한 번, 한 턴 도중에는 도구 실행 묶음이 끝날 때마다 확인합니다. 수동 압축과 결과가 같습니다</string>
+  <string name="assistant_page_memory_auto_compress_ratio">발동 비율</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">채팅 모델의 컨텍스트 창 기준</string>
+  <string name="assistant_page_memory_auto_compress_threshold">경고선</string>
+  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN은 경고선, MAX는 상한입니다. 발동 비율과 먼저 도달하는 쪽에서 압축합니다</string>
   <string name="assistant_page_plan_mode">플랜 모드</string>
   <string name="assistant_page_plan_mode_desc">읽기 전용 도구만 허용합니다. 파일 쓰기, 저장소 수정, 명령 실행은 모두 거부되므로 먼저 탐색한 뒤 작업하기에 적합합니다</string>
   <string name="assistant_page_sub_agent">하위 에이전트로 설정</string>
