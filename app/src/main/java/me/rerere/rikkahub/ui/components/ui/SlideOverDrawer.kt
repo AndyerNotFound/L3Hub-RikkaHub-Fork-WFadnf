@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
@@ -31,21 +31,26 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
 
 private val DefaultSlideSpec = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
 
+// 收起时只认从左边缘起手，避免把聊天页自己的横向手势当成开抽屉
+private val EdgeSwipeWidth = 24.dp
+// 够格判定：拖过这么远，或者松手时速度够快
+private val IntentSwipeDistance = 40.dp
+private val IntentSwipeVelocity = 350.dp
+
 /**
  * 从侧边整块滑进来的遮罩式抽屉，替代 Material 的 ModalNavigationDrawer。
  *
- * 和 Material 那套的区别只在动效：开关走固定时长的平移，不用 expressive 的弹簧，
- * 落位时不会回弹一下；外侧按滑动进度压一层暗色遮罩，收起时一起淡掉。
- * 手势照旧：向右拖拉开、向左拖动收起、点外侧收起，收起状态只接向右的拖动，
- * 向左留给会话里自己的左滑操作。
+ * 手势是意图式的：手指拖动期间抽屉不跟着走，只判断方向、距离和速度，够格就整段动画打开或收起。
+ * 这样拖动时不需要对整块抽屉重新布局，抽屉里再重的列表也只在动画里做一次平移；
+ * 平移走 graphicsLayer，动画期间只重绘、不重新测量。
+ *
+ * 收起状态只接从左边缘起手的右滑，向左留给会话里自己的左滑操作；展开后左滑收起，点外侧收起。
  */
 @Composable
 internal fun SlideOverDrawer(
@@ -68,12 +73,9 @@ internal fun SlideOverDrawer(
         var sheetWidth by remember { mutableFloatStateOf(0f) }
         val travel = if (sheetWidth > 0f) sheetWidth else containerWidth
         var offset by remember { mutableFloatStateOf(if (open) 0f else -travel) }
-        var dragging by remember { mutableStateOf(false) }
         var animating by remember { mutableStateOf(false) }
 
-        LaunchedEffect(open, travel, dragging) {
-            // 拖动时位置由手势给，别让动画抢
-            if (dragging) return@LaunchedEffect
+        LaunchedEffect(open, travel) {
             val target = if (open) 0f else -travel
             if (offset == target) return@LaunchedEffect
             animating = true
@@ -92,43 +94,42 @@ internal fun SlideOverDrawer(
 
         val dragGesture = if (gesturesEnabled) {
             Modifier.pointerInput(open, travel) {
-                val flingThreshold = 400.dp.toPx()
-                val velocityTracker = VelocityTracker()
+                val edgeWidth = EdgeSwipeWidth.toPx()
+                val swipeDistance = IntentSwipeDistance.toPx()
+                val swipeVelocity = IntentSwipeVelocity.toPx()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    velocityTracker.resetTracking()
-                    var total = 0f
-                    var started = false
+                    val opening = !open
+                    // 收起时只认左边缘起手；展开时不限起手位置
+                    if (opening && down.position.x > edgeWidth) return@awaitEachGesture
+                    val velocityTracker = VelocityTracker()
+                    velocityTracker.addPosition(down.uptimeMillis, down.position)
+                    var horizontal = false
+                    var triggered = false
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed || change.isConsumed) break
-                        val dx = change.position.x - change.previousPosition.x
-                        total += dx
-                        if (!started) {
-                            if (abs(total) < viewConfiguration.touchSlop) continue
-                            if (!open && total < 0f) break
-                            started = true
-                            dragging = true
-                            velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            offset = (offset + total).coerceIn(-travel, 0f)
-                            change.consume()
-                            continue
-                        }
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
-                        offset = (offset + dx).coerceIn(-travel, 0f)
-                        change.consume()
-                    }
-                    if (started) {
-                        dragging = false
-                        // 甩得够快按方向定，否则看有没有拖过一半
-                        val velocity = velocityTracker.calculateVelocity().x
-                        val shouldOpen = if (abs(velocity) > flingThreshold) {
-                            velocity > 0f
-                        } else {
-                            offset > -travel / 2f
+                        val dx = change.position.x - down.position.x
+                        val dy = change.position.y - down.position.y
+                        if (!horizontal) {
+                            if (abs(dx) < viewConfiguration.touchSlop) continue
+                            if (abs(dx) <= abs(dy) * 1.5f) break
+                            if (opening != (dx > 0f)) break
+                            horizontal = true
                         }
-                        currentOnOpenChange(shouldOpen)
+                        if (abs(dx) >= swipeDistance) {
+                            triggered = true
+                            change.consume()
+                            currentOnOpenChange(opening)
+                            break
+                        }
+                    }
+                    if (!triggered && horizontal) {
+                        val velocity = velocityTracker.calculateVelocity().x
+                        val fling = if (opening) velocity >= swipeVelocity else velocity <= -swipeVelocity
+                        if (fling) currentOnOpenChange(opening)
                     }
                 }
             }
@@ -138,7 +139,7 @@ internal fun SlideOverDrawer(
 
         // 遮罩一直画，透明度按抽屉滑开的进度来：收起动画期间它跟着一起淡掉，
         // 不会出现内容先亮起来的问题；只有抽屉露面时才挂上拦截指针和语义
-        val blocking = open || dragging || animating
+        val blocking = open || animating
         Box(modifier = Modifier.fillMaxSize().then(dragGesture)) {
             content()
 
@@ -175,7 +176,7 @@ internal fun SlideOverDrawer(
                                                 moved = true
                                             }
                                         }
-                                        // 有位移的交给外层拖动，这里只管点一下外侧
+                                        // 有位移的交给外层手势，这里只管点一下外侧
                                         if (!moved) currentOnOpenChange(false)
                                     }
                                 }
@@ -188,13 +189,14 @@ internal fun SlideOverDrawer(
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .offset { IntOffset(offset.roundToInt(), 0) }
+                    // 平移只发生在绘制阶段：整块抽屉不会因为动画重新测量或重组
+                    .graphicsLayer { translationX = offset }
                     .onSizeChanged { size ->
                         val width = size.width.toFloat()
                         if (width <= 0f || width == sheetWidth) return@onSizeChanged
                         sheetWidth = width
                         // 收起状态直接对齐实际宽度，别在屏幕外多补一段动画
-                        if (!open) offset = -width
+                        if (!open && !animating) offset = -width
                     },
             ) {
                 sheet()
