@@ -637,7 +637,6 @@ private fun DetailsSection(
                     text = title,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                 )
                 if (trailing != null) {
                     Spacer(Modifier.width(6.dp))
