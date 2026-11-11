@@ -282,7 +282,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     )
                 }
                 formItem(
-                    visible = displaySetting.enableBlurEffect,
+                    visible = displaySetting.effectiveBackgroundEffect == BackgroundEffectType.GLASS,
                     headlineContent = { Text(stringResource(R.string.setting_display_page_glass_opacity_title)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_glass_opacity_desc)) },
                     trailingContent = {

@@ -1728,7 +1728,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
   <string name="setting_display_page_background_effect_title">全局特效</string>
-  <string name="setting_display_page_background_effect_desc">让输入栏、消息气泡和顶栏按钮跟随模糊或玻璃效果</string>
+  <string name="setting_display_page_background_effect_desc">让输入栏、消息气泡、顶栏、设置卡片与浮层跟随模糊或玻璃效果</string>
   <string name="setting_display_page_background_effect_type">背景效果类型</string>
   <string name="setting_display_page_background_effect_blur">模糊</string>
   <string name="setting_display_page_background_effect_glass">玻璃</string>
@@ -2291,7 +2291,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="stats_page_export_done">已保存至 %1$s</string>
   <string name="stats_page_export_failed">导出失败：%1$s</string>
   <string name="setting_display_page_blur_opacity_title">模糊不透明度</string>
-  <string name="setting_display_page_blur_opacity_desc">模糊效果下气泡、输入框与顶栏按钮的着色强度，数值越低越通透</string>
+  <string name="setting_display_page_blur_opacity_desc">模糊效果下所有组件的着色强度，数值越低越通透；输入框、气泡、顶栏、卡片与浮层读取同一个值</string>
   <string name="setting_display_page_glass_opacity_title">玻璃透明度</string>
   <string name="setting_display_page_glass_opacity_desc">气泡、输入框、顶栏、设置项与浮层的玻璃背景着色强度，数值越低越通透；关闭模糊效果后恢复实色</string>
   <string name="setting_display_page_full_width_title">全宽组件</string>

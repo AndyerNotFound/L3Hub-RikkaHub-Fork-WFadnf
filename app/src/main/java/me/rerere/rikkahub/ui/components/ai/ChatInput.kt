@@ -425,10 +425,11 @@ fun ChatInput(
                     1.dp,
                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 ),
-                color = when (settings.displaySetting.effectiveBackgroundEffect) {
-                    BackgroundEffectType.OFF -> containerColor
-                    BackgroundEffectType.BLUR -> containerColor.copy(alpha = settings.displaySetting.blurOpacity)
-                    BackgroundEffectType.GLASS -> Color.Transparent
+                // 着色由 chatInputHaze 统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
+                color = if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
+                    containerColor
+                } else {
+                    Color.Transparent
                 },
             ) {
                 Column(

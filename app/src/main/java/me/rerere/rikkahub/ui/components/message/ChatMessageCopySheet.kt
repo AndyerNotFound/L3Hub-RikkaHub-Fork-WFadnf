@@ -35,7 +35,6 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.GlassSheetShape
-import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -59,9 +58,11 @@ fun ChatMessageCopySheet(
         shape = GlassSheetShape,
         // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层
         // 会让 sheet 的锚定失效（面板跑到屏幕中间、不盖住底栏）。这里只把底色做成半透明，
-        // 浓度跟「玻璃透明度」走，0.88 是 sheet 在独立窗口里拿不到 haze 源时的下限。
+        // 浓度跟当前档位的滑杆走，0.88 是 sheet 在独立窗口里拿不到 haze 源时的下限。
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(
-            alpha = if (canGlassPane(hazeState)) {
+            alpha = if (LocalSettings.current.displaySetting.enableBlurEffect) {
+                // sheet 在独立窗口里取不到页面上的 haze 源，只能靠半透明底；
+                // 浓度跟当前档位的滑杆走，0.88 是保证正文不穿透的下限
                 LocalSettings.current.displaySetting.glassOverlayAlpha(0.88f)
             } else {
                 1f

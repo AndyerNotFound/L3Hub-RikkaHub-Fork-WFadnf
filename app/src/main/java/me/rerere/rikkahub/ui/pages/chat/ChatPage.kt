@@ -163,7 +163,6 @@ import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -999,6 +998,7 @@ private fun ChatPageContent(
                         onPreviewModeChange = { previewMode = it },
                         settings = setting,
                         bubbleHazeState = backgroundHazeState,
+                        contentSource = backgroundHazeState,
                         errors = errors,
                         onDismissError = onDismissError,
                         onClearAllErrors = onClearAllErrors,
@@ -1523,13 +1523,9 @@ private fun TopBar(
     onToggleDetails: () -> Unit,
 ) {
     val effect = settings.displaySetting.effectiveBackgroundEffect
-    // 顶栏按钮是「玻璃底」，透明度读玻璃透明度，而不是气泡用的模糊不透明度
-    val glassAlpha = settings.displaySetting.glassSurfaceAlpha
-    fun effectColor(base: Color): Color = when (effect) {
-        BackgroundEffectType.OFF -> base
-        BackgroundEffectType.BLUR -> base.copy(alpha = glassAlpha)
-        BackgroundEffectType.GLASS -> Color.Transparent
-    }
+    // 着色交给 chatInputHaze，按当前档位读滑杆；按钮自己只在关闭特效时铺实色
+    fun effectColor(base: Color): Color =
+        if (effect == BackgroundEffectType.OFF) base else Color.Transparent
     val effectBorder = if (effect == BackgroundEffectType.BLUR) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     } else {
@@ -1560,19 +1556,19 @@ private fun TopBar(
                             .appButtonShadow(navShape, 2.dp)
                             .clip(navShape)
                             .background(effectColor(navColor))
+                            .chatInputHaze(
+                                hazeState = hazeState,
+                                displaySetting = settings.displaySetting,
+                                containerColor = navColor,
+                                shape = navShape,
+                            )
+                            // 描边画在模糊层之后，否则会被糊掉
                             .then(
                                 if (effectBorder != null) {
                                     Modifier.border(effectBorder, navShape)
                                 } else {
                                     Modifier
                                 }
-                            )
-                            .chatInputHaze(
-                                hazeState = hazeState,
-                                displaySetting = settings.displaySetting,
-                                containerColor = navColor,
-                                alpha = glassAlpha,
-                                shape = navShape,
                             ),
                         shape = navShape,
                         color = Color.Transparent,
@@ -1608,19 +1604,18 @@ private fun TopBar(
                                 .appButtonShadow(modelPillShape, 2.dp)
                                 .clip(modelPillShape)
                                 .background(effectColor(modelPillColor))
+                                .chatInputHaze(
+                                    hazeState = hazeState,
+                                    displaySetting = settings.displaySetting,
+                                    containerColor = modelPillColor,
+                                    shape = modelPillShape,
+                                )
                                 .then(
                                     if (effectBorder != null) {
                                         Modifier.border(effectBorder, modelPillShape)
                                     } else {
                                         Modifier
                                     }
-                                )
-                                .chatInputHaze(
-                                    hazeState = hazeState,
-                                    displaySetting = settings.displaySetting,
-                                    containerColor = modelPillColor,
-                                    alpha = glassAlpha,
-                                    shape = modelPillShape,
                                 )
                                 .clickable(onClick = onShowModelPicker)
                                 .padding(horizontal = 8.dp),
@@ -1653,19 +1648,18 @@ private fun TopBar(
                         .appButtonShadow(pillShape, 2.dp)
                         .clip(pillShape)
                         .background(effectColor(pillColor))
+                        .chatInputHaze(
+                            hazeState = hazeState,
+                            displaySetting = settings.displaySetting,
+                            containerColor = pillColor,
+                            shape = pillShape,
+                        )
                         .then(
                             if (effectBorder != null) {
                                 Modifier.border(effectBorder, pillShape)
                             } else {
                                 Modifier
                             }
-                        )
-                        .chatInputHaze(
-                            hazeState = hazeState,
-                            displaySetting = settings.displaySetting,
-                            containerColor = pillColor,
-                            alpha = glassAlpha,
-                            shape = pillShape,
                         )
                         .padding(horizontal = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1758,26 +1752,10 @@ private fun EmptyChatHero(
     val effect = settings.displaySetting.effectiveBackgroundEffect
     val shape = RoundedCornerShape(28.dp)
     val baseColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val containerColor = when (effect) {
-        BackgroundEffectType.OFF -> Color.Transparent
-        BackgroundEffectType.BLUR -> baseColor.copy(alpha = settings.displaySetting.blurOpacity)
-        BackgroundEffectType.GLASS -> Color.Transparent
-    }
     Column(
         modifier = Modifier
             .padding(horizontal = 40.dp)
             .clip(shape)
-            .background(containerColor)
-            .then(
-                if (effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        shape,
-                    )
-                } else {
-                    Modifier
-                }
-            )
             .then(
                 if (effect != BackgroundEffectType.OFF) {
                     Modifier.chatInputHaze(
@@ -1785,6 +1763,17 @@ private fun EmptyChatHero(
                         displaySetting = settings.displaySetting,
                         containerColor = baseColor,
                         shape = shape,
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            // 描边画在模糊层之后，否则会被糊掉
+            .then(
+                if (effect == BackgroundEffectType.BLUR) {
+                    Modifier.border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        shape,
                     )
                 } else {
                     Modifier

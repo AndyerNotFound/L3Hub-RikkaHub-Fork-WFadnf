@@ -43,8 +43,8 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 
 /**
@@ -102,11 +102,15 @@ internal fun ChatSidePanelColumn(
                 shape = shape,
                 baseColor = containerColor,
                 hazeState = hazeState,
-                radius = 16.dp,
                 minAlpha = 0.5f,
             ),
         shape = shape,
-        color = if (canGlassPane(hazeState)) Color.Transparent else containerColor,
+        // 着色由 glassSurface 统一铺，这里保持透明；没有源时它会退化成半透明色
+        color = if (LocalSettings.current.displaySetting.enableBlurEffect) {
+            Color.Transparent
+        } else {
+            containerColor
+        },
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(

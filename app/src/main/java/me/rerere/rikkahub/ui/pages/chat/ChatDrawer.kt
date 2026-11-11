@@ -111,7 +111,6 @@ import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
-import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -392,7 +391,8 @@ fun ChatDrawerContent(
                 minAlpha = 0.65f,
             ),
         drawerShape = drawerShape,
-        drawerContainerColor = if (canGlassPane(hazeState)) {
+        // 着色由 glassSurface 统一铺，这里保持透明；没有源时它会退化成半透明色
+        drawerContainerColor = if (LocalSettings.current.displaySetting.enableBlurEffect) {
             Color.Transparent
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow

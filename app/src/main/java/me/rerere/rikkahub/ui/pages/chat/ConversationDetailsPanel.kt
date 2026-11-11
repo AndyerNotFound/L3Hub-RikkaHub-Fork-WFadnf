@@ -61,8 +61,8 @@ import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ui.JsonTree
-import me.rerere.rikkahub.ui.components.ui.canGlassPane
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatNumber
@@ -158,12 +158,11 @@ internal fun ConversationDetailsPanel(
                     shape = DetailsPanelShape,
                     baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     hazeState = hazeState,
-                    radius = 16.dp,
                     minAlpha = 0.88f,
                 )
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,
-        color = if (embedded || canGlassPane(hazeState)) {
+        color = if (embedded || LocalSettings.current.displaySetting.enableBlurEffect) {
             Color.Transparent
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow

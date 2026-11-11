@@ -334,6 +334,24 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
   对话页清单卡片的开关补上玻璃配色
 - 后台任务面板与会话导出改用带阴影的 `FilledTonalButton`：原来直接用 Material3 原版，没走玻璃底
 
+### 统一特效路径（2026-11-12）
+
+上一轮把浓度接进了各个组件，但每条链路仍各写一套：输入框与气泡在模糊档叠了两层色（haze style 里的
+background 加 Surface 底色），设置页卡片只有 style 里那一层（画在模糊内容底下，源不透明时看不见），
+顶栏按钮又固定读玻璃透明度。结果是滑杆看起来只对输入框有效，同样开到 45% 各组件浓淡也不一样。
+
+这一轮把「组件特效」收敛成一个 `Modifier.effectSurface`（`ui/components/ui/GlassSurface.kt`）：
+
+- `chatInputHaze` 与 `glassSurface` 都改为薄封装：输入框、气泡、思考链、顶栏胶囊与按钮、空态卡片、
+  设置页开关行 / 表单项、抽屉、右栏、详情面板走同一个函数
+- 模糊档：`HazeBlurStyle` 的背景色置空，着色统一叠在模糊之后（`hazeBlur(...).background(tint)`），
+  每个组件只上一层色；玻璃档：着色交给 `GlassStyle.tint`，与输入框共用同一份光学参数
+- 浓度只读当前档位的滑杆（`effectSurfaceAlpha`：模糊 → `blurOpacity`，玻璃 → `glassOpacity`），
+  顶栏按钮不再固定读玻璃透明度；「玻璃透明度」滑杆也只在玻璃档显示
+- 消息列表在静息时重新注册成 haze 源，输入框、顶栏按钮、抽屉与浮层能糊到滚动中的正文；
+  生成中撤掉这个源，保留「流式不逐 token 重糊列表」的优化
+- 抽屉、右栏、详情面板与两张 BottomSheet 的着色下限仍保留（压在未模糊的正文上），下限之内照样跟滑杆走
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

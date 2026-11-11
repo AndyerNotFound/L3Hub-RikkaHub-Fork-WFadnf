@@ -119,7 +119,7 @@ import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
-import me.rerere.rikkahub.ui.components.ui.glassSurfaceAlpha
+import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -705,11 +705,13 @@ private fun MessagePartsBlock(
                     val chainEffect = settings.displaySetting.effectiveBackgroundEffect
                     val chainShape = adaptiveShape(20.dp)
                     val chainBaseColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明
+                    val chainHasEffect = chainEffect != BackgroundEffectType.OFF && hazeState != null
                     ChainOfThought(
                         modifier = Modifier
                             .then(if (loading) Modifier else Modifier.animateContentSize())
                             .then(
-                                if (chainEffect != BackgroundEffectType.OFF && hazeState != null) {
+                                if (chainHasEffect) {
                                     Modifier
                                         .clip(chainShape)
                                         .chatInputHaze(
@@ -730,10 +732,16 @@ private fun MessagePartsBlock(
                             null
                         },
                         cardColors = CardDefaults.cardColors(
-                            containerColor = when (chainEffect) {
-                                BackgroundEffectType.OFF -> chainBaseColor.copy(alpha = settings.displaySetting.bubbleOpacity)
-                                BackgroundEffectType.BLUR -> chainBaseColor.copy(alpha = settings.displaySetting.blurOpacity)
-                                BackgroundEffectType.GLASS -> Color.Transparent
+                            containerColor = if (chainHasEffect) {
+                                Color.Transparent
+                            } else {
+                                chainBaseColor.copy(
+                                    alpha = if (chainEffect == BackgroundEffectType.OFF) {
+                                        settings.displaySetting.bubbleOpacity
+                                    } else {
+                                        settings.displaySetting.effectSurfaceAlpha
+                                    },
+                                )
                             },
                         ),
                     ) { step ->
@@ -1063,18 +1071,6 @@ private fun ChatMessageBubble(
     } else {
         Modifier
     }
-    // 气泡自己的着色层也跟着滑杆走：模糊档读模糊不透明度，玻璃档读玻璃透明度。
-    // 以前固定 0.65，滑杆拖到头气泡也停在同一浓度上，看着像没接设置。
-    val bubbleAlpha = when (effect) {
-        BackgroundEffectType.OFF -> 1f
-        BackgroundEffectType.BLUR -> displaySetting.blurOpacity
-        BackgroundEffectType.GLASS -> displaySetting.glassSurfaceAlpha
-    }.coerceIn(0f, 1f)
-    val bubbleColor = if (useEffect) {
-        color.copy(alpha = color.alpha * bubbleAlpha)
-    } else {
-        color
-    }
     val contentColor = contentColorFor(color)
     Box(
         modifier = modifier
@@ -1083,7 +1079,8 @@ private fun ChatMessageBubble(
             .then(if (useEffect) Modifier.graphicsLayer(shape = shape, clip = true) else Modifier)
             .clipDrawing(shape)
             .then(hazeModifier)
-            .background(bubbleColor)
+            // 特效开启时着色层由 chatInputHaze 叠在模糊之上，这里不再铺第二层
+            .then(if (useEffect) Modifier else Modifier.background(color))
             .then(
                 if (effect == BackgroundEffectType.BLUR) {
                     Modifier.border(

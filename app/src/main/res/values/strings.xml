@@ -1733,7 +1733,7 @@
   <string name="workspace_detail_compatibility_mode_desc">Try enabling this if the terminal fails to start. It may reduce performance. Applies to new terminal tabs and subsequent commands.</string>
   <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
   <string name="setting_display_page_background_effect_title">Global effects</string>
-  <string name="setting_display_page_background_effect_desc">Apply blur or glass to the input bar, message bubbles and top bar buttons</string>
+  <string name="setting_display_page_background_effect_desc">Apply blur or glass to the input bar, message bubbles, top bar, settings cards and overlays</string>
   <string name="setting_display_page_background_effect_type">Background effect type</string>
   <string name="setting_display_page_background_effect_blur">Blur</string>
   <string name="setting_display_page_background_effect_glass">Glass</string>
@@ -2289,7 +2289,7 @@
   <string name="stats_page_export_done">Saved to %1$s</string>
   <string name="stats_page_export_failed">Export failed: %1$s</string>
   <string name="setting_display_page_blur_opacity_title">Blur opacity</string>
-  <string name="setting_display_page_blur_opacity_desc">Tint strength of bubbles, input bar and top bar buttons under the blur effect; lower is more transparent</string>
+  <string name="setting_display_page_blur_opacity_desc">Tint strength of every component under the blur effect; lower is more transparent. The input bar, bubbles, top bar, cards and overlays all read this value</string>
   <string name="setting_display_page_glass_opacity_title">Glass opacity</string>
   <string name="setting_display_page_glass_opacity_desc">Tint strength of the glass background on bubbles, the input bar, the top bar, settings rows and overlays; lower is more transparent, and solid colors return when the blur effect is off</string>
   <string name="setting_display_page_full_width_title">Full-width components</string>
