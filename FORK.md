@@ -863,7 +863,8 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
    只有三种早期历史会跳过递增校验：根本没有上一个正式版 tag、上一个 tag 上还没有
    `app/build.gradle.kts`、上一个 tag 里读不到 `versionCode`（跳过时会在 Actions 里
    留一条 warning）。正式版的 tag 必须写成 `vX.Y.Z` 三段，少打一段直接红；
-   Canary 的 tag 必须写成 `vX.Y.Z-canary.N`，写成别的形态直接红
+   Canary 的 tag 必须写成 `vX.Y.Z-canary.N`，写成别的形态直接红；滚动 tag `Canary-Build`
+   不带版本号，不做形态校验
 3. `build-apk.yml` 自动跑：checkout（含子模块）→ 核对 tag 与版本号 → pnpm 装 web-ui → `tools/build-apk.sh`
    （按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，跳过 lint vital）→ 重命名产物 → 建 Release
 
@@ -876,6 +877,25 @@ GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版�
 再列一遍。
 `ci:` / `test:` / `build:` 开头（含 `ci(xxx):` 这种带域的写法）的提交一律不进 notes，
 读的人只关心功能变化。
+
+### 滚动 Canary：固定 tag `Canary-Build`
+
+除上面这些带版本号的 tag，还有一条不随版本号走的通道：固定 tag `Canary-Build` 始终指向最新一次
+Canary 构建，Release 也固定是同一个，重复推送只覆盖资产、刷新说明。它用 `githubRelease` 变体，
+包名与签名同正式版，发成 Pre-release，装上直接覆盖已装的正式版并沿用数据。
+
+版本号不动：tag 里没有版本号可对，流程跳过 `versionName` 前缀核对；`versionCode` 仍须大于
+上一个正式版 tag 的值，否则装不上已装的正式版。要在两次滚动构建之间保持同一个 `versionCode`，
+两个包就互为覆盖，回退直接装旧的即可。
+
+出包只需把 tag 挪到要发的提交：
+
+```bash
+git tag -f Canary-Build && git push -f origin Canary-Build
+```
+
+产物固定叫 `L3Hub-Canary-Build-arm64-v8a.apk`（附 `.sha256`）。Release 说明的改动区间取
+`Canary-Build` 之前最近的一个 tag（通常是 `vX.Y.Z-canary.N`），两次滚动构建之间只列真正新增的提交。
 
 ### 正式版的签名
 
