@@ -1941,6 +1941,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_list_memory">列出了记忆</string>
   <string name="memory_dream_title">做梦</string>
   <string name="memory_dream_notification_text">正在把聊天整理成记忆</string>
+  <string name="memory_dream_progress">已整理 %1$d / %2$d 个对话</string>
   <string name="assistant_page_memory_dream_now">立即做梦</string>
   <string name="assistant_page_memory_dream_retry">重试</string>
   <string name="assistant_page_memory_dream_pending">待整理的对话：%d 轮</string>

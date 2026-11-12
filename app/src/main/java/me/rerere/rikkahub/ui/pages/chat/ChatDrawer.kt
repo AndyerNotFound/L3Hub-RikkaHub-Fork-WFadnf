@@ -83,6 +83,7 @@ import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
@@ -418,8 +419,9 @@ fun ChatDrawerContent(
                 onPinSelected = onPinSelectedConversations,
             )
 
-            if (memoryDreaming) {
+            memoryDreaming?.let { status ->
                 MemoryDreamingEntry(
+                    status = status,
                     onClick = { navController.navigate(Screen.AssistantMemory(settings.assistantId.toString())) },
                 )
             }
@@ -936,7 +938,7 @@ private fun DrawerBottomBar(
 }
 
 @Composable
-private fun MemoryDreamingEntry(onClick: () -> Unit) {
+private fun MemoryDreamingEntry(status: MemoryConsolidationStatus, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         modifier = Modifier
@@ -954,7 +956,9 @@ private fun MemoryDreamingEntry(onClick: () -> Unit) {
         ) {
             ContainedLoadingIndicator(modifier = Modifier.size(18.dp))
             Text(
-                text = stringResource(R.string.memory_dreaming),
+                text = status.roundProgress
+                    ?.let { stringResource(R.string.memory_dream_progress, status.roundDone, status.roundTotal) }
+                    ?: stringResource(R.string.memory_dreaming),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )

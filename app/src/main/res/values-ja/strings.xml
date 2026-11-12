@@ -1566,6 +1566,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="memory_file_page_summary">概要</string>
   <string name="memory_dream_title">夢を見る</string>
   <string name="memory_dream_notification_text">チャットを記憶に変換しています</string>
+  <string name="memory_dream_progress">チャットを整理中: %1$d / %2$d</string>
   <string name="assistant_page_memory_dream_now">今すぐ夢を見る</string>
   <string name="assistant_page_memory_dream_retry">再試行</string>
   <string name="assistant_page_memory_dream_pending">待機中の新しいターン: %d</string>

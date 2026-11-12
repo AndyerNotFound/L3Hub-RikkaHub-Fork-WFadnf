@@ -1627,6 +1627,7 @@
   <string name="chat_message_tool_list_memory">列出了記憶</string>
   <string name="memory_dream_title">做夢</string>
   <string name="memory_dream_notification_text">正在把聊天整理成記憶</string>
+  <string name="memory_dream_progress">已整理 %1$d / %2$d 個對話</string>
   <string name="assistant_page_memory_dream_now">立即做夢</string>
   <string name="assistant_page_memory_dream_retry">重試</string>
   <string name="assistant_page_memory_dream_pending">待整理的對話：%d 輪</string>

@@ -1566,6 +1566,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="memory_file_page_summary">요약</string>
   <string name="memory_dream_title">꿈꾸기</string>
   <string name="memory_dream_notification_text">채팅을 기억으로 바꾸는 중</string>
+  <string name="memory_dream_progress">대화 정리 중: %1$d / %2$d</string>
   <string name="assistant_page_memory_dream_now">지금 꿈꾸기</string>
   <string name="assistant_page_memory_dream_retry">다시 시도</string>
   <string name="assistant_page_memory_dream_pending">대기 중인 새 턴: %d</string>

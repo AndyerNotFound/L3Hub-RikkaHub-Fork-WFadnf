@@ -21,6 +21,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
+import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -102,14 +103,19 @@ class ChatDrawerVM(
     val workspaces: StateFlow<List<WorkspaceEntity>> = workspaceRepository.listFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 当前助手的记忆库是否正在后台整理；没开记忆的助手即使共用的全局记忆库在整理也不显示
-    val memoryDreaming: StateFlow<Boolean> = settingsStore.settingsFlow
+    // 当前助手的记忆库正在后台整理时的进度，没在整理时为 null；
+    // 没开记忆的助手即使共用的全局记忆库在整理也不显示
+    val memoryDreaming: StateFlow<MemoryConsolidationStatus?> = settingsStore.settingsFlow
         .map { settings -> settings.getCurrentAssistant().takeIf { it.enableMemory }?.memoryId }
         .distinctUntilChanged()
         .flatMapLatest { memoryId ->
-            if (memoryId == null) flowOf(false) else memoryConsolidationScheduler.statusOf(memoryId).map { it.running }
+            if (memoryId == null) {
+                flowOf<MemoryConsolidationStatus?>(null)
+            } else {
+                memoryConsolidationScheduler.statusOf(memoryId).map { it.takeIf { status -> status.running } }
+            }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // 所有会话按文件夹归堆，再依次插文件夹头、置顶头和周标题
     private val lightConversations: Flow<List<Conversation>> =
