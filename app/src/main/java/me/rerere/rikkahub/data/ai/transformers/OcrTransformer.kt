@@ -103,7 +103,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         settings: Settings,
         images: List<UIMessagePart.Image>,
     ): List<String> {
-        val target = settings.resolveOcrTarget()
+        val target = settings.resolveOcrTarget(ctx.model)
         if (target == null) {
             Log.w(TAG, "recognizeAll: no vision-capable model configured for OCR")
             return images.indices.map { index ->

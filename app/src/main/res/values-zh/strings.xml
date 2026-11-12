@@ -1283,6 +1283,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_no_models">暂无模型</string>
   <string name="setting_provider_page_no_permission">没有权限</string>
   <string name="setting_provider_page_no_qr_found">未找到有效的二维码</string>
+  <string name="setting_provider_page_ocr_helper_model">OCR 辅助模型</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">此模型无法读取图片时，用所选的模型识别图片内容；未设置时使用全局 OCR 模型</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">跟随全局 OCR 模型</string>
   <string name="setting_provider_page_output_modality">输出模态</string>
   <string name="setting_provider_page_private_key">私钥</string>
   <string name="setting_provider_page_project_id">项目 ID</string>

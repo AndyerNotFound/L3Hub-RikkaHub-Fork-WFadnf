@@ -1325,6 +1325,9 @@
   <string name="setting_provider_page_no_models">No models</string>
   <string name="setting_provider_page_no_permission">No permission</string>
   <string name="setting_provider_page_no_qr_found">No valid QR code found</string>
+  <string name="setting_provider_page_ocr_helper_model">OCR Helper Model</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">Model used to read images for this model when it cannot read them itself; uses the global OCR model when not set</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">Follow the global OCR model</string>
   <string name="setting_provider_page_output_modality">Output Modality</string>
   <string name="setting_provider_page_private_key">Private Key</string>
   <string name="setting_provider_page_project_id">Project Id</string>

@@ -1071,6 +1071,9 @@
   <string name="setting_provider_page_no_models">لا توجد نماذج</string>
   <string name="setting_provider_page_no_permission">لا توجد صلاحية</string>
   <string name="setting_provider_page_no_qr_found">لم يتم العثور على رمز QR صالح</string>
+  <string name="setting_provider_page_ocr_helper_model">نموذج OCR المساعد</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">النموذج المستخدم لقراءة الصور عندما يتعذر على هذا النموذج قراءتها بنفسه؛ يُستخدم نموذج OCR العام عند عدم التعيين</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">اتباع نموذج OCR العام</string>
   <string name="setting_provider_page_output_modality">وسائط الإخراج</string>
   <string name="setting_provider_page_private_key">المفتاح الخاص</string>
   <string name="setting_provider_page_project_id">معرّف المشروع</string>

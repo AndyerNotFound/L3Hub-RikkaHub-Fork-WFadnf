@@ -148,6 +148,68 @@ class OcrSupportTest {
     }
 
     @Test
+    fun `per model ocr model wins over the global one`() {
+        val own = model(id(3), Modality.TEXT, Modality.IMAGE)
+        val global = model(id(1), Modality.TEXT, Modality.IMAGE)
+        val fast = model(id(2), Modality.TEXT, Modality.IMAGE)
+        val chat = model(id(4), Modality.TEXT, ocrModelId = own.id)
+
+        val target = configuration(
+            ocrModelId = global.id,
+            fastModelId = fast.id,
+            models = listOf(own, global, fast),
+        ).resolveOcrTarget(chat)
+
+        assertEquals(own.id, target?.model?.id)
+    }
+
+    @Test
+    fun `model without its own ocr model uses the global one`() {
+        val global = model(id(1), Modality.TEXT, Modality.IMAGE)
+        val fast = model(id(2), Modality.TEXT, Modality.IMAGE)
+        val chat = model(id(4), Modality.TEXT)
+
+        val target = configuration(
+            ocrModelId = global.id,
+            fastModelId = fast.id,
+            models = listOf(global, fast),
+        ).resolveOcrTarget(chat)
+
+        assertEquals(global.id, target?.model?.id)
+    }
+
+    @Test
+    fun `per model ocr model that cannot read images falls back to the global one`() {
+        val own = model(id(3), Modality.TEXT)
+        val global = model(id(1), Modality.TEXT, Modality.IMAGE)
+        val fast = model(id(2), Modality.TEXT, Modality.IMAGE)
+        val chat = model(id(4), Modality.TEXT, ocrModelId = own.id)
+
+        val target = configuration(
+            ocrModelId = global.id,
+            fastModelId = fast.id,
+            models = listOf(own, global, fast),
+        ).resolveOcrTarget(chat)
+
+        assertEquals(global.id, target?.model?.id)
+    }
+
+    @Test
+    fun `per model ocr model that is gone falls back to the global one`() {
+        val global = model(id(1), Modality.TEXT, Modality.IMAGE)
+        val fast = model(id(2), Modality.TEXT, Modality.IMAGE)
+        val chat = model(id(4), Modality.TEXT, ocrModelId = id(99))
+
+        val target = configuration(
+            ocrModelId = global.id,
+            fastModelId = fast.id,
+            models = listOf(global, fast),
+        ).resolveOcrTarget(chat)
+
+        assertEquals(global.id, target?.model?.id)
+    }
+
+    @Test
     fun `model of a disabled provider is not used`() {
         val ocr = model(id(1), Modality.TEXT, Modality.IMAGE)
         val fast = model(id(2), Modality.TEXT, Modality.IMAGE)
@@ -165,10 +227,16 @@ class OcrSupportTest {
 
 private fun id(value: Long): Uuid = Uuid.parse("00000000-0000-0000-0000-" + value.toString().padStart(12, '0'))
 
-private fun model(modelId: Uuid, vararg modalities: Modality, type: ModelType = ModelType.CHAT) = Model(
+private fun model(
+    modelId: Uuid,
+    vararg modalities: Modality,
+    type: ModelType = ModelType.CHAT,
+    ocrModelId: Uuid? = null,
+) = Model(
     id = modelId,
     type = type,
     inputModalities = modalities.toList(),
+    ocrModelId = ocrModelId,
 )
 
 private fun configuration(

@@ -99,6 +99,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.ScanText
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tick01
@@ -109,10 +110,13 @@ import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.data.model.withResolvedContextLength
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
+import me.rerere.rikkahub.ui.components.ai.modelSettingItem
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -133,6 +137,7 @@ import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.ui.toast.ToastType
@@ -1086,7 +1091,7 @@ private fun ModelIdentityFields(
     )
 }
 
-/** 基础设置里除身份以外的部分：模态、能力、上下文门限 */
+/** 基础设置里除身份以外的部分：模态、能力、OCR 辅助模型、上下文门限 */
 @Composable
 private fun ModelBasicOptions(
     model: Model,
@@ -1112,10 +1117,56 @@ private fun ModelBasicOptions(
             }
         )
 
+        ModelOcrHelperSetting(
+            model = model,
+            onModelChange = onModelChange,
+        )
+
         ModelContextThresholdFields(
             model = model,
             onModelChange = onModelChange,
         )
+    }
+}
+
+/**
+ * 这个模型单独的 OCR 辅助模型：模型自己看不了图时，把图片交给它识别。
+ * 不设置时跟着「默认模型」页的全局 OCR 模型走，所以这一项要能清掉。
+ */
+@Composable
+private fun ModelOcrHelperSetting(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+) {
+    val state = rememberModelListState(
+        modelId = model.ocrModelId,
+        providers = LocalSettings.current.providers,
+        type = ModelType.CHAT,
+    )
+    val containerColor = MaterialTheme.colorScheme.secondaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+
+    CardGroup {
+        modelSettingItem(
+            icon = HugeIcons.ScanText,
+            title = R.string.setting_provider_page_ocr_helper_model,
+            description = R.string.setting_provider_page_ocr_helper_model_desc,
+            state = state,
+            iconContainerColor = containerColor,
+            iconContentColor = contentColor,
+            placeholder = R.string.setting_provider_page_ocr_helper_model_follow_global,
+            onClear = { onModelChange(model.copy(ocrModelId = null)) },
+            clearContentDescription = R.string.setting_provider_page_ocr_helper_model_follow_global,
+            // 只有选了看不懂图的模型才需要提醒，没配过是正常情况
+            warning = if (state.currentModel?.inputModalities?.contains(Modality.IMAGE) == false) {
+                R.string.setting_model_page_ocr_model_missing
+            } else {
+                null
+            },
+        )
+    }
+    ModelListSheet(state = state) {
+        onModelChange(model.copy(ocrModelId = it.id))
     }
 }
 

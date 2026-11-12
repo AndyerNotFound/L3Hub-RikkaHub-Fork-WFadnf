@@ -933,6 +933,9 @@
   <string name="setting_provider_page_api_key">API-Schlüssel</string>
   <string name="setting_provider_page_api_path">API-Pfad</string>
   <string name="setting_provider_page_no_qr_found">Kein gültiger QR-Code gefunden</string>
+  <string name="setting_provider_page_ocr_helper_model">OCR-Hilfsmodell</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">Modell zum Lesen von Bildern, wenn dieses Modell sie nicht selbst lesen kann; ohne Auswahl wird das globale OCR-Modell verwendet</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">Globalem OCR-Modell folgen</string>
   <string name="setting_provider_page_output_modality">Ausgabemodalität</string>
   <string name="setting_provider_page_private_key">Privater Schlüssel</string>
   <string name="setting_provider_page_project_id">Projekt-ID</string>

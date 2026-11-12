@@ -900,6 +900,9 @@
   <string name="setting_provider_page_no_models">Нет моделей</string>
   <string name="setting_provider_page_no_permission">Нет разрешения</string>
   <string name="setting_provider_page_no_qr_found">Не найдено действительного QR-кода</string>
+  <string name="setting_provider_page_ocr_helper_model">Вспомогательная модель OCR</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">Модель для распознавания изображений, когда эта модель не может прочитать их сама; без настройки используется глобальная модель OCR</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">Как глобальная модель OCR</string>
   <string name="setting_provider_page_output_modality">Формат вывода</string>
   <string name="setting_provider_page_private_key">Приватный ключ</string>
   <string name="setting_provider_page_project_id">Идентификатор проекта</string>

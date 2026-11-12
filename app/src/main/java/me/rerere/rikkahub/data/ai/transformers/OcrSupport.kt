@@ -22,11 +22,12 @@ internal data class OcrTarget(
 /**
  * 挑一个能看图的模型做识别。
  *
- * 优先用设置里指定的 OCR 模型；这个 ID 找不到（默认值就是随机 UUID），或者选中的模型不支持
- * 图片输入时退回快速模型。两者都不行就返回 null，由调用方告诉模型这张图看不到。
+ * 优先用模型自己指定的 OCR 辅助模型，其次是设置里指定的全局 OCR 模型；对应 ID 找不到
+ * （全局默认值就是随机 UUID）、模型不支持图片输入或提供商被停用时跳到下一个，最后退回快速模型。
+ * 都不行就返回 null，由调用方告诉模型这张图看不到。
  */
-internal fun Settings.resolveOcrTarget(): OcrTarget? {
-    for (modelId in listOf(ocrModelId, fastModelId)) {
+internal fun Settings.resolveOcrTarget(forModel: Model? = null): OcrTarget? {
+    for (modelId in listOfNotNull(forModel?.ocrModelId, ocrModelId, fastModelId)) {
         val model = findModelById(modelId) ?: continue
         if (model.type != ModelType.CHAT) continue
         if (!model.inputModalities.contains(Modality.IMAGE)) continue

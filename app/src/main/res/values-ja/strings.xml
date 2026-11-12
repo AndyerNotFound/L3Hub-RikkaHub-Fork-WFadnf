@@ -898,6 +898,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_no_models">モデルがありません</string>
   <string name="setting_provider_page_no_permission">権限がありません</string>
   <string name="setting_provider_page_no_qr_found">有効なQRコードが見つかりません</string>
+  <string name="setting_provider_page_ocr_helper_model">OCR 補助モデル</string>
+  <string name="setting_provider_page_ocr_helper_model_desc">このモデルが画像を読み取れない場合に、画像の内容を読み取るモデル。未設定時はグローバル OCR モデルを使用</string>
+  <string name="setting_provider_page_ocr_helper_model_follow_global">グローバル OCR モデルに従う</string>
   <string name="setting_provider_page_output_modality">出力モダリティ</string>
   <string name="setting_provider_page_private_key">秘密鍵</string>
   <string name="setting_provider_page_project_id">プロジェクト ID</string>
