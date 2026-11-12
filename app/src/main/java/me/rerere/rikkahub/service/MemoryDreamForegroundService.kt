@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -9,12 +10,24 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.MEMORY_DREAM_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
+import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.MemoryDreamKeepAlive
+import me.rerere.rikkahub.data.ai.MemoryDreamProgress
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import kotlin.uuid.Uuid
 
 private const val TAG = "MemoryDreamFgs"
@@ -23,9 +36,10 @@ private const val TAG = "MemoryDreamFgs"
  * 后台整理记忆（做梦）期间把进程留在前台，应用被切走后模型调用和写入仍能跑完。
  * 应用不可见时结束的对话，整理前等空闲的那段时间也占着，否则进程可能等不到计时走完就被冻结。
  *
- * 整理本身由 [me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler] 驱动，这里只提供前台服务的生命周期。
+ * 整理本身由 [me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler] 驱动，这里提供前台服务的生命周期，
+ * 并跟着它更新通知里的整理进度。
  */
-class MemoryDreamForegroundService : Service() {
+class MemoryDreamForegroundService : Service(), KoinComponent {
     companion object {
         private const val ACTION_ACQUIRE = "me.rerere.rikkahub.action.MEMORY_DREAM_ACQUIRE"
         private const val ACTION_RELEASE = "me.rerere.rikkahub.action.MEMORY_DREAM_RELEASE"
@@ -60,8 +74,12 @@ class MemoryDreamForegroundService : Service() {
         }
     }
 
+    private val scheduler: MemoryConsolidationScheduler by inject()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val holds = mutableSetOf<String>()
     private var isForeground = false
+    private var progressJob: Job? = null
+    private var progress: MemoryDreamProgress? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -80,6 +98,7 @@ class MemoryDreamForegroundService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForeground = false
         }
+        scope.cancel()
         super.onDestroy()
     }
 
@@ -117,6 +136,7 @@ class MemoryDreamForegroundService : Service() {
                 startForeground(NOTIFICATION_ID, notification)
             }
             isForeground = true
+            watchProgress()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to enter foreground", e)
             holds.clear()
@@ -129,14 +149,45 @@ class MemoryDreamForegroundService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForeground = false
         }
+        progressJob?.cancel()
+        progressJob = null
         stopSelf()
     }
 
-    private fun buildNotification() =
-        NotificationCompat.Builder(this, MEMORY_DREAM_NOTIFICATION_CHANNEL_ID)
+    // 整理由调度器驱动，这里跟着它改通知里的进度
+    private fun watchProgress() {
+        if (progressJob != null) return
+        progressJob = scope.launch {
+            // 取不到调度器时通知保持一句话的状态，整理本身不受影响
+            val progressFlow = runCatching { scheduler.runningProgress }.getOrElse {
+                Log.w(TAG, "Unable to follow memory dream progress", it)
+                return@launch
+            }
+            progressFlow.collect { latest ->
+                progress = latest
+                if (isForeground) notifyProgress()
+            }
+        }
+    }
+
+    private fun notifyProgress() {
+        runCatching {
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, buildNotification())
+        }.onFailure {
+            Log.w(TAG, "Unable to update memory dream notification", it)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        val running = progress?.takeIf { it.total > 0 }
+        return NotificationCompat.Builder(this, MEMORY_DREAM_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_rikkahub)
             .setContentTitle(getString(R.string.memory_dreaming))
-            .setContentText(getString(R.string.memory_dream_notification_text))
+            .setContentText(
+                running?.let { getString(R.string.memory_dream_progress, it.done, it.total) }
+                    ?: getString(R.string.memory_dream_notification_text)
+            )
+            .apply { running?.let { setProgress(it.total, it.done, false) } }
             .setContentIntent(
                 PendingIntent.getActivity(
                     this,
@@ -152,6 +203,7 @@ class MemoryDreamForegroundService : Service() {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .build()
+    }
 }
 
 /** 用前台服务实现的保活：每次占用对应一个 hold，全部释放后服务退出 */

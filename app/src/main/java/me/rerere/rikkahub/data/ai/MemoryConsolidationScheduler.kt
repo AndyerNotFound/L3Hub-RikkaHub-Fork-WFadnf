@@ -69,6 +69,23 @@ data class MemoryConsolidationStatus(
     val pendingTurns: Int = 0,
     val running: Boolean = false,
     val lastRun: MemoryConsolidationRun? = null,
+    /** 本轮整理要处理的对话数；途中查到还有更多时跟着变大，还不知道要整理什么时为 0 */
+    val roundTotal: Int = 0,
+    /** 本轮已经整理完的对话数 */
+    val roundDone: Int = 0,
+) {
+    /** 本轮整理的完成比例，没在整理或还没查到要整理什么时为 null */
+    val roundProgress: Float?
+        get() = roundTotal.takeIf { running && it > 0 }?.let { (roundDone.toFloat() / it).coerceIn(0f, 1f) }
+}
+
+/** 正在进行的整理，给通知栏这类不区分记忆库的地方用 */
+data class MemoryDreamProgress(
+    val memoryId: String,
+    /** 本轮要整理的对话数，0 表示还没查到 */
+    val total: Int,
+    /** 本轮已经整理完的对话数 */
+    val done: Int,
 )
 
 /** 调度器依赖的整理能力，由 [MemoryConsolidator] 实现 */
@@ -134,6 +151,14 @@ class MemoryConsolidationScheduler(
     fun statusOf(memoryId: String): Flow<MemoryConsolidationStatus> =
         status.map { it[memoryId] ?: MemoryConsolidationStatus() }.distinctUntilChanged()
 
+    /** 正在进行的那次整理；同时整理多个记忆库时只给出一个 */
+    val runningProgress: Flow<MemoryDreamProgress?> = status
+        .map { stores ->
+            stores.entries.firstOrNull { it.value.running }
+                ?.let { (memoryId, store) -> MemoryDreamProgress(memoryId, store.roundTotal, store.roundDone) }
+        }
+        .distinctUntilChanged()
+
     /** 一轮对话结束：空闲一段时间后整理，攒够轮数就不再等 */
     fun onTurnFinished(conversation: Conversation) {
         // 应用不在前台时，聊天生成的前台服务一释放进程就可能被冻结，空闲计时走不完。
@@ -187,7 +212,7 @@ class MemoryConsolidationScheduler(
     fun organize(memoryId: String) {
         // 查数据库要一会儿，先标成进行中，免得这期间连点几下排上好几次整理
         if (status.value[memoryId]?.running == true) return
-        updateStatus(memoryId) { it.copy(running = true) }
+        updateStatus(memoryId) { it.copy(running = true, roundDone = 0, roundTotal = 0) }
         cancelTimer(memoryId)
         scope.launch {
             var started = false
@@ -227,14 +252,20 @@ class MemoryConsolidationScheduler(
         if (!manual && synchronized(lock) { memoryId in failed }) return null
         if (!manual && pendingOf(memoryId, manual).isEmpty()) return null
 
-        updateStatus(memoryId) { it.copy(running = true) }
+        updateStatus(memoryId) { it.copy(running = true, roundDone = 0, roundTotal = 0) }
         var run: MemoryConsolidationRun? = null
+        val done = mutableSetOf<Uuid>()
         val hold = keepAlive.acquire()
         try {
             var fullReview = manual
             while (true) {
-                val pass = runOnce(memoryId, pendingOf(memoryId, manual).keys, fullReview)
+                val ids = pendingOf(memoryId, manual).keys
+                // 本轮一共要做多少：已经整理完的，加上这次交给模型的；之后查到还有更多时跟着变大
+                updateStatus(memoryId) { it.copy(roundTotal = it.roundDone + ids.size) }
+                val pass = runOnce(memoryId, ids, fullReview)
                 if (pass != null) run = run?.let { it + pass } ?: pass
+                done += pass?.advancedConversations.orEmpty()
+                updateStatus(memoryId) { it.copy(roundDone = done.size) }
                 if (pass?.error != null) break
                 // 有对话可能因为超出长度预算被留到下一次，从数据库里再找一遍
                 val automaticLeft = mergePending(memoryId, worker.findPending(memoryId))

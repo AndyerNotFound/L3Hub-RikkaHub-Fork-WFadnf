@@ -1567,6 +1567,7 @@
   <string name="memory_file_page_summary">Сводка</string>
   <string name="memory_dream_title">Сновидение</string>
   <string name="memory_dream_notification_text">Превращаем ваши чаты в воспоминания</string>
+  <string name="memory_dream_progress">Объединение чатов: %1$d из %2$d</string>
   <string name="assistant_page_memory_dream_now">Запустить сновидение сейчас</string>
   <string name="assistant_page_memory_dream_retry">Повторить</string>
   <string name="assistant_page_memory_dream_pending">Новых ходов в ожидании: %d</string>

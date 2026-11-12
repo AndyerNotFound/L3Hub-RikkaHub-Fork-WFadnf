@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -685,7 +686,18 @@ private fun MemoryConsolidationSection(
     CardGroup {
         item(
             headlineContent = { Text(stringResource(R.string.memory_dream_title)) },
-            supportingContent = { Text(memoryConsolidationSummary(status)) },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(memoryConsolidationSummary(status))
+                    // 整理中画一条进度条，整理完的对话数写在上面那行
+                    status.roundProgress?.let { fraction ->
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            },
             trailingContent = {
                 if (status.running) {
                     ContainedLoadingIndicator(modifier = Modifier.size(32.dp))
@@ -711,7 +723,9 @@ private fun MemoryConsolidationSection(
 private fun memoryConsolidationSummary(status: MemoryConsolidationStatus): String {
     val lastRun = status.lastRun
     return when {
-        status.running -> stringResource(R.string.memory_dreaming)
+        status.running -> status.roundProgress
+            ?.let { stringResource(R.string.memory_dream_progress, status.roundDone, status.roundTotal) }
+            ?: stringResource(R.string.memory_dreaming)
         lastRun?.error != null -> lastRun.resultText()
         else -> listOfNotNull(
             status.pendingTurns.takeIf { it > 0 }?.let {

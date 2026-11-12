@@ -1564,6 +1564,7 @@
   <string name="chat_message_tool_list_memory">الذكريات المدرجة</string>
   <string name="memory_dream_title">الحلم</string>
   <string name="memory_dream_notification_text">جارٍ تحويل محادثاتك إلى ذكريات</string>
+  <string name="memory_dream_progress">جارٍ دمج المحادثات: %1$d من %2$d</string>
   <string name="assistant_page_memory_dream_now">احلم الآن</string>
   <string name="assistant_page_memory_dream_retry">إعادة المحاولة</string>
   <string name="assistant_page_memory_dream_pending">أدوار جديدة في الانتظار: %d</string>

@@ -508,4 +508,44 @@ class MemoryConsolidationSchedulerTest {
         assertEquals(1, worker.calls.size)
         assertEquals("model unavailable", scheduler.statusOf(memoryId).first().lastRun?.error)
     }
+
+    @Test
+    fun `a round reports how many conversations it consolidates and how many are done`() = runTest {
+        val scheduler = scheduler()
+        val third = Conversation(assistantId = Uuid.random(), messageNodes = emptyList())
+        listOf(chat, otherChat, third).forEach {
+            worker.pending[it.id] = 1
+            worker.manual += it.id
+        }
+        worker.perRun = 1
+        val first = CompletableDeferred<Unit>()
+        worker.gate = first
+
+        scheduler.organize(memoryId)
+        runCurrent()
+        // 还没交给模型，先摆出这一轮要做几个对话
+        assertEquals(3, scheduler.statusOf(memoryId).first().roundTotal)
+        assertEquals(0, scheduler.statusOf(memoryId).first().roundDone)
+
+        // 第二批卡在新的 gate 上，好在两批之间看进度
+        val second = CompletableDeferred<Unit>()
+        worker.gate = second
+        first.complete(Unit)
+        runCurrent()
+
+        assertEquals(1, scheduler.statusOf(memoryId).first().roundDone)
+        assertEquals(3, scheduler.statusOf(memoryId).first().roundTotal)
+        // 通知栏跟着调度器取的就是这个进度
+        assertEquals(MemoryDreamProgress(memoryId, total = 3, done = 1), scheduler.runningProgress.first())
+
+        worker.gate = null
+        second.complete(Unit)
+        runCurrent()
+
+        val status = scheduler.statusOf(memoryId).first()
+        assertEquals(3, status.roundDone)
+        assertEquals(3, status.roundTotal)
+        assertFalse(status.running)
+        assertNull(scheduler.runningProgress.first())
+    }
 }

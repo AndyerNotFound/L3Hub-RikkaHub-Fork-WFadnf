@@ -1498,6 +1498,7 @@
   <string name="memory_dreaming">Träumen…</string>
   <string name="memory_dream_title">Träumen</string>
   <string name="memory_dream_notification_text">Verwandelt deine Chats in Erinnerungen</string>
+  <string name="memory_dream_progress">Chats werden zusammengeführt: %1$d von %2$d</string>
   <string name="assistant_page_memory_dream_now">Jetzt träumen</string>
   <string name="assistant_page_memory_dream_retry">Wiederholen</string>
   <string name="assistant_page_memory_dream_pending">Neue Turns warten: %d</string>
