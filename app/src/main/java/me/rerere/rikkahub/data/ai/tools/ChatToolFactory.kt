@@ -2,7 +2,9 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.jsonObject
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
@@ -20,6 +22,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.repository.memoryId
 import me.rerere.rikkahub.data.skills.SkillManager
 import me.rerere.rikkahub.service.BackgroundShellManager
+import me.rerere.workspace.WorkspaceShellStatus
 import java.io.File
 import kotlin.uuid.Uuid
 
@@ -159,7 +162,107 @@ class ChatToolFactory(
             workspaceRepository.getById(workspaceId.toString())?.capabilities()?.rootfs == true
         }
         val truncated = if (canReadToolOutputs) tools.map(::withOutputTruncation) else tools
-        return if (autoApproveTools) truncated.map { it.withAutoApproval() } else truncated
+        val overridden = applyToolOverrides(truncated, settings.toolOverrides)
+        return if (autoApproveTools) overridden.map { it.withAutoApproval() } else overridden
+    }
+
+    /**
+     * 「工具覆写」页的目录：不要求某个助手真的启用了这些工具，按应用当前配置把能生成的工具定义列全。
+     * 返回的是定义快照，不含执行入口，也不会连接 MCP 服务器。
+     */
+    suspend fun createToolCatalog(settings: Settings): List<ToolCatalogEntry> {
+        val assistant = settings.assistants.firstOrNull { it.id == settings.assistantId }
+            ?: settings.assistants.firstOrNull()
+            ?: return emptyList()
+        val catalogConversationId = Uuid.random()
+        val catalogModel = Model()
+        val readyWorkspaces = workspaceRepository.listFlow().first()
+            .filter { it.shellStatus == WorkspaceShellStatus.READY.name }
+        val workspaceTools = if (readyWorkspaces.isEmpty()) {
+            createWorkspaceCatalogTools(
+                workspaceRepository = workspaceRepository,
+                backgroundShellManager = backgroundShellManager,
+            )
+        } else {
+            createWorkspaceTools(
+                workspaceIds = readyWorkspaces.map { it.id },
+                workspaceRepository = workspaceRepository,
+                conversationId = catalogConversationId,
+                backgroundShellManager = backgroundShellManager,
+            )
+        }
+
+        return buildList {
+            localTools.getCatalogTools(
+                conversationId = catalogConversationId,
+                assistants = settings.assistants,
+                dispatcher = assistant,
+            ).forEach { add(it.toCatalogEntry(ToolCatalogGroup.LOCAL, catalogModel)) }
+
+            buildMemoryTools(
+                repository = memoryRepository,
+                assistantId = assistant.memoryId,
+                allowWrite = true,
+            ).forEach { add(it.toCatalogEntry(ToolCatalogGroup.MEMORY, catalogModel)) }
+
+            createSearchTools(settings).forEach {
+                add(it.toCatalogEntry(ToolCatalogGroup.SEARCH, catalogModel))
+            }
+
+            createConversationTools(
+                conversationRepo = conversationRepository,
+                assistantId = assistant.id,
+            ).forEach { add(it.toCatalogEntry(ToolCatalogGroup.CONVERSATION, catalogModel)) }
+
+            workspaceTools.forEach { add(it.toCatalogEntry(ToolCatalogGroup.WORKSPACE, catalogModel)) }
+
+            createTodoTools(
+                conversationRepository = conversationRepository,
+                conversationId = catalogConversationId,
+            ).forEach { add(it.toCatalogEntry(ToolCatalogGroup.TODO, catalogModel)) }
+
+            add(
+                createSkillToolForCatalog(skillManager.listSkills())
+                    .toCatalogEntry(ToolCatalogGroup.SKILLS, catalogModel)
+            )
+
+            // MCP 的定义来自上次同步到配置里的快照，不再触发连接
+            settings.mcpServers
+                .filter { it.commonOptions.enable }
+                .forEach { server ->
+                    val serverName = server.commonOptions.name.ifBlank { "MCP" }
+                    server.commonOptions.tools
+                        .filter { it.enable && it.name.isNotBlank() }
+                        .forEach { tool ->
+                            add(
+                                ToolCatalogEntry(
+                                    name = "mcp__${server.commonOptions.name}__${tool.name}",
+                                    description = tool.description.orEmpty(),
+                                    parameters = tool.inputSchema?.let { schema ->
+                                        ToolOverrideJson.encodeToJsonElement(InputSchema.serializer(), schema)
+                                    },
+                                    instructions = "",
+                                    group = ToolCatalogGroup.MCP,
+                                    groupDetail = serverName,
+                                )
+                            )
+                        }
+                }
+        }.distinctBy { it.name }
+    }
+
+    private fun Tool.toCatalogEntry(
+        group: ToolCatalogGroup,
+        model: Model,
+    ): ToolCatalogEntry {
+        val schema = parameters()
+        return ToolCatalogEntry(
+            name = name,
+            description = description,
+            parameters = schema?.let { ToolOverrideJson.encodeToJsonElement(InputSchema.serializer(), it) },
+            instructions = systemPrompt(model, emptyList()).trim(),
+            group = group,
+        )
     }
 
     private fun withOutputTruncation(tool: Tool): Tool {

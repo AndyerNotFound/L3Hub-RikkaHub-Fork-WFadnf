@@ -102,6 +102,12 @@ internal fun Settings.withoutInvalidReferences(): Settings {
         modeInjections = settings.modeInjections.distinctBy { it.id },
         lorebooks = settings.lorebooks.distinctBy { it.id },
         quickMessages = settings.quickMessages.distinctBy { it.id },
+        // 覆写按工具名生效：同名只留最后一条，什么都没填的覆写直接丢掉
+        toolOverrides = settings.toolOverrides
+            .filterNot { it.isEmpty }
+            .associateBy { it.name }
+            .values
+            .toList(),
     )
 }
 

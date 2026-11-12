@@ -157,7 +157,7 @@ fun Screen.usesHeroTransition(): Boolean = when (this) {
 
     Screen.SettingPreferences, Screen.Assistant, Screen.Extensions,
     Screen.SettingModels, Screen.SettingProvider, Screen.SettingSearch, Screen.SettingSpeech,
-    Screen.SettingMedia, Screen.SettingMcp, Screen.SettingWeb, Screen.Backup,
+    Screen.SettingMedia, Screen.SettingMcp, Screen.ToolOverrides, Screen.SettingWeb, Screen.Backup,
     Screen.SettingFiles, Screen.SettingAbout, Screen.SettingDonate, Screen.Log,
     Screen.SettingTheme, Screen.SettingPalette,
     -> true
@@ -226,6 +226,7 @@ fun Screen.heroKey(): String = when (this) {
     Screen.SettingMedia -> "hero_setting_media"
     is Screen.SettingMediaProviderDetail -> "hero_setting_media_provider_detail_$providerId"
     Screen.SettingMcp -> "hero_setting_mcp"
+    Screen.ToolOverrides -> "hero_tool_overrides"
     is Screen.SettingMcpDetail -> "hero_setting_mcp_detail_$serverId"
     Screen.SettingDonate -> "hero_setting_donate"
     Screen.SettingFiles -> "hero_setting_files"

@@ -102,4 +102,29 @@ class LocalTools(
         }
         return tools
     }
+
+    /**
+     * 「工具覆写」设置页的目录：不看助手勾了哪些，直接把全部本地工具列出来。
+     * 派发类工具即使当前没有可用子代理也保留定义，方便先写好覆写。
+     */
+    fun getCatalogTools(
+        conversationId: Uuid,
+        assistants: List<Assistant>,
+        dispatcher: Assistant,
+    ): List<Tool> {
+        val tools = getTools(
+            options = LocalToolOption.entries.toList(),
+            conversationId = conversationId,
+            assistants = assistants,
+            dispatcher = dispatcher,
+        ).toMutableList()
+        val names = tools.mapTo(mutableSetOf()) { it.name }
+        if (SUB_AGENT_TOOL_NAME !in names) {
+            tools.add(buildSubAgentTool(conversationId, dispatchableSubAgents(dispatcher, assistants), subAgentRunner))
+        }
+        if (SUB_AGENT_AWAIT_TOOL_NAME !in names) {
+            tools.add(buildSubAgentAwaitTool(conversationId, subAgentRunner))
+        }
+        return tools
+    }
 }

@@ -156,6 +156,9 @@ class SettingsStore internal constructor(
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
 
+        // 工具覆写
+        val TOOL_OVERRIDES = stringPreferencesKey("tool_overrides")
+
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
 

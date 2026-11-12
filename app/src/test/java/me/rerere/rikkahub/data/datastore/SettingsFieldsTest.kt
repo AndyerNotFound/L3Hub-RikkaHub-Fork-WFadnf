@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.model.ToolOverride
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PaletteColors
@@ -62,6 +63,10 @@ class SettingsFieldsTest {
         assertEquals("LOW", stored["fast_model_reasoning_level"])
         assertEquals("""[{"id":"00000000-0000-0000-0000-000000000007","name":"tag"}]""", stored["assistant_tags"])
         assertEquals("""{"resultSize":3}""", stored["search_common"])
+        assertEquals(
+            """[{"name":"clipboard_tool","description":"overridden description","instructions":"overridden instructions","parameters":"{\"type\":\"object\",\"properties\":{}}"}]""",
+            stored["tool_overrides"],
+        )
     }
 
     @Test
@@ -171,6 +176,14 @@ private val SAMPLE = Settings(
     searchServiceSelected = 1,
     enabledSearchServiceIds = setOf(id(21).toString()),
     mcpServers = listOf(McpServerConfig.SseTransportServer(id = id(8), url = "https://example.com/sse")),
+    toolOverrides = listOf(
+        ToolOverride(
+            name = "clipboard_tool",
+            description = "overridden description",
+            instructions = "overridden instructions",
+            parameters = """{"type":"object","properties":{}}""",
+        )
+    ),
     webDavConfig = WebDavConfig(url = "https://dav.example.com"),
     s3Config = S3Config(bucket = "backup"),
     uploadS3Config = S3Config(bucket = "upload"),
@@ -246,6 +259,7 @@ private val STORED_KEYS = setOf(
     "search_selected",
     "enabled_search_service_ids",
     "mcp_servers",
+    "tool_overrides",
     "webdav_config",
     "s3_config",
     "upload_s3_config",

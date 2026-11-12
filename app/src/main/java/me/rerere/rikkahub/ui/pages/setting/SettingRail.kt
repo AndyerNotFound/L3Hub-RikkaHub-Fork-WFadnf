@@ -42,6 +42,7 @@ import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 
@@ -65,6 +66,7 @@ internal enum class SettingSection(
     Speech(R.string.setting_page_tts_service, HugeIcons.Megaphone01, Screen.SettingSpeech),
     Media(R.string.setting_page_media, HugeIcons.Image02, Screen.SettingMedia),
     Mcp(R.string.setting_page_mcp, HugeIcons.McpServer, Screen.SettingMcp),
+    ToolOverrides(R.string.setting_page_tool_override, HugeIcons.Tools, Screen.ToolOverrides),
     Web(R.string.setting_page_web_server, HugeIcons.ServerStack01, Screen.SettingWeb),
     Backup(R.string.setting_page_data_backup, HugeIcons.Database02, Screen.Backup),
     Files(R.string.setting_page_chat_storage, HugeIcons.ImageUpload, Screen.SettingFiles),
@@ -85,6 +87,7 @@ private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
         SettingSection.Speech,
         SettingSection.Media,
         SettingSection.Mcp,
+        SettingSection.ToolOverrides,
         SettingSection.Web,
     ),
     R.string.setting_page_data_settings to listOf(
@@ -138,6 +141,7 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingSpeech -> SettingSection.Speech
     is Screen.SettingMedia, is Screen.SettingMediaProviderDetail -> SettingSection.Media
     is Screen.SettingMcp, is Screen.SettingMcpDetail -> SettingSection.Mcp
+    is Screen.ToolOverrides -> SettingSection.ToolOverrides
     is Screen.SettingWeb -> SettingSection.Web
     is Screen.Backup -> SettingSection.Backup
     is Screen.SettingFiles -> SettingSection.Files

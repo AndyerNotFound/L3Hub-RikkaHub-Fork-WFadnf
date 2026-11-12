@@ -169,6 +169,57 @@ suspend fun createWorkspaceTools(
     }
 }
 
+/**
+ * 「工具覆写」页的固定目录：还没有可用工作区时也要能列出全部工作区工具。
+ *
+ * 只用默认的 Rootfs 目录约定生成定义，execute 不会被调用；有可用工作区时目录本身仍按真实绑定生成。
+ */
+fun createWorkspaceCatalogTools(
+    workspaceRepository: WorkspaceRepository,
+    backgroundShellManager: BackgroundShellManager?,
+): List<Tool> {
+    val layout = WorkspaceLayout(
+        workspaceDir = WorkspaceManager.ROOTFS_WORKSPACE_DIR,
+        writableRoots = listOf(WorkspaceManager.ROOTFS_WORKSPACE_DIR, "/tmp"),
+    )
+    val targets = listOf(
+        WorkspaceTarget(
+            id = "catalog",
+            name = "workspace",
+            layout = layout,
+            approvalOverrides = emptyMap(),
+            supportsFileWrite = true,
+            supportsBackgroundShell = true,
+        )
+    )
+    val conversationId = Uuid.random()
+    return buildList {
+        add(createReadFileTool(targets, workspaceRepository))
+        add(createListTool(targets, workspaceRepository))
+        add(createGlobTool(targets, workspaceRepository))
+        add(createGrepTool(targets, workspaceRepository))
+        add(createRepoMapTool(targets, workspaceRepository))
+        add(createWriteFileTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
+        add(createEditFileTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
+        add(createApplyPatchTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
+        add(createGitTool(targets, workspaceRepository, readOnly = false))
+        add(createTestTool(targets, workspaceRepository))
+        add(
+            createShellTool(
+                targets = targets,
+                workspaceRepository = workspaceRepository,
+                backgroundShellManager = backgroundShellManager,
+                conversationId = conversationId,
+            )
+        )
+        if (backgroundShellManager != null) {
+            val background = BackgroundShell(backgroundShellManager, conversationId)
+            add(createShellOutputTool(background))
+            add(createShellKillTool(background))
+        }
+    }
+}
+
 internal fun List<WorkspaceTarget>.workspaceNote(): String = if (size <= 1) {
     ""
 } else {

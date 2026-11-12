@@ -166,6 +166,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
+import me.rerere.rikkahub.ui.pages.setting.SettingToolOverridePage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
@@ -749,6 +750,10 @@ class RouteActivity : ComponentActivity() {
                                 SettingMcpPage()
                             }
 
+                            heroEntry<Screen.ToolOverrides> {
+                                SettingToolOverridePage()
+                            }
+
                             heroEntry<Screen.SettingMcpDetail> { key ->
                                 SettingMcpDetailPage(id = Uuid.parse(key.serverId))
                             }
@@ -1212,6 +1217,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingMcp : Screen
+
+    @Serializable
+    data object ToolOverrides : Screen
 
     @Serializable
     data class SettingMcpDetail(val serverId: String) : Screen
