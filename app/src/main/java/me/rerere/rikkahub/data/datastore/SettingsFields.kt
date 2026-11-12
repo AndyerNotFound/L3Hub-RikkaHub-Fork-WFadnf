@@ -146,6 +146,9 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         // MCP
         json(MCP_SERVERS, Settings::mcpServers) { copy(mcpServers = it) },
 
+        // 工具覆写
+        json(TOOL_OVERRIDES, Settings::toolOverrides) { copy(toolOverrides = it) },
+
         // WebDAV
         json(WEBDAV_CONFIG, Settings::webDavConfig) { copy(webDavConfig = it) },
 
