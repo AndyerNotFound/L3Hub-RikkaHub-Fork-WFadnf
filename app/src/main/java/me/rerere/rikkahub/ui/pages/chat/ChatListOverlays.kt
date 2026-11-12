@@ -9,11 +9,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -37,7 +37,6 @@ import me.rerere.hugeicons.stroke.ArrowDownDouble
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUpDouble
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
 import me.rerere.rikkahub.ui.context.LocalSettings
 
@@ -53,39 +52,50 @@ private fun jumperButtonColor(): Color {
     }
 }
 
-// 消息列表上浮着的小组件：底部的建议回复、侧边的快速跳转
+// 消息列表上的小组件：列表末尾的建议回复、侧边浮动的快速跳转按钮
 
 @Composable
-internal fun ChatSuggestionsRow(
+internal fun ChatSuggestionsColumn(
     modifier: Modifier = Modifier,
-    conversation: Conversation,
-    onClickSuggestion: (String) -> Unit
+    suggestions: List<String>,
+    onClickSuggestion: (String) -> Unit,
 ) {
-    LazyRow(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(conversation.chatSuggestions) { suggestion ->
-            Box(
+        suggestions.forEachIndexed { index, suggestion ->
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .clickable {
-                        onClickSuggestion(suggestion)
-                    }
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onClickSuggestion(suggestion) }
                     .background(
                         glassOverlayColor(
                             base = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
                             floor = 0.6f,
                         )
                     )
-                    .padding(vertical = 4.dp, horizontal = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
                 Text(
                     text = suggestion,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }

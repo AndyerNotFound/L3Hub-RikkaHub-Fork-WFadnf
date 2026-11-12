@@ -715,6 +715,19 @@ private fun ChatListNormal(
                 }
             }
 
+            // 聊天回复建议：最新消息下方，竖向排列成选择题样式
+            if (conversation.chatSuggestions.isNotEmpty()) {
+                item(key = "ChatSuggestions") {
+                    Column {
+                        Spacer(Modifier.height(MESSAGE_GAP_ROLE_CHANGE))
+                        ChatSuggestionsColumn(
+                            suggestions = conversation.chatSuggestions,
+                            onClickSuggestion = onClickSuggestion,
+                        )
+                    }
+                }
+            }
+
             if (!loading && assistant?.allowConversationSystemPrompt == true && onConversationSystemPromptChange != null) {
                 item(key = "ConversationSystemPrompt") {
                     Column {
@@ -839,14 +852,6 @@ private fun ChatListNormal(
                 }
             }
 
-            // Suggestion
-            if (conversation.chatSuggestions.isNotEmpty() && !captureProgress) {
-                ChatSuggestionsRow(
-                    conversation = conversation,
-                    onClickSuggestion = onClickSuggestion,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
         }
         if (onCreateNewChat != null) {
             val trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.24f)
