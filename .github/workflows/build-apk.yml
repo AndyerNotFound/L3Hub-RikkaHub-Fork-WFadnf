@@ -22,7 +22,7 @@ on:
           - release
           - debug
   push:
-    tags: ['v*']
+    tags: ['v*', 'Canary-Build']
 
 concurrency:
   group: build-apk-${{ github.ref }}-${{ inputs.tag }}-${{ inputs.variant }}
@@ -79,12 +79,19 @@ jobs:
           # canary 是预发布，但沿用正式版包名与签名：装上去就是覆盖正式版，数据沿用。
           # 其余带 - 的 tag 仍是独立包名的预览版（.debug + 仓库里的 debug key）。
           is_canary=false
+          # 滚动 Canary（固定 tag Canary-Build）不带版本号，永远指向最新构建，语义同 canary：
+          # release 变体、正式包名与签名、Prerelease，可覆盖安装正式版。
+          rolling_canary=false
+          if [ "$tag" = "Canary-Build" ]; then
+            rolling_canary=true
+          fi
           if [ "$is_pre" = "true" ]; then
             case "$tag" in
-              *-canary*)
+              *-canary*|Canary-Build)
                 is_canary=true
-                # 形态不对会被下面的版本号核对当成别的 base 前缀匹配，先卡死写法
-                if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
+                # 形态不对会被下面的版本号核对当成别的 base 前缀匹配，先卡死写法；
+                # 滚动 Canary 不带版本号，不做形态校验
+                if [ "$rolling_canary" != "true" ] && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
                   echo "canary tag ${tag} 应形如 vX.Y.Z-canary.N" >&2
                   exit 1
                 fi ;;
@@ -116,6 +123,7 @@ jobs:
             echo "TAG=$tag"
             echo "IS_PRERELEASE=$is_pre"
             echo "IS_CANARY=$is_canary"
+            echo "ROLLING_CANARY=$rolling_canary"
           } >> "$GITHUB_ENV"
           artifact="L3Hub-${variant}"
           if [ -n "$tag" ]; then artifact="${artifact}-${tag}"; fi
@@ -157,14 +165,20 @@ jobs:
               fi ;;
           esac
           # v3.1.6 → 3.1.6；v3.1.1-preview.102 → 3.1.1
-          base=${TAG#v}
-          base=${base%%-*}
-          case "$name" in
-            "L.${base}."*) ;;
-            *)
-              echo "versionName「${name}」和 tag ${TAG} 对不上，应形如 L.${base}.NNN" >&2
-              exit 1 ;;
-          esac
+          # 滚动 Canary 的 tag 不带版本号，versionName 只读 build.gradle.kts，不与 tag 前缀核对；
+          # 下面的 versionCode 递增校验照常，保证能覆盖已装的正式版。
+          if [ "${ROLLING_CANARY}" != "true" ]; then
+            base=${TAG#v}
+            base=${base%%-*}
+            case "$name" in
+              "L.${base}."*) ;;
+              *)
+                echo "versionName「${name}」和 tag ${TAG} 对不上，应形如 L.${base}.NNN" >&2
+                exit 1 ;;
+            esac
+          else
+            echo "滚动 Canary，跳过 versionName 前缀核对：versionName=${name}"
+          fi
           # 预览版是独立包名（.debug），versionCode 和正式版撞车不影响谁覆盖谁，
           # 只核对 versionName，别为了打个预览包还得先 bump 版本号。
           # canary 用的是正式版包名，versionCode 不涨就装不上已装的正式版，下面照常核对。
