@@ -319,7 +319,6 @@
   <string name="create_fork">建立分支</string>
   <string name="db_migrating">正在移轉資料庫...</string>
   <string name="deep_thinking">深度思考</string>
-  <string name="deep_thinking_seconds">思考了 %1$.1f 秒</string>
   <string name="delete">刪除</string>
   <string name="donate_page_afdian_desc">適用於🇨🇳用戶</string>
   <string name="donate_page_donation_methods">贊助方式</string>
@@ -2014,7 +2013,6 @@
   <string name="chat_page_week_this">本週</string>
   <string name="chat_page_worldbook_injected">已注入世界書 %1$d 條</string>
   <string name="chat_task_tree_button">任務樹</string>
-  <string name="deep_thinking_seconds_with_summary">思考 %1$.1f 秒 · %2$s</string>
   <string name="notification_ssh_server_running">SSH 服務執行中</string>
   <string name="palette_group_accent">輔色與第三色</string>
   <string name="palette_group_advanced">高階</string>

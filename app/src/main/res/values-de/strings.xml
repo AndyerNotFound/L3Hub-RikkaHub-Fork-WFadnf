@@ -305,7 +305,6 @@
   <string name="create_fork">Fork erstellen</string>
   <string name="db_migrating">Datenbank wird migriert...</string>
   <string name="deep_thinking">Tiefes Denken</string>
-  <string name="deep_thinking_seconds">%1$.1f Sekunden nachgedacht</string>
   <string name="delete">Löschen</string>
   <string name="donate_page_afdian_desc">Für 🇨🇳 Nutzer</string>
   <string name="donate_page_donation_methods">Spendenmethoden</string>
@@ -1894,7 +1893,6 @@
   <string name="chat_page_week_this">Diese Woche</string>
   <string name="chat_page_worldbook_injected">%1$d Weltbuch-Einträge eingefügt</string>
   <string name="chat_task_tree_button">Aufgabenbaum</string>
-  <string name="deep_thinking_seconds_with_summary">%1$.1f s gedacht · %2$s</string>
   <string name="heartbeat_page_enable_desc">Der Assistent spricht nach Zeitplan; ohne ausgewähltes Modell wird nur eine Benachrichtigung gesendet</string>
   <string name="heartbeat_page_enable_title">Heartbeat aktivieren</string>
   <string name="heartbeat_page_hours_desc">Wird nur in diesem Zeitraum ausgelöst; kann über Mitternacht reichen</string>

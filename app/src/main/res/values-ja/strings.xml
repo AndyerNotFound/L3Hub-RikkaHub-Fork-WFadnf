@@ -303,7 +303,6 @@
   <string name="create_fork">フォークを作成</string>
   <string name="db_migrating">データベースを移行しています…</string>
   <string name="deep_thinking">深く考える</string>
-  <string name="deep_thinking_seconds">%1$.1f 秒間思考中</string>
   <string name="delete">削除</string>
   <string name="donate_page_afdian_desc">🇨🇳ユーザー向け</string>
   <string name="donate_page_donation_methods">寄付方法</string>
@@ -1893,7 +1892,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_page_week_this">今週</string>
   <string name="chat_page_worldbook_injected">ワールドブックを %1$d 件注入しました</string>
   <string name="chat_task_tree_button">タスクツリー</string>
-  <string name="deep_thinking_seconds_with_summary">%1$.1f 秒思考 · %2$s</string>
   <string name="heartbeat_page_enable_desc">指定した時刻にアシスタントから自発的に発言させます。モデル未選択の場合は通知のみを送信します</string>
   <string name="heartbeat_page_enable_title">ハートビートを有効化</string>
   <string name="heartbeat_page_hours_desc">この時間帯にのみ実行します。日をまたぐ設定も可能です</string>

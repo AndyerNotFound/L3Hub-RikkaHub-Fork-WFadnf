@@ -303,7 +303,6 @@
   <string name="create_fork">Создать форк</string>
   <string name="db_migrating">Перенос базы данных…</string>
   <string name="deep_thinking">Глубокое мышление</string>
-  <string name="deep_thinking_seconds">Думал %1$.1f секунд</string>
   <string name="delete">Удалить</string>
   <string name="donate_page_afdian_desc">Для пользователей 🇨🇳</string>
   <string name="donate_page_donation_methods">Способы пожертвований</string>
@@ -1899,7 +1898,6 @@
   <string name="chat_page_week_this">Эта неделя</string>
   <string name="chat_page_worldbook_injected">Внедрено записей книги мира: %1$d</string>
   <string name="chat_task_tree_button">Дерево задач</string>
-  <string name="deep_thinking_seconds_with_summary">Рассуждение %1$.1f с · %2$s</string>
   <string name="heartbeat_page_enable_desc">Ассистент говорит по расписанию; без выбранной модели отправляются только уведомления</string>
   <string name="heartbeat_page_enable_title">Включить пульс</string>
   <string name="heartbeat_page_hours_desc">Срабатывает только в этом интервале, может переходить через полночь</string>

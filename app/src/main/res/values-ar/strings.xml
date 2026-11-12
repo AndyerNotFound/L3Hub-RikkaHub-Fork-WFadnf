@@ -392,7 +392,6 @@
   <string name="create_fork">إنشاء فرع</string>
   <string name="db_migrating">جارٍ ترحيل قاعدة البيانات...</string>
   <string name="deep_thinking">التفكير العميق</string>
-  <string name="deep_thinking_seconds">فكّر لمدة %1$.1f ثانية</string>
   <string name="delete">حذف</string>
   <string name="donate_page_afdian_desc">للمستخدمين في الصين 🇨🇳</string>
   <string name="donate_page_donation_methods">طرق التبرع</string>
@@ -1891,7 +1890,6 @@
   <string name="chat_page_week_this">هذا الأسبوع</string>
   <string name="chat_page_worldbook_injected">تم حقن %1$d من مدخلات كتاب العالم</string>
   <string name="chat_task_tree_button">شجرة المهام</string>
-  <string name="deep_thinking_seconds_with_summary">فكّر لمدة %1$.1f ثانية · %2$s</string>
   <string name="heartbeat_page_enable_desc">يتحدث المساعد في الوقت المحدد؛ وعند عدم اختيار نموذج يرسل إشعارًا فقط</string>
   <string name="heartbeat_page_enable_title">تفعيل النبض</string>
   <string name="heartbeat_page_hours_desc">يُفعّل فقط ضمن هذا النطاق الزمني، ويمكن أن يمتد عبر منتصف الليل</string>

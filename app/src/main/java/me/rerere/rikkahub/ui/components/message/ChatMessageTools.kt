@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -64,6 +66,7 @@ import me.rerere.rikkahub.ui.components.message.tools.ToolDetailRequest
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
+import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtProgress
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -320,17 +323,24 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     }
                 }
             }
-        } else if (duration != null && duration >= 100.milliseconds) {
-            {
-                Text(
-                    text = duration.toString(DurationUnit.SECONDS, 1),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.shimmer(isLoading = loading),
-                )
-            }
         } else {
             null
+        },
+        progress = duration?.takeIf { it >= 100.milliseconds }?.let { elapsed ->
+            ChainOfThoughtProgress(
+                running = loading,
+                label = {
+                    Text(
+                        text = elapsed.toString(DurationUnit.SECONDS, 1),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .widthIn(min = 40.dp)
+                            .shimmer(isLoading = loading),
+                    )
+                },
+            )
         },
         onClick = {
             if (landscape && toolDetailHost != null) {

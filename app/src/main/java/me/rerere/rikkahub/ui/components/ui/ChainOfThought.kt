@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -178,6 +179,45 @@ fun <T> ChainOfThought(
 }
 
 /**
+ * 步骤第二行的状态：左侧进度条，右侧耗时或其它短文案。
+ *
+ * 耗时不再和标题挤在同一行，数字变化时卡片标题不会跟着跳动。
+ *
+ * @param running 是否仍在进行；进行中显示不定进度动画，结束后进度条填满
+ * @param label 右侧文案，通常为耗时；为 `null` 时进度条占满整行
+ */
+class ChainOfThoughtProgress(
+    val running: Boolean,
+    val label: (@Composable () -> Unit)? = null,
+)
+
+/**
+ * 步骤状态行里的进度条：进行中显示不定进度动画，完成后显示填满的实心条。
+ */
+@Composable
+private fun ChainOfThoughtProgressBar(
+    running: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val color = MaterialTheme.colorScheme.secondary
+    val trackColor = color.copy(alpha = 0.15f)
+    if (running) {
+        LinearWavyProgressIndicator(
+            modifier = modifier,
+            color = color,
+            trackColor = trackColor,
+        )
+    } else {
+        LinearWavyProgressIndicator(
+            progress = { 1f },
+            modifier = modifier,
+            color = color.copy(alpha = 0.4f),
+            trackColor = trackColor,
+        )
+    }
+}
+
+/**
  * [ChainOfThought] 内部使用的步骤渲染作用域。
  *
  * 通过该作用域可以声明单个步骤的图标、标题、附加信息以及可展开内容，
@@ -190,6 +230,7 @@ interface ChainOfThoughtScope {
      * @param icon 步骤图标
      * @param label 步骤标题区域
      * @param extra 标题右侧的附加信息
+     * @param progress 第二行的状态（左进度条 + 右耗时）；为 `null` 时只显示标题行
      * @param onClick 自定义点击行为；设置后优先于展开/折叠逻辑
      * @param collapsedAdaptiveWidth 是否在折叠且内容隐藏时使用自适应宽度
      * @param content 步骤展开后显示的内容；为 `null` 时步骤不可展开
@@ -199,6 +240,7 @@ interface ChainOfThoughtScope {
         icon: (@Composable () -> Unit)? = null,
         label: (@Composable () -> Unit),
         extra: (@Composable () -> Unit)? = null,
+        progress: ChainOfThoughtProgress? = null,
         onClick: (() -> Unit)? = null,
         collapsedAdaptiveWidth: Boolean = false,
         content: (@Composable () -> Unit)? = null,
@@ -214,6 +256,7 @@ interface ChainOfThoughtScope {
      * @param icon 步骤图标
      * @param label 步骤标题区域
      * @param extra 标题右侧的附加信息
+     * @param progress 第二行的状态（左进度条 + 右耗时）；为 `null` 时只显示标题行
      * @param onClick 自定义点击行为；设置后优先于展开/折叠逻辑
      * @param collapsedAdaptiveWidth 是否在折叠且内容隐藏时使用自适应宽度
      * @param contentVisible 是否展示内容区域，可与 [expanded] 解耦
@@ -226,6 +269,7 @@ interface ChainOfThoughtScope {
         icon: (@Composable () -> Unit)? = null,
         label: (@Composable () -> Unit),
         extra: (@Composable () -> Unit)? = null,
+        progress: ChainOfThoughtProgress? = null,
         onClick: (() -> Unit)? = null,
         collapsedAdaptiveWidth: Boolean = false,
         contentVisible: Boolean = expanded,
@@ -243,6 +287,7 @@ private class ChainOfThoughtScopeImpl(
         icon: @Composable (() -> Unit)?,
         label: @Composable (() -> Unit),
         extra: @Composable (() -> Unit)?,
+        progress: ChainOfThoughtProgress?,
         onClick: (() -> Unit)?,
         collapsedAdaptiveWidth: Boolean,
         content: @Composable (() -> Unit)?
@@ -252,6 +297,7 @@ private class ChainOfThoughtScopeImpl(
             icon = icon,
             label = label,
             extra = extra,
+            progress = progress,
             onClick = onClick,
             collapsedAdaptiveWidth = collapsedAdaptiveWidth,
             expanded = expanded,
@@ -268,6 +314,7 @@ private class ChainOfThoughtScopeImpl(
         icon: @Composable (() -> Unit)?,
         label: @Composable (() -> Unit),
         extra: @Composable (() -> Unit)?,
+        progress: ChainOfThoughtProgress?,
         onClick: (() -> Unit)?,
         collapsedAdaptiveWidth: Boolean,
         contentVisible: Boolean,
@@ -277,6 +324,7 @@ private class ChainOfThoughtScopeImpl(
             icon = icon,
             label = label,
             extra = extra,
+            progress = progress,
             onClick = onClick,
             collapsedAdaptiveWidth = collapsedAdaptiveWidth,
             expanded = expanded,
@@ -291,6 +339,7 @@ private class ChainOfThoughtScopeImpl(
         icon: @Composable (() -> Unit)?,
         label: @Composable (() -> Unit),
         extra: @Composable (() -> Unit)?,
+        progress: ChainOfThoughtProgress?,
         onClick: (() -> Unit)?,
         collapsedAdaptiveWidth: Boolean,
         expanded: Boolean,
@@ -419,6 +468,40 @@ private class ChainOfThoughtScopeImpl(
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            // 状态行：进度条在左、耗时在右。耗时单独占一行，数字变长也不会挤动标题
+            if (progress != null) {
+                Row(
+                    modifier = Modifier
+                        .then(
+                            if (shouldFillMaxWidth) {
+                                Modifier.fillMaxWidth()
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .drawBehind {
+                            if (!isLast) {
+                                val x = 12.dp.toPx()
+                                drawLine(
+                                    color = lineColor,
+                                    start = Offset(x, 0f),
+                                    end = Offset(x, size.height),
+                                    strokeWidth = 1.dp.toPx(),
+                                )
+                            }
+                        }
+                        .padding(start = 32.dp, end = 2.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ChainOfThoughtProgressBar(
+                        running = progress.running,
+                        modifier = Modifier.weight(1f),
+                    )
+                    progress.label?.invoke()
                 }
             }
 

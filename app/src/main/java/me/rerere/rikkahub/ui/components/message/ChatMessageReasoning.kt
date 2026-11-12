@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -48,6 +50,7 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
+import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtProgress
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.shimmer
@@ -56,7 +59,6 @@ import me.rerere.rikkahub.utils.extractThinkingSummary
 import me.rerere.rikkahub.utils.extractThinkingTitle
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
 enum class ReasoningCardState(val expanded: Boolean) {
@@ -236,11 +238,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
         label = {
             when {
                 thinkingSummary != null -> Text(
-                    text = stringResource(
-                        R.string.deep_thinking_seconds_with_summary,
-                        state.duration.toDouble(DurationUnit.SECONDS).toFloat(),
-                        thinkingSummary,
-                    ),
+                    text = stringResource(R.string.deep_thinking) + " · " + thinkingSummary,
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = chatFontFamily),
                     color = MaterialTheme.colorScheme.secondary,
                     maxLines = 1,
@@ -251,26 +249,27 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
                 showThinkingTitle -> ReasoningTitle(title = thinkingTitle!!)
 
                 else -> Text(
-                    text = stringResource(
-                        R.string.deep_thinking_seconds,
-                        state.duration.toDouble(DurationUnit.SECONDS).toFloat()
-                    ),
+                    text = stringResource(R.string.deep_thinking),
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = chatFontFamily),
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.shimmer(isLoading = loading),
                 )
             }
         },
-        extra = {
-            if (showThinkingTitle && state.duration > 0.seconds) {
+        progress = ChainOfThoughtProgress(
+            running = loading,
+            label = {
                 Text(
                     text = state.duration.toString(DurationUnit.SECONDS, 1),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = chatFontFamily),
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.shimmer(isLoading = loading),
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .widthIn(min = 40.dp)
+                        .shimmer(isLoading = loading),
                 )
-            }
-        },
+            },
+        ),
         collapsedAdaptiveWidth = collapsedAdaptiveWidth,
         contentVisible = state.expandState != ReasoningCardState.Collapsed,
         content = {

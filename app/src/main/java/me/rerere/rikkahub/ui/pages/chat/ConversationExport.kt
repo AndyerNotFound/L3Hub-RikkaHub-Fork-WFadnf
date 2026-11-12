@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -105,6 +106,7 @@ import me.rerere.rikkahub.ui.components.message.tools.memoryToolTitle
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
+import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtProgress
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -901,14 +903,19 @@ private fun ChainOfThoughtScope.ExportedReasoningStep(
                 color = MaterialTheme.colorScheme.secondary
             )
         },
-        extra = if (duration > 0.seconds) {
-            {
-                Text(
-                    text = duration.toString(DurationUnit.SECONDS, 1),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
+        progress = if (duration > 0.seconds) {
+            ChainOfThoughtProgress(
+                running = false,
+                label = {
+                    Text(
+                        text = duration.toString(DurationUnit.SECONDS, 1),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.widthIn(min = 40.dp),
+                    )
+                },
+            )
         } else {
             null
         },

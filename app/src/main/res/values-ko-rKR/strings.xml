@@ -303,7 +303,6 @@
   <string name="create_fork">포크 생성</string>
   <string name="db_migrating">데이터베이스 마이그레이션 중...</string>
   <string name="deep_thinking">심층 사고</string>
-  <string name="deep_thinking_seconds">%1$.1f 초 동안 생각했습니다</string>
   <string name="delete">삭제</string>
   <string name="donate_page_afdian_desc">🇨🇳 사용자를 위한 후원</string>
   <string name="donate_page_donation_methods">후원 방법</string>
@@ -1893,7 +1892,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_page_week_this">이번 주</string>
   <string name="chat_page_worldbook_injected">월드북 %1$d개 항목 주입됨</string>
   <string name="chat_task_tree_button">작업 트리</string>
-  <string name="deep_thinking_seconds_with_summary">%1$.1f초 사고 · %2$s</string>
   <string name="heartbeat_page_enable_desc">정해진 시간에 어시스턴트가 먼저 말합니다. 모델을 선택하지 않으면 알림만 보냅니다</string>
   <string name="heartbeat_page_enable_title">하트비트 사용</string>
   <string name="heartbeat_page_hours_desc">이 시간대에만 발동하며 자정을 넘길 수 있습니다</string>
