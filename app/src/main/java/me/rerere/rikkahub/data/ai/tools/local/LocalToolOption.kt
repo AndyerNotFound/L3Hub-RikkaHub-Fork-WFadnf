@@ -44,4 +44,20 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("phone_use")
     data object PhoneUse : LocalToolOption()
+
+    companion object {
+        /** 全部本地工具，工具覆写的目录按这份清单枚举。 */
+        val all: List<LocalToolOption> = listOf(
+            JavascriptEngine,
+            TimeInfo,
+            Clipboard,
+            Tts,
+            AskUser,
+            ScreenTime,
+            Calendar,
+            ChartDisplay,
+            SubAgent,
+            PhoneUse,
+        )
+    }
 }

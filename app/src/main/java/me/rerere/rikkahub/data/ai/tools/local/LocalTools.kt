@@ -113,7 +113,7 @@ class LocalTools(
         dispatcher: Assistant,
     ): List<Tool> {
         val tools = getTools(
-            options = LocalToolOption.entries.toList(),
+            options = LocalToolOption.all,
             conversationId = conversationId,
             assistants = assistants,
             dispatcher = dispatcher,
