@@ -94,11 +94,11 @@ class ContextThresholdPresetsTest {
     }
 
     @Test
-    fun `slider stops run from 32Ki to 1024Ki in whole KiB`() {
+    fun `slider stops run from 4Ki to 1024Ki in whole KiB`() {
         val stops = ContextThresholdPresets.stops
         assertEquals(stops.sorted(), stops)
         assertTrue(stops.all { it % 1024 == 0 })
-        assertEquals(32 * 1024, stops.first())
+        assertEquals(4 * 1024, stops.first())
         assertEquals(1024 * 1024, stops.last())
     }
 
