@@ -121,6 +121,19 @@ data class DiffMetadata(
 ) : PartMetadata
 
 /**
+ * 辅助 OCR 固化在图片上的识别结果。
+ *
+ * 主模型看不了图时，请求会直接用 [text] 替换图片，不再重复调用 OCR 模型；
+ * 聊天页也把它挂在图片下面，让用户看到模型实际读到的内容。
+ * 这里存的是识别模型的原始输出，标签由请求组装时统一包上。
+ */
+@Serializable
+data class OcrMetadata(
+    @SerialName("ocr_text")
+    val text: String? = null,
+) : PartMetadata
+
+/**
  * 将 metadata 解析为类型化的 [PartMetadata], 解析失败或 metadata 为 null 时返回 null
  *
  * 由于 json 配置了 ignoreUnknownKeys, 不同 provider 的 metadata 互不干扰

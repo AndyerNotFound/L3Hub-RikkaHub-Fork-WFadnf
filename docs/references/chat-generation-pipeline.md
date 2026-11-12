@@ -100,9 +100,12 @@ onSuccess
 | 2  | `PromptInjectionTransformer`   | 注入 ModeInjection 和 Lorebook 触发的提示词       |
 | 3  | `PlaceholderTransformer`       | 替换消息中的 `{{placeholder}}` 占位符             |
 | 4  | `DocumentAsPromptTransformer`  | 将文档附件转换为文本内容注入消息                         |
-| 5  | `OcrTransformer`               | 对图片 Part 执行 OCR，将识别结果附加为文本               |
+| 5  | `OcrTransformer`               | 对图片 Part 执行 OCR，结果固化到图片 metadata 并替换请求里的图片 |
 | 6  | `TemplateTransformer`          | 用 Pebble 模板引擎渲染消息（可访问 time/date/role 变量） |
 | 7  | `WorkspaceReminderTransformer` | 若对话关联 Workspace，注入工作区路径提示                |
+
+`OcrTransformer` 会把识别结果写入图片 Part 的 `metadata.ocr_text`（`OcrMetadata`），聊天页在图片下方
+展示这段文字；后续请求直接用文字替换图片，只有还没有固化结果的图片才会调用 OCR 模型。
 
 `PromptInjectionTransformer` 支持四种注入位置：
 

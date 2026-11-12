@@ -33,6 +33,7 @@ import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
+import me.rerere.rikkahub.data.ai.transformers.OcrResult
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
@@ -229,7 +230,8 @@ class ChatRequestFactory(
 
     /**
      * 本轮交给 runAgent 的请求和钩子。[messages] 的最后一条是助手消息时从它继续，否则新建一条助手消息。
-     * [processingStatus] 用来显示 OCR 这类输入转换的进度；[takePendingParts] 取出要在请求模型前写进助手消息的
+     * [processingStatus] 用来显示 OCR 这类输入转换的进度；[onOcrResults] 把新识别出的图片文字固化回会话，
+     * 下一轮直接用它替换图片；[takePendingParts] 取出要在请求模型前写进助手消息的
      * 通知和合成工具调用（引导、任务清单），参数是本轮正在写的助手消息，第一步还没有内容时为 null。
      * [pauseAfterTools] 在一批工具执行完之后调用，返回 true 时这次运行以 Paused 结束。
      */
@@ -239,6 +241,7 @@ class ChatRequestFactory(
         processingStatus: MutableStateFlow<String?>,
         pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
         pauseAfterTools: (UIMessage) -> Boolean = { false },
+        onOcrResults: suspend (List<OcrResult>) -> Unit = {},
         takePendingParts: suspend (UIMessage?) -> List<UIMessagePart> = { emptyList() },
         // 清单的开关、间隔和内容都按最新状态读：一轮可能跑很久，用户中途关掉插入要当步生效。
         // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
@@ -273,6 +276,7 @@ class ChatRequestFactory(
                     turn = turn,
                     messages = messages,
                     processingStatus = processingStatus,
+                    onOcrResults = onOcrResults,
                     todoRemindersEnabled = liveAssistant().todoReminderEnabled,
                     todos = liveTodos(),
                 )
@@ -401,6 +405,7 @@ class ChatRequestFactory(
         turn: ChatTurnContext,
         messages: List<UIMessage>,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        onOcrResults: suspend (List<OcrResult>) -> Unit = {},
         respectMessageLimit: Boolean = true,
         transformers: List<InputMessageTransformer> = inputTransformers,
         includeTools: Boolean = true,
@@ -444,6 +449,7 @@ class ChatRequestFactory(
                 workspaceCwds = turn.workspaceCwds,
                 // 开关关掉后尾部也不贴；清单快照可能是这一轮开始时的，循环里按最新值传
                 todos = if (todoRemindersEnabled) todos else emptyList(),
+                onOcrResults = onOcrResults,
             )
         }
         // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效。

@@ -2558,4 +2558,6 @@
   <string name="chat_message_tool_phone_use_open_app_name">Открыть приложение: %1$s</string>
   <string name="chat_message_tool_phone_use_list_apps">Список приложений</string>
   <string name="chat_message_tool_phone_use_wait">Ожидание %1$s сек.</string>
+  <string name="chat_message_ocr_result">Текст на изображении (OCR)</string>
+  <string name="chat_message_ocr_result_image">Изображение %1$d</string>
 </resources>

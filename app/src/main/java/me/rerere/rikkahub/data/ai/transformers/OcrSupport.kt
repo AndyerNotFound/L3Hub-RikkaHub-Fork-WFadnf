@@ -1,15 +1,20 @@
 package me.rerere.rikkahub.data.ai.transformers
 
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.ui.OcrMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.metadataAs
+import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.model.Conversation
 import java.io.IOException
 import kotlin.uuid.Uuid
 
@@ -17,6 +22,12 @@ import kotlin.uuid.Uuid
 internal data class OcrTarget(
     val model: Model,
     val providerSetting: ProviderSetting,
+)
+
+/** 一次新识别（或缓存命中）的结果，用来固化回会话里的图片 */
+data class OcrResult(
+    val url: String,
+    val text: String,
 )
 
 /**
@@ -41,7 +52,19 @@ internal fun Settings.resolveOcrTarget(forModel: Model? = null): OcrTarget? {
 /** 会被送去识别的图片：只有本地文件，content:// 和网络图片换不了，保持原样 */
 internal fun UIMessagePart.Image.isOcrCandidate(): Boolean = url.startsWith("file:")
 
-/** 整段历史里需要识别的图片，顺序即消息顺序 */
+/** 已经固化在图片上的识别结果；有值时请求不再调用 OCR 模型 */
+internal fun UIMessagePart.Image.ocrText(): String? =
+    metadataAs<OcrMetadata>()?.text?.takeIf { it.isNotBlank() }
+
+/** 还需要识别的图片：本地文件，且还没固化识别结果 */
+internal fun UIMessagePart.Image.needsOcr(): Boolean = isOcrCandidate() && ocrText() == null
+
+/** 把识别结果写进图片的 metadata，保留原有的 provider metadata */
+internal fun UIMessagePart.Image.withOcrText(text: String): UIMessagePart.Image = copy(
+    metadata = JsonObject(metadata.orEmpty() + OcrMetadata(text = text).toMetadata())
+)
+
+/** 整段历史里需要识别的图片，顺序即消息顺序；已经固化的也在内，替换时统一用固化下来的文字 */
 internal fun List<UIMessage>.ocrImages(): List<UIMessagePart.Image> =
     flatMap { it.parts }.filterIsInstance<UIMessagePart.Image>().filter { it.isOcrCandidate() }
 
@@ -59,6 +82,51 @@ internal fun List<UIMessage>.replaceOcrImages(texts: List<String>): List<UIMessa
             }
         )
     }
+}
+
+/**
+ * 把识别结果固化回会话里的图片。
+ *
+ * 按图片 URL 匹配：同一张图在多个分支或多次出现时一起更新；[OcrResult] 里没有的图片保持原样。
+ * 什么都没改时返回 null，调用方据此跳过落库。
+ */
+internal fun Conversation.withOcrResults(results: List<OcrResult>): Conversation? {
+    if (results.isEmpty()) return null
+    val textByUrl = results.associate { it.url to it.text }
+
+    var changed = false
+    val nodes = messageNodes.map { node ->
+        var nodeChanged = false
+        val messages = node.messages.map { message ->
+            var messageChanged = false
+            val parts = message.parts.map { part ->
+                if (part is UIMessagePart.Image) {
+                    val text = textByUrl[part.url]
+                    if (text == null || text == part.ocrText()) {
+                        part
+                    } else {
+                        messageChanged = true
+                        part.withOcrText(text)
+                    }
+                } else {
+                    part
+                }
+            }
+            if (messageChanged) {
+                nodeChanged = true
+                message.copy(parts = parts)
+            } else {
+                message
+            }
+        }
+        if (nodeChanged) {
+            changed = true
+            node.copy(messages = messages)
+        } else {
+            node
+        }
+    }
+    return if (changed) copy(messageNodes = nodes) else null
 }
 
 /** 识别结果对不上号时留下的占位符，正常流程走不到这里 */

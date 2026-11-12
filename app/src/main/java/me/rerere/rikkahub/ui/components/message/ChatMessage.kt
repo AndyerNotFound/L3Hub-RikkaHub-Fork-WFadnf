@@ -94,10 +94,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
+import me.rerere.ai.ui.OcrMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
+import me.rerere.ai.ui.metadataAs
 import me.rerere.hugeicons.HugeIcons
 import coil3.compose.AsyncImage
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -1239,12 +1241,61 @@ private fun UserMessageContent(
                 // 长按一并挂在卡片上，点图片消息也能拉出菜单
                 UserAttachmentTiles(attachments = attachments, onLongClick = onLongClick)
             }
+            UserMessageOcrResults(parts = parts)
             texts.forEach { text ->
                 CollapsibleUserMessageText(
                     text = text.text,
                     assistant = assistant,
                     onClickCitation = onClickCitation,
                 )
+            }
+        }
+    }
+}
+
+/**
+ * 辅助 OCR 读出来的文字：挂在图片下面，让用户看到模型实际收到的内容。
+ * 卡片外观和附件卡片一致；长文本沿用用户消息的折叠规则。
+ */
+@Composable
+private fun UserMessageOcrResults(parts: List<UIMessagePart>) {
+    val ocrTexts = remember(parts) {
+        parts.filterIsInstance<UIMessagePart.Image>()
+            .mapNotNull { part ->
+                part.metadataAs<OcrMetadata>()?.text?.trim()?.takeIf { it.isNotEmpty() }
+            }
+    }
+    if (ocrTexts.isEmpty()) return
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.chat_message_ocr_result),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ocrTexts.forEachIndexed { index, text ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (ocrTexts.size > 1) {
+                        Text(
+                            text = stringResource(R.string.chat_message_ocr_result_image, index + 1),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        )
+                    }
+                    CollapsibleUserMessageText(
+                        text = text,
+                        assistant = null,
+                        onClickCitation = {},
+                    )
+                }
             }
         }
     }

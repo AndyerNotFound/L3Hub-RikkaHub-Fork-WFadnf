@@ -2693,4 +2693,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_phone_use_open_app_name">打开应用：%1$s</string>
   <string name="chat_message_tool_phone_use_list_apps">列出应用</string>
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
+  <string name="chat_message_ocr_result">图片文字（OCR）</string>
+  <string name="chat_message_ocr_result_image">第 %1$d 张图片</string>
 </resources>

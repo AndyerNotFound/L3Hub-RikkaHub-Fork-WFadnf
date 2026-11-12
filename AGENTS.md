@@ -108,7 +108,8 @@ GB 级依赖，还要过 `compguard` 的编译限额——不划算。验证一�
   - RegexOutputTransformer: Apply regex replacements to assistant responses
   - DocumentAsPromptTransformer: Convert document attachments to text prompts
   - Base64ImageToLocalFileTransformer: Convert base64 images to local file references
-  - OcrTransformer: Perform OCR on images to extract text
+  - OcrTransformer: Perform OCR on images, persist the text in the image metadata, and replace the image in
+    requests to non-vision models
 
   Output transformers support `visualTransform()` for UI display during streaming and `onGenerationFinish()` for final
   processing after generation completes.

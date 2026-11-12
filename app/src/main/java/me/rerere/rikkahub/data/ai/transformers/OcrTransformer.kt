@@ -50,7 +50,9 @@ private const val EMPTY_RESPONSE_NOTICE =
 /**
  * 主模型看不了图时，把本地图片送去 OCR 模型转成文字。
  *
- * 只处理 file: 开头的图片。替换只发生在这一次请求的消息副本上，会话里的图片原样保留。
+ * 识别结果通过 [TransformerContext.onOcrResults] 固化到图片的 metadata（[me.rerere.ai.ui.OcrMetadata]）：
+ * 之后的请求直接用它替换图片，不再重复调用 OCR 模型，聊天页也把这段文字挂在图片下面给用户看。
+ * 只处理 file: 开头的图片。
  */
 object OcrTransformer : InputMessageTransformer, KoinComponent {
     private val cache by lazy {
@@ -95,65 +97,111 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
     /**
      * 逐张识别，返回与 [images] 等长、已经包好标签的文本。
      *
-     * 并发只影响速度：每张图还是独立请求，某一张失败不会牵连其它张。命中缓存的不占并发额度，
-     * 也不再去改进度文案。
+     * 已经固化的图片直接用存下来的文字，其余先查缓存，未命中的才发请求。并发只影响速度：
+     * 每张图还是独立请求，某一张失败不会牵连其它张。新得到的结果（含缓存命中）交给
+     * [TransformerContext.onOcrResults] 固化回会话，下一轮乃至下次打开会话都不用再识别。
      */
     private suspend fun recognizeAll(
         ctx: TransformerContext,
         settings: Settings,
         images: List<UIMessagePart.Image>,
     ): List<String> {
+        // 缓存里存的是没包标签的原始文本，第几张要等真正插入时再算，否则换位置后标签会撒谎
+        val rawTexts = images.map { it.ocrText() }.toMutableList()
+        // 同一张图可能在一段历史里出现多次：其中一份已经固化时，另一份也直接用同一段文字
+        val storedByUrl = rawTexts.indices.mapNotNull { index ->
+            rawTexts[index]?.let { text -> images[index].url to text }
+        }.toMap()
+        rawTexts.indices.forEach { index ->
+            if (rawTexts[index] == null) rawTexts[index] = storedByUrl[images[index].url]
+        }
+        val pendingPositions = rawTexts.indices.filter { rawTexts[it] == null }
+        if (pendingPositions.isEmpty()) {
+            return wrapOcrTexts(rawTexts, images.size)
+        }
+
         val target = settings.resolveOcrTarget(ctx.model)
         if (target == null) {
             Log.w(TAG, "recognizeAll: no vision-capable model configured for OCR")
-            return images.indices.map { index ->
-                wrapOcrResult(NO_OCR_MODEL_NOTICE, index + 1, images.size)
-            }
+            pendingPositions.forEach { rawTexts[it] = NO_OCR_MODEL_NOTICE }
+            return wrapOcrTexts(rawTexts, images.size)
         }
 
-        val keys = images.map { ocrCacheKey(target.model.id, settings.ocrPrompt, it.url) }
+        val keyByPosition = pendingPositions.associateWith { position ->
+            ocrCacheKey(target.model.id, settings.ocrPrompt, images[position].url)
+        }
         // 同一张图可能在一段历史里出现多次：按缓存键去重，只识别一次
-        val uniqueKeys = keys.distinct()
-        val positionByKey = uniqueKeys.withIndex().associate { (position, key) -> key to position }
-        // 缓存里存的是没包标签的原始文本，第几张要等真正插入时再算，否则换位置后标签会撒谎
-        val rawTexts = arrayOfNulls<String>(uniqueKeys.size)
-        val pending = mutableListOf<Int>()
-        uniqueKeys.forEachIndexed { position, key ->
-            val cached = cache.get(key)
-            if (cached != null) {
-                rawTexts[position] = cached
-            } else {
-                pending.add(position)
+        val imageByKey = pendingPositions.associate { position ->
+            keyByPosition.getValue(position) to images[position]
+        }
+        val resolved = mutableMapOf<String, String>()
+        // 空回复和失败不进缓存，也不固化，下次重发同一张图还能再试一次
+        val persistable = mutableSetOf<String>()
+
+        imageByKey.keys.forEach { key ->
+            cache.get(key)?.let { text ->
+                resolved[key] = text
+                persistable += key
             }
         }
 
-        if (pending.isNotEmpty()) {
+        val toRecognize = imageByKey.keys.filter { it !in resolved }
+        if (toRecognize.isNotEmpty()) {
             val finished = AtomicInteger(0)
             val semaphore = Semaphore(MAX_CONCURRENT_OCR)
-            coroutineScope {
-                pending.map { position ->
+            val outcomes = coroutineScope {
+                toRecognize.map { key ->
                     async {
                         semaphore.withPermit {
-                            val key = uniqueKeys[position]
                             ctx.processingStatus.value = ctx.context.getString(
                                 R.string.chat_page_ocr_processing,
                                 finished.incrementAndGet(),
-                                pending.size,
+                                toRecognize.size,
                             )
-                            val outcome = performOcr(settings, target, images[keys.indexOf(key)])
-                            if (outcome.cacheable) {
-                                cache.put(key, outcome.content)
-                            }
-                            rawTexts[position] = outcome.content
+                            key to performOcr(settings, target, imageByKey.getValue(key))
                         }
                     }
                 }.awaitAll()
             }
+            outcomes.forEach { (key, outcome) ->
+                resolved[key] = outcome.content
+                if (outcome.cacheable) {
+                    cache.put(key, outcome.content)
+                    persistable += key
+                }
+            }
         }
 
-        return keys.mapIndexed { index, key ->
-            val raw = rawTexts[positionByKey.getValue(key)] ?: EMPTY_RESPONSE_NOTICE
-            wrapOcrResult(raw, index + 1, images.size)
+        val recognized = mutableListOf<OcrResult>()
+        pendingPositions.forEach { position ->
+            val key = keyByPosition.getValue(position)
+            val text = resolved[key] ?: EMPTY_RESPONSE_NOTICE
+            rawTexts[position] = text
+            if (key in persistable) {
+                recognized += OcrResult(images[position].url, text)
+            }
+        }
+        persistOcrResults(ctx, recognized)
+        return wrapOcrTexts(rawTexts, images.size)
+    }
+
+    private fun wrapOcrTexts(texts: List<String?>, total: Int): List<String> =
+        texts.mapIndexed { index, text ->
+            wrapOcrResult(text ?: EMPTY_RESPONSE_NOTICE, index + 1, total)
+        }
+
+    private suspend fun persistOcrResults(
+        ctx: TransformerContext,
+        results: List<OcrResult>,
+    ) {
+        if (results.isEmpty()) return
+        try {
+            ctx.onOcrResults(results.distinctBy { it.url })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // 固化失败只影响下一轮还要再识别一次，不能让这一轮生成跟着失败
+            Log.w(TAG, "recognizeAll: failed to persist OCR result", e)
         }
     }
 

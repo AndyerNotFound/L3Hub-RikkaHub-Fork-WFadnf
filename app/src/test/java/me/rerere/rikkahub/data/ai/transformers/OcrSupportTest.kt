@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.data.ai.transformers
 
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
@@ -9,8 +12,12 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.MessageNode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -222,6 +229,93 @@ class OcrSupportTest {
         )
 
         assertNull(disabled.resolveOcrTarget())
+    }
+
+    @Test
+    fun `ocr text is stored in the image metadata without dropping other keys`() {
+        val image = UIMessagePart.Image(
+            url = "file:///data/chat/a.png",
+            metadata = JsonObject(mapOf("provider_key" to JsonPrimitive("keep me"))),
+        )
+
+        val withText = image.withOcrText("recognized text")
+
+        assertEquals("recognized text", withText.ocrText())
+        assertEquals("keep me", withText.metadata?.get("provider_key")?.jsonPrimitive?.content)
+        assertFalse(withText.needsOcr())
+        assertTrue(image.needsOcr())
+        assertNull(image.ocrText())
+    }
+
+    @Test
+    fun `remote and content images are never treated as ocr candidates`() {
+        val remote = UIMessagePart.Image("https://example.com/a.png").withOcrText("stored")
+        val content = UIMessagePart.Image("content://photos/a.png")
+
+        // metadata 能读，但只有本地文件会被送去识别
+        assertEquals("stored", remote.ocrText())
+        assertFalse(remote.isOcrCandidate())
+        assertFalse(content.isOcrCandidate())
+        assertTrue(UIMessagePart.Image("file:///data/chat/a.png").isOcrCandidate())
+    }
+
+    @Test
+    fun `stored ocr text marks the image as already recognized`() {
+        val stored = UIMessagePart.Image("file:///data/chat/a.png").withOcrText("done")
+        val pending = UIMessagePart.Image("file:///data/chat/b.png")
+
+        assertFalse(stored.needsOcr())
+        assertTrue(pending.needsOcr())
+    }
+
+    @Test
+    fun `ocr results are written back to every message holding the image`() {
+        val url = "file:///data/chat/a.png"
+        val other = "file:///data/chat/b.png"
+        val selected = UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Image(url)))
+        val branch = selected.copy(id = id(2))
+        val later = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(UIMessagePart.Image(url), UIMessagePart.Image(other)),
+        )
+        val conversation = Conversation.ofId(
+            id = id(1),
+            messages = listOf(
+                MessageNode(messages = listOf(selected, branch)),
+                MessageNode(messages = listOf(later)),
+            ),
+        )
+
+        val updated = conversation.withOcrResults(listOf(OcrResult(url, "read from image")))
+
+        assertNotNull(updated)
+        val messages = updated!!.messageNodes.flatMap { it.messages }
+        assertEquals("read from image", (messages[0].parts[0] as UIMessagePart.Image).ocrText())
+        assertEquals("read from image", (messages[1].parts[0] as UIMessagePart.Image).ocrText())
+        assertEquals("read from image", (messages[2].parts[0] as UIMessagePart.Image).ocrText())
+        assertNull((messages[2].parts[1] as UIMessagePart.Image).ocrText())
+        // 同样的结果再写一次没有变化，调用方不必落库
+        assertNull(updated!!.withOcrResults(listOf(OcrResult(url, "read from image"))))
+    }
+
+    @Test
+    fun `ocr results for unknown images leave the conversation untouched`() {
+        val conversation = Conversation.ofId(
+            id = id(1),
+            messages = listOf(
+                MessageNode(
+                    messages = listOf(
+                        UIMessage(
+                            role = MessageRole.USER,
+                            parts = listOf(UIMessagePart.Image("file:///data/chat/a.png")),
+                        )
+                    )
+                )
+            ),
+        )
+
+        assertNull(conversation.withOcrResults(listOf(OcrResult("file:///data/chat/gone.png", "x"))))
+        assertNull(conversation.withOcrResults(emptyList()))
     }
 }
 

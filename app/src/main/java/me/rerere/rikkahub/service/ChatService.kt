@@ -67,6 +67,7 @@ import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.TODO_UPDATE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
+import me.rerere.rikkahub.data.ai.transformers.withOcrResults
 import me.rerere.rikkahub.data.chat.DraftRestore
 import me.rerere.rikkahub.data.chat.DraftStore
 import me.rerere.rikkahub.data.chat.applyDraftRestore
@@ -1508,6 +1509,12 @@ class ChatService(
                         // 全部完成或取消后不再贴，和轮次开始时的判断保持一致
                         liveTodos = {
                             session.state.value.todos.takeIf { it.hasActiveTodo() } ?: emptyList()
+                        },
+                        // 识别结果写回会话里的图片，随后落库：下一轮、重新生成、切模型后都不用再识别一次
+                        onOcrResults = { results ->
+                            if (session.tryUpdate { it.withOcrResults(results) } != null) {
+                                session.flush()
+                            }
                         },
                         takePendingParts = { current ->
                             session.takeInjectionParts(current, liveAssistant())

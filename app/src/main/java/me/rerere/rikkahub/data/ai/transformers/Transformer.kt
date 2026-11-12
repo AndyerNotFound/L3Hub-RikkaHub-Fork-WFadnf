@@ -16,6 +16,8 @@ class TransformerContext(
     val processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     val workspaceCwds: Map<String, String> = emptyMap(),
     val todos: List<TodoItem> = emptyList(),
+    /** 新识别（含缓存命中）的图片文字；由调用方固化回会话，默认不落库（压缩、预览这类只读请求） */
+    val onOcrResults: suspend (List<OcrResult>) -> Unit = {},
 )
 
 interface MessageTransformer {
@@ -69,6 +71,7 @@ suspend fun List<UIMessage>.transforms(
     processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     workspaceCwds: Map<String, String> = emptyMap(),
     todos: List<TodoItem> = emptyList(),
+    onOcrResults: suspend (List<OcrResult>) -> Unit = {},
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -78,6 +81,7 @@ suspend fun List<UIMessage>.transforms(
         processingStatus = processingStatus,
         workspaceCwds = workspaceCwds,
         todos = todos,
+        onOcrResults = onOcrResults,
     )
     return transformers.fold(this) { acc, transformer ->
         transformer.transform(ctx, acc)

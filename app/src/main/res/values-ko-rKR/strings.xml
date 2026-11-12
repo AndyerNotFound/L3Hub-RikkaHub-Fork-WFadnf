@@ -2558,4 +2558,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_message_tool_phone_use_open_app_name">앱 열기: %1$s</string>
   <string name="chat_message_tool_phone_use_list_apps">앱 목록</string>
   <string name="chat_message_tool_phone_use_wait">%1$s초 대기</string>
+  <string name="chat_message_ocr_result">이미지 텍스트(OCR)</string>
+  <string name="chat_message_ocr_result_image">이미지 %1$d</string>
 </resources>

@@ -2581,4 +2581,6 @@
   <string name="chat_message_tool_phone_use_open_app_name">開啟應用程式：%1$s</string>
   <string name="chat_message_tool_phone_use_list_apps">列出應用程式</string>
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
+  <string name="chat_message_ocr_result">圖片文字（OCR）</string>
+  <string name="chat_message_ocr_result_image">第 %1$d 張圖片</string>
 </resources>
