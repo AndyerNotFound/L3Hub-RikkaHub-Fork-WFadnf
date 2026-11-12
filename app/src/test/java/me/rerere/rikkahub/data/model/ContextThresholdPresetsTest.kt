@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.model
 
 import me.rerere.ai.provider.Model
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ContextThresholdPresetsTest {
@@ -90,6 +91,21 @@ class ContextThresholdPresetsTest {
             maxContextTokens = 524_288,
         )
         assertEquals(model, model.withContextPresets())
+    }
+
+    @Test
+    fun `slider stops run from 32Ki to 1024Ki in whole KiB`() {
+        val stops = ContextThresholdPresets.stops
+        assertEquals(stops.sorted(), stops)
+        assertTrue(stops.all { it % 1024 == 0 })
+        assertEquals(32 * 1024, stops.first())
+        assertEquals(1024 * 1024, stops.last())
+    }
+
+    @Test
+    fun `default preset sits on slider stops`() {
+        assertTrue(ContextThresholdPresets.default.warn in ContextThresholdPresets.stops)
+        assertTrue(ContextThresholdPresets.default.max in ContextThresholdPresets.stops)
     }
 
     private fun ContextThresholdPresets.Preset.pair() = warn to max

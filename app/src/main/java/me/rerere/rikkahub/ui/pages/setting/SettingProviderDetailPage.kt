@@ -42,7 +42,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -52,6 +51,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
@@ -76,6 +76,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
+import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -132,7 +134,6 @@ import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
-import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
@@ -1650,40 +1651,19 @@ private fun ModelContextThresholdFields(
                 }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ContextThresholdField(
-                value = warn,
-                label = stringResource(R.string.setting_provider_page_context_warn),
-                isError = invalid,
-                onValueChange = {
-                    onModelChange(model.copy(warnContextTokens = it, contextThresholdsAuto = false))
-                },
-                modifier = Modifier.weight(1f),
-            )
-            ContextThresholdField(
-                value = max,
-                label = stringResource(R.string.setting_provider_page_context_max),
-                isError = invalid,
-                onValueChange = {
-                    onModelChange(model.copy(maxContextTokens = it, contextThresholdsAuto = false))
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        ContextThresholdPresetRow(
+        ContextThresholdSlider(
             label = stringResource(R.string.setting_provider_page_context_warn),
-            selected = warn,
-            onSelect = { value ->
+            value = warn,
+            isError = invalid,
+            onValueChange = { value ->
                 onModelChange(model.copy(warnContextTokens = value, contextThresholdsAuto = false))
             },
         )
-        ContextThresholdPresetRow(
+        ContextThresholdSlider(
             label = stringResource(R.string.setting_provider_page_context_max),
-            selected = max,
-            onSelect = { value ->
+            value = max,
+            isError = invalid,
+            onValueChange = { value ->
                 onModelChange(model.copy(maxContextTokens = value, contextThresholdsAuto = false))
             },
         )
@@ -1724,80 +1704,106 @@ private fun ModelContextThresholdFields(
     }
 }
 
-/** WARN / MAX 的常用门限，点一下直接填进去 */
-private val CONTEXT_THRESHOLD_PRESETS = listOf(
-    32_768,
-    65_536,
-    131_072,
-    196_608,
-    262_144,
-    393_216,
-    458_752,
-    524_288,
-    786_432,
-    1_048_576,
-)
-
+/**
+ * 单个门限的调整：滑杆按 [ContextThresholdPresets.stops] 的档位粗调，
+ * 右边的输入框填任意精确值，两边改的是同一个字段。
+ *
+ * 输入框自己保存草稿：清空表示不设门限，非数字直接忽略；滑杆拖动时草稿跟着跳到对应档位。
+ */
 @Composable
-private fun ContextThresholdPresetRow(
+private fun ContextThresholdSlider(
     label: String,
-    selected: Int?,
-    onSelect: (Int) -> Unit,
+    value: Int?,
+    isError: Boolean,
+    onValueChange: (Int?) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+    val stops = ContextThresholdPresets.stops
+    var text by remember(value) { mutableStateOf(value?.toString() ?: "") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CONTEXT_THRESHOLD_PRESETS.forEach { value ->
-                FilterChip(
-                    colors = glassFilterChipColors(),
-                    selected = selected == value,
-                    onClick = { onSelect(value) },
-                    label = {
-                        Text(
-                            text = value.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    },
-                    shape = MaterialTheme.shapes.small,
-                )
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedTextField(
+                value = text,
+                onValueChange = { input ->
+                    val digits = input.filter { it.isDigit() }.take(8)
+                    text = digits
+                    onValueChange(digits.toIntOrNull()?.takeIf { it > 0 })
+                },
+                modifier = Modifier.width(136.dp),
+                textStyle = MaterialTheme.typography.bodyMedium,
+                suffix = { Text("tokens", style = MaterialTheme.typography.labelSmall) },
+                placeholder = { Text("-") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                isError = isError,
+            )
+        }
+        Slider(
+            value = contextStopPosition(stops, value),
+            onValueChange = { position ->
+                onValueChange(stops[position.roundToInt().coerceIn(stops.indices)])
+            },
+            valueRange = 0f..stops.lastIndex.toFloat(),
+            steps = stops.size - 2,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = contextThresholdSummary(stops.first()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = contextThresholdSummary(value),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+            Text(
+                text = contextThresholdSummary(stops.last()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
-@Composable
-private fun ContextThresholdField(
-    value: Int?,
-    label: String,
-    isError: Boolean,
-    onValueChange: (Int?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    // 输入过程中允许为空, 只有合法的正整数才写回模型
-    var text by remember(value) { mutableStateOf(value?.toString() ?: "") }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { input ->
-            val digits = input.filter { it.isDigit() }
-            text = digits
-            onValueChange(digits.toIntOrNull()?.takeIf { it > 0 })
-        },
-        modifier = modifier,
-        label = { Text(label) },
-        suffix = { Text("tokens") },
-        placeholder = { Text("-") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        isError = isError,
-    )
+/**
+ * 滑杆位置：值落在两档之间就停在两者中间，超出范围贴住两端。
+ * 输入框填的精确值不在档位上时只是近似位置，再拖一下才会落到档位。
+ */
+private fun contextStopPosition(stops: List<Int>, value: Int?): Float {
+    if (value == null || value <= stops.first()) return 0f
+    if (value >= stops.last()) return stops.lastIndex.toFloat()
+    val upper = stops.indexOfFirst { it >= value }
+    if (stops[upper] == value) return upper.toFloat()
+    val lower = stops[upper - 1]
+    return upper - 1 + (value - lower).toFloat() / (stops[upper] - lower)
 }
+
+/** 档位和当前值的显示：整 KiB 写成 384Ki，有零头就照原值给，免得和输入框对不上 */
+private fun contextThresholdSummary(value: Int?): String = when {
+    value == null || value <= 0 -> "-"
+    value % KIB == 0 -> "${value / KIB}Ki"
+    else -> String.format(Locale.ROOT, "%,d", value)
+}
+
+private const val KIB = 1024
 
 @Composable
 private fun ModelCard(

@@ -16,6 +16,26 @@ object ContextThresholdPresets {
 
     val fallback = default
 
+    /**
+     * 设置页滑杆的停靠档位：32Ki 起步，每档约 1.5 倍，到 1024Ki 收尾。
+     *
+     * 全部写成 1024 的整数倍，界面上就不用显示 393.2K 这类四舍五入后的数；
+     * [default] 的 WARN / MAX 都落在档位上。
+     */
+    val stops = listOf(
+        32_768,
+        49_152,
+        65_536,
+        98_304,
+        131_072,
+        196_608,
+        262_144,
+        393_216,
+        524_288,
+        786_432,
+        1_048_576,
+    )
+
     @Suppress("UNUSED_PARAMETER")
     fun resolve(modelId: String): Preset = default
 
