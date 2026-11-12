@@ -1,14 +1,15 @@
 name: Build APK
 
-# 两条线共用一套流程，按 tag 形态区分：
+# 三条线共用一套流程，按 tag 形态区分：
 #   v3.1.1              → 正式版：githubRelease 变体（包名不带 .debug），正式 Release
+#   v3.1.1-canary.1     → Canary 版：githubRelease 变体，包名与签名同正式版，Pre-release
 #   v3.1.1-preview.102  → 预览版：githubDebug 变体（包名 .debug），Pre-release
 # 正式版签名密钥放在仓库 Secrets，见 FORK.md「发版」一节。
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布 tag（留空只出 artifact 不发版；不带 - 视为正式版，带 - 视为预览版）'
+        description: '发布 tag（留空只出 artifact 不发版；不带 - 为正式版，-canary.N 为同包名同签名的 Canary 预发布，其余带 - 的为独立包名的预览版）'
         required: false
         default: ''
       variant:
@@ -70,27 +71,51 @@ jobs:
               echo "非法 tag：[${tag}]" >&2
               exit 1 ;;
           esac
-          # tag 带 -（preview / rc）算预览版，不带 - 算正式版
+          # tag 带 -（canary / preview / rc）算预发布，不带 - 算正式版
           case "$tag" in
             *-*) is_pre=true ;;
             *) is_pre=false ;;
           esac
+          # canary 是预发布，但沿用正式版包名与签名：装上去就是覆盖正式版，数据沿用。
+          # 其余带 - 的 tag 仍是独立包名的预览版（.debug + 仓库里的 debug key）。
+          is_canary=false
+          if [ "$is_pre" = "true" ]; then
+            case "$tag" in
+              *-canary*)
+                is_canary=true
+                # 形态不对会被下面的版本号核对当成别的 base 前缀匹配，先卡死写法
+                if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
+                  echo "canary tag ${tag} 应形如 vX.Y.Z-canary.N" >&2
+                  exit 1
+                fi ;;
+            esac
+          fi
           variant="${INPUT_VARIANT:-auto}"
           if [ "$variant" = "auto" ]; then
-            case "$tag" in
-              ''|*-*) variant=debug ;;
-              *) variant=release ;;
-            esac
+            if [ "$is_canary" = "true" ]; then
+              variant=release
+            else
+              case "$tag" in
+                ''|*-*) variant=debug ;;
+                *) variant=release ;;
+              esac
+            fi
           fi
           # 正式版包套上预览 tag 会发成正式 Release，包名/签名和 tag 对不上，事后只能重发
           if [ "$variant" = "debug" ] && [ "$is_pre" = "false" ] && [ -n "$tag" ]; then
             echo "tag ${tag} 不带 -，是正式版，必须用 release 变体；只要预览包请用带 - 的 tag" >&2
             exit 1
           fi
+          # canary 的卖点就是覆盖安装正式版；出成 debug 包等于换了个应用，更新落在别的包名上
+          if [ "$is_canary" = "true" ] && [ "$variant" != "release" ]; then
+            echo "canary tag ${tag} 必须用 release 变体，包名与签名才和正式版一致" >&2
+            exit 1
+          fi
           {
             echo "VARIANT=$variant"
             echo "TAG=$tag"
             echo "IS_PRERELEASE=$is_pre"
+            echo "IS_CANARY=$is_canary"
           } >> "$GITHUB_ENV"
           artifact="L3Hub-${variant}"
           if [ -n "$tag" ]; then artifact="${artifact}-${tag}"; fi
@@ -141,12 +166,12 @@ jobs:
               exit 1 ;;
           esac
           # 预览版是独立包名（.debug），versionCode 和正式版撞车不影响谁覆盖谁，
-          # 只核对 versionName，别为了打个预览包还得先 bump 版本号
-          case "$TAG" in
-            *-*)
-              echo "预览版 tag，只核对 versionName：${name}"
-              exit 0 ;;
-          esac
+          # 只核对 versionName，别为了打个预览包还得先 bump 版本号。
+          # canary 用的是正式版包名，versionCode 不涨就装不上已装的正式版，下面照常核对。
+          if [ "$VARIANT" = "debug" ]; then
+            echo "预览版 tag，只核对 versionName：${name}"
+            exit 0
+          fi
           # 正式版 versionCode 不涨，覆盖安装只是重装同一个版本，用户会以为没更新成功
           prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^" 2>/dev/null || true)
           if [ -z "$prev" ]; then
@@ -374,7 +399,13 @@ jobs:
             echo
             echo "## 安装"
             echo
-            if [ "$VARIANT" = "release" ]; then
+            if [ "$IS_CANARY" = "true" ]; then
+              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a Canary 版，包名 `'"${pkg}"'`，版本 `'"${version}"'`，签名与正式版相同。'
+              echo
+              echo '这是预发布：功能比正式版新，稳定性不作保证。它和正式版是同一个应用，装上会直接覆盖已装的正式版并沿用其数据。'
+              echo
+              echo 'versionCode 只增不减：装过这一版之后，要回到更早的正式版只能先卸载（会清除应用数据，建议先导出备份）。'
+            elif [ "$VARIANT" = "release" ]; then
               echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a 正式版，包名 `'"${pkg}"'`，版本 `'"${version}"'`。'
               echo
               echo '和预览版（包名 `'"${pkg}"'.debug`）是两个独立的应用，可以同装在一台手机上，互不覆盖数据。'

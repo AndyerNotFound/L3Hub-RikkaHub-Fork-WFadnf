@@ -836,37 +836,44 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
 ## 发版：交给 GitHub Actions
 
 本机不跑 Gradle（Termux 上编译会把机器拖死），出包和发版都放在 runner 上。
-两条线共用 `build-apk.yml`，按 tag 形态分流：
+三条线共用 `build-apk.yml`，按 tag 形态分流：
 
 | tag | 变体 | 包名 | Release |
 |---|---|---|---|
 | `v3.1.1` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | 正式版（非 prerelease，自动成为 latest） |
+| `v3.1.1-canary.1` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | Pre-release（不占 latest） |
 | `v3.1.1-preview.102` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release |
 
-两个包是两个独立应用，可以同装在一台手机上，数据互不影响（预览版桌面名是 L3Hub Preview）。
+正式版与 Canary 是同一个应用（同包名、同签名），Canary 直接覆盖安装正式版并沿用数据；
+预览版是独立应用（包名 `.debug`，桌面名 L3Hub Preview），可与正式版同装，数据互不影响。
 
 步骤：
 
 1. 改 `app/build.gradle.kts` 的 `versionCode` / `versionName`（每次各 +1，例如 283 / `L.3.1.4.105`），连同改动一起提交
-2. 打 tag 推上去：`git tag v3.1.1 && git push origin v3.1.1`（预览版就是 `v3.1.1-preview.102`）。
+2. 打 tag 推上去：`git tag v3.1.1 && git push origin v3.1.1`（Canary 是 `v3.1.1-canary.1`，
+   预览版是 `v3.1.1-preview.102`）。
    手动触发时如果填了 tag，checkout 用的就是这个 tag 的提交，不会拿分支 HEAD 出的包挂到 tag 上；
    `gh release create` 带 `--verify-tag`，tag 不存在直接报错，不会现造一个
    tag 和版本号由 `Check version against tag` 这一步互相对账：`versionName` 必须以
-   `L.<tag 去掉 v 与 -preview.NN>.` 开头，`versionCode` 必须大于上一个正式版 tag 的值。
+   `L.<tag 去掉 v 与 -canary.N / -preview.NN>.` 开头；正式版与 Canary 的 `versionCode`
+   必须大于上一个正式版 tag 的值（Canary 与正式版同包名，不涨就装不上已装的正式版），
+   预览版是独立包名，只核对 `versionName`。
    忘了改版本号、或者 tag 打错一位，都在出包前就红，不会发出去一个 versionCode 没涨、
    装上等于没更新的包。tag 本身解析不到（没推上去、浅克隆没拿到）也直接红；
    只有三种早期历史会跳过递增校验：根本没有上一个正式版 tag、上一个 tag 上还没有
    `app/build.gradle.kts`、上一个 tag 里读不到 `versionCode`（跳过时会在 Actions 里
-   留一条 warning）。正式版的 tag 必须写成 `vX.Y.Z` 三段，少打一段直接红
+   留一条 warning）。正式版的 tag 必须写成 `vX.Y.Z` 三段，少打一段直接红；
+   Canary 的 tag 必须写成 `vX.Y.Z-canary.N`，写成别的形态直接红
 3. `build-apk.yml` 自动跑：checkout（含子模块）→ 核对 tag 与版本号 → pnpm 装 web-ui → `tools/build-apk.sh`
    （按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，跳过 lint vital）→ 重命名产物 → 建 Release
 
 产物是 `L3Hub-<tag>-arm64-v8a.apk` 加同名 `.sha256`，arm64-v8a，R8 已开。
 Release notes 由流程按「上一个正式版 tag..本 tag」的提交自己生成——本仓库不走 PR，
 GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版取区间时用
-`git describe --tags --exclude='*-*'`，预览版 tag（`v3.1.1-preview.102`）
-不参与，否则两次正式版之间的改动会被预览版切在区间外、整段消失；预览版反过来不排除，
-区间留在预览 tag 之间，免得把已经随正式版发过的改动再列一遍。
+`git describe --tags --exclude='*-*'`，Canary 与预览版 tag（`v3.1.1-canary.1`、
+`v3.1.1-preview.102`）不参与，否则两次正式版之间的改动会被预发布 tag 切在区间外、
+整段消失；预发布反过来不排除，区间留在预发布 tag 之间，免得把已经随正式版发过的改动
+再列一遍。
 `ci:` / `test:` / `build:` 开头（含 `ci(xxx):` 这种带域的写法）的提交一律不进 notes，
 读的人只关心功能变化。
 
@@ -888,6 +895,7 @@ GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版�
 正式版签名证书对不上就红，免得 secret 被换成别的 key 之后一路绿灯发出去。换密钥要同步改这一行。
 
 密钥丢了就再也发不出能覆盖安装的更新：本机备份在 `~/keystore-backup/`（jks + 口令），务必另外存一份。
+Canary 走的也是这套：与正式版同包名，签名必须一致，否则覆盖安装直接 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`。
 预览版不走这套：它用仓库里公开的 `keystore/l3hub-debug.jks`，泄露了也无所谓，
 所以 `build-apk.yml` 的还原密钥那步对预览版是直接跳过的（早先那个 `ANDROID_DEBUG_KEYSTORE`
 secret 没人读，已经从流程里去掉，仓库设置里可以一并删掉）。
