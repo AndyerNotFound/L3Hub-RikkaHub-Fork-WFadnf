@@ -86,6 +86,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
+import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -696,7 +697,8 @@ private fun AddButton(
                                 val typeName = template.typeName()
                                 AutoAIIcon(
                                     name = typeName,
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier.size(40.dp),
+                                    iconAsset = template.localModelIconAsset(),
                                 )
                                 Text(
                                     text = typeName,
@@ -734,7 +736,8 @@ private fun AddButton(
                                 ) {
                                     AutoAIIcon(
                                         name = provider.name,
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(40.dp),
+                                        iconAsset = provider.localModelIconAsset(),
                                     )
                                     Text(
                                         text = provider.name,
@@ -834,7 +837,8 @@ private fun ProviderItem(
         ) {
             AutoAIIcon(
                 name = provider.name,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp),
+                iconAsset = provider.localModelIconAsset(),
             )
             Column(
                 modifier = Modifier.weight(1f),

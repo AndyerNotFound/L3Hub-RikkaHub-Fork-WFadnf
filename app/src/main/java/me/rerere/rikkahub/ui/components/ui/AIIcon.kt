@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.svg.css
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -64,10 +65,13 @@ fun AutoAIIcon(
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    // 指定资源名时直接用这张图，跳过按名字猜图标的流程
+    iconAsset: String? = null,
 ) {
     val context = LocalContext.current
     val iconNames = remember(context) { loadAIIconNames(context) }
-    val path = remember(name, iconNames) { computeAIIconByName(name, iconNames) } ?: run {
+    val matched = remember(name, iconNames) { computeAIIconByName(name, iconNames) }
+    val path = iconAsset ?: matched ?: run {
         TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
         return
     }
@@ -78,6 +82,14 @@ fun AutoAIIcon(
         loading = loading,
         color = color,
     )
+}
+
+/** 本地模型没有厂商品牌，按运行时/格式取图标；其余提供商仍照名字匹配。 */
+fun ProviderSetting.localModelIconAsset(): String? = when (this) {
+    is ProviderSetting.LiteRT -> "litert.svg"
+    is ProviderSetting.GGUF -> "llamacpp.svg"
+    is ProviderSetting.ONNX -> "onnx.svg"
+    else -> null
 }
 
 @Preview
