@@ -51,6 +51,21 @@ class ProviderConfigureConvertToTest {
     }
 
     @Test
+    fun `convertTo should keep disabled keys and key labels`() {
+        val original = ProviderSetting.OpenAI(
+            name = "Multi Key",
+            apiKey = "sk-a\nsk-b",
+            disabledApiKeys = listOf("sk-b"),
+            apiKeyLabels = mapOf("sk-a" to "主号", "sk-b" to "备用"),
+            baseUrl = "https://gateway.example.com/v1"
+        )
+
+        val converted = original.convertTo(ProviderSetting.Claude::class) as ProviderSetting.Claude
+        assertEquals(listOf("sk-b"), converted.disabledApiKeys)
+        assertEquals(mapOf("sk-a" to "主号", "sk-b" to "备用"), converted.apiKeyLabels)
+    }
+
+    @Test
     fun `convertTo should preserve third-party host and replace version suffix`() {
         val original = ProviderSetting.OpenAI(
             name = "Proxy OpenAI",

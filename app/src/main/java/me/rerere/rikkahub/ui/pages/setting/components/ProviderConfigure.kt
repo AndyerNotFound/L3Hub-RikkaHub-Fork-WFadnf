@@ -101,8 +101,8 @@ fun ProviderConfigure(
         provider.description()
 
         CardGroup {
-            // 提供商创建后类型就定死了，只有模型的提供商覆盖可以换类型
-            if (allowTypeSwitch) {
+            // 账号类提供商的接口由登录方式决定，换成自填地址的类型会丢掉凭据
+            if (allowTypeSwitch && provider is ProviderSetting.ApiKey) {
                 formItem {
                     ConnectedChoiceButtons(
                         options = ProviderSetting.Types,
@@ -149,6 +149,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
     // 账号凭据不能带到可以自填地址的类型上，从账号类转过来时 key、地址和额度查询都用目标类型的默认值
     val source = this as? ProviderSetting.ApiKey
     val apiKey = source?.apiKey.orEmpty()
+    val disabledApiKeys = source?.disabledApiKeys.orEmpty()
+    val apiKeyLabels = source?.apiKeyLabels.orEmpty()
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
         ProviderSetting.Google::class -> ProviderSetting.Google().baseUrl
@@ -162,19 +164,28 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
             customHeaders = this.customHeaders, builtIn = this.builtIn,
             description = this.description, shortDescription = this.shortDescription,
-            apiKey = apiKey, baseUrl = convertedBaseUrl
+            apiKey = apiKey,
+            disabledApiKeys = disabledApiKeys,
+            apiKeyLabels = apiKeyLabels,
+            baseUrl = convertedBaseUrl
         )
         ProviderSetting.Google::class -> ProviderSetting.Google(
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
             customHeaders = this.customHeaders, builtIn = this.builtIn,
             description = this.description, shortDescription = this.shortDescription,
-            apiKey = apiKey, baseUrl = convertedBaseUrl
+            apiKey = apiKey,
+            disabledApiKeys = disabledApiKeys,
+            apiKeyLabels = apiKeyLabels,
+            baseUrl = convertedBaseUrl
         )
         ProviderSetting.Claude::class -> ProviderSetting.Claude(
             id = this.id, enabled = this.enabled, name = this.name, models = this.models,
             customHeaders = this.customHeaders, builtIn = this.builtIn,
             description = this.description, shortDescription = this.shortDescription,
-            apiKey = apiKey, baseUrl = convertedBaseUrl
+            apiKey = apiKey,
+            disabledApiKeys = disabledApiKeys,
+            apiKeyLabels = apiKeyLabels,
+            baseUrl = convertedBaseUrl
         )
         else -> error("Unsupported provider type: $type")
     }

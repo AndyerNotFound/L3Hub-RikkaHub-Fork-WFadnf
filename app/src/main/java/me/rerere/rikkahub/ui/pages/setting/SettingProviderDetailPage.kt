@@ -558,6 +558,7 @@ private fun SettingProviderConfigPage(
         ) {
             ProviderConfigure(
                 provider = internalProvider,
+                allowTypeSwitch = true,
                 onEdit = {
                     internalProvider = it
                 }
