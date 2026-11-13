@@ -914,6 +914,7 @@ private fun DrawerBottomBar(
             name = name,
             value = avatar,
             avatarSize = 52.dp,
+            videoPlayback = true,
             modifier = Modifier
                 // 点开设置时这张头像飞到设置页顶部那个位置
                 .then(

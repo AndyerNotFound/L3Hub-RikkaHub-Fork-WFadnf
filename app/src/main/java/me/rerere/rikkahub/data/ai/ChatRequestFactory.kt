@@ -43,6 +43,7 @@ import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.TodoStateTransformer
+import me.rerere.rikkahub.data.ai.transformers.VideoRecognitionTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.collectInjections
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
@@ -112,6 +113,7 @@ class ChatRequestFactory(
         PlaceholderTransformer,
         DocumentAsPromptTransformer,
         OcrTransformer,
+        VideoRecognitionTransformer,
         templateTransformer,
         workspaceReminderTransformer,
         // 放在最后: 其它转换器可能插入消息, 清单要贴着最后一条真实 user 消息
@@ -242,6 +244,7 @@ class ChatRequestFactory(
         pendingInjections: suspend () -> List<UIMessage> = { emptyList() },
         pauseAfterTools: (UIMessage) -> Boolean = { false },
         onOcrResults: suspend (List<OcrResult>) -> Unit = {},
+        onInputError: (Throwable, String?) -> Unit = { _, _ -> },
         takePendingParts: suspend (UIMessage?) -> List<UIMessagePart> = { emptyList() },
         // 清单的开关、间隔和内容都按最新状态读：一轮可能跑很久，用户中途关掉插入要当步生效。
         // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
@@ -277,6 +280,7 @@ class ChatRequestFactory(
                     messages = messages,
                     processingStatus = processingStatus,
                     onOcrResults = onOcrResults,
+                    onInputError = onInputError,
                     todoRemindersEnabled = liveAssistant().todoReminderEnabled,
                     todos = liveTodos(),
                 )
@@ -406,6 +410,7 @@ class ChatRequestFactory(
         messages: List<UIMessage>,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         onOcrResults: suspend (List<OcrResult>) -> Unit = {},
+        onInputError: (Throwable, String?) -> Unit = { _, _ -> },
         respectMessageLimit: Boolean = true,
         transformers: List<InputMessageTransformer> = inputTransformers,
         includeTools: Boolean = true,
@@ -450,6 +455,7 @@ class ChatRequestFactory(
                 // 开关关掉后尾部也不贴；清单快照可能是这一轮开始时的，循环里按最新值传
                 todos = if (todoRemindersEnabled) todos else emptyList(),
                 onOcrResults = onOcrResults,
+                onInputError = onInputError,
             )
         }
         // 收件箱里的通知在请求前拆成独立消息，位置固定，提示词缓存才不会每一步都失效。

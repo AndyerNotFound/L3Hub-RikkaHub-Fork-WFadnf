@@ -1,6 +1,5 @@
 package me.rerere.ui.crop
 
-import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
@@ -63,7 +62,8 @@ import me.rerere.ui.components.AnimatedDialog
  * 全屏的图片裁剪：拖动、缩放图片，拖框的边角调整范围，可以旋转 90°。
  *
  * @param image 要裁剪的图片
- * @param onConfirm 裁好的图片，长边不超过 [maxResultSize]，由调用方负责存下来
+ * @param onConfirm 裁剪结果：第一帧图片（长边不超过 [maxResultSize]）和归一化裁剪区域；
+ *   动图的 [CropResult.animated] 为 true，调用方应保存源文件加裁剪区域，而不是只存这一帧
  * @param aspectRatio 固定的宽高比（宽 / 高），比如头像传 1f；为空时可以自由裁剪，也可以在底部选比例
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -71,7 +71,7 @@ import me.rerere.ui.components.AnimatedDialog
 fun ImageCropDialog(
     image: Uri,
     onDismiss: () -> Unit,
-    onConfirm: (Bitmap) -> Unit,
+    onConfirm: (CropResult) -> Unit,
     aspectRatio: Float? = null,
     maxResultSize: Int = 4096,
 ) {
@@ -86,7 +86,7 @@ fun ImageCropDialog(
     LaunchedEffect(image, aspectRatio, maxResultSize) {
         val loaded = loadCropImage(context, image, maxResultSize)
         if (loaded != null) {
-            state = ImageCropState(loaded.bitmap, loaded.preview, aspectRatio)
+            state = ImageCropState(loaded.bitmap, loaded.preview, aspectRatio, loaded.animated)
         } else {
             // 应用内的提示显示在对话框这个窗口的下面，看不到，这里用系统的
             Toast.makeText(context, loadFailed, Toast.LENGTH_SHORT).show()
@@ -99,7 +99,13 @@ fun ImageCropDialog(
         cropping = true
         scope.launch {
             runCatching {
-                withContext(Dispatchers.Default) { state.crop(maxResultSize) }
+                withContext(Dispatchers.Default) {
+                    CropResult(
+                        bitmap = state.crop(maxResultSize),
+                        crop = state.normalizedCrop(),
+                        animated = state.animated,
+                    )
+                }
             }.onSuccess(onConfirm).onFailure {
                 Toast.makeText(context, cropFailed, Toast.LENGTH_SHORT).show()
             }

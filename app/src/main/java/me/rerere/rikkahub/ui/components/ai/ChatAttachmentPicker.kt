@@ -25,6 +25,7 @@ import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.isAllowedFileType
 import me.rerere.ui.sketch.SketchDialog
 import me.rerere.ui.sketch.SketchResult
@@ -109,7 +110,10 @@ internal fun rememberChatAttachmentPickerActions(
         rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
             if (selectedUris.isNotEmpty()) {
                 Log.d("ImagePickButton", "Selected URIs: $selectedUris")
-                if (!setting.displaySetting.skipCropImage && selectedUris.size == 1) {
+                // 动图裁完整张就只剩一帧，跳过裁剪直接按原样发，动画才留得住
+                val animated = selectedUris.size == 1 &&
+                    ImageUtils.isAnimatedImage(context, selectedUris.first())
+                if (!setting.displaySetting.skipCropImage && selectedUris.size == 1 && !animated) {
                     launchImageCrop(selectedUris.first())
                 } else {
                     inputState.addImages(filesManager.createChatFilesByContents(selectedUris))

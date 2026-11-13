@@ -23,6 +23,15 @@ data class EncodedImage(
     val mimeType: String
 )
 
+/** 视频/音频这类二进制的编码结果：base64 之外还要带上真实 MIME，不能一律当 mp4 发。 */
+data class EncodedMedia(
+    val base64: String,
+    val mimeType: String
+)
+
+// 内联到请求里的视频上限：Google 的 inlineData 请求总大小 20 MB，base64 还会再涨三分之一
+private const val MAX_INLINE_VIDEO_BYTES = 20L * 1024 * 1024
+
 internal enum class ExifTransformType {
     NONE,
     FLIP_HORIZONTAL,
@@ -80,21 +89,32 @@ fun UIMessagePart.Image.encodeBase64(withPrefix: Boolean = true): Result<Encoded
     }
 }
 
-fun UIMessagePart.Video.encodeBase64(withPrefix: Boolean = true): Result<String> = runCatching {
-    when {
-        this.url.startsWith("file://") -> {
-            val filePath =
-                this.url.toUri().path ?: throw IllegalArgumentException("Invalid file URI: ${this.url}")
-            val file = File(filePath)
-            if (!file.exists()) {
-                throw IllegalArgumentException("File does not exist: ${this.url}")
-            }
-            val encoded = file.encodeToBase64Streaming()
-            if (withPrefix) "data:video/mp4;base64,$encoded" else encoded
-        }
-
-        else -> throw IllegalArgumentException("Unsupported URL format: $url")
+/**
+ * 视频的 base64 和真实容器类型。
+ *
+ * 以前这里固定写成 video/mp4，WebM/Matroska 的 AV1、VP9 视频会被上游当成 MP4 解析，
+ * 识别直接失败还看不到原因。现在按文件头判断容器，不确定时再看扩展名。
+ */
+fun UIMessagePart.Video.encodeMedia(withPrefix: Boolean = true): Result<EncodedMedia> = runCatching {
+    if (!url.startsWith("file://")) {
+        throw IllegalArgumentException("Unsupported URL format: $url")
     }
+    val filePath = url.toUri().path ?: throw IllegalArgumentException("Invalid file URI: $url")
+    val file = File(filePath)
+    if (!file.exists()) {
+        throw IllegalArgumentException("File does not exist: $url")
+    }
+    if (file.length() > MAX_INLINE_VIDEO_BYTES) {
+        throw IllegalArgumentException(
+            "Video is larger than ${MAX_INLINE_VIDEO_BYTES / 1024 / 1024} MB and cannot be sent inline"
+        )
+    }
+    val mimeType = file.guessVideoMimeType()
+    val encoded = file.encodeToBase64Streaming()
+    EncodedMedia(
+        base64 = if (withPrefix) "data:$mimeType;base64,$encoded" else encoded,
+        mimeType = mimeType,
+    )
 }
 
 fun UIMessagePart.Audio.encodeBase64(withPrefix: Boolean = true): Result<String> = runCatching {
@@ -235,6 +255,57 @@ internal fun calculateImageInSampleSize(
         inSampleSize *= 2
     }
     return inSampleSize
+}
+
+/**
+ * 按容器判断视频 MIME。只读文件头，常见的 MP4/MOV/3GP、WebM/Matroska、AVI、FLV 都认得出来；
+ * 剩下的按扩展名兜底，最后才退回 video/mp4。
+ */
+private fun File.guessVideoMimeType(): String {
+    val header = ByteArray(64)
+    val read = runCatching { inputStream().use { it.read(header) } }.getOrDefault(0)
+    if (read >= 12) {
+        val boxType = header.copyOfRange(4, 8).toString(Charsets.US_ASCII)
+        if (boxType == "ftyp") {
+            val brand = header.copyOfRange(8, 12).toString(Charsets.US_ASCII)
+            return when {
+                brand.startsWith("qt") -> "video/quicktime"
+                brand.startsWith("3gp") || brand.startsWith("3g2") -> "video/3gpp"
+                else -> "video/mp4"
+            }
+        }
+        if (header.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "RIFF" &&
+            header.copyOfRange(8, 12).toString(Charsets.US_ASCII) == "AVI "
+        ) {
+            return "video/x-msvideo"
+        }
+    }
+    if (read >= 4 &&
+        header[0] == 0x1A.toByte() && header[1] == 0x45.toByte() &&
+        header[2] == 0xDF.toByte() && header[3] == 0xA3.toByte()
+    ) {
+        val head = header.toString(Charsets.ISO_8859_1)
+        return if (head.contains("webm")) "video/webm" else "video/x-matroska"
+    }
+    if (read >= 3 &&
+        header[0].toInt() == 'F'.code && header[1].toInt() == 'L'.code &&
+        header[2].toInt() == 'V'.code
+    ) {
+        return "video/x-flv"
+    }
+    return when (extension.lowercase()) {
+        "mp4", "m4v" -> "video/mp4"
+        "mov" -> "video/quicktime"
+        "webm" -> "video/webm"
+        "mkv" -> "video/x-matroska"
+        "avi" -> "video/x-msvideo"
+        "3gp", "3g2" -> "video/3gpp"
+        "flv" -> "video/x-flv"
+        "wmv", "asf" -> "video/x-ms-wmv"
+        "mpg", "mpeg" -> "video/mpeg"
+        "ts" -> "video/mp2t"
+        else -> "video/mp4"
+    }
 }
 
 private fun File.guessMimeType(): Result<String> = runCatching {

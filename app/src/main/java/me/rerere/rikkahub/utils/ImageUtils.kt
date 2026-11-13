@@ -187,6 +187,28 @@ object ImageUtils {
     }
 
     /**
+     * 读文件头判断是不是动图（GIF / 动画 WebP）。
+     *
+     * 聊天选图时用它决定要不要走裁剪：动图裁完整张就只剩一帧了，不如原样发出去。
+     * 只读前 64 字节，不会把整张图解码出来。
+     */
+    fun isAnimatedImage(context: Context, uri: Uri): Boolean = runCatching {
+        val header = ByteArray(64)
+        val read = context.contentResolver.openInputStream(uri)?.use { it.read(header) } ?: 0
+        if (read >= 6 && header.copyOfRange(0, 4).contentEquals("GIF8".toByteArray(Charsets.US_ASCII))) {
+            return true
+        }
+        if (read >= 21 &&
+            header.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "RIFF" &&
+            header.copyOfRange(8, 12).toString(Charsets.US_ASCII) == "WEBP" &&
+            header.copyOfRange(12, 16).toString(Charsets.US_ASCII) == "VP8X"
+        ) {
+            return header[20].toInt() and 0x02 != 0
+        }
+        false
+    }.getOrDefault(false)
+
+    /**
      * 安全地回收Bitmap内存
      *
      * @param bitmap 要回收的bitmap

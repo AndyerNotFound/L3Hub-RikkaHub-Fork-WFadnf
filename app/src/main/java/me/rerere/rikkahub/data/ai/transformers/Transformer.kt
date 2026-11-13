@@ -18,6 +18,8 @@ class TransformerContext(
     val todos: List<TodoItem> = emptyList(),
     /** 新识别（含缓存命中）的图片文字；由调用方固化回会话，默认不落库（压缩、预览这类只读请求） */
     val onOcrResults: suspend (List<OcrResult>) -> Unit = {},
+    /** 输入阶段的硬错误（比如视频识别失败）：直接弹给用户，不能只在请求里塞一段文字 */
+    val onInputError: (Throwable, String?) -> Unit = { _, _ -> },
 )
 
 interface MessageTransformer {
@@ -72,6 +74,7 @@ suspend fun List<UIMessage>.transforms(
     workspaceCwds: Map<String, String> = emptyMap(),
     todos: List<TodoItem> = emptyList(),
     onOcrResults: suspend (List<OcrResult>) -> Unit = {},
+    onInputError: (Throwable, String?) -> Unit = { _, _ -> },
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -82,6 +85,7 @@ suspend fun List<UIMessage>.transforms(
         workspaceCwds = workspaceCwds,
         todos = todos,
         onOcrResults = onOcrResults,
+        onInputError = onInputError,
     )
     return transformers.fold(this) { acc, transformer ->
         transformer.transform(ctx, acc)

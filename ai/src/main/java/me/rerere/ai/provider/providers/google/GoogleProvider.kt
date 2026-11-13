@@ -60,6 +60,7 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.encodeMedia
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
@@ -785,13 +786,12 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
 
         is UIMessagePart.Video -> {
-            encodeBase64(false).getOrNull()?.let { base64Data ->
-                buildJsonObject {
-                    put("inlineData", buildJsonObject {
-                        put("mimeType", "video/mp4")
-                        put("data", base64Data)
-                    })
-                }
+            val media = encodeMedia(false).getOrThrow()
+            buildJsonObject {
+                put("inlineData", buildJsonObject {
+                    put("mimeType", media.mimeType)
+                    put("data", media.base64)
+                })
             }
         }
 

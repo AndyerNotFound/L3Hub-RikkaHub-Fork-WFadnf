@@ -95,6 +95,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.OcrMetadata
+import me.rerere.ai.ui.VideoRecognitionMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
@@ -1257,15 +1258,35 @@ private fun UserMessageContent(
  * 辅助 OCR 读出来的文字：挂在图片下面，让用户看到模型实际收到的内容。
  * 卡片外观和附件卡片一致；长文本沿用用户消息的折叠规则。
  */
+/** 模型实际读到的附件内容：图片 OCR 文字，以及视频识别结果（失败时也留一张红字卡片）。 */
+private data class MessageRecognitionText(
+    val text: String,
+    val video: Boolean,
+    val error: Boolean,
+)
+
 @Composable
 private fun UserMessageOcrResults(parts: List<UIMessagePart>) {
-    val ocrTexts = remember(parts) {
-        parts.filterIsInstance<UIMessagePart.Image>()
-            .mapNotNull { part ->
-                part.metadataAs<OcrMetadata>()?.text?.trim()?.takeIf { it.isNotEmpty() }
+    val items = remember(parts) {
+        parts.mapNotNull { part ->
+            when (part) {
+                is UIMessagePart.Image -> part.metadataAs<OcrMetadata>()?.text
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { MessageRecognitionText(text = it, video = false, error = false) }
+
+                is UIMessagePart.Video -> part.metadataAs<VideoRecognitionMetadata>()
+                    ?.let { metadata ->
+                        metadata.text?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                            MessageRecognitionText(text = it, video = true, error = metadata.error)
+                        }
+                    }
+
+                else -> null
             }
+        }
     }
-    if (ocrTexts.isEmpty()) return
+    if (items.isEmpty()) return
 
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -1277,21 +1298,41 @@ private fun UserMessageOcrResults(parts: List<UIMessagePart>) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = stringResource(R.string.chat_message_ocr_result),
+                text = stringResource(
+                    if (items.any { it.video }) {
+                        R.string.chat_message_recognition_result
+                    } else {
+                        R.string.chat_message_ocr_result
+                    }
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            ocrTexts.forEachIndexed { index, text ->
+            items.forEachIndexed { index, item ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (ocrTexts.size > 1) {
+                    val label = when {
+                        item.video && item.error -> R.string.chat_message_video_recognition_failed
+                        item.video -> R.string.chat_message_video_recognition_result
+                        items.size > 1 -> R.string.chat_message_ocr_result_image
+                        else -> null
+                    }
+                    if (label != null) {
                         Text(
-                            text = stringResource(R.string.chat_message_ocr_result_image, index + 1),
+                            text = if (label == R.string.chat_message_ocr_result_image) {
+                                stringResource(label, index + 1)
+                            } else {
+                                stringResource(label)
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            color = if (item.error) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            },
                         )
                     }
                     CollapsibleUserMessageText(
-                        text = text,
+                        text = item.text,
                         assistant = null,
                         onClickCitation = {},
                     )

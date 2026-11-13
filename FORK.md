@@ -1222,3 +1222,65 @@ app/src/main/res/values*/strings.xml                    新文案
 
 单测：`BalanceThresholdTest`（阈值格式、币种匹配、多币种取第一笔、无法解析的余额）、
 `QuotaQueryRunnerTest`（12 位精度与至少 2 位）。本次没有跑 Gradle，以 CI 单测与真机包为准。
+
+## 动图裁剪、视频头像与视频识别（2026-11-13）
+
+### 动图裁剪保留动画
+
+- `ImageCropDialog` 确认时不再只给一张 `Bitmap`，而是 `CropResult`：第一帧图、归一化裁剪区域
+  （`NormalizedCrop`）和源文件是否为动图。`ImageCropImage` 用 `ImageDecoder.ImageInfo.isAnimated`
+  判断动图；API 28 以下按 GIF / WebP 文件头兜底
+- 头像选到动图时，`useCropLauncher` 把源文件复制成临时文件，配合裁剪区域交给 `UIAvatar`，
+  存成 `Avatar.Image(url, crop)`；静态图仍是原来的「裁好写 JPEG」路径
+- 新增 `CroppedImage`：用 Coil 的 `AsyncImagePainter` 按 `ImageCrop` 旋转、缩放、平移后绘制，
+  GIF / WebP / 动画 HEIF 的动画不会被压掉；头像按实际 dp 取解码尺寸，背景最多 2048
+- 背景同样支持动图裁剪：`Assistant.backgroundCrop`、`BackgroundPicker` 与 `Background` 共用同一套
+  渲染，背景按「覆盖」方式居中裁剪区域；静态背景仍直接存裁好的 JPEG
+- 聊天选图时如果源文件是动图，跳过裁剪直接发原图，避免 GIF 被裁成一张静态图
+
+### 视频头像与背景
+
+- `Avatar.Video` 与 `Assistant.backgroundIsVideo`：视频直接作为头像或聊天背景，静音循环播放；
+  AVC / HEVC / AV1 / VPX 等编码能否播放取决于设备的 MediaCodec，容器由 ExoPlayer 负责
+- `VideoSurface` 用 `TextureView` + `ExoPlayer`，按 `RESIZE_MODE_ZOOM` 的算法修正比例；
+  头像位置小于 72dp（聊天列表、消息气泡）只显示 `MediaMetadataRetriever` 抓的一帧封面，
+  避免一个列表挂多个解码器；大图头像和背景才真正播放
+- 背景视频的不透明度直接设在 View 上，模糊用 `RenderEffect`（Android 12+），低版本忽略模糊
+- 头像与背景的清理逻辑按 URL 比较，换裁剪区域不会误删同一个文件；复制、删除、备份路径都覆盖
+  `Avatar.Video`
+
+### 聊天视频与识别报错
+
+- 「+」菜单的视频入口对所有模型开放，不再只对 Google 提供商显示
+- `UIMessagePart.Video` 的 base64 编码改为 `encodeMedia`：按文件头识别 MP4 / MOV / 3GP / WebM /
+  Matroska / AVI / FLV / WMV，Google provider 不再一律标成 `video/mp4`；内联视频上限 20 MB
+- 主模型不是 Google 时，`VideoRecognitionTransformer` 找一个支持视频的 OCR 辅助模型
+  （候选顺序同 OCR：模型指定 → 全局 OCR → 快速模型，且提供商必须是 Google）把视频读成文字，
+  用 `<video_file_ocr>` 替换请求里的视频，并把结果固化到视频的 metadata
+- 识别失败或没有可用模型时：错误原因写进请求让主模型转告用户，同时通过
+  `TransformerContext.onInputError` 直接弹错误卡片，视频消息下面也会挂一张「视频识别失败」卡片；
+  失败结果会固化但下一轮会重试，用户补好设置后不用重发视频
+- 输入阶段新增的错误回调只用于聊天轮次，压缩摘要、标题生成这类只读请求保持静默
+
+改动文件：
+
+```text
+ai/.../util/FileEncoder.kt                             视频 MIME 识别与 encodeMedia
+ai/.../provider/providers/google/GoogleProvider.kt      视频使用真实 MIME
+ai/.../provider/providers/google/InteractionsAPI.kt     同上
+ai/.../ui/MessageMetadata.kt                            VideoRecognitionMetadata
+app/.../data/model/Avatar.kt                            Avatar.Video 与裁剪字段
+app/.../data/model/ImageCrop.kt                         新增：归一化裁剪区域
+app/.../data/ai/transformers/OcrSupport.kt              视频识别目标、替换与固化
+app/.../data/ai/transformers/VideoRecognitionTransformer.kt  新增：视频识别转换器
+app/.../ui/components/ui/CroppedImage.kt                动图裁剪渲染
+app/.../ui/components/ui/VideoMedia.kt                  视频播放与封面
+app/.../ui/components/ui/UIAvatar.kt                    视频头像、动图裁剪保存
+app/.../ui/components/ai/CropLauncher.kt                动图裁剪回调
+app/.../ui/components/message/ChatMessage.kt            视频识别结果与失败卡片
+app/.../ui/pages/chat/Background.kt                     视频背景、动图背景
+app/.../ui/pages/assistant/detail/BackgroundPicker.kt   视频/动图背景选择
+ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结果与动图判断
+```
+
+验证：CI 单测与编译结果为准；GIF / WebP / 视频播放与视频识别需要真机逐项确认。

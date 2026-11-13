@@ -49,6 +49,7 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.encodeMedia
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
@@ -406,11 +407,12 @@ internal class InteractionsAPI(
             }
         }
 
-        is UIMessagePart.Video -> encodeBase64(false).getOrNull()?.let { base64Data ->
+        is UIMessagePart.Video -> {
+            val media = encodeMedia(false).getOrThrow()
             buildJsonObject {
                 put("type", "video")
-                put("mime_type", "video/mp4")
-                put("data", base64Data)
+                put("mime_type", media.mimeType)
+                put("data", media.base64)
             }
         }
 

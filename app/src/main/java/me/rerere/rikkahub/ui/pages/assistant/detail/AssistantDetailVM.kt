@@ -23,7 +23,6 @@ import me.rerere.rikkahub.data.skills.SkillManager
 import me.rerere.rikkahub.data.skills.SkillMetadata
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.MemoryFile
-import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -206,8 +205,10 @@ class AssistantDetailVM(
     }
 
     fun checkAvatarDelete(old: Assistant, new: Assistant) {
-        if (old.avatar is Avatar.Image && old.avatar != new.avatar) {
-            filesManager.deleteChatFiles(listOf(old.avatar.url.toUri()))
+        val oldUrl = old.avatar.mediaUrl
+        // 只比地址：动图换裁剪区域时文件还是同一份，不能顺手删掉
+        if (oldUrl != null && oldUrl != new.avatar.mediaUrl) {
+            filesManager.deleteChatFiles(listOf(oldUrl.toUri()))
         }
     }
 

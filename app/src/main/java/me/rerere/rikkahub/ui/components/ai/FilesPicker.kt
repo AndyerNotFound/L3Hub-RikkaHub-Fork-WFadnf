@@ -224,8 +224,10 @@ internal fun FilesPicker(
                         add(AttachmentAction(HugeIcons.Camera01, R.string.take_picture, onTakePic))
                         add(AttachmentAction(HugeIcons.Image02, R.string.photo, onPickImage))
                         add(AttachmentAction(HugeIcons.PaintBoard, R.string.sketch, onSketch))
+                        // 视频对所有模型都开放：模型自己不认视频时，请求组装阶段会交给
+                        // 支持视频的 OCR 辅助模型识别，失败也会明确报错，不再悄悄丢掉
+                        add(AttachmentAction(HugeIcons.Video01, R.string.video, onPickVideo))
                         if (provider != null && provider is ProviderSetting.Google) {
-                            add(AttachmentAction(HugeIcons.Video01, R.string.video, onPickVideo))
                             add(AttachmentAction(HugeIcons.MusicNote03, R.string.audio, onPickAudio))
                         }
                         add(AttachmentAction(HugeIcons.Files02, R.string.upload_file, onPickFile))

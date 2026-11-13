@@ -35,7 +35,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.model.Guidance
@@ -230,8 +229,9 @@ class ChatVM(
         val oldAvatar = oldSettings.displaySetting.userAvatar
         val newAvatar = newSettings.displaySetting.userAvatar
 
-        if (oldAvatar is Avatar.Image && oldAvatar != newAvatar) {
-            filesManager.deleteChatFiles(listOf(oldAvatar.url.toUri()))
+        val oldUrl = oldAvatar.mediaUrl
+        if (oldUrl != null && oldUrl != newAvatar.mediaUrl) {
+            filesManager.deleteChatFiles(listOf(oldUrl.toUri()))
         }
     }
 

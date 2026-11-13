@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,31 +32,59 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.data.model.ImageCrop
+import me.rerere.rikkahub.ui.components.ai.useCropLauncher
+import me.rerere.rikkahub.ui.components.ui.CroppedImage
+import me.rerere.rikkahub.ui.components.ui.VideoThumbnail
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.crop.NormalizedCrop
 import org.koin.compose.koinInject
 
 @Composable
 fun BackgroundPicker(
     modifier: Modifier = Modifier,
     background: String?,
+    backgroundCrop: ImageCrop? = null,
+    backgroundIsVideo: Boolean = false,
     backgroundOpacity: Float = 1.0f,
-    onUpdate: (String?) -> Unit
+    onUpdate: (String?, ImageCrop?, Boolean) -> Unit,
 ) {
     val filesManager: FilesManager = koinInject()
     var showPickOption by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
     var urlInput by remember { mutableStateOf("") }
 
+    fun saveImage(uri: Uri, crop: ImageCrop?) {
+        filesManager.createChatFilesByContents(listOf(uri)).firstOrNull()?.let { localUri ->
+            onUpdate(localUri.toString(), crop, false)
+        }
+    }
+
+    val launchImageCrop = useCropLauncher(
+        onCroppedImageReady = { croppedUri ->
+            saveImage(croppedUri, null)
+        },
+        onCroppedAnimated = { sourceUri, crop ->
+            // 动图背景保留源文件，裁剪区域随助手一起保存，聊天页按区域裁切后仍然会动
+            saveImage(sourceUri, crop.toImageCrop())
+        },
+    )
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            val localUris = filesManager.createChatFilesByContents(listOf(it))
-            localUris.firstOrNull()?.let { localUri ->
-                onUpdate(localUri.toString())
+        uri?.let(launchImageCrop)
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { source ->
+            filesManager.createChatFilesByContents(listOf(source)).firstOrNull()?.let { localUri ->
+                onUpdate(localUri.toString(), null, true)
             }
         }
     }
@@ -67,14 +96,34 @@ fun BackgroundPicker(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (background != null) {
-            AsyncImage(
-                model = background,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.large)
-                    .alpha(previewOpacity)
-            )
+            val previewModifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(MaterialTheme.shapes.large)
+                .alpha(previewOpacity)
+            when {
+                backgroundIsVideo -> VideoThumbnail(
+                    model = background,
+                    modifier = previewModifier,
+                )
+
+                backgroundCrop != null -> CroppedImage(
+                    model = background,
+                    crop = backgroundCrop,
+                    modifier = previewModifier,
+                    cover = true,
+                    requestSize = 1280,
+                )
+
+                else -> AsyncImage(
+                    model = background,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.large)
+                        .alpha(previewOpacity)
+                )
+            }
         }
 
         Row(
@@ -103,7 +152,7 @@ fun BackgroundPicker(
             if (background != null) {
                 TextButton(
                     onClick = {
-                        onUpdate(null)
+                        onUpdate(null, null, false)
                     }
                 ) {
                     Text(stringResource(R.string.assistant_page_remove))
@@ -136,6 +185,15 @@ fun BackgroundPicker(
                     Button(
                         onClick = {
                             showPickOption = false
+                            videoPickerLauncher.launch("video/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.assistant_page_select_video))
+                    }
+                    Button(
+                        onClick = {
+                            showPickOption = false
                             urlInput = ""
                             showUrlInput = true
                         },
@@ -147,7 +205,7 @@ fun BackgroundPicker(
                         Button(
                             onClick = {
                                 showPickOption = false
-                                onUpdate(null)
+                                onUpdate(null, null, false)
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -190,7 +248,7 @@ fun BackgroundPicker(
                 TextButton(
                     onClick = {
                         if (urlInput.isNotBlank()) {
-                            onUpdate(urlInput.trim())
+                            onUpdate(urlInput.trim(), null, false)
                             showUrlInput = false
                         }
                     }
@@ -210,3 +268,11 @@ fun BackgroundPicker(
         )
     }
 }
+
+private fun NormalizedCrop.toImageCrop(): ImageCrop = ImageCrop(
+    left = left,
+    top = top,
+    width = width,
+    height = height,
+    rotation = rotation,
+)

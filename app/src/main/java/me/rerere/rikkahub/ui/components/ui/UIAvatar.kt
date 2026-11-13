@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,11 +54,13 @@ import me.rerere.hugeicons.stroke.Edit03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.model.ImageCrop
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.crop.NormalizedCrop
 import org.koin.compose.koinInject
 import java.security.MessageDigest
 import kotlin.math.abs
@@ -99,10 +102,13 @@ fun UIAvatar(
     loading: Boolean = false,
     shape: Shape = rememberAvatarShape(loading),
     avatarSize: Dp = 32.dp,
+    // 小于 72dp 的位置默认只显示封面；抽屉顶部这类主头像可以显式打开播放
+    videoPlayback: Boolean = false,
     onUpdate: ((Avatar) -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val filesManager: FilesManager = koinInject()
+    val density = LocalDensity.current
     var showPickOption by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
@@ -119,6 +125,12 @@ fun UIAvatar(
         onCroppedImageReady = { croppedUri ->
             saveAvatarImage(croppedUri)
         },
+        onCroppedAnimated = { sourceUri, crop ->
+            // 动图不压成静态图：源文件存下来，裁剪区域跟着头像一起保存，显示时再按区域裁切
+            filesManager.createChatFilesByContents(listOf(sourceUri)).firstOrNull()?.let { localUri ->
+                onUpdate?.invoke(Avatar.Image(localUri.toString(), crop.toImageCrop()))
+            }
+        },
         aspectRatio = 1f,
     )
 
@@ -126,6 +138,16 @@ fun UIAvatar(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let(launchImageCrop)
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { source ->
+            filesManager.createChatFilesByContents(listOf(source)).firstOrNull()?.let { localUri ->
+                onUpdate?.invoke(Avatar.Video(localUri.toString()))
+            }
+        }
     }
 
     Box(modifier = modifier.then(Modifier.size(avatarSize))) {
@@ -145,12 +167,40 @@ fun UIAvatar(
             ) {
                 when (value) {
                     is Avatar.Image -> {
-                        AsyncImage(
-                            model = value.url,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                        )
+                        if (value.crop != null) {
+                            CroppedImage(
+                                model = value.url,
+                                crop = value.crop,
+                                modifier = Modifier.fillMaxSize(),
+                                // 头像通常只有几十 dp，按实际像素解码就够；4K 动图按原尺寸解会白吃内存
+                                requestSize = with(density) { maxWidth.roundToPx() }
+                                    .coerceIn(96, 1024),
+                            )
+                        } else {
+                            AsyncImage(
+                                model = value.url,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                    }
+
+                    is Avatar.Video -> {
+                        // 列表里几十个小头像各挂一个解码器会非常耗电：够大的头像才真正播放，
+                        // 其余位置显示一帧封面
+                        if (videoPlayback || maxWidth >= 72.dp) {
+                            VideoSurface(
+                                model = value.url,
+                                modifier = Modifier.fillMaxSize(),
+                                maxVideoSize = 512,
+                            )
+                        } else {
+                            VideoThumbnail(
+                                model = value.url,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
 
                     is Avatar.Emoji -> {
@@ -219,6 +269,15 @@ fun UIAvatar(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(text = stringResource(id = R.string.avatar_pick_image))
+                    }
+                    Button(
+                        onClick = {
+                            showPickOption = false
+                            videoPickerLauncher.launch("video/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = stringResource(id = R.string.avatar_pick_video))
                     }
                     Button(
                         onClick = {
@@ -323,6 +382,14 @@ fun UIAvatar(
         )
     }
 }
+
+private fun NormalizedCrop.toImageCrop(): ImageCrop = ImageCrop(
+    left = left,
+    top = top,
+    width = width,
+    height = height,
+    rotation = rotation,
+)
 
 @Composable
 private fun ProceduralAvatar(name: String, modifier: Modifier = Modifier) {

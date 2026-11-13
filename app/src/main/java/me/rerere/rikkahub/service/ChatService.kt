@@ -1516,6 +1516,10 @@ class ChatService(
                                 session.flush()
                             }
                         },
+                        // 视频识别失败这类输入错误直接弹到界面上，别只写进请求里等模型转述
+                        onInputError = { error, title ->
+                            addError(error, conversationId, title = title)
+                        },
                         takePendingParts = { current ->
                             session.takeInjectionParts(current, liveAssistant())
                         },

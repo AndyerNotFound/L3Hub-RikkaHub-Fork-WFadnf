@@ -117,6 +117,7 @@
   <string name="assistant_page_search_placeholder">搜索助手</string>
   <string name="assistant_page_select_background">选择背景图片</string>
   <string name="assistant_page_select_from_gallery">从相册选择</string>
+  <string name="assistant_page_select_video">从相册选择视频</string>
   <string name="assistant_page_stream_output">流式输出</string>
   <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>
   <string name="assistant_page_strict">严谨</string>
@@ -154,6 +155,7 @@
   <string name="avatar_input_url">输入链接</string>
   <string name="avatar_pick_emoji">选择表情</string>
   <string name="avatar_pick_image">选择图片</string>
+  <string name="avatar_pick_video">选择视频</string>
   <string name="avatar_reset">重置</string>
   <string name="avatar_url_confirm">确认</string>
   <string name="avatar_url_dialog_title">输入图片链接</string>
@@ -268,6 +270,8 @@
   <string name="chat_page_compress_context_title">压缩对话历史</string>
   <string name="chat_page_compressing">正在压缩……</string>
   <string name="chat_page_ocr_processing">正在识别图片 %1$d/%2$d…</string>
+  <string name="chat_page_video_recognition_processing">正在识别视频 %1$d/%2$d…</string>
+  <string name="chat_page_video_recognition_failed">视频识别失败</string>
   <string name="chat_page_context_limit_reached">上下文已达上限，请压缩历史或新建对话</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
@@ -2740,4 +2744,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
   <string name="chat_message_ocr_result">图片文字（OCR）</string>
   <string name="chat_message_ocr_result_image">第 %1$d 张图片</string>
+  <string name="chat_message_recognition_result">识别结果</string>
+  <string name="chat_message_video_recognition_result">视频识别结果</string>
+  <string name="chat_message_video_recognition_failed">视频识别失败</string>
 </resources>

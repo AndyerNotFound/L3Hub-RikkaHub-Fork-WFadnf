@@ -596,11 +596,15 @@ internal fun AssistantBasicContent(
             ) {
                 BackgroundPicker(
                     background = assistant.background,
+                    backgroundCrop = assistant.backgroundCrop,
+                    backgroundIsVideo = assistant.backgroundIsVideo,
                     backgroundOpacity = assistant.backgroundOpacity,
-                    onUpdate = { background ->
+                    onUpdate = { background, crop, isVideo ->
                         onUpdate(
                             assistant.copy(
-                                background = background
+                                background = background,
+                                backgroundCrop = crop,
+                                backgroundIsVideo = isVideo,
                             )
                         )
                     }

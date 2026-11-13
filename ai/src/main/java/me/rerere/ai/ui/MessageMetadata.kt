@@ -134,6 +134,20 @@ data class OcrMetadata(
 ) : PartMetadata
 
 /**
+ * 辅助模型对视频的识别结果。
+ *
+ * 主模型或 OCR 模型自己不能看视频时，请求会用 [text] 替换视频；[error] 为 true 表示这次识别失败，
+ * 文本是给用户看的失败原因，下一轮还会重试（与图片「失败不固化」的语义不同，失败原因也要展示出来）。
+ */
+@Serializable
+data class VideoRecognitionMetadata(
+    @SerialName("video_recognition_text")
+    val text: String? = null,
+    @SerialName("video_recognition_error")
+    val error: Boolean = false,
+) : PartMetadata
+
+/**
  * 将 metadata 解析为类型化的 [PartMetadata], 解析失败或 metadata 为 null 时返回 null
  *
  * 由于 json 配置了 ignoreUnknownKeys, 不同 provider 的 metadata 互不干扰
