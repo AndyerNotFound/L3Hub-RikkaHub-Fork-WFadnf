@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.asComposeMatrix
-import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
@@ -69,10 +69,14 @@ fun CroppedImage(
             postScale(scale, scale)
             postTranslate(dx, dy)
         }
-        withTransform({ transform(matrix.asComposeMatrix()) }) {
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val checkpoint = native.save()
+            native.concat(matrix)
             with(painter) {
                 draw(source)
             }
+            native.restoreToCount(checkpoint)
         }
     }
 }

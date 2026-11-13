@@ -144,7 +144,7 @@ object VideoRecognitionTransformer : InputMessageTransformer, KoinComponent {
             keyByPosition.getValue(position) to videos[position]
         }
         val resolved = mutableMapOf<String, VideoOutcome>()
-        keyByPosition.keys.forEach { key ->
+        keyByPosition.values.forEach { key ->
             cache.get(key)?.let { text -> resolved[key] = VideoOutcome(text, error = false) }
         }
 
@@ -246,7 +246,7 @@ object VideoRecognitionTransformer : InputMessageTransformer, KoinComponent {
                 params = TextGenerationParams(
                     model = target.model,
                     customHeaders = target.model.customHeaders,
-                    customBodies = target.model.customBodies,
+                    customBody = target.model.customBodies,
                 ),
             )
         }
