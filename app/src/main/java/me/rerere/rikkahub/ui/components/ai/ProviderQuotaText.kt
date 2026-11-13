@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,13 +17,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.UsageWindow
+import me.rerere.ai.provider.isBalanceLow
 import me.rerere.ai.provider.supportsQuota
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Alert02
 import me.rerere.hugeicons.stroke.DashboardSpeed02
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.rikkahub.R
@@ -90,6 +94,7 @@ fun ProviderQuotaText(
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
     refreshIntervalMillis: Long = 0,
+    maxLines: Int = 1,
 ) {
     if (!providerSetting.supportsQuota) return
 
@@ -105,27 +110,38 @@ fun ProviderQuotaText(
             }
         }
     }
+    val warning = (providerSetting as? ProviderSetting.ApiKey)?.quotaQuery?.balanceWarning
+    val lowBalance = quota is ProviderQuota.Balance &&
+        !warning.isNullOrBlank() &&
+        isBalanceLow(quota.value, warning)
+    val contentColor = if (lowBalance) {
+        MaterialTheme.colorScheme.error
+    } else {
+        color.takeOrElse { LocalContentColor.current }
+    }
 
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // 余额过长时靠右截断，不挤走左边的用量
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
     ) {
         Icon(
-            imageVector = if (quota is ProviderQuota.UsageLimits) {
-                HugeIcons.DashboardSpeed02
-            } else {
-                HugeIcons.MoneyBag02
+            imageVector = when {
+                lowBalance -> HugeIcons.Alert02
+                quota is ProviderQuota.UsageLimits -> HugeIcons.DashboardSpeed02
+                else -> HugeIcons.MoneyBag02
             },
             contentDescription = null,
             modifier = Modifier.size(style.fontSize.toDp()),
-            tint = color.takeOrElse { LocalContentColor.current }
+            tint = contentColor,
         )
         Text(
             text = text,
             style = style,
-            maxLines = 1,
-            color = color
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            color = if (lowBalance) MaterialTheme.colorScheme.error else color,
         )
     }
 }

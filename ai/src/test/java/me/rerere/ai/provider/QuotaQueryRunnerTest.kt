@@ -68,7 +68,7 @@ class QuotaQueryRunnerTest {
         assertEquals("1", request.header("X-Extra"))
         assertEquals("GET", request.method)
         assertEquals(1, keys)
-        assertEquals(ProviderQuota.Balance("%.2f".format(12.5f)), quota)
+        assertEquals(ProviderQuota.Balance("12.50"), quota)
     }
 
     @Test
@@ -90,7 +90,16 @@ class QuotaQueryRunnerTest {
         assertEquals("POST", request.method)
         assertEquals("""{"key":"sk-1"}""", buffer.readUtf8())
         assertEquals("application/json; charset=utf-8", request.body!!.contentType().toString())
-        assertEquals(ProviderQuota.Balance("%.2f".format(3.0)), quota)
+        assertEquals(ProviderQuota.Balance("3.00"), quota)
+    }
+
+    @Test
+    fun `balance keeps up to twelve decimals and at least two`() {
+        assertEquals("12.50", formatBalanceAmount("12.5"))
+        assertEquals("3.00", formatBalanceAmount("3"))
+        assertEquals("0.000000000123", formatBalanceAmount("0.000000000123"))
+        assertEquals("0.000000000001", formatBalanceAmount("0.0000000000006"))
+        assertEquals("unlimited", formatBalanceAmount("unlimited"))
     }
 
     @Test

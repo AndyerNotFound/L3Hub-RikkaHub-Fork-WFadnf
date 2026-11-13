@@ -1323,6 +1323,9 @@
   <string name="setting_provider_page_avaliable_models">Avaliable Models</string>
   <string name="setting_provider_page_balance_info">"Get account balance "</string>
   <string name="setting_provider_page_balance_json_key">Result Json Key</string>
+  <string name="setting_provider_page_balance_warning">Balance warning</string>
+  <string name="setting_provider_page_balance_warning_desc">The balance is highlighted in the app at or below this value. Leave it empty to turn the warning off.</string>
+  <string name="setting_provider_page_balance_warning_hint">e.g. 10, CNY 10, $10, 10 USD</string>
   <string name="setting_provider_page_basic_settings">Basic Settings</string>
   <string name="setting_provider_page_chat_model">Chat</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">Prompt cache TTL</string>

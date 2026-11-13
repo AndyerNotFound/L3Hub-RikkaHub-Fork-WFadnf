@@ -45,6 +45,8 @@ data class QuotaQuery(
     val headers: List<CustomHeader> = listOf(CustomHeader("Authorization", "Bearer {{apiKey}}")),
     val body: String = "",
     val resultPath: String = "data.total_usage",
+    // 余额小于或等于这个值时界面标红预警，空串表示不预警；支持 10、CNY 10、$10、10 USD 等写法
+    val balanceWarning: String = "",
 ) {
     companion object {
         const val VARIABLE_BASE_URL = "baseUrl"

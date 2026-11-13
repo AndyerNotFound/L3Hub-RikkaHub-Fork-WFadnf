@@ -1195,3 +1195,30 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   不恢复方向锁，API 37 起连这个属性也没有了，所以没有加。自动与跟随系统用的两个值不在忽略名单里，
   任何屏幕都生效
 - 只作用于 `RouteActivity`（主界面）。锁屏页、安全模式页仍跟随系统，它们是过场页面
+
+## 余额精度与预警（2026-11-13）
+
+- 余额从固定 2 位小数改为最多 12 位：`QuotaQueryRunner` 里的数字统一过 `formatBalanceAmount`，
+  去掉末尾的 0、至少保留 2 位，`unlimited` 这类非数字文本原样显示；DeepSeek 的 `balance_infos`
+  也走同一套格式化。多 key 求和（`sumBalanceValues`）保留各自的小数位
+- 提供商设置 → 获取账户余额的展开区新增「余额预警值」，只在开关打开时出现。接受 `10`、
+  `CNY 10`、`$10`、`10 USD`、`¥10` 等写法；带单位时只和同币种的余额比较，
+  不带单位时比较余额里的第一笔（多币种以第一笔为主币种）；余额小于或等于预警值时，余额文字与图标转为 error 色
+- 聊天页环形上下文用量条：余额和左侧用量各占一半宽度，余额过长时在自己的格子里省略，不再把
+  WARN / MAX 数值挤成多行；余额在设置页最多显示两行
+
+改动文件：
+
+```text
+ai/.../provider/BalanceThreshold.kt                     新增：金额解析、预警阈值与比较
+ai/.../provider/QuotaQueryRunner.kt                     12 位小数格式化
+ai/.../provider/ProviderQuota.kt                        QuotaQuery.balanceWarning
+app/.../ui/components/ai/ProviderQuotaText.kt           预警标红、省略与右对齐
+app/.../ui/components/ai/ContextUsageMeter.kt           余额与用量各占一半宽度
+app/.../ui/pages/setting/components/QuotaQueryOption.kt 预警值输入框
+app/.../ui/pages/setting/SettingProviderDetailPage.kt   余额最多两行
+app/src/main/res/values*/strings.xml                    新文案
+```
+
+单测：`BalanceThresholdTest`（阈值格式、币种匹配、多币种取第一笔、无法解析的余额）、
+`QuotaQueryRunnerTest`（12 位精度与至少 2 位）。本次没有跑 Gradle，以 CI 单测与真机包为准。

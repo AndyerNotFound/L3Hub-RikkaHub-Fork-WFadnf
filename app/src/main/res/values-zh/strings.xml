@@ -1281,6 +1281,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_avaliable_models">可用模型</string>
   <string name="setting_provider_page_balance_info">获取账户余额</string>
   <string name="setting_provider_page_balance_json_key">结果 JSON 键</string>
+  <string name="setting_provider_page_balance_warning">余额预警值</string>
+  <string name="setting_provider_page_balance_warning_desc">余额小于或等于该值时在应用内标红预警，留空则关闭预警。</string>
+  <string name="setting_provider_page_balance_warning_hint">例如 10、CNY 10、$10、10 USD</string>
   <string name="setting_provider_page_basic_settings">基本设置</string>
   <string name="setting_provider_page_chat_model">聊天</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">提示缓存时长</string>

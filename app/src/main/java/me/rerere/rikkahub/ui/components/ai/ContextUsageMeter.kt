@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -310,9 +311,11 @@ fun ContextUsageRing(
             }
         }
         if (provider != null) {
-            // 余额每 30 秒自动刷新一次；失败时保留上一次的数字
+            // 余额每 30 秒自动刷新一次；失败时保留上一次的数字。
+            // 与左侧用量各占一半，余额再长也只在自己的格子里截断，不会把环形图和数值挤变形
             ProviderQuotaText(
                 providerSetting = provider,
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall,
                 refreshIntervalMillis = 30_000,
             )
@@ -342,6 +345,8 @@ private fun RingValueRow(
             text = text,
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             color = if (fraction >= ALERT_FRACTION) color else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

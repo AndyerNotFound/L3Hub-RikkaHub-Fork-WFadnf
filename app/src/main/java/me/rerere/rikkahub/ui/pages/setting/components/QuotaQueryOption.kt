@@ -25,6 +25,7 @@ import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.QuotaQuery
 import me.rerere.ai.provider.QuotaQueryMethod
+import me.rerere.ai.provider.parseBalanceThreshold
 import me.rerere.ai.provider.renderQuotaTemplate
 import me.rerere.common.http.isJsonExprValid
 import me.rerere.hugeicons.HugeIcons
@@ -155,6 +156,23 @@ fun SettingProviderQuotaQuery(
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = codeStyle,
                     )
+                    if (query.enabled) {
+                        OutlinedTextField(
+                            value = query.balanceWarning,
+                            onValueChange = { onEdit(query.copy(balanceWarning = it)) },
+                            label = { Text(stringResource(R.string.setting_provider_page_balance_warning)) },
+                            placeholder = {
+                                Text(stringResource(R.string.setting_provider_page_balance_warning_hint))
+                            },
+                            isError = !isBalanceWarningValid(query.balanceWarning),
+                            supportingText = {
+                                Text(stringResource(R.string.setting_provider_page_balance_warning_desc))
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = codeStyle,
+                        )
+                    }
                     Text(
                         text = stringResource(
                             R.string.setting_provider_page_quota_variables,
@@ -197,6 +215,10 @@ private fun ProviderSetting.ApiKey.defaultQuotaQuery(): QuotaQuery = when (this)
     is ProviderSetting.Google -> ProviderSetting.Google().quotaQuery
     is ProviderSetting.Claude -> ProviderSetting.Claude().quotaQuery
 }
+
+// 预警值留空表示关闭，填了就得能解析出数字
+private fun isBalanceWarningValid(text: String): Boolean =
+    text.isBlank() || parseBalanceThreshold(text) != null
 
 // 用示例值代入变量后能解析成 http(s) 地址
 private fun isQuotaUrlValid(url: String): Boolean = runCatching {

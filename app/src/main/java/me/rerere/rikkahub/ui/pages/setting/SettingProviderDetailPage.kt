@@ -592,7 +592,7 @@ private fun SettingProviderConfigPage(
                     provider = apiKeyProvider,
                     // 额度按已保存的配置查，没开就不留这一行
                     supportingContent = if (provider.supportsQuota) {
-                        { ProviderQuotaText(providerSetting = provider) }
+                        { ProviderQuotaText(providerSetting = provider, maxLines = 2) }
                     } else null,
                     onEdit = { internalProvider = apiKeyProvider.withQuotaQuery(it) }
                 )

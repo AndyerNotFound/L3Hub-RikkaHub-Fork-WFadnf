@@ -15,6 +15,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 private val TEMPLATE_VARIABLE = Regex("""\{\{\s*(\w+)\s*\}\}""")
 
@@ -65,8 +67,25 @@ internal suspend fun OkHttpClient.runQuotaQuery(
     // DeepSeek 的余额接口把各币种放在 balance_infos 数组里，一并显示，避免只看到第一种货币
     formatBalanceInfos(root)?.let { return@withContext ProviderQuota.Balance(it) }
     val value = root.getByKey(query.resultPath)
-    ProviderQuota.Balance(value.toDoubleOrNull()?.let { "%.2f".format(it) } ?: value)
+    ProviderQuota.Balance(formatBalanceAmount(value))
 }
+
+private const val BALANCE_MAX_DECIMALS = 12
+private const val BALANCE_MIN_DECIMALS = 2
+
+/**
+ * 余额按最多 12 位小数显示，去掉多余的 0，至少保留 2 位。
+ *
+ * 不是数字的文本（例如 unlimited）原样返回。
+ */
+internal fun formatBalanceAmount(value: String): String =
+    value.toBigDecimalOrNull()?.let { formatBalanceAmount(it) } ?: value
+
+internal fun formatBalanceAmount(value: BigDecimal): String =
+    value.setScale(BALANCE_MAX_DECIMALS, RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .let { it.setScale(it.scale().coerceAtLeast(BALANCE_MIN_DECIMALS)) }
+        .toPlainString()
 
 private fun formatBalanceInfos(root: JsonObject): String? {
     val infos = root["balance_infos"] as? JsonArray ?: return null
@@ -74,6 +93,7 @@ private fun formatBalanceInfos(root: JsonObject): String? {
         val info = element as? JsonObject ?: return@mapNotNull null
         val amount = info["total_balance"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
         val currency = info["currency"]?.jsonPrimitive?.contentOrNull
-        if (currency.isNullOrBlank()) amount else "$currency $amount"
+        val formatted = formatBalanceAmount(amount)
+        if (currency.isNullOrBlank()) formatted else "$currency $formatted"
     }.joinToString(" · ").ifBlank { null }
 }

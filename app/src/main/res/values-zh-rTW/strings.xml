@@ -897,6 +897,9 @@
   <string name="setting_provider_page_avaliable_models">可用模型</string>
   <string name="setting_provider_page_balance_info">取得帳戶餘額</string>
   <string name="setting_provider_page_balance_json_key">結果 JSON 鍵值</string>
+  <string name="setting_provider_page_balance_warning">餘額預警值</string>
+  <string name="setting_provider_page_balance_warning_desc">餘額小於或等於此值時在應用程式內標紅預警，留空則關閉預警。</string>
+  <string name="setting_provider_page_balance_warning_hint">例如 10、CNY 10、$10、10 USD</string>
   <string name="setting_provider_page_basic_settings">基本設定</string>
   <string name="setting_provider_page_chat_model">聊天</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">提示快取時長</string>
