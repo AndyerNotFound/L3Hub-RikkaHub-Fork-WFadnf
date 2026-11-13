@@ -425,10 +425,10 @@ jobs:
             echo "## 本版改动"
             echo
             if [ -n "$prev" ]; then
-              # 只留改到应用本身的提交：ci / test / build、以及发版时的版本号 bump
-              # 都是仓库内部的事，读 Release 的人不关心
+              # 只留改到应用本身的提交：ci / test / build 作用域（含 `fix(ci):` 这种）、
+              # 以及发版时的版本号 bump 都是仓库内部的事，读 Release 的人不关心
               changes=$(git log --no-merges --pretty='- %s' "${prev}..${TAG}" \
-                | grep -vE '^- (ci|test|build)(\(|:)|^- chore: bump version' || true)
+                | grep -vE '^- (ci|test|build)(\(|:)|^- [[:alnum:]_-]+\((ci|test|build)\):|^- chore: bump version' || true)
               if [ -n "$changes" ]; then
                 echo "$changes"
               else

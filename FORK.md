@@ -875,7 +875,7 @@ GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版�
 `v3.1.1-preview.102`）不参与，否则两次正式版之间的改动会被预发布 tag 切在区间外、
 整段消失；预发布反过来不排除，区间留在预发布 tag 之间，免得把已经随正式版发过的改动
 再列一遍。
-`ci:` / `test:` / `build:` 开头（含 `ci(xxx):` 这种带域的写法）的提交一律不进 notes，
+`ci:` / `test:` / `build:` 开头、或作用域是这三个（`ci(xxx):`、`fix(ci):`）的提交一律不进 notes，
 读的人只关心功能变化。
 
 ### 滚动 Canary：固定 tag `Canary-Build`
