@@ -12,6 +12,10 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+// 与 :ai 共用的开关：-PnoLitert=true 时不打包 LiteRT-LM 运行时，用于发布时的精简包。
+// 变体名不变（仍是 githubRelease），只有依赖、源码目录和这一个 BuildConfig 字段不同。
+val noLitert = providers.gradleProperty("noLitert").map(String::toBoolean).getOrElse(false)
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk {
@@ -27,6 +31,8 @@ android {
         versionCode = 335
         versionName = "L.3.2.18.157"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
+        // 精简版没有 LiteRT 运行时，设置里的本地模型入口按这个字段隐藏
+        buildConfigField("boolean", "HAS_LITERT", if (noLitert) "false" else "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

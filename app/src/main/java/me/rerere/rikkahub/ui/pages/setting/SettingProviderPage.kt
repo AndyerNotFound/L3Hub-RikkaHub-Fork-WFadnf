@@ -73,6 +73,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Tick02
+import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
@@ -637,20 +638,25 @@ private fun AddButton(
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val templates = remember {
-        listOf(
-            ProviderSetting.OpenAI(),
-            ProviderSetting.Google(),
-            ProviderSetting.Claude(),
-            ProviderSetting.ChatGPT(),
-            ProviderSetting.Grok(),
-            ProviderSetting.LiteRT(),
-            ProviderSetting.GGUF(
-                models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
-            ),
-            ProviderSetting.ONNX(
-                models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
-            ),
-        )
+        buildList<ProviderSetting> {
+            add(ProviderSetting.OpenAI())
+            add(ProviderSetting.Google())
+            add(ProviderSetting.Claude())
+            add(ProviderSetting.ChatGPT())
+            add(ProviderSetting.Grok())
+            // 精简版不打包 LiteRT 运行时，新建列表里不出现这个类型
+            if (BuildConfig.HAS_LITERT) add(ProviderSetting.LiteRT())
+            add(
+                ProviderSetting.GGUF(
+                    models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
+                )
+            )
+            add(
+                ProviderSetting.ONNX(
+                    models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
+                )
+            )
+        }
     }
 
     IconButton(

@@ -868,7 +868,17 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
 3. `build-apk.yml` 自动跑：checkout（含子模块）→ 核对 tag 与版本号 → pnpm 装 web-ui → `tools/build-apk.sh`
    （按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，跳过 lint vital）→ 重命名产物 → 建 Release
 
-产物是 `L3Hub-<tag>-arm64-v8a.apk` 加同名 `.sha256`，arm64-v8a，R8 已开。
+正式版出两个包，各附一份 `.sha256`，arm64-v8a，R8 已开：
+
+- `L3Hub-<tag>-arm64-v8a.apk`：完整版，含 LiteRT-LM 本地推理运行时
+- `L3Hub-<tag>-arm64-v8a-nolitert.apk`：精简版，不含 LiteRT-LM 运行时，设置里的本地模型入口
+  也一并隐藏；其余功能与完整版相同
+
+两个包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装，应用数据保留。
+精简版由 Gradle 属性 `noLitert` 控制，`:ai` / `:app` 的 `build.gradle.kts` 都读它：`:ai` 不引入
+`litertlm-android`，并把 `LiteRTProvider` 的实现从 `src/withLitert` 换成 `src/noLitert` 下的占位版；
+`:app` 用它生成 `BuildConfig.HAS_LITERT`，决定新建提供商时要不要列「LiteRT」。
+变体名仍是 `githubRelease`，工作流只是把同一个变体编两遍（第二遍带 `-PnoLitert=true`）。
 Release notes 由流程按「上一个正式版 tag..本 tag」的提交自己生成——本仓库不走 PR，
 GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版取区间时用
 `git describe --tags --exclude='*-*'`，Canary 与预览版 tag（`v3.1.1-canary.1`、
@@ -894,7 +904,9 @@ Canary 构建，Release 也固定是同一个，重复推送只覆盖资产、�
 git tag -f Canary-Build && git push -f origin Canary-Build
 ```
 
-产物固定叫 `L3Hub-Canary-Build-arm64-v8a.apk`（附 `.sha256`）。Release 说明的改动区间从上一版说明
+滚动 Canary 只出精简版（不含 LiteRT）：产物固定叫 `L3Hub-Canary-Build-arm64-v8a-nolitert.apk`（附 `.sha256`），
+每次构建还会删掉 release 上这次没产出的旧资产，下载列表里不会留着上一版的包。
+Release 说明的改动区间从上一版说明
 末尾 `<!-- canary:from=… head=… -->` 记下的那次构建算起，两次滚动构建之间只列真正新增的提交；
 同一提交重跑时沿用那次算出的起点，说明不会退化成空。升级前的老说明没有这行记录，才退回按
 `Canary-Build` 之前最近的一个 tag（通常是 `vX.Y.Z-canary.N`）取区间。

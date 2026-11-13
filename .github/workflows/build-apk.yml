@@ -4,6 +4,8 @@ name: Build APK
 #   v3.1.1              → 正式版：githubRelease 变体（包名不带 .debug），正式 Release
 #   v3.1.1-canary.1     → Canary 版：githubRelease 变体，包名与签名同正式版，Pre-release
 #   v3.1.1-preview.102  → 预览版：githubDebug 变体（包名 .debug），Pre-release
+# 正式版出两个 APK：完整版（含 LiteRT-LM 运行时）与精简版（文件名带 -nolitert，不含），
+# 同包名、同版本号、同签名；Canary 只出精简版，预览版只出完整版。
 # 正式版签名密钥放在仓库 Secrets，见 FORK.md「发版」一节。
 on:
   workflow_dispatch:
@@ -118,17 +120,28 @@ jobs:
             echo "canary tag ${tag} 必须用 release 变体，包名与签名才和正式版一致" >&2
             exit 1
           fi
+          # 出几个包：正式版完整版 + 精简版各一个；Canary 只出精简版（测试通道用不着本机推理，
+          # 少编一遍也少等十分钟）；预览版是独立包名的调试通道，只出完整版。
+          build_full=true
+          build_nolitert=true
+          if [ "$is_canary" = "true" ]; then
+            build_full=false
+          elif [ "$variant" = "debug" ]; then
+            build_nolitert=false
+          fi
           {
             echo "VARIANT=$variant"
             echo "TAG=$tag"
             echo "IS_PRERELEASE=$is_pre"
             echo "IS_CANARY=$is_canary"
             echo "ROLLING_CANARY=$rolling_canary"
+            echo "BUILD_FULL=$build_full"
+            echo "BUILD_NOLITERT=$build_nolitert"
           } >> "$GITHUB_ENV"
           artifact="L3Hub-${variant}"
           if [ -n "$tag" ]; then artifact="${artifact}-${tag}"; fi
           echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"
-          echo "变体=$variant tag=${tag:-（无，只出 artifact）} prerelease=$is_pre"
+          echo "变体=$variant tag=${tag:-（无，只出 artifact）} prerelease=$is_pre 完整版=$build_full 精简版=$build_nolitert"
 
       # 版本号没有第二处校验：versionName 只被读出来当文案，tag 打错或忘了改版本号
       # 都能绿着发出去，装到手机上却是同一个 versionCode。这里把两者对一次。
@@ -299,9 +312,41 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew tools/build-apk.sh
-          ./tools/build-apk.sh
-          ls -l "app/build/outputs/apk/github/${VARIANT}"/*.apk
-          sha256sum "app/build/outputs/apk/github/${VARIANT}"/*.apk
+          # 产物名里用 tag；手动触发不填 tag 时退回 versionName，免得叫 L3Hub-arm64-v8a.apk
+          if [ -n "${TAG:-}" ]; then
+            tag_for_name="$TAG"
+          else
+            tag_for_name=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
+          fi
+          echo "TAG_FOR_NAME=$tag_for_name" >> "$GITHUB_ENV"
+          mkdir -p dist
+
+          # 同一个变体编两遍，输出目录和文件名都一样：编完立刻按最终名字拷进 dist 再清掉，
+          # 第二遍的产物才不会把第一遍盖掉
+          build_apk() {
+            local suffix="$1"
+            shift
+            echo "== 构建${suffix:-完整版} =="
+            ./tools/build-apk.sh "$@"
+            local dir="app/build/outputs/apk/github/${VARIANT}"
+            mapfile -t apks < <(ls "$dir"/*.apk)
+            if [ "${#apks[@]}" -ne 1 ]; then
+              echo "期望恰好 1 个 APK，实际 ${#apks[@]} 个：${apks[*]:-无}" >&2
+              return 1
+            fi
+            cp "${apks[0]}" "dist/L3Hub-${tag_for_name}-arm64-v8a${suffix}.apk"
+            rm -rf "$dir"
+          }
+
+          # 精简版 = 不打包 LiteRT-LM 运行时，见 :ai / :app 的 build.gradle.kts
+          if [ "$BUILD_FULL" = "true" ]; then
+            build_apk ""
+          fi
+          if [ "$BUILD_NOLITERT" = "true" ]; then
+            build_apk "-nolitert" -PnoLitert=true
+          fi
+
+          ls -l dist
 
       # 正式版换了包名和签名密钥，这一步把「装到手机上到底是什么」打进日志，
       # 出问题时不用重新下载 APK 就能核对
@@ -310,61 +355,65 @@ jobs:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           set -euo pipefail
-          apk=$(ls "app/build/outputs/apk/github/${VARIANT}"/*.apk)
           build_tools=$(ls -d "$ANDROID_HOME/build-tools/"*/ | sort -V | tail -1)
-          "${build_tools}apksigner" verify --print-certs "$apk"
-          # 变体选错（正式版签成了 debug 包之类）在这里就红，不要等发出去才发现
-          pkg=$("${build_tools}aapt2" dump packagename "$apk" | tail -1)
-          want=com.rikkahub.l3hub.wfadnf
-          if [ "$VARIANT" = "debug" ]; then want="${want}.debug"; fi
-          if [ "$pkg" != "$want" ]; then
-            echo "包名对不上：${pkg} ≠ ${want}" >&2
+          shopt -s nullglob
+          apks=(dist/*.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "dist/ 里没有 APK" >&2
             exit 1
           fi
-          echo "包名：${pkg}"
-          "${build_tools}aapt2" dump badging "$apk" 2>/dev/null \
-            | grep -E '^(package|application-label|sdkVersion|targetSdkVersion)' || true
-          # apksigner 不同版本打的前缀不一样（Signer #1 certificate… / V2 Signer: certificate…），
-          # 只认后面那截
-          cert=$("${build_tools}apksigner" verify --print-certs "$apk" \
-            | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)
-          if [ -z "$cert" ]; then
-            echo "没读到签名证书指纹，apksigner 输出格式变了？" >&2
-            exit 1
-          fi
-          cert=$(printf '%s' "$cert" | tr -d ':' | tr 'A-Z' 'a-z')
-          echo "签名证书 SHA-256：${cert}"
-          if [ "$VARIANT" = "release" ]; then
-            # 正式版换密钥就等于换应用身份（老用户再也覆盖安装不了），指纹对不上要在这里红。
-            # 真要换密钥，连这一行和 FORK.md 里的指纹一起改。
-            want_cert=0ed133055246d7231888e72197f29fa616a65367de875042108f9d417b583542
-            if [ "$cert" != "$want_cert" ]; then
-              echo "正式版签名证书指纹不符：${cert} ≠ ${want_cert}" >&2
+          cert=""
+          for apk in "${apks[@]}"; do
+            echo "== $(basename "$apk")（$(du -h "$apk" | cut -f1)）=="
+            "${build_tools}apksigner" verify --print-certs "$apk"
+            # 变体选错（正式版签成了 debug 包之类）在这里就红，不要等发出去才发现
+            pkg=$("${build_tools}aapt2" dump packagename "$apk" | tail -1)
+            want=com.rikkahub.l3hub.wfadnf
+            if [ "$VARIANT" = "debug" ]; then want="${want}.debug"; fi
+            if [ "$pkg" != "$want" ]; then
+              echo "包名对不上：${pkg} ≠ ${want}" >&2
               exit 1
             fi
-          fi
+            echo "包名：${pkg}"
+            "${build_tools}aapt2" dump badging "$apk" 2>/dev/null \
+              | grep -E '^(package|application-label|sdkVersion|targetSdkVersion)' || true
+            # apksigner 不同版本打的前缀不一样（Signer #1 certificate… / V2 Signer: certificate…），
+            # 只认后面那截
+            apk_cert=$("${build_tools}apksigner" verify --print-certs "$apk" \
+              | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)
+            if [ -z "$apk_cert" ]; then
+              echo "没读到签名证书指纹，apksigner 输出格式变了？" >&2
+              exit 1
+            fi
+            apk_cert=$(printf '%s' "$apk_cert" | tr -d ':' | tr 'A-Z' 'a-z')
+            echo "签名证书 SHA-256：${apk_cert}"
+            # 完整版与精简版要能互相覆盖安装，签名必须完全一致
+            if [ -n "$cert" ] && [ "$apk_cert" != "$cert" ]; then
+              echo "两个包的签名证书不一致：${apk_cert} ≠ ${cert}" >&2
+              exit 1
+            fi
+            cert="$apk_cert"
+            if [ "$VARIANT" = "release" ]; then
+              # 正式版换密钥就等于换应用身份（老用户再也覆盖安装不了），指纹对不上要在这里红。
+              # 真要换密钥，连这一行和 FORK.md 里的指纹一起改。
+              want_cert=0ed133055246d7231888e72197f29fa616a65367de875042108f9d417b583542
+              if [ "$cert" != "$want_cert" ]; then
+                echo "正式版签名证书指纹不符：${cert} ≠ ${want_cert}" >&2
+                exit 1
+              fi
+            fi
+          done
           echo "CERT_SHA256=$cert" >> "$GITHUB_ENV"
 
       # Gradle 产出的名字是 app-github-arm64-v8a-release.apk，下载下来分不清版本。
-      # 这里按 tag 重命名，并附一份 sha256 供校验。
+      # 重命名与拷贝在 Build 里已经做完（同一变体要编两遍，晚了会被覆盖），这里只补 sha256。
       - name: Collect APK
         run: |
           set -euo pipefail
-          if [ -z "$TAG" ]; then
-            # 只出 artifact 时按 build.gradle.kts 的 versionName 命名，否则产物会叫 L3Hub-arm64-v8a.apk
-            TAG="$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)"
-            echo "TAG=$TAG" >> "$GITHUB_ENV"
-          fi
-          echo "产物 tag：$TAG"
-
-          mkdir -p dist
-          mapfile -t apks < <(ls "app/build/outputs/apk/github/${VARIANT}"/*.apk)
-          if [ "${#apks[@]}" -ne 1 ]; then
-            echo "期望恰好 1 个 APK，实际 ${#apks[@]} 个：${apks[*]:-无}" >&2
-            exit 1
-          fi
-          cp "${apks[0]}" "dist/L3Hub-${TAG}-arm64-v8a.apk"
-          ( cd dist && sha256sum "L3Hub-${TAG}-arm64-v8a.apk" > "L3Hub-${TAG}-arm64-v8a.apk.sha256" )
+          for apk in dist/*.apk; do
+            ( cd dist && sha256sum "$(basename "$apk")" > "$(basename "$apk").sha256" )
+          done
+          echo "产物：$TAG_FOR_NAME"
           ls -l dist
 
       - uses: actions/upload-artifact@v4
@@ -442,9 +491,21 @@ jobs:
             echo
             echo "## 安装"
             echo
-            if [ "$IS_CANARY" = "true" ]; then
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a Canary 版，包名 `'"${pkg}"'`，版本 `'"${version}"'`，签名与正式版相同。'
+            if [ "$BUILD_FULL" = "true" ]; then
+              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — 完整版，含 LiteRT-LM 本地推理运行时，可在应用内直接跑 `.litertlm` 模型。'
               echo
+            fi
+            if [ "$BUILD_NOLITERT" = "true" ]; then
+              echo '`L3Hub-'"${TAG}"'-arm64-v8a-nolitert.apk` — 精简版，不含 LiteRT-LM 运行时，体积更小；其余功能与完整版一致，只是本地模型入口不显示。'
+              echo
+            fi
+            if [ "$BUILD_FULL" = "true" ] && [ "$BUILD_NOLITERT" = "true" ]; then
+              echo '两个包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装即可，应用数据保留。'
+              echo
+            fi
+            echo '包名 `'"${pkg}"'`，版本 `'"${version}"'`，arm64-v8a。'
+            echo
+            if [ "$IS_CANARY" = "true" ]; then
               echo '这是预发布：功能比正式版新，稳定性不作保证。它和正式版是同一个应用，装上会直接覆盖已装的正式版并沿用其数据。'
               echo
               if [ "$ROLLING_CANARY" = "true" ]; then
@@ -453,16 +514,14 @@ jobs:
                 echo 'versionCode 只增不减：装过这一版之后，要回到更早的正式版只能先卸载（会清除应用数据，建议先导出备份）。'
               fi
             elif [ "$VARIANT" = "release" ]; then
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a 正式版，包名 `'"${pkg}"'`，版本 `'"${version}"'`。'
-              echo
               echo '和预览版（包名 `'"${pkg}"'.debug`）是两个独立的应用，可以同装在一台手机上，互不覆盖数据。'
               echo
               echo '从预览版迁过来：在预览版里导出备份，装正式版后导入即可；备份里的附件、字体路径会按新包名自动改写。'
             else
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a 预览版，包名 `'"${pkg}"'.debug`，版本 `'"${version}"'`，覆盖安装即可。'
+              echo '预览版，包名 `'"${pkg}"'.debug`，覆盖安装即可。'
             fi
             echo
-            echo '校验：`sha256sum -c L3Hub-'"${TAG}"'-arm64-v8a.apk.sha256`'
+            echo '校验：`sha256sum -c <APK 文件名>.sha256`'
             if [ -n "${CERT_SHA256:-}" ]; then
               echo
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
@@ -478,6 +537,14 @@ jobs:
           # 幂等：release 已存在（重跑、或手动发过）就覆盖资产并刷新说明，不要整个 job 失败
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG 已存在，覆盖资产并刷新说明"
+            # 产物名可能和上一版不一样（Canary 从完整版换成精简版就是），只 clobber 同名的
+            # 会把旧包一直留在下载列表里，先删掉这次没有的
+            for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              if [ ! -f "dist/$name" ]; then
+                echo "删除过期资产：$name"
+                gh release delete-asset "$TAG" "$name" --yes
+              fi
+            done
             gh release upload "$TAG" dist/*.apk dist/*.sha256 --clobber
             # --draft=false：同名 release 停在草稿状态时，只改说明会让它永远发不出去，而 job 是绿的
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --prerelease="$IS_PRERELEASE" --draft=false
