@@ -12,6 +12,8 @@ internal fun Settings.mergedWith(backup: Settings): Settings = copy(
     customThemes = customThemes.unionBy(backup.customThemes) { it.id },
     favoriteModels = (favoriteModels + backup.favoriteModels).distinct(),
     providers = mergeProviders(providers, backup.providers),
+    // 备份里删过的内置提供商也保持删除，合并后不再被默认值补回来
+    deletedBuiltInProviderIds = deletedBuiltInProviderIds + backup.deletedBuiltInProviderIds,
     providerGroups = (providerGroups + backup.providerGroups).distinct(),
     providerGroupAssignments = backup.providerGroupAssignments + providerGroupAssignments,
     providerProxies = backup.providerProxies + providerProxies,
