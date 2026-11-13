@@ -634,19 +634,19 @@ private fun ProviderRequestOverrideCard(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val override = guard.requestOverride
-    var curlText by remember(providerId) { mutableStateOf(override.curl) }
-    LaunchedEffect(override.curl) {
-        if (curlText != override.curl) curlText = override.curl
+    val requestOverride = guard.requestOverride
+    var curlText by remember(providerId) { mutableStateOf(requestOverride.curl) }
+    LaunchedEffect(requestOverride.curl) {
+        if (curlText != requestOverride.curl) curlText = requestOverride.curl
     }
-    val error = if (override.enabled) override.validate() else null
+    val error = if (requestOverride.enabled) requestOverride.validate() else null
     val updateOverride: (RequestOverride) -> Unit = { newOverride ->
         onGuardChange(guard.copy(requestOverride = newOverride))
     }
     CardGroup {
         switchItem(
-            checked = override.enabled,
-            onCheckedChange = { enabled -> updateOverride(override.copy(enabled = enabled)) },
+            checked = requestOverride.enabled,
+            onCheckedChange = { enabled -> updateOverride(requestOverride.copy(enabled = enabled)) },
             headlineContent = { Text(stringResource(R.string.setting_provider_guard_override)) },
             supportingContent = {
                 Text(
@@ -655,13 +655,13 @@ private fun ProviderRequestOverrideCard(
                 )
             },
         )
-        formItem(visible = override.enabled) {
+        formItem(visible = requestOverride.enabled) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = curlText,
                     onValueChange = { text ->
                         curlText = text
-                        updateOverride(override.copy(curl = text))
+                        updateOverride(requestOverride.copy(curl = text))
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -680,7 +680,7 @@ private fun ProviderRequestOverrideCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    override.curl.isNotBlank() -> Text(
+                    requestOverride.curl.isNotBlank() -> Text(
                         text = stringResource(R.string.setting_provider_guard_override_valid),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
@@ -697,7 +697,7 @@ private fun ProviderRequestOverrideCard(
                                     ?.toString()
                                 if (!text.isNullOrBlank()) {
                                     curlText = text
-                                    updateOverride(override.copy(enabled = true, curl = text))
+                                    updateOverride(requestOverride.copy(enabled = true, curl = text))
                                 }
                             }
                         }
@@ -707,7 +707,7 @@ private fun ProviderRequestOverrideCard(
                     TextButton(
                         onClick = {
                             curlText = ""
-                            updateOverride(override.copy(curl = ""))
+                            updateOverride(requestOverride.copy(curl = ""))
                         }
                     ) {
                         Text(stringResource(R.string.setting_provider_guard_override_clear))
@@ -716,7 +716,7 @@ private fun ProviderRequestOverrideCard(
                 Text(
                     text = stringResource(
                         R.string.setting_provider_guard_override_hint,
-                        override.variableHint(),
+                        requestOverride.variableHint(),
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

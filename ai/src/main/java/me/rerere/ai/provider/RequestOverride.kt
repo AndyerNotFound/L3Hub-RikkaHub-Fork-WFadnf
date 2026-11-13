@@ -337,8 +337,7 @@ fun RequestOverride.validate(): String? {
             stream = true,
         )
         CurlCommand.parse(renderCurlTemplate(curl) { variables[it] })
-        null
-    }.exceptionOrNull()?.message ?: "无法解析"
+    }.exceptionOrNull()?.message
 }
 
 /** 供界面展示的变量说明 */
