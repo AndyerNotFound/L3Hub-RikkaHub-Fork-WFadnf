@@ -1344,6 +1344,7 @@
   <string name="setting_provider_page_balance_warning_hint">e.g. 10, CNY 10, $10, 10 USD</string>
   <string name="setting_provider_page_basic_settings">Basic Settings</string>
   <string name="setting_provider_page_chat_model">Chat</string>
+  <string name="setting_provider_page_ocr_model">OCR</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">Prompt cache TTL</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl_1h">1 hour</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl_5m">5 minutes</string>
@@ -1464,6 +1465,14 @@
   <string name="setting_tts_page_voice_name">Voice Name</string>
   <string name="setting_tts_page_voice_name_description">Name of the voice</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">API key for DeepSeek /v1/tools/asr</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">DeepSeek API base URL, usually https://api.deepseek.com/v1</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">Sample rate of the WAV sent to DeepSeek; 16 kHz is recommended</string>
+  <string name="setting_asr_configure_deepseek_segment_desc">Audio is uploaded in segments of this length; DeepSeek accepts at most 120 seconds per request</string>
+  <string name="setting_tts_page_format">Audio Format</string>
+  <string name="setting_tts_page_format_desc">WAV returns a complete audio file; PCM returns raw 24 kHz, 16-bit mono audio</string>
+  <string name="setting_tts_page_filter_markdown">Filter Markdown</string>
+  <string name="setting_tts_page_filter_markdown_desc">Strip Markdown formatting before reading the text aloud</string>
   <string name="settings">Settings</string>
   <string name="share">Share</string>
   <string name="share_handler_page_title">Select an Assistant</string>

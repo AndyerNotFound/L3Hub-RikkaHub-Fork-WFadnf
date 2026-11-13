@@ -18,6 +18,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.ui.components.OutlinedNumberInput
+import me.rerere.ui.components.SelectTextField
 
 val ASRProviderSetting.typeName: String
     get() = when (this) {
@@ -26,6 +27,7 @@ val ASRProviderSetting.typeName: String
         is ASRProviderSetting.Volcengine -> "Volcengine"
         is ASRProviderSetting.MiMo -> "MiMo"
         is ASRProviderSetting.Step -> "Step"
+        is ASRProviderSetting.DeepSeek -> "DeepSeek"
     }
 
 @Composable
@@ -66,6 +68,7 @@ fun ASRProviderConfigure(
                 is ASRProviderSetting.Volcengine -> volcengineASRItems(setting, onValueChange)
                 is ASRProviderSetting.MiMo -> miMoASRItems(setting, onValueChange)
                 is ASRProviderSetting.Step -> stepASRItems(setting, onValueChange)
+                is ASRProviderSetting.DeepSeek -> deepSeekASRItems(setting, onValueChange)
             }
         }
     }
@@ -413,6 +416,65 @@ private fun CardGroupScope.miMoASRItems(
             value = setting.segmentDurationSec,
             onValueChange = { value ->
                 if (value in 0..300) {
+                    onValueChange(setting.copy(segmentDurationSec = value))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = "Segment Duration (s)"
+        )
+    }
+}
+
+private fun CardGroupScope.deepSeekASRItems(
+    setting: ASRProviderSetting.DeepSeek,
+    onValueChange: (ASRProviderSetting) -> Unit
+) {
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_asr_configure_deepseek_api_key_desc)) }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("sk-...") }
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_asr_configure_deepseek_base_url_desc)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.deepseek.com/v1") }
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_sample_rate)) },
+        supportingContent = { Text(stringResource(R.string.setting_asr_configure_deepseek_sample_rate_desc)) }
+    ) {
+        SelectTextField(
+            value = setting.sampleRate.toString(),
+            options = listOf(8000, 16000, 22050, 24000, 32000, 44100, 48000),
+            onOptionSelected = { value -> onValueChange(setting.copy(sampleRate = value)) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+            label = { Text("Sample Rate") },
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_asr_configure_segment_duration)) },
+        supportingContent = { Text(stringResource(R.string.setting_asr_configure_deepseek_segment_desc)) }
+    ) {
+        OutlinedNumberInput(
+            value = setting.segmentDurationSec,
+            onValueChange = { value ->
+                if (value in 1..120) {
                     onValueChange(setting.copy(segmentDurationSec = value))
                 }
             },

@@ -24,6 +24,7 @@ import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.tts.provider.TTSProviderSetting
 import me.rerere.ui.components.OutlinedNumberInput
@@ -58,6 +59,7 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                         is TTSProviderSetting.FishAudio -> "Fish Audio"
                         is TTSProviderSetting.Volcengine -> stringResource(R.string.setting_tts_page_provider_volcengine)
+                        is TTSProviderSetting.DeepSeek -> "DeepSeek"
                     },
                     options = TTSProviderSetting.Types,
                     readOnly = true,
@@ -75,6 +77,7 @@ fun TTSProviderConfigure(
                             TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                             TTSProviderSetting.FishAudio::class -> "Fish Audio"
                             TTSProviderSetting.Volcengine::class -> stringResource(R.string.setting_tts_page_provider_volcengine)
+                            TTSProviderSetting.DeepSeek::class -> "DeepSeek"
                             TTSProviderSetting.Step::class -> "Step"
                             else -> providerClass.simpleName ?: "Unknown"
                         }
@@ -138,6 +141,11 @@ fun TTSProviderConfigure(
 
                             TTSProviderSetting.Volcengine::class -> TTSProviderSetting.Volcengine(id = setting.id)
 
+                            TTSProviderSetting.DeepSeek::class -> TTSProviderSetting.DeepSeek(
+                                id = setting.id,
+                                name = "DeepSeek TTS"
+                            )
+
                             else -> setting
                         }
                         onValueChange(newSetting)
@@ -175,6 +183,7 @@ fun TTSProviderConfigure(
                 is TTSProviderSetting.FishAudio -> fishAudioTTSItems(setting, onValueChange)
                 is TTSProviderSetting.Step -> stepTTSItems(setting, onValueChange)
                 is TTSProviderSetting.Volcengine -> volcengineTTSItems(setting, onValueChange)
+                is TTSProviderSetting.DeepSeek -> deepSeekTTSItems(setting, onValueChange)
             }
         }
     }
@@ -248,6 +257,72 @@ private fun CardGroupScope.openAITTSItems(
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
+
+private fun CardGroupScope.deepSeekTTSItems(
+    setting: TTSProviderSetting.DeepSeek,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("sk-...") },
+        )
+    }
+
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.deepseek.com/v1") }
+        )
+    }
+
+    val voices = listOf("stella", "tide")
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    ) {
+        SelectTextField(
+            value = setting.voiceId,
+            options = voices,
+            onValueChange = { onValueChange(setting.copy(voiceId = it)) },
+            onOptionSelected = { onValueChange(setting.copy(voiceId = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+        )
+    }
+
+    val formats = listOf("wav", "pcm")
+    formItem(
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_format)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_format_desc)) }
+    ) {
+        SelectTextField(
+            value = setting.format,
+            options = formats,
+            onValueChange = { onValueChange(setting.copy(format = it)) },
+            onOptionSelected = { onValueChange(setting.copy(format = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+        )
+    }
+
+    switchItem(
+        checked = setting.filterMarkdown,
+        onCheckedChange = { onValueChange(setting.copy(filterMarkdown = it)) },
+        headlineContent = { Text(stringResource(R.string.setting_tts_page_filter_markdown)) },
+        supportingContent = { Text(stringResource(R.string.setting_tts_page_filter_markdown_desc)) },
+    )
 }
 
 private fun CardGroupScope.miMoTTSItems(

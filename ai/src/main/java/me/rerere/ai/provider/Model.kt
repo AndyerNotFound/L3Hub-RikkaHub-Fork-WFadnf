@@ -51,6 +51,9 @@ enum class ModelType {
     CHAT,
     IMAGE,
     EMBEDDING,
+
+    /** 专用 OCR 模型：请求走提供商的 OCR 接口，只用于识图，不参与聊天 */
+    OCR,
 }
 
 @Serializable

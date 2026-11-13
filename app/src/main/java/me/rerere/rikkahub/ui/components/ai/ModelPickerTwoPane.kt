@@ -77,7 +77,7 @@ private const val COMPACT_WIDTH_DP = 360
 fun ModelPickerTwoPane(
     currentModel: Uuid?,
     providers: List<ProviderSetting>,
-    modelType: ModelType,
+    modelTypes: Set<ModelType>,
     groups: List<String>,
     assignments: Map<String, String>,
     favoriteIds: List<Uuid>,
@@ -106,11 +106,11 @@ fun ModelPickerTwoPane(
     }
     // favoriteIds 来自 settings.favoriteModels，保留着用户收藏出来的顺序，别再按供应商顺序重排
     // 直接带出各自的供应商：同一个模型 id 可能挂在多个供应商下，收藏视图不能事后反查
-    val favoriteModels = remember(providers, favoriteIds, modelType) {
+    val favoriteModels = remember(providers, favoriteIds, modelTypes) {
         val order = favoriteIds.withIndex().associate { (index, id) -> id to index }
         providers.flatMap { provider ->
             provider.models
-                .filter { it.type == modelType && it.id in favoriteIds }
+                .filter { it.type in modelTypes && it.id in favoriteIds }
                 .map { model -> model to provider }
         }.sortedBy { (model, _) -> order[model.id] ?: Int.MAX_VALUE }
     }
@@ -127,14 +127,14 @@ fun ModelPickerTwoPane(
     val query = search.trim()
 
     val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
-    val models = remember(query, showFavorites, selectedProvider, providers, modelType, favoriteModels) {
+    val models = remember(query, showFavorites, selectedProvider, providers, modelTypes, favoriteModels) {
         when {
             // 命中供应商时连同它的所有模型一起列出，命中模型名时只列该模型
             query.isNotBlank() -> providers.flatMap { provider ->
                 val providerMatched = provider.name.contains(query, true)
                 provider.models
                     .filter { model ->
-                        model.type == modelType && (
+                        model.type in modelTypes && (
                             providerMatched ||
                                 model.displayName.contains(query, true) ||
                                 model.modelId.contains(query, true)
@@ -146,7 +146,7 @@ fun ModelPickerTwoPane(
             showFavorites -> favoriteModels
 
             selectedProvider != null -> selectedProvider.models
-                .filter { it.type == modelType }
+                .filter { it.type in modelTypes }
                 .map { model -> model to selectedProvider }
 
             else -> emptyList()

@@ -907,7 +907,12 @@ private fun ModelSettingsPagerForm(
                             .padding(vertical = 16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        ModelIdentityFields(model, onModelChange, isEdit)
+                        ModelIdentityFields(
+                            model = model,
+                            onModelChange = onModelChange,
+                            isEdit = isEdit,
+                            allowOcr = parentProvider.supportsOcrModels(),
+                        )
                         ModelBasicOptions(model, onModelChange)
                     }
                 }
@@ -979,7 +984,12 @@ private fun ModelSettingsWideForm(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ModelIdentityFields(model, onModelChange, isEdit)
+            ModelIdentityFields(
+                model = model,
+                onModelChange = onModelChange,
+                isEdit = isEdit,
+                allowOcr = parentProvider.supportsOcrModels(),
+            )
         }
 
         Box(
@@ -1061,6 +1071,7 @@ private fun ModelIdentityFields(
     model: Model,
     onModelChange: (Model) -> Unit,
     isEdit: Boolean,
+    allowOcr: Boolean = true,
 ) {
     fun setModelId(id: String) {
         val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
@@ -1111,6 +1122,7 @@ private fun ModelIdentityFields(
 
     ModelTypeSelector(
         selectedType = model.type,
+        allowOcr = allowOcr,
         onTypeSelected = {
             onModelChange(model.copy(type = it))
         }
@@ -1168,9 +1180,15 @@ private fun ModelOcrHelperSetting(
         modelId = model.ocrModelId,
         providers = LocalSettings.current.providers,
         type = ModelType.CHAT,
+        types = setOf(ModelType.CHAT, ModelType.OCR),
     )
     val containerColor = MaterialTheme.colorScheme.secondaryContainer
     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    // 只有选了看不懂图的模型才需要提醒，没配过是正常情况
+    val warning = state.currentModel
+        ?.takeIf { it.type == ModelType.CHAT }
+        ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
+        ?.let { R.string.setting_model_page_ocr_model_missing }
 
     CardGroup {
         modelSettingItem(
@@ -1183,12 +1201,7 @@ private fun ModelOcrHelperSetting(
             placeholder = R.string.setting_provider_page_ocr_helper_model_follow_global,
             onClear = { onModelChange(model.copy(ocrModelId = null)) },
             clearContentDescription = R.string.setting_provider_page_ocr_helper_model_follow_global,
-            // 只有选了看不懂图的模型才需要提醒，没配过是正常情况
-            warning = if (state.currentModel?.inputModalities?.contains(Modality.IMAGE) == false) {
-                R.string.setting_model_page_ocr_model_missing
-            } else {
-                null
-            },
+            warning = warning,
         )
     }
     ModelListSheet(state = state) {
@@ -1675,14 +1688,15 @@ private fun Throwable.displayMessage(): String =
 @Composable
 private fun ModelTypeSelector(
     selectedType: ModelType,
-    onTypeSelected: (ModelType) -> Unit
+    onTypeSelected: (ModelType) -> Unit,
+    allowOcr: Boolean = true,
 ) {
     Text(
         stringResource(R.string.setting_provider_page_model_type),
         style = MaterialTheme.typography.titleSmall
     )
     ConnectedChoiceButtons(
-        options = ModelType.entries,
+        options = ModelType.entries.filter { allowOcr || it != ModelType.OCR },
         selected = selectedType,
         onSelect = onTypeSelected,
     ) { type, selected ->
@@ -1692,6 +1706,7 @@ private fun ModelTypeSelector(
                     ModelType.CHAT -> R.string.setting_provider_page_chat_model
                     ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
                     ModelType.IMAGE -> R.string.setting_provider_page_image_model
+                    ModelType.OCR -> R.string.setting_provider_page_ocr_model
                 }
             ),
             selected = selected,
@@ -2288,6 +2303,9 @@ private fun ProviderSetting.proxyHost(): String? = when (this) {
 private fun String.hostOf(): String? = runCatching { java.net.URI(this).host }
     .getOrNull()
     ?.takeIf { it.isNotBlank() }
+
+private fun ProviderSetting?.supportsOcrModels(): Boolean =
+    this == null || this is ProviderSetting.OpenAI
 
 /**
  * 模型编辑页：原来是 [ModelCard] 里的一个 ModalBottomSheet，改成独立页面后可以从卡片直接展开。

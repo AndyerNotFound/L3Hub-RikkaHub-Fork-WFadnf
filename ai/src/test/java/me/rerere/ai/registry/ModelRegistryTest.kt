@@ -103,6 +103,14 @@ class ModelRegistryTest {
     }
 
     @Test
+    fun testDeepSeekOcr() {
+        val visionInput = listOf(Modality.TEXT, Modality.IMAGE)
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("deepseek-ocr"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("deepseek-ai/DeepSeek-OCR"))
+        assertEquals(emptyList<ModelAbility>(), ModelRegistry.MODEL_ABILITIES.getData("deepseek-ocr"))
+    }
+
+    @Test
     fun testMagnitudeNotVersion() {
         val textInput = listOf(Modality.TEXT)
         val visionInput = listOf(Modality.TEXT, Modality.IMAGE)

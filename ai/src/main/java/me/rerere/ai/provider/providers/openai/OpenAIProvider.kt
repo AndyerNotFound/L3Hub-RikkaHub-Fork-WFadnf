@@ -20,7 +20,9 @@ import me.rerere.ai.provider.EmbeddingGenerationParams
 import me.rerere.ai.provider.EmbeddingGenerationResult
 import me.rerere.ai.provider.ImageEditParams
 import me.rerere.ai.provider.ImageGenerationParams
+import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
@@ -49,6 +51,9 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 
 private const val TAG = "OpenAIProvider"
 
+/** 官方 DeepSeek 的 OCR 服务没有出现在 /models 里，但可以按模型使用 */
+private const val DEEPSEEK_OCR_MODEL_ID = "deepseek-ocr"
+
 class OpenAIProvider(
     private val client: OkHttpClient,
     context: Context? = null
@@ -57,6 +62,7 @@ class OpenAIProvider(
 
     private val chatCompletionsAPI = ChatCompletionsAPI(client = client, keyRoulette = keyRoulette)
     private val responseAPI = ResponseAPI(client = client, keyRoulette = keyRoulette)
+    private val ocrAPI = DeepSeekOcrAPI(client = client, keyRoulette = keyRoulette)
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
@@ -77,7 +83,7 @@ class OpenAIProvider(
             val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
             val data = bodyJson["data"]?.jsonArray ?: return@withContext emptyList()
 
-            data.mapNotNull { modelJson ->
+            val models = data.mapNotNull { modelJson ->
                 val modelObj = modelJson.jsonObject
                 val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
 
@@ -85,6 +91,27 @@ class OpenAIProvider(
                     modelId = id,
                     displayName = id,
                 )
+            }
+            if (providerSetting.baseUrl.toHttpUrlOrNull()?.host == "api.deepseek.com") {
+                val normalized = models.map { model ->
+                    if (model.modelId == DEEPSEEK_OCR_MODEL_ID) model.copy(
+                        displayName = "DeepSeek OCR",
+                        type = ModelType.OCR,
+                        inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+                    ) else model
+                }
+                if (normalized.none { it.modelId == DEEPSEEK_OCR_MODEL_ID }) {
+                    normalized + Model(
+                        modelId = DEEPSEEK_OCR_MODEL_ID,
+                        displayName = "DeepSeek OCR",
+                        type = ModelType.OCR,
+                        inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+                    )
+                } else {
+                    normalized
+                }
+            } else {
+                models
             }
         }
 
@@ -97,7 +124,13 @@ class OpenAIProvider(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): Flow<StreamChunk> = if (providerSetting.useResponseApi) {
+    ): Flow<StreamChunk> = if (params.model.type == ModelType.OCR) {
+        ocrAPI.streamText(
+            providerSetting = providerSetting,
+            messages = messages,
+            params = params,
+        )
+    } else if (providerSetting.useResponseApi) {
         responseAPI.streamText(
             providerSetting = providerSetting,
             messages = messages,
@@ -115,7 +148,13 @@ class OpenAIProvider(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): TextGenerationResult = if (providerSetting.useResponseApi) {
+    ): TextGenerationResult = if (params.model.type == ModelType.OCR) {
+        ocrAPI.generateText(
+            providerSetting = providerSetting,
+            messages = messages,
+            params = params,
+        )
+    } else if (providerSetting.useResponseApi) {
         responseAPI.generateText(
             providerSetting = providerSetting,
             messages = messages,

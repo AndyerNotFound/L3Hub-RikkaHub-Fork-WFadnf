@@ -145,6 +145,16 @@ class OcrSupportTest {
     }
 
     @Test
+    fun `ocr type model is accepted without image modality`() {
+        val ocr = model(id(1), Modality.TEXT, type = ModelType.OCR)
+
+        val target = configuration(ocrModelId = ocr.id, fastModelId = id(99), models = listOf(ocr))
+            .resolveOcrTarget()
+
+        assertEquals(ocr.id, target?.model?.id)
+    }
+
+    @Test
     fun `no vision capable model resolves to null`() {
         val textOnly = model(id(1), Modality.TEXT)
 

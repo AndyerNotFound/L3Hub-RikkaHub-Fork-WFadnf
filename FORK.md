@@ -1223,6 +1223,43 @@ app/src/main/res/values*/strings.xml                    新文案
 单测：`BalanceThresholdTest`（阈值格式、币种匹配、多币种取第一笔、无法解析的余额）、
 `QuotaQueryRunnerTest`（12 位精度与至少 2 位）。本次没有跑 Gradle，以 CI 单测与真机包为准。
 
+## DeepSeek 新服务接入（2026-11-13）
+
+DeepSeek 于 2026-11-13 开放应用能力 API。L3Hub 侧的落点：
+
+- 搜索 / 抓取：`search` 模块的 `DeepSeekSearchService`，在设置 → 搜索服务里选择 DeepSeek 并填入 API Key，
+  `search_web` / `scrape_web` 工具分别走 `POST /v1/tools/search` 与 `POST /v1/tools/fetch`。
+- OCR：按「模型」接入。DeepSeek 官方提供商的可用模型列表会多一条 `deepseek-ocr`（类型 OCR），
+  在设置 → 模型 → OCR 辅助模型（或单个模型自己的 OCR 辅助模型）里选择它即可。请求走
+  `POST /v1/tools/ocr`（multipart，`purpose=text_recognition`），逐页文本拼成一条 assistant 消息；
+  识别结果里的 `<|ref|>`、`<|box|>` 等版面标记和坐标在进入对话上下文前会去掉。
+- 语音识别：设置 → 语音 → 添加 ASR 提供商 → DeepSeek。接口是 `POST /v1/tools/asr`，
+  录音按段包成 16 位 PCM WAV 上传（单段最多 120 秒、8 MiB），返回文本按段拼接；中文段之间不加空格。
+- 语音合成：设置 → 语音 → 添加 TTS 提供商 → DeepSeek。接口是 `POST /v1/tools/tts`，
+  音色 `stella` / `tide`，输出 `wav` 或 24 kHz PCM；文本沿用现有 TTS 分片管线（每片 150 字）。
+
+改动文件：
+
+```text
+ai/.../provider/Model.kt                        ModelType.OCR
+ai/.../provider/providers/openai/OpenAIProvider.kt  OCR 模型路由、DeepSeek 模型列表补 deepseek-ocr
+ai/.../provider/providers/openai/DeepSeekOcrAPI.kt  新增：/v1/tools/ocr multipart 客户端与版面标记清理
+ai/.../registry/ModelRegistry.kt                deepseek-ocr 的图片输入能力
+app/.../data/ai/transformers/OcrSupport.kt      OCR 目标接受 ModelType.OCR
+app/.../ui/components/ai/ModelList.kt           模型选择器支持多类型（聊天 + OCR）
+app/.../ui/pages/setting/SettingProviderDetailPage.kt  OCR 类型选项、OCR 辅助模型选择
+speech/.../tts/provider/providers/DeepSeekTTSProvider.kt  新增
+speech/.../asr/providers/DeepSeekASRController.kt         新增
+speech/.../tts/provider/TTSProviderSetting.kt    DeepSeek TTS 设置
+speech/.../asr/ASRProviderSetting.kt             DeepSeek ASR 设置
+app/.../ui/pages/setting/components/{TTS,ASR}ProviderConfigure.kt  配置项
+app/src/main/res/values*/strings.xml             新文案
+```
+
+单测：`DeepSeekOcrTextTest`（版面标记清理）、`ModelRegistryTest.testDeepSeekOcr`、
+`OcrSupportTest`（OCR 类型模型参与识别）、`TTSProviderSettingDeepSeekTest`、
+`ASRProviderSettingDeepSeekTest`、`DeepSeekToolsUrlTest`。本次不跑本机 Gradle，以 CI 单测为准。
+
 ## 动图裁剪、视频头像与视频识别（2026-11-13）
 
 ### 动图裁剪保留动画

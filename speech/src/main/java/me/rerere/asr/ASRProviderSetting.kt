@@ -174,6 +174,35 @@ sealed class ASRProviderSetting {
         }
     }
 
+    /**
+     * DeepSeek 语音识别（/v1/tools/asr）。
+     *
+     * 与 MiMo 一样是 HTTP 一次性识别：录音期间按 [segmentDurationSec] 把 PCM 包成 WAV
+     * 分段上传，返回文本按段拼接。DeepSeek 限制单段音频最长 120 秒、文件最大 8 MiB，
+     * 格式必须是 16 位 PCM WAV 或 Ogg Opus。
+     */
+    @Serializable
+    @SerialName("deepseek")
+    data class DeepSeek(
+        override val id: Uuid = Uuid.random(),
+        override val name: String = "DeepSeek ASR",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.deepseek.com/v1",
+        val sampleRate: Int = 16000,
+        // 单段时长，单位秒；DeepSeek 单段上限 120 秒
+        val segmentDurationSec: Int = 30,
+    ) : ASRProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): ASRProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -182,6 +211,7 @@ sealed class ASRProviderSetting {
                 Volcengine::class,
                 MiMo::class,
                 Step::class,
+                DeepSeek::class,
             )
         }
     }

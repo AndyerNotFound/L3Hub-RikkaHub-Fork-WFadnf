@@ -146,6 +146,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         modelId = settings.ocrModelId,
         providers = settings.providers,
         type = ModelType.CHAT,
+        types = setOf(ModelType.CHAT, ModelType.OCR),
     )
 
     LazyColumn(
@@ -244,6 +245,11 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         item {
             val containerColor = MaterialTheme.colorScheme.secondaryContainer
             val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            // 只在明确选了一个看不了图的模型时提示；没配过 OCR 模型属于正常情况
+            val ocrWarning = ocrModel.currentModel
+                ?.takeIf { it.type == ModelType.CHAT }
+                ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
+                ?.let { R.string.setting_model_page_ocr_model_missing }
             CardGroup {
                 modelSettingItem(
                     icon = HugeIcons.Translate,
@@ -260,12 +266,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                     state = ocrModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
-                    // 只在明确选了一个看不了图的模型时提示；没配过 OCR 模型属于正常情况
-                    warning = if (ocrModel.currentModel?.inputModalities?.contains(Modality.IMAGE) == false) {
-                        R.string.setting_model_page_ocr_model_missing
-                    } else {
-                        null
-                    },
+                    warning = ocrWarning,
                 )
             }
         }

@@ -1420,6 +1420,14 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_tts_page_voice_name">语音名称</string>
   <string name="setting_tts_page_voice_name_description">语音的名称</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">用于 DeepSeek /v1/tools/asr 的 API Key</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">DeepSeek API 地址，通常为 https://api.deepseek.com/v1</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">上传给 DeepSeek 的 WAV 采样率，推荐 16 kHz</string>
+  <string name="setting_asr_configure_deepseek_segment_desc">录音按此时长分段上传；DeepSeek 单次请求最多 120 秒</string>
+  <string name="setting_tts_page_format">音频格式</string>
+  <string name="setting_tts_page_format_desc">WAV 返回完整音频文件；PCM 返回 24 kHz、16 位单声道原始音频</string>
+  <string name="setting_tts_page_filter_markdown">过滤 Markdown</string>
+  <string name="setting_tts_page_filter_markdown_desc">朗读前去除文本中的 Markdown 格式</string>
   <string name="settings">设置</string>
   <string name="share">分享</string>
   <string name="share_handler_page_title">选择一个助手处理分享</string>
@@ -2820,4 +2828,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
     <string name="setting_provider_local_command_memo_desc">留空时显示按当前配置生成的示例</string>
     <string name="setting_provider_local_gguf_runtime_desc">请自行安装 llama.cpp 并启动 llama-server，再把服务地址与模型路径填到上面。</string>
     <string name="setting_provider_onnx_runtime_desc">请自行安装 ONNX Runtime 推理服务，并让它在上面的地址提供 OpenAI 兼容接口。</string>
+  <string name="setting_provider_page_ocr_model">OCR</string>
 </resources>

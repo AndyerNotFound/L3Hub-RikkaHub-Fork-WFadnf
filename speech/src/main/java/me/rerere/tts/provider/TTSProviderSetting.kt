@@ -298,6 +298,29 @@ sealed class TTSProviderSetting {
             copy(id = id, name = name)
     }
 
+    /** DeepSeek 新版 /v1/tools/tts：整段合成，wav 或 24 kHz PCM，音色只有 stella / tide。 */
+    @Serializable
+    @SerialName("deepseek")
+    data class DeepSeek(
+        override var id: Uuid = Uuid.random(),
+        override var name: String = "DeepSeek TTS",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.deepseek.com/v1",
+        val voiceId: String = "stella",
+        val format: String = "wav",
+        val filterMarkdown: Boolean = true,
+    ) : TTSProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): TTSProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -313,6 +336,7 @@ sealed class TTSProviderSetting {
                 Step::class,
                 FishAudio::class,
                 Volcengine::class,
+                DeepSeek::class,
             )
         }
     }

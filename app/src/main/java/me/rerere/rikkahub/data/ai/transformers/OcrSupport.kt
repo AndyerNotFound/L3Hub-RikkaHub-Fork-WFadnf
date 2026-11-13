@@ -50,8 +50,9 @@ data class OcrResult(
 internal fun Settings.resolveOcrTarget(forModel: Model? = null): OcrTarget? {
     for (modelId in listOfNotNull(forModel?.ocrModelId, ocrModelId, fastModelId)) {
         val model = findModelById(modelId) ?: continue
-        if (model.type != ModelType.CHAT) continue
-        if (!model.inputModalities.contains(Modality.IMAGE)) continue
+        if (model.type != ModelType.CHAT && model.type != ModelType.OCR) continue
+        // OCR 专用模型的输入天生就是图片，不看 inputModalities
+        if (model.type == ModelType.CHAT && !model.inputModalities.contains(Modality.IMAGE)) continue
         val provider = model.findProvider(providers) ?: continue
         if (!provider.enabled) continue
         return OcrTarget(model, provider)

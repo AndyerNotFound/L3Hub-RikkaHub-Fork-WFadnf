@@ -336,6 +336,11 @@ object ModelRegistry {
         contextLength(1.m)
     }
 
+    private val DEEPSEEK_OCR = defineModel {
+        tokens("deepseek", "ocr")
+        visionInput()
+    }
+
     private val DEEPSEEK_R1 = defineGroup {
         add(DEEPSEEK_R1_MODEL, DEEPSEEK_REASONER)
     }
@@ -672,6 +677,7 @@ object ModelRegistry {
         DEEPSEEK_V4_PRO,
         DEEPSEEK_V3_1,
         DEEPSEEK_V3_2,
+        DEEPSEEK_OCR,
         QWEN_3,
         QWEN_3_VL,
         QWEN_3_5,

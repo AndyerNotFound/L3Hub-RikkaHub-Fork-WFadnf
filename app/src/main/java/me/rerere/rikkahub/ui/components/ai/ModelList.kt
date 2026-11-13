@@ -77,6 +77,7 @@ class ModelListState internal constructor(
     modelId: Uuid?,
     providers: List<ProviderSetting>,
     type: ModelType,
+    types: Set<ModelType> = setOf(type),
     groups: List<String> = emptyList(),
     assignments: Map<String, String> = emptyMap(),
 ) {
@@ -87,6 +88,9 @@ class ModelListState internal constructor(
         private set
 
     var type by mutableStateOf(type)
+        private set
+
+    var types by mutableStateOf(types)
         private set
 
     var visible by mutableStateOf(false)
@@ -105,7 +109,7 @@ class ModelListState internal constructor(
         get() {
             val rank = groups.withIndex().associate { (index, name) -> name to index }
             return providers.fastFilter { provider ->
-                provider.enabled && provider.models.fastAny { model -> model.type == type }
+                provider.enabled && provider.models.fastAny { model -> model.type in types }
             }.sortedBy { provider ->
                 val group = assignments[provider.id.toString()]
                 when {
@@ -130,12 +134,14 @@ class ModelListState internal constructor(
         modelId: Uuid?,
         providers: List<ProviderSetting>,
         type: ModelType,
+        types: Set<ModelType> = setOf(type),
         groups: List<String> = this.groups,
         assignments: Map<String, String> = this.assignments,
     ) {
         this.modelId = modelId
         this.providers = providers
         this.type = type
+        this.types = types
         this.groups = groups
         this.assignments = assignments
     }
@@ -146,6 +152,7 @@ fun rememberModelListState(
     modelId: Uuid?,
     providers: List<ProviderSetting>,
     type: ModelType,
+    types: Set<ModelType> = setOf(type),
 ): ModelListState {
     val settings = me.rerere.rikkahub.ui.context.LocalSettings.current
     return remember {
@@ -153,12 +160,14 @@ fun rememberModelListState(
             modelId = modelId,
             providers = providers,
             type = type,
+            types = types,
         )
     }.also {
         it.update(
             modelId = modelId,
             providers = providers,
             type = type,
+            types = types,
             groups = settings.providerGroups,
             assignments = settings.providerGroupAssignments,
         )
@@ -392,7 +401,7 @@ fun ModelListContent(
         ModelPickerTwoPane(
             currentModel = state.modelId,
             providers = state.filteredProviders,
-            modelType = state.type,
+            modelTypes = state.types,
             groups = settings.providerGroups,
             assignments = settings.providerGroupAssignments,
             favoriteIds = settings.favoriteModels,
@@ -600,6 +609,7 @@ fun ModelTypeTag(model: Model) {
                     ModelType.CHAT -> R.string.setting_provider_page_chat_model
                     ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
                     ModelType.IMAGE -> R.string.setting_provider_page_image_model
+                    ModelType.OCR -> R.string.setting_provider_page_ocr_model
                 }
             )
         )
