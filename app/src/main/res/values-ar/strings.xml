@@ -2571,4 +2571,8 @@
   <string name="setting_display_page_binary_units_title">العد الثنائي</string>
   <string name="setting_display_page_binary_units_desc">عرض الكميات بوحدات Ki / Mi / Gi (أساس 1024) بدل K / M / B (أساس 1000)، وتتحول وحدة سعر النموذج أيضًا إلى Mi.</string>
   <string name="chat_message_usage_cost">التكلفة</string>
+  <string name="setting_provider_guard_metric_cost">التكلفة</string>
+  <string name="setting_provider_guard_window_cost_limit">حد التكلفة</string>
+  <string name="setting_provider_guard_window_cost_desc">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
+  <string name="provider_limit_window_cost">وصل %1$s إلى حد التكلفة «%2$s» البالغ %3$s؛ أعد المحاولة بعد %4$s</string>
 </resources>

@@ -2573,4 +2573,8 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_display_page_binary_units_title">二進単位で数える</string>
   <string name="setting_display_page_binary_units_desc">数量を Ki / Mi / Gi（1024 進）で表示し、K / M / B（1000 進）は使いません。モデル価格の単位も Mi に切り替わります。</string>
   <string name="chat_message_usage_cost">費用</string>
+  <string name="setting_provider_guard_metric_cost">費用</string>
+  <string name="setting_provider_guard_window_cost_limit">費用上限</string>
+  <string name="setting_provider_guard_window_cost_desc">モデル編集ページで設定した単価から概算します。価格が未設定のモデルは集計されません。</string>
+  <string name="provider_limit_window_cost">%1$s の「%2$s」費用上限 %3$s に達しました。%4$s 後に再試行できます</string>
 </resources>

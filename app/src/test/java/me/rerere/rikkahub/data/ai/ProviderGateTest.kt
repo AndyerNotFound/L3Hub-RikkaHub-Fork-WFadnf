@@ -1,7 +1,9 @@
 package me.rerere.rikkahub.data.ai
 
 import kotlinx.coroutines.test.runTest
+import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.ProviderGuard
 import me.rerere.ai.provider.ProviderLockSchedule
 import me.rerere.ai.provider.ProviderQuotaMetric
@@ -117,6 +119,121 @@ class ProviderGateTest {
     }
 
     @Test
+    fun `cost window blocks after the budget is spent`() = runTest {
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 1,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.COST,
+                        costLimit = 1.5,
+                    )
+                )
+            )
+        )
+        val priced = params.copy(model = Model(modelId = "m", pricing = ModelPricing(perCall = 1.0)))
+        val first = gate.begin(provider, messages, priced)
+        gate.finish(first, TokenUsage(promptTokens = 1, completionTokens = 1))
+
+        // 已经花了 1.0，下一次预估又要 1.0，超过 1.5 的窗口上限
+        assertTrue(
+            runCatching { gate.begin(provider, messages, priced) }
+                .exceptionOrNull() is ProviderLimitException
+        )
+
+        now += 60 * 60 * 1000L
+        assertTrue(runCatching { gate.begin(provider, messages, priced) }.isSuccess)
+    }
+
+    @Test
+    fun `cost window uses actual usage after finish`() = runTest {
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 1,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.COST,
+                        costLimit = 0.005,
+                    )
+                )
+            )
+        )
+        // 每 token 1.0：空输入时第一次请求能过，finish 记下 1000 的花费后就被挡住
+        val priced = params.copy(model = Model(modelId = "m", pricing = ModelPricing(input = 1_000_000.0)))
+        val ticket = gate.begin(provider, emptyList(), priced)
+        gate.finish(ticket, TokenUsage(promptTokens = 1_000))
+
+        assertTrue(
+            runCatching { gate.begin(provider, emptyList(), priced) }
+                .exceptionOrNull() is ProviderLimitException
+        )
+    }
+
+    @Test
+    fun `cost window includes historical usage`() = runTest {
+        val pricedModel = Model(
+            modelId = "m",
+            pricing = ModelPricing(input = 1_000_000.0),
+        )
+        val provider = ProviderSetting.OpenAI(
+            name = "Provider",
+            models = listOf(pricedModel),
+            guard = ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 1,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.COST,
+                        costLimit = 0.5,
+                    )
+                )
+            ),
+        )
+        // 重启后从 usage_record 恢复：1000 token 按每 token 1.0 记，已经超过 0.5 的上限
+        val event = ProviderUsageEvent(
+            createdAt = now - 1_000L,
+            tokens = 1_000,
+            promptTokens = 1_000,
+            completionTokens = 0,
+            cachedTokens = 0,
+            modelId = pricedModel.id.toString(),
+        )
+        val historicalGate = ProviderGate(dao = EmptyUsageDao(listOf(event)), clock = { now })
+
+        assertTrue(
+            runCatching {
+                historicalGate.begin(
+                    provider,
+                    emptyList(),
+                    TextGenerationParams(model = pricedModel),
+                )
+            }.exceptionOrNull() is ProviderLimitException
+        )
+    }
+
+    @Test
+    fun `cost window ignores models without prices`() = runTest {
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 1,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.COST,
+                        costLimit = 0.01,
+                    )
+                )
+            )
+        )
+        repeat(3) {
+            assertTrue(begin(provider).isSuccess)
+            now += 1_000L
+        }
+    }
+
+    @Test
     fun `no limits means every request passes`() = runTest {
         val provider = setting(ProviderGuard())
         repeat(5) {
@@ -126,7 +243,9 @@ class ProviderGateTest {
     }
 }
 
-private class EmptyUsageDao : UsageRecordDAO {
+private class EmptyUsageDao(
+    private val events: List<ProviderUsageEvent> = emptyList(),
+) : UsageRecordDAO {
     override suspend fun insert(record: UsageRecordEntity) = Unit
 
     override suspend fun getTotals(since: Long) = UsageTotals()
@@ -143,5 +262,5 @@ private class EmptyUsageDao : UsageRecordDAO {
         providerId: String,
         since: Long,
         before: Long,
-    ) = emptyList<ProviderUsageEvent>()
+    ) = events
 }

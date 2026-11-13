@@ -33,7 +33,7 @@ data class ProviderGuard(
     val requestOverride: RequestOverride = RequestOverride(),
 ) {
     val hasRateLimit: Boolean
-        get() = rpmLimit > 0 || tpmLimit > 0 || windows.any { it.limit > 0 }
+        get() = rpmLimit > 0 || tpmLimit > 0 || windows.any { it.isEnabled }
 
     /** 需要保留多久的请求流水，用来计算所有时间窗 */
     fun usageRetentionMillis(): Long {
@@ -50,6 +50,10 @@ enum class ProviderQuotaMetric {
 
     @SerialName("tokens")
     TOKENS,
+
+    /** 按模型计费单价估算的费用，货币单位与模型编辑页填写的一致 */
+    @SerialName("cost")
+    COST,
 }
 
 /** 自定义时间段限额的时间单位 */
@@ -79,10 +83,18 @@ data class ProviderQuotaWindow(
     val amount: Int = 5,
     val unit: ProviderQuotaWindowUnit = ProviderQuotaWindowUnit.HOUR,
     val metric: ProviderQuotaMetric = ProviderQuotaMetric.REQUESTS,
-    // 0 表示这条限额未启用
+    // REQUESTS / TOKENS 计量时的上限，0 表示这条限额未启用
     val limit: Int = 0,
+    // COST 计量时时间窗内允许的花费，0 表示未启用；货币单位与模型计价一致
+    val costLimit: Double = 0.0,
 ) {
     fun durationMillis(): Long = unit.millis * amount.coerceAtLeast(1).toLong()
+
+    val isEnabled: Boolean
+        get() = when (metric) {
+            ProviderQuotaMetric.COST -> costLimit > 0
+            else -> limit > 0
+        }
 }
 
 /** 锁定计划的重复方式 */

@@ -2611,4 +2611,8 @@
   <string name="setting_display_page_binary_units_title">以二進位量計數</string>
   <string name="setting_display_page_binary_units_desc">以 Ki / Mi / Gi（1024 進位）顯示數量，不再使用 K / M / B（1000 進位）；模型計價的單位也一併改為 Mi。</string>
   <string name="chat_message_usage_cost">費用</string>
+  <string name="setting_provider_guard_metric_cost">費用</string>
+  <string name="setting_provider_guard_window_cost_limit">費用上限</string>
+  <string name="setting_provider_guard_window_cost_desc">依模型編輯頁填寫的單價估算，未填寫價格的模型不計入。</string>
+  <string name="provider_limit_window_cost">%1$s 的「%2$s」費用上限 %3$s 已用完，%4$s 後恢復</string>
 </resources>

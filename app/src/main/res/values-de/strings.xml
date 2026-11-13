@@ -2571,4 +2571,8 @@
   <string name="setting_display_page_binary_units_title">Binäre Einheiten</string>
   <string name="setting_display_page_binary_units_desc">Mengen in Ki / Mi / Gi (Basis 1024) statt K / M / B (Basis 1000) anzeigen; die Preiseinheit der Modelle wechselt ebenfalls auf Mi.</string>
   <string name="chat_message_usage_cost">Kosten</string>
+  <string name="setting_provider_guard_metric_cost">Kosten</string>
+  <string name="setting_provider_guard_window_cost_limit">Kostenlimit</string>
+  <string name="setting_provider_guard_window_cost_desc">Geschätzt anhand der im Modell-Editor eingegebenen Preise; Modelle ohne Preise werden nicht gezählt.</string>
+  <string name="provider_limit_window_cost">%1$s hat das Kostenlimit %3$s für %2$s erreicht; erneut versuchen nach %4$s</string>
 </resources>

@@ -87,7 +87,7 @@ class ProviderGuardTest {
         val guard = ProviderGuard(
             rpmLimit = 10,
             tpmLimit = 20_000,
-            windows = listOf(ProviderQuotaWindow(amount = 5, limit = 40)),
+            windows = listOf(ProviderQuotaWindow(amount = 5, limit = 40, costLimit = 12.5)),
             quotaRefreshSeconds = 30,
             requestOverride = RequestOverride(enabled = true, curl = "curl https://example.com"),
         )
@@ -101,6 +101,7 @@ class ProviderGuardTest {
         assertEquals("curl https://example.com", decoded.guard.requestOverride.curl)
         assertEquals(5, decoded.guard.windows.single().amount)
         assertEquals(40, decoded.guard.windows.single().limit)
+        assertEquals(12.5, decoded.guard.windows.single().costLimit, 0.0)
 
         // KeyFailoverProvider 用 copy(apiKey = ...) 换 Key，不能把限流配置丢掉
         val withKey = setting.copy(apiKey = "sk-next")
@@ -110,6 +111,17 @@ class ProviderGuardTest {
         val renamed = setting.copyProvider(name = "Renamed")
         assertEquals(10, renamed.guard.rpmLimit)
         assertEquals("Renamed", renamed.name)
+    }
+
+    @Test
+    fun `cost windows are enabled by their own limit`() {
+        val cost = ProviderQuotaWindow(metric = ProviderQuotaMetric.COST, costLimit = 5.0)
+        assertTrue(cost.isEnabled)
+        assertFalse(cost.copy(costLimit = 0.0).isEnabled)
+
+        val tokens = ProviderQuotaWindow(metric = ProviderQuotaMetric.TOKENS, limit = 100)
+        assertTrue(tokens.isEnabled)
+        assertFalse(tokens.copy(limit = 0).isEnabled)
     }
 
     @Test

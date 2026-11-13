@@ -12,7 +12,9 @@ interface UsageRecordDAO {
 
     /** 某个提供商在时间范围内的请求流水，用来恢复本机内存里的限流窗口 */
     @Query(
-        "SELECT created_at AS createdAt, (prompt_tokens + completion_tokens) AS tokens " +
+        "SELECT created_at AS createdAt, (prompt_tokens + completion_tokens) AS tokens, " +
+            "prompt_tokens AS promptTokens, completion_tokens AS completionTokens, " +
+            "cached_tokens AS cachedTokens, model_id AS modelId " +
             "FROM usage_record WHERE provider_id = :providerId AND created_at >= :since " +
             "AND created_at < :before ORDER BY created_at"
     )
@@ -69,6 +71,10 @@ interface UsageRecordDAO {
 data class ProviderUsageEvent(
     val createdAt: Long,
     val tokens: Long,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val cachedTokens: Int,
+    val modelId: String?,
 )
 
 data class UsageTotals(

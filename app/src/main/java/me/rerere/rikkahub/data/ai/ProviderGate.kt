@@ -6,24 +6,31 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.ProviderLockState
 import me.rerere.ai.provider.ProviderQuotaMetric
 import me.rerere.ai.provider.ProviderQuotaWindow
 import me.rerere.ai.provider.ProviderQuotaWindowUnit
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.TOKENS_PER_MILLION
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.provider.lockState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.model.estimateMessageTokens
+import me.rerere.rikkahub.utils.formatCost
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+// 费用是浮点数，比较释放量时留一点余量
+private const val COST_EPSILON = 1e-9
 
 /** 触发本机限额或定时锁定时抛出，界面直接展示 [message]（已带恢复时间） */
 class ProviderLimitException(
@@ -38,6 +45,7 @@ interface ProviderGateMessages {
     fun tpm(providerName: String, limit: Int, estimatedTokens: Int, retryAt: Instant): String
     fun windowRequests(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String
     fun windowTokens(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String
+    fun windowCost(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String
     fun windowLabel(window: ProviderQuotaWindow): String
     fun time(instant: Instant): String
 }
@@ -58,6 +66,9 @@ object PlainProviderGateMessages : ProviderGateMessages {
 
     override fun windowTokens(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String =
         "$providerName reached ${windowLabel(window)} token limit of ${window.limit}, retry after ${time(retryAt)}"
+
+    override fun windowCost(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String =
+        "$providerName reached ${windowLabel(window)} cost limit of ${window.costLimit}, retry after ${time(retryAt)}"
 
     override fun windowLabel(window: ProviderQuotaWindow): String =
         "per ${window.amount.coerceAtLeast(1)} ${window.unit.name.lowercase()}"
@@ -95,6 +106,15 @@ class AndroidProviderGateMessages(private val context: Context) : ProviderGateMe
             time(retryAt),
         )
 
+    override fun windowCost(providerName: String, window: ProviderQuotaWindow, retryAt: Instant): String =
+        context.getString(
+            R.string.provider_limit_window_cost,
+            providerName,
+            windowLabel(window),
+            window.costLimit.formatCost(),
+            time(retryAt),
+        )
+
     override fun windowLabel(window: ProviderQuotaWindow): String = window.label(context)
 
     override fun time(instant: Instant): String = formatGuardTime(context, instant)
@@ -103,6 +123,8 @@ class AndroidProviderGateMessages(private val context: Context) : ProviderGateMe
 data class ProviderWindowUsage(
     val window: ProviderQuotaWindow,
     val used: Int,
+    // COST 计量时已经花掉的费用，其余计量方式为 0
+    val costUsed: Double = 0.0,
     val resetAt: Instant?,
 )
 
@@ -126,6 +148,8 @@ class ProviderGate(
     private val dao: UsageRecordDAO,
     private val texts: ProviderGateMessages = PlainProviderGateMessages,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    // 计费用的 token 单价口径（1M 或 Mi），跟设置里的「以二进制量计数」保持一致
+    private val unitTokens: () -> Double = { TOKENS_PER_MILLION },
 ) {
     private val processStart = clock()
     private val ledgerLock = Any()
@@ -137,11 +161,14 @@ class ProviderGate(
     internal data class RequestStamp(
         val startedAt: Long,
         var tokens: Int,
+        var cost: Double = 0.0,
     )
 
     class RequestTicket internal constructor(
         internal val providerId: String,
         internal val stamp: RequestStamp,
+        internal val pricing: ModelPricing,
+        internal val unitTokens: Double,
     )
 
     suspend fun begin(
@@ -152,8 +179,14 @@ class ProviderGate(
         val now = clock()
         val guard = setting.guard
         val estimatedTokens = messages.sumOf { estimateMessageTokens(it) }
+        val priceUnit = unitTokens()
+        val estimatedCost = costOf(
+            pricing = params.model.pricing,
+            usage = TokenUsage(promptTokens = estimatedTokens),
+            unitTokens = priceUnit,
+        )
         if (guard.hasRateLimit) {
-            ensureHydrated(setting.id.toString(), now - guard.usageRetentionMillis())
+            ensureHydrated(setting, now - guard.usageRetentionMillis())
         }
         synchronized(ledgerLock) {
             val providerId = setting.id.toString()
@@ -171,27 +204,43 @@ class ProviderGate(
             checkRpm(list, now, guard.rpmLimit, setting.name)
             checkTpm(list, now, guard.tpmLimit, estimatedTokens, setting.name)
             guard.windows.forEach { window ->
-                checkWindow(list, now, window, estimatedTokens, setting.name)
+                checkWindow(list, now, window, estimatedTokens, estimatedCost, setting.name)
             }
 
-            val stamp = RequestStamp(startedAt = now, tokens = estimatedTokens)
+            val stamp = RequestStamp(
+                startedAt = now,
+                tokens = estimatedTokens,
+                cost = estimatedCost,
+            )
             list += stamp
-            return RequestTicket(providerId, stamp)
+            return RequestTicket(providerId, stamp, params.model.pricing, priceUnit)
         }
     }
 
     fun finish(ticket: RequestTicket, usage: TokenUsage?) {
         val actual = usage?.let { it.promptTokens + it.completionTokens } ?: 0
-        if (actual <= 0) return
         synchronized(ledgerLock) {
-            ticket.stamp.tokens = actual
+            if (actual > 0) ticket.stamp.tokens = actual
+            ticket.stamp.cost = usage?.let {
+                // 内存里的流水只保留能写进 usage_record 的字段，缓存写入按输入价回落，
+                // 和重启后从历史恢复出来的费用口径保持一致
+                costOf(
+                    pricing = ticket.pricing,
+                    usage = TokenUsage(
+                        promptTokens = it.promptTokens,
+                        completionTokens = it.completionTokens,
+                        cachedTokens = it.cachedTokens,
+                    ),
+                    unitTokens = ticket.unitTokens,
+                )
+            } ?: 0.0
         }
     }
 
     suspend fun status(setting: ProviderSetting): ProviderGateStatus {
         val now = clock()
         val guard = setting.guard
-        ensureHydrated(setting.id.toString(), now - guard.usageRetentionMillis())
+        ensureHydrated(setting, now - guard.usageRetentionMillis())
         synchronized(ledgerLock) {
             val list = stamps.getOrPut(setting.id.toString()) { mutableListOf() }
             prune(list, now - guard.usageRetentionMillis())
@@ -207,11 +256,23 @@ class ProviderGate(
                     val used = when (window.metric) {
                         ProviderQuotaMetric.REQUESTS -> events.size
                         ProviderQuotaMetric.TOKENS -> events.sumOf { it.tokens }
+                        ProviderQuotaMetric.COST -> 0
+                    }
+                    val costUsed = if (window.metric == ProviderQuotaMetric.COST) {
+                        events.sumOf { it.cost }
+                    } else {
+                        0.0
+                    }
+                    val full = when (window.metric) {
+                        ProviderQuotaMetric.REQUESTS,
+                        ProviderQuotaMetric.TOKENS -> used >= window.limit
+                        ProviderQuotaMetric.COST -> costUsed >= window.costLimit
                     }
                     ProviderWindowUsage(
                         window = window,
                         used = used,
-                        resetAt = if (window.limit > 0 && used >= window.limit) {
+                        costUsed = costUsed,
+                        resetAt = if (window.isEnabled && full) {
                             windowResetAt(events, window)
                         } else null,
                     )
@@ -257,28 +318,46 @@ class ProviderGate(
         now: Long,
         window: ProviderQuotaWindow,
         estimatedTokens: Int,
+        estimatedCost: Double,
         providerName: String,
     ) {
-        if (window.limit <= 0) return
+        if (!window.isEnabled) return
         val duration = window.durationMillis()
         val recent = events.filter { now - it.startedAt < duration }
-        val used = when (window.metric) {
-            ProviderQuotaMetric.REQUESTS -> recent.size
-            ProviderQuotaMetric.TOKENS -> recent.sumOf { it.tokens }
+        when (window.metric) {
+            ProviderQuotaMetric.REQUESTS -> {
+                val used = recent.size
+                val needed = used - window.limit + 1
+                if (needed <= 0) return
+                val retryAt = resolveRetryAt(recent, needed, duration, now, tokens = false)
+                throw ProviderLimitException(
+                    texts.windowRequests(providerName, window, retryAt),
+                    retryAt = retryAt,
+                )
+            }
+
+            ProviderQuotaMetric.TOKENS -> {
+                val used = recent.sumOf { it.tokens }
+                val needed = used + estimatedTokens - window.limit
+                if (needed <= 0) return
+                val retryAt = resolveRetryAt(recent, needed, duration, now, tokens = true)
+                throw ProviderLimitException(
+                    texts.windowTokens(providerName, window, retryAt),
+                    retryAt = retryAt,
+                )
+            }
+
+            ProviderQuotaMetric.COST -> {
+                val used = recent.sumOf { it.cost }
+                val needed = used + estimatedCost - window.costLimit
+                if (needed <= 0) return
+                val retryAt = resolveRetryAtCost(recent, needed, duration, now)
+                throw ProviderLimitException(
+                    texts.windowCost(providerName, window, retryAt),
+                    retryAt = retryAt,
+                )
+            }
         }
-        val needed = when (window.metric) {
-            ProviderQuotaMetric.REQUESTS -> used - window.limit + 1
-            ProviderQuotaMetric.TOKENS -> used + estimatedTokens - window.limit
-        }
-        if (needed <= 0) return
-        val retryAt = resolveRetryAt(recent, needed, duration, now, tokens = window.metric == ProviderQuotaMetric.TOKENS)
-        throw ProviderLimitException(
-            when (window.metric) {
-                ProviderQuotaMetric.REQUESTS -> texts.windowRequests(providerName, window, retryAt)
-                ProviderQuotaMetric.TOKENS -> texts.windowTokens(providerName, window, retryAt)
-            },
-            retryAt = retryAt,
-        )
     }
 
     /** 还要释放多少用量才能通过，以及最早什么时候能释放够 */
@@ -299,33 +378,75 @@ class ProviderGate(
         return Instant.fromEpochMilliseconds(now + durationMillis)
     }
 
+    /** 费用口径的释放时间：从最早的一条开始累加，直到释放够需要的花费 */
+    private fun resolveRetryAtCost(
+        events: List<RequestStamp>,
+        needed: Double,
+        durationMillis: Long,
+        now: Long,
+    ): Instant {
+        var freed = 0.0
+        for (event in events) {
+            freed += event.cost
+            if (freed + COST_EPSILON >= needed) {
+                return Instant.fromEpochMilliseconds(event.startedAt + durationMillis)
+            }
+        }
+        return Instant.fromEpochMilliseconds(now + durationMillis)
+    }
+
     private fun windowResetAt(
         events: List<RequestStamp>,
         window: ProviderQuotaWindow,
     ): Instant? {
-        val needed = when (window.metric) {
-            ProviderQuotaMetric.REQUESTS -> events.size - window.limit + 1
-            ProviderQuotaMetric.TOKENS -> events.sumOf { it.tokens } - window.limit + 1
-        }
-        if (needed <= 0) return null
-        var freed = 0
-        for (event in events) {
-            freed += when (window.metric) {
-                ProviderQuotaMetric.REQUESTS -> 1
-                ProviderQuotaMetric.TOKENS -> event.tokens
+        return when (window.metric) {
+            ProviderQuotaMetric.REQUESTS -> {
+                val needed = events.size - window.limit + 1
+                if (needed <= 0) return null
+                var freed = 0
+                for (event in events) {
+                    freed += 1
+                    if (freed >= needed) {
+                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                    }
+                }
+                null
             }
-            if (freed >= needed) {
-                return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+
+            ProviderQuotaMetric.TOKENS -> {
+                val needed = events.sumOf { it.tokens } - window.limit + 1
+                if (needed <= 0) return null
+                var freed = 0
+                for (event in events) {
+                    freed += event.tokens
+                    if (freed >= needed) {
+                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                    }
+                }
+                null
+            }
+
+            ProviderQuotaMetric.COST -> {
+                val needed = events.sumOf { it.cost } - window.costLimit
+                if (needed <= 0) return null
+                var freed = 0.0
+                for (event in events) {
+                    freed += event.cost
+                    if (freed + COST_EPSILON >= needed) {
+                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                    }
+                }
+                null
             }
         }
-        return null
     }
 
     private fun prune(events: MutableList<RequestStamp>, since: Long) {
         events.removeAll { it.startedAt < since }
     }
 
-    private suspend fun ensureHydrated(providerId: String, since: Long) {
+    private suspend fun ensureHydrated(setting: ProviderSetting, since: Long) {
+        val providerId = setting.id.toString()
         val to = synchronized(ledgerLock) {
             val covered = hydratedFrom[providerId]
             when {
@@ -354,14 +475,41 @@ class ProviderGate(
             }
             synchronized(ledgerLock) {
                 val list = stamps.getOrPut(providerId) { mutableListOf() }
+                val priceUnit = unitTokens()
                 events.forEach { event ->
-                    list += RequestStamp(startedAt = event.createdAt, tokens = event.tokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                    list += RequestStamp(
+                        startedAt = event.createdAt,
+                        tokens = event.tokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                        cost = eventCost(event, setting, priceUnit),
+                    )
                 }
                 list.sortBy { it.startedAt }
                 hydratedFrom[providerId] = minOf(recheck.first, processStart)
             }
         }
     }
+
+    /**
+     * 历史流水只存了未缓存输入、缓存读取和输出，缓存写入按输入价回落；
+     * 和 [finish] 写入内存时的口径一致，重启前后同一条记录算出来的费用不会变。
+     */
+    private fun eventCost(event: ProviderUsageEvent, setting: ProviderSetting, unitTokens: Double): Double {
+        val model = event.modelId
+            ?.let { id -> setting.models.firstOrNull { model -> model.id.toString() == id } }
+            ?: return 0.0
+        return costOf(
+            pricing = model.pricing,
+            usage = TokenUsage(
+                promptTokens = event.promptTokens,
+                completionTokens = event.completionTokens,
+                cachedTokens = event.cachedTokens,
+            ),
+            unitTokens = unitTokens,
+        )
+    }
+
+    private fun costOf(pricing: ModelPricing, usage: TokenUsage, unitTokens: Double): Double =
+        if (!pricing.isConfigured) 0.0 else pricing.estimateCost(usage, unitTokens, calls = 1).total
 }
 
 /** 窗口名称，例如「每 5 小时」 */

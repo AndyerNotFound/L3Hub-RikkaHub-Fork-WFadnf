@@ -77,6 +77,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.compose.koinInject
@@ -87,6 +88,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.time.Instant
 
 private val LOCK_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+private val COST_INPUT_REGEX = Regex("""^\d{0,9}(\.\d{0,6})?$""")
 private val LOCK_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
 private val LOCK_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm")
 
@@ -375,12 +377,19 @@ private fun WindowRow(
 ) {
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
+    val isCost = window.metric == ProviderQuotaMetric.COST
     val metric = stringResource(
         when (window.metric) {
             ProviderQuotaMetric.REQUESTS -> R.string.setting_provider_guard_metric_requests
             ProviderQuotaMetric.TOKENS -> R.string.setting_provider_guard_metric_tokens
+            ProviderQuotaMetric.COST -> R.string.setting_provider_guard_window_cost_limit
         }
     )
+    val limitText = if (isCost) {
+        window.costLimit.formatCost()
+    } else {
+        window.limit.formatNumber(binaryUnits)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -395,19 +404,31 @@ private fun WindowRow(
                     R.string.setting_provider_guard_window_summary,
                     window.label(context),
                     metric,
-                    window.limit.formatNumber(binaryUnits),
+                    limitText,
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (window.limit > 0 && usage != null) {
-                val full = usage.used >= window.limit
-                val usedText = stringResource(
-                    R.string.setting_provider_guard_used,
-                    usage.used.formatNumber(binaryUnits),
-                    window.limit.formatNumber(binaryUnits),
-                )
+            if (window.isEnabled && usage != null) {
+                val full = if (isCost) {
+                    usage.costUsed >= window.costLimit
+                } else {
+                    usage.used >= window.limit
+                }
+                val usedText = if (isCost) {
+                    stringResource(
+                        R.string.setting_provider_guard_used,
+                        usage.costUsed.formatCost(),
+                        window.costLimit.formatCost(),
+                    )
+                } else {
+                    stringResource(
+                        R.string.setting_provider_guard_used,
+                        usage.used.formatNumber(binaryUnits),
+                        window.limit.formatNumber(binaryUnits),
+                    )
+                }
                 val resetText = if (usage.resetAt != null) {
                     " · " + stringResource(
                         R.string.setting_provider_guard_reset_at,
@@ -421,7 +442,7 @@ private fun WindowRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = if (full) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else if (window.limit <= 0) {
+            } else if (!window.isEnabled) {
                 Text(
                     text = stringResource(R.string.setting_provider_guard_window_disabled),
                     style = MaterialTheme.typography.labelSmall,
@@ -764,8 +785,13 @@ private fun QuotaWindowSheet(
     var unit by remember { mutableStateOf(base.unit) }
     var metric by remember { mutableStateOf(base.metric) }
     var limitText by remember { mutableStateOf(base.limit.takeIf { it > 0 }?.toString().orEmpty()) }
+    var costLimitText by remember {
+        mutableStateOf(base.costLimit.takeIf { it > 0 }?.let { formatCost(it) }.orEmpty())
+    }
     val amount = amountText.toIntOrNull() ?: 0
     val limit = limitText.toIntOrNull() ?: 0
+    val costLimit = costLimitText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val isCost = metric == ProviderQuotaMetric.COST
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
 
@@ -849,26 +875,48 @@ private fun QuotaWindowSheet(
                                 when (item) {
                                     ProviderQuotaMetric.REQUESTS -> R.string.setting_provider_guard_metric_requests
                                     ProviderQuotaMetric.TOKENS -> R.string.setting_provider_guard_metric_tokens
+                                    ProviderQuotaMetric.COST -> R.string.setting_provider_guard_metric_cost
                                 }
                             )
                         )
                     }
                 }
             }
-            OutlinedTextField(
-                value = limitText,
-                onValueChange = { limitText = it.filter { ch -> ch.isDigit() }.take(12) },
-                label = { Text(stringResource(R.string.setting_provider_guard_window_limit)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
+            if (isCost) {
+                OutlinedTextField(
+                    value = costLimitText,
+                    onValueChange = { input ->
+                        val candidate = input.replace(',', '.')
+                        if (candidate.length <= 12 && COST_INPUT_REGEX.matches(candidate)) {
+                            costLimitText = candidate
+                        }
+                    },
+                    label = { Text(stringResource(R.string.setting_provider_guard_window_cost_limit)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                Text(
+                    text = stringResource(R.string.setting_provider_guard_window_cost_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                OutlinedTextField(
+                    value = limitText,
+                    onValueChange = { limitText = it.filter { ch -> ch.isDigit() }.take(12) },
+                    label = { Text(stringResource(R.string.setting_provider_guard_window_limit)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            }
             Text(
                 text = stringResource(R.string.setting_provider_guard_window_disabled),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (amount > 0 && limit > 0) {
+            if (amount > 0 && (if (isCost) costLimit > 0 else limit > 0)) {
                 Text(
                     text = stringResource(
                         R.string.setting_provider_guard_window_summary,
@@ -877,9 +925,10 @@ private fun QuotaWindowSheet(
                             when (metric) {
                                 ProviderQuotaMetric.REQUESTS -> R.string.setting_provider_guard_metric_requests
                                 ProviderQuotaMetric.TOKENS -> R.string.setting_provider_guard_metric_tokens
+                                ProviderQuotaMetric.COST -> R.string.setting_provider_guard_window_cost_limit
                             }
                         ),
-                        limit.formatNumber(binaryUnits),
+                        if (isCost) costLimit.formatCost() else limit.formatNumber(binaryUnits),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
@@ -900,10 +949,11 @@ private fun QuotaWindowSheet(
                                 unit = unit,
                                 metric = metric,
                                 limit = limit,
+                                costLimit = costLimit,
                             )
                         )
                     },
-                    enabled = amount > 0 && limit > 0,
+                    enabled = amount > 0 && (if (isCost) costLimit > 0 else limit > 0),
                 ) {
                     Text(stringResource(R.string.confirm))
                 }

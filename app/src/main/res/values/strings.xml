@@ -2839,7 +2839,7 @@
   <string name="setting_provider_guard_tpm">TPM limit</string>
   <string name="setting_provider_guard_tpm_desc">Maximum tokens per minute, with input estimated and output counted from actual usage. 0 means unlimited.</string>
   <string name="setting_provider_guard_windows">Custom time-window limits</string>
-  <string name="setting_provider_guard_windows_desc">Count requests or tokens in a sliding window. Multiple limits are allowed.</string>
+  <string name="setting_provider_guard_windows_desc">Count requests, tokens, or estimated cost in a sliding window. Multiple limits are allowed.</string>
   <string name="setting_provider_guard_window_add">Add time-window limit</string>
   <string name="setting_provider_guard_window_empty">No time-window limit configured.</string>
   <string name="setting_provider_guard_window_edit">Edit time-window limit</string>
@@ -2929,4 +2929,8 @@
   <string name="setting_display_page_binary_units_title">Binary Units</string>
   <string name="setting_display_page_binary_units_desc">Show quantities in Ki / Mi / Gi (base 1024) instead of K / M / B (base 1000). Model price units switch to Mi as well.</string>
   <string name="chat_message_usage_cost">Cost</string>
+  <string name="setting_provider_guard_metric_cost">Cost</string>
+  <string name="setting_provider_guard_window_cost_limit">Cost limit</string>
+  <string name="setting_provider_guard_window_cost_desc">Estimated from the prices set in the model editor; models without prices are not counted.</string>
+  <string name="provider_limit_window_cost">%1$s reached its %2$s cost limit of %3$s; retry after %4$s</string>
 </resources>

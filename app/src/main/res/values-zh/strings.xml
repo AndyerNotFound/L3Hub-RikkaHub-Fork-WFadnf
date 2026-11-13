@@ -2841,7 +2841,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_tpm">TPM 限制</string>
   <string name="setting_provider_guard_tpm_desc">每分钟最多消耗多少 token，输入按估算、输出按实际用量，0 表示不限制</string>
   <string name="setting_provider_guard_windows">自定义时间段限额</string>
-  <string name="setting_provider_guard_windows_desc">按滑动时间窗统计请求次数或 token 用量，可以添加多条</string>
+  <string name="setting_provider_guard_windows_desc">按滑动时间窗统计请求次数、token 用量或费用，可以添加多条</string>
   <string name="setting_provider_guard_window_add">添加时间段限额</string>
   <string name="setting_provider_guard_window_empty">尚未设置时间段限额</string>
   <string name="setting_provider_guard_window_edit">编辑时间段限额</string>
@@ -2927,4 +2927,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_binary_units_title">以二进制量计数</string>
   <string name="setting_display_page_binary_units_desc">以 Ki / Mi / Gi（1024 进制）显示数量，不再使用 K / M / B（1000 进制）；模型计价的单位也一并改为 Mi。</string>
   <string name="chat_message_usage_cost">费用</string>
+  <string name="setting_provider_guard_metric_cost">费用</string>
+  <string name="setting_provider_guard_window_cost_limit">费用上限</string>
+  <string name="setting_provider_guard_window_cost_desc">按模型编辑页填写的单价估算，未填写价格的模型不计入。</string>
+  <string name="provider_limit_window_cost">%1$s 的「%2$s」费用上限 %3$s 已用完，%4$s 后恢复</string>
 </resources>

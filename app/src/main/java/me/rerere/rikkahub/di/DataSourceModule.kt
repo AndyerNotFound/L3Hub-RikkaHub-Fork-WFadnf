@@ -10,6 +10,7 @@ import io.pebbletemplates.pebble.PebbleEngine
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import me.rerere.ai.provider.ProviderManager
+import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.common.http.AcceptLanguageBuilder
 import me.rerere.mediagen.provider.MediaGenerationManager
 import me.rerere.rikkahub.AppScope
@@ -133,9 +134,14 @@ val dataSourceModule = module {
     }
 
     single {
+        val settingsStore = get<SettingsStore>()
         ProviderGate(
             dao = get(),
             texts = AndroidProviderGateMessages(get()),
+            // 和消息费用一样，价格分母跟随「以二进制量计数」
+            unitTokens = {
+                priceUnitTokens(settingsStore.settingsFlow.value.displaySetting.binaryUnits)
+            },
         )
     }
 

@@ -2573,4 +2573,8 @@
   <string name="setting_display_page_binary_units_title">Двоичный счёт</string>
   <string name="setting_display_page_binary_units_desc">Показывать количества в Ki / Mi / Gi (основание 1024) вместо K / M / B (основание 1000). Единица цены моделей также меняется на Mi.</string>
   <string name="chat_message_usage_cost">Стоимость</string>
+  <string name="setting_provider_guard_metric_cost">Стоимость</string>
+  <string name="setting_provider_guard_window_cost_limit">Лимит расходов</string>
+  <string name="setting_provider_guard_window_cost_desc">Оценивается по ценам из редактора модели; модели без цен не учитываются.</string>
+  <string name="provider_limit_window_cost">%1$s: достигнут лимит расходов «%2$s» %3$s; повтор через %4$s</string>
 </resources>
