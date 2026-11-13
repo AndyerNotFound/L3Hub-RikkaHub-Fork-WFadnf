@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +50,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Edit03
 import me.rerere.rikkahub.R
@@ -109,6 +113,7 @@ fun UIAvatar(
 ) {
     val filesManager: FilesManager = koinInject()
     val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     var showPickOption by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
@@ -127,8 +132,11 @@ fun UIAvatar(
         },
         onCroppedAnimated = { sourceUri, crop ->
             // 动图不压成静态图：源文件存下来，裁剪区域跟着头像一起保存，显示时再按区域裁切
-            filesManager.createChatFilesByContents(listOf(sourceUri)).firstOrNull()?.let { localUri ->
-                onUpdate?.invoke(Avatar.Image(localUri.toString(), crop.toImageCrop()))
+            val localUri = withContext(Dispatchers.IO) {
+                filesManager.createChatFilesByContents(listOf(sourceUri)).firstOrNull()
+            }
+            localUri?.let {
+                onUpdate?.invoke(Avatar.Image(it.toString(), crop.toImageCrop()))
             }
         },
         aspectRatio = 1f,
@@ -144,8 +152,13 @@ fun UIAvatar(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { source ->
-            filesManager.createChatFilesByContents(listOf(source)).firstOrNull()?.let { localUri ->
-                onUpdate?.invoke(Avatar.Video(localUri.toString()))
+            scope.launch {
+                val localUri = withContext(Dispatchers.IO) {
+                    filesManager.createChatFilesByContents(listOf(source)).firstOrNull()
+                }
+                localUri?.let {
+                    onUpdate?.invoke(Avatar.Video(it.toString()))
+                }
             }
         }
     }

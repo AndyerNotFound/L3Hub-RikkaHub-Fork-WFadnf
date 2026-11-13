@@ -37,7 +37,7 @@ import java.io.File
 @Composable
 internal fun useCropLauncher(
     onCroppedImageReady: (Uri) -> Unit,
-    onCroppedAnimated: ((Uri, NormalizedCrop) -> Unit)? = null,
+    onCroppedAnimated: (suspend (Uri, NormalizedCrop) -> Unit)? = null,
     onCleanup: (() -> Unit)? = null,
     aspectRatio: Float? = null,
 ): (Uri) -> Unit {
@@ -64,7 +64,10 @@ internal fun useCropLauncher(
                 scope.launch {
                     runCatching {
                         if (result.animated && onCroppedAnimated != null) {
-                            val sourceFile = copyCropSource(context, sourceUri)
+                            // 复制完再删临时文件：回调里可以安心切到 IO 线程搬运大动图
+                            val sourceFile = withContext(Dispatchers.IO) {
+                                copyCropSource(context, sourceUri)
+                            }
                             try {
                                 onCroppedAnimated(sourceFile.toUri(), result.crop)
                             } finally {

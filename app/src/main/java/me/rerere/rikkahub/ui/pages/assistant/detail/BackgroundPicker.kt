@@ -41,6 +41,8 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.crop.NormalizedCrop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 @Composable
@@ -69,7 +71,12 @@ fun BackgroundPicker(
         },
         onCroppedAnimated = { sourceUri, crop ->
             // 动图背景保留源文件，裁剪区域随助手一起保存，聊天页按区域裁切后仍然会动
-            saveImage(sourceUri, crop.toImageCrop())
+            val localUri = withContext(Dispatchers.IO) {
+                filesManager.createChatFilesByContents(listOf(sourceUri)).firstOrNull()
+            }
+            localUri?.let {
+                onUpdate(it.toString(), crop.toImageCrop(), false)
+            }
         },
     )
 
