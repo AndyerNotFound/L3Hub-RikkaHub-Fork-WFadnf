@@ -2934,5 +2934,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="stats_page_total_cost">估算费用</string>
   <string name="stats_page_cost">费用</string>
   <string name="stats_page_cost_hint">按模型编辑页填写的单价估算，未填写价格的模型不计入。</string>
-  <string name="stats_page_cost_unset">尚未设置模型价目，在模型编辑页填写单价后显示金额。</string>
+  <string name="stats_page_cost_unset">本期用到的模型尚未设置价目，在模型编辑页填写单价后显示金额。</string>
 </resources>

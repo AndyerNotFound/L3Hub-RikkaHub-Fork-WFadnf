@@ -2578,5 +2578,5 @@
   <string name="stats_page_total_cost">التكلفة التقديرية</string>
   <string name="stats_page_cost">التكلفة</string>
   <string name="stats_page_cost_hint">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
-  <string name="stats_page_cost_unset">لم تُضبط أسعار النماذج بعد. أدخل الأسعار في محرر النموذج لعرض التكلفة.</string>
+  <string name="stats_page_cost_unset">لم تُضبط أسعار النماذج المستخدمة في هذه الفترة بعد. أدخل الأسعار في محرر النموذج لعرض التكلفة.</string>
 </resources>

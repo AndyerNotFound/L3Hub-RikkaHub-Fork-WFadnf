@@ -2580,5 +2580,5 @@
   <string name="stats_page_total_cost">Оценочная стоимость</string>
   <string name="stats_page_cost">Стоимость</string>
   <string name="stats_page_cost_hint">Оценивается по ценам из редактора модели; модели без цен не учитываются.</string>
-  <string name="stats_page_cost_unset">Цены моделей не заданы. Укажите цены в редакторе модели, чтобы видеть сумму.</string>
+  <string name="stats_page_cost_unset">Для моделей, использованных за этот период, цены не заданы. Укажите цены в редакторе модели, чтобы видеть сумму.</string>
 </resources>
