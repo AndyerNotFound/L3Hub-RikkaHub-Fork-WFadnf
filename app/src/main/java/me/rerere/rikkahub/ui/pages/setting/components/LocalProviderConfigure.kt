@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.io.File
 import kotlin.math.roundToInt
@@ -42,16 +44,22 @@ import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.local.LiteRTModelStorage
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.terminal.RadioButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -59,26 +67,55 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 internal fun ProviderConfigureLiteRT(
     provider: ProviderSetting.LiteRT,
     onEdit: (ProviderSetting) -> Unit,
+    onCommit: (ProviderSetting) -> Unit,
 ) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
+    val storage = remember(context) { LiteRTModelStorage.of(context) }
+    var models by remember { mutableStateOf(emptyList<LiteRTModelStorage.Model>()) }
     var importing by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
+    var pendingDelete by remember { mutableStateOf<LiteRTModelStorage.Model?>(null) }
+
+    // 列表就是模型目录的内容，进出页面都重新读一次，别让已删掉的文件留在界面上
+    LaunchedEffect(storage) {
+        models = withContext(Dispatchers.IO) { storage.list() }
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null || importing) return@rememberLauncherForActivityResult
         scope.launch {
             importing = true
             progress = 0f
             runCatching {
                 withContext(Dispatchers.IO) {
-                    importLiteRTModel(context, uri) { progress = it }
+                    val meta = context.readModelFileMeta(uri)
+                    context.contentResolver.openInputStream(uri)?.use { source ->
+                        storage.importModel(
+                            source = source,
+                            displayName = meta.name,
+                            contentSize = meta.size,
+                            onProgress = { progress = it },
+                        )
+                    } ?: error(context.getString(R.string.setting_provider_litert_import_failed))
                 }
-            }.onSuccess { file ->
-                onEdit(provider.withImportedModel(file))
+            }.onSuccess { result ->
+                val model = when (result) {
+                    is LiteRTModelStorage.ImportResult.Imported -> result.model
+                    is LiteRTModelStorage.ImportResult.Duplicate -> result.model
+                }
+                models = withContext(Dispatchers.IO) { storage.list() }
+                onCommit(provider.withSelectedModel(model))
                 toaster.show(
-                    context.getString(R.string.setting_provider_litert_imported, file.name),
+                    context.getString(
+                        if (result is LiteRTModelStorage.ImportResult.Duplicate) {
+                            R.string.setting_provider_litert_duplicated
+                        } else {
+                            R.string.setting_provider_litert_imported
+                        },
+                        model.displayName,
+                    ),
                     type = ToastType.Success,
                 )
             }.onFailure { error ->
@@ -91,23 +128,76 @@ internal fun ProviderConfigureLiteRT(
         }
     }
 
+    pendingDelete?.let { model ->
+        RikkaConfirmDialog(
+            show = true,
+            title = stringResource(R.string.setting_provider_litert_delete_title),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = {
+                pendingDelete = null
+                scope.launch {
+                    val deleted = withContext(Dispatchers.IO) { storage.delete(model) }
+                    if (deleted) {
+                        models = withContext(Dispatchers.IO) { storage.list() }
+                        if (provider.isSelected(model)) {
+                            onCommit(provider.withoutSelectedModel())
+                        }
+                        toaster.show(
+                            context.getString(
+                                R.string.setting_provider_litert_deleted,
+                                model.displayName,
+                            ),
+                            type = ToastType.Success,
+                        )
+                    } else {
+                        toaster.show(
+                            context.getString(R.string.setting_provider_litert_delete_failed),
+                            type = ToastType.Error,
+                        )
+                    }
+                }
+            },
+            onDismiss = { pendingDelete = null },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.setting_provider_litert_delete_desc, model.displayName))
+                if (provider.isSelected(model)) {
+                    Text(stringResource(R.string.setting_provider_litert_delete_selected_desc))
+                }
+            }
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         CardGroup {
             nameItem(provider, onEdit)
+        }
+
+        CardGroup(
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(stringResource(R.string.setting_provider_litert_models))
+                    if (models.isNotEmpty()) {
+                        Text(
+                            stringResource(
+                                R.string.setting_provider_litert_models_usage,
+                                models.size,
+                                models.sumOf { it.sizeBytes }.toReadableSize(),
+                            )
+                        )
+                    }
+                }
+            },
+        ) {
             item(
                 onClick = if (importing) null else ({ picker.launch(arrayOf("*/*")) }),
-                headlineContent = { Text(stringResource(R.string.setting_provider_litert_model_file)) },
-                supportingContent = {
-                    Text(
-                        provider.modelPath
-                            .takeIf { it.isNotBlank() }
-                            ?.let { File(it).name }
-                            ?: stringResource(R.string.setting_provider_litert_model_file_hint)
-                    )
-                },
-                trailingContent = {
-                    Icon(HugeIcons.FileImport, contentDescription = null)
-                },
+                leadingContent = { CardGroupIcon(HugeIcons.FileImport) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_litert_import)) },
+                supportingContent = { Text(stringResource(R.string.setting_provider_litert_import_desc)) },
             )
             if (importing) {
                 formItem {
@@ -121,6 +211,42 @@ internal fun ProviderConfigureLiteRT(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (models.isEmpty() && !importing) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.setting_provider_litert_empty)) },
+                )
+            }
+            models.forEach { model ->
+                val selected = provider.isSelected(model)
+                item(
+                    onClick = if (selected) null else ({ onCommit(provider.withSelectedModel(model)) }),
+                    leadingContent = { RadioButton(selected = selected, onClick = null) },
+                    headlineContent = {
+                        Text(
+                            text = model.displayName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            listOfNotNull(
+                                model.sizeBytes.toReadableSize(),
+                                stringResource(R.string.setting_provider_litert_model_in_use)
+                                    .takeIf { selected },
+                            ).joinToString(" · ")
+                        )
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { pendingDelete = model }) {
+                            Icon(
+                                imageVector = HugeIcons.Delete01,
+                                contentDescription = stringResource(R.string.delete),
+                            )
+                        }
+                    },
+                )
             }
         }
 
@@ -424,11 +550,16 @@ private fun ProviderSetting.LocalServer.copyLocal(
 private fun String.portOrDefault(default: Int): Int =
     runCatching { java.net.URI(this).port }.getOrNull()?.takeIf { it > 0 } ?: default
 
-private fun ProviderSetting.LiteRT.withImportedModel(file: File): ProviderSetting.LiteRT {
-    val existing = models.firstOrNull()
-    val model = (existing ?: Model()).copy(
-        modelId = file.name,
-        displayName = file.nameWithoutExtension,
+private fun ProviderSetting.LiteRT.isSelected(model: LiteRTModelStorage.Model): Boolean =
+    modelPath.isNotBlank() && (modelPath == model.path || File(modelPath).name == model.file.name)
+
+private fun ProviderSetting.LiteRT.withSelectedModel(
+    model: LiteRTModelStorage.Model,
+): ProviderSetting.LiteRT {
+    val previous = models.firstOrNull()
+    val entry = (previous ?: Model()).copy(
+        modelId = model.file.name,
+        displayName = model.displayName,
         contextLength = contextTokens,
         inputModalities = if (visionEnabled) {
             listOf(Modality.TEXT, Modality.IMAGE)
@@ -437,60 +568,41 @@ private fun ProviderSetting.LiteRT.withImportedModel(file: File): ProviderSettin
         },
     )
     return copy(
-        name = if (name == "LiteRT") file.nameWithoutExtension else name,
-        modelPath = file.absolutePath,
-        models = listOf(model),
+        // 名字还是默认值或上一个模型名时跟着换，用户自己改过就不动
+        name = if (name == ProviderSetting.LiteRT().name || name == previous?.displayName) {
+            model.displayName
+        } else {
+            name
+        },
+        modelPath = model.path,
+        models = listOf(entry),
     )
 }
 
-private fun importLiteRTModel(
-    context: Context,
-    uri: Uri,
-    onProgress: (Float) -> Unit,
-): File {
-    val resolver = context.contentResolver
-    val displayName = resolver
+private fun ProviderSetting.LiteRT.withoutSelectedModel(): ProviderSetting.LiteRT = copy(
+    name = if (name == models.firstOrNull()?.displayName) ProviderSetting.LiteRT().name else name,
+    modelPath = "",
+    models = emptyList(),
+)
+
+private data class PickedModelFile(val name: String?, val size: Long?)
+
+private fun Context.readModelFileMeta(uri: Uri): PickedModelFile {
+    val resolver = contentResolver
+    val name = resolver
         .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
         ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-        ?: "model.litertlm"
     val size = resolver
         .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
-        ?.use { cursor ->
-            if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
-        }
+        ?.use { cursor -> if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null }
+    return PickedModelFile(name, size)
+}
 
-    val targetDir = File(context.filesDir, "litert-models").apply { mkdirs() }
-    val safeName = displayName.replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { "model.litertlm" }
-    var target = File(targetDir, safeName)
-    if (target.exists()) {
-        target = File(
-            targetDir,
-            "${target.nameWithoutExtension}-${System.currentTimeMillis()}.${target.extension}",
-        )
-    }
-
-    try {
-        resolver.openInputStream(uri)?.use { input ->
-            target.outputStream().use { output ->
-                val buffer = ByteArray(1 shl 20)
-                var copied = 0L
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    output.write(buffer, 0, read)
-                    copied += read
-                    if (size != null && size > 0) {
-                        onProgress((copied.toFloat() / size).coerceIn(0f, 1f))
-                    }
-                }
-            }
-        } ?: error("无法读取所选文件")
-        if (target.length() == 0L) error("所选文件为空")
-    } catch (error: Throwable) {
-        target.delete()
-        throw error
-    }
-    return target
+private fun Long.toReadableSize(): String = when {
+    this >= (1L shl 30) -> "%.1f GB".format(toDouble() / (1L shl 30))
+    this >= (1L shl 20) -> "%.0f MB".format(toDouble() / (1L shl 20))
+    this >= (1L shl 10) -> "%.0f KB".format(toDouble() / (1L shl 10))
+    else -> "$this B"
 }
 
 private fun CardGroupScope.textItem(

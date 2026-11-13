@@ -560,7 +560,12 @@ private fun SettingProviderConfigPage(
                 allowTypeSwitch = true,
                 onEdit = {
                     internalProvider = it
-                }
+                },
+                // 模型的导入、选择、删除会直接动文件，设置不能只停在草稿里
+                onCommit = {
+                    internalProvider = it
+                    onEdit(it)
+                },
             )
 
             CardGroup {
