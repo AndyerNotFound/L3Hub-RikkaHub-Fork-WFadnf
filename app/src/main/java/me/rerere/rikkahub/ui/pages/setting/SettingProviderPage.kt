@@ -61,6 +61,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.lockState
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -76,6 +77,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.data.datastore.removeProvider
+import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.datastore.restoreProvider
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
@@ -98,6 +100,7 @@ import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import kotlin.time.Clock
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.ImageUtils
@@ -818,6 +821,10 @@ private fun ProviderItem(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val lockedUntil = remember(provider.guard) {
+        provider.guard.lockState(Clock.System.now()).lockedUntil
+    }
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
@@ -869,6 +876,16 @@ private fun ProviderItem(
                                 provider.models.size
                             )
                         )
+                    }
+                    if (lockedUntil != null) {
+                        Tag(type = TagType.ERROR) {
+                            Text(
+                                stringResource(
+                                    R.string.setting_provider_page_locked,
+                                    formatGuardTime(context, lockedUntil),
+                                )
+                            )
+                        }
                     }
                     if (provider.name == "AiHubMix") {
                         Tag(type = TagType.INFO) {

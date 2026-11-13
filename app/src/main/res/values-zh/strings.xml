@@ -2829,4 +2829,88 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
     <string name="setting_provider_local_gguf_runtime_desc">请自行安装 llama.cpp 并启动 llama-server，再把服务地址与模型路径填到上面。</string>
     <string name="setting_provider_onnx_runtime_desc">请自行安装 ONNX Runtime 推理服务，并让它在上面的地址提供 OpenAI 兼容接口。</string>
   <string name="setting_provider_page_ocr_model">OCR</string>
+
+  <!-- 提供商高级设置：请求限制、定时锁定、余额刷新、cURL 覆写 -->
+  <string name="setting_provider_guard_status">当前状态</string>
+  <string name="setting_provider_guard_status_minute">最近 1 分钟：%1$d 次请求 · %2$s tokens</string>
+  <string name="setting_provider_guard_used">已用 %1$s / %2$s</string>
+  <string name="setting_provider_guard_reset_at">%1$s 后恢复</string>
+  <string name="setting_provider_guard_rate_section">请求限制</string>
+  <string name="setting_provider_guard_rpm">RPM 限制</string>
+  <string name="setting_provider_guard_rpm_desc">每分钟最多发起多少次请求，0 表示不限制</string>
+  <string name="setting_provider_guard_tpm">TPM 限制</string>
+  <string name="setting_provider_guard_tpm_desc">每分钟最多消耗多少 token，输入按估算、输出按实际用量，0 表示不限制</string>
+  <string name="setting_provider_guard_windows">自定义时间段限额</string>
+  <string name="setting_provider_guard_windows_desc">按滑动时间窗统计请求次数或 token 用量，可以添加多条</string>
+  <string name="setting_provider_guard_window_add">添加时间段限额</string>
+  <string name="setting_provider_guard_window_empty">尚未设置时间段限额</string>
+  <string name="setting_provider_guard_window_edit">编辑时间段限额</string>
+  <string name="setting_provider_guard_window_amount">时间长度</string>
+  <string name="setting_provider_guard_window_unit">单位</string>
+  <string name="setting_provider_guard_window_metric">计量</string>
+  <string name="setting_provider_guard_metric_requests">请求次数</string>
+  <string name="setting_provider_guard_metric_tokens">Token</string>
+  <string name="setting_provider_guard_window_limit">上限</string>
+  <string name="setting_provider_guard_window_disabled">上限为 0 时这条限额不生效</string>
+  <string name="setting_provider_guard_locks">自动锁定</string>
+  <string name="setting_provider_guard_locks_desc">在指定时间自动停用该提供商，避免不想使用的时候消耗额度</string>
+  <string name="setting_provider_guard_lock_add">添加锁定计划</string>
+  <string name="setting_provider_guard_lock_empty">尚未设置锁定计划</string>
+  <string name="setting_provider_guard_lock_edit">编辑锁定计划</string>
+  <string name="setting_provider_guard_lock_once">仅一次</string>
+  <string name="setting_provider_guard_lock_daily">每天</string>
+  <string name="setting_provider_guard_lock_start_date">开始日期</string>
+  <string name="setting_provider_guard_lock_start_time">开始时间</string>
+  <string name="setting_provider_guard_lock_duration">持续时长</string>
+  <string name="setting_provider_guard_lock_repeat_until">重复截止</string>
+  <string name="setting_provider_guard_lock_forever">不限</string>
+  <string name="setting_provider_guard_lock_preview">锁定时间：%1$s → %2$s</string>
+  <string name="setting_provider_guard_lock_invalid">请填写有效的开始日期，时长至少 1 分钟</string>
+  <string name="setting_provider_guard_lock_summary_once">%1$s 起 %2$s</string>
+  <string name="setting_provider_guard_lock_summary_daily">每天 %1$s 起 %2$s</string>
+  <string name="setting_provider_guard_lock_until">截止 %1$s</string>
+  <string name="setting_provider_guard_lock_current">已锁定，%1$s 解锁</string>
+  <string name="setting_provider_guard_lock_next">下次锁定：%1$s</string>
+  <string name="setting_provider_guard_lock_none">未锁定</string>
+  <string name="setting_provider_guard_refresh">余额刷新间隔</string>
+  <string name="setting_provider_guard_refresh_desc">聊天页余额的自动刷新频率</string>
+  <string name="setting_provider_guard_refresh_off">关闭</string>
+  <string name="setting_provider_guard_seconds">%1$d 秒</string>
+  <string name="setting_provider_guard_override">覆写请求命令</string>
+  <string name="setting_provider_guard_override_desc">启用后用下面的 cURL 命令替换聊天请求；OCR、生图和余额查询不受影响</string>
+  <string name="setting_provider_guard_override_hint">可用变量：%1$s。请求体里的 JSON 片段请用单引号包住，例如 -d \'{"model":"{{model}}","messages":{{messages}}}\'</string>
+  <string name="setting_provider_guard_override_import">从剪贴板导入</string>
+  <string name="setting_provider_guard_override_clear">清空</string>
+  <string name="setting_provider_guard_override_invalid">格式错误：%1$s</string>
+  <string name="setting_provider_guard_override_valid">格式正确</string>
+  <string name="provider_guard_window_every">每 %1$s</string>
+  <string name="provider_guard_time_today">今天 %1$s</string>
+  <string name="provider_guard_time_tomorrow">明天 %1$s</string>
+  <string name="provider_limit_locked">%1$s 已按计划锁定，%2$s 解锁</string>
+  <string name="provider_limit_rpm">%1$s 已达每分钟 %2$d 次请求的上限，%3$s 后重试</string>
+  <string name="provider_limit_tpm">%1$s 已达每分钟 %2$d token 的上限，本次请求预计 %3$d token，%4$s 后重试</string>
+  <string name="provider_limit_window_requests">%1$s 的「%2$s」请求上限 %3$d 次已用完，%4$s 后恢复</string>
+  <string name="provider_limit_window_tokens">%1$s 的「%2$s」Token 上限 %3$d 已用完，%4$s 后恢复</string>
+  <plurals name="provider_guard_duration_minutes">
+    <item quantity="other">%d 分钟</item>
+  </plurals>
+  <plurals name="provider_guard_duration_hours">
+    <item quantity="other">%d 小时</item>
+  </plurals>
+  <plurals name="provider_guard_duration_days">
+    <item quantity="other">%d 天</item>
+  </plurals>
+  <plurals name="provider_guard_duration_weeks">
+    <item quantity="other">%d 周</item>
+  </plurals>
+
+  <string name="setting_provider_guard_unit_minute">分钟</string>
+  <string name="setting_provider_guard_unit_hour">小时</string>
+  <string name="setting_provider_guard_unit_day">天</string>
+  <string name="setting_provider_guard_unit_week">周</string>
+  <string name="setting_provider_guard_window_summary">%1$s · %2$s %3$s</string>
+  <string name="setting_provider_guard_lock_end">至 %1$s</string>
+  <string name="setting_provider_guard_status_title">用量</string>
+  <string name="setting_provider_page_locked">锁定至 %1$s</string>
+  <string name="setting_provider_guard_enabled">启用</string>
 </resources>

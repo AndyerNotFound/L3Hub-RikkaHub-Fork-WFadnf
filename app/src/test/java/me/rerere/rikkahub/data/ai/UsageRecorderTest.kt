@@ -17,6 +17,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.DayCount
 import me.rerere.rikkahub.data.db.dao.ModelUsage
+import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
 import me.rerere.rikkahub.data.db.dao.SourceUsage
 import me.rerere.rikkahub.data.db.dao.UsageBucket
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
@@ -34,7 +35,7 @@ class UsageRecorderTest {
     private val params = TextGenerationParams(model = model)
     private val tag = UsageTag(UsageSource.CHAT, assistantId = Uuid.random(), conversationId = Uuid.random())
 
-    private fun TestScope.recorder() = UsageRecorder(dao, this)
+    private fun TestScope.recorder() = UsageRecorder(dao, this, ProviderGate(dao))
 
     @Test
     fun `generateText records the usage with its tag`() = runTest {
@@ -115,6 +116,12 @@ private class FakeUsageRecordDAO : UsageRecordDAO {
     override suspend fun getRequestCountPerDay(source: String, since: Long) = emptyList<DayCount>()
 
     override suspend fun getTotalsBySource(since: Long) = emptyList<SourceUsage>()
+
+    override suspend fun getProviderUsageEvents(
+        providerId: String,
+        since: Long,
+        before: Long,
+    ) = emptyList<ProviderUsageEvent>()
 }
 
 private class FakeProvider(

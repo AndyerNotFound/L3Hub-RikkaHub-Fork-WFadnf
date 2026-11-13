@@ -2827,4 +2827,92 @@
     <string name="setting_provider_local_command_memo_desc">Leave empty to show the generated example</string>
     <string name="setting_provider_local_gguf_runtime_desc">Install llama.cpp yourself, start llama-server, then fill in the address and model path above.</string>
     <string name="setting_provider_onnx_runtime_desc">Install an ONNX Runtime inference service yourself. It must expose an OpenAI-compatible API on the address above.</string>
+
+  <!-- 提供商高级设置：请求限制、定时锁定、余额刷新、cURL 覆写 -->
+  <string name="setting_provider_guard_status">Current status</string>
+  <string name="setting_provider_guard_status_minute">Last minute: %1$d requests · %2$s tokens</string>
+  <string name="setting_provider_guard_used">%1$s / %2$s used</string>
+  <string name="setting_provider_guard_reset_at">Resets %1$s</string>
+  <string name="setting_provider_guard_rate_section">Request limits</string>
+  <string name="setting_provider_guard_rpm">RPM limit</string>
+  <string name="setting_provider_guard_rpm_desc">Maximum requests per minute. 0 means unlimited.</string>
+  <string name="setting_provider_guard_tpm">TPM limit</string>
+  <string name="setting_provider_guard_tpm_desc">Maximum tokens per minute, with input estimated and output counted from actual usage. 0 means unlimited.</string>
+  <string name="setting_provider_guard_windows">Custom time-window limits</string>
+  <string name="setting_provider_guard_windows_desc">Count requests or tokens in a sliding window. Multiple limits are allowed.</string>
+  <string name="setting_provider_guard_window_add">Add time-window limit</string>
+  <string name="setting_provider_guard_window_empty">No time-window limit configured.</string>
+  <string name="setting_provider_guard_window_edit">Edit time-window limit</string>
+  <string name="setting_provider_guard_window_amount">Window length</string>
+  <string name="setting_provider_guard_window_unit">Unit</string>
+  <string name="setting_provider_guard_window_metric">Measure</string>
+  <string name="setting_provider_guard_metric_requests">Requests</string>
+  <string name="setting_provider_guard_metric_tokens">Tokens</string>
+  <string name="setting_provider_guard_window_limit">Limit</string>
+  <string name="setting_provider_guard_window_disabled">A limit of 0 leaves this entry inactive.</string>
+  <string name="setting_provider_guard_locks">Scheduled lock</string>
+  <string name="setting_provider_guard_locks_desc">Disable this provider during a scheduled window so it cannot spend quota when you do not intend to use it.</string>
+  <string name="setting_provider_guard_lock_add">Add lock schedule</string>
+  <string name="setting_provider_guard_lock_empty">No lock schedule configured.</string>
+  <string name="setting_provider_guard_lock_edit">Edit lock schedule</string>
+  <string name="setting_provider_guard_lock_once">Once</string>
+  <string name="setting_provider_guard_lock_daily">Daily</string>
+  <string name="setting_provider_guard_lock_start_date">Start date</string>
+  <string name="setting_provider_guard_lock_start_time">Start time</string>
+  <string name="setting_provider_guard_lock_duration">Duration</string>
+  <string name="setting_provider_guard_lock_repeat_until">Repeat until</string>
+  <string name="setting_provider_guard_lock_forever">No end date</string>
+  <string name="setting_provider_guard_lock_preview">Locked %1$s → %2$s</string>
+  <string name="setting_provider_guard_lock_invalid">Enter a valid start date and a duration of at least one minute.</string>
+  <string name="setting_provider_guard_lock_summary_once">%1$s for %2$s</string>
+  <string name="setting_provider_guard_lock_summary_daily">Daily %1$s for %2$s</string>
+  <string name="setting_provider_guard_lock_until">until %1$s</string>
+  <string name="setting_provider_guard_lock_current">Locked until %1$s</string>
+  <string name="setting_provider_guard_lock_next">Next lock: %1$s</string>
+  <string name="setting_provider_guard_lock_none">Not locked</string>
+  <string name="setting_provider_guard_refresh">Balance refresh interval</string>
+  <string name="setting_provider_guard_refresh_desc">How often the balance is refreshed on the chat page.</string>
+  <string name="setting_provider_guard_refresh_off">Off</string>
+  <string name="setting_provider_guard_seconds">%1$d s</string>
+  <string name="setting_provider_guard_override">Override request command</string>
+  <string name="setting_provider_guard_override_desc">Replace chat requests with the cURL command below. OCR, image generation and balance queries are not affected.</string>
+  <string name="setting_provider_guard_override_hint">Variables: %1$s. Wrap JSON body fragments in single quotes, for example -d \'{"model":"{{model}}","messages":{{messages}}}\'</string>
+  <string name="setting_provider_guard_override_import">Paste from clipboard</string>
+  <string name="setting_provider_guard_override_clear">Clear</string>
+  <string name="setting_provider_guard_override_invalid">Invalid command: %1$s</string>
+  <string name="setting_provider_guard_override_valid">Command looks valid.</string>
+  <string name="provider_guard_window_every">every %1$s</string>
+  <string name="provider_guard_time_today">today %1$s</string>
+  <string name="provider_guard_time_tomorrow">tomorrow %1$s</string>
+  <string name="provider_limit_locked">%1$s is locked by schedule until %2$s</string>
+  <string name="provider_limit_rpm">%1$s reached the limit of %2$d requests per minute; retry after %3$s</string>
+  <string name="provider_limit_tpm">%1$s reached the limit of %2$d tokens per minute; this request needs about %3$d tokens; retry after %4$s</string>
+  <string name="provider_limit_window_requests">%1$s reached its %2$s request limit of %3$d; retry after %4$s</string>
+  <string name="provider_limit_window_tokens">%1$s reached its %2$s token limit of %3$d; retry after %4$s</string>
+  <plurals name="provider_guard_duration_minutes">
+    <item quantity="one">%d minute</item>
+    <item quantity="other">%d minutes</item>
+  </plurals>
+  <plurals name="provider_guard_duration_hours">
+    <item quantity="one">%d hour</item>
+    <item quantity="other">%d hours</item>
+  </plurals>
+  <plurals name="provider_guard_duration_days">
+    <item quantity="one">%d day</item>
+    <item quantity="other">%d days</item>
+  </plurals>
+  <plurals name="provider_guard_duration_weeks">
+    <item quantity="one">%d week</item>
+    <item quantity="other">%d weeks</item>
+  </plurals>
+
+  <string name="setting_provider_guard_unit_minute">Minutes</string>
+  <string name="setting_provider_guard_unit_hour">Hours</string>
+  <string name="setting_provider_guard_unit_day">Days</string>
+  <string name="setting_provider_guard_unit_week">Weeks</string>
+  <string name="setting_provider_guard_window_summary">%1$s · %2$s %3$s</string>
+  <string name="setting_provider_guard_lock_end">Ends %1$s</string>
+  <string name="setting_provider_guard_status_title">Usage</string>
+  <string name="setting_provider_page_locked">Locked until %1$s</string>
+  <string name="setting_provider_guard_enabled">Enabled</string>
 </resources>

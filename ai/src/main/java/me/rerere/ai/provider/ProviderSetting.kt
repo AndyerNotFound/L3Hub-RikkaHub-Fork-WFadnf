@@ -61,6 +61,14 @@ sealed class ProviderSetting {
     abstract val models: List<Model>
     abstract val customHeaders: List<CustomHeader>
 
+    /**
+     * 请求频率、时间段限额、定时锁定、余额刷新和请求覆写。
+     *
+     * 具体的设置类型都把它作为构造参数，`copy()` 时不会丢；本地模型没有覆写请求的入口，
+     * 但同样可以设置频率限制和锁定。
+     */
+    open val guard: ProviderGuard get() = ProviderGuard()
+
     abstract val builtIn: Boolean
     abstract val description:
         @Composable()
@@ -88,6 +96,7 @@ sealed class ProviderSetting {
         builtIn: Boolean = this.builtIn,
         description: @Composable (() -> Unit) = this.description,
         shortDescription: @Composable (() -> Unit) = this.shortDescription,
+        guard: ProviderGuard = this.guard,
     ): ProviderSetting
 
     @Serializable
@@ -111,6 +120,7 @@ sealed class ProviderSetting {
         var useResponseApi: Boolean = false,
         var includeHistoryReasoning: Boolean = true,
         var responsesPath: String = "/responses",
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
 
@@ -125,6 +135,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -134,7 +145,8 @@ sealed class ProviderSetting {
                 customHeaders = customHeaders,
                 builtIn = builtIn,
                 description = description,
-                shortDescription = shortDescription
+                shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -163,6 +175,7 @@ sealed class ProviderSetting {
         var location: String = "us-central1", // only for vertex AI service account
         var projectId: String = "", // only for vertex AI service account
         var useInteractionsApi: Boolean = false, // ignored when vertex AI is enabled
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
 
@@ -177,6 +190,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -187,6 +201,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -209,6 +224,7 @@ sealed class ProviderSetting {
         override var baseUrl: String = "https://api.anthropic.com/v1",
         var promptCaching: Boolean = false,
         var promptCacheTtl: ClaudePromptCacheTtl = ClaudePromptCacheTtl.FIVE_MINUTES,
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : ApiKey() {
         override fun withQuotaQuery(query: QuotaQuery): ApiKey = copy(quotaQuery = query)
 
@@ -223,6 +239,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -233,6 +250,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -282,6 +300,7 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override val credential: OAuthCredential? = null,
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : Account() {
         override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
 
@@ -294,6 +313,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -304,6 +324,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -320,6 +341,7 @@ sealed class ProviderSetting {
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
         override val credential: OAuthCredential? = null,
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : Account() {
         override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
 
@@ -332,6 +354,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -342,6 +365,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -382,6 +406,7 @@ sealed class ProviderSetting {
         var thinkingBudget: Int = 1024,
         // 模型支持视觉输入时开启，图片会随消息传入
         var visionEnabled: Boolean = false,
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : ProviderSetting() {
         override fun copyProvider(
             id: Uuid,
@@ -392,6 +417,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -402,6 +428,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -437,6 +464,7 @@ sealed class ProviderSetting {
             apiKey = apiKey.ifBlank { "local" },
             baseUrl = baseUrl.trim().trimEnd('/'),
             useResponseApi = false,
+            guard = guard,
         )
     }
 
@@ -464,6 +492,7 @@ sealed class ProviderSetting {
         var gpuLayers: Int = 0,
         var threads: Int = 4,
         override var launchCommand: String = "",
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : LocalServer() {
         override fun copyProvider(
             id: Uuid,
@@ -474,6 +503,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -484,6 +514,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }
@@ -513,6 +544,7 @@ sealed class ProviderSetting {
         var executionProvider: String = "",
         var threads: Int = 4,
         override var launchCommand: String = "",
+        override val guard: ProviderGuard = ProviderGuard(),
     ) : LocalServer() {
         override fun copyProvider(
             id: Uuid,
@@ -523,6 +555,7 @@ sealed class ProviderSetting {
             builtIn: Boolean,
             description: @Composable (() -> Unit),
             shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -533,6 +566,7 @@ sealed class ProviderSetting {
                 builtIn = builtIn,
                 description = description,
                 shortDescription = shortDescription,
+                guard = guard,
             )
         }
     }

@@ -34,8 +34,10 @@ import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.RequestOverrideContext
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.applyRequestOverride
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.stream.SseEvent
@@ -85,6 +87,8 @@ internal class ResponsesEndpoint(
     val capabilities: ResponseProviderCapabilities = ResponseProviderCapabilities(),
     // 构建请求时调用，负责请求头和鉴权；可挂起，以便先刷新 token
     val configureRequest: suspend Request.Builder.() -> Unit,
+    // 非空时用提供商配置里的 cURL 覆写最终请求；账号型提供商传 null
+    val overrideContext: RequestOverrideContext? = null,
 )
 
 class ResponseAPI(
@@ -103,16 +107,24 @@ class ResponseAPI(
         params: TextGenerationParams
     ): Flow<StreamChunk> = streamText(providerSetting.toResponsesEndpoint(params), messages, params)
 
-    private fun ProviderSetting.OpenAI.toResponsesEndpoint(params: TextGenerationParams) = ResponsesEndpoint(
-        url = "$baseUrl$responsesPath",
-        capabilities = resolveResponseProviderCapabilities(baseUrl.toHttpUrl().host),
-        configureRequest = {
-            headers(mergeCustomHeaders(params.customHeaders))
-            addHeader("Authorization", "Bearer ${keyRoulette.next(apiKey, id.toString())}")
-            configureReferHeaders(baseUrl)
-            configureSessionHeaders(baseUrl, params.sessionId)
-        },
-    )
+    private fun ProviderSetting.OpenAI.toResponsesEndpoint(params: TextGenerationParams): ResponsesEndpoint {
+        val selectedKey = keyRoulette.next(apiKey, id.toString())
+        return ResponsesEndpoint(
+            url = "$baseUrl$responsesPath",
+            capabilities = resolveResponseProviderCapabilities(baseUrl.toHttpUrl().host),
+            configureRequest = {
+                headers(mergeCustomHeaders(params.customHeaders))
+                addHeader("Authorization", "Bearer $selectedKey")
+                configureReferHeaders(baseUrl)
+                configureSessionHeaders(baseUrl, params.sessionId)
+            },
+            overrideContext = RequestOverrideContext(
+                guard = guard,
+                apiKey = selectedKey,
+                baseUrl = baseUrl,
+            ),
+        )
+    }
 
     internal suspend fun generateText(
         endpoint: ResponsesEndpoint,
@@ -131,6 +143,18 @@ class ResponseAPI(
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Content-Type", "application/json")
             .build()
+            .let { request ->
+                endpoint.overrideContext?.let { context ->
+                    request.applyRequestOverride(
+                        guard = context.guard,
+                        apiKey = context.apiKey,
+                        baseUrl = context.baseUrl,
+                        model = params.model.modelId,
+                        body = requestBody,
+                        stream = false,
+                    )
+                } ?: request
+            }
 
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
@@ -163,7 +187,18 @@ class ResponseAPI(
             .apply { endpoint.configureRequest(this) }
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .build()
-
+            .let { request ->
+                endpoint.overrideContext?.let { context ->
+                    request.applyRequestOverride(
+                        guard = context.guard,
+                        apiKey = context.apiKey,
+                        baseUrl = context.baseUrl,
+                        model = params.model.modelId,
+                        body = requestBody,
+                        stream = true,
+                    )
+                } ?: request
+            }
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
 
         val decoder = ResponseApiStreamDecoder()

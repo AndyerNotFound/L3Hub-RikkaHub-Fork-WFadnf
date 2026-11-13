@@ -46,6 +46,7 @@ data class UsageTag(
 class UsageRecorder(
     private val dao: UsageRecordDAO,
     private val scope: CoroutineScope,
+    private val gate: ProviderGate,
 ) {
     fun <T : ProviderSetting> wrap(provider: Provider<T>, tag: UsageTag): Provider<T> =
         UsageRecordingProvider(provider, tag)
@@ -79,27 +80,37 @@ class UsageRecorder(
             providerSetting: T,
             messages: List<UIMessage>,
             params: TextGenerationParams,
-        ): TextGenerationResult = delegate.generateText(providerSetting, messages, params).also { result ->
-            result.usage?.let { record(tag, providerSetting, params, it) }
+        ): TextGenerationResult {
+            // 先过提供商自己的频率 / 时间窗 / 锁定检查，再真正发请求
+            val ticket = gate.begin(providerSetting, messages, params)
+            var usage: TokenUsage? = null
+            try {
+                val result = delegate.generateText(providerSetting, messages, params)
+                usage = result.usage
+                usage?.let { record(tag, providerSetting, params, it) }
+                return result
+            } finally {
+                gate.finish(ticket, usage)
+            }
         }
 
         override suspend fun streamText(
             providerSetting: T,
             messages: List<UIMessage>,
             params: TextGenerationParams,
-        ): Flow<StreamChunk> {
+        ): Flow<StreamChunk> = flow {
+            val ticket = gate.begin(providerSetting, messages, params)
             val upstream = delegate.streamText(providerSetting, messages, params)
-            return flow {
-                // 同一次请求里的 usage 是逐步更新的快照，按 merge 合并；中途取消或出错时已经产生的用量也要记下
-                var usage: TokenUsage? = null
-                try {
-                    upstream.collect { chunk ->
-                        if (chunk is StreamChunk.Usage) usage = usage.merge(chunk.usage)
-                        emit(chunk)
-                    }
-                } finally {
-                    usage?.let { record(tag, providerSetting, params, it) }
+            // 同一次请求里的 usage 是逐步更新的快照，按 merge 合并；中途取消或出错时已经产生的用量也要记下
+            var usage: TokenUsage? = null
+            try {
+                upstream.collect { chunk ->
+                    if (chunk is StreamChunk.Usage) usage = usage.merge(chunk.usage)
+                    emit(chunk)
                 }
+            } finally {
+                gate.finish(ticket, usage)
+                usage?.let { record(tag, providerSetting, params, it) }
             }
         }
     }

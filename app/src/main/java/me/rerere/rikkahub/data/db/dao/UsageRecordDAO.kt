@@ -10,6 +10,18 @@ interface UsageRecordDAO {
     @Insert
     suspend fun insert(record: UsageRecordEntity)
 
+    /** 某个提供商在时间范围内的请求流水，用来恢复本机内存里的限流窗口 */
+    @Query(
+        "SELECT created_at AS createdAt, (prompt_tokens + completion_tokens) AS tokens " +
+            "FROM usage_record WHERE provider_id = :providerId AND created_at >= :since " +
+            "AND created_at < :before ORDER BY created_at"
+    )
+    suspend fun getProviderUsageEvents(
+        providerId: String,
+        since: Long,
+        before: Long,
+    ): List<ProviderUsageEvent>
+
     @Query(
         "SELECT COALESCE(SUM(prompt_tokens), 0) AS promptTokens, " +
             "COALESCE(SUM(completion_tokens), 0) AS completionTokens, " +
@@ -53,6 +65,11 @@ interface UsageRecordDAO {
     )
     suspend fun getTotalsBySource(since: Long): List<SourceUsage>
 }
+
+data class ProviderUsageEvent(
+    val createdAt: Long,
+    val tokens: Long,
+)
 
 data class UsageTotals(
     val promptTokens: Long = 0,
