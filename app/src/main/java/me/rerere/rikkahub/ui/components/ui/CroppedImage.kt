@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -40,7 +41,7 @@ fun CroppedImage(
     }
     val painter = rememberAsyncImagePainter(request)
 
-    Canvas(modifier) {
+    Canvas(modifier.clipToBounds()) {
         val source = painter.intrinsicSize
         if (!source.isSpecified || source.width <= 0f || source.height <= 0f) return@Canvas
 
