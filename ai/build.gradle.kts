@@ -32,6 +32,9 @@ android {
 dependencies {
     implementation(project(":common"))
 
+    // LiteRT-LM：本地模型推理运行时（随应用打包）
+    implementation(libs.litertlm.android)
+
     // Compose
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))

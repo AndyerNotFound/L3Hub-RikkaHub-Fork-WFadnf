@@ -139,6 +139,10 @@ fun ProviderConfigure(
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_grok_disclaimer),
             )
+
+            is ProviderSetting.LiteRT -> ProviderConfigureLiteRT(provider, onEdit)
+            is ProviderSetting.GGUF -> ProviderConfigureLocalServer(provider, onEdit)
+            is ProviderSetting.ONNX -> ProviderConfigureLocalServer(provider, onEdit)
         }
     }
 }
@@ -304,7 +308,7 @@ private fun CardGroupScope.textFieldItem(
     )
 }
 
-private fun CardGroupScope.nameItem(
+internal fun CardGroupScope.nameItem(
     provider: ProviderSetting,
     onEdit: (ProviderSetting) -> Unit,
 ) = textFieldItem(

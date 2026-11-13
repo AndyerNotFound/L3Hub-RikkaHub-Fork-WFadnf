@@ -5,6 +5,8 @@ import me.rerere.ai.provider.providers.chatgpt.ChatGPTProvider
 import me.rerere.ai.provider.providers.claude.ClaudeProvider
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.provider.providers.grok.GrokProvider
+import me.rerere.ai.provider.providers.litert.LiteRTProvider
+import me.rerere.ai.provider.providers.local.LocalServerProvider
 import me.rerere.ai.provider.providers.openai.OpenAIProvider
 import me.rerere.ai.util.ImageEncodeCache
 import okhttp3.OkHttpClient
@@ -29,6 +31,9 @@ class ProviderManager(
         registerProvider("claude", KeyFailoverProvider(ClaudeProvider(client, context)))
         registerProvider("chatgpt", ChatGPTProvider(client, accountCredentials))
         registerProvider("grok", GrokProvider(client, accountCredentials))
+        registerProvider("litert", LiteRTProvider(context))
+        registerProvider("gguf", LocalServerProvider(OpenAIProvider(client, context)))
+        registerProvider("onnx", LocalServerProvider(OpenAIProvider(client, context)))
     }
 
     /**
@@ -65,6 +70,9 @@ class ProviderManager(
             is ProviderSetting.Claude -> getProvider("claude")
             is ProviderSetting.ChatGPT -> getProvider("chatgpt")
             is ProviderSetting.Grok -> getProvider("grok")
+            is ProviderSetting.LiteRT -> getProvider("litert")
+            is ProviderSetting.GGUF -> getProvider("gguf")
+            is ProviderSetting.ONNX -> getProvider("onnx")
         } as Provider<T>
     }
 }

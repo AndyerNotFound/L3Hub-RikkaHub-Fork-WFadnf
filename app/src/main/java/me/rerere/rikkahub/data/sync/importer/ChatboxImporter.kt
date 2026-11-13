@@ -671,8 +671,10 @@ object ChatboxImporter {
         is ProviderSetting.OpenAI -> "openai|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
         is ProviderSetting.Google -> "google|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
         is ProviderSetting.Claude -> "claude|${provider.baseUrl.trimEnd('/')}|${provider.apiKey}"
-        // 账号型提供商不会从外部导入，只按 id 区分
+        // 账号型与本地提供商不会从外部导入，只按 id 区分
         is ProviderSetting.Account -> "account|${provider.id}"
+        is ProviderSetting.LiteRT -> "litert|${provider.id}"
+        is ProviderSetting.LocalServer -> "local|${provider.id}"
     }
 
     private fun ProviderSetting.providerTypeName(): String = when (this) {
@@ -681,6 +683,9 @@ object ChatboxImporter {
         is ProviderSetting.Claude -> "claude"
         is ProviderSetting.ChatGPT -> "chatgpt"
         is ProviderSetting.Grok -> "grok"
+        is ProviderSetting.LiteRT -> "litert"
+        is ProviderSetting.GGUF -> "gguf"
+        is ProviderSetting.ONNX -> "onnx"
     }
 
     private fun String.toMessageRole(): MessageRole? = when (this) {

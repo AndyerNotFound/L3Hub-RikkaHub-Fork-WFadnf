@@ -115,6 +115,7 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.account.preserveCredential
+import me.rerere.rikkahub.data.datastore.removeProvider
 import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.data.model.withResolvedContextLength
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
@@ -231,9 +232,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
         }
     }
     val onDelete = {
-        vm.updateSettings { latest ->
-            latest.copy(providers = latest.providers.filter { it.id != provider.id })
-        }
+        vm.updateSettings { latest -> latest.removeProvider(provider.id) }
         navController.popBackStack()
     }
 
@@ -255,8 +254,8 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                     }
                 },
                 actions = {
-                    // 账号型提供商离开账号就没法用，不提供分享
-                    if (provider !is ProviderSetting.Account) {
+                    // 账号型提供商离开账号就没法用；LiteRT 的模型路径只在本机有效
+                    if (provider !is ProviderSetting.Account && provider !is ProviderSetting.LiteRT) {
                         val shareSheetState = rememberShareSheetState()
                         ShareSheet(shareSheetState)
                         IconButton(
@@ -625,14 +624,12 @@ private fun SettingProviderConfigPage(
                         internalProvider = internalProvider,
                     )
 
-                    if (!internalProvider.builtIn) {
-                        IconButton(
-                            onClick = {
-                                showDeleteDialog = true
-                            },
-                        ) {
-                            Icon(HugeIcons.Delete01, stringResource(R.string.delete))
-                        }
+                    IconButton(
+                        onClick = {
+                            showDeleteDialog = true
+                        },
+                    ) {
+                        Icon(HugeIcons.Delete01, stringResource(R.string.delete))
                     }
                 },
             ) {

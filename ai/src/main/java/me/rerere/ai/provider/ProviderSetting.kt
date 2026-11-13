@@ -1,5 +1,6 @@
 package me.rerere.ai.provider
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -46,6 +47,10 @@ val ProviderSetting.supportsBuiltInSearch: Boolean
         is ProviderSetting.Google -> true
         is ProviderSetting.Claude -> true
         is ProviderSetting.Account -> true
+        // 本地模型没有厂商侧的联网搜索
+        is ProviderSetting.LiteRT,
+        is ProviderSetting.LocalServer,
+        -> false
     }
 
 @Serializable
@@ -341,6 +346,197 @@ sealed class ProviderSetting {
         }
     }
 
+    /**
+     * 本地 LiteRT 模型。
+     *
+     * 运行时由应用携带（litertlm-android），模型是应用私有目录里的一个 .litertlm 文件，
+     * 推理全程在本机完成，不经过网络。界面上的 [modelPath] 由导入流程写入。
+     */
+    @Serializable
+    @SerialName("litert")
+    data class LiteRT(
+        override var id: Uuid = Uuid.random(),
+        override var enabled: Boolean = true,
+        override var name: String = "LiteRT",
+        override var models: List<Model> = emptyList(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {
+            Text("在本机运行 LiteRT-LM 模型。运行时随应用提供，导入 .litertlm 模型文件后即可离线对话。")
+        },
+        @Transient override val shortDescription: @Composable (() -> Unit) = {
+            Text("本机运行 · 运行时内置")
+        },
+        // 已导入到应用私有目录的模型文件绝对路径
+        var modelPath: String = "",
+        var backend: LiteRTBackend = LiteRTBackend.CPU,
+        // 0 表示交给运行时决定
+        var cpuThreads: Int = 0,
+        // KV cache 大小，同时也是模型可用的上下文窗口
+        var contextTokens: Int = 4096,
+        var maxOutputTokens: Int = 2048,
+        var temperature: Float = 0.8f,
+        var topK: Int = 40,
+        var topP: Float = 0.95f,
+        var enableThinking: Boolean = false,
+        var thinkingBudget: Int = 1024,
+        // 模型支持视觉输入时开启，图片会随消息传入
+        var visionEnabled: Boolean = false,
+    ) : ProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            customHeaders: List<CustomHeader>,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                customHeaders = customHeaders,
+                builtIn = builtIn,
+                description = description,
+                shortDescription = shortDescription,
+            )
+        }
+    }
+
+    /**
+     * 通过用户自行安装的本地推理服务运行的模型。
+     *
+     * 应用不携带 llama.cpp / ONNX Runtime，只按 OpenAI 兼容协议连接本机地址；
+     * 运行时的安装、模型路径和启动命令都由用户配置。
+     */
+    @Serializable
+    sealed class LocalServer : ProviderSetting() {
+        abstract val baseUrl: String
+        abstract val apiKey: String
+        // 运行时可执行文件的路径，只用于展示启动命令和排查问题
+        abstract val runtimePath: String
+        // 运行时加载的模型文件或目录
+        abstract val modelPath: String
+        abstract val contextTokens: Int
+
+        /** 交给 OpenAI 兼容实现去请求；地址始终是用户填的本机服务 */
+        fun asOpenAI(): OpenAI = OpenAI(
+            id = id,
+            enabled = enabled,
+            name = name,
+            models = models,
+            customHeaders = customHeaders,
+            builtIn = builtIn,
+            description = description,
+            shortDescription = shortDescription,
+            apiKey = apiKey.ifBlank { "local" },
+            baseUrl = baseUrl.trim().trimEnd('/'),
+            useResponseApi = false,
+        )
+    }
+
+    /** 本地 GGUF 模型：llama.cpp 的 llama-server 暴露 OpenAI 兼容接口 */
+    @Serializable
+    @SerialName("gguf")
+    data class GGUF(
+        override var id: Uuid = Uuid.random(),
+        override var enabled: Boolean = true,
+        override var name: String = "GGUF",
+        override var models: List<Model> = emptyList(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {
+            Text("用自行安装的 llama.cpp（llama-server）在本机运行 GGUF 模型。应用只连接本机地址，模型与推理都不出设备。")
+        },
+        @Transient override val shortDescription: @Composable (() -> Unit) = {
+            Text("llama.cpp 本地服务")
+        },
+        override val apiKey: String = "",
+        override val baseUrl: String = "http://127.0.0.1:8080/v1",
+        override val runtimePath: String = "",
+        override val modelPath: String = "",
+        override val contextTokens: Int = 4096,
+        var gpuLayers: Int = 0,
+        var threads: Int = 4,
+        // 用户自己记录的启动命令；应用不会执行它，只用于复制和备忘
+        var launchCommand: String = "",
+    ) : LocalServer() {
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            customHeaders: List<CustomHeader>,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                customHeaders = customHeaders,
+                builtIn = builtIn,
+                description = description,
+                shortDescription = shortDescription,
+            )
+        }
+    }
+
+    /** 本地 ONNX 模型：连接用户安装的 ONNX Runtime 推理服务 */
+    @Serializable
+    @SerialName("onnx")
+    data class ONNX(
+        override var id: Uuid = Uuid.random(),
+        override var enabled: Boolean = true,
+        override var name: String = "ONNX",
+        override var models: List<Model> = emptyList(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {
+            Text("用自行安装的 ONNX Runtime 推理服务在本机运行 ONNX 模型。应用按 OpenAI 兼容协议连接你配置的本地地址。")
+        },
+        @Transient override val shortDescription: @Composable (() -> Unit) = {
+            Text("ONNX Runtime 本地服务")
+        },
+        override val apiKey: String = "",
+        override val baseUrl: String = "http://127.0.0.1:8001/v1",
+        override val runtimePath: String = "",
+        override val modelPath: String = "",
+        override val contextTokens: Int = 4096,
+        // 例如 cpu / nnapi / xnnpack，供启动命令展示使用
+        var executionProvider: String = "",
+        var threads: Int = 4,
+        // 用户自己记录的启动命令；应用不会执行它，只用于复制和备忘
+        var launchCommand: String = "",
+    ) : LocalServer() {
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            customHeaders: List<CustomHeader>,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                customHeaders = customHeaders,
+                builtIn = builtIn,
+                description = description,
+                shortDescription = shortDescription,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
@@ -350,4 +546,14 @@ sealed class ProviderSetting {
             )
         }
     }
+}
+
+/** LiteRT-LM 的执行后端 */
+@Serializable
+enum class LiteRTBackend {
+    @SerialName("cpu")
+    CPU,
+
+    @SerialName("gpu")
+    GPU,
 }

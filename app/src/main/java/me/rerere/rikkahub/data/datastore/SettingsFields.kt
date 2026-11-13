@@ -125,6 +125,9 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         json(PROVIDER_GROUP_ASSIGNMENTS, Settings::providerGroupAssignments) {
             copy(providerGroupAssignments = it)
         },
+        json(DELETED_BUILT_IN_PROVIDERS, Settings::deletedBuiltInProviderIds) {
+            copy(deletedBuiltInProviderIds = it)
+        },
         json(PROVIDER_PROXIES, Settings::providerProxies) { copy(providerProxies = it) },
         json(PROVIDER_PROXY_USERNAMES, Settings::providerProxyUsernames) { copy(providerProxyUsernames = it) },
         json(PROVIDER_PROXY_PASSWORDS, Settings::providerProxyPasswords) { copy(providerProxyPasswords = it) },

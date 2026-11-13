@@ -64,6 +64,8 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
+    // 用户删掉过的内置提供商 id：读盘时不再自动补回，可从「添加提供商」里恢复
+    val deletedBuiltInProviderIds: Set<String> = emptySet(),
     // 手动维护的提供商分组（有序）与 提供商ID -> 分组名 的映射
     val providerGroups: List<String> = emptyList(),
     val providerGroupAssignments: Map<String, String> = emptyMap(),
@@ -402,3 +404,19 @@ data class BackupReminderConfig(
 
 val DisplaySetting.effectiveBackgroundEffect: BackgroundEffectType
     get() = if (enableBlurEffect) backgroundEffectType else BackgroundEffectType.OFF
+
+/** 删除提供商。内置提供商删过后记住 id，读盘时不再自动补回 */
+fun Settings.removeProvider(id: Uuid): Settings = copy(
+    providers = providers.filter { it.id != id },
+    deletedBuiltInProviderIds = if (DEFAULT_PROVIDERS.any { it.id == id }) {
+        deletedBuiltInProviderIds + id.toString()
+    } else {
+        deletedBuiltInProviderIds
+    },
+)
+
+/** 恢复一个被删掉的内置提供商；用默认配置重建，不保留删除前的 key 和模型 */
+fun Settings.restoreProvider(provider: ProviderSetting): Settings = copy(
+    providers = providers.filterNot { it.id == provider.id } + provider,
+    deletedBuiltInProviderIds = deletedBuiltInProviderIds - provider.id.toString(),
+)

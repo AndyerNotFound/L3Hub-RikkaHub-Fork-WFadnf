@@ -69,4 +69,5 @@ val ProviderSetting.supportsQuota: Boolean
     get() = when (this) {
         is ProviderSetting.ApiKey -> quotaQuery.enabled
         is ProviderSetting.Account -> credential != null
+        is ProviderSetting.LiteRT, is ProviderSetting.LocalServer -> false
     }

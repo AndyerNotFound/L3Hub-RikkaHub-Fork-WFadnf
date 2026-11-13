@@ -137,6 +137,7 @@ class SettingsStore internal constructor(
         val PROVIDERS = stringPreferencesKey("providers")
         val PROVIDER_GROUPS = stringPreferencesKey("provider_groups")
         val PROVIDER_GROUP_ASSIGNMENTS = stringPreferencesKey("provider_group_assignments")
+        val DELETED_BUILT_IN_PROVIDERS = stringPreferencesKey("deleted_builtin_providers")
         val PROVIDER_PROXIES = stringPreferencesKey("provider_proxies")
         val PROVIDER_PROXY_USERNAMES = stringPreferencesKey("provider_proxy_usernames")
         val PROVIDER_PROXY_PASSWORDS = stringPreferencesKey("provider_proxy_passwords")

@@ -61,6 +61,13 @@
     android:theme="@style/Theme.Rikkahub"
     android:usesCleartextTraffic="true"
     tools:targetApi="33">
+    <!-- LiteRT-LM 的 GPU 后端需要在 Android 12+ 显式声明这两项厂商库 -->
+    <uses-native-library
+      android:name="libvndksupport.so"
+      android:required="false" />
+    <uses-native-library
+      android:name="libOpenCL.so"
+      android:required="false" />
     <activity
       android:name=".ui.activity.SafeModeActivity"
       android:exported="false"

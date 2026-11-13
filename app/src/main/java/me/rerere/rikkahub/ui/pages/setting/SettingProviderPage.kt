@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -70,11 +71,12 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.datastore.RECOMMENDED_PROVIDERS
+import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
+import me.rerere.rikkahub.data.datastore.removeProvider
+import me.rerere.rikkahub.data.datastore.restoreProvider
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
@@ -135,6 +137,10 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     var searchQuery by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<ProviderSetting?>(null) }
     val lazyListState = rememberLazyListState()
+
+    val removedBuiltIns = remember(settings.deletedBuiltInProviderIds) {
+        DEFAULT_PROVIDERS.filter { it.id.toString() in settings.deletedBuiltInProviderIds }
+    }
 
     val filteredProviders = remember(settings.providers, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -274,16 +280,20 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
-                    // 推荐提供商保留固定 id，读盘后才能按 id 补回不落盘的描述
-                    RecommendProviderButton(
-                        addedIds = settings.providers.map { it.id }.toSet(),
-                    ) { provider ->
-                        addProvider(provider.copyProvider())
-                    }
                     ImportProviderButton {
                         addProvider(it.copyProvider(Uuid.random()))
                     }
-                    AddButton { provider ->
+                    AddButton(
+                        removedBuiltIns = removedBuiltIns,
+                        onRestore = { provider ->
+                            searchQuery = ""
+                            if (UNGROUPED_GROUP_KEY in collapsedGroups) {
+                                setGroupCollapsed(UNGROUPED_GROUP_KEY, false)
+                            }
+                            pendingScrollId = provider.id.toString()
+                            vm.updateSettings { latest -> latest.restoreProvider(provider) }
+                        },
+                    ) { provider ->
                         addProvider(provider)
                         navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
                     }
@@ -408,124 +418,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         dismissText = stringResource(R.string.cancel),
         onConfirm = {
             deleteTarget?.let { target ->
-                vm.updateSettings { latest -> latest.copy(providers = latest.providers.filter { it.id != target.id }) }
+                vm.updateSettings { latest -> latest.removeProvider(target.id) }
             }
             deleteTarget = null
         },
         onDismiss = { deleteTarget = null },
     ) {
         Text(stringResource(R.string.setting_provider_page_delete_dialog_text))
-    }
-}
-
-@Composable
-private fun RecommendProviderButton(
-    addedIds: Set<Uuid>,
-    onAdd: (ProviderSetting) -> Unit
-) {
-    val toaster = LocalToaster.current
-    var showSheet by remember { mutableStateOf(false) }
-    val importSuccessMessage = stringResource(R.string.setting_provider_page_import_success)
-
-    IconButton(
-        onClick = { showSheet = true }
-    ) {
-        Icon(HugeIcons.Sparkles, contentDescription = stringResource(R.string.setting_provider_page_recommend))
-    }
-
-    if (showSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
-            sheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.setting_provider_page_recommend),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                    RECOMMENDED_PROVIDERS.fastForEachIndexed { index, provider ->
-                        RecommendProviderItem(
-                            provider = provider,
-                            added = provider.id in addedIds,
-                            shape = cardGroupItemShape(index, RECOMMENDED_PROVIDERS.size),
-                            onAdd = {
-                                onAdd(provider)
-                                toaster.show(
-                                    importSuccessMessage,
-                                    type = ToastType.Success
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecommendProviderItem(
-    provider: ProviderSetting,
-    added: Boolean,
-    shape: Shape,
-    onAdd: () -> Unit
-) {
-    Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AutoAIIcon(
-                        name = provider.name,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = provider.name,
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.7f)) {
-                        provider.shortDescription()
-                    }
-                }
-            }
-            FilledTonalIconButton(onClick = onAdd, enabled = !added) {
-                if (added) {
-                    Icon(HugeIcons.Tick02, contentDescription = "已添加")
-                } else {
-                    Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.setting_provider_page_add))
-                }
-            }
-        }
     }
 }
 
@@ -727,7 +626,11 @@ private fun handleImageQRCode(
 
 // 新建时只选类型，其余配置到详情页里填
 @Composable
-private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
+private fun AddButton(
+    removedBuiltIns: List<ProviderSetting>,
+    onRestore: (ProviderSetting) -> Unit,
+    onAdd: (ProviderSetting) -> Unit,
+) {
     var showSheet by remember { mutableStateOf(false) }
     val templates = remember {
         listOf(
@@ -736,6 +639,13 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             ProviderSetting.Claude(),
             ProviderSetting.ChatGPT(),
             ProviderSetting.Grok(),
+            ProviderSetting.LiteRT(),
+            ProviderSetting.GGUF(
+                models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
+            ),
+            ProviderSetting.ONNX(
+                models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
+            ),
         )
     }
 
@@ -797,6 +707,45 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                         }
                     }
                 }
+
+                if (removedBuiltIns.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_restore_builtin),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                        removedBuiltIns.fastForEachIndexed { index, provider ->
+                            Surface(
+                                onClick = {
+                                    showSheet = false
+                                    onRestore(provider)
+                                },
+                                shape = cardGroupItemShape(index, removedBuiltIns.size),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    AutoAIIcon(
+                                        name = provider.name,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Text(
+                                        text = provider.name,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Icon(HugeIcons.Add01, contentDescription = null)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -810,6 +759,9 @@ private fun ProviderSetting.typeName(): String = when (this) {
     is ProviderSetting.Claude -> "Claude"
     is ProviderSetting.ChatGPT -> stringResource(R.string.setting_provider_page_type_subscription, "ChatGPT")
     is ProviderSetting.Grok -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
+    is ProviderSetting.LiteRT -> stringResource(R.string.setting_provider_page_type_litert)
+    is ProviderSetting.GGUF -> stringResource(R.string.setting_provider_page_type_gguf)
+    is ProviderSetting.ONNX -> stringResource(R.string.setting_provider_page_type_onnx)
 }
 
 // 分组标题：整行可点折叠，长按整行拖拽排序；未分组那一栏不能拖，它在列表末尾是固定位置
@@ -926,7 +878,6 @@ private fun ProviderItem(
                         text = stringResource(R.string.delete),
                         icon = HugeIcons.Delete01,
                         destructive = true,
-                        enabled = !provider.builtIn,
                         onClick = onDelete,
                     ),
                 )

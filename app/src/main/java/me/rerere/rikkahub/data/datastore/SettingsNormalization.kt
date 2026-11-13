@@ -6,10 +6,12 @@ import me.rerere.rikkahub.data.model.withContextPresets
 internal fun Settings.normalized(): Settings =
     withBuiltInDefaults().withoutInvalidReferences().withValuesInRange().withContextThresholds()
 
-// 补齐缺失的内置提供商/助手/TTS，内置提供商和推荐提供商的描述信息始终以代码里的为准
+// 补齐没被删过的内置提供商/助手/TTS，内置提供商和推荐提供商的描述信息始终以代码里的为准
 internal fun Settings.withBuiltInDefaults(): Settings {
-    var providers = this.providers.ifEmpty { DEFAULT_PROVIDERS }.toMutableList()
+    // 只补回没被用户删过的内置提供商；全部删完也保持空列表，不再自动塞回去
+    var providers = this.providers.toMutableList()
     DEFAULT_PROVIDERS.forEach { defaultProvider ->
+        if (defaultProvider.id.toString() in deletedBuiltInProviderIds) return@forEach
         if (providers.none { it.id == defaultProvider.id }) {
             providers.add(defaultProvider.copyProvider())
         }
