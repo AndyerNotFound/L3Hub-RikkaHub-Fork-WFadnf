@@ -2577,4 +2577,8 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_guard_window_cost_limit">비용 한도</string>
   <string name="setting_provider_guard_window_cost_desc">모델 편집 페이지에 입력한 단가로 추산하며, 가격이 없는 모델은 집계하지 않습니다.</string>
   <string name="provider_limit_window_cost">%1$s의 「%2$s」 비용 한도 %3$s에 도달했습니다. %4$s 후에 다시 시도할 수 있습니다.</string>
+  <string name="stats_page_total_cost">추산 비용</string>
+  <string name="stats_page_cost">비용</string>
+  <string name="stats_page_cost_hint">모델 편집 페이지에 입력한 단가로 추산하며, 가격이 없는 모델은 집계하지 않습니다.</string>
+  <string name="stats_page_cost_unset">모델 가격이 설정되지 않았습니다. 모델 편집 페이지에서 단가를 입력하면 금액이 표시됩니다.</string>
 </resources>

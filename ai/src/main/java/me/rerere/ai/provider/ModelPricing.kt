@@ -68,12 +68,29 @@ fun ModelPricing.estimateCost(
     usage: TokenUsage,
     unitTokens: Double = TOKENS_PER_MILLION,
     calls: Int = 1,
+): UsageCost = estimateCost(
+    promptTokens = usage.promptTokens.toLong(),
+    completionTokens = usage.completionTokens.toLong(),
+    cachedTokens = usage.cachedTokens.toLong(),
+    cacheWriteTokens = usage.cacheWriteTokens.toLong(),
+    unitTokens = unitTokens,
+    calls = calls,
+)
+
+/** 同上，但 token 数用 [Long] 传入，汇总整段时间的用量时不会溢出 */
+fun ModelPricing.estimateCost(
+    promptTokens: Long,
+    completionTokens: Long,
+    cachedTokens: Long,
+    cacheWriteTokens: Long = 0,
+    unitTokens: Double = TOKENS_PER_MILLION,
+    calls: Int = 1,
 ): UsageCost {
     if (!isConfigured || unitTokens <= 0) return UsageCost()
-    val prompt = usage.promptTokens.coerceAtLeast(0)
+    val prompt = promptTokens.coerceAtLeast(0)
     // 各 provider 的缓存字段偶尔会超过 prompt 总数，按总量夹一下，避免多计
-    val cached = usage.cachedTokens.coerceIn(0, prompt)
-    val written = usage.cacheWriteTokens.coerceIn(0, prompt - cached)
+    val cached = cachedTokens.coerceIn(0, prompt)
+    val written = cacheWriteTokens.coerceIn(0, prompt - cached)
     val uncached = prompt - cached - written
     val hitPrice = cacheRead.takeIf { it > 0 }
         ?: cacheHit.takeIf { it > 0 }
@@ -81,7 +98,7 @@ fun ModelPricing.estimateCost(
     val writePrice = cacheWrite.takeIf { it > 0 } ?: input
     return UsageCost(
         input = uncached / unitTokens * input,
-        output = usage.completionTokens.coerceAtLeast(0) / unitTokens * output,
+        output = completionTokens.coerceAtLeast(0) / unitTokens * output,
         cacheHit = if (cacheRead > 0) 0.0 else cached / unitTokens * hitPrice,
         cacheWrite = written / unitTokens * writePrice,
         cacheRead = if (cacheRead > 0) cached / unitTokens * cacheRead else 0.0,

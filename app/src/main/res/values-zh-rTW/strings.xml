@@ -2615,4 +2615,8 @@
   <string name="setting_provider_guard_window_cost_limit">費用上限</string>
   <string name="setting_provider_guard_window_cost_desc">依模型編輯頁填寫的單價估算，未填寫價格的模型不計入。</string>
   <string name="provider_limit_window_cost">%1$s 的「%2$s」費用上限 %3$s 已用完，%4$s 後恢復</string>
+  <string name="stats_page_total_cost">估算費用</string>
+  <string name="stats_page_cost">費用</string>
+  <string name="stats_page_cost_hint">依模型編輯頁填寫的單價估算，未填寫價格的模型不計入。</string>
+  <string name="stats_page_cost_unset">尚未設定模型價目，在模型編輯頁填寫單價後顯示金額。</string>
 </resources>

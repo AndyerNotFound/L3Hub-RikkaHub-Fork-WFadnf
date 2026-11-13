@@ -70,6 +70,34 @@ class ModelPricingTest {
     }
 
     @Test
+    fun `token usage and long totals produce the same cost`() {
+        val pricing = ModelPricing(input = 3.0, output = 15.0, cacheHit = 0.3, perCall = 0.01)
+        val usage = TokenUsage(promptTokens = 900_000, completionTokens = 120_000, cachedTokens = 400_000)
+        val detailed = pricing.estimateCost(usage, calls = 2)
+        val totals = pricing.estimateCost(
+            promptTokens = usage.promptTokens.toLong(),
+            completionTokens = usage.completionTokens.toLong(),
+            cachedTokens = usage.cachedTokens.toLong(),
+            calls = 2,
+        )
+
+        assertEquals(detailed, totals)
+    }
+
+    @Test
+    fun `long totals are not clamped at the int boundary`() {
+        val pricing = ModelPricing(input = 1.0)
+        val promptTokens = Int.MAX_VALUE.toLong() + 1_500_000
+        val cost = pricing.estimateCost(
+            promptTokens = promptTokens,
+            completionTokens = 0,
+            cachedTokens = 0,
+        )
+
+        assertEquals(promptTokens / 1_000_000.0, cost.total, delta)
+    }
+
+    @Test
     fun `empty pricing costs nothing`() {
         val cost = ModelPricing().estimateCost(
             TokenUsage(promptTokens = 1_000_000, completionTokens = 1_000_000)

@@ -2933,4 +2933,8 @@
   <string name="setting_provider_guard_window_cost_limit">Cost limit</string>
   <string name="setting_provider_guard_window_cost_desc">Estimated from the prices set in the model editor; models without prices are not counted.</string>
   <string name="provider_limit_window_cost">%1$s reached its %2$s cost limit of %3$s; retry after %4$s</string>
+  <string name="stats_page_total_cost">Estimated cost</string>
+  <string name="stats_page_cost">Cost</string>
+  <string name="stats_page_cost_hint">Estimated from the prices set in the model editor; models without prices are not counted.</string>
+  <string name="stats_page_cost_unset">No model prices are set. Enter unit prices in the model editor to see costs.</string>
 </resources>

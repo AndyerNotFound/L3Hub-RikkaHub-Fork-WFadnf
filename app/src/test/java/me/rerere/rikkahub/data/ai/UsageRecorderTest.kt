@@ -16,10 +16,10 @@ import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.DayCount
+import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
 import me.rerere.rikkahub.data.db.dao.ModelUsage
 import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
-import me.rerere.rikkahub.data.db.dao.SourceUsage
-import me.rerere.rikkahub.data.db.dao.UsageBucket
+import me.rerere.rikkahub.data.db.dao.SourceModelUsage
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
@@ -109,13 +109,13 @@ private class FakeUsageRecordDAO : UsageRecordDAO {
 
     override suspend fun getTotals(since: Long) = UsageTotals()
 
-    override suspend fun getTotalsByBucket(format: String, since: Long) = emptyList<UsageBucket>()
+    override suspend fun getTotalsByModelBucket(format: String, since: Long) = emptyList<ModelBucketUsage>()
 
     override suspend fun getTotalsByModel(since: Long) = emptyList<ModelUsage>()
 
     override suspend fun getRequestCountPerDay(source: String, since: Long) = emptyList<DayCount>()
 
-    override suspend fun getTotalsBySource(since: Long) = emptyList<SourceUsage>()
+    override suspend fun getTotalsBySourceModel(since: Long) = emptyList<SourceModelUsage>()
 
     override suspend fun getProviderUsageEvents(
         providerId: String,

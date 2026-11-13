@@ -32,14 +32,16 @@ interface UsageRecordDAO {
     )
     suspend fun getTotals(since: Long = 0): UsageTotals
 
-    /** 按本地时间分桶汇总，[format] 是 strftime 格式，比如按天用 `%Y-%m-%d`、按月用 `%Y-%m` */
+    /** 按本地时间分桶、再按模型拆开汇总；[format] 是 strftime 格式，比如按天用 `%Y-%m-%d`、按月用 `%Y-%m` */
     @Query(
         "SELECT strftime(:format, created_at / 1000, 'unixepoch', 'localtime') AS bucket, " +
+            "model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
-            "FROM usage_record WHERE created_at >= :since GROUP BY bucket ORDER BY bucket"
+            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
+            "FROM usage_record WHERE created_at >= :since " +
+            "GROUP BY bucket, COALESCE(model_id, model_name) ORDER BY bucket"
     )
-    suspend fun getTotalsByBucket(format: String, since: Long): List<UsageBucket>
+    suspend fun getTotalsByModelBucket(format: String, since: Long): List<ModelBucketUsage>
 
     /** 每天（本地日期 `yyyy-MM-dd`）某类请求的次数 */
     @Query(
@@ -52,20 +54,22 @@ interface UsageRecordDAO {
     @Query(
         "SELECT model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
+            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY COALESCE(model_id, model_name) " +
             "ORDER BY SUM(prompt_tokens + completion_tokens) DESC"
     )
     suspend fun getTotalsByModel(since: Long): List<ModelUsage>
 
+    /** 按来源拆开、再按模型拆开：来源排行要按各自模型的单价算费用 */
     @Query(
-        "SELECT source, SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens " +
+        "SELECT source, model_id AS modelId, MAX(model_name) AS modelName, " +
+            "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
+            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
             "FROM usage_record WHERE created_at >= :since " +
-            "GROUP BY source ORDER BY SUM(prompt_tokens + completion_tokens) DESC"
+            "GROUP BY source, COALESCE(model_id, model_name)"
     )
-    suspend fun getTotalsBySource(since: Long): List<SourceUsage>
+    suspend fun getTotalsBySourceModel(since: Long): List<SourceModelUsage>
 }
 
 data class ProviderUsageEvent(
@@ -88,11 +92,14 @@ data class DayCount(
     val count: Int,
 )
 
-data class UsageBucket(
+data class ModelBucketUsage(
     val bucket: String,
+    val modelId: String?,
+    val modelName: String?,
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val calls: Int,
 )
 
 data class ModelUsage(
@@ -101,11 +108,15 @@ data class ModelUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val calls: Int,
 )
 
-data class SourceUsage(
+data class SourceModelUsage(
     val source: String,
+    val modelId: String?,
+    val modelName: String?,
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    val calls: Int,
 )

@@ -2575,4 +2575,8 @@
   <string name="setting_provider_guard_window_cost_limit">حد التكلفة</string>
   <string name="setting_provider_guard_window_cost_desc">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
   <string name="provider_limit_window_cost">وصل %1$s إلى حد التكلفة «%2$s» البالغ %3$s؛ أعد المحاولة بعد %4$s</string>
+  <string name="stats_page_total_cost">التكلفة التقديرية</string>
+  <string name="stats_page_cost">التكلفة</string>
+  <string name="stats_page_cost_hint">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
+  <string name="stats_page_cost_unset">لم تُضبط أسعار النماذج بعد. أدخل الأسعار في محرر النموذج لعرض التكلفة.</string>
 </resources>

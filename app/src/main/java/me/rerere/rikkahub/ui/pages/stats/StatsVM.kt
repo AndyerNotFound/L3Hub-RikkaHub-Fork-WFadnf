@@ -8,13 +8,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import me.rerere.ai.provider.ModelPricing
+import me.rerere.ai.provider.estimateCost
+import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.rikkahub.data.ai.UsageSource
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
-import me.rerere.rikkahub.data.db.dao.SourceUsage
-import me.rerere.rikkahub.data.db.dao.UsageBucket
+import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
+import me.rerere.rikkahub.data.db.dao.ModelUsage
+import me.rerere.rikkahub.data.db.dao.SourceModelUsage
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import java.time.DayOfWeek
@@ -47,6 +52,8 @@ data class UsagePoint(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
+    // 这天的估算费用，单位的币种与模型价目一致
+    val cost: Double = 0.0,
 ) {
     val totalTokens get() = promptTokens + completionTokens
 }
@@ -55,15 +62,26 @@ data class ModelUsageItem(
     // 模型已被删除且没有名称快照时为空
     val name: String?,
     val totalTokens: Long,
+    val cost: Double = 0.0,
+)
+
+data class SourceUsageItem(
+    val source: String,
+    val totalTokens: Long,
+    val cost: Double = 0.0,
 )
 
 data class UsageStats(
     val range: UsageRange,
     val totals: UsageTotals,
+    // 已设置价目的模型按当前价目估算出的费用
+    val totalCost: Double,
+    // 至少有一个用到的模型设置了价目；否则费用一栏没有可信数字
+    val hasPricing: Boolean,
     val points: List<UsagePoint>,
     val byMonth: Boolean,
     val models: List<ModelUsageItem>,
-    val sources: List<SourceUsage>,
+    val sources: List<SourceUsageItem>,
 )
 
 class StatsVM(
@@ -137,43 +155,68 @@ class StatsVM(
             val since = startDate?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: 0L
             // 用量流水包含标题、翻译等不落到消息里的请求，删掉的会话也还算在内
             val totals = usageRecordDAO.getTotals(since)
-            val byMonth = range.days == null
-            val buckets = usageRecordDAO.getTotalsByBucket(if (byMonth) "%Y-%m" else "%Y-%m-%d", since)
-            val points = if (byMonth) monthlyPoints(buckets, today) else dailyPoints(buckets, startDate!!, today)
             val settings = settingsStore.awaitLoaded()
-            val models = usageRecordDAO.getTotalsByModel(since).map { usage ->
-                val model = usage.modelId
-                    ?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-                    ?.let { settings.findModelById(it) }
+            // 价目按「每 1M / 每 Mi」token 填写，和设置里的计数口径一起换算
+            val unitTokens = priceUnitTokens(settings.displaySetting.binaryUnits)
+            val modelRows = usageRecordDAO.getTotalsByModel(since)
+            val models = modelRows.map { usage ->
                 ModelUsageItem(
-                    name = model?.displayName?.ifBlank { null } ?: model?.modelId ?: usage.modelName,
-                    totalTokens = usage.promptTokens + usage.completionTokens,
+                    name = usage.displayName(settings),
+                    totalTokens = usage.totalTokens,
+                    cost = usage.costOf(settings, unitTokens),
                 )
             }
+            val byMonth = range.days == null
+            val buckets = bucketTotals(
+                rows = usageRecordDAO.getTotalsByModelBucket(
+                    format = if (byMonth) "%Y-%m" else "%Y-%m-%d",
+                    since = since,
+                ),
+                settings = settings,
+                unitTokens = unitTokens,
+            )
+            val points = if (byMonth) {
+                monthlyPoints(buckets, today)
+            } else {
+                dailyPoints(buckets, startDate!!, today)
+            }
+            val sources = usageRecordDAO.getTotalsBySourceModel(since)
+                .groupBy { it.source }
+                .map { (source, rows) ->
+                    SourceUsageItem(
+                        source = source,
+                        totalTokens = rows.sumOf { it.totalTokens },
+                        cost = rows.sumOf { it.costOf(settings, unitTokens) },
+                    )
+                }
+                .sortedByDescending { it.totalTokens }
             _usage.value = UsageStats(
                 range = range,
                 totals = totals,
+                totalCost = models.sumOf { it.cost },
+                hasPricing = modelRows.any { it.modelId.pricingOf(settings) != null },
                 points = points,
                 byMonth = byMonth,
                 models = models,
-                sources = usageRecordDAO.getTotalsBySource(since),
+                sources = sources,
             )
         }
     }
 
     // 没有用量的日子补 0，柱子才能按日期均匀排开
-    private fun dailyPoints(buckets: List<UsageBucket>, start: LocalDate, today: LocalDate): List<UsagePoint> {
-        val byDate = buckets.associateBy { it.bucket }
-        return generateSequence(start) { it.plusDays(1) }
-            .takeWhile { !it.isAfter(today) }
-            .map { date -> byDate[date.toString()].toPoint(date) }
-            .toList()
-    }
+    private fun dailyPoints(
+        buckets: Map<String, BucketTotals>,
+        start: LocalDate,
+        today: LocalDate,
+    ): List<UsagePoint> = generateSequence(start) { it.plusDays(1) }
+        .takeWhile { !it.isAfter(today) }
+        .map { date -> buckets[date.toString()].toPoint(date) }
+        .toList()
 
     // 全部范围按月，从最早有用量的月份排到本月
-    private fun monthlyPoints(buckets: List<UsageBucket>, today: LocalDate): List<UsagePoint> {
-        val byMonth = buckets.mapNotNull { bucket ->
-            runCatching { YearMonth.parse(bucket.bucket) to bucket }.getOrNull()
+    private fun monthlyPoints(buckets: Map<String, BucketTotals>, today: LocalDate): List<UsagePoint> {
+        val byMonth = buckets.mapNotNull { (bucket, totals) ->
+            runCatching { YearMonth.parse(bucket) to totals }.getOrNull()
         }.toMap()
         val first = byMonth.keys.minOrNull() ?: return emptyList()
         val current = YearMonth.from(today)
@@ -182,11 +225,79 @@ class StatsVM(
             .map { month -> byMonth[month].toPoint(month.atDay(1)) }
             .toList()
     }
-
-    private fun UsageBucket?.toPoint(date: LocalDate) = UsagePoint(
-        date = date,
-        promptTokens = this?.promptTokens ?: 0,
-        completionTokens = this?.completionTokens ?: 0,
-        cachedTokens = this?.cachedTokens ?: 0,
-    )
 }
+
+private val ModelUsage.totalTokens get() = promptTokens + completionTokens
+private val SourceModelUsage.totalTokens get() = promptTokens + completionTokens
+
+/** 按模型分桶的原始汇总，加上按当前价目算出的费用 */
+private class BucketTotals {
+    var promptTokens: Long = 0
+    var completionTokens: Long = 0
+    var cachedTokens: Long = 0
+    var cost: Double = 0.0
+}
+
+private fun bucketTotals(
+    rows: List<ModelBucketUsage>,
+    settings: Settings,
+    unitTokens: Double,
+): Map<String, BucketTotals> {
+    val totals = mutableMapOf<String, BucketTotals>()
+    rows.forEach { row ->
+        val bucket = totals.getOrPut(row.bucket) { BucketTotals() }
+        bucket.promptTokens += row.promptTokens
+        bucket.completionTokens += row.completionTokens
+        bucket.cachedTokens += row.cachedTokens
+        bucket.cost += row.costOf(settings, unitTokens)
+    }
+    return totals
+}
+
+private fun BucketTotals?.toPoint(date: LocalDate) = UsagePoint(
+    date = date,
+    promptTokens = this?.promptTokens ?: 0,
+    completionTokens = this?.completionTokens ?: 0,
+    cachedTokens = this?.cachedTokens ?: 0,
+    cost = this?.cost ?: 0.0,
+)
+
+private fun ModelUsage.displayName(settings: Settings): String? {
+    val model = modelId.toModelUuid()?.let { settings.findModelById(it) }
+    return model?.displayName?.ifBlank { null } ?: model?.modelId ?: modelName
+}
+
+private fun ModelUsage.costOf(settings: Settings, unitTokens: Double): Double =
+    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
+
+private fun ModelBucketUsage.costOf(settings: Settings, unitTokens: Double): Double =
+    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
+
+private fun SourceModelUsage.costOf(settings: Settings, unitTokens: Double): Double =
+    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
+
+private fun costOf(
+    modelId: String?,
+    promptTokens: Long,
+    completionTokens: Long,
+    cachedTokens: Long,
+    calls: Int,
+    settings: Settings,
+    unitTokens: Double,
+): Double {
+    val pricing = modelId.pricingOf(settings) ?: return 0.0
+    // usage_record 没有缓存写入字段，写入缓存的 token 会按输入价计入
+    return pricing.estimateCost(
+        promptTokens = promptTokens,
+        completionTokens = completionTokens,
+        cachedTokens = cachedTokens,
+        unitTokens = unitTokens,
+        calls = calls,
+    ).total
+}
+
+private fun String?.pricingOf(settings: Settings): ModelPricing? =
+    toModelUuid()?.let { settings.findModelById(it) }?.pricing?.takeIf { it.isConfigured }
+
+private fun String?.toModelUuid(): Uuid? =
+    this?.let { runCatching { Uuid.parse(it) }.getOrNull() }

@@ -250,13 +250,13 @@ private class EmptyUsageDao(
 
     override suspend fun getTotals(since: Long) = UsageTotals()
 
-    override suspend fun getTotalsByBucket(format: String, since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.UsageBucket>()
+    override suspend fun getTotalsByModelBucket(format: String, since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.ModelBucketUsage>()
 
     override suspend fun getTotalsByModel(since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.ModelUsage>()
 
     override suspend fun getRequestCountPerDay(source: String, since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.DayCount>()
 
-    override suspend fun getTotalsBySource(since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.SourceUsage>()
+    override suspend fun getTotalsBySourceModel(since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.SourceModelUsage>()
 
     override suspend fun getProviderUsageEvents(
         providerId: String,

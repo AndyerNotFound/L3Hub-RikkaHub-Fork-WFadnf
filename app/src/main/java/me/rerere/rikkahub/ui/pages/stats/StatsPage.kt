@@ -67,13 +67,13 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.PercentCircle
 import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.UsageSource
-import me.rerere.rikkahub.data.db.dao.SourceUsage
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -84,6 +84,7 @@ import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.compactMagnitude
+import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.toast.ToastType
@@ -217,16 +218,27 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                             UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
                             UsagePieCard(models = usage.models, modifier = Modifier.padding(horizontal = 8.dp))
                             UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+                            val unknownModel = stringResource(R.string.stats_page_unknown_model)
                             RankingCard(
                                 title = stringResource(R.string.stats_page_by_model),
                                 items = usage.models.map { model ->
-                                    (model.name ?: stringResource(R.string.stats_page_unknown_model)) to model.totalTokens
+                                    RankingItem(
+                                        label = model.name ?: unknownModel,
+                                        tokens = model.totalTokens,
+                                        cost = model.cost,
+                                    )
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             )
                             RankingCard(
                                 title = stringResource(R.string.stats_page_by_source),
-                                items = usage.sources.map { source -> sourceLabel(source) to source.totalTokens },
+                                items = usage.sources.map { source ->
+                                    RankingItem(
+                                        label = sourceLabel(source.source),
+                                        tokens = source.totalTokens,
+                                        cost = source.cost,
+                                    )
+                                },
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             )
                         }
@@ -521,6 +533,19 @@ private fun UsageTotalsGrid(usage: UsageStats, modifier: Modifier = Modifier) {
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        StatCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = HugeIcons.MoneyBag02,
+            label = stringResource(R.string.stats_page_total_cost),
+            value = if (usage.hasPricing) usage.totalCost.formatCost() else "—",
+            hint = stringResource(
+                if (usage.hasPricing) {
+                    R.string.stats_page_cost_hint
+                } else {
+                    R.string.stats_page_cost_unset
+                }
+            ),
+        )
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -596,6 +621,7 @@ private fun UsageTrendCard(usage: UsageStats, modifier: Modifier = Modifier) {
                 promptTokens = selected?.promptTokens ?: usage.totals.promptTokens,
                 cachedTokens = selected?.cachedTokens ?: usage.totals.cachedTokens,
                 completionTokens = selected?.completionTokens ?: usage.totals.completionTokens,
+                cost = selected?.cost ?: usage.totalCost,
             )
             UsageColumnChart(
                 points = usage.points,
@@ -608,7 +634,13 @@ private fun UsageTrendCard(usage: UsageStats, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun UsageReadout(label: String, promptTokens: Long, cachedTokens: Long, completionTokens: Long) {
+private fun UsageReadout(
+    label: String,
+    promptTokens: Long,
+    cachedTokens: Long,
+    completionTokens: Long,
+    cost: Double,
+) {
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
@@ -628,6 +660,13 @@ private fun UsageReadout(label: String, promptTokens: Long, cachedTokens: Long, 
             ).forEach { (label, tokens) ->
                 Text(
                     text = "${stringResource(label)} ${formatTokens(tokens, binaryUnits)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (cost > 0) {
+                Text(
+                    text = "${stringResource(R.string.stats_page_cost)} ${cost.formatCost()}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -841,20 +880,31 @@ private fun UsagePieCard(models: List<ModelUsageItem>, modifier: Modifier = Modi
     }
 }
 
+private data class RankingItem(
+    val label: String,
+    val tokens: Long,
+    val cost: Double = 0.0,
+)
+
 @Composable
-private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier: Modifier = Modifier) {
+private fun RankingCard(title: String, items: List<RankingItem>, modifier: Modifier = Modifier) {
     val otherLabel = stringResource(R.string.stats_page_other)
     val rows = remember(items, otherLabel) {
-        val sorted = items.filter { it.second > 0 }.sortedByDescending { it.second }
+        val sorted = items.filter { it.tokens > 0 }.sortedByDescending { it.tokens }
         if (sorted.size <= RANKING_LIMIT) {
             sorted
         } else {
-            sorted.take(RANKING_LIMIT - 1) + (otherLabel to sorted.drop(RANKING_LIMIT - 1).sumOf { it.second })
+            val rest = sorted.drop(RANKING_LIMIT - 1)
+            sorted.take(RANKING_LIMIT - 1) + RankingItem(
+                label = otherLabel,
+                tokens = rest.sumOf { it.tokens },
+                cost = rest.sumOf { it.cost },
+            )
         }
     }
     if (rows.isEmpty()) return
-    val total = rows.sumOf { it.second }
-    val max = rows.maxOf { it.second }
+    val total = rows.sumOf { it.tokens }
+    val max = rows.maxOf { it.tokens }
 
     Card(modifier = modifier.fillMaxWidth(), colors = CustomColors.cardColorsOnSurfaceContainer) {
         Column(
@@ -862,12 +912,13 @@ private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
-            rows.forEach { (label, tokens) ->
+            rows.forEach { item ->
                 RankingRow(
-                    label = label,
-                    tokens = tokens,
-                    fraction = tokens.toFloat() / max,
-                    share = tokens.toFloat() / total,
+                    label = item.label,
+                    tokens = item.tokens,
+                    cost = item.cost,
+                    fraction = item.tokens.toFloat() / max,
+                    share = item.tokens.toFloat() / total,
                 )
             }
         }
@@ -875,7 +926,7 @@ private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier
 }
 
 @Composable
-private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Float) {
+private fun RankingRow(label: String, tokens: Long, cost: Double, fraction: Float, share: Float) {
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val barColor = MaterialTheme.colorScheme.primary
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -891,7 +942,11 @@ private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Floa
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "${formatTokens(tokens, binaryUnits)} · ${"%.0f".format(share * 100)}%",
+                text = buildString {
+                    append(formatTokens(tokens, binaryUnits))
+                    append(" · ${"%.0f".format(share * 100)}%")
+                    if (cost > 0) append(" · ${cost.formatCost()}")
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -924,8 +979,8 @@ private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Floa
 }
 
 @Composable
-private fun sourceLabel(source: SourceUsage): String {
-    val usageSource = UsageSource.entries.find { it.name == source.source } ?: return source.source
+private fun sourceLabel(source: String): String {
+    val usageSource = UsageSource.entries.find { it.name == source } ?: return source
     return stringResource(
         when (usageSource) {
             UsageSource.CHAT -> R.string.stats_page_source_chat
@@ -939,14 +994,13 @@ private fun sourceLabel(source: SourceUsage): String {
     )
 }
 
-private val SourceUsage.totalTokens get() = promptTokens + completionTokens
-
 @Composable
 private fun StatCard(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     label: String,
     value: String,
+    hint: String? = null,
 ) {
     Card(modifier = modifier, colors = CustomColors.cardColorsOnSurfaceContainer) {
         Column(
@@ -968,6 +1022,13 @@ private fun StatCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hint != null) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                )
+            }
         }
     }
 }

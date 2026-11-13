@@ -2931,4 +2931,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_window_cost_limit">费用上限</string>
   <string name="setting_provider_guard_window_cost_desc">按模型编辑页填写的单价估算，未填写价格的模型不计入。</string>
   <string name="provider_limit_window_cost">%1$s 的「%2$s」费用上限 %3$s 已用完，%4$s 后恢复</string>
+  <string name="stats_page_total_cost">估算费用</string>
+  <string name="stats_page_cost">费用</string>
+  <string name="stats_page_cost_hint">按模型编辑页填写的单价估算，未填写价格的模型不计入。</string>
+  <string name="stats_page_cost_unset">尚未设置模型价目，在模型编辑页填写单价后显示金额。</string>
 </resources>
