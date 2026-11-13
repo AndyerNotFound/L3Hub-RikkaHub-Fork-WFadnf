@@ -421,6 +421,8 @@ sealed class ProviderSetting {
         // 运行时加载的模型文件或目录
         abstract val modelPath: String
         abstract val contextTokens: Int
+        // 用户记录的启动命令；应用不会执行它，只用于复制和备忘
+        abstract val launchCommand: String
 
         /** 交给 OpenAI 兼容实现去请求；地址始终是用户填的本机服务 */
         fun asOpenAI(): OpenAI = OpenAI(
@@ -461,8 +463,7 @@ sealed class ProviderSetting {
         override val contextTokens: Int = 4096,
         var gpuLayers: Int = 0,
         var threads: Int = 4,
-        // 用户自己记录的启动命令；应用不会执行它，只用于复制和备忘
-        var launchCommand: String = "",
+        override var launchCommand: String = "",
     ) : LocalServer() {
         override fun copyProvider(
             id: Uuid,
@@ -511,8 +512,7 @@ sealed class ProviderSetting {
         // 例如 cpu / nnapi / xnnpack，供启动命令展示使用
         var executionProvider: String = "",
         var threads: Int = 4,
-        // 用户自己记录的启动命令；应用不会执行它，只用于复制和备忘
-        var launchCommand: String = "",
+        override var launchCommand: String = "",
     ) : LocalServer() {
         override fun copyProvider(
             id: Uuid,
