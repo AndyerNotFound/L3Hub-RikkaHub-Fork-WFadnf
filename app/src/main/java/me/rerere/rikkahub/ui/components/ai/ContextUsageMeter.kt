@@ -311,13 +311,13 @@ fun ContextUsageRing(
             }
         }
         if (provider != null) {
-            // 余额每 30 秒自动刷新一次；失败时保留上一次的数字。
+            // 刷新间隔取提供商高级设置里的值，0 表示不自动刷新；失败时保留上一次的数字。
             // 与左侧用量各占一半，余额再长也只在自己的格子里截断，不会把环形图和数值挤变形
             ProviderQuotaText(
                 providerSetting = provider,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelSmall,
-                refreshIntervalMillis = 30_000,
+                refreshIntervalMillis = provider.guard.quotaRefreshSeconds * 1_000L,
             )
         }
     }

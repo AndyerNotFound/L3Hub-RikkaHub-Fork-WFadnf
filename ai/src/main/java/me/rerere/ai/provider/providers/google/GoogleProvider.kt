@@ -38,8 +38,9 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.applyRequestOverride
 import me.rerere.ai.provider.runQuotaQuery
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.google.vertex.ServiceAccountTokenProvider
@@ -111,7 +112,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
     private suspend fun transformRequest(
         providerSetting: ProviderSetting.Google,
-        request: Request
+        request: Request,
+        selectedApiKey: String? = null,
     ): Request {
         return if (providerSetting.vertexAI && providerSetting.useServiceAccount) {
             val accessToken = serviceAccountTokenProvider.fetchAccessToken(
@@ -122,7 +124,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .addHeader("Authorization", "Bearer $accessToken")
                 .build()
         } else {
-            val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
+            val key = selectedApiKey ?: keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             if (providerSetting.vertexAI) {
                 request.newBuilder()
                     .url(request.url.newBuilder().addQueryParameter("key", key).build())
@@ -196,6 +198,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
         )
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = transformRequest(
             providerSetting = providerSetting,
             request = Request.Builder()
@@ -206,7 +209,15 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
                 )
                 .configureReferHeaders(providerSetting.baseUrl)
-                .build()
+                .build(),
+            selectedApiKey = apiKey,
+        ).applyRequestOverride(
+            guard = providerSetting.guard,
+            apiKey = apiKey,
+            baseUrl = providerSetting.baseUrl,
+            model = params.model.modelId,
+            body = requestBody,
+            stream = false,
         )
 
         val response = client.newCall(request).await()
@@ -254,6 +265,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
         ).newBuilder().addQueryParameter("alt", "sse").build()
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = transformRequest(
             providerSetting = providerSetting,
             request = Request.Builder()
@@ -264,7 +276,15 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
                 )
                 .configureReferHeaders(providerSetting.baseUrl)
-                .build()
+                .build(),
+            selectedApiKey = apiKey,
+        ).applyRequestOverride(
+            guard = providerSetting.guard,
+            apiKey = apiKey,
+            baseUrl = providerSetting.baseUrl,
+            model = params.model.modelId,
+            body = requestBody,
+            stream = true,
         )
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")

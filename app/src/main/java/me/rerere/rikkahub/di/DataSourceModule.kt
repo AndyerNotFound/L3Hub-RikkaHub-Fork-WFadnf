@@ -18,6 +18,8 @@ import me.rerere.rikkahub.data.ai.AIRequestInterceptor
 import me.rerere.rikkahub.data.ai.ConversationMetaGenerator
 import me.rerere.rikkahub.data.ai.MemoryConsolidationScheduler
 import me.rerere.rikkahub.data.ai.MemoryConsolidator
+import me.rerere.rikkahub.data.ai.AndroidProviderGateMessages
+import me.rerere.rikkahub.data.ai.ProviderGate
 import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TranslationHandler
 import me.rerere.rikkahub.data.ai.UsageRecorder
@@ -131,7 +133,14 @@ val dataSourceModule = module {
     }
 
     single {
-        UsageRecorder(dao = get(), scope = get<AppScope>())
+        ProviderGate(
+            dao = get(),
+            texts = AndroidProviderGateMessages(get()),
+        )
+    }
+
+    single {
+        UsageRecorder(dao = get(), scope = get<AppScope>(), gate = get())
     }
 
     single {

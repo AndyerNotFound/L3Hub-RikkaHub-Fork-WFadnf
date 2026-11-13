@@ -154,6 +154,7 @@ import me.rerere.ui.toast.ToastType
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
+import me.rerere.rikkahub.ui.pages.setting.components.ProviderGuardSettings
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderQuotaQuery
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -601,7 +602,13 @@ private fun SettingProviderConfigPage(
                     provider = apiKeyProvider,
                     // 额度按已保存的配置查，没开就不留这一行
                     supportingContent = if (provider.supportsQuota) {
-                        { ProviderQuotaText(providerSetting = provider, maxLines = 2) }
+                        {
+                            ProviderQuotaText(
+                                providerSetting = provider,
+                                maxLines = 2,
+                                refreshIntervalMillis = provider.guard.quotaRefreshSeconds * 1_000L,
+                            )
+                        }
                     } else null,
                     onEdit = { internalProvider = apiKeyProvider.withQuotaQuery(it) }
                 )
@@ -727,6 +734,11 @@ private fun SettingProviderAdvancedPage(
             onUpdate = { headers ->
                 onEdit(provider.copyProvider(customHeaders = headers))
             }
+        )
+
+        ProviderGuardSettings(
+            provider = provider,
+            onEdit = onEdit,
         )
     }
 }

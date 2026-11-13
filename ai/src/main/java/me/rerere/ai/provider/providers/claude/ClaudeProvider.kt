@@ -44,6 +44,7 @@ import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.applyRequestOverride
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.runQuotaQuery
@@ -295,15 +296,24 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
     ): TextGenerationResult {
         val requestBody = buildMessageRequest(providerSetting, messages, params)
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
+            .addHeader("x-api-key", apiKey)
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
+            .applyRequestOverride(
+                guard = providerSetting.guard,
+                apiKey = apiKey,
+                baseUrl = providerSetting.baseUrl,
+                model = params.model.modelId,
+                body = requestBody,
+                stream = false,
+            )
 
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
@@ -345,16 +355,25 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildMessageRequest(providerSetting, messages, params, stream = true)
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
+            .addHeader("x-api-key", apiKey)
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .addHeader("Content-Type", "application/json")
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
+            .applyRequestOverride(
+                guard = providerSetting.guard,
+                apiKey = apiKey,
+                baseUrl = providerSetting.baseUrl,
+                model = params.model.modelId,
+                body = requestBody,
+                stream = true,
+            )
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
 

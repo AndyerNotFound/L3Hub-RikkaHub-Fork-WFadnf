@@ -37,6 +37,7 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.applyRequestOverride
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.stream.SseEvent
@@ -90,17 +91,23 @@ class ChatCompletionsAPI(
                 providerSetting = providerSetting
             )
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader(
-                "Authorization",
-                "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"
-            )
+            .addHeader("Authorization", "Bearer $apiKey")
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
+            .applyRequestOverride(
+                guard = providerSetting.guard,
+                apiKey = apiKey,
+                baseUrl = providerSetting.baseUrl,
+                model = params.model.modelId,
+                body = requestBody,
+                stream = false,
+            )
 
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
@@ -145,18 +152,24 @@ class ChatCompletionsAPI(
             stream = true,
         )
 
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader(
-                "Authorization",
-                "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"
-            )
+            .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
             .build()
+            .applyRequestOverride(
+                guard = providerSetting.guard,
+                apiKey = apiKey,
+                baseUrl = providerSetting.baseUrl,
+                model = params.model.modelId,
+                body = requestBody,
+                stream = true,
+            )
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
 

@@ -31,6 +31,7 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.applyRequestOverride
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.stream.SseEvent
@@ -88,7 +89,7 @@ internal class InteractionsAPI(
         params: TextGenerationParams,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
         val requestBody = buildRequestBody(messages, params, stream = false)
-        val request = buildRequest(providerSetting, params, requestBody)
+        val request = buildRequest(providerSetting, params, requestBody, stream = false)
 
         // await() waits for the response headers; reading the body can still block.
         client.newCall(request).await().use { response ->
@@ -106,7 +107,7 @@ internal class InteractionsAPI(
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildRequestBody(messages, params, stream = true)
-        val request = buildRequest(providerSetting, params, requestBody)
+        val request = buildRequest(providerSetting, params, requestBody, stream = true)
 
         Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
 
@@ -173,16 +174,26 @@ internal class InteractionsAPI(
         providerSetting: ProviderSetting.Google,
         params: TextGenerationParams,
         requestBody: JsonObject,
+        stream: Boolean,
     ): Request {
         val url = "${providerSetting.baseUrl}/interactions"
+        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         return Request.Builder()
             .url(url)
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .configureSessionHeaders(url, params.sessionId)
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-goog-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
+            .addHeader("x-goog-api-key", apiKey)
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
+            .applyRequestOverride(
+                guard = providerSetting.guard,
+                apiKey = apiKey,
+                baseUrl = providerSetting.baseUrl,
+                model = params.model.modelId,
+                body = requestBody,
+                stream = stream,
+            )
     }
 
     internal fun buildRequestBody(
