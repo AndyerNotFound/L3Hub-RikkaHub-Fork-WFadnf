@@ -152,7 +152,7 @@ fun ProviderLockSchedule.activeWindowAt(
     val dates = listOf(today, today.minusDays(1))
     for (date in dates) {
         if (!occursOn(date, start.toLocalDate(), until, repeat)) continue
-        val startMillis = LocalDateTime.of(date, start.toLocalTime()).toInstant(zone).toEpochMilli()
+        val startMillis = LocalDateTime.of(date, start.toLocalTime()).atZone(zone).toInstant().toEpochMilli()
         val endMillis = startMillis + summaryDurationMinutes().toLong() * 60_000L
         if (now.toEpochMilliseconds() >= startMillis && now.toEpochMilliseconds() < endMillis) {
             return Instant.fromEpochMilliseconds(startMillis) to Instant.fromEpochMilliseconds(endMillis)
@@ -173,7 +173,7 @@ fun ProviderLockSchedule.nextStartAfter(
 
     if (repeat == ProviderLockRepeat.ONCE) {
         if (date > start.toLocalDate()) return null
-        val candidate = start.toInstant(zone).toEpochMilli()
+        val candidate = start.atZone(zone).toInstant().toEpochMilli()
         return if (candidate > now.toEpochMilliseconds()) Instant.fromEpochMilliseconds(candidate) else null
     }
 
@@ -182,7 +182,7 @@ fun ProviderLockSchedule.nextStartAfter(
     var guard = 0
     while (guard++ < 400) {
         if (until != null && date > until) return null
-        val candidate = date.atTime(start.toLocalTime()).toInstant(zone).toEpochMilli()
+        val candidate = date.atTime(start.toLocalTime()).atZone(zone).toInstant().toEpochMilli()
         if (candidate > now.toEpochMilliseconds()) return Instant.fromEpochMilliseconds(candidate)
         date = date.plusDays(1)
     }

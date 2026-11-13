@@ -75,7 +75,7 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.theme.JetBrainsMono
+import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.compose.koinInject
@@ -116,10 +116,10 @@ fun ProviderGuardSettings(
     }
     var status by remember(provider.id) { mutableStateOf<ProviderGateStatus?>(null) }
     val statusTick = tick / 10_000
-    LaunchedEffect(provider.id, guard, statusTick) {
+    LaunchedEffect(provider.id, guard.rpmLimit, guard.tpmLimit, guard.windows, guard.locks, statusTick) {
         status = runCatching { gate.status(provider) }.getOrNull()
     }
-    val lockState = remember(guard, tick / 5_000) {
+    val lockState = remember(guard.locks, tick / 5_000) {
         gate.lockState(provider, Instant.fromEpochMilliseconds(tick))
     }
 
@@ -671,7 +671,7 @@ private fun ProviderRequestOverrideCard(
                         Text("curl 'https://api.example.com/v1/chat/completions' \\\n  -H 'Authorization: Bearer {{apiKey}}' \\\n  -d '{\"model\":\"{{model}}\",\"messages\":{{messages}}}'")
                     },
                     minLines = 6,
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 )
                 when {
@@ -746,7 +746,7 @@ private fun NumberField(
         modifier = modifier,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMono),
+        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetbrainsMono),
     )
 }
 
