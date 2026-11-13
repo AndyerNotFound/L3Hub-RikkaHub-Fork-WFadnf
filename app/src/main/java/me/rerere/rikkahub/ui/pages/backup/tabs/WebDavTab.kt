@@ -31,6 +31,7 @@ import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupLayout
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupStatus
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
+import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.ui.toast.ToastType
