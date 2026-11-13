@@ -786,7 +786,7 @@ private fun QuotaWindowSheet(
     var metric by remember { mutableStateOf(base.metric) }
     var limitText by remember { mutableStateOf(base.limit.takeIf { it > 0 }?.toString().orEmpty()) }
     var costLimitText by remember {
-        mutableStateOf(base.costLimit.takeIf { it > 0 }?.let { formatCost(it) }.orEmpty())
+        mutableStateOf(base.costLimit.takeIf { it > 0 }?.let { it.formatCost() }.orEmpty())
     }
     val amount = amountText.toIntOrNull() ?: 0
     val limit = limitText.toIntOrNull() ?: 0
