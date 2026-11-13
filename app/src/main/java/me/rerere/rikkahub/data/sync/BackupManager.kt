@@ -95,7 +95,7 @@ class BackupManager(
         }
     }
 
-    suspend fun stageRestore(archive: File, includeDatabase: Boolean, includeFiles: Boolean) =
+    suspend fun stageRestore(archive: File, options: RestoreOptions): RestoreStageResult =
         withContext(Dispatchers.IO) {
             restoreMutex.withLock {
                 val restore = pendingRestore(context)
@@ -105,18 +105,34 @@ class BackupManager(
                     val stagedDatabase = File(payload, "database/${SQLiteConfiguration.DATABASE_NAME}")
                     val stagedWal = File(stagedDatabase.path + "-wal")
                     val seen = mutableSetOf<String>()
-                    var restoredEntries = 0
+                    val stagedItems = mutableSetOf<RestoreItem>()
                     ZipFile(archive).use { zip ->
                         for (entry in zip.entries()) {
                             currentCoroutineContext().ensureActive()
                             if (entry.isDirectory) continue
                             val target = when (entry.name) {
-                                "settings.json" -> File(staging, "settings.json")
-                                DatabaseBackup.ARCHIVE_DATABASE -> if (includeDatabase) stagedDatabase else null
-                                DatabaseBackup.WAL -> if (includeDatabase) stagedWal else null
+                                "settings.json" -> if (RestoreItem.SETTINGS in options.items) {
+                                    File(staging, "settings.json").also { stagedItems += RestoreItem.SETTINGS }
+                                } else {
+                                    null
+                                }
+
+                                DatabaseBackup.ARCHIVE_DATABASE -> if (RestoreItem.CHAT_RECORDS in options.items) {
+                                    stagedDatabase.also { stagedItems += RestoreItem.CHAT_RECORDS }
+                                } else {
+                                    null
+                                }
+
+                                DatabaseBackup.WAL -> if (RestoreItem.CHAT_RECORDS in options.items) {
+                                    stagedWal
+                                } else {
+                                    null
+                                }
+
                                 DatabaseBackup.SHM -> null // Rebuilt by SQLite; never restore shared-memory state.
-                                else -> if (includeFiles && isAttachment(entry.name)) {
+                                else -> if (RestoreItem.FILES in options.items && isAttachment(entry.name)) {
                                     PendingRestore.resolveInside(File(payload, "files"), entry.name)
+                                        .also { stagedItems += RestoreItem.FILES }
                                 } else {
                                     null
                                 }
@@ -131,10 +147,9 @@ class BackupManager(
                                     output.fd.sync()
                                 }
                             }
-                            restoredEntries++
                         }
                     }
-                    require(restoredEntries > 0) { "No selected data found in the backup" }
+                    require(stagedItems.isNotEmpty()) { "No selected data found in the backup" }
                     require(!stagedWal.exists() || stagedDatabase.exists()) { "Backup WAL has no matching database" }
                     if (stagedDatabase.exists()) {
                         DatabaseBackup.normalize(context, stagedDatabase)
@@ -169,7 +184,10 @@ class BackupManager(
                         )
                     }
                     currentCoroutineContext().ensureActive()
-                    restore.publish(staging)
+                    val staged = stagedItems.toSet()
+                    // 只记下备份里确实存在的类别：恢复时按这份清单决定动不动当前数据
+                    restore.publish(staging, RestoreOptions(items = staged, mode = options.mode))
+                    RestoreStageResult(staged = staged, skipped = options.items - staged)
                 } finally {
                     staging.deleteRecursively()
                 }
@@ -194,7 +212,7 @@ class BackupManager(
     companion object {
         // 备份只收白名单里的这些目录。workspaces/（工作区文件）和 drafts/（流式草稿）都是运行时状态，
         // 换个进程/设备恢复出来没有意义，所以不列在这里，也就不会被打包
-        private val ATTACHMENT_FOLDERS = listOf(
+        internal val ATTACHMENT_FOLDERS = listOf(
             FileFolders.UPLOAD,
             FileFolders.IMAGES,
             FileFolders.SKILLS,
@@ -203,7 +221,7 @@ class BackupManager(
         )
 
         /** Backed up with their subdirectories; the other folders only contain top-level files. */
-        private val NESTED_ATTACHMENT_FOLDERS = setOf(FileFolders.SKILLS, FileFolders.MEDIA_CREATION)
+        internal val NESTED_ATTACHMENT_FOLDERS = setOf(FileFolders.SKILLS, FileFolders.MEDIA_CREATION)
 
         // 启动次数不在 Settings 里，备份文件里仍放在 settings.json 的这个字段，和旧备份保持一致
         private const val LAUNCH_COUNT_KEY = "launchCount"
@@ -235,17 +253,22 @@ class BackupManager(
             root = File(context.noBackupFilesDir, "backup-restore"),
             databaseFile = context.getDatabasePath(SQLiteConfiguration.DATABASE_NAME),
             filesDir = context.filesDir,
+            context = context.applicationContext,
         )
 
         /** Must finish before Koin, Room, SettingsStore or any background consumers are initialized. */
         suspend fun applyPendingRestore(context: Context, json: Json): Boolean = withContext(Dispatchers.IO) {
-            pendingRestore(context).apply { settingsJson ->
+            pendingRestore(context).apply { settingsJson, mode ->
                 SettingsStore.restoreBeforeInitialization(
                     context = context,
                     settings = json.decodeFromString<Settings>(settingsJson),
                     launchCount = json.launchCountOf(settingsJson),
+                    merge = mode == RestoreMode.MERGE,
                 )
-                json.appLanguageTagOf(settingsJson)?.let { tag -> AppLanguage.setTag(context, tag) }
+                // 合并模式下语言属于「保留当前」的单值设置，只有整份覆盖才跟着备份走
+                if (mode == RestoreMode.OVERWRITE) {
+                    json.appLanguageTagOf(settingsJson)?.let { tag -> AppLanguage.setTag(context, tag) }
+                }
             }
         }
     }

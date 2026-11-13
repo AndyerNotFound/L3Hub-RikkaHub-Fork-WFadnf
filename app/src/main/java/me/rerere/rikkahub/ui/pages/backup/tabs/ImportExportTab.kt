@@ -26,13 +26,15 @@ import me.rerere.hugeicons.stroke.FileExport
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.sync.RestoreOptions
+import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
+import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 import me.rerere.ui.toast.ToastType
 import java.io.File
 import java.io.FileInputStream
@@ -51,7 +53,9 @@ fun ImportExportTab(
     val selectedBackupItems by vm.localBackupItems.collectAsStateWithLifecycle()
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
-    var showImportConfirmDialog by remember { mutableStateOf(false) }
+    var showRestoreOptions by remember { mutableStateOf(false) }
+    // 恢复选项在选文件之前确定，文件选择器的回调里要用
+    var pendingRestoreOptions by remember { mutableStateOf(RestoreOptions()) }
 
     // 导入类型：local 为本地备份，chatbox 为 Chatbox 导入，cherry 为 Cherry Studio 导入
     var importType by remember { mutableStateOf("local") }
@@ -153,6 +157,7 @@ fun ImportExportTab(
                     isRestoring = false
                     return@launch
                 }
+                var stagedResult: RestoreStageResult? = null
                 runCatching {
                     when (importType) {
                         "local" -> {
@@ -167,7 +172,7 @@ fun ImportExportTab(
                             }
 
                             // 从临时文件恢复
-                            vm.restoreFromLocalFile(tempFile)
+                            stagedResult = vm.restoreFromLocalFile(tempFile, pendingRestoreOptions)
 
                             // 清理临时文件
                             tempFile.delete()
@@ -214,6 +219,11 @@ fun ImportExportTab(
                         context.getString(R.string.backup_page_restore_success),
                         type = ToastType.Success
                     )
+                    stagedResult?.let { result ->
+                        restoreSkippedMessage(context, result)?.let { message ->
+                            toaster.show(message, type = ToastType.Warning)
+                        }
+                    }
                     onShowRestartDialog()
                 }.onFailure { e ->
                     e.printStackTrace()
@@ -271,7 +281,7 @@ fun ImportExportTab(
             item(
                 onClick = if (!isRestoring) {
                     {
-                        showImportConfirmDialog = true
+                        showRestoreOptions = true
                     }
                 } else null,
                 headlineContent = { Text(stringResource(R.string.backup_page_local_backup_import)) },
@@ -351,26 +361,14 @@ fun ImportExportTab(
         }
     }
 
-    if (showImportConfirmDialog) {
-        AnimatedAlertDialog(
-            onDismissRequest = { showImportConfirmDialog = false },
-            title = { Text(stringResource(R.string.backup_page_local_backup_import)) },
-            text = { Text(stringResource(R.string.backup_page_import_overwrite_confirm)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showImportConfirmDialog = false
-                        importType = "local"
-                        openDocumentLauncher.launch(arrayOf("application/zip"))
-                    }
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportConfirmDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+    if (showRestoreOptions) {
+        RestoreOptionsDialog(
+            onDismissRequest = { showRestoreOptions = false },
+            onConfirm = { options ->
+                showRestoreOptions = false
+                pendingRestoreOptions = options
+                importType = "local"
+                openDocumentLauncher.launch(arrayOf("application/zip"))
             },
         )
     }

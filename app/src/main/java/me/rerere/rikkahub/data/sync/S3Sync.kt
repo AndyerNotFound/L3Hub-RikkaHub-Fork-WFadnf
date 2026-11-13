@@ -66,7 +66,11 @@ class S3Sync(
             .sortedByDescending { it.lastModified }
     }
 
-    suspend fun restoreFromS3(config: S3Config, item: S3BackupItem) = withContext(Dispatchers.IO) {
+    suspend fun restoreFromS3(
+        config: S3Config,
+        item: S3BackupItem,
+        options: RestoreOptions,
+    ): RestoreStageResult = withContext(Dispatchers.IO) {
         val client = getS3Client(config)
         val backupFile = File.createTempFile("restore-", ".zip", context.cacheDir)
 
@@ -78,7 +82,7 @@ class S3Sync(
             Log.i(TAG, "restoreFromS3: Downloaded ${backupFile.length().fileSizeToString()}")
 
             // Restore from backup file
-            restoreFromBackupFile(backupFile, config)
+            restoreFromBackupFile(backupFile, options)
         } finally {
             // Clean up temp file
             if (backupFile.exists()) {
@@ -99,11 +103,10 @@ class S3Sync(
         includeFiles = S3Config.BackupItem.FILES in config.items,
     )
 
-    private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config) = backupManager.stageRestore(
-        archive = backupFile,
-        includeDatabase = S3Config.BackupItem.DATABASE in config.items,
-        includeFiles = S3Config.BackupItem.FILES in config.items,
-    )
+    private suspend fun restoreFromBackupFile(
+        backupFile: File,
+        options: RestoreOptions,
+    ): RestoreStageResult = backupManager.stageRestore(archive = backupFile, options = options)
 
 }
 

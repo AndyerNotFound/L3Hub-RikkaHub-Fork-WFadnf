@@ -73,7 +73,7 @@ class BackupManagerTest {
                 zip.closeEntry()
             }
         }
-        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, chatOnly())
         assertEquals("live", probe(liveDatabase))
         val staged = File(context.noBackupFilesDir, "backup-restore/pending/payload/database/rikka_hub")
         assertTrue(staged.isFile)
@@ -94,7 +94,7 @@ class BackupManagerTest {
             assertEquals(null, zip.getEntry(DatabaseBackup.WAL))
             assertEquals(null, zip.getEntry(DatabaseBackup.SHM))
         }
-        manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+        manager.stageRestore(archive, chatOnly())
         assertEquals("live", probe(liveDatabase))
     }
 
@@ -104,7 +104,7 @@ class BackupManagerTest {
             launchCountOf(zip.getInputStream(zip.getEntry("settings.json")).readBytes().decodeToString())
         }
         assertTrue(archived != null)
-        manager.stageRestore(archive, includeDatabase = false, includeFiles = false)
+        manager.stageRestore(archive, settingsOnly())
         val staged = File(context.noBackupFilesDir, "backup-restore/pending/settings.json").readText()
         assertEquals(archived, launchCountOf(staged))
     }
@@ -120,10 +120,14 @@ class BackupManagerTest {
             zip.write(JsonObject(JsonInstant.parseToJsonElement(settingsJson).jsonObject - "launchCount").toString().toByteArray())
             zip.closeEntry()
         }
-        manager.stageRestore(archive, includeDatabase = false, includeFiles = false)
+        manager.stageRestore(archive, settingsOnly())
         val staged = File(context.noBackupFilesDir, "backup-restore/pending/settings.json").readText()
         assertEquals(0, launchCountOf(staged))
     }
+
+    private fun chatOnly() = RestoreOptions(items = setOf(RestoreItem.CHAT_RECORDS))
+
+    private fun settingsOnly() = RestoreOptions(items = setOf(RestoreItem.SETTINGS))
 
     private fun launchCountOf(settingsJson: String): Int? =
         JsonInstant.parseToJsonElement(settingsJson).jsonObject["launchCount"]?.jsonPrimitive?.int
@@ -142,10 +146,8 @@ class BackupManagerTest {
             assertEquals(null, zip.getEntry("media_creation/session/record/out_1.mp4.part"))
         }
         session.deleteRecursively()
-        manager.stageRestore(archive, includeDatabase = false, includeFiles = true)
+        manager.stageRestore(archive, RestoreOptions(items = setOf(RestoreItem.FILES)))
         assertFalse(session.exists())
-        // Applying the staged settings would write to the real settings store of the app under test.
-        assertTrue(File(context.noBackupFilesDir, "backup-restore/pending/settings.json").delete())
         assertTrue(BackupManager.applyPendingRestore(context, JsonInstant))
         assertEquals("image", File(session, "record/out_0.png").readText())
         assertEquals("asset", File(session, "draft/asset.jpg").readText())
@@ -161,7 +163,7 @@ class BackupManagerTest {
         ZipOutputStream(archive.outputStream()).use { addFile(it, DatabaseBackup.ARCHIVE_DATABASE, future) }
         var failed = false
         try {
-            manager.stageRestore(archive, includeDatabase = true, includeFiles = false)
+            manager.stageRestore(archive, chatOnly())
         } catch (_: Exception) {
             failed = true
         }

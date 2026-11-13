@@ -6,6 +6,8 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.sync.BackupManager
+import me.rerere.rikkahub.data.sync.RestoreOptions
+import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
@@ -70,7 +72,11 @@ class WebDavSync(
             .sortedByDescending { it.lastModified }
     }
 
-    suspend fun restore(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
+    suspend fun restore(
+        config: WebDavConfig,
+        item: WebDavBackupItem,
+        options: RestoreOptions,
+    ): RestoreStageResult = withContext(Dispatchers.IO) {
         val client = getClient(config)
         val backupFile = File.createTempFile("restore-", ".zip", context.cacheDir)
 
@@ -82,7 +88,7 @@ class WebDavSync(
             Log.i(TAG, "restore: Downloaded ${backupFile.length().fileSizeToString()}")
 
             // Restore from backup file
-            restoreFromBackupFile(backupFile, config)
+            restoreFromBackupFile(backupFile, options)
         } finally {
             // Clean up temp file
             if (backupFile.exists()) {
@@ -98,20 +104,18 @@ class WebDavSync(
         Log.i(TAG, "deleteBackupFile: Deleted ${item.displayName}")
     }
 
-    suspend fun restoreFromLocalFile(file: File, config: WebDavConfig) {
-        restoreFromBackupFile(file, config)
-    }
+    suspend fun restoreFromLocalFile(file: File, options: RestoreOptions): RestoreStageResult =
+        restoreFromBackupFile(file, options)
 
     suspend fun prepareBackupFile(config: WebDavConfig): File = backupManager.createBackup(
         includeDatabase = WebDavConfig.BackupItem.DATABASE in config.items,
         includeFiles = WebDavConfig.BackupItem.FILES in config.items,
     )
 
-    private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig) = backupManager.stageRestore(
-        archive = backupFile,
-        includeDatabase = WebDavConfig.BackupItem.DATABASE in config.items,
-        includeFiles = WebDavConfig.BackupItem.FILES in config.items,
-    )
+    private suspend fun restoreFromBackupFile(
+        backupFile: File,
+        options: RestoreOptions,
+    ): RestoreStageResult = backupManager.stageRestore(archive = backupFile, options = options)
 
 }
 

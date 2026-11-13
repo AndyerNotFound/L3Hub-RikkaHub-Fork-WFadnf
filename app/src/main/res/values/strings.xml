@@ -207,6 +207,17 @@
   <string name="backup_page_restart_desc">The app needs to restart for the changes to take effect.</string>
   <string name="backup_page_restore">Restore</string>
   <string name="backup_page_restore_failed">Restore failed: %s</string>
+  <string name="backup_page_restore_items">Data to Restore</string>
+  <string name="backup_page_restore_mode">Restore Mode</string>
+  <string name="backup_page_restore_mode_merge">Merge</string>
+  <string name="backup_page_restore_mode_merge_desc">Keeps current data and adds only what is missing from the backup. Existing chat records, files and settings entries stay as they are.</string>
+  <string name="backup_page_restore_mode_overwrite">Overwrite</string>
+  <string name="backup_page_restore_mode_overwrite_desc">Replaces the selected data with the backup. Chat records and files that are not in the backup are removed, and settings come entirely from the backup.</string>
+  <string name="backup_page_restore_nothing_selected">Select at least one kind of data.</string>
+  <string name="backup_page_restore_options">Restore Options</string>
+  <string name="backup_page_restore_overwrite_warning">This cannot be undone. Export a backup first if you are unsure.</string>
+  <string name="backup_page_restore_separator">", "</string>
+  <string name="backup_page_restore_skipped">Not in this backup, skipped: %s</string>
   <string name="backup_page_restore_now">Restore</string>
   <string name="backup_page_restore_success">Restore successful</string>
   <string name="backup_page_restoring">Restoring...</string>
@@ -219,6 +230,7 @@
   <string name="backup_page_s3_path_style_desc">Use endpoint/bucket/object. Turn off to use bucket.endpoint/object.</string>
   <string name="backup_page_s3_region">Region</string>
   <string name="backup_page_s3_secret_access_key">Secret Access Key</string>
+  <string name="backup_page_settings">Settings</string>
   <string name="backup_page_test_connection">Test Connection</string>
   <string name="backup_page_title">Backup and Restore</string>
   <string name="backup_page_unknown_error">Unknown error</string>

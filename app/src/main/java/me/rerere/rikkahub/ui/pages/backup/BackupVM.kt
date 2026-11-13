@@ -18,6 +18,8 @@ import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.sync.RestoreOptions
+import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
@@ -89,9 +91,8 @@ class BackupVM(
         recordBackupTime()
     }
 
-    suspend fun restore(item: WebDavBackupItem) {
-        webDavSync.restore(config = settings.value.webDavConfig, item = item)
-    }
+    suspend fun restore(item: WebDavBackupItem, options: RestoreOptions): RestoreStageResult =
+        webDavSync.restore(config = settings.value.webDavConfig, item = item, options = options)
 
     suspend fun deleteWebDavBackupFile(item: WebDavBackupItem) {
         webDavSync.deleteBackupFile(settings.value.webDavConfig, item)
@@ -105,12 +106,8 @@ class BackupVM(
         return file
     }
 
-    suspend fun restoreFromLocalFile(file: File) {
-        webDavSync.restoreFromLocalFile(
-            file,
-            settings.value.webDavConfig.copy(items = localBackupItems.value),
-        )
-    }
+    suspend fun restoreFromLocalFile(file: File, options: RestoreOptions): RestoreStageResult =
+        webDavSync.restoreFromLocalFile(file, options)
 
     /** 从 Markdown 聊天记录新建一个会话，不覆盖任何已有数据 */
     suspend fun importMarkdown(text: String): MarkdownImportResult = withContext(Dispatchers.IO) {
@@ -258,9 +255,8 @@ class BackupVM(
         recordBackupTime()
     }
 
-    suspend fun restoreFromS3(item: S3BackupItem) {
-        s3Sync.restoreFromS3(config = settings.value.s3Config, item = item)
-    }
+    suspend fun restoreFromS3(item: S3BackupItem, options: RestoreOptions): RestoreStageResult =
+        s3Sync.restoreFromS3(config = settings.value.s3Config, item = item, options = options)
 
     suspend fun deleteS3BackupFile(item: S3BackupItem) {
         s3Sync.deleteS3BackupFile(settings.value.s3Config, item)

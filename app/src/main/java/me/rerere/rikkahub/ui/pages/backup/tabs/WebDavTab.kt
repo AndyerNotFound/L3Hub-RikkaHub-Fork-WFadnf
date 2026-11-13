@@ -29,7 +29,9 @@ import me.rerere.rikkahub.ui.pages.backup.components.BackupFileInfo
 import me.rerere.rikkahub.ui.pages.backup.components.BackupFilesSheet
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupLayout
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupStatus
+import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
+import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.ui.toast.ToastType
 
@@ -47,6 +49,8 @@ fun WebDavTab(
     var showBackupFiles by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
+    // 点了恢复的备份文件，等恢复选项确认后再真正开始
+    var pendingRestoreItem by remember { mutableStateOf<WebDavBackupItem?>(null) }
 
     fun updateWebDavConfig(newConfig: WebDavConfig) {
         vm.updateSettings { it.copy(webDavConfig = newConfig) }
@@ -201,15 +205,27 @@ fun WebDavTab(
                     }
                 }
             },
-            onRestore = { item ->
+            onRestore = { item -> pendingRestoreItem = item },
+            onDismiss = { showBackupFiles = false },
+        )
+    }
+
+    pendingRestoreItem?.let { item ->
+        RestoreOptionsDialog(
+            onDismissRequest = { pendingRestoreItem = null },
+            onConfirm = { options ->
+                pendingRestoreItem = null
                 scope.launch {
                     restoringItemId = item.displayName
                     runCatching {
-                        vm.restore(item = item)
+                        val result = vm.restore(item = item, options = options)
                         toaster.show(
                             context.getString(R.string.backup_page_restore_success),
                             type = ToastType.Success
                         )
+                        restoreSkippedMessage(context, result)?.let { message ->
+                            toaster.show(message, type = ToastType.Warning)
+                        }
                         showBackupFiles = false
                         onShowRestartDialog()
                     }.onFailure { err ->
@@ -225,7 +241,6 @@ fun WebDavTab(
                     restoringItemId = null
                 }
             },
-            onDismiss = { showBackupFiles = false },
         )
     }
 }

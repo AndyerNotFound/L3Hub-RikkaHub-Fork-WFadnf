@@ -207,6 +207,17 @@
   <string name="backup_page_restart_desc">应用需要重启以使设置生效。</string>
   <string name="backup_page_restore">恢复</string>
   <string name="backup_page_restore_failed">恢复失败: %s</string>
+  <string name="backup_page_restore_items">恢复内容</string>
+  <string name="backup_page_restore_mode">恢复方式</string>
+  <string name="backup_page_restore_mode_merge">合并</string>
+  <string name="backup_page_restore_mode_merge_desc">保留当前数据，只补入备份中当前缺少的部分；已有的聊天记录、资源文件与设置项均不受影响。</string>
+  <string name="backup_page_restore_mode_overwrite">覆盖</string>
+  <string name="backup_page_restore_mode_overwrite_desc">用备份替换所选数据；备份中不存在的聊天记录与资源文件会被删除，设置整体以备份为准。</string>
+  <string name="backup_page_restore_nothing_selected">至少选择一项数据。</string>
+  <string name="backup_page_restore_options">恢复选项</string>
+  <string name="backup_page_restore_overwrite_warning">此操作不可撤销，如不确定请先导出备份。</string>
+  <string name="backup_page_restore_separator">、</string>
+  <string name="backup_page_restore_skipped">备份中不含以下数据，已跳过：%s</string>
   <string name="backup_page_restore_now">恢复</string>
   <string name="backup_page_restore_success">恢复成功</string>
   <string name="backup_page_restoring">恢复中...</string>
@@ -219,6 +230,7 @@
   <string name="backup_page_s3_path_style_desc">使用 endpoint/bucket/object。关闭后使用 bucket.endpoint/object。</string>
   <string name="backup_page_s3_region">区域</string>
   <string name="backup_page_s3_secret_access_key">秘密访问密钥</string>
+  <string name="backup_page_settings">设置</string>
   <string name="backup_page_test_connection">测试连接</string>
   <string name="backup_page_title">备份与恢复</string>
   <string name="backup_page_unknown_error">未知错误</string>

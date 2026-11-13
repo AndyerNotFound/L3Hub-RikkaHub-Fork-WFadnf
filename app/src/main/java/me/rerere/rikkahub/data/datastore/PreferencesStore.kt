@@ -208,12 +208,22 @@ class SettingsStore internal constructor(
         val SPONSOR_ALERT_DISMISSED_AT = intPreferencesKey("sponsor_alert_dismissed_at")
 
         // Uses the same DataStore singleton without starting settings flows or requiring Koin.
-        internal suspend fun restoreBeforeInitialization(context: Context, settings: Settings, launchCount: Int) {
+        // merge 为 true 时只补入当前缺少的条目，启动次数与单值设置保持原样
+        internal suspend fun restoreBeforeInitialization(
+            context: Context,
+            settings: Settings,
+            launchCount: Int,
+            merge: Boolean = false,
+        ) {
             require(!settings.init) { "Cannot restore uninitialized settings" }
             // 启动次数和设置在同一次写入里落盘
             context.settingsStore.edit { preferences ->
-                preferences[LAUNCH_COUNT] = launchCount
-                preferences.putSettings(settings.normalized())
+                if (merge) {
+                    preferences.putSettings(preferences.toSettings().mergedWith(settings).normalized())
+                } else {
+                    preferences[LAUNCH_COUNT] = launchCount
+                    preferences.putSettings(settings.normalized())
+                }
             }
         }
     }

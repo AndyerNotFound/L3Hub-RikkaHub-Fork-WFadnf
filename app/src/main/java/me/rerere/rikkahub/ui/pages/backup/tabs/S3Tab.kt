@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ui.toast.ToastType
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
@@ -22,7 +23,9 @@ import me.rerere.rikkahub.ui.pages.backup.components.BackupFileInfo
 import me.rerere.rikkahub.ui.pages.backup.components.BackupFilesSheet
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupLayout
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupStatus
+import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
+import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 
 @Composable
 fun S3Tab(
@@ -38,6 +41,8 @@ fun S3Tab(
     var showBackupFiles by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
+    // 点了恢复的备份文件，等恢复选项确认后再真正开始
+    var pendingRestoreItem by remember { mutableStateOf<S3BackupItem?>(null) }
 
     fun updateS3Config(newConfig: S3Config) {
         vm.updateSettings { it.copy(s3Config = newConfig) }
@@ -140,15 +145,27 @@ fun S3Tab(
                     }
                 }
             },
-            onRestore = { item ->
+            onRestore = { item -> pendingRestoreItem = item },
+            onDismiss = { showBackupFiles = false },
+        )
+    }
+
+    pendingRestoreItem?.let { item ->
+        RestoreOptionsDialog(
+            onDismissRequest = { pendingRestoreItem = null },
+            onConfirm = { options ->
+                pendingRestoreItem = null
                 scope.launch {
                     restoringItemId = item.displayName
                     runCatching {
-                        vm.restoreFromS3(item = item)
+                        val result = vm.restoreFromS3(item = item, options = options)
                         toaster.show(
                             context.getString(R.string.backup_page_restore_success),
                             type = ToastType.Success
                         )
+                        restoreSkippedMessage(context, result)?.let { message ->
+                            toaster.show(message, type = ToastType.Warning)
+                        }
                         showBackupFiles = false
                         onShowRestartDialog()
                     }.onFailure { err ->
@@ -164,7 +181,6 @@ fun S3Tab(
                     restoringItemId = null
                 }
             },
-            onDismiss = { showBackupFiles = false },
         )
     }
 }
