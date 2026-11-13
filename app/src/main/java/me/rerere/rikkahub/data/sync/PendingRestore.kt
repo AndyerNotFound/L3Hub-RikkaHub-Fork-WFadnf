@@ -23,7 +23,7 @@ internal class PendingRestore(
     private val root: File,
     private val databaseFile: File,
     private val filesDir: File,
-    private val context: Context,
+    private val context: Context? = null,
 ) {
     private val pending get() = File(root, "pending")
 
@@ -105,7 +105,8 @@ internal class PendingRestore(
     private fun mergeDatabase() {
         val staged = File(pending, "payload/database/${databaseFile.name}")
         if (!staged.isFile || databaseFile.length() == 0L) return
-        DatabaseMerge.merge(context, databaseFile, staged)
+        val appContext = requireNotNull(context) { "Database merge requires an application context" }
+        DatabaseMerge.merge(appContext, databaseFile, staged)
     }
 
     private fun buildEntries(options: RestoreOptions): List<RestoreEntry> {
