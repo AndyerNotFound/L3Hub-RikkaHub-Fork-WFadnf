@@ -2915,4 +2915,18 @@
   <string name="setting_provider_guard_status_title">Usage</string>
   <string name="setting_provider_page_locked">Locked until %1$s</string>
   <string name="setting_provider_guard_enabled">Enabled</string>
+  <string name="setting_provider_page_other_settings">Other Settings</string>
+  <string name="setting_provider_page_pricing">Billing</string>
+  <string name="setting_provider_page_pricing_desc">Estimate the cost of each reply from token usage. Prices are per %1$s tokens in the currency you enter; empty fields are not billed. Switching the counting base changes the price unit without converting the numbers.</string>
+  <string name="setting_provider_page_price_input">Input</string>
+  <string name="setting_provider_page_price_output">Output</string>
+  <string name="setting_provider_page_price_cache_hit">Cache Hit</string>
+  <string name="setting_provider_page_price_cache_write">Cache Write</string>
+  <string name="setting_provider_page_price_cache_read">Cache Read</string>
+  <string name="setting_provider_page_price_per_call">Per Call</string>
+  <string name="setting_provider_page_price_per_call_unit">call</string>
+  <string name="setting_provider_page_price_hint">Cache prices fall back to the input price when empty; the cache read price takes precedence over the cache hit price.</string>
+  <string name="setting_display_page_binary_units_title">Binary Units</string>
+  <string name="setting_display_page_binary_units_desc">Show quantities in Ki / Mi / Gi (base 1024) instead of K / M / B (base 1000). Model price units switch to Mi as well.</string>
+  <string name="chat_message_usage_cost">Cost</string>
 </resources>

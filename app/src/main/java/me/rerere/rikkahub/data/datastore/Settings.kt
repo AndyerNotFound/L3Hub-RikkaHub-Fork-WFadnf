@@ -276,6 +276,8 @@ data class DisplaySetting(
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
     val showTokenUsage: Boolean = true,
+    // 以二进制量级(Ki/Mi/Gi)显示数量，关闭时按十进制 K/M/B；模型计价的单位也随之切换
+    val binaryUnits: Boolean = false,
     // 输入框上方的上下文预警样式
     val contextMeterStyle: ContextMeterStyle = ContextMeterStyle.BAR,
     // 使用 L3Hub 的思考强度图标和圆形滑块

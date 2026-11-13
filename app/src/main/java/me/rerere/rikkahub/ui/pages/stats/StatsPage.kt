@@ -77,11 +77,13 @@ import me.rerere.rikkahub.data.db.dao.SourceUsage
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.compactMagnitude
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.toast.ToastType
@@ -437,6 +439,7 @@ private fun HeatmapCell(alpha: Float, sizeDp: Int) {
 
 @Composable
 private fun StatsGrid(stats: AppStats, modifier: Modifier = Modifier) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -449,20 +452,20 @@ private fun StatsGrid(stats: AppStats, modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 icon = HugeIcons.ChartColumn,
                 label = stringResource(R.string.stats_page_total_conversations),
-                value = formatCount(stats.totalConversations.toLong()),
+                value = formatCount(stats.totalConversations.toLong(), binaryUnits),
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = HugeIcons.Message01,
                 label = stringResource(R.string.stats_page_total_messages),
-                value = formatCount(stats.totalMessages.toLong()),
+                value = formatCount(stats.totalMessages.toLong(), binaryUnits),
             )
         }
         StatCard(
             modifier = Modifier.fillMaxWidth(),
             icon = HugeIcons.Rocket01,
             label = stringResource(R.string.stats_page_launch_count),
-            value = formatCount(stats.launchCount.toLong()),
+            value = formatCount(stats.launchCount.toLong(), binaryUnits),
         )
     }
 }
@@ -512,6 +515,7 @@ private fun EmptyUsageCard(modifier: Modifier = Modifier) {
 
 @Composable
 private fun UsageTotalsGrid(usage: UsageStats, modifier: Modifier = Modifier) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val totals = usage.totals
     Column(
         modifier = modifier,
@@ -525,13 +529,13 @@ private fun UsageTotalsGrid(usage: UsageStats, modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 icon = HugeIcons.Upload02,
                 label = stringResource(R.string.stats_page_input_tokens),
-                value = formatTokens(totals.promptTokens),
+                value = formatTokens(totals.promptTokens, binaryUnits),
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = HugeIcons.Download04,
                 label = stringResource(R.string.stats_page_output_tokens),
-                value = formatTokens(totals.completionTokens),
+                value = formatTokens(totals.completionTokens, binaryUnits),
             )
         }
         Row(
@@ -542,7 +546,7 @@ private fun UsageTotalsGrid(usage: UsageStats, modifier: Modifier = Modifier) {
                 modifier = Modifier.weight(1f),
                 icon = HugeIcons.Zap,
                 label = stringResource(R.string.stats_page_cached_tokens),
-                value = formatTokens(totals.cachedTokens),
+                value = formatTokens(totals.cachedTokens, binaryUnits),
             )
             StatCard(
                 modifier = Modifier.weight(1f),
@@ -605,6 +609,7 @@ private fun UsageTrendCard(usage: UsageStats, modifier: Modifier = Modifier) {
 
 @Composable
 private fun UsageReadout(label: String, promptTokens: Long, cachedTokens: Long, completionTokens: Long) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             text = label,
@@ -612,7 +617,7 @@ private fun UsageReadout(label: String, promptTokens: Long, cachedTokens: Long, 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = formatTokens(promptTokens + completionTokens),
+            text = formatTokens(promptTokens + completionTokens, binaryUnits),
             style = MaterialTheme.typography.headlineSmall,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -622,7 +627,7 @@ private fun UsageReadout(label: String, promptTokens: Long, cachedTokens: Long, 
                 R.string.chat_message_usage_output to completionTokens,
             ).forEach { (label, tokens) ->
                 Text(
-                    text = "${stringResource(label)} ${formatTokens(tokens)}",
+                    text = "${stringResource(label)} ${formatTokens(tokens, binaryUnits)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -641,9 +646,10 @@ private fun UsageColumnChart(
     val colorScheme = MaterialTheme.colorScheme
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colorScheme.onSurfaceVariant)
     val textMeasurer = rememberTextMeasurer()
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val axisMax = remember(points) { niceCeil(points.maxOfOrNull { it.totalTokens } ?: 0L) }
-    val yLabels = remember(axisMax, labelStyle) {
-        listOf(axisMax, axisMax / 2, 0L).map { textMeasurer.measure(formatAxis(it), labelStyle) }
+    val yLabels = remember(axisMax, labelStyle, binaryUnits) {
+        listOf(axisMax, axisMax / 2, 0L).map { textMeasurer.measure(formatAxis(it, binaryUnits), labelStyle) }
     }
     val xFormatter = remember(byMonth) { DateTimeFormatter.ofPattern(if (byMonth) "yyyy-MM" else "M/d") }
     val xLabels = remember(points, labelStyle) {
@@ -728,6 +734,7 @@ private fun UsageColumnChart(
 /** 单色横向条形排行，条长按第一名缩放，右侧标出用量和占比 */
 @Composable
 private fun UsagePieCard(models: List<ModelUsageItem>, modifier: Modifier = Modifier) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val otherLabel = stringResource(R.string.stats_page_other)
     val unknownLabel = stringResource(R.string.stats_page_unknown_model)
     val rows = remember(models, otherLabel, unknownLabel) {
@@ -789,7 +796,7 @@ private fun UsagePieCard(models: List<ModelUsageItem>, modifier: Modifier = Modi
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = formatTokens(total),
+                            text = formatTokens(total, binaryUnits),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
@@ -869,6 +876,7 @@ private fun RankingCard(title: String, items: List<Pair<String, Long>>, modifier
 
 @Composable
 private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Float) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val barColor = MaterialTheme.colorScheme.primary
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -883,7 +891,7 @@ private fun RankingRow(label: String, tokens: Long, fraction: Float, share: Floa
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "${formatTokens(tokens)} · ${"%.0f".format(share * 100)}%",
+                text = "${formatTokens(tokens, binaryUnits)} · ${"%.0f".format(share * 100)}%",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -975,25 +983,18 @@ private fun niceCeil(value: Long): Long {
 }
 
 // 刻度用的紧凑数字，去掉末尾多余的 0（500K、2.5M 而不是 500.0K、2.50M）
-private fun formatAxis(count: Long): String {
-    val (value, unit) = when {
-        count >= 1_000_000_000 -> count / 1_000_000_000.0 to "B"
-        count >= 1_000_000 -> count / 1_000_000.0 to "M"
-        count >= 1_000 -> count / 1_000.0 to "K"
-        else -> count.toDouble() to ""
-    }
+private fun formatAxis(count: Long, binary: Boolean): String {
+    val (value, unit) = compactMagnitude(count, binary) ?: (count.toDouble() to "")
     return BigDecimal(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + unit
 }
 
-private fun formatCount(count: Long): String = when {
-    count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
-    count >= 1_000 -> "%.1fK".format(count / 1_000.0)
-    else -> count.toString()
-}
+private fun formatCount(count: Long, binary: Boolean): String =
+    compactMagnitude(count, binary)?.let { (value, unit) -> "%.1f%s".format(value, unit) }
+        ?: count.toString()
 
-private fun formatTokens(count: Long): String = when {
-    count >= 1_000_000_000 -> "%.2fB".format(count / 1_000_000_000.0)
-    count >= 1_000_000 -> "%.2fM".format(count / 1_000_000.0)
-    count >= 1_000 -> "%.1fK".format(count / 1_000.0)
-    else -> count.toString()
-}
+private fun formatTokens(count: Long, binary: Boolean): String =
+    compactMagnitude(count, binary)?.let { (value, unit) ->
+        // 千位保留一位，更大的量级保留两位，和原来的阅读精度一致
+        val digits = if (unit == "K" || unit == "Ki") 1 else 2
+        "%.${digits}f%s".format(value, unit)
+    } ?: count.toString()

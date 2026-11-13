@@ -109,6 +109,7 @@ internal fun ConversationDetailsPanel(
 ) {
     // 竖屏浮层固定占全屏高度的 75%，内容在面板内部滚动，不再挤压聊天区
     val panelHeight = LocalConfiguration.current.screenHeightDp.dp * DetailsPanelHeightFraction
+    val binaryUnits = settings.displaySetting.binaryUnits
     val boundWorkspaces = boundWorkspacesOf(workspaces, assistant)
     // 只剩真正会注册工具的服务器：全部工具被关掉的服务器在 McpManager 里不会产出任何工具
     val mcpServers = settings.mcpServers
@@ -139,11 +140,11 @@ internal fun ConversationDetailsPanel(
     val contextText = if (contextLimit != null && contextLimit > 0) {
         stringResource(
             R.string.chat_page_context_meter_absolute,
-            (contextTokens ?: 0).formatNumber(),
-            contextLimit.formatNumber(),
+            (contextTokens ?: 0).formatNumber(binaryUnits),
+            contextLimit.formatNumber(binaryUnits),
         )
     } else {
-        contextTokens?.formatNumber() ?: "—"
+        contextTokens?.formatNumber(binaryUnits) ?: "—"
     }
     val previewInjections = (previewState as? RequestPreviewUiState.Ready)?.preview?.injections
 
@@ -300,6 +301,7 @@ internal fun ConversationDetailsPanel(
 /** 工具定义 / 工具说明 / 当前提示词三块；加载失败时只报一次，不重复三遍 */
 @Composable
 private fun RequestPreviewSections(state: RequestPreviewUiState) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     when (state) {
         RequestPreviewUiState.Idle,
         RequestPreviewUiState.Loading -> DetailsSection(
@@ -348,7 +350,7 @@ private fun RequestPreviewSections(state: RequestPreviewUiState) {
                 title = stringResource(R.string.chat_page_details_prompt),
                 trailing = preview.systemPrompt.length
                     .takeIf { it > 0 }
-                    ?.let { stringResource(R.string.chat_page_details_prompt_length, it.formatNumber()) },
+                    ?.let { stringResource(R.string.chat_page_details_prompt_length, it.formatNumber(binaryUnits)) },
             ) {
                 if (preview.systemPrompt.isBlank()) {
                     PlaceholderText(stringResource(R.string.chat_page_details_prompt_empty))

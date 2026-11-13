@@ -58,6 +58,8 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.utils.compactMagnitude
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.icons.HeartIcon
 import java.util.Locale
@@ -615,10 +617,14 @@ private fun GroupOrderDialog(
 
 @Composable
 private fun ContextWatermark(model: Model, providerName: String?) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val parts = buildList {
         providerName?.let { add(it) }
         if (model.warnContextTokens != null || model.maxContextTokens != null) {
-            add("WARN ${formatTokens(model.warnContextTokens)} · MAX ${formatTokens(model.maxContextTokens)}")
+            add(
+                "WARN ${formatTokens(model.warnContextTokens, binaryUnits)}" +
+                    " · MAX ${formatTokens(model.maxContextTokens, binaryUnits)}"
+            )
         }
     }
     if (parts.isEmpty()) return
@@ -638,9 +644,8 @@ private fun contextWatermark(model: Model, providerName: String?): (@Composable 
         null
     }
 
-private fun formatTokens(value: Int?): String = when {
-    value == null -> "-"
-    value >= 1_000_000 -> String.format(Locale.ROOT, "%.1fM", value / 1_000_000f)
-    value >= 1_000 -> String.format(Locale.ROOT, "%.1fK", value / 1_000f)
-    else -> value.toString()
+private fun formatTokens(value: Int?, binary: Boolean): String {
+    if (value == null) return "-"
+    val (scaled, unit) = compactMagnitude(value.toLong(), binary) ?: return value.toString()
+    return String.format(Locale.ROOT, "%.1f%s", scaled, unit)
 }

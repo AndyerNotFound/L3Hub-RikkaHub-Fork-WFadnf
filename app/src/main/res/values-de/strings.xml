@@ -2557,4 +2557,18 @@
   <string name="chat_message_tool_phone_use_wait">%1$s Sekunden warten</string>
   <string name="chat_message_ocr_result">Bildtext (OCR)</string>
   <string name="chat_message_ocr_result_image">Bild %1$d</string>
+  <string name="setting_provider_page_other_settings">Weitere Einstellungen</string>
+  <string name="setting_provider_page_pricing">Abrechnung</string>
+  <string name="setting_provider_page_pricing_desc">Schätzt die Kosten jeder Antwort anhand des Token-Verbrauchs. Preise gelten pro %1$s Token in der eingegebenen Währung; leere Felder werden nicht berechnet. Beim Wechsel der Zählbasis ändert sich die Preiseinheit; die Zahlen werden nicht umgerechnet.</string>
+  <string name="setting_provider_page_price_input">Eingabe</string>
+  <string name="setting_provider_page_price_output">Ausgabe</string>
+  <string name="setting_provider_page_price_cache_hit">Cache-Treffer</string>
+  <string name="setting_provider_page_price_cache_write">Cache-Schreiben</string>
+  <string name="setting_provider_page_price_cache_read">Cache-Lesen</string>
+  <string name="setting_provider_page_price_per_call">Pro Aufruf</string>
+  <string name="setting_provider_page_price_per_call_unit">Aufruf</string>
+  <string name="setting_provider_page_price_hint">Ohne Cache-Preis wird der Eingabepreis verwendet; der Cache-Lesepreis hat Vorrang vor dem Trefferpreis.</string>
+  <string name="setting_display_page_binary_units_title">Binäre Einheiten</string>
+  <string name="setting_display_page_binary_units_desc">Mengen in Ki / Mi / Gi (Basis 1024) statt K / M / B (Basis 1000) anzeigen; die Preiseinheit der Modelle wechselt ebenfalls auf Mi.</string>
+  <string name="chat_message_usage_cost">Kosten</string>
 </resources>

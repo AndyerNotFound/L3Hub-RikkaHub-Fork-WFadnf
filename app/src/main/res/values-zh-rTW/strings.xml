@@ -2597,4 +2597,18 @@
   <string name="chat_message_tool_phone_use_wait">等待 %1$s 秒</string>
   <string name="chat_message_ocr_result">圖片文字（OCR）</string>
   <string name="chat_message_ocr_result_image">第 %1$d 張圖片</string>
+  <string name="setting_provider_page_other_settings">其它設定</string>
+  <string name="setting_provider_page_pricing">計費</string>
+  <string name="setting_provider_page_pricing_desc">依 token 用量估算每次回覆的費用，價格單位為每 %1$s token，貨幣單位沿用你填寫的價格；留空的項目不計費。切換計數口徑後價格單位隨之改變，數字不會自動換算。</string>
+  <string name="setting_provider_page_price_input">輸入</string>
+  <string name="setting_provider_page_price_output">輸出</string>
+  <string name="setting_provider_page_price_cache_hit">快取命中</string>
+  <string name="setting_provider_page_price_cache_write">快取寫入</string>
+  <string name="setting_provider_page_price_cache_read">快取讀取</string>
+  <string name="setting_provider_page_price_per_call">計次</string>
+  <string name="setting_provider_page_price_per_call_unit">次</string>
+  <string name="setting_provider_page_price_hint">快取價格留空時依輸入價計算，快取讀取價優先於快取命中價。</string>
+  <string name="setting_display_page_binary_units_title">以二進位量計數</string>
+  <string name="setting_display_page_binary_units_desc">以 Ki / Mi / Gi（1024 進位）顯示數量，不再使用 K / M / B（1000 進位）；模型計價的單位也一併改為 Mi。</string>
+  <string name="chat_message_usage_cost">費用</string>
 </resources>

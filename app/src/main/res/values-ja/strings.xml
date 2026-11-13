@@ -2559,4 +2559,18 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_message_tool_phone_use_wait">%1$s秒待機</string>
   <string name="chat_message_ocr_result">画像のテキスト（OCR）</string>
   <string name="chat_message_ocr_result_image">画像 %1$d</string>
+  <string name="setting_provider_page_other_settings">その他の設定</string>
+  <string name="setting_provider_page_pricing">課金</string>
+  <string name="setting_provider_page_pricing_desc">token 使用量から返信ごとの費用を概算します。価格は %1$s token あたりで、入力した通貨をそのまま使います。空欄の項目は課金されません。計数単位を切り替えると価格の単位も変わり、数字は自動換算されません。</string>
+  <string name="setting_provider_page_price_input">入力</string>
+  <string name="setting_provider_page_price_output">出力</string>
+  <string name="setting_provider_page_price_cache_hit">キャッシュヒット</string>
+  <string name="setting_provider_page_price_cache_write">キャッシュ書き込み</string>
+  <string name="setting_provider_page_price_cache_read">キャッシュ読み取り</string>
+  <string name="setting_provider_page_price_per_call">1 回あたり</string>
+  <string name="setting_provider_page_price_per_call_unit">回</string>
+  <string name="setting_provider_page_price_hint">キャッシュ価格が空欄の場合は入力価格で計算し、キャッシュ読み取り価格はキャッシュヒット価格より優先されます。</string>
+  <string name="setting_display_page_binary_units_title">二進単位で数える</string>
+  <string name="setting_display_page_binary_units_desc">数量を Ki / Mi / Gi（1024 進）で表示し、K / M / B（1000 進）は使いません。モデル価格の単位も Mi に切り替わります。</string>
+  <string name="chat_message_usage_cost">費用</string>
 </resources>

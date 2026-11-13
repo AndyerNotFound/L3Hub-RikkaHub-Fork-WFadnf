@@ -29,6 +29,8 @@ data class Model(
     val enforceMaxContext: Boolean = true,
     // 还没手动设置过门限时, 按模型名自动填预设
     val contextThresholdsAuto: Boolean = true,
+    // 模型计费单价，各项为 0 表示不单独计费
+    val pricing: ModelPricing = ModelPricing(),
 )
 
 /**

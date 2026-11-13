@@ -2913,4 +2913,18 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_status_title">用量</string>
   <string name="setting_provider_page_locked">锁定至 %1$s</string>
   <string name="setting_provider_guard_enabled">启用</string>
+  <string name="setting_provider_page_other_settings">其它设置</string>
+  <string name="setting_provider_page_pricing">计费</string>
+  <string name="setting_provider_page_pricing_desc">按 token 用量估算每次回复的费用，价格单位为每 %1$s token，货币单位沿用你填写的价格；留空的项目不计费。切换计数口径后价格单位随之改变，数字不会自动换算。</string>
+  <string name="setting_provider_page_price_input">输入</string>
+  <string name="setting_provider_page_price_output">输出</string>
+  <string name="setting_provider_page_price_cache_hit">缓存命中</string>
+  <string name="setting_provider_page_price_cache_write">缓存写入</string>
+  <string name="setting_provider_page_price_cache_read">缓存读取</string>
+  <string name="setting_provider_page_price_per_call">计次</string>
+  <string name="setting_provider_page_price_per_call_unit">次</string>
+  <string name="setting_provider_page_price_hint">缓存价留空时按输入价计算，缓存读取价优先于缓存命中价。</string>
+  <string name="setting_display_page_binary_units_title">以二进制量计数</string>
+  <string name="setting_display_page_binary_units_desc">以 Ki / Mi / Gi（1024 进制）显示数量，不再使用 K / M / B（1000 进制）；模型计价的单位也一并改为 Mi。</string>
+  <string name="chat_message_usage_cost">费用</string>
 </resources>

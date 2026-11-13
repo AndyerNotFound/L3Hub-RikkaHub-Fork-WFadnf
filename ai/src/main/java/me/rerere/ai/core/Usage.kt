@@ -6,8 +6,11 @@ import kotlinx.serialization.Serializable
 data class TokenUsage(
     val promptTokens: Int = 0,
     val completionTokens: Int = 0,
+    // 缓存命中 / 缓存读取的 token，已包含在 promptTokens 里
     val cachedTokens: Int = 0,
     val totalTokens: Int = 0,
+    // 写入缓存的 token（Anthropic 的 cache_creation_input_tokens），也已包含在 promptTokens 里
+    val cacheWriteTokens: Int = 0,
 )
 
 /**
@@ -31,11 +34,17 @@ fun TokenUsage?.merge(other: TokenUsage): TokenUsage {
     } else {
         this?.cachedTokens ?: 0
     }
+    val cacheWriteTokens = if (other.cacheWriteTokens > 0) {
+        other.cacheWriteTokens
+    } else {
+        this?.cacheWriteTokens ?: 0
+    }
     return TokenUsage(
         promptTokens = promptTokens,
         completionTokens = completionTokens,
         totalTokens = totalTokens,
-        cachedTokens = cachedTokens
+        cachedTokens = cachedTokens,
+        cacheWriteTokens = cacheWriteTokens
     )
 }
 
@@ -49,6 +58,7 @@ fun TokenUsage?.sum(other: TokenUsage?): TokenUsage? {
         promptTokens = promptTokens + other.promptTokens,
         completionTokens = completionTokens + other.completionTokens,
         cachedTokens = cachedTokens + other.cachedTokens,
+        cacheWriteTokens = cacheWriteTokens + other.cacheWriteTokens,
         totalTokens = totalTokens + other.totalTokens,
     )
 }

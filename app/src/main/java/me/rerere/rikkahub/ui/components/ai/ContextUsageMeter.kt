@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.contextUsageFraction
 import me.rerere.rikkahub.data.model.isContextLimitReached
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import kotlin.math.roundToInt
@@ -166,10 +169,11 @@ private fun ContextMeterRow(
 @Composable
 private fun contextMeterText(used: Int, limit: Int): String {
     val percent = contextPercentValue(used, limit)
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     return stringResource(
         R.string.chat_page_context_meter_absolute,
-        used.formatNumber(),
-        limit.formatNumber(),
+        used.formatNumber(binaryUnits),
+        limit.formatNumber(binaryUnits),
     ) + " · $percent%"
 }
 
@@ -355,26 +359,28 @@ private fun RingValueRow(
 @Preview(showBackground = true)
 @Composable
 private fun ContextUsageMeterPreview() {
-    MaterialTheme {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ContextUsageMeter(
-                tokens = 62_000,
-                warnTokens = 64_000,
-                maxTokens = 200_000,
-                onShowUsage = {},
-            )
-            ContextUsageMeter(
-                tokens = 62_000,
-                warnTokens = 64_000,
-                maxTokens = 200_000,
-                onShowUsage = {},
-            )
-            ContextUsageMeter(
-                tokens = 210_000,
-                warnTokens = 64_000,
-                maxTokens = 200_000,
-                onShowUsage = {},
-            )
+    CompositionLocalProvider(LocalSettings provides Settings()) {
+        MaterialTheme {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ContextUsageMeter(
+                    tokens = 62_000,
+                    warnTokens = 64_000,
+                    maxTokens = 200_000,
+                    onShowUsage = {},
+                )
+                ContextUsageMeter(
+                    tokens = 62_000,
+                    warnTokens = 64_000,
+                    maxTokens = 200_000,
+                    onShowUsage = {},
+                )
+                ContextUsageMeter(
+                    tokens = 210_000,
+                    warnTokens = 64_000,
+                    maxTokens = 200_000,
+                    onShowUsage = {},
+                )
+            }
         }
     }
 }

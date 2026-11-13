@@ -144,6 +144,7 @@ internal fun FilesPicker(
     onStartVoiceMode: (() -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
+    val binaryUnits = settings.displaySetting.binaryUnits
     val provider = chatModel?.findProvider(providers = settings.providers)
     val navController = LocalNavController.current
     val workspaceRepository: WorkspaceRepository = koinInject()
@@ -438,7 +439,7 @@ internal fun FilesPicker(
                                         }
                                         if (contextTokens != null && contextLength != null) {
                                             Text(
-                                                text = "${contextTokens.formatNumber()} / ${contextLength.formatNumber()}",
+                                                text = "${contextTokens.formatNumber(binaryUnits)} / ${contextLength.formatNumber(binaryUnits)}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )

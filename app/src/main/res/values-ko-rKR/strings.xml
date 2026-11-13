@@ -2559,4 +2559,18 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_message_tool_phone_use_wait">%1$s초 대기</string>
   <string name="chat_message_ocr_result">이미지 텍스트(OCR)</string>
   <string name="chat_message_ocr_result_image">이미지 %1$d</string>
+  <string name="setting_provider_page_other_settings">기타 설정</string>
+  <string name="setting_provider_page_pricing">과금</string>
+  <string name="setting_provider_page_pricing_desc">token 사용량으로 응답마다의 비용을 추산합니다. 가격은 %1$s token당이며 입력한 통화를 그대로 사용합니다. 비어 있는 항목은 과금되지 않습니다. 계수 단위를 바꾸면 가격 단위도 바뀌며 숫자는 자동 변환되지 않습니다.</string>
+  <string name="setting_provider_page_price_input">입력</string>
+  <string name="setting_provider_page_price_output">출력</string>
+  <string name="setting_provider_page_price_cache_hit">캐시 적중</string>
+  <string name="setting_provider_page_price_cache_write">캐시 쓰기</string>
+  <string name="setting_provider_page_price_cache_read">캐시 읽기</string>
+  <string name="setting_provider_page_price_per_call">회당</string>
+  <string name="setting_provider_page_price_per_call_unit">회</string>
+  <string name="setting_provider_page_price_hint">캐시 가격이 비어 있으면 입력 가격으로 계산하며, 캐시 읽기 가격이 캐시 적중 가격보다 우선합니다.</string>
+  <string name="setting_display_page_binary_units_title">이진 단위로 세기</string>
+  <string name="setting_display_page_binary_units_desc">수량을 Ki / Mi / Gi(1024진)로 표시하고 K / M / B(1000진)는 사용하지 않습니다. 모델 가격 단위도 Mi로 바뀝니다.</string>
+  <string name="chat_message_usage_cost">비용</string>
 </resources>

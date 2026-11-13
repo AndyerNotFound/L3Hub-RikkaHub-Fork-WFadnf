@@ -46,9 +46,13 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.sum
+import me.rerere.ai.provider.UsageCost
+import me.rerere.ai.provider.estimateCost
+import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Layers01
+import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Repeat
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -59,6 +63,7 @@ import me.rerere.rikkahub.data.model.TokenBucket
 import me.rerere.rikkahub.data.model.TokenDestination
 import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
@@ -86,6 +91,14 @@ fun ChatMessageNerdLine(
     val contextLength = remember(settings.providers, message.modelId) {
         settings.findModelById(message.modelId)?.effectiveContextWindow
     }
+    val binaryUnits = settings.displaySetting.binaryUnits
+    // 计价跟着模型走；模型被删掉或没有配置价格时费用为 0，不显示
+    val cost = remember(settings.providers, message.modelId, usage, stats.steps, binaryUnits) {
+        settings.findModelById(message.modelId)
+            ?.pricing
+            ?.estimateCost(usage, priceUnitTokens(binaryUnits), stats.steps)
+            ?: UsageCost()
+    }
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
 
@@ -95,7 +108,7 @@ fun ChatMessageNerdLine(
             RichTooltip(
                 title = { Text(stringResource(R.string.chat_message_usage_title)) },
             ) {
-                UsageDetails(stats, contextLength)
+                UsageDetails(stats, contextLength, cost)
             }
         },
         state = tooltipState,
@@ -124,13 +137,29 @@ fun ChatMessageNerdLine(
                             content = { Text(text = "${stats.tps.toFixed(1)} tok/s") }
                         )
                     }
+                    if (cost.total > 0) {
+                        StatsItem(
+                            icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
+                            content = { Text(text = cost.total.formatCost()) },
+                        )
+                    }
                     StatsItem(
                         icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
                         content = {
-                            Text(text = stringResource(R.string.chat_message_usage_context_short, stats.contextTokens.formatNumber()))
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_message_usage_context_short,
+                                    stats.contextTokens.formatNumber(binaryUnits),
+                                )
+                            )
                             val cached = stats.lastUsage.cachedTokens
                             if (cached > 0) {
-                                Text(text = stringResource(R.string.chat_message_usage_cached_short, cached.formatNumber()))
+                                Text(
+                                    text = stringResource(
+                                        R.string.chat_message_usage_cached_short,
+                                        cached.formatNumber(binaryUnits),
+                                    )
+                                )
                             }
                         }
                     )
@@ -141,7 +170,7 @@ fun ChatMessageNerdLine(
 }
 
 @Composable
-private fun UsageDetails(stats: NerdStats, contextLength: Int?) {
+private fun UsageDetails(stats: NerdStats, contextLength: Int?, cost: UsageCost) {
     Column(
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.padding(vertical = 4.dp),
@@ -158,6 +187,7 @@ private fun UsageDetails(stats: NerdStats, contextLength: Int?) {
             if (total.cachedTokens > 0) UsageDetailRow(stringResource(R.string.chat_message_usage_total_cached), total.cachedTokens.exact())
             UsageDetailRow(stringResource(R.string.chat_message_usage_total_output), total.completionTokens.exact())
         }
+        UsageCostRows(cost)
         if (stats.tps != null) UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${stats.tps.toFixed(1)} tok/s")
         if (stats.durationMillis != null) UsageDetailRow(stringResource(R.string.chat_message_usage_duration), "${(stats.durationMillis / 1000f).toFixed(1)}s")
     }
@@ -182,6 +212,21 @@ fun ConversationUsageDetails(
         return
     }
 
+    val settings = LocalSettings.current
+    val binaryUnits = settings.displaySetting.binaryUnits
+    val cost = remember(usageMessages, settings.providers, binaryUnits) {
+        usageMessages.fold(UsageCost()) { acc, message ->
+            val usageCost = settings.findModelById(message.modelId)
+                ?.pricing
+                ?.estimateCost(
+                    usage = message.usage ?: TokenUsage(),
+                    unitTokens = priceUnitTokens(binaryUnits),
+                    calls = message.stepCount ?: 1,
+                )
+                ?: UsageCost()
+            acc + usageCost
+        }
+    }
     val lastMessage = usageMessages.last()
     val lastStats = remember(lastMessage) { lastMessage.nerdStats(lastMessage.usage!!) }
     val breakdown = remember(messages, lastMessage) {
@@ -214,6 +259,7 @@ fun ConversationUsageDetails(
             UsageDetailRow(stringResource(R.string.chat_message_usage_total_cached), total.cachedTokens.exact())
         }
         UsageDetailRow(stringResource(R.string.chat_message_usage_total_output), total.completionTokens.exact())
+        UsageCostRows(cost)
         if (tps != null) {
             UsageDetailRow(stringResource(R.string.chat_message_usage_speed), "${tps.toFixed(1)} tok/s")
         }
@@ -255,7 +301,9 @@ private fun ContextUsageBar(
     val capacity = maxOf(contextLength ?: 0, contextTokens, 1)
     val hasFreeSpace = capacity > contextTokens
     val trackColor = colorScheme.surfaceContainerHighest
-    val pieChart = LocalSettings.current.displaySetting.usagePieChart
+    val displaySetting = LocalSettings.current.displaySetting
+    val pieChart = displaySetting.usagePieChart
+    val binaryUnits = displaySetting.binaryUnits
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -270,7 +318,7 @@ private fun ContextUsageBar(
             if (contextLength != null) {
                 val fraction = contextTokens.toFloat() / contextLength
                 Text(
-                    text = "${contextTokens.formatNumber()} / ${contextLength.formatNumber()} · ${(fraction * 100).toFixed(0)}%",
+                    text = "${contextTokens.formatNumber(binaryUnits)} / ${contextLength.formatNumber(binaryUnits)} · ${(fraction * 100).toFixed(0)}%",
                     color = if (fraction >= 0.9f) colorScheme.error else Color.Unspecified,
                 )
             } else {
@@ -561,6 +609,30 @@ private fun TokenStackBar(
             )
             x += width
         }
+    }
+}
+
+@Composable
+private fun UsageCostRows(cost: UsageCost) {
+    if (cost.total <= 0) return
+    UsageDetailRow(stringResource(R.string.chat_message_usage_cost), cost.total.formatCost())
+    if (cost.input > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_input), cost.input.formatCost())
+    }
+    if (cost.output > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_output), cost.output.formatCost())
+    }
+    if (cost.cacheHit > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_cache_hit), cost.cacheHit.formatCost())
+    }
+    if (cost.cacheWrite > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_cache_write), cost.cacheWrite.formatCost())
+    }
+    if (cost.cacheRead > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_cache_read), cost.cacheRead.formatCost())
+    }
+    if (cost.perCall > 0) {
+        UsageDetailRow(stringResource(R.string.setting_provider_page_price_per_call), cost.perCall.formatCost())
     }
 }
 

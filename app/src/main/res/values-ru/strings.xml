@@ -2559,4 +2559,18 @@
   <string name="chat_message_tool_phone_use_wait">Ожидание %1$s сек.</string>
   <string name="chat_message_ocr_result">Текст на изображении (OCR)</string>
   <string name="chat_message_ocr_result_image">Изображение %1$d</string>
+  <string name="setting_provider_page_other_settings">Прочие настройки</string>
+  <string name="setting_provider_page_pricing">Оплата</string>
+  <string name="setting_provider_page_pricing_desc">Оценка стоимости каждого ответа по расходу токенов. Цены указаны за %1$s токенов в введённой вами валюте; пустые поля не тарифицируются. При смене основания счёта единица цены меняется, а числа не пересчитываются.</string>
+  <string name="setting_provider_page_price_input">Ввод</string>
+  <string name="setting_provider_page_price_output">Вывод</string>
+  <string name="setting_provider_page_price_cache_hit">Попадание в кэш</string>
+  <string name="setting_provider_page_price_cache_write">Запись в кэш</string>
+  <string name="setting_provider_page_price_cache_read">Чтение кэша</string>
+  <string name="setting_provider_page_price_per_call">За вызов</string>
+  <string name="setting_provider_page_price_per_call_unit">вызов</string>
+  <string name="setting_provider_page_price_hint">Если цена кэша не задана, используется цена ввода; цена чтения кэша приоритетнее цены попадания.</string>
+  <string name="setting_display_page_binary_units_title">Двоичный счёт</string>
+  <string name="setting_display_page_binary_units_desc">Показывать количества в Ki / Mi / Gi (основание 1024) вместо K / M / B (основание 1000). Единица цены моделей также меняется на Mi.</string>
+  <string name="chat_message_usage_cost">Стоимость</string>
 </resources>

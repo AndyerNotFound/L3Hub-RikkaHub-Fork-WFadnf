@@ -73,6 +73,7 @@ import me.rerere.rikkahub.data.ai.label
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -224,6 +225,7 @@ private fun ProviderGateStatusCard(
     nextLockAt: Instant?,
 ) {
     val context = LocalContext.current
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     CardGroup {
         item(
             headlineContent = { Text(stringResource(R.string.setting_provider_guard_status)) },
@@ -233,7 +235,7 @@ private fun ProviderGateStatusCard(
                         stringResource(
                             R.string.setting_provider_guard_status_minute,
                             status.rpmUsed,
-                            status.tpmUsed.formatNumber(),
+                            status.tpmUsed.formatNumber(binaryUnits),
                         )
                     } else {
                         "…"
@@ -372,6 +374,7 @@ private fun WindowRow(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     val metric = stringResource(
         when (window.metric) {
             ProviderQuotaMetric.REQUESTS -> R.string.setting_provider_guard_metric_requests
@@ -392,7 +395,7 @@ private fun WindowRow(
                     R.string.setting_provider_guard_window_summary,
                     window.label(context),
                     metric,
-                    window.limit.formatNumber(),
+                    window.limit.formatNumber(binaryUnits),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
@@ -402,8 +405,8 @@ private fun WindowRow(
                 val full = usage.used >= window.limit
                 val usedText = stringResource(
                     R.string.setting_provider_guard_used,
-                    usage.used.formatNumber(),
-                    window.limit.formatNumber(),
+                    usage.used.formatNumber(binaryUnits),
+                    window.limit.formatNumber(binaryUnits),
                 )
                 val resetText = if (usage.resetAt != null) {
                     " · " + stringResource(
@@ -764,6 +767,7 @@ private fun QuotaWindowSheet(
     val amount = amountText.toIntOrNull() ?: 0
     val limit = limitText.toIntOrNull() ?: 0
     val context = LocalContext.current
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -875,7 +879,7 @@ private fun QuotaWindowSheet(
                                 ProviderQuotaMetric.TOKENS -> R.string.setting_provider_guard_metric_tokens
                             }
                         ),
-                        limit.formatNumber(),
+                        limit.formatNumber(binaryUnits),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,

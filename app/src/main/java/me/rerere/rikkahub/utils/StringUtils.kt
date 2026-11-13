@@ -61,39 +61,69 @@ fun Long.fileSizeToString(): String {
     return "%.${precision}f %s".format(value, units[unitIndex])
 }
 
-fun Int.formatNumber(): String {
-    val absValue = kotlin.math.abs(this)
-    val sign = if (this < 0) "-" else ""
+/**
+ * 把数量换算到紧凑量级：十进制按 1000 进位（K/M/B/T），二进制按 1024 进位（Ki/Mi/Gi/Ti）。
+ *
+ * 不足最小量级时返回 null。按一位小数判断进位，1048575 不会显示成 1024.0Ki。
+ */
+fun compactMagnitude(count: Long, binary: Boolean): Pair<Double, String>? {
+    val step = if (binary) 1024.0 else 1000.0
+    val units = if (binary) BINARY_UNITS else DECIMAL_UNITS
+    val absValue = count.coerceAtLeast(0)
+    if (absValue < step) return null
 
-    return when {
-        absValue < 1000 -> this.toString()
-        absValue < 1000000 -> {
-            val value = absValue / 1000.0
-            if (value == value.toInt().toDouble()) {
-                "$sign${value.toInt()}K"
-            } else {
-                "$sign${value.toFixed(1)}K"
-            }
-        }
-
-        absValue < 1000000000 -> {
-            val value = absValue / 1000000.0
-            if (value == value.toInt().toDouble()) {
-                "$sign${value.toInt()}M"
-            } else {
-                "$sign${value.toFixed(1)}M"
-            }
-        }
-
-        else -> {
-            val value = absValue / 1000000000.0
-            if (value == value.toInt().toDouble()) {
-                "$sign${value.toInt()}B"
-            } else {
-                "$sign${value.toFixed(1)}B"
-            }
-        }
+    var value = absValue / step
+    var unitIndex = 0
+    while (value >= step && unitIndex < units.lastIndex) {
+        value /= step
+        unitIndex++
     }
+    // 四舍五入到一位小数后碰到下一级时提前进位，避免 999.9K 这种越界读数
+    if (unitIndex < units.lastIndex && kotlin.math.round(value * 10) / 10 >= step) {
+        value /= step
+        unitIndex++
+    }
+    return value to units[unitIndex]
+}
+
+private val DECIMAL_UNITS = listOf("K", "M", "B", "T")
+private val BINARY_UNITS = listOf("Ki", "Mi", "Gi", "Ti")
+
+/**
+ * 紧凑的数量显示。
+ *
+ * [binary] 为 false 时按十进制换算（K/M/B，1000 进制），为 true 时按二进制换算（Ki/Mi/Gi，1024 进制）。
+ * 整数值不带小数，其余保留一位。
+ */
+fun Int.formatNumber(binary: Boolean): String = toLong().formatNumber(binary)
+
+fun Long.formatNumber(binary: Boolean): String {
+    val absValue = kotlin.math.abs(this)
+    // abs(Long.MIN_VALUE) 仍是负数，退回原值
+    if (absValue < 0) return this.toString()
+    val sign = if (this < 0) "-" else ""
+    val (value, unit) = compactMagnitude(absValue, binary) ?: return this.toString()
+    val number = if (value == value.toLong().toDouble()) {
+        value.toLong().toString()
+    } else {
+        value.toFixed(1)
+    }
+    return "$sign$number$unit"
+}
+
+/** 费用保留足够的小数位，小额请求也能看出差别 */
+fun Double.formatCost(): String {
+    if (this <= 0) return "0"
+    val scale = when {
+        this >= 1 -> 2
+        this >= 0.01 -> 4
+        this >= 0.0001 -> 6
+        else -> 8
+    }
+    return java.math.BigDecimal.valueOf(this)
+        .setScale(scale, java.math.RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString()
 }
 
 fun Float.toFixed(digits: Int = 0) = "%.${digits}f".format(this)

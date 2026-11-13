@@ -82,7 +82,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
@@ -106,6 +105,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FloppyDisk
+import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.ScanText
@@ -130,6 +130,7 @@ import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
@@ -165,6 +166,7 @@ import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
+import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -194,7 +196,8 @@ private enum class ModelFormTab(
 ) : PagerTab {
     BASIC(HugeIcons.Package01, R.string.setting_provider_page_basic_settings),
     ADVANCED(HugeIcons.Settings03, R.string.setting_provider_page_advanced_settings),
-    BUILT_IN_TOOLS(HugeIcons.Tools, R.string.setting_page_built_in_tools);
+    BUILT_IN_TOOLS(HugeIcons.Tools, R.string.setting_page_built_in_tools),
+    OTHER(HugeIcons.MoneyBag02, R.string.setting_provider_page_other_settings);
 
     override val label: String
         @Composable get() = stringResource(labelRes)
@@ -942,6 +945,19 @@ private fun ModelSettingsPagerForm(
                     }
                 }
 
+                ModelFormTab.OTHER -> {
+                    // 其它设置页面
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        ModelOtherOptions(model, onModelChange)
+                    }
+                }
+
                 ModelFormTab.BUILT_IN_TOOLS -> {
                     // 内置工具页面
                     BuiltInToolsSettings(
@@ -1028,6 +1044,16 @@ private fun ModelSettingsWideForm(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     ModelAdvancedOptions(model, onModelChange, parentProvider)
+                }
+
+                ModelFormTab.OTHER -> Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 8.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    ModelOtherOptions(model, onModelChange)
                 }
 
                 ModelFormTab.BUILT_IN_TOOLS -> BuiltInToolsSettings(
@@ -1253,6 +1279,132 @@ private fun ModelAdvancedOptions(
         }
     )
 }
+
+/** 其它设置：模型计费。价格单位跟随「以二进制量计数」，十进制按 1M、二进制按 Mi */
+@Composable
+private fun ModelOtherOptions(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+) {
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
+    val unit = if (binaryUnits) "Mi" else "1M"
+    val perCallUnit = stringResource(R.string.setting_provider_page_price_per_call_unit)
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.setting_provider_page_pricing),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.setting_provider_page_pricing_desc, unit),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        CardGroup {
+            PricingItem(
+                label = R.string.setting_provider_page_price_input,
+                value = model.pricing.input,
+                modelKey = model.id,
+                unit = unit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(input = it))) },
+            )
+            PricingItem(
+                label = R.string.setting_provider_page_price_output,
+                value = model.pricing.output,
+                modelKey = model.id,
+                unit = unit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(output = it))) },
+            )
+            PricingItem(
+                label = R.string.setting_provider_page_price_cache_hit,
+                value = model.pricing.cacheHit,
+                modelKey = model.id,
+                unit = unit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheHit = it))) },
+            )
+            PricingItem(
+                label = R.string.setting_provider_page_price_cache_write,
+                value = model.pricing.cacheWrite,
+                modelKey = model.id,
+                unit = unit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheWrite = it))) },
+            )
+            PricingItem(
+                label = R.string.setting_provider_page_price_cache_read,
+                value = model.pricing.cacheRead,
+                modelKey = model.id,
+                unit = unit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheRead = it))) },
+            )
+            PricingItem(
+                label = R.string.setting_provider_page_price_per_call,
+                value = model.pricing.perCall,
+                modelKey = model.id,
+                unit = perCallUnit,
+                onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(perCall = it))) },
+            )
+        }
+        Text(
+            text = stringResource(R.string.setting_provider_page_price_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun CardGroupScope.PricingItem(
+    @StringRes label: Int,
+    value: Double,
+    unit: String,
+    modelKey: Any,
+    onValueChange: (Double) -> Unit,
+) {
+    item(
+        headlineContent = { Text(stringResource(label)) },
+        trailingContent = {
+            PricingInput(value = value, unit = unit, modelKey = modelKey, onValueChange = onValueChange)
+        },
+    )
+}
+
+@Composable
+private fun PricingInput(
+    value: Double,
+    unit: String,
+    modelKey: Any,
+    onValueChange: (Double) -> Unit,
+) {
+    // 输入框自己保存草稿：只按本地值格式化一次，避免逐字符解析导致小数点被吃掉；
+    // 换模型时按 modelKey 重建，防止旧文本被写进新模型
+    var text by remember(modelKey) { mutableStateOf(value.toPriceText()) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            val candidate = input.replace(',', '.')
+            if (candidate.length <= 12 && PRICE_INPUT_REGEX.matches(candidate)) {
+                text = candidate
+                onValueChange(candidate.toDoubleOrNull() ?: 0.0)
+            }
+        },
+        modifier = Modifier.width(136.dp),
+        textStyle = MaterialTheme.typography.bodyMedium,
+        suffix = {
+            Text(
+                text = "/$unit",
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+            )
+        },
+        placeholder = { Text("0") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+    )
+}
+
+private val PRICE_INPUT_REGEX = Regex("""^\d{0,9}(\.\d{0,6})?$""")
+
+private fun Double.toPriceText(): String =
+    if (this <= 0) "" else java.math.BigDecimal.valueOf(this).stripTrailingZeros().toPlainString()
 
 /** 提供商远端的可用模型列表，[error] 不为空时 [models] 是上次成功拿到的结果 */
 private data class RemoteModels(
@@ -1917,6 +2069,7 @@ private fun ContextThresholdSlider(
     onValueChange: (Int?) -> Unit,
 ) {
     val stops = ContextThresholdPresets.stops
+    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
     var text by remember(value) { mutableStateOf(value?.toString() ?: "") }
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1960,12 +2113,12 @@ private fun ContextThresholdSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = contextThresholdSummary(stops.first()),
+                text = contextThresholdSummary(stops.first(), binaryUnits),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = contextThresholdSummary(value),
+                text = contextThresholdSummary(value, binaryUnits),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (isError) {
                     MaterialTheme.colorScheme.error
@@ -1974,7 +2127,7 @@ private fun ContextThresholdSlider(
                 },
             )
             Text(
-                text = contextThresholdSummary(stops.last()),
+                text = contextThresholdSummary(stops.last(), binaryUnits),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1995,11 +2148,11 @@ private fun contextStopPosition(stops: List<Int>, value: Int?): Float {
     return upper - 1 + (value - lower).toFloat() / (stops[upper] - lower)
 }
 
-/** 档位和当前值的显示：整 KiB 写成 384Ki，有零头就照原值给，免得和输入框对不上 */
-private fun contextThresholdSummary(value: Int?): String = when {
+/** 档位和当前值的显示：二进制口径整 KiB 写成 384Ki，其余按全局单位显示 */
+private fun contextThresholdSummary(value: Int?, binary: Boolean): String = when {
     value == null || value <= 0 -> "-"
-    value % KIB == 0 -> "${value / KIB}Ki"
-    else -> String.format(Locale.ROOT, "%,d", value)
+    binary && value % KIB == 0 -> "${value / KIB}Ki"
+    else -> value.formatNumber(binary)
 }
 
 private const val KIB = 1024

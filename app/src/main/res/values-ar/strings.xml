@@ -2557,4 +2557,18 @@
   <string name="chat_message_tool_phone_use_wait">انتظر %1$s ثانية</string>
   <string name="chat_message_ocr_result">نص الصورة (OCR)</string>
   <string name="chat_message_ocr_result_image">الصورة %1$d</string>
+  <string name="setting_provider_page_other_settings">إعدادات أخرى</string>
+  <string name="setting_provider_page_pricing">الفوترة</string>
+  <string name="setting_provider_page_pricing_desc">تقدير تكلفة كل رد من استهلاك الرموز. الأسعار لكل %1$s رمز بالعملة التي تدخلها؛ الحقول الفارغة لا تُحتسب. يؤدي تغيير أساس العد إلى تغيير وحدة السعر دون تحويل الأرقام تلقائيًا.</string>
+  <string name="setting_provider_page_price_input">الإدخال</string>
+  <string name="setting_provider_page_price_output">الإخراج</string>
+  <string name="setting_provider_page_price_cache_hit">إصابة الذاكرة المؤقتة</string>
+  <string name="setting_provider_page_price_cache_write">كتابة الذاكرة المؤقتة</string>
+  <string name="setting_provider_page_price_cache_read">قراءة الذاكرة المؤقتة</string>
+  <string name="setting_provider_page_price_per_call">لكل طلب</string>
+  <string name="setting_provider_page_price_per_call_unit">طلب</string>
+  <string name="setting_provider_page_price_hint">إذا كان سعر الذاكرة المؤقتة فارغًا فسيُستخدم سعر الإدخال، وسعر القراءة له الأولوية على سعر الإصابة.</string>
+  <string name="setting_display_page_binary_units_title">العد الثنائي</string>
+  <string name="setting_display_page_binary_units_desc">عرض الكميات بوحدات Ki / Mi / Gi (أساس 1024) بدل K / M / B (أساس 1000)، وتتحول وحدة سعر النموذج أيضًا إلى Mi.</string>
+  <string name="chat_message_usage_cost">التكلفة</string>
 </resources>

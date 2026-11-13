@@ -269,6 +269,12 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                 )
                 switchItem(
+                    checked = displaySetting.binaryUnits,
+                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(binaryUnits = it)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_binary_units_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_binary_units_title)) },
+                )
+                switchItem(
                     checked = displaySetting.usagePieChart,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(usagePieChart = it)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_usage_pie_desc)) },

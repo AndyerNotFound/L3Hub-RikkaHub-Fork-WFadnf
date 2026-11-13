@@ -958,6 +958,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             completionTokens = completionTokens,
             totalTokens = promptTokens + completionTokens,
             cachedTokens = cachedInputTokens,
+            cacheWriteTokens = cachedCreationTokens,
         )
     }
 }
