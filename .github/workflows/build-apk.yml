@@ -390,6 +390,35 @@ jobs:
           else
             prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^" 2>/dev/null || true)
           fi
+          head=$(git rev-parse "${TAG}^{commit}")
+          # 滚动 tag 每次都被挪到新提交上，git 里查不到「上次从这里发的是哪个提交」，
+          # 只看 tag 会把上一个版本 tag 以来的改动整段重列一遍。上一版发的是哪个提交、
+          # 从哪算起，都记在上一版说明的 HTML 注释里，下次生成时读回来。
+          # head 与本次相同说明是同一个提交重跑，沿用那次算出的起点，说明才不会退化成空。
+          if [ "$ROLLING_CANARY" = "true" ]; then
+            note=$(gh release view "$TAG" --json body --jq .body 2>/dev/null || true)
+            last=$(printf '%s\n' "$note" \
+              | sed -n 's/.*canary:from=[0-9a-f]* head=\([0-9a-f]\{7,40\}\) -->.*/\1/p' | head -1)
+            base=$(printf '%s\n' "$note" \
+              | sed -n 's/.*canary:from=\([0-9a-f]\{7,40\}\) head=.*/\1/p' | head -1)
+            if [ "$last" = "$head" ]; then
+              prev=$base
+            else
+              prev=${last:-$base}
+            fi
+            # 强推改了 tag 之后老提交可能已经不在仓库里，git log 会直接报错退出
+            if [ -n "$prev" ] && ! git cat-file -e "${prev}^{commit}" 2>/dev/null; then
+              echo "::warning::上一版说明记录的提交 ${prev} 不在仓库里，退回按 tag 取区间"
+              prev=
+            fi
+            if [ -z "$prev" ]; then
+              prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+            fi
+            echo "滚动 Canary 的改动起点：${prev:-（无，首个版本）}"
+            # 记进说明的一律是提交 sha：起点可能是 tag 名，下次读回来要能直接喂给 git log
+            prev_sha=""
+            if [ -n "$prev" ]; then prev_sha=$(git rev-parse "${prev}^{commit}"); fi
+          fi
           pkg=com.rikkahub.l3hub.wfadnf
           version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
           {
@@ -418,7 +447,11 @@ jobs:
               echo
               echo '这是预发布：功能比正式版新，稳定性不作保证。它和正式版是同一个应用，装上会直接覆盖已装的正式版并沿用其数据。'
               echo
-              echo 'versionCode 只增不减：装过这一版之后，要回到更早的正式版只能先卸载（会清除应用数据，建议先导出备份）。'
+              if [ "$ROLLING_CANARY" = "true" ]; then
+                echo '滚动 Canary 的 versionCode 不随构建递增：同一 versionCode 的包可以互相覆盖，要回退到上一次构建，装它的 APK 即可；回退到 versionCode 更低的正式版仍需先卸载（会清除应用数据，建议先导出备份）。'
+              else
+                echo 'versionCode 只增不减：装过这一版之后，要回到更早的正式版只能先卸载（会清除应用数据，建议先导出备份）。'
+              fi
             elif [ "$VARIANT" = "release" ]; then
               echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — arm64-v8a 正式版，包名 `'"${pkg}"'`，版本 `'"${version}"'`。'
               echo
@@ -433,6 +466,11 @@ jobs:
             if [ -n "${CERT_SHA256:-}" ]; then
               echo
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
+            fi
+            # 下一次滚动构建从这一行读起点，别把注释删掉
+            if [ "$ROLLING_CANARY" = "true" ]; then
+              echo
+              echo "<!-- canary:from=${prev_sha} head=${head} -->"
             fi
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md

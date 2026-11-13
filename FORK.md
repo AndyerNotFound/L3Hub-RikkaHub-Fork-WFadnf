@@ -894,8 +894,10 @@ Canary 构建，Release 也固定是同一个，重复推送只覆盖资产、�
 git tag -f Canary-Build && git push -f origin Canary-Build
 ```
 
-产物固定叫 `L3Hub-Canary-Build-arm64-v8a.apk`（附 `.sha256`）。Release 说明的改动区间取
-`Canary-Build` 之前最近的一个 tag（通常是 `vX.Y.Z-canary.N`），两次滚动构建之间只列真正新增的提交。
+产物固定叫 `L3Hub-Canary-Build-arm64-v8a.apk`（附 `.sha256`）。Release 说明的改动区间从上一版说明
+末尾 `<!-- canary:from=… head=… -->` 记下的那次构建算起，两次滚动构建之间只列真正新增的提交；
+同一提交重跑时沿用那次算出的起点，说明不会退化成空。升级前的老说明没有这行记录，才退回按
+`Canary-Build` 之前最近的一个 tag（通常是 `vX.Y.Z-canary.N`）取区间。
 
 ### 正式版的签名
 
