@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.datastore
 
 import me.rerere.rikkahub.data.model.Assistant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.uuid.Uuid
 
@@ -24,6 +25,29 @@ class SettingsNormalizationTest {
             .first { it.id == dispatcherId }
 
         assertEquals(setOf(target.id), normalized.allowedSubAgentIds)
+    }
+
+    @Test
+    fun `deleted built-in providers stay deleted after normalization`() {
+        val target = DEFAULT_PROVIDERS.first()
+        val settings = Settings(providers = emptyList())
+            .removeProvider(target.id)
+            .normalized()
+
+        assertTrue(settings.providers.none { it.id == target.id })
+        assertEquals(setOf(target.id.toString()), settings.deletedBuiltInProviderIds)
+    }
+
+    @Test
+    fun `restoring a built-in provider clears its deletion record`() {
+        val target = DEFAULT_PROVIDERS.first()
+        val restored = Settings(providers = emptyList())
+            .removeProvider(target.id)
+            .restoreProvider(target)
+            .normalized()
+
+        assertTrue(restored.providers.any { it.id == target.id })
+        assertEquals(emptySet<String>(), restored.deletedBuiltInProviderIds)
     }
 
     @Test
