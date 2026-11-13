@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,12 +34,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
@@ -72,6 +77,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -95,6 +101,7 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Delete01
@@ -725,7 +732,7 @@ private fun ModelList(
     // 增删、排序已添加的模型不影响远端列表，去掉 models 再作为 key，避免每次编辑都重新请求
     val listKey = remember(providerSetting) { providerSetting.copyProvider(models = emptyList()) }
     var refreshCount by remember { mutableIntStateOf(0) }
-    val remoteModels by produceState(RemoteModels(), listKey, refreshCount) {
+    val remoteModels by produceState(RemoteModels(loading = true), listKey, refreshCount) {
         value = value.copy(loading = true, error = null)
         value = try {
             val provider = providerManager.getProviderByType(listKey)
@@ -736,11 +743,21 @@ private fun ModelList(
                     .filter { it.isNotEmpty() && it !in setting.disabledApiKeys }
             }.orEmpty()
             val models = if (apiKeySetting != null && enabledKeys.size > 1) {
-                // 每个 Key 可能开通了不同的模型，合并去重后再展示
-                enabledKeys.flatMap { key ->
-                    runCatching { provider.listModels(apiKeySetting.withApiKey(key)) }
-                        .getOrDefault(emptyList())
+                // 每个 Key 可能开通了不同的模型，合并去重后再展示；
+                // 只有全都失败才算读不到，否则错误会被空列表吃掉
+                val errors = mutableListOf<Exception>()
+                val merged = enabledKeys.flatMap { key ->
+                    try {
+                        provider.listModels(apiKeySetting.withApiKey(key))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        errors += e
+                        emptyList()
+                    }
                 }.distinctBy { it.modelId }
+                if (merged.isEmpty() && errors.isNotEmpty()) throw errors.first()
+                merged
             } else {
                 provider.listModels(listKey)
             }
@@ -1315,6 +1332,9 @@ private fun ModelPicker(
         ) {
             var filterText by remember { mutableStateOf("") }
             val filteredModels = remoteModels.models.filterByKeywords(filterText)
+            val loading = remoteModels.loading
+            val refreshError = remoteModels.error
+            val hasModels = remoteModels.models.isNotEmpty()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1337,36 +1357,44 @@ private fun ModelPicker(
                         modifier = Modifier.weight(1f),
                     )
 
+                    // 拉取期间按钮置灰，进度由标题下的那条进度条给出
                     IconButton(
                         onClick = onRefresh,
-                        enabled = !remoteModels.loading,
+                        enabled = !loading,
                     ) {
-                        Icon(HugeIcons.Refresh01, contentDescription = "Refresh")
-                    }
-
-                    val unselectedCount = filteredModels.count { model ->
-                        selectedModels.none { it.modelId == model.modelId }
-                    }
-
-                    TextButton(
-                        onClick = {
-                            if (unselectedCount > 0) {
-                                onAllModelSelected(filteredModels)
-                            } else {
-                                onAllModelDeselected(filteredModels)
-                            }
-                        },
-                    ) {
-                        Text(
-                            if (unselectedCount > 0) stringResource(
-                                R.string.setting_provider_page_select_all,
-                                unselectedCount
-                            ) else stringResource(R.string.setting_provider_page_deselect_models)
+                        Icon(
+                            imageVector = HugeIcons.Refresh01,
+                            contentDescription = stringResource(R.string.setting_provider_page_models_refresh),
                         )
+                    }
+
+                    // 一个模型都没拿到时，全选没有意义
+                    if (hasModels) {
+                        val unselectedCount = filteredModels.count { model ->
+                            selectedModels.none { it.modelId == model.modelId }
+                        }
+
+                        TextButton(
+                            onClick = {
+                                if (unselectedCount > 0) {
+                                    onAllModelSelected(filteredModels)
+                                } else {
+                                    onAllModelDeselected(filteredModels)
+                                }
+                            },
+                        ) {
+                            Text(
+                                if (unselectedCount > 0) stringResource(
+                                    R.string.setting_provider_page_select_all,
+                                    unselectedCount
+                                ) else stringResource(R.string.setting_provider_page_deselect_models)
+                            )
+                        }
                     }
                 }
 
-                if (remoteModels.loading) {
+                // 拉取期间标题下面一直有一条进度条，首次加载时下面还有整块加载态
+                if (loading) {
                     LinearWavyProgressIndicator(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1374,110 +1402,140 @@ private fun ModelPicker(
                     )
                 }
 
-                remoteModels.error?.let { error ->
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                    ) {
-                        Text(
-                            text = error.message ?: error.javaClass.simpleName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            maxLines = 4,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(12.dp),
-                        )
-                    }
-                }
-
-                LazyColumn(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                    contentPadding = PaddingValues(8.dp),
                 ) {
-                    itemsIndexed(filteredModels) { index, it ->
-                        Surface(
-                            shape = cardGroupItemShape(index, filteredModels.size),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(
-                                    12.dp
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
-                            ) {
-                                AutoAIIcon(
-                                    it.modelId,
-                                    Modifier.size(32.dp)
-                                )
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(
-                                        4.dp
-                                    ),
-                                    modifier = Modifier.weight(1f),
+                    when {
+                        // 还没有任何结果：给一块明确的加载态，别让抽屉看起来是空的
+                        loading && !hasModels -> RemoteModelsLoading()
+
+                        // 一个模型都读不到：说清原因，留一个重试入口
+                        refreshError != null && !hasModels -> RemoteModelsError(
+                            error = refreshError,
+                            onRetry = onRefresh,
+                        )
+
+                        else -> Column(modifier = Modifier.fillMaxSize()) {
+                            // 刷新失败但手上还有上次的结果：列表照旧显示，错误收在上方
+                            if (refreshError != null) {
+                                RemoteModelsErrorBanner(error = refreshError)
+                            }
+
+                            if (filteredModels.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
-                                        text = it.modelId,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        text = stringResource(
+                                            if (filterText.isBlank()) {
+                                                R.string.setting_provider_page_models_empty
+                                            } else {
+                                                R.string.model_list_no_match
+                                            }
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        val modelMeta = remember(it) {
-                                            it.copy(
-                                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(it.modelId),
-                                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(it.modelId),
-                                                abilities = ModelRegistry.MODEL_ABILITIES.getData(it.modelId),
-                                            )
-                                        }
-                                        ModelModalityTag(
-                                            model = modelMeta,
-                                        )
-                                        ModelAbilityTag(
-                                            model = modelMeta,
-                                        )
-                                    }
                                 }
-                                val added = selectedModels.any { model -> model.modelId == it.modelId }
-                                FilledTonalIconToggleButton(
-                                    checked = added,
-                                    onCheckedChange = { checked ->
-                                        if (checked) {
-                                            onModelSelected(it)
-                                        } else {
-                                            // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
-                                            onModelDeselected(selectedModels.firstOrNull { model -> model.modelId == it.modelId }
-                                                ?: it)
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                                    contentPadding = PaddingValues(8.dp),
+                                ) {
+                                    itemsIndexed(filteredModels) { index, it ->
+                                        Surface(
+                                            shape = cardGroupItemShape(index, filteredModels.size),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(
+                                                    12.dp
+                                                ),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+                                            ) {
+                                                AutoAIIcon(
+                                                    it.modelId,
+                                                    Modifier.size(32.dp)
+                                                )
+                                                Column(
+                                                    verticalArrangement = Arrangement.spacedBy(
+                                                        4.dp
+                                                    ),
+                                                    modifier = Modifier.weight(1f),
+                                                ) {
+                                                    Text(
+                                                        text = it.modelId,
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                    )
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        val modelMeta = remember(it) {
+                                                            it.copy(
+                                                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(it.modelId),
+                                                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(it.modelId),
+                                                                abilities = ModelRegistry.MODEL_ABILITIES.getData(it.modelId),
+                                                            )
+                                                        }
+                                                        ModelModalityTag(
+                                                            model = modelMeta,
+                                                        )
+                                                        ModelAbilityTag(
+                                                            model = modelMeta,
+                                                        )
+                                                    }
+                                                }
+                                                val added = selectedModels.any { model -> model.modelId == it.modelId }
+                                                FilledTonalIconToggleButton(
+                                                    checked = added,
+                                                    onCheckedChange = { checked ->
+                                                        if (checked) {
+                                                            onModelSelected(it)
+                                                        } else {
+                                                            // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
+                                                            onModelDeselected(selectedModels.firstOrNull { model -> model.modelId == it.modelId }
+                                                                ?: it)
+                                                        }
+                                                    }
+                                                ) {
+                                                    Icon(if (added) HugeIcons.Tick01 else HugeIcons.Add01, null)
+                                                }
+                                            }
                                         }
                                     }
-                                ) {
-                                    Icon(if (added) HugeIcons.Tick01 else HugeIcons.Add01, null)
                                 }
                             }
                         }
                     }
                 }
-                OutlinedTextField(
-                    value = filterText,
-                    onValueChange = {
-                        filterText = it
-                    },
-                    label = { Text(stringResource(R.string.setting_provider_page_filter_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(stringResource(R.string.setting_provider_page_filter_example))
-                    },
-                )
+
+                // 没有模型可筛的时候不摆筛选框
+                if (hasModels) {
+                    OutlinedTextField(
+                        value = filterText,
+                        onValueChange = {
+                            filterText = it
+                        },
+                        label = { Text(stringResource(R.string.setting_provider_page_filter_placeholder)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(stringResource(R.string.setting_provider_page_filter_example))
+                        },
+                    )
+                }
             }
         }
     }
@@ -1499,6 +1557,112 @@ private fun ModelPicker(
         }
     }
 }
+
+// 首次打开抽屉、还没有任何结果时的整块加载态
+@Composable
+private fun RemoteModelsLoading(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    ) {
+        ContainedLoadingIndicator(modifier = Modifier.size(48.dp))
+        Text(
+            text = stringResource(R.string.setting_provider_page_models_loading),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+// 一个模型都读不到：原因和重试都摆出来，别留一个空白抽屉
+@Composable
+private fun RemoteModelsError(
+    error: Throwable,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(MaterialTheme.colorScheme.errorContainer, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = HugeIcons.Alert01,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        Text(
+            text = stringResource(R.string.setting_provider_page_models_failed),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = error.displayMessage(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        FilledTonalButton(onClick = onRetry) {
+            Icon(
+                imageVector = HugeIcons.Refresh01,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.setting_provider_page_models_retry))
+        }
+    }
+}
+
+// 刷新失败、手上还有上次的结果：只在列表上方提示，不挡住选择
+@Composable
+private fun RemoteModelsErrorBanner(
+    error: Throwable,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.setting_provider_page_models_failed),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = error.displayMessage(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+// 网络异常的 message 常常是空的，退回到异常类名，界面上至少有一行字
+private fun Throwable.displayMessage(): String =
+    message?.takeIf { it.isNotBlank() } ?: javaClass.simpleName
 
 @Composable
 private fun ModelTypeSelector(

@@ -1357,6 +1357,11 @@
   <string name="setting_provider_page_model_name">Model Name</string>
   <string name="setting_provider_page_model_type">Model Type</string>
   <string name="setting_provider_page_models">Models</string>
+  <string name="setting_provider_page_models_empty">The provider returned no models</string>
+  <string name="setting_provider_page_models_failed">Failed to load models</string>
+  <string name="setting_provider_page_models_loading">Loading models</string>
+  <string name="setting_provider_page_models_refresh">Refresh model list</string>
+  <string name="setting_provider_page_models_retry">Retry</string>
   <string name="setting_provider_page_name">Name</string>
   <string name="setting_provider_page_no_models">No models</string>
   <string name="setting_provider_page_no_permission">No permission</string>

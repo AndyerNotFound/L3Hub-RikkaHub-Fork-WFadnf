@@ -170,7 +170,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     )
                 }
             } else {
-                emptyList()
+                // 失败要抛出去，界面才能显示「读不到模型列表」而不是一个空列表
+                error("Failed to get models: ${response.code} ${response.body?.string()}")
             }
         }
 
