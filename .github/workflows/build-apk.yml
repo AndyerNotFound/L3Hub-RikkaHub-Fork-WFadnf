@@ -521,7 +521,9 @@ jobs:
               echo '预览版，包名 `'"${pkg}"'.debug`，覆盖安装即可。'
             fi
             echo
-            echo '校验：`sha256sum -c <APK 文件名>.sha256`'
+            for apk in dist/*.apk; do
+              printf '校验：`sha256sum -c %s.sha256`\n' "$(basename "$apk")"
+            done
             if [ -n "${CERT_SHA256:-}" ]; then
               echo
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'

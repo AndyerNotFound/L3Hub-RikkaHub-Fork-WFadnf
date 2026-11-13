@@ -23,6 +23,7 @@ Material 3 look (cards with dividers, plain forms).
 ```bash
 ./gradlew assembleGithubDebug    # 构建 GitHub 渠道的 Debug APK
 ./gradlew assembleGithubRelease  # 构建 GitHub Release / 每日构建用的 APK
+./gradlew assembleGithubRelease -PnoLitert=true  # 精简版：不打包 LiteRT-LM 运行时
 ./gradlew bundlePlayRelease      # 构建上架 Google Play 的 AAB
 ./gradlew test                   # 运行所有模块的 JVM 单元测试
 ./gradlew lint                   # 运行 Android Lint
