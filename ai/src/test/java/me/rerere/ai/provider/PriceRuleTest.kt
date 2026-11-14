@@ -113,9 +113,30 @@ class PriceRuleTest {
             repeatWeekday = 0,
         )
 
-        assertEquals(DayOfWeek.MONDAY, rule.weekday())
+        assertEquals(listOf(DayOfWeek.MONDAY), rule.weekdays())
         assertTrue(rule.matches(PriceRuleContext(atMillis = at(12, day = 16), zoneId = zone)))
         assertFalse(rule.matches(PriceRuleContext(atMillis = at(12, day = 17), zoneId = zone)))
+    }
+
+    @Test
+    fun `weekly time range accepts several weekdays`() {
+        val rule = PriceRule(
+            type = PriceRuleType.TIME_RANGE,
+            startMinute = 22 * 60,
+            endMinute = 6 * 60,
+            repeat = PriceRuleRepeat.WEEKLY,
+            repeatWeekdays = listOf(DayOfWeek.MONDAY.value, DayOfWeek.WEDNESDAY.value),
+        )
+
+        assertEquals(listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY), rule.weekdays())
+        // 2026-11-17 周二凌晨属于周一的窗口
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(2, day = 17), zoneId = zone)))
+        // 周二晚上不是所选星期
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(23, day = 17), zoneId = zone)))
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(22, 30, day = 18), zoneId = zone)))
+        // 周四凌晨属于周三的窗口
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(2, day = 19), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(2, day = 18), zoneId = zone)))
     }
 
     @Test

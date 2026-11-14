@@ -10,6 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.time.Instant
@@ -98,9 +99,32 @@ class ProviderGuardTest {
     fun `weekly lock without an explicit weekday follows the start date`() {
         val lock = schedule(startDate = "2026-11-14", repeat = ProviderLockRepeat.WEEKLY)
 
-        assertEquals(DayOfWeek.SATURDAY, lock.weekdayOf(lock.parsedStart()!!))
+        assertEquals(listOf(DayOfWeek.SATURDAY), lock.weekdays(LocalDate.parse("2026-11-14")))
         assertNotNull(lock.activeWindowAt(at("2026-11-21T23:30:00"), zone))
         assertNull(lock.activeWindowAt(at("2026-11-22T23:30:00"), zone))
+    }
+
+    @Test
+    fun `weekly lock accepts several weekdays and keeps midnight windows on the start day`() {
+        val lock = ProviderLockSchedule(
+            startDate = "2026-11-14",
+            startTime = "23:00",
+            durationMinutes = 8 * 60,
+            repeat = ProviderLockRepeat.WEEKLY,
+            repeatWeekdays = listOf(DayOfWeek.MONDAY.value, DayOfWeek.WEDNESDAY.value),
+        )
+
+        assertEquals(
+            listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            lock.weekdays(LocalDate.parse("2026-11-14")),
+        )
+        // 周一 23:00 开始的窗口延续到周二凌晨
+        assertNotNull(lock.activeWindowAt(at("2026-11-17T02:00:00"), zone))
+        // 周二 23:00 不是所选星期
+        assertNull(lock.activeWindowAt(at("2026-11-18T00:30:00"), zone))
+        // 周三 23:00 的窗口延续到周四凌晨
+        assertNotNull(lock.activeWindowAt(at("2026-11-19T02:00:00"), zone))
+        assertEquals(at("2026-11-18T23:00:00"), lock.nextStartAfter(at("2026-11-17T08:00:00"), zone))
     }
 
     @Test

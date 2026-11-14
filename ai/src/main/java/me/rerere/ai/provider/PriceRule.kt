@@ -45,7 +45,7 @@ enum class PriceRuleRepeat {
     /** 每天在时间段内生效 */
     DAILY,
 
-    /** 每周只在 [PriceRule.repeatWeekday] 这一天的时间段内生效 */
+    /** 每周只在所选星期（[PriceRule.repeatWeekdays]）的时间段内生效 */
     WEEKLY,
 }
 
@@ -68,7 +68,7 @@ data class PriceRuleContext(
  *
  * [startMinute] 和 [endMinute] 是本地时间的分钟数，区间为左闭右开；结束早于开始时视为跨夜，
  * 跨夜的凌晨部分按窗口开始的那天判断星期；起止相同视为全天。
- * 时间段默认每天重复，[repeat] 为 WEEKLY 时只在 [repeatWeekday] 那天生效。
+ * 时间段默认每天重复，[repeat] 为 WEEKLY 时只在 [repeatWeekdays] 列出的星期生效。
  */
 @Serializable
 data class PriceRule(
@@ -79,7 +79,9 @@ data class PriceRule(
     val endMinute: Int = 0,
     // 仅 TIME_RANGE 生效的重复方式
     val repeat: PriceRuleRepeat = PriceRuleRepeat.DAILY,
-    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日
+    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日，可多选
+    val repeatWeekdays: List<Int> = emptyList(),
+    // 旧字段：repeatWeekdays 为空时按单选读取，缺省为周一
     val repeatWeekday: Int = 1,
     val contextTokens: Int = 0,
     // true: promptTokens >= contextTokens；false: promptTokens < contextTokens
@@ -99,8 +101,12 @@ data class PriceRule(
         PriceRuleType.EXPRESSION -> PriceRuleExpression.matches(expression, context)
     }
 
-    /** WEEKLY 命中的星期；越界的编号按周一处理 */
-    fun weekday(): DayOfWeek = DayOfWeek.of(repeatWeekday.coerceIn(1, 7))
+    /** WEEKLY 命中的星期；没有多选记录时回退到旧的单选字段，越界按周一处理 */
+    fun weekdays(): List<DayOfWeek> {
+        val days = repeatWeekdays.filter { it in 1..7 }.distinct().sorted()
+        if (days.isNotEmpty()) return days.map { DayOfWeek.of(it) }
+        return listOf(DayOfWeek.of(repeatWeekday.coerceIn(1, 7)))
+    }
 
     private fun matchesTimeRange(context: PriceRuleContext): Boolean {
         val at = Instant.ofEpochMilli(context.atMillis).atZone(context.zoneId)
@@ -122,7 +128,7 @@ data class PriceRule(
     }
 
     private fun hitsWeekday(date: LocalDate): Boolean =
-        repeat != PriceRuleRepeat.WEEKLY || date.dayOfWeek == weekday()
+        repeat != PriceRuleRepeat.WEEKLY || date.dayOfWeek in weekdays()
 }
 
 /** 表达式里第一个无法解析的字符位置；表达式合法时返回 null。表达式为空也会返回 0。 */

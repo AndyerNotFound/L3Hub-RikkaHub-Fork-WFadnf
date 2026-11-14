@@ -109,7 +109,7 @@ enum class ProviderLockRepeat {
     @SerialName("daily")
     DAILY,
 
-    /** 从 [ProviderLockSchedule.startDate] 起每周在 [ProviderLockSchedule.repeatWeekday] 指定的星期触发 */
+    /** 从 [ProviderLockSchedule.startDate] 起每周在 [ProviderLockSchedule.repeatWeekdays] 列出的星期触发 */
     @SerialName("weekly")
     WEEKLY,
 }
@@ -132,7 +132,9 @@ data class ProviderLockSchedule(
     val repeat: ProviderLockRepeat = ProviderLockRepeat.ONCE,
     // 仅 DAILY / WEEKLY 生效的截止日期 yyyy-MM-dd；空串表示一直重复
     val repeatUntil: String = "",
-    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日；0 表示沿用 startDate 的星期
+    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日，可多选
+    val repeatWeekdays: List<Int> = emptyList(),
+    // 旧字段：repeatWeekdays 为空时按单选读取；0 表示沿用 startDate 的星期
     val repeatWeekday: Int = 0,
 ) {
     fun parsedStart(): LocalDateTime? = runCatching {
@@ -144,9 +146,13 @@ data class ProviderLockSchedule(
 
     fun summaryDurationMinutes(): Int = durationMinutes.coerceAtLeast(1)
 
-    /** WEEKLY 生效的星期；旧备份没有 repeatWeekday 时沿用开始日期那一天 */
-    fun weekdayOf(start: LocalDateTime): DayOfWeek =
-        DayOfWeek.of(repeatWeekday.takeIf { it in 1..7 } ?: start.dayOfWeek.value)
+    /** WEEKLY 生效的星期；没有多选记录时回退到旧的单选字段，再缺省沿用开始日期那一天 */
+    fun weekdays(startDate: LocalDate): List<DayOfWeek> {
+        val days = repeatWeekdays.filter { it in 1..7 }.distinct().sorted()
+        if (days.isNotEmpty()) return days.map { DayOfWeek.of(it) }
+        val fallback = repeatWeekday.takeIf { it in 1..7 } ?: startDate.dayOfWeek.value
+        return listOf(DayOfWeek.of(fallback))
+    }
 }
 
 /**
@@ -227,7 +233,7 @@ private fun ProviderLockSchedule.occursOn(
     if (date < startDate) return false
     if (repeatUntil != null && date > repeatUntil) return false
     return when (repeat) {
-        ProviderLockRepeat.WEEKLY -> date.dayOfWeek == weekdayOf(start)
+        ProviderLockRepeat.WEEKLY -> date.dayOfWeek in weekdays(startDate)
         else -> true
     }
 }

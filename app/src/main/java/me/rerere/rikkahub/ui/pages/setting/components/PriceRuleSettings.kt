@@ -45,7 +45,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
-import me.rerere.rikkahub.ui.components.ui.weekdayLabel
+import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionAddButton
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionHeader
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
@@ -250,6 +250,7 @@ private fun PriceRuleTimeFields(rule: PriceRule, onUpdate: (PriceRule) -> Unit) 
 @Composable
 private fun PriceRuleWeekdayField(rule: PriceRule, onUpdate: (PriceRule) -> Unit) {
     var showDialog by remember(rule.id) { mutableStateOf(false) }
+    val weekdays = rule.weekdays()
     Surface(
         onClick = { showDialog = true },
         modifier = Modifier.fillMaxWidth(),
@@ -266,19 +267,25 @@ private fun PriceRuleWeekdayField(rule: PriceRule, onUpdate: (PriceRule) -> Unit
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = weekdayLabel(rule.weekday()),
+                text = weekdayListLabel(weekdays),
                 style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
     if (showDialog) {
         WeekdayPickerDialog(
             title = stringResource(R.string.setting_provider_page_price_rule_weekday),
-            selected = rule.weekday(),
+            selected = weekdays.toSet(),
             onDismiss = { showDialog = false },
-            onPick = { day ->
-                onUpdate(rule.copy(repeatWeekday = day.value))
-                showDialog = false
+            onToggle = { day ->
+                val next = when {
+                    day !in weekdays -> weekdays + day
+                    weekdays.size > 1 -> weekdays - day
+                    else -> weekdays
+                }
+                onUpdate(rule.copy(repeatWeekdays = next.map { it.value }.sorted()))
             },
         )
     }
@@ -527,11 +534,11 @@ private fun priceRuleSummary(rule: PriceRule): String = when (rule.type) {
             rule.repeat != PriceRuleRepeat.WEEKLY -> dailyText
             start == end -> stringResource(
                 R.string.setting_provider_page_price_rule_summary_weekly_all_day,
-                weekdayLabel(rule.weekday()),
+                weekdayListLabel(rule.weekdays()),
             )
             else -> stringResource(
                 R.string.setting_provider_page_price_rule_summary_weekly_range,
-                weekdayLabel(rule.weekday()),
+                weekdayListLabel(rule.weekdays()),
                 formatMinute(start),
                 formatMinute(end),
             )

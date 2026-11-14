@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -74,7 +75,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
-import me.rerere.rikkahub.ui.components.ui.weekdayLabel
+import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -83,7 +84,6 @@ import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.compose.koinInject
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -557,7 +557,7 @@ private fun lockSummary(lock: ProviderLockSchedule): String {
 
         ProviderLockRepeat.WEEKLY -> stringResource(
             R.string.setting_provider_guard_lock_summary_weekly,
-            weekdayLabel(lock.weekdayOf(start)),
+            weekdayListLabel(lock.weekdays(start.toLocalDate())),
             start.format(LOCK_TIME_FORMAT),
             duration,
         )
@@ -574,8 +574,8 @@ private fun lockSummary(lock: ProviderLockSchedule): String {
 private fun lockSupportingText(lock: ProviderLockSchedule): String {
     val start = lock.parsedStart() ?: return ""
     val firstDate = if (lock.repeat == ProviderLockRepeat.WEEKLY) {
-        val weekday = lock.weekdayOf(start)
-        (0L..6L).map { start.toLocalDate().plusDays(it) }.firstOrNull { it.dayOfWeek == weekday }
+        val weekdays = lock.weekdays(start.toLocalDate())
+        (0L..6L).map { start.toLocalDate().plusDays(it) }.firstOrNull { it.dayOfWeek in weekdays }
             ?: start.toLocalDate()
     } else {
         start.toLocalDate()
@@ -1012,16 +1012,12 @@ private fun LockScheduleSheet(
     }
     var repeat by remember { mutableStateOf(base.repeat) }
     var repeatUntil by remember { mutableStateOf(base.parsedRepeatUntil()) }
-    var weekday by remember {
-        mutableStateOf(
-            base.repeatWeekday
-                .takeIf { it in 1..7 }
-                ?.let { DayOfWeek.of(it) }
-                ?: startDate.dayOfWeek
-        )
-    }
+    var selectedWeekdays by remember { mutableStateOf(base.weekdays(startDate).toSet()) }
     var weekdayPicked by remember {
-        mutableStateOf(base.repeat == ProviderLockRepeat.WEEKLY && base.repeatWeekday in 1..7)
+        mutableStateOf(
+            base.repeat == ProviderLockRepeat.WEEKLY &&
+                (base.repeatWeekdays.any { it in 1..7 } || base.repeatWeekday in 1..7)
+        )
     }
     var showWeekdayPicker by remember { mutableStateOf(false) }
     var enabled by remember { mutableStateOf(base.enabled) }
@@ -1029,7 +1025,8 @@ private fun LockScheduleSheet(
     val totalMinutes = (if (durationInHours) durationValue * 60 else durationValue).coerceAtLeast(0)
     // 每周重复时第一次触发不一定落在开始日期当天
     val firstStartDate = if (repeat == ProviderLockRepeat.WEEKLY) {
-        (0L..6L).map { startDate.plusDays(it) }.firstOrNull { it.dayOfWeek == weekday } ?: startDate
+        (0L..6L).map { startDate.plusDays(it) }.firstOrNull { it.dayOfWeek in selectedWeekdays }
+            ?: startDate
     } else {
         startDate
     }
@@ -1037,12 +1034,15 @@ private fun LockScheduleSheet(
     if (showWeekdayPicker) {
         WeekdayPickerDialog(
             title = stringResource(R.string.setting_provider_guard_lock_weekday),
-            selected = weekday,
+            selected = selectedWeekdays,
             onDismiss = { showWeekdayPicker = false },
-            onPick = { day ->
-                weekday = day
+            onToggle = { day ->
+                selectedWeekdays = when {
+                    day !in selectedWeekdays -> selectedWeekdays + day
+                    selectedWeekdays.size > 1 -> selectedWeekdays - day
+                    else -> selectedWeekdays
+                }
                 weekdayPicked = true
-                showWeekdayPicker = false
             },
         )
     }
@@ -1079,7 +1079,7 @@ private fun LockScheduleSheet(
                 onClick = {
                     pickDate(context, startDate) { picked ->
                         startDate = picked
-                        if (!weekdayPicked) weekday = picked.dayOfWeek
+                        if (!weekdayPicked) selectedWeekdays = setOf(picked.dayOfWeek)
                     }
                 },
             )
@@ -1144,7 +1144,7 @@ private fun LockScheduleSheet(
                             repeat = item
                             if (item == ProviderLockRepeat.ONCE) repeatUntil = null
                             if (item == ProviderLockRepeat.WEEKLY && base.repeat != ProviderLockRepeat.WEEKLY) {
-                                weekday = startDate.dayOfWeek
+                                selectedWeekdays = setOf(startDate.dayOfWeek)
                                 weekdayPicked = false
                             }
                         },
@@ -1168,7 +1168,7 @@ private fun LockScheduleSheet(
             if (repeat == ProviderLockRepeat.WEEKLY) {
                 PickerRow(
                     label = stringResource(R.string.setting_provider_guard_lock_weekday),
-                    value = weekdayLabel(weekday),
+                    value = weekdayListLabel(selectedWeekdays.sorted()),
                     onClick = { showWeekdayPicker = true },
                 )
             }
@@ -1238,7 +1238,8 @@ private fun LockScheduleSheet(
                                 startTime = startTime.format(LOCK_TIME_FORMAT),
                                 durationMinutes = totalMinutes,
                                 repeat = repeat,
-                                repeatWeekday = weekday.value,
+                                repeatWeekdays = selectedWeekdays.map { it.value }.sorted(),
+                                repeatWeekday = selectedWeekdays.minOfOrNull { it.value } ?: 1,
                                 repeatUntil = if (repeat != ProviderLockRepeat.ONCE) {
                                     repeatUntil
                                         ?.takeIf { !it.isBefore(firstStartDate) }
@@ -1276,13 +1277,21 @@ private fun PickerRow(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
             )
         }
     }

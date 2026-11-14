@@ -1,12 +1,13 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import android.icu.text.ListFormatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,13 +25,17 @@ import java.util.Locale
 fun weekdayLabel(day: DayOfWeek): String =
     day.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
-/** 周一至周日的单选弹窗，自动锁定与变价规则共用 */
+/** 多个星期的本地化枚举，例如「星期一和星期三」与「Monday and Wednesday」 */
+fun weekdayListLabel(days: List<DayOfWeek>): String =
+    ListFormatter.getInstance(Locale.getDefault()).format(days.map { weekdayLabel(it) })
+
+/** 周一至周日的多选弹窗，自动锁定与变价规则共用 */
 @Composable
 fun WeekdayPickerDialog(
     title: String,
-    selected: DayOfWeek,
+    selected: Set<DayOfWeek>,
     onDismiss: () -> Unit,
-    onPick: (DayOfWeek) -> Unit,
+    onToggle: (DayOfWeek) -> Unit,
 ) {
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
@@ -41,11 +46,11 @@ fun WeekdayPickerDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onPick(day) }
+                            .clickable { onToggle(day) }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = selected == day, onClick = { onPick(day) })
+                        Checkbox(checked = day in selected, onCheckedChange = { onToggle(day) })
                         Text(weekdayLabel(day))
                     }
                 }
@@ -53,7 +58,7 @@ fun WeekdayPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+                Text(stringResource(R.string.confirm))
             }
         },
     )
