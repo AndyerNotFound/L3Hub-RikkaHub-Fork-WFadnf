@@ -84,8 +84,6 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 32, to = 33),
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
-        // 文件夹绑定工作区：conversation_folder 加 workspace_id / workspace_ids
-        AutoMigration(from = 35, to = 36),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
