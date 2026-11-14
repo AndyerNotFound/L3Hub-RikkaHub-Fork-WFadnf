@@ -442,18 +442,19 @@ fun ChatInput(
     // 嵌在空会话页面中间时不需要底部渐变遮罩
     val scrimModifier = if (applyWindowInsets && showScrim) {
         Modifier.drawBehind {
-            val imeBottom = imeInsets.getBottom(this)
+            val endY = if (deferImeInset) {
+                // 空态底栏本来就不含键盘 inset，不必再读它，免得跟着键盘每帧重画遮罩
+                size.height.toFloat()
+            } else {
+                (size.height - imeInsets.getBottom(this)).coerceAtLeast(1f)
+            }
             val brush = Brush.verticalGradient(
                 colors = listOf(
                     scrimColor.copy(alpha = 0f),
                     scrimColor.copy(alpha = scrimAlpha()),
                 ),
                 startY = 0f,
-                endY = if (deferImeInset) {
-                    size.height.toFloat()
-                } else {
-                    (size.height - imeBottom).coerceAtLeast(1f)
-                },
+                endY = endY,
             )
             drawRect(brush)
         }
