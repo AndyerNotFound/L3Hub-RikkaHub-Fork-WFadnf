@@ -232,7 +232,8 @@ private fun PlaceholderChars(
                     val value = progress()
                     alpha = if (outgoing) 1f - value else value
                     translationY = if (outgoing) -travel * value else travel * (1f - value)
-                    renderEffect = blurSteps.at(value)
+                    // 出场越走越糊、入场越走越清
+                    renderEffect = blurSteps.at(if (outgoing) value else 1f - value)
                 },
             )
         }
