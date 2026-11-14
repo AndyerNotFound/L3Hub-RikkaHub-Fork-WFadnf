@@ -598,9 +598,9 @@ fun ChatInput(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onSizeChanged { h ->
+                                .onSizeChanged { size ->
                                     // 只记完全收起时的高度；展开到一半的高度不能当基准
-                                    if (expandProgress == 0f) collapsedCardHeightPx = h
+                                    if (expandProgress == 0f) collapsedCardHeightPx = size.height
                                 }
                                 .then(revealFloatingBarModifier)
                                 .clip(containerShape)
