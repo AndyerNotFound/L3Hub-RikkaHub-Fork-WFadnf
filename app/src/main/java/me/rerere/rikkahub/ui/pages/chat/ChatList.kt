@@ -53,6 +53,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -181,7 +182,9 @@ private fun MessageNode.selectingMessage(messageId: Uuid): MessageNode {
 @Composable
 fun ChatList(
     innerPadding: PaddingValues,
-    conversation: Conversation,
+    // 直接收 State 而不是读好的值：会话每个 token 都会换一份，页面那一层读了它
+    // 就会跟着整页重组。把读取留在列表自己的作用域里，流式输出只重组列表。
+    conversationState: State<Conversation>,
     state: LazyListState,
     previewListState: LazyListState,
     selectionState: ChatSelectionState,
@@ -228,7 +231,6 @@ fun ChatList(
     val scope = rememberCoroutineScope()
     val currentPreviewMode by rememberUpdatedState(previewMode)
     val currentOnPreviewModeChange by rememberUpdatedState(onPreviewModeChange)
-    val currentConversation by rememberUpdatedState(conversation)
     val layoutDirection = LocalLayoutDirection.current
     val layoutDirectionSign = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f
     // 概览页只在露出来的时候组合，平时不占资源
@@ -243,7 +245,7 @@ fun ChatList(
                 progress = previewProgress,
                 scope = scope,
                 layoutDirection = layoutDirection,
-                canEnterPreview = { currentConversation.messageNodes.isNotEmpty() },
+                canEnterPreview = { conversationState.value.messageNodes.isNotEmpty() },
                 isPreviewMode = { currentPreviewMode },
                 onPreviewModeChange = { currentOnPreviewModeChange(it) },
             ),
@@ -259,7 +261,7 @@ fun ChatList(
         ) {
             ChatListNormal(
                 innerPadding = innerPadding,
-                conversation = conversation,
+                conversationState = conversationState,
                 state = state,
                 loading = loading,
                 compressing = compressing,
@@ -304,7 +306,7 @@ fun ChatList(
             ) {
                 ChatListPreview(
                     innerPadding = innerPadding,
-                    conversation = conversation,
+                    conversation = conversationState.value,
                     chatListState = state,
                     listState = previewListState,
                     settings = settings,
@@ -337,7 +339,7 @@ internal fun Modifier.topFadingEdge(height: Dp): Modifier = this
 @Composable
 private fun ChatListNormal(
     innerPadding: PaddingValues,
-    conversation: Conversation,
+    conversationState: State<Conversation>,
     state: LazyListState,
     loading: Boolean,
     compressing: Boolean,
@@ -368,6 +370,7 @@ private fun ChatListNormal(
     emptyHero: (@Composable () -> Unit)? = null,
     onCreateNewChat: (() -> Unit)? = null,
 ) {
+    val conversation = conversationState.value
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
     var isRecentScroll by remember { mutableStateOf(false) }
@@ -402,6 +405,26 @@ private fun ChatListNormal(
         val inputPos = (state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt())
         // println("lastPos = $lastPos, inputPos = $inputPos  | ${lastPos <= inputPos - 8}")
         return lastPos <= inputPos - 8
+    }
+
+    // 生成中列表每帧都在贴底补位，这是程序驱动的滚动，不是用户在看内容移动。
+    // 滚动模糊本来就是给手指滚动用的：再给每一帧补位糊一层整屏 RenderEffect，
+    // 等于生成期间整块正文一直挂在离屏层里，120Hz 下很难跟上。
+    // 用户自己往回翻（不贴底）时照常保留模糊。
+    val followScrollBlurPaused by remember(
+        state,
+        loading,
+        innerPadding,
+        density,
+        settings.displaySetting.enableAutoScroll,
+    ) {
+        derivedStateOf {
+            if (!loading || !settings.displaySetting.enableAutoScroll) {
+                false
+            } else {
+                !state.isScrollInProgress && state.layoutInfo.visibleItemsInfo.isAtBottom()
+            }
+        }
     }
 
     // 聊天选择（状态放在外层，顶栏菜单也能直接进入多选）
@@ -644,7 +667,8 @@ private fun ChatListNormal(
                     .scrollMotionBlur(
                         state = state,
                         enabled = !settings.displaySetting.disableAnimations &&
-                            settings.displaySetting.motionBlur.scrollBlur,
+                            settings.displaySetting.motionBlur.scrollBlur &&
+                            !followScrollBlurPaused,
                     )
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
                     // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
@@ -662,7 +686,10 @@ private fun ChatListNormal(
             ) {
             itemsIndexed(
                 items = conversation.messageNodes,
-                key = { index, item -> item.id },
+                key = { _, item -> item.id },
+                // 普通消息、压缩检查点、子代理通知的 item 结构不同：标出类型，LazyColumn 才能在
+                // 滚出屏幕后按类型复用组合槽位，不必为换了一种节点重建整条 item。
+                contentType = { _, item -> item.currentMessage.role },
             ) { index, node ->
                 // 同角色连续的两条消息算一组：气泡接缝两侧的圆角收小、间距压到最小
                 val groupRole = node.bubbleGroupRole()

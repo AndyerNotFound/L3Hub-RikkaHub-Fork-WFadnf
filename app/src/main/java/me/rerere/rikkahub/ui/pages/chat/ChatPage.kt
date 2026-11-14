@@ -64,6 +64,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,7 +72,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -223,8 +223,19 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val scope = rememberCoroutineScope()
 
     val setting by vm.settings.collectAsStateWithLifecycle()
-    val conversation by vm.conversation.collectAsStateWithLifecycle()
-    val conversationId = conversation.id
+    // 会话状态按 State 交给列表，页面本身只在下面这几个派生值变化时重组。
+    // 直接在页面里读 conversation，流式输出每来一个 token 都会让整页（输入框、顶栏、
+    // 抽屉、背景）跟着走一遍；真正需要逐 token 更新的只有消息列表。
+    val conversationState = vm.conversation.collectAsStateWithLifecycle()
+    val conversationId by remember(conversationState) {
+        derivedStateOf { conversationState.value.id }
+    }
+    val conversationFolderId by remember(conversationState) {
+        derivedStateOf { conversationState.value.folderId }
+    }
+    val conversationMessageCount by remember(conversationState) {
+        derivedStateOf { conversationState.value.messageNodes.size }
+    }
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
@@ -236,8 +247,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     // 文件夹绑了工作区时，工作区入口只展示这份绑定，改要去抽屉的文件夹菜单里改。
     // 子代理会话自己没有分组，工作区来自父会话的文件夹，那个文件夹可能属于别的助手、这里查不到名字，
     // 所以空串表示「被文件夹接管，但名字未知」
-    val folderWorkspaceName = remember(conversation.folderId, folders, folderBinding) {
-        val ownFolder = folders.firstOrNull { it.id == conversation.folderId }
+    val folderWorkspaceName = remember(conversationFolderId, folders, folderBinding) {
+        val ownFolder = folders.firstOrNull { it.id == conversationFolderId }
         when {
             ownFolder != null && ownFolder.allWorkspaceIds.isNotEmpty() -> ownFolder.name
             folderBinding.isNotEmpty -> ""
@@ -338,7 +349,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     val chatListState = rememberLazyListState()
-    LaunchedEffect(nodeId, conversation.messageNodes.size) {
+    LaunchedEffect(nodeId, conversationMessageCount) {
+        val conversation = conversationState.value
         if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
             if (nodeId != null) {
                 val index = conversation.messageNodes.indexOfFirst { it.id == nodeId }
@@ -422,7 +434,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         loadingJob = loadingJob,
                         processingStatus = processingStatus,
                         setting = setting,
-                        conversation = conversation,
+                        conversationState = conversationState,
                         folderWorkspaceName = folderWorkspaceName,
                         navController = navController,
                         vm = vm,
@@ -472,7 +484,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
                     setting = setting,
-                    conversation = conversation,
+                    conversationState = conversationState,
                     folderWorkspaceName = folderWorkspaceName,
                     navController = navController,
                     vm = vm,
@@ -502,7 +514,9 @@ private fun ChatPageContent(
     loadingJob: Job?,
     processingStatus: String? = null,
     setting: Settings,
-    conversation: Conversation,
+    // 会话用 State 传进来：流式输出每个 token 都换一份 Conversation，
+    // 这里只读派生值，逐 token 的部分留给 ChatList。
+    conversationState: State<Conversation>,
     // 文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定（见 ChatPage 顶部）
     folderWorkspaceName: String?,
     // 横屏三栏：中间是聊天区，右栏是标签页式的看板（见 ChatSidePanel.kt）
@@ -531,24 +545,56 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
-    // currentMessages 是 getter，每次访问都新建一份列表；同一帧里有多处要用，算一次就够。
-    // 它只依赖 messageNodes，按节点列表做键不会漏掉分支切换。
-    val currentMessages = remember(conversation.messageNodes) { conversation.currentMessages }
-    // 回调里读最新节点，但不在组合期订阅会话，否则每来一个 token 都会换一个新 lambda
-    val latestConversation by rememberUpdatedState(conversation)
+    // 页面这一层不直接读整份会话：流式输出每个 token 都会换一份 Conversation，
+    // 直接读会让输入框、顶栏、背景、抽屉整页跟着重组。下面只派生页面真正关心的字段，
+    // 结果没变就不会让页面重组；逐 token 的正文留给 ChatList 自己读 State。
+    val conversationId by remember(conversationState) {
+        derivedStateOf { conversationState.value.id }
+    }
+    val messageCount by remember(conversationState) {
+        derivedStateOf { conversationState.value.messageNodes.size }
+    }
+    val hasMessages by remember(conversationState) {
+        derivedStateOf { conversationState.value.messageNodes.isNotEmpty() }
+    }
+    val messageIds by remember(conversationState) {
+        derivedStateOf { conversationState.value.messageNodes.map { it.id } }
+    }
+    val todos by remember(conversationState) { derivedStateOf { conversationState.value.todos } }
+    val workspaceCwds by remember(conversationState) {
+        derivedStateOf { conversationState.value.workspaceCwds }
+    }
+    val customSystemPrompt by remember(conversationState) {
+        derivedStateOf { conversationState.value.customSystemPrompt }
+    }
+    val newConversation by remember(conversationState) {
+        derivedStateOf { conversationState.value.newConversation }
+    }
+    val folderId by remember(conversationState) {
+        derivedStateOf { conversationState.value.folderId }
+    }
+    val contextTokens by remember(conversationState) {
+        derivedStateOf { conversationState.value.lastContextTokens() }
+    }
+    val lastUsageMessage by remember(conversationState) {
+        derivedStateOf { conversationState.value.currentMessages.lastOrNull { it.usage != null } }
+    }
+    val lastAssistantMessageId by remember(conversationState) {
+        derivedStateOf {
+            conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }?.id
+        }
+    }
+    val turnEditedFiles by remember(conversationState) {
+        derivedStateOf {
+            conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
+                ?.let { editedFilesIn(it.parts) }
+                .orEmpty()
+        }
+    }
 
-    val hasMessages = currentMessages.isNotEmpty()
     // 新消息入场的跟踪器放在这一层：空会话时 ChatList 还没挂载，
     // 放在列表里的话首条消息会被当成「打开会话时已经存在」而跳过动画。
-    val messageEnterTracker = remember(conversation.id) { MessageEnterTracker() }
-    // 流式输出时每帧都会重组，条数和尾条没变就不用重扫一遍 id
-    val messageIds = remember(
-        conversation.id,
-        conversation.messageNodes.size,
-        conversation.messageNodes.lastOrNull()?.id,
-    ) {
-        conversation.messageNodes.map { it.id }
-    }
+    val messageEnterTracker = remember(conversationId) { MessageEnterTracker() }
     // 打开已有会话时首帧也是空列表，紧接着到位的那一批是历史加载，不是新追加；
     // 只吞掉这一批的入场，之后真正追加的消息照常滑进来
     var emptyWasHistoryLoad by remember { mutableStateOf(false) }
@@ -574,10 +620,10 @@ private fun ChatPageContent(
     // 只有「新会话还空着」才需要播这段滑动和英雄卡退场；打开已有会话时首帧也是空列表，
     // 那是历史还在加载，直接切过去，不能让输入框从中间滑到底部
     var animateEmptyExit by remember { mutableStateOf(false) }
-    LaunchedEffect(hasMessages, conversation.newConversation) {
+    LaunchedEffect(hasMessages, newConversation) {
         if (!hasMessages) {
-            animateEmptyExit = conversation.newConversation
-            emptyWasHistoryLoad = !conversation.newConversation
+            animateEmptyExit = newConversation
+            emptyWasHistoryLoad = !newConversation
         } else {
             emptyWasHistoryLoad = false
         }
@@ -633,7 +679,6 @@ private fun ChatPageContent(
     }
 
     // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
-    val contextTokens = remember(conversation.messageNodes) { conversation.lastContextTokens() }
     val contextLimitReached = isContextLimitReached(contextTokens, currentChatModel?.maxContextTokens)
     // 模型可以关掉强制拦截，此时只在发送时提醒一次
     val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
@@ -644,14 +689,14 @@ private fun ChatPageContent(
     }
 
     // Usage 看板里的最近一次请求速度
-    val lastUsageMessage = remember(conversation.messageNodes) {
-        currentMessages.lastOrNull { it.usage != null }
-    }
     val usageTokenSpeed = remember(lastUsageMessage) { lastUsageMessage?.usageTokenSpeed() }
-    // 每个 chunk 都会重建消息列表，世界书匹配要扫最近几轮的全文，不能放在组合里做
+    // 每个 chunk 都会重建消息列表，世界书匹配要扫最近几轮的全文，不能放在组合里做。
+    // 键只取节点数：流式正文每来一个 token 都重启一次扫描，前一次永远跑不完，
+    // 派发到 Default 的工作全成了白跑。注入数只在下一轮请求前有意义，条数变化再算就够。
     val lorebookInjectionCount by produceState(
         0,
-        conversation.messageNodes,
+        conversationId,
+        messageCount,
         assistant.lorebookIds,
         setting.lorebooks,
     ) {
@@ -659,7 +704,11 @@ private fun ChatPageContent(
             0
         } else {
             withContext(Dispatchers.Default) {
-                collectLorebookInjections(currentMessages, assistant, setting.lorebooks).size
+                collectLorebookInjections(
+                    conversationState.value.currentMessages,
+                    assistant,
+                    setting.lorebooks,
+                ).size
             }
         }
     }
@@ -733,9 +782,9 @@ private fun ChatPageContent(
         detailsPanelVisible,
         assistant,
         currentChatModel,
-        conversation.customSystemPrompt,
-        conversation.messageNodes.size,
-        conversation.workspaceCwds,
+        customSystemPrompt,
+        messageCount,
+        workspaceCwds,
         setting.modeInjections,
         setting.lorebooks,
         setting.mcpServers,
@@ -824,16 +873,10 @@ private fun ChatPageContent(
     }
 
     // 本轮改动：横屏收进右栏。一轮里第一次改文件时把标签页开出来，但不抢当前看板
-    val lastAssistantMessage = remember(currentMessages) {
-        currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
-    }
-    val turnEditedFiles = remember(lastAssistantMessage) {
-        lastAssistantMessage?.let { editedFilesIn(it.parts) }.orEmpty()
-    }
     var lastAutoOpenedTurn by remember { mutableStateOf<Uuid?>(null) }
-    LaunchedEffect(threePane, lastAssistantMessage?.id, turnEditedFiles) {
+    LaunchedEffect(threePane, lastAssistantMessageId, turnEditedFiles) {
         if (!threePane || turnEditedFiles.isEmpty()) return@LaunchedEffect
-        val turnId = lastAssistantMessage?.id ?: return@LaunchedEffect
+        val turnId = lastAssistantMessageId ?: return@LaunchedEffect
         // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
         if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
         lastAutoOpenedTurn = turnId
@@ -843,7 +886,7 @@ private fun ChatPageContent(
     }
 
     // 清单与引导：横屏收进右栏，出现时把标签页开出来，不抢当前看板
-    val hasStatusContent = conversation.todos.isNotEmpty() || messageQueue.guidances.isNotEmpty()
+    val hasStatusContent = todos.isNotEmpty() || messageQueue.guidances.isNotEmpty()
     LaunchedEffect(threePane, hasStatusContent) {
         if (!threePane || !hasStatusContent) return@LaunchedEffect
         if (openPaneNames.none { it == ChatSidePane.Status.name }) {
@@ -897,12 +940,12 @@ private fun ChatPageContent(
         }
     }
 
-    val completionProviders = remember(assistant.allWorkspaceIds, conversation.workspaceCwds, workspaceRepository) {
+    val completionProviders = remember(assistant.allWorkspaceIds, workspaceCwds, workspaceRepository) {
         assistant.allWorkspaceIds.map { workspaceId ->
             WorkspaceCompletionProvider(
                 workspaceId = workspaceId.toString(),
                 repository = workspaceRepository,
-                currentCwd = conversation.workspaceCwds[workspaceId.toString()],
+                currentCwd = workspaceCwds[workspaceId.toString()],
             )
         }
     }
@@ -1100,9 +1143,9 @@ private fun ChatPageContent(
                         settings = setting,
                         assistant = assistant,
                         chatModel = currentChatModel,
-                        folderId = conversation.folderId,
+                        folderId = folderId,
                         folders = conversationFolders,
-                        hasMessages = conversation.messageNodes.isNotEmpty(),
+                        hasMessages = hasMessages,
                         threePane = threePane,
                         sidebarOpen = sidebarOpen,
                         onOpenSidebar = onOpenSidebar,
@@ -1120,7 +1163,7 @@ private fun ChatPageContent(
                         onExport = {
                             // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
                             previewMode = false
-                            selectionState.start(latestConversation.messageNodes.map { it.id })
+                            selectionState.start(conversationState.value.messageNodes.map { it.id })
                         },
                         onDelete = { showDeleteConfirm = true },
                         showCapsuleBackground = listScrolledUnderTopBar,
@@ -1177,7 +1220,7 @@ private fun ChatPageContent(
                             },
                     ) {
                         ChatInputContent(
-                            todos = conversation.todos,
+                            todos = todos,
                             deferImeInset = !hasMessages || inputExitRunning,
                             scrimAlpha = { inputScrimAlpha },
                         )
@@ -1198,7 +1241,7 @@ private fun ChatPageContent(
                     }
                     ChatList(
                         innerPadding = innerPadding,
-                        conversation = conversation,
+                        conversationState = conversationState,
                         state = chatListState,
                         previewListState = previewListState,
                         selectionState = selectionState,
@@ -1311,7 +1354,7 @@ private fun ChatPageContent(
                         workspaces = workspaces,
                         folderWorkspaceName = folderWorkspaceName,
                         contextTokens = contextTokens,
-                        messageCount = currentMessages.size,
+                        messageCount = messageCount,
                         previewState = requestPreviewState,
                         hazeState = backgroundHazeState,
                         onCollapse = { showDetails = false },
@@ -1347,7 +1390,7 @@ private fun ChatPageContent(
                         workspaces = workspaces,
                         folderWorkspaceName = folderWorkspaceName,
                         contextTokens = contextTokens,
-                        messageCount = currentMessages.size,
+                        messageCount = messageCount,
                         previewState = requestPreviewState,
                         hazeState = backgroundHazeState,
                         onCollapse = { closePane() },
@@ -1357,7 +1400,7 @@ private fun ChatPageContent(
                     )
 
                     ChatSidePane.TaskTree -> SubAgentTaskTree(
-                        conversationId = conversation.id,
+                        conversationId = conversationId,
                         onOpenConversation = { id ->
                             closePane()
                             navigateToChatPage(navController, chatId = id)
@@ -1367,7 +1410,7 @@ private fun ChatPageContent(
                     )
 
                     ChatSidePane.Status -> ConversationStatusPane(
-                        todos = conversation.todos,
+                        todos = todos,
                         guidances = messageQueue.guidances,
                         assistant = assistant,
                         hideCompletedTodos = setting.displaySetting.hideCompletedTodoCard,
@@ -1380,9 +1423,10 @@ private fun ChatPageContent(
                     )
 
                     ChatSidePane.Changes -> TurnChangesPane(
-                        parts = lastAssistantMessage?.parts.orEmpty(),
+                        parts = conversationState.value.currentMessages
+                            .lastOrNull { it.role == MessageRole.ASSISTANT }?.parts.orEmpty(),
                         assistant = assistant,
-                        conversationId = conversation.id,
+                        conversationId = conversationId,
                         hasChanges = turnEditedFiles.isNotEmpty(),
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -1396,7 +1440,7 @@ private fun ChatPageContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         ConversationUsageDetails(
-                            messages = currentMessages,
+                            messages = conversationState.value.currentMessages,
                             contextLength = currentChatModel?.effectiveContextWindow,
                         )
                     }
@@ -1404,7 +1448,7 @@ private fun ChatPageContent(
                     ChatSidePane.Files -> ChatFilesPickerContent(
                         inputState = inputState,
                         setting = setting,
-                        conversation = conversation,
+                        conversationState = conversationState,
                         folderWorkspaceName = folderWorkspaceName,
                         assistant = assistant,
                         chatModel = currentChatModel,
@@ -1502,7 +1546,7 @@ private fun ChatPageContent(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     ConversationUsageDetails(
-                        messages = currentMessages,
+                        messages = conversationState.value.currentMessages,
                         contextLength = currentChatModel?.effectiveContextWindow,
                     )
                 }
@@ -1511,7 +1555,7 @@ private fun ChatPageContent(
 
         if (showTaskTree && !threePane) {
             SubAgentTaskSheet(
-                conversationId = conversation.id,
+                conversationId = conversationId,
                 hazeState = backgroundHazeState,
                 onDismiss = { showTaskTree = false },
                 onOpenConversation = { id ->
@@ -1562,7 +1606,7 @@ private fun ChatPageContent(
             onConfirm = {
                 showDeleteConfirm = false
                 scope.launch {
-                    vm.deleteConversation(conversation).join()
+                    vm.deleteConversation(conversationState.value).join()
                     navigateToChatPage(navController)
                 }
             },
@@ -1574,7 +1618,7 @@ private fun ChatPageContent(
             ChatFilesPickerSheet(
                 inputState = inputState,
                 setting = setting,
-                conversation = conversation,
+                conversationState = conversationState,
                 folderWorkspaceName = folderWorkspaceName,
                 assistant = assistant,
                 chatModel = currentChatModel,
@@ -1609,7 +1653,7 @@ private fun ChatPageContent(
 private fun ChatFilesPickerSheet(
     inputState: ChatInputState,
     setting: Settings,
-    conversation: Conversation,
+    conversationState: State<Conversation>,
     folderWorkspaceName: String?,
     assistant: Assistant,
     chatModel: Model?,
@@ -1629,7 +1673,7 @@ private fun ChatFilesPickerSheet(
         ChatFilesPickerContent(
             inputState = inputState,
             setting = setting,
-            conversation = conversation,
+            conversationState = conversationState,
             folderWorkspaceName = folderWorkspaceName,
             assistant = assistant,
             chatModel = chatModel,
@@ -1647,7 +1691,7 @@ private fun ChatFilesPickerSheet(
 private fun ChatFilesPickerContent(
     inputState: ChatInputState,
     setting: Settings,
-    conversation: Conversation,
+    conversationState: State<Conversation>,
     folderWorkspaceName: String?,
     assistant: Assistant,
     chatModel: Model?,
@@ -1658,6 +1702,7 @@ private fun ChatFilesPickerContent(
     // 弹层里保持 wrap：sheet 的高度跟着内容走，别被撑成整屏；侧栏里传 fillMaxSize
     modifier: Modifier = Modifier,
 ) {
+    val conversation = conversationState.value
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current

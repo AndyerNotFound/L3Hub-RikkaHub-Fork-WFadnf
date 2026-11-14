@@ -106,7 +106,10 @@ private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<Rea
         if (loading) {
             if (!state.expandState.expanded && settings.displaySetting.showThinkingContent)
                 state.expandState = ReasoningCardState.Preview
-            scrollState.animateScrollTo(scrollState.maxValue)
+            // 每来一个 token 就 animateScrollTo 一次，等于在整段思考输出期间
+            // 反复重启一条滚动动画，主线程上一直有动画在排队。预览卡只是跟着
+            // 最新一行走，直接贴底，不参与动画。
+            scrollState.scrollTo(scrollState.maxValue)
         } else {
             if (state.expandState.expanded) {
                 state.expandState = if (settings.displaySetting.autoCloseThinking)
