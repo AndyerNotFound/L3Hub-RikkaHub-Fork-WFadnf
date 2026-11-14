@@ -81,6 +81,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -486,10 +487,16 @@ fun ChatInput(
                 .adaptiveHorizontalPadding(8.dp)
                 .padding(bottom = 8.dp + liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
-                // 空会话里输入区是顶部钉住、向下生长的，这时必须改成顶部对齐，
-                // 否则 animateContentSize 的容器高度滞后会把卡片顶边推离英雄卡再弹回来
-                .animateContentSize(
-                    alignment = if (pinContentToTop) Alignment.TopStart else Alignment.BottomStart,
+                // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
+                // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
+                // 300ms 的高矮动画，底栏高度逐帧变，英雄卡和输入区抬升量就跟着逐帧重排。
+                // 贴底以后才需要这段平滑：清单、消息队列、编辑提示条进出都靠它。
+                .then(
+                    if (pinContentToTop) {
+                        Modifier
+                    } else {
+                        Modifier.animateContentSize(alignment = Alignment.BottomStart)
+                    },
                 )
                 // 进入/退出编辑时带上模糊：提示条收放和输入区变高变矮是一段动画，
                 // 不是提示条先消失、高度再慢慢弹回去
@@ -597,30 +604,32 @@ fun ChatInput(
             ) {
                 // 空会话里输入区顶边钉在英雄卡下面，卡片向下展开；槽位不变，底栏总高度就不变，
                 // 英雄卡和 Scaffold 的底部内边距也不用跟着每帧重新布局。
-                // 槽位按「卡片实际高度 + 悬浮栏」预留：只按收起高度 + 一档展开算的话，
-                // 文字折到第二行或带了附件时卡片比槽位高，离开输入框的瞬间悬浮栏
-                // 会把底栏再顶高一截，整页跟着重排一次，看起来就是页面重建闪一下
-                val expandedCardHeightPx = if (collapsedCardHeightPx > 0) {
-                    collapsedCardHeightPx + with(density) {
-                        if (singleLine) expansionHeight.roundToPx() else 0
-                    }
-                } else {
-                    0
-                }
-                val reservedCardHeightPx = maxOf(cardHeightPx, expandedCardHeightPx)
-                val cardSlotMinHeight = if (pinContentToTop && reservedCardHeightPx > 0) {
+                //
+                // 槽位 = max(卡片实际高度, 收起高度 + 一档展开) + 悬浮栏：
+                // - 「收起高度 + 一档展开」是地板。收放动画全程卡片都不会低于它，
+                //   所以这段动画里底栏高度是个定值。
+                // - 卡片自己更高的那部分（文字折行、附件、编辑提示条）照样算进来，
+                //   否则离开输入框、悬浮栏露出来的那一下，底栏会被顶高一截。
+                //
+                // 这两个高度都是测量出来的，只能在测量阶段读：在组合阶段读它们，
+                // 收放动画的每一帧都会把整个 ChatInput（清单、悬浮栏、按钮行）重组一遍。
+                val cardSlotMinPx: () -> Int = {
                     with(density) {
-                        (reservedCardHeightPx + floatingBarFullHeight.roundToPx()).toDp()
+                        val floorPx = if (collapsedCardHeightPx > 0) {
+                            collapsedCardHeightPx + (if (singleLine) expansionHeight.roundToPx() else 0)
+                        } else {
+                            0
+                        }
+                        val cardPx = maxOf(cardHeightPx, floorPx)
+                        if (cardPx > 0) cardPx + floatingBarFullHeight.roundToPx() else 0
                     }
-                } else {
-                    null
                 }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if (cardSlotMinHeight != null) {
-                                Modifier.heightIn(min = cardSlotMinHeight)
+                            if (pinContentToTop) {
+                                Modifier.cardSlotMinHeight(cardSlotMinPx)
                             } else {
                                 Modifier
                             },
@@ -970,6 +979,27 @@ fun ChatInput(
     }
 }
 
+/**
+ * 空会话输入区的槽位最小高度。
+ *
+ * [minHeightPx] 会读到卡片和输入框的实测高度，这些值都是在测量阶段写回来的：放在组合阶段读，
+ * 收放动画的每一帧都会让整个 [ChatInput] 重组一次（清单、悬浮栏、按钮行全在内）；
+ * 放到测量阶段读，最多多跑一次测量，组合不参与。
+ *
+ * 子项按原约束量，不把槽位当 minHeight 传下去：卡片顶边钉在槽位顶部，
+ * 高出来的部分留在它下面，槽位高度不会反过来改变子项自己的测量结果。
+ */
+private fun Modifier.cardSlotMinHeight(minHeightPx: () -> Int): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints.copy(minHeight = 0))
+        val height = placeable.height
+            .coerceAtLeast(minHeightPx())
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(placeable.width, height) {
+            placeable.place(0, 0)
+        }
+    }
+
 @Composable
 private fun SendButton(
     loading: Boolean,
@@ -1273,13 +1303,16 @@ private fun TextInputRow(
                 .testTag("chat_input")
                 .onSizeChanged { size ->
                     fieldHeight = size.height
-                    if (state.textContent.text.isEmpty()) {
-                        // 展开动画里量到的是「一行 + 当时的下边距」，直接当单行高度会喂回
-                        // expansionHeight，卡片每帧再长高一点，最后停在约三行的高度。
-                        // 扣掉当前下边距，任何进度下量到的都是真正的一行高度
+                    // 展开动画进行中不量单行高度：这段里量到的是「一行 + 当时的取整下边距」，
+                    // 高度和下边距各自取整，差 1px 就会回喂给 expansionHeight，卡片、槽位和
+                    // 按钮行的下边距于是逐帧抖一档。只在动画停到两端时量：那时下边距不是 0
+                    // 就是满档，扣掉它得到的才是真正的一行高度
+                    val expandProgressValue = singleLineExpansion?.progress?.value ?: 1f
+                    val expansionAtRest = expandProgressValue <= 0f || expandProgressValue >= 1f
+                    if (state.textContent.text.isEmpty() && expansionAtRest) {
                         val expansionBottomPx = singleLineExpansion?.let { expansion ->
                             with(density) {
-                                (expansion.bottom * expansion.progress.value).roundToPx()
+                                (expansion.bottom * expandProgressValue).roundToPx()
                             }
                         } ?: 0
                         oneLineHeight = (size.height - expansionBottomPx).coerceAtLeast(0)
