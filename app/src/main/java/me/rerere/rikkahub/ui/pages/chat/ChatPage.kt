@@ -589,6 +589,8 @@ private fun ChatPageContent(
         (animateEmptyExit && (emptyHeroTransition.currentState || !emptyHeroTransition.isIdle))
 
     val density = LocalDensity.current
+    // 底栏绘制期读同一个键盘 inset，和英雄卡的平移对齐
+    val imeInsets = WindowInsets.ime
     val inputLiftSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
     val emptyAnchorGapPx = with(density) { 16.dp.toPx() }
     val animateInputToBottom = hasMessages && animateEmptyExit

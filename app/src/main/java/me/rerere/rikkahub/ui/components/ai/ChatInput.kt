@@ -383,8 +383,9 @@ fun ChatInput(
 
     // 键盘动画期间 inset 每帧都在变；派生状态只在可见性翻转时触发重组，
     // 不让输入区跟着键盘动画每帧重组
-    val imeVisible by remember(density) {
-        derivedStateOf { WindowInsets.ime.getBottom(density) > 0 }
+    val imeInsets = WindowInsets.ime
+    val imeVisible by remember(density, imeInsets) {
+        derivedStateOf { imeInsets.getBottom(density) > 0 }
     }
     LaunchedEffect(imeVisible) {
         if (!imeVisible) focusManager.clearFocus()
@@ -438,7 +439,6 @@ fun ChatInput(
 
     // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏
     val scrimColor = MaterialTheme.colorScheme.background
-    val imeInsets = WindowInsets.ime
     // 嵌在空会话页面中间时不需要底部渐变遮罩
     val scrimModifier = if (applyWindowInsets && showScrim) {
         Modifier.drawBehind {
