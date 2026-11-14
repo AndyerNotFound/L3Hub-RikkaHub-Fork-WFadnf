@@ -146,7 +146,7 @@ internal fun ChatFloatingBar(
         },
         label = "chatFloatingBarProgress",
     ) { shown -> if (shown) 1f else 0f }
-    val blur = rememberMotionBlurSteps(maxRadius = 6.dp, steps = 4)
+    val blur = rememberMotionBlurSteps(maxRadius = 6.dp)
     val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
     val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
 

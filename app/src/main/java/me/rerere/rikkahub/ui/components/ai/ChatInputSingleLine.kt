@@ -249,7 +249,7 @@ private fun PlaceholderChars(
 ) {
     val density = LocalDensity.current
     val travel = with(density) { 9.dp.toPx() }
-    val blurSteps = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 3)
+    val blurSteps = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 8)
     Row(modifier = Modifier.fillMaxWidth()) {
         text.forEachIndexed { index, char ->
             val progress = {

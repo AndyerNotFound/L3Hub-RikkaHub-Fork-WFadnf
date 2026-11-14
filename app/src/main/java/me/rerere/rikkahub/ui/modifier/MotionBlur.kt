@@ -39,6 +39,7 @@ import kotlin.math.roundToInt
  * 几档预生成的模糊效果。
  *
  * 模糊半径逐帧现造会一直分配对象，这里按半径档位预备好，动画时只按进度取最近的一档。
+ * 档位宁多勿少：档太少时慢放下能看出半径是一级一级跳的，和「硬过渡」没区别。
  * API 31 以下没有 RenderEffect，列表为空，退化成分辨率不变、只做高度与透明度动画。
  */
 @Stable
@@ -65,7 +66,7 @@ private const val BLUR_ATTACK_MILLIS = 60
 @Composable
 fun rememberMotionBlurSteps(
     maxRadius: Dp = 6.dp,
-    steps: Int = 4,
+    steps: Int = 16,
 ): MotionBlurSteps {
     val density = LocalDensity.current
     return remember(density.density, maxRadius, steps) {

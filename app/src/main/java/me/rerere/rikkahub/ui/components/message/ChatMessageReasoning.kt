@@ -340,7 +340,7 @@ private fun ReasoningTitle(
     val style = MaterialTheme.typography.titleSmall.copy(fontFamily = chatFontFamily)
     val color = MaterialTheme.colorScheme.secondary
     val travel = with(LocalDensity.current) { 10.dp.toPx() }
-    val blur = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 3)
+    val blur = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 8)
 
     // 正在显示的标题和正在退场的标题分开存；中途又来了新句子就直接换，不排队
     var shown by remember { mutableStateOf(title) }
