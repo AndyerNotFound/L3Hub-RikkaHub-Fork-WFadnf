@@ -2581,4 +2581,6 @@
   <string name="stats_page_cost">Стоимость</string>
   <string name="stats_page_cost_hint">Оценивается по ценам из редактора модели; модели без цен не учитываются.</string>
   <string name="stats_page_cost_unset">Для моделей, использованных за этот период, цены не заданы. Укажите цены в редакторе модели, чтобы видеть сумму.</string>
+  <string name="chat_message_usage_total">Итого</string>
+  <string name="chat_message_usage_total_tokens">Итого %1$s</string>
 </resources>

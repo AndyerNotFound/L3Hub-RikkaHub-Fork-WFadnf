@@ -2581,4 +2581,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="stats_page_cost">비용</string>
   <string name="stats_page_cost_hint">모델 편집 페이지에 입력한 단가로 추산하며, 가격이 없는 모델은 집계하지 않습니다.</string>
   <string name="stats_page_cost_unset">이 기간에 사용한 모델의 가격이 설정되지 않았습니다. 모델 편집 페이지에서 단가를 입력하면 금액이 표시됩니다.</string>
+  <string name="chat_message_usage_total">합계</string>
+  <string name="chat_message_usage_total_tokens">합계 %1$s</string>
 </resources>

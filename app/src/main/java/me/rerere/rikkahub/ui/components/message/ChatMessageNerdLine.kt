@@ -51,6 +51,7 @@ import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Repeat
@@ -141,6 +142,20 @@ fun ChatMessageNerdLine(
                         StatsItem(
                             icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
                             content = { Text(text = cost.total.formatCost()) },
+                        )
+                    }
+                    if (stats.steps > 1) {
+                        StatsItem(
+                            icon = { StatsIcon(HugeIcons.ChartColumn, stringResource(R.string.chat_message_usage_total)) },
+                            content = {
+                                Text(
+                                    text = stringResource(
+                                        R.string.chat_message_usage_total_tokens,
+                                        (stats.total.promptTokens + stats.total.completionTokens)
+                                            .formatNumber(binaryUnits),
+                                    )
+                                )
+                            },
                         )
                     }
                     StatsItem(

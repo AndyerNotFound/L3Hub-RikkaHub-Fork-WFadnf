@@ -2619,4 +2619,6 @@
   <string name="stats_page_cost">費用</string>
   <string name="stats_page_cost_hint">依模型編輯頁填寫的單價估算，未填寫價格的模型不計入。</string>
   <string name="stats_page_cost_unset">本期用到的模型尚未設定價目，在模型編輯頁填寫單價後顯示金額。</string>
+  <string name="chat_message_usage_total">總計</string>
+  <string name="chat_message_usage_total_tokens">總計 %1$s</string>
 </resources>

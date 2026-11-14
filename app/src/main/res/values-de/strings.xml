@@ -2579,4 +2579,6 @@
   <string name="stats_page_cost">Kosten</string>
   <string name="stats_page_cost_hint">Geschätzt anhand der im Modell-Editor eingegebenen Preise; Modelle ohne Preise werden nicht gezählt.</string>
   <string name="stats_page_cost_unset">Für die in diesem Zeitraum verwendeten Modelle sind keine Preise hinterlegt. Trage im Modell-Editor Stückpreise ein, um Kosten zu sehen.</string>
+  <string name="chat_message_usage_total">Gesamt</string>
+  <string name="chat_message_usage_total_tokens">Gesamt %1$s</string>
 </resources>

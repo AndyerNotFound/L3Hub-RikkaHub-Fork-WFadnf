@@ -2581,4 +2581,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="stats_page_cost">費用</string>
   <string name="stats_page_cost_hint">モデル編集ページで設定した単価から概算します。価格が未設定のモデルは集計されません。</string>
   <string name="stats_page_cost_unset">この期間に使ったモデルの価格が未設定です。モデル編集ページで単価を入力すると金額が表示されます。</string>
+  <string name="chat_message_usage_total">合計</string>
+  <string name="chat_message_usage_total_tokens">合計 %1$s</string>
 </resources>

@@ -2579,4 +2579,6 @@
   <string name="stats_page_cost">التكلفة</string>
   <string name="stats_page_cost_hint">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
   <string name="stats_page_cost_unset">لم تُضبط أسعار النماذج المستخدمة في هذه الفترة بعد. أدخل الأسعار في محرر النموذج لعرض التكلفة.</string>
+  <string name="chat_message_usage_total">الإجمالي</string>
+  <string name="chat_message_usage_total_tokens">الإجمالي %1$s</string>
 </resources>
