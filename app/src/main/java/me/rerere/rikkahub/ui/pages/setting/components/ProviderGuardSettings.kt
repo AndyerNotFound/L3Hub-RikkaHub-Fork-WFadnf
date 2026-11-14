@@ -71,8 +71,10 @@ import me.rerere.rikkahub.data.ai.formatGuardDuration
 import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.weekdayLabel
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -86,8 +88,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.Locale
 import kotlin.time.Instant
 
 private val LOCK_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -570,42 +570,6 @@ private fun lockSummary(lock: ProviderLockSchedule): String {
     }
 }
 
-private fun weekdayLabel(day: DayOfWeek): String =
-    day.getDisplayName(TextStyle.FULL, Locale.getDefault())
-
-@Composable
-private fun WeekdayPickerDialog(
-    selected: DayOfWeek,
-    onDismiss: () -> Unit,
-    onPick: (DayOfWeek) -> Unit,
-) {
-    AnimatedAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.setting_provider_guard_lock_weekday)) },
-        text = {
-            Column(modifier = Modifier.heightIn(max = 420.dp)) {
-                DayOfWeek.values().forEach { day ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(day) }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected == day, onClick = { onPick(day) })
-                        Text(weekdayLabel(day))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
-}
-
 @Composable
 private fun lockSupportingText(lock: ProviderLockSchedule): String {
     val start = lock.parsedStart() ?: return ""
@@ -1072,6 +1036,7 @@ private fun LockScheduleSheet(
 
     if (showWeekdayPicker) {
         WeekdayPickerDialog(
+            title = stringResource(R.string.setting_provider_guard_lock_weekday),
             selected = weekday,
             onDismiss = { showWeekdayPicker = false },
             onPick = { day ->

@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -82,6 +83,39 @@ class PriceRuleTest {
 
         assertTrue(rule.matches(PriceRuleContext(atMillis = at(0, 0), zoneId = zone)))
         assertTrue(rule.matches(PriceRuleContext(atMillis = at(23, 59), zoneId = zone)))
+    }
+
+    @Test
+    fun `weekly time range only matches the selected weekday`() {
+        val rule = PriceRule(
+            type = PriceRuleType.TIME_RANGE,
+            startMinute = 22 * 60,
+            endMinute = 6 * 60,
+            repeat = PriceRuleRepeat.WEEKLY,
+            repeatWeekday = DayOfWeek.MONDAY.value,
+        )
+
+        // 2026-11-16 是周一，11-17 是周二，11-18 是周三
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(22, 30, day = 16), zoneId = zone)))
+        // 跨夜窗口的凌晨部分仍按周一开始算
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(2, 0, day = 17), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(12, 0, day = 16), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(22, 30, day = 17), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(2, 0, day = 18), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(6, 0, day = 17), zoneId = zone)))
+    }
+
+    @Test
+    fun `weekly time range falls back to monday for an invalid weekday`() {
+        val rule = PriceRule(
+            type = PriceRuleType.TIME_RANGE,
+            repeat = PriceRuleRepeat.WEEKLY,
+            repeatWeekday = 0,
+        )
+
+        assertEquals(DayOfWeek.MONDAY, rule.weekday())
+        assertTrue(rule.matches(PriceRuleContext(atMillis = at(12, day = 16), zoneId = zone)))
+        assertFalse(rule.matches(PriceRuleContext(atMillis = at(12, day = 17), zoneId = zone)))
     }
 
     @Test

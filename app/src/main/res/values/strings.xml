@@ -2952,6 +2952,11 @@
   <string name="setting_provider_page_price_rule_end">End</string>
   <string name="setting_provider_page_price_rule_time_desc">Based on the device time zone. An end earlier than the start crosses midnight; equal start and end means all day.</string>
   <string name="setting_provider_page_price_rule_time_all_day">All day</string>
+  <string name="setting_provider_page_price_rule_repeat_daily">Daily</string>
+  <string name="setting_provider_page_price_rule_repeat_weekly">Weekly</string>
+  <string name="setting_provider_page_price_rule_weekday">Repeat on</string>
+  <string name="setting_provider_page_price_rule_summary_weekly_all_day">Every %1$s, all day</string>
+  <string name="setting_provider_page_price_rule_summary_weekly_range">Every %1$s, %2$s – %3$s</string>
   <string name="setting_provider_page_price_rule_context_desc">Uses the input token count of this request.</string>
   <string name="setting_provider_page_price_rule_context_at_least">At least</string>
   <string name="setting_provider_page_price_rule_context_less_than">Less than</string>

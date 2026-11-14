@@ -1,7 +1,9 @@
 package me.rerere.ai.provider
 
 import kotlinx.serialization.Serializable
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.uuid.Uuid
 
@@ -37,6 +39,16 @@ enum class PriceRuleType {
     EXPRESSION,
 }
 
+/** 按时间段规则的重复方式 */
+@Serializable
+enum class PriceRuleRepeat {
+    /** 每天在时间段内生效 */
+    DAILY,
+
+    /** 每周只在 [PriceRule.repeatWeekday] 这一天的时间段内生效 */
+    WEEKLY,
+}
+
 /**
  * 判断一条变价规则所需的一次请求上下文。
  *
@@ -55,7 +67,8 @@ data class PriceRuleContext(
  * 一条变价规则：条件命中后，整张价目表替换为 [price]。
  *
  * [startMinute] 和 [endMinute] 是本地时间的分钟数，区间为左闭右开；结束早于开始时视为跨夜，
- * 起止相同视为全天。
+ * 跨夜的凌晨部分按窗口开始的那天判断星期；起止相同视为全天。
+ * 时间段默认每天重复，[repeat] 为 WEEKLY 时只在 [repeatWeekday] 那天生效。
  */
 @Serializable
 data class PriceRule(
@@ -64,6 +77,10 @@ data class PriceRule(
     val type: PriceRuleType = PriceRuleType.TIME_RANGE,
     val startMinute: Int = 0,
     val endMinute: Int = 0,
+    // 仅 TIME_RANGE 生效的重复方式
+    val repeat: PriceRuleRepeat = PriceRuleRepeat.DAILY,
+    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日
+    val repeatWeekday: Int = 1,
     val contextTokens: Int = 0,
     // true: promptTokens >= contextTokens；false: promptTokens < contextTokens
     val contextAtLeast: Boolean = true,
@@ -82,17 +99,30 @@ data class PriceRule(
         PriceRuleType.EXPRESSION -> PriceRuleExpression.matches(expression, context)
     }
 
+    /** WEEKLY 命中的星期；越界的编号按周一处理 */
+    fun weekday(): DayOfWeek = DayOfWeek.of(repeatWeekday.coerceIn(1, 7))
+
     private fun matchesTimeRange(context: PriceRuleContext): Boolean {
-        val time = Instant.ofEpochMilli(context.atMillis).atZone(context.zoneId).toLocalTime()
-        val minute = time.hour * 60 + time.minute
+        val at = Instant.ofEpochMilli(context.atMillis).atZone(context.zoneId)
+        val date = at.toLocalDate()
+        val minute = at.hour * 60 + at.minute
         val start = Math.floorMod(startMinute, MINUTES_PER_DAY)
         val end = Math.floorMod(endMinute, MINUTES_PER_DAY)
-        return when {
-            start == end -> true
-            start < end -> minute >= start && minute < end
-            else -> minute >= start || minute < end
+        if (start == end) return hitsWeekday(date)
+        return if (start < end) {
+            minute >= start && minute < end && hitsWeekday(date)
+        } else {
+            // 跨夜：凌晨那段属于前一天开始的窗口
+            when {
+                minute >= start -> hitsWeekday(date)
+                minute < end -> hitsWeekday(date.minusDays(1))
+                else -> false
+            }
         }
     }
+
+    private fun hitsWeekday(date: LocalDate): Boolean =
+        repeat != PriceRuleRepeat.WEEKLY || date.dayOfWeek == weekday()
 }
 
 /** 表达式里第一个无法解析的字符位置；表达式合法时返回 null。表达式为空也会返回 0。 */

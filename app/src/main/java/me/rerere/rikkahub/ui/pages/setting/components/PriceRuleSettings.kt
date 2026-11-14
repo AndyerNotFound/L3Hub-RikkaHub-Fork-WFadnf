@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.provider.MAX_PRICE_RULE_EXPRESSION_LENGTH
 import me.rerere.ai.provider.PriceRule
+import me.rerere.ai.provider.PriceRuleRepeat
 import me.rerere.ai.provider.PriceRuleType
 import me.rerere.ai.provider.PriceTable
 import me.rerere.ai.provider.priceRuleExpressionErrorPosition
@@ -41,8 +42,10 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
+import me.rerere.rikkahub.ui.components.ui.weekdayLabel
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionAddButton
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionHeader
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
@@ -198,7 +201,7 @@ private fun PriceRuleForm(
 
 @Composable
 private fun PriceRuleTimeFields(rule: PriceRule, onUpdate: (PriceRule) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TimePickerField(
                 label = stringResource(R.string.setting_provider_page_price_rule_start),
@@ -213,10 +216,70 @@ private fun PriceRuleTimeFields(rule: PriceRule, onUpdate: (PriceRule) -> Unit) 
                 onPick = { onUpdate(rule.copy(endMinute = it)) },
             )
         }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            PriceRuleRepeat.entries.forEachIndexed { index, repeat ->
+                SegmentedButton(
+                    selected = rule.repeat == repeat,
+                    onClick = { onUpdate(rule.copy(repeat = repeat)) },
+                    shape = SegmentedButtonDefaults.itemShape(index, PriceRuleRepeat.entries.size),
+                    colors = glassSegmentedButtonColors(),
+                ) {
+                    Text(
+                        text = stringResource(
+                            when (repeat) {
+                                PriceRuleRepeat.DAILY -> R.string.setting_provider_page_price_rule_repeat_daily
+                                PriceRuleRepeat.WEEKLY -> R.string.setting_provider_page_price_rule_repeat_weekly
+                            }
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+        }
+        if (rule.repeat == PriceRuleRepeat.WEEKLY) {
+            PriceRuleWeekdayField(rule, onUpdate)
+        }
         Text(
             text = stringResource(R.string.setting_provider_page_price_rule_time_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun PriceRuleWeekdayField(rule: PriceRule, onUpdate: (PriceRule) -> Unit) {
+    var showDialog by remember(rule.id) { mutableStateOf(false) }
+    Surface(
+        onClick = { showDialog = true },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.setting_provider_page_price_rule_weekday),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = weekdayLabel(rule.weekday()),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+    if (showDialog) {
+        WeekdayPickerDialog(
+            title = stringResource(R.string.setting_provider_page_price_rule_weekday),
+            selected = rule.weekday(),
+            onDismiss = { showDialog = false },
+            onPick = { day ->
+                onUpdate(rule.copy(repeatWeekday = day.value))
+                showDialog = false
+            },
         )
     }
 }
@@ -455,10 +518,23 @@ private fun priceRuleSummary(rule: PriceRule): String = when (rule.type) {
     PriceRuleType.TIME_RANGE -> {
         val start = wrapMinute(rule.startMinute)
         val end = wrapMinute(rule.endMinute)
-        if (start == end) {
+        val dailyText = if (start == end) {
             stringResource(R.string.setting_provider_page_price_rule_time_all_day)
         } else {
             "${formatMinute(start)} – ${formatMinute(end)}"
+        }
+        when {
+            rule.repeat != PriceRuleRepeat.WEEKLY -> dailyText
+            start == end -> stringResource(
+                R.string.setting_provider_page_price_rule_summary_weekly_all_day,
+                weekdayLabel(rule.weekday()),
+            )
+            else -> stringResource(
+                R.string.setting_provider_page_price_rule_summary_weekly_range,
+                weekdayLabel(rule.weekday()),
+                formatMinute(start),
+                formatMinute(end),
+            )
         }
     }
     PriceRuleType.CONTEXT_LENGTH -> if (rule.contextTokens <= 0) {

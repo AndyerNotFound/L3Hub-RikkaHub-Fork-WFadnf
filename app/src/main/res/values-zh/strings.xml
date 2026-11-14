@@ -2950,6 +2950,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_price_rule_end">结束</string>
   <string name="setting_provider_page_price_rule_time_desc">按本机时区判断。结束时间早于开始时间表示跨夜，起止相同表示全天。</string>
   <string name="setting_provider_page_price_rule_time_all_day">全天</string>
+  <string name="setting_provider_page_price_rule_repeat_daily">每天</string>
+  <string name="setting_provider_page_price_rule_repeat_weekly">每周</string>
+  <string name="setting_provider_page_price_rule_weekday">重复于</string>
+  <string name="setting_provider_page_price_rule_summary_weekly_all_day">每%1$s 全天</string>
+  <string name="setting_provider_page_price_rule_summary_weekly_range">每%1$s %2$s – %3$s</string>
   <string name="setting_provider_page_price_rule_context_desc">按本次请求的输入 token 数判断。</string>
   <string name="setting_provider_page_price_rule_context_at_least">不少于</string>
   <string name="setting_provider_page_price_rule_context_less_than">少于</string>
