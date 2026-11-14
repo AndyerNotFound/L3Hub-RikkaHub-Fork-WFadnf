@@ -241,6 +241,8 @@ data class MotionBlurSetting(
     val durationMillis: Int = 280,
     // 滚动过渡的位移行程(dp)
     val travel: Int = 32,
+    // 列表滚动时按速度叠的那层模糊，单独给个开关：有人只想要文本的飘入，不想要整屏糊
+    val scrollBlur: Boolean = true,
 )
 
 /** 整套界面走哪套组件：原生 Material 3，或 Miuix（HyperOS 风格）。 */

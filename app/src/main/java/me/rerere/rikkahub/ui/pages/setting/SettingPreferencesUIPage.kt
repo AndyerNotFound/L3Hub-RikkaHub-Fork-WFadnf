@@ -445,6 +445,18 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_switch)) },
                     )
                     if (motionBlur.enabled) {
+                        switchItem(
+                            checked = motionBlur.scrollBlur,
+                            onCheckedChange = {
+                                updateDisplaySetting(
+                                    displaySetting.copy(
+                                        motionBlur = displaySetting.motionBlur.copy(scrollBlur = it)
+                                    )
+                                )
+                            },
+                            supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_desc)) },
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_switch)) },
+                        )
                         formItem(
                             headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_radius_title)) },
                             supportingContent = {

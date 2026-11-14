@@ -131,6 +131,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.modifier.streamingTextMotion
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -846,6 +847,11 @@ private fun MessagePartsBlock(
                                             content = renderedText,
                                             streaming = streamingText,
                                             onClickCitation = handleClickCitation,
+                                            modifier = if (streamingText) {
+                                                Modifier.streamingTextMotion(renderedText.length)
+                                            } else {
+                                                Modifier
+                                            },
                                         )
                                     }
                                 } else {
@@ -854,7 +860,7 @@ private fun MessagePartsBlock(
                                         streaming = streamingText,
                                         onClickCitation = handleClickCitation,
                                         modifier = if (streamingText) {
-                                            Modifier
+                                            Modifier.streamingTextMotion(renderedText.length)
                                         } else {
                                             Modifier.animateContentSize()
                                         }

@@ -2457,6 +2457,8 @@
   <string name="setting_display_page_motion_blur_title">Dynamic blur</string>
   <string name="setting_display_page_motion_blur_desc">Blur on scroll, expand and enter transitions, shared by the whole interface</string>
   <string name="setting_display_page_motion_blur_switch">Enable dynamic blur</string>
+  <string name="setting_display_page_motion_blur_scroll_switch">Scroll blur</string>
+  <string name="setting_display_page_motion_blur_scroll_desc">Blurs the list while it scrolls, scaled by speed</string>
   <string name="setting_display_page_motion_blur_radius_title">Blur radius</string>
   <string name="setting_display_page_motion_blur_radius_desc">Maximum radius %1$d dp; 6 dp is the baseline, 0 turns blur off</string>
   <string name="setting_display_page_motion_blur_duration_title">Transition duration</string>

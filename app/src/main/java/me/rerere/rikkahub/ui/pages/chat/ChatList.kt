@@ -643,7 +643,8 @@ private fun ChatListNormal(
                     // 滚动模糊放在渐隐带外面：模糊的是整块列表，上下边缘的渐隐也在里面
                     .scrollMotionBlur(
                         state = state,
-                        enabled = !settings.displaySetting.disableAnimations,
+                        enabled = !settings.displaySetting.disableAnimations &&
+                            settings.displaySetting.motionBlur.scrollBlur,
                     )
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
                     // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
