@@ -215,6 +215,10 @@ fun ChatInput(
     onStopVoiceMode: () -> Unit = {},
     // 新对话界面把输入框整体上移，放到屏幕中心偏下
     liftedBy: androidx.compose.ui.unit.Dp = 0.dp,
+    // 输入区顶边被钉住时（新会话里抬到英雄卡下面），高度变化要从顶部往下展开：
+    // 底部对齐是给贴屏幕底部的常态用的，容器高度动画追不上卡片时，
+    // 卡片顶边会先冲出去、再落回锚点，收起和再展开都能看到闪一下
+    pinContentToTop: Boolean = false,
     // 嵌在页面内容里时由外层负责键盘和导航栏 inset，避免重复留白
     applyWindowInsets: Boolean = true,
     // 输入区上方的底部渐变遮罩；横屏三栏里消息本来就有边界，不再压这一层
@@ -398,8 +402,12 @@ fun ChatInput(
                 // 全宽模式下输入框贴到屏幕左右边，键盘 inset 与导航栏 inset 仍然保留
                 .adaptiveHorizontalPadding(8.dp)
                 .padding(bottom = 8.dp + liftedBy)
-                // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动
-                .animateContentSize(alignment = Alignment.BottomStart)
+                // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
+                // 空会话里输入区是顶部钉住、向下生长的，这时必须改成顶部对齐，
+                // 否则 animateContentSize 的容器高度滞后会把卡片顶边推离英雄卡再弹回来
+                .animateContentSize(
+                    alignment = if (pinContentToTop) Alignment.TopStart else Alignment.BottomStart,
+                )
                 // 进入/退出编辑时带上模糊：提示条收放和输入区变高变矮是一段动画，
                 // 不是提示条先消失、高度再慢慢弹回去
                 .motionBlurOnToggle(state.isEditing(), maxRadius = 4.dp),

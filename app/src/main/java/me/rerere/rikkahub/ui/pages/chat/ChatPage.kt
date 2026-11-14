@@ -557,15 +557,15 @@ private fun ChatPageContent(
     // —— 空会话里输入区的落点 ——
     // 输入框始终挂在 Scaffold 的 bottomBar 上，空会话时整块往上抬到英雄卡下面：
     // 同一个组合实例从中间滑到底部，不会有「旧输入框消失、新输入框闪现」的交接。
-    // 抬升量由实测坐标算：英雄卡底边 + 16dp 就是输入框要落的位置。
-    var inputBarTopPx by remember { mutableFloatStateOf(0f) }
+    // 抬升量 = 输入栏高度 +（英雄卡底边 + 16dp - 输入栏底边）：
+    // 底边钉在窗口底部，栏高在绘制阶段现取，高度动画的每一帧都能同一帧对齐。
+    // 之前拿「输入栏顶边」的实测值反推，读到的是上一帧的位置，
+    // 收起和再展开时整块会被往回拽一帧，看起来就是闪一下。
+    var inputBarBottomPx by remember { mutableFloatStateOf(0f) }
     var emptyHeroBottomPx by remember { mutableFloatStateOf(0f) }
-    var emptyLayoutReady by remember { mutableStateOf(false) }
     // 英雄卡和输入栏都量到以后再显示空态：否则第一帧会按「没有输入框」的位置算，随后再跳一下
-    LaunchedEffect(hasMessages, emptyHeroBottomPx, inputBarTopPx) {
-        if (!hasMessages && emptyHeroBottomPx > 0f && inputBarTopPx > 0f) {
-            emptyLayoutReady = true
-        }
+    val emptyLayoutReady by remember {
+        derivedStateOf { emptyHeroBottomPx > 0f && inputBarBottomPx > 0f }
     }
     // 只有「新会话还空着」才需要播这段滑动和英雄卡退场；打开已有会话时首帧也是空列表，
     // 那是历史还在加载，直接切过去，不能让输入框从中间滑到底部
@@ -586,19 +586,12 @@ private fun ChatPageContent(
 
     val density = LocalDensity.current
     val inputLiftSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
-    // 只在空态还在布局里时才读这几个坐标：普通聊天里键盘开合、输入框长高
-    // 都会刷新它们，一直订阅的话每敲一行字都要把整页重组一遍
-    val emptyLiftPx = if (!hasMessages && keepEmptyLayout) {
-        emptyHeroBottomPx + with(density) { 16.dp.toPx() } - inputBarTopPx
-    } else {
-        0f
-    }
+    val emptyAnchorGapPx = with(density) { 16.dp.toPx() }
     val animateInputToBottom = hasMessages && animateEmptyExit
-    val inputLift by animateFloatAsState(
-        targetValue = if (hasMessages) 0f else emptyLiftPx,
-        animationSpec = if (animateInputToBottom) inputLiftSpec else snap(),
-        label = "chatInputLift",
-    )
+    // 首条消息发出后从空态位置滑到底部：空态落点每帧都是现算的，
+    // 这里只推一个 0→1 的进度，发送后的第一帧还是发送前的位置，
+    // 不会先落回底部、等下一帧再弹上来
+    val inputExitProgress = remember { Animatable(0f) }
     val inputScrimAlpha by animateFloatAsState(
         targetValue = if (hasMessages) 1f else 0f,
         animationSpec = if (animateInputToBottom) inputLiftSpec else snap(),
@@ -607,12 +600,19 @@ private fun ChatPageContent(
     val inputBlurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
     val inputBlur = remember { Animatable(0f) }
     LaunchedEffect(hasMessages) {
-        if (hasMessages && animateEmptyExit && !setting.displaySetting.disableAnimations) {
-            // 已经在底部（没量到空态落点、或本来就是带消息打开的）就不用再糊一下
-            if (inputLift < -1f) {
+        if (!hasMessages) {
+            inputExitProgress.snapTo(0f)
+            return@LaunchedEffect
+        }
+        if (animateInputToBottom) {
+            // 空态那一层滑动的模糊；本来就是带消息打开的不用糊
+            if (!setting.displaySetting.disableAnimations && emptyLayoutReady) {
                 inputBlur.snapTo(1f)
-                inputBlur.animateTo(0f, inputLiftSpec)
+                launch { inputBlur.animateTo(0f, inputLiftSpec) }
             }
+            inputExitProgress.animateTo(1f, inputLiftSpec)
+        } else {
+            inputExitProgress.snapTo(1f)
         }
     }
 
@@ -913,6 +913,9 @@ private fun ChatPageContent(
             onStartVoiceMode = onStartVoiceMode,
             voiceState = voiceState,
             onStopVoiceMode = vm.voiceSession::stop,
+            // 空会话里输入区顶边钉在英雄卡下面，高度变化从顶部往下长；
+            // 贴底之后再换回底部对齐
+            pinContentToTop = !hasMessages,
             state = inputState,
             messageQueue = messageQueue,
             onRemoveQueuedMessage = vm::removeQueuedMessage,
@@ -1119,13 +1122,23 @@ private fun ChatPageContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onGloballyPositioned { inputBarTopPx = it.boundsInRoot().top },
+                        // 底栏钉在窗口底部，这条边不随输入区高度动，适合当抬升量的基准
+                        .onGloballyPositioned { inputBarBottomPx = it.boundsInRoot().bottom },
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .graphicsLayer {
-                                translationY = inputLift
+                                // 空态：输入区顶边钉在英雄卡下面。栏高在绘制阶段现取，
+                                // 高度动画的每一帧都能同一帧对齐，不会往回拽一帧。
+                                // 离开空态时按同一份落点乘进度收回去，第一帧与发送前完全一致
+                                val emptyLift = size.height + emptyHeroBottomPx +
+                                    emptyAnchorGapPx - inputBarBottomPx
+                                translationY = when {
+                                    !emptyLayoutReady -> 0f
+                                    !hasMessages -> emptyLift
+                                    else -> emptyLift * (1f - inputExitProgress.value)
+                                }
                                 alpha = if (hasMessages || emptyLayoutReady) 1f else 0f
                                 renderEffect = inputBlurSteps.at(inputBlur.value)
                             },
