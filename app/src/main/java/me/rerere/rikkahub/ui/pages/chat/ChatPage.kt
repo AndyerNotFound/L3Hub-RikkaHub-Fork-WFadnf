@@ -1157,10 +1157,12 @@ private fun ChatPageContent(
                                 // 高度动画的每一帧都能同一帧对齐，不会往回拽一帧。
                                 // 离开空态时按同一份落点乘进度收回去，第一帧与发送前完全一致。
                                 // 键盘 inset 不再进底栏高度，空态的输入区随英雄卡一起
-                                // 只上移键盘高度的一半，这里在绘制期读同一个 inset 对齐
-                                val imeBottom = imeInsets.getBottom(this)
-                                val emptyLift = size.height + emptyHeroBottomPx +
-                                    emptyAnchorGapPx - inputBarBottomPx - imeBottom / 2f
+                                // 只上移键盘高度的一半，这里在绘制期读同一个 inset 对齐。
+                                // 位移取整：半像素平移会让玻璃和文字在每帧重新采样，出现轻微闪烁
+                                val heroShift = -(imeInsets.getBottom(this) / 2f)
+                                    .roundToInt().toFloat()
+                                val emptyLift = (size.height + emptyHeroBottomPx +
+                                    emptyAnchorGapPx - inputBarBottomPx).roundToInt() + heroShift
                                 translationY = when {
                                     !emptyLayoutReady -> 0f
                                     !hasMessages -> emptyLift
@@ -2161,7 +2163,8 @@ private fun EmptyChatContent(
                         .graphicsLayer {
                             // 键盘单独走绘制期位移：英雄卡和整页布局不跟着键盘每帧重排，
                             // 输入区在下面读同一个 inset 一起上移，两者不会差一帧
-                            translationY = -imeInsets.getBottom(this) / 2f
+                            translationY = -(imeInsets.getBottom(this) / 2f)
+                                .roundToInt().toFloat()
                             alpha = contentAlpha
                             renderEffect = heroBlur.at(blur)
                         },
