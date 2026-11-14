@@ -139,4 +139,61 @@ class MarkdownUtilsTest {
             "---\n\n真正的结论。其余细节".extractThinkingSummary()
         )
     }
+
+    @Test
+    fun `thinking summary skips heading lines and takes the sentence after them`() {
+        assertEquals(
+            "用户想要改标题",
+            "# **分析需求**\n\n用户想要改标题。顺带修别的".extractThinkingSummary()
+        )
+        assertEquals(
+            "先读配置",
+            "## 步骤\n先读配置。再动手".extractThinkingSummary()
+        )
+    }
+
+    @Test
+    fun `thinking summary drops bold label before colon`() {
+        assertEquals(
+            "标题太乱",
+            "- **问题**：标题太乱。换个算法".extractThinkingSummary()
+        )
+        assertEquals(
+            "先确认仓库结构",
+            "**先确认**仓库结构。## 后面的不算".extractThinkingSummary()
+        )
+    }
+
+    @Test
+    fun `thinking summary ignores headings with no content after them`() {
+        assertNull("# 分析\n## 结论".extractThinkingSummary())
+    }
+
+    @Test
+    fun `latest thinking title takes the newest completed sentence`() {
+        assertEquals(
+            "再改代码",
+            "先读文件。\n\n再改代码。\n\n还没写完的一行".extractLatestThinkingTitle()
+        )
+    }
+
+    @Test
+    fun `latest thinking title skips the line still being written`() {
+        assertEquals("先读文件", "先读文件。\n我正在".extractLatestThinkingTitle())
+        assertNull("我正在想".extractLatestThinkingTitle())
+    }
+
+    @Test
+    fun `latest thinking title skips headings too`() {
+        assertEquals(
+            "改标题",
+            "先读文件。\n\n# 需求\n改标题。\n## 细节".extractLatestThinkingTitle()
+        )
+    }
+
+    @Test
+    fun `latest thinking title looks at the tail of long reasoning`() {
+        val filler = "先读文件。\n" + "中间内容。\n".repeat(500)
+        assertEquals("最后一句", (filler + "最后一句。\n").extractLatestThinkingTitle())
+    }
 }
