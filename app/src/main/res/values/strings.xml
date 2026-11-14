@@ -3011,6 +3011,8 @@
   <string name="setting_display_page_floating_bar_move_up">Move up</string>
   <string name="setting_display_page_floating_bar_move_down">Move down</string>
   <string name="setting_display_page_floating_bar_clear">Clear slot</string>
+  <string name="setting_display_page_floating_bar_size_title">Floating bar size</string>
+  <string name="setting_display_page_floating_bar_size_desc">Scale the bar height and icons proportionally.</string>
   <string name="floating_bar_item_chat">Chat</string>
   <string name="floating_bar_item_media_creation">Media creation</string>
   <string name="floating_bar_item_translator">Translator</string>
@@ -3019,7 +3021,8 @@
   <string name="floating_bar_item_history">History</string>
   <string name="floating_bar_item_stats">Usage stats</string>
   <string name="floating_bar_item_image_gen">Image generation</string>
-  <string name="floating_bar_item_workspaces">Workspaces</string>
+  <string name="floating_bar_item_workspaces">Workspace settings</string>
+  <string name="floating_bar_item_terminal">Terminal</string>
   <string name="floating_bar_item_search">Search chats</string>
   <string name="floating_bar_item_settings">Settings</string>
 </resources>

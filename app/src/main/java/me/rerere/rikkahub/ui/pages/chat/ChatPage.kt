@@ -112,6 +112,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.Folder01
@@ -131,6 +132,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
@@ -170,6 +172,8 @@ import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePan
 import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -551,6 +555,11 @@ private fun ChatPageContent(
     // 详情面板要显示工作区名字和路径，跟着仓库的列表数据走
     val workspaces by remember(workspaceRepository) { workspaceRepository.listFlow() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    // 悬浮栏「终端」槽位只列当前会话真正绑定、且允许命令行的本地工作区
+    val floatingBarTerminalWorkspaces = remember(assistant.allWorkspaceIds, workspaces) {
+        val boundIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+        workspaces.filter { it.id in boundIds && it.supportsTerminal() }
+    }
 
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
@@ -581,6 +590,8 @@ private fun ChatPageContent(
     // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
+    // 悬浮栏「终端」：绑了多个可用工作区时先选一个
+    var showTerminalPicker by remember { mutableStateOf(false) }
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
     val chatModelListState = rememberModelListState(
@@ -902,6 +913,19 @@ private fun ChatPageContent(
                     FloatingBarItem.STATS -> navController.navigate(Screen.Stats)
                     FloatingBarItem.IMAGE_GEN -> navController.navigate(Screen.ImageGen)
                     FloatingBarItem.WORKSPACES -> navController.navigate(Screen.Workspaces)
+                    FloatingBarItem.TERMINAL -> when {
+                        floatingBarTerminalWorkspaces.isEmpty() ->
+                            navController.navigate(Screen.Workspaces)
+
+                        threePane -> openTab(ChatSidePane.Terminal)
+
+                        floatingBarTerminalWorkspaces.size == 1 ->
+                            navController.navigate(
+                                Screen.WorkspaceTerminal(floatingBarTerminalWorkspaces.first().id)
+                            )
+
+                        else -> showTerminalPicker = true
+                    }
                     FloatingBarItem.SEARCH -> navController.navigate(Screen.MessageSearch)
                     FloatingBarItem.SETTINGS -> navController.navigate(Screen.Setting)
                 }
@@ -1388,6 +1412,17 @@ private fun ChatPageContent(
                 attachmentPickerActions = attachmentPickerActions,
                 onStartVoiceMode = onStartVoiceMode,
                 onDismiss = { showFilesSheet = false },
+            )
+        }
+
+        if (showTerminalPicker && !threePane) {
+            TerminalWorkspacePickerSheet(
+                workspaces = floatingBarTerminalWorkspaces,
+                onSelect = { workspaceId ->
+                    showTerminalPicker = false
+                    navController.navigate(Screen.WorkspaceTerminal(workspaceId))
+                },
+                onDismiss = { showTerminalPicker = false },
             )
         }
 
@@ -2133,6 +2168,40 @@ private fun ChatPageMenu(
                     destructive = true,
                     onClick = onDelete,
                 )
+            }
+        }
+    }
+}
+
+/** 悬浮栏「终端」槽位：绑定了多个工作区时，先让用户挑一个再进终端。 */
+@Composable
+private fun TerminalWorkspacePickerSheet(
+    workspaces: List<WorkspaceEntity>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.floating_bar_item_terminal),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            CardGroup {
+                workspaces.forEach { workspace ->
+                    item(
+                        onClick = { onSelect(workspace.id) },
+                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
+                        supportingContent = { Text(workspace.workspaceDir()) },
+                        headlineContent = { Text(workspace.name) },
+                    )
+                }
             }
         }
     }

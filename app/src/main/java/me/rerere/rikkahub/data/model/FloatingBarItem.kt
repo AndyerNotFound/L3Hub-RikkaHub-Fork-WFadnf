@@ -34,8 +34,11 @@ enum class FloatingBarItem {
     /** 图像生成 */
     IMAGE_GEN,
 
-    /** 工作区 */
+    /** 工作区设置 */
     WORKSPACES,
+
+    /** 工作区终端 */
+    TERMINAL,
 
     /** 搜索会话 */
     SEARCH,

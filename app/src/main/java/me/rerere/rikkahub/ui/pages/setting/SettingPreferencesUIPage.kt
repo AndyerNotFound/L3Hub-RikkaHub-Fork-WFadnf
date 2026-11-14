@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,6 +71,7 @@ import me.rerere.rikkahub.data.files.FileUtils
 import me.rerere.rikkahub.data.model.DEFAULT_FLOATING_BAR_ITEMS
 import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.data.model.MAX_FLOATING_BAR_ITEMS
+import me.rerere.rikkahub.ui.components.ai.FloatingBarSizing
 import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -80,6 +82,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
+import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -110,6 +113,10 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
     }
 
     var showFloatingBarAddSheet by rememberSaveable { mutableStateOf(false) }
+    // 拖动大小滑块时只改草稿，松手才写设置：每帧落盘要把整份 DisplaySetting 重新编码一遍
+    var draftFloatingBarScale by remember(displaySetting.floatingBarScale) {
+        mutableFloatStateOf(FloatingBarSizing.clampScale(displaySetting.floatingBarScale))
+    }
 
     fun moveFloatingBarItem(from: Int, to: Int) {
         val items = displaySetting.floatingBarItems.toMutableList()
@@ -439,80 +446,100 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
                 )
-                if (displaySetting.enableFloatingBar) {
-                    displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
-                        item(
-                            leadingContent = { CardGroupIcon(barItem.icon) },
-                            headlineContent = { Text(barItem.label()) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_display_page_floating_bar_slot,
-                                        index + 1,
-                                    )
+                formItem(
+                    visible = displaySetting.enableFloatingBar,
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_desc)) },
+                    trailingContent = {
+                        CardGroupValue(FloatingBarSizing.percentLabel(draftFloatingBarScale))
+                    },
+                ) {
+                    PercentNumberSlider(
+                        value = draftFloatingBarScale,
+                        onValueChange = { ratio ->
+                            draftFloatingBarScale = FloatingBarSizing.clampScale(ratio)
+                        },
+                        onValueChangeFinished = {
+                            updateDisplaySetting(
+                                displaySetting.copy(floatingBarScale = draftFloatingBarScale)
+                            )
+                        },
+                        valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
+                    )
+                }
+                displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
+                    item(
+                        visible = displaySetting.enableFloatingBar,
+                        leadingContent = { CardGroupIcon(barItem.icon) },
+                        headlineContent = { Text(barItem.label()) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_display_page_floating_bar_slot,
+                                    index + 1,
                                 )
-                            },
-                            trailingContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (index > 0) {
-                                        IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
-                                            Icon(
-                                                HugeIcons.ArrowUp01,
-                                                contentDescription = stringResource(
-                                                    R.string.setting_display_page_floating_bar_move_up
-                                                ),
-                                            )
-                                        }
-                                    }
-                                    if (index < displaySetting.floatingBarItems.lastIndex) {
-                                        IconButton(onClick = { moveFloatingBarItem(index, index + 1) }) {
-                                            Icon(
-                                                HugeIcons.ArrowDown01,
-                                                contentDescription = stringResource(
-                                                    R.string.setting_display_page_floating_bar_move_down
-                                                ),
-                                            )
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            updateDisplaySetting(
-                                                displaySetting.copy(
-                                                    floatingBarItems = displaySetting.floatingBarItems
-                                                        .filterIndexed { i, _ -> i != index },
-                                                )
-                                            )
-                                        }
-                                    ) {
+                            )
+                        },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (index > 0) {
+                                    IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
                                         Icon(
-                                            HugeIcons.Delete02,
+                                            HugeIcons.ArrowUp01,
                                             contentDescription = stringResource(
-                                                R.string.setting_display_page_floating_bar_clear
+                                                R.string.setting_display_page_floating_bar_move_up
                                             ),
                                         )
                                     }
                                 }
-                            },
-                        )
-                    }
-                    if (displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
-                        item(
-                            onClick = { showFloatingBarAddSheet = true },
-                            leadingContent = { CardGroupIcon(HugeIcons.Add01) },
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_add_slot)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_display_page_floating_bar_slots_count,
-                                        displaySetting.floatingBarItems.size,
-                                        MAX_FLOATING_BAR_ITEMS,
+                                if (index < displaySetting.floatingBarItems.lastIndex) {
+                                    IconButton(onClick = { moveFloatingBarItem(index, index + 1) }) {
+                                        Icon(
+                                            HugeIcons.ArrowDown01,
+                                            contentDescription = stringResource(
+                                                R.string.setting_display_page_floating_bar_move_down
+                                            ),
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        updateDisplaySetting(
+                                            displaySetting.copy(
+                                                floatingBarItems = displaySetting.floatingBarItems
+                                                    .filterIndexed { i, _ -> i != index },
+                                            )
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        HugeIcons.Delete02,
+                                        contentDescription = stringResource(
+                                            R.string.setting_display_page_floating_bar_clear
+                                        ),
                                     )
-                                )
-                            },
-                            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                        )
-                    }
+                                }
+                            }
+                        },
+                    )
                 }
+                item(
+                    visible = displaySetting.enableFloatingBar &&
+                        displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS,
+                    onClick = { showFloatingBarAddSheet = true },
+                    leadingContent = { CardGroupIcon(HugeIcons.Add01) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_add_slot)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                R.string.setting_display_page_floating_bar_slots_count,
+                                displaySetting.floatingBarItems.size,
+                                MAX_FLOATING_BAR_ITEMS,
+                            )
+                        )
+                    },
+                    trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                )
             }
 
             CardGroup {

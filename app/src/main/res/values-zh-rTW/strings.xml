@@ -2665,6 +2665,8 @@
   <string name="setting_display_page_floating_bar_move_up">上移</string>
   <string name="setting_display_page_floating_bar_move_down">下移</string>
   <string name="setting_display_page_floating_bar_clear">清除槽位</string>
+  <string name="setting_display_page_floating_bar_size_title">懸浮欄大小</string>
+  <string name="setting_display_page_floating_bar_size_desc">按比例縮放懸浮欄的高度與圖示。</string>
   <string name="floating_bar_item_chat">聊天</string>
   <string name="floating_bar_item_media_creation">媒體創作</string>
   <string name="floating_bar_item_translator">翻譯</string>
@@ -2673,7 +2675,8 @@
   <string name="floating_bar_item_history">歷史記錄</string>
   <string name="floating_bar_item_stats">用量統計</string>
   <string name="floating_bar_item_image_gen">圖像生成</string>
-  <string name="floating_bar_item_workspaces">工作區</string>
+  <string name="floating_bar_item_workspaces">工作區設定</string>
+  <string name="floating_bar_item_terminal">終端</string>
   <string name="floating_bar_item_search">搜尋對話</string>
   <string name="floating_bar_item_settings">設定</string>
 </resources>

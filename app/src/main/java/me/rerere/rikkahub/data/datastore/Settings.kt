@@ -331,6 +331,8 @@ data class DisplaySetting(
     val enableFloatingBar: Boolean = false,
     // 悬浮栏上的图标槽位，按列表顺序显示，最多 MAX_FLOATING_BAR_ITEMS 个
     val floatingBarItems: List<FloatingBarItem> = DEFAULT_FLOATING_BAR_ITEMS,
+    // 悬浮栏的高度与图标缩放，1.0 为默认大小
+    val floatingBarScale: Float = 1.0f,
     // 面板宽度占屏幕宽度的比例，设置里的滑块和面板右下角的拖动改的是同一个值
     val floatingPanelWidthRatio: Float = 1.0f,
     // 面板最高占可用高度的比例；内容少时照常收缩，这个只是上限

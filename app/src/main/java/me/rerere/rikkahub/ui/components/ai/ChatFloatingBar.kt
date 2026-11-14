@@ -38,11 +38,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.FolderCode
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageToVideo
@@ -63,6 +65,25 @@ import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
+/** 悬浮栏大小的换算。 */
+internal object FloatingBarSizing {
+    const val MIN_SCALE = 0.8f
+    const val MAX_SCALE = 1.4f
+
+    private const val BASE_BUTTON_DP = 44
+    private const val BASE_ICON_DP = 20
+
+    /** 比例与设置页滑块的上下限对齐；读盘拿到坏值时回到默认大小。 */
+    fun clampScale(value: Float): Float =
+        if (value.isNaN()) 1f else value.coerceIn(MIN_SCALE, MAX_SCALE)
+
+    fun buttonExtent(scale: Float): Dp = (BASE_BUTTON_DP * clampScale(scale)).dp
+
+    fun iconExtent(scale: Float): Dp = (BASE_ICON_DP * clampScale(scale)).dp
+
+    fun percentLabel(scale: Float): String = "${(clampScale(scale) * 100).roundToInt()}%"
+}
+
 /** 悬浮栏上每个槽位的图标。 */
 internal val FloatingBarItem.icon: ImageVector
     get() = when (this) {
@@ -75,6 +96,7 @@ internal val FloatingBarItem.icon: ImageVector
         FloatingBarItem.STATS -> HugeIcons.ChartColumn
         FloatingBarItem.IMAGE_GEN -> HugeIcons.Image02
         FloatingBarItem.WORKSPACES -> HugeIcons.FolderCode
+        FloatingBarItem.TERMINAL -> HugeIcons.ComputerTerminal01
         FloatingBarItem.SEARCH -> HugeIcons.Search01
         FloatingBarItem.SETTINGS -> HugeIcons.Settings03
     }
@@ -92,6 +114,7 @@ internal fun FloatingBarItem.label(): String = stringResource(
         FloatingBarItem.STATS -> R.string.floating_bar_item_stats
         FloatingBarItem.IMAGE_GEN -> R.string.floating_bar_item_image_gen
         FloatingBarItem.WORKSPACES -> R.string.floating_bar_item_workspaces
+        FloatingBarItem.TERMINAL -> R.string.floating_bar_item_terminal
         FloatingBarItem.SEARCH -> R.string.floating_bar_item_search
         FloatingBarItem.SETTINGS -> R.string.floating_bar_item_settings
     }
@@ -129,6 +152,8 @@ internal fun ChatFloatingBar(
         label = "chatFloatingBarProgress",
     ) { shown -> if (shown) 1f else 0f }
     val blur = rememberFloatingBarBlur()
+    val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
+    val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
 
     AnimatedVisibility(
         visible = visible,
@@ -191,6 +216,8 @@ internal fun ChatFloatingBar(
                             item = item,
                             onClick = { onItemClick(item) },
                             fullWidth = fullWidth,
+                            itemExtent = itemExtent,
+                            iconExtent = iconExtent,
                             modifier = if (fullWidth) Modifier.weight(1f) else Modifier,
                         )
                     }
@@ -205,17 +232,19 @@ private fun FloatingBarItemButton(
     item: FloatingBarItem,
     onClick: () -> Unit,
     fullWidth: Boolean,
+    itemExtent: Dp,
+    iconExtent: Dp,
     modifier: Modifier = Modifier,
 ) {
     val label = item.label()
     Tooltip(
-        modifier = modifier.then(if (fullWidth) Modifier else Modifier.width(44.dp)),
+        modifier = modifier.then(if (fullWidth) Modifier else Modifier.width(itemExtent)),
         tooltip = { Text(label) },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
+                .height(itemExtent)
                 .clip(CircleShape)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
@@ -223,7 +252,7 @@ private fun FloatingBarItemButton(
             Icon(
                 imageVector = item.icon,
                 contentDescription = label,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(iconExtent),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
