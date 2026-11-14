@@ -73,7 +73,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -144,6 +143,7 @@ import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -218,6 +218,10 @@ fun ChatInput(
     applyWindowInsets: Boolean = true,
     // 输入区上方的底部渐变遮罩；横屏三栏里消息本来就有边界，不再压这一层
     showScrim: Boolean = true,
+    // 遮罩浓淡：空会话里输入框被抬到页面中间，遮罩要跟着淡出，
+    // 否则一张卡片周围先多出一圈底色带。用取值函数而不是数值：
+    // 滑动那几百毫秒里它每帧都在变，读在绘制阶段，别让整页跟着重组
+    scrimAlpha: () -> Float = { 1f },
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
@@ -369,13 +373,16 @@ fun ChatInput(
     val imeInsets = WindowInsets.ime
     // 嵌在空会话页面中间时不需要底部渐变遮罩
     val scrimModifier = if (applyWindowInsets && showScrim) {
-        Modifier.drawWithCache {
+        Modifier.drawBehind {
             val brush = Brush.verticalGradient(
-                colors = listOf(scrimColor.copy(alpha = 0f), scrimColor),
+                colors = listOf(
+                    scrimColor.copy(alpha = 0f),
+                    scrimColor.copy(alpha = scrimAlpha()),
+                ),
                 startY = 0f,
                 endY = (size.height - imeInsets.getBottom(this)).coerceAtLeast(1f),
             )
-            onDrawBehind { drawRect(brush) }
+            drawRect(brush)
         }
     } else {
         Modifier
@@ -391,7 +398,10 @@ fun ChatInput(
                 .adaptiveHorizontalPadding(8.dp)
                 .padding(bottom = 8.dp + liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动
-                .animateContentSize(alignment = Alignment.BottomStart),
+                .animateContentSize(alignment = Alignment.BottomStart)
+                // 进入/退出编辑时带上模糊：提示条收放和输入区变高变矮是一段动画，
+                // 不是提示条先消失、高度再慢慢弹回去
+                .motionBlurOnToggle(state.isEditing(), maxRadius = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 清单只在「还没做完」的时候占位置。全部完成后收起来；

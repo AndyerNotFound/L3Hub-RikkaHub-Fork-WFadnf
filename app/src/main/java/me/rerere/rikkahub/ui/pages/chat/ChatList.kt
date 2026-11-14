@@ -1,11 +1,16 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -87,6 +92,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -123,11 +129,14 @@ import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.fullWidthHorizontalInset
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.ListSelectableItem
@@ -161,6 +170,13 @@ private fun MessageNode.bubbleGroupRole(): MessageRole? {
     }
 }
 
+/** 折叠过渡里要按消息 id 取回当时那条分支；节点已经换掉时退回当前分支。 */
+private fun MessageNode.selectingMessage(messageId: Uuid): MessageNode {
+    if (currentMessage.id == messageId) return this
+    val index = messages.indexOfFirst { it.id == messageId }
+    return if (index >= 0) copy(selectIndex = index) else this
+}
+
 @Composable
 fun ChatList(
     innerPadding: PaddingValues,
@@ -168,6 +184,10 @@ fun ChatList(
     state: LazyListState,
     previewListState: LazyListState,
     selectionState: ChatSelectionState,
+    // 新消息入场的 id 由 ChatPage 统一跟踪：空会话时 ChatList 还没挂载，
+    // 跟踪器放在这里的话首条消息会被当成"打开会话的历史"，一条动画都不播
+    enteringMessageIds: Set<Uuid> = emptySet(),
+    onMessageEnterFinished: (Uuid) -> Unit = {},
     loading: Boolean,
     compressing: Boolean = false,
     processingStatus: String? = null,
@@ -266,6 +286,8 @@ fun ChatList(
                 emptyHero = emptyHero,
                 onCreateNewChat = onCreateNewChat,
                 selectionState = selectionState,
+                enteringMessageIds = enteringMessageIds,
+                onMessageEnterFinished = onMessageEnterFinished,
             )
         }
 
@@ -336,6 +358,8 @@ private fun ChatListNormal(
     onTranslate: ((UIMessage, java.util.Locale) -> Unit)?,
     onClearTranslation: (UIMessage) -> Unit,
     selectionState: ChatSelectionState,
+    enteringMessageIds: Set<Uuid>,
+    onMessageEnterFinished: (Uuid) -> Unit,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
@@ -405,21 +429,15 @@ private fun ChatListNormal(
     // 捕获这个值而不是整份会话，消息条的 lambda 才能跨 chunk 复用
     val conversationId = conversation.id
 
-    // 新消息入场：只有"尾部刚追加"的那几条会从屏幕下方滑进来，
-    // 打开会话、加载历史、切换分支时列表尾部不会多出 id，所以都不会播。
-    val enterTracker = remember(conversation.id) { MessageEnterTracker() }
-    // 流式输出时每帧都会重组，条数和尾条没变就不用重扫一遍 id
-    val messageIds = remember(
-        conversation.id,
-        conversation.messageNodes.size,
-        conversation.messageNodes.lastOrNull()?.id,
-    ) {
-        conversation.messageNodes.map { it.id }
-    }
-    val enteringMessageIds = enterTracker.track(messageIds)
-    // 方法引用每次重组都是新实例，缓存一份，动画中的 item 才不会被父级重组带着跑
-    val consumeEnter = remember(enterTracker) { enterTracker::consume }
+    // 同一条节点里切换分支（编辑后重发、重新生成、点分支箭头）时，
+    // 旧的正文原地收掉、新的展开，两层都带模糊；流式输出 id 不变，不会走这里
+    val foldEnterSize = rememberSpatialSpec<IntSize>()
+    val foldExitSize = rememberFastSpatialSpec<IntSize>()
+    val foldSize = rememberSpatialSpec<IntSize>()
+    val foldEnterFade = rememberEffectsSpec<Float>()
+    val foldExitFade = rememberEffectsSpec<Float>()
 
+    // 跟踪器在 ChatPage 里（空会话时它也在），这里只负责把结果交给每条消息
     // 滚到最底部以后继续上拉：拉满才认。
     // available 沿用原始手势符号（手指上滑是负值），到底以后列表吃不下，多出来的这段就是拉伸量。
     // 300dp 接近半屏，而且进度按开方衰减：前面涨得快、越往后越慢，最后那一段要实打实拉上去。
@@ -640,7 +658,7 @@ private fun ChatListNormal(
                 MessageEnterSlide(
                     messageId = node.id,
                     animateEnter = node.id in enteringMessageIds,
-                    onEnterFinished = consumeEnter,
+                    onEnterFinished = onMessageEnterFinished,
                 ) {
                     Column {
                         if (itemGap > 0.dp) {
@@ -658,57 +676,104 @@ private fun ChatListNormal(
                             selectedKeys = selectedItems,
                             enabled = selectionState.selecting,
                         ) {
-                            ChatMessage(
-                                node = node,
-                                // 每帧重新 snapshotModel 会造出一个新对象，ChatMessage 就没法跳过
-                                model = remember(node) {
-                                    node.currentMessage.modelId?.let(modelById::get)
-                                        ?: node.currentMessage.snapshotModel()
+                            val currentMessageId = node.currentMessage.id
+                            AnimatedContent(
+                                targetState = currentMessageId,
+                                transitionSpec = {
+                                    (expandVertically(
+                                        animationSpec = foldEnterSize,
+                                        expandFrom = Alignment.Top,
+                                    ) + fadeIn(foldEnterFade)) togetherWith
+                                        (shrinkVertically(
+                                            animationSpec = foldExitSize,
+                                            shrinkTowards = Alignment.Top,
+                                        ) + fadeOut(foldExitFade)) using
+                                        SizeTransform(clip = false) { _, _ -> foldSize }
                                 },
-                                assistant = assistant,
-                                loading = loading && !compressing && index == lastMessageIndex,
-                                onRegenerate = {
-                                    onRegenerate(node.currentMessage)
-                                },
-                                onEdit = {
-                                    onEdit(node.currentMessage)
-                                },
-                                onEditSubAgentNotice = onEditSubAgentNotice,
-                                onDeleteSubAgentNotice = onDeleteSubAgentNotice?.let { delete ->
-                                    { delete(node.currentMessage) }
-                                },
-                                onFork = {
-                                    onForkMessage(node.currentMessage)
-                                },
-                                onDelete = {
-                                    onDelete(node.currentMessage)
-                                },
-                                // 读 conversationUpdated 而不是捕获当前的会话对象：
-                                // 否则每来一个 token 这里都会换一个新 lambda，旧消息也跟着整条重组
-                                onShare = {
-                                    val nodes = conversationUpdated.messageNodes
-                                    val index = nodes.indexOfFirst { it.id == node.id }
-                                    if (index >= 0) {
-                                        selectionState.start(nodes.take(index + 1).map { it.id })
-                                    }
-                                },
-                                onUpdate = {
-                                    onUpdateMessage(it)
-                                },
-                                isFavorite = node.isFavorite,
-                                onToggleFavorite = {
-                                    onToggleFavorite?.invoke(node)
-                                },
-                                onTranslate = onTranslate,
-                                onClearTranslation = onClearTranslation,
-                                onToolApproval = onToolApproval,
-                                onToolAnswer = onToolAnswer,
-                                hazeState = bubbleHazeState,
-                                conversationId = conversationId,
-                                lastMessage = index == lastMessageIndex,
-                                joinedToPrevious = joinedToPrevious,
-                                joinedToNext = joinedToNext,
-                            )
+                                contentAlignment = Alignment.TopCenter,
+                                label = "messageFold",
+                            ) { shownMessageId ->
+                                // 退出动画里的那一份要拿旧分支，不能跟着节点读当前消息，
+                                // 否则两层画的是同一段正文，收放就看不见了
+                                val shownNode = remember(node, shownMessageId) {
+                                    node.selectingMessage(shownMessageId)
+                                }
+                                val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
+                                val blurAmount by transition.animateFloat(
+                                    transitionSpec = {
+                                        if (targetState == EnterExitState.Visible) {
+                                            foldEnterFade
+                                        } else {
+                                            foldExitFade
+                                        }
+                                    },
+                                    label = "messageFoldBlur",
+                                ) { state ->
+                                    if (state == EnterExitState.Visible) 0f else 1f
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .graphicsLayer {
+                                            renderEffect = blurSteps.at(blurAmount)
+                                        },
+                                ) {
+                                    ChatMessage(
+                                        node = shownNode,
+                                        // 每帧重新 snapshotModel 会造出一个新对象，ChatMessage 就没法跳过
+                                        model = remember(shownNode) {
+                                            shownNode.currentMessage.modelId?.let(modelById::get)
+                                                ?: shownNode.currentMessage.snapshotModel()
+                                        },
+                                        assistant = assistant,
+                                        // 只有当前这一份挂生成中的状态，退场的那份不跟着转
+                                        loading = loading && !compressing &&
+                                            index == lastMessageIndex &&
+                                            shownMessageId == currentMessageId,
+                                        onRegenerate = {
+                                            onRegenerate(shownNode.currentMessage)
+                                        },
+                                        onEdit = {
+                                            onEdit(shownNode.currentMessage)
+                                        },
+                                        onEditSubAgentNotice = onEditSubAgentNotice,
+                                        onDeleteSubAgentNotice = onDeleteSubAgentNotice?.let { delete ->
+                                            { delete(shownNode.currentMessage) }
+                                        },
+                                        onFork = {
+                                            onForkMessage(shownNode.currentMessage)
+                                        },
+                                        onDelete = {
+                                            onDelete(shownNode.currentMessage)
+                                        },
+                                        // 读 conversationUpdated 而不是捕获当前的会话对象：
+                                        // 否则每来一个 token 这里都会换一个新 lambda，旧消息也跟着整条重组
+                                        onShare = {
+                                            val nodes = conversationUpdated.messageNodes
+                                            val index = nodes.indexOfFirst { it.id == node.id }
+                                            if (index >= 0) {
+                                                selectionState.start(nodes.take(index + 1).map { it.id })
+                                            }
+                                        },
+                                        onUpdate = {
+                                            onUpdateMessage(it)
+                                        },
+                                        isFavorite = node.isFavorite,
+                                        onToggleFavorite = {
+                                            onToggleFavorite?.invoke(node)
+                                        },
+                                        onTranslate = onTranslate,
+                                        onClearTranslation = onClearTranslation,
+                                        onToolApproval = onToolApproval,
+                                        onToolAnswer = onToolAnswer,
+                                        hazeState = bubbleHazeState,
+                                        conversationId = conversationId,
+                                        lastMessage = index == lastMessageIndex,
+                                        joinedToPrevious = joinedToPrevious,
+                                        joinedToNext = joinedToNext,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -739,9 +804,15 @@ private fun ChatListNormal(
                 }
             }
 
-            // 压缩时也用这一行，processingStatus 显示的是压缩中
-            if (loading) {
-                item(LoadingIndicatorKey) {
+            // 压缩时也用这一行，processingStatus 显示的是压缩中。
+            // item 常驻、只收放内容：开始时图标带模糊渐显并把行高撑开；
+            // 结束时行高跟着动画收回，列表贴着底部会把多出来的这段一点点退回去，
+            // 正文是滑回原位，不会在图标消失的那一帧整体瞬移。
+            item(LoadingIndicatorKey) {
+                MotionExpandCollapse(
+                    visible = loading,
+                    maxBlurRadius = 6.dp,
+                ) {
                     Row(
                         modifier = Modifier.padding(
                             start = 8.dp,

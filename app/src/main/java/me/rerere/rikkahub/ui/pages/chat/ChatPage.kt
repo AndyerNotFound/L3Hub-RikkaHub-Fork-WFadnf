@@ -2,7 +2,13 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -27,8 +33,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -63,6 +67,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -77,7 +82,10 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -180,6 +188,7 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
@@ -187,7 +196,10 @@ import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -521,6 +533,89 @@ private fun ChatPageContent(
     // 回调里读最新节点，但不在组合期订阅会话，否则每来一个 token 都会换一个新 lambda
     val latestConversation by rememberUpdatedState(conversation)
 
+    val hasMessages = currentMessages.isNotEmpty()
+    // 新消息入场的跟踪器放在这一层：空会话时 ChatList 还没挂载，
+    // 放在列表里的话首条消息会被当成「打开会话时已经存在」而跳过动画。
+    val messageEnterTracker = remember(conversation.id) { MessageEnterTracker() }
+    // 流式输出时每帧都会重组，条数和尾条没变就不用重扫一遍 id
+    val messageIds = remember(
+        conversation.id,
+        conversation.messageNodes.size,
+        conversation.messageNodes.lastOrNull()?.id,
+    ) {
+        conversation.messageNodes.map { it.id }
+    }
+    // 打开已有会话时首帧也是空列表，紧接着到位的那一批是历史加载，不是新追加；
+    // 只吞掉这一批的入场，之后真正追加的消息照常滑进来
+    var emptyWasHistoryLoad by remember { mutableStateOf(false) }
+    val enteringMessageIds = messageEnterTracker.track(
+        ids = messageIds,
+        animateAppends = !emptyWasHistoryLoad,
+    )
+    val consumeMessageEnter = remember(messageEnterTracker) { messageEnterTracker::consume }
+
+    // —— 空会话里输入区的落点 ——
+    // 输入框始终挂在 Scaffold 的 bottomBar 上，空会话时整块往上抬到英雄卡下面：
+    // 同一个组合实例从中间滑到底部，不会有「旧输入框消失、新输入框闪现」的交接。
+    // 抬升量由实测坐标算：英雄卡底边 + 16dp 就是输入框要落的位置。
+    var inputBarTopPx by remember { mutableFloatStateOf(0f) }
+    var emptyHeroBottomPx by remember { mutableFloatStateOf(0f) }
+    var emptyLayoutReady by remember { mutableStateOf(false) }
+    // 英雄卡和输入栏都量到以后再显示空态：否则第一帧会按「没有输入框」的位置算，随后再跳一下
+    LaunchedEffect(hasMessages, emptyHeroBottomPx, inputBarTopPx) {
+        if (!hasMessages && emptyHeroBottomPx > 0f && inputBarTopPx > 0f) {
+            emptyLayoutReady = true
+        }
+    }
+    // 只有「新会话还空着」才需要播这段滑动和英雄卡退场；打开已有会话时首帧也是空列表，
+    // 那是历史还在加载，直接切过去，不能让输入框从中间滑到底部
+    var animateEmptyExit by remember { mutableStateOf(false) }
+    LaunchedEffect(hasMessages, conversation.newConversation) {
+        if (!hasMessages) {
+            animateEmptyExit = conversation.newConversation
+            emptyWasHistoryLoad = !conversation.newConversation
+        } else {
+            emptyWasHistoryLoad = false
+        }
+    }
+    // 空态整块要等英雄卡退场播完才能拆；列表已经挂上来以后它只是浮在上面的退场层
+    val emptyHeroTransition = remember { MutableTransitionState(!hasMessages) }
+    LaunchedEffect(hasMessages) { emptyHeroTransition.targetState = !hasMessages }
+    val keepEmptyLayout = !hasMessages ||
+        (animateEmptyExit && (emptyHeroTransition.currentState || !emptyHeroTransition.isIdle))
+
+    val density = LocalDensity.current
+    val inputLiftSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
+    // 只在空态还在布局里时才读这几个坐标：普通聊天里键盘开合、输入框长高
+    // 都会刷新它们，一直订阅的话每敲一行字都要把整页重组一遍
+    val emptyLiftPx = if (!hasMessages && keepEmptyLayout) {
+        emptyHeroBottomPx + with(density) { 16.dp.toPx() } - inputBarTopPx
+    } else {
+        0f
+    }
+    val animateInputToBottom = hasMessages && animateEmptyExit
+    val inputLift by animateFloatAsState(
+        targetValue = if (hasMessages) 0f else emptyLiftPx,
+        animationSpec = if (animateInputToBottom) inputLiftSpec else snap(),
+        label = "chatInputLift",
+    )
+    val inputScrimAlpha by animateFloatAsState(
+        targetValue = if (hasMessages) 1f else 0f,
+        animationSpec = if (animateInputToBottom) inputLiftSpec else snap(),
+        label = "chatInputScrim",
+    )
+    val inputBlurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
+    val inputBlur = remember { Animatable(0f) }
+    LaunchedEffect(hasMessages) {
+        if (hasMessages && animateEmptyExit && !setting.displaySetting.disableAnimations) {
+            // 已经在底部（没量到空态落点、或本来就是带消息打开的）就不用再糊一下
+            if (inputLift < -1f) {
+                inputBlur.snapTo(1f)
+                inputBlur.animateTo(0f, inputLiftSpec)
+            }
+        }
+    }
+
     // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
     val contextTokens = remember(conversation.messageNodes) { conversation.lastContextTokens() }
     val contextLimitReached = isContextLimitReached(contextTokens, currentChatModel?.maxContextTokens)
@@ -809,6 +904,9 @@ private fun ChatPageContent(
         modifier: Modifier = Modifier,
         liftedBy: Dp = 0.dp,
         applyWindowInsets: Boolean = true,
+        // 底部渐变遮罩的浓淡：空会话里输入框被抬到页面中间，遮罩跟着淡出，
+        // 免得跟着滑下来之前先在卡片周围显出一条底色带
+        scrimAlpha: () -> Float = { 1f },
     ) {
         val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
         ChatInput(
@@ -935,6 +1033,8 @@ private fun ChatPageContent(
             applyWindowInsets = applyWindowInsets,
             // 横屏三栏去掉输入区上方的渐变遮罩
             showScrim = !threePane,
+            // 绘制阶段才读，滑动时只重画遮罩，不带着整页重组
+            scrimAlpha = scrimAlpha,
         )
     }
 
@@ -1013,28 +1113,34 @@ private fun ChatPageContent(
                 }
             },
             bottomBar = {
-                if (currentMessages.isNotEmpty()) {
-                    ChatInputContent(todos = conversation.todos)
+                // 输入框常驻在 bottomBar：空会话时只是一层位移把它抬到英雄卡下面，
+                // 发送首条消息时它自己滑下去，列表的底部留白也始终按它的实际高度算。
+                // 测量放在外层，位移加在里层，免得抬升量把自己量进去形成反馈。
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { inputBarTopPx = it.boundsInRoot().top },
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                translationY = inputLift
+                                alpha = if (hasMessages || emptyLayoutReady) 1f else 0f
+                                renderEffect = inputBlurSteps.at(inputBlur.value)
+                            },
+                    ) {
+                        ChatInputContent(
+                            todos = conversation.todos,
+                            scrimAlpha = { inputScrimAlpha },
+                        )
+                    }
                 }
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                if (currentMessages.isEmpty()) {
-                    EmptyChatContent(
-                        innerPadding = innerPadding,
-                        assistant = assistant,
-                        slogan = setting.displaySetting.emptyChatSlogan,
-                        hazeState = backgroundHazeState,
-                        input = {
-                            ChatInputContent(
-                                todos = conversation.todos,
-                                modifier = Modifier.fillMaxWidth(),
-                                applyWindowInsets = false,
-                            )
-                        },
-                    )
-                } else {
+                if (hasMessages) {
                     // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
                     val deleteMessage: (UIMessage) -> Unit = { message ->
                         if (loadingJob != null) {
@@ -1117,7 +1223,23 @@ private fun ChatPageContent(
                             vm.updateConversationSystemPrompt(newPrompt)
                         },
                         emptyHero = null,
-                        )
+                        enteringMessageIds = enteringMessageIds,
+                        onMessageEnterFinished = consumeMessageEnter,
+                    )
+                }
+                // 空会话的英雄卡：列表挂上来之后它只负责退场（淡出 + 模糊收掉），
+                // 输入框早在 bottomBar 上滑下去了，这里不再重复渲染输入区
+                if (keepEmptyLayout) {
+                    EmptyChatContent(
+                        innerPadding = innerPadding,
+                        assistant = assistant,
+                        slogan = setting.displaySetting.emptyChatSlogan,
+                        hazeState = backgroundHazeState,
+                        visibleState = emptyHeroTransition,
+                        contentAlpha = if (hasMessages || emptyLayoutReady) 1f else 0f,
+                        scrollEnabled = !hasMessages,
+                        onHeroPlaced = { bottom -> emptyHeroBottomPx = bottom },
+                    )
                 }
                 // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区。
                 MotionExpandCollapse(
@@ -2011,31 +2133,59 @@ private fun EmptyChatContent(
     assistant: Assistant,
     slogan: String,
     hazeState: HazeState,
-    input: @Composable () -> Unit,
+    visibleState: MutableTransitionState<Boolean>,
+    contentAlpha: Float,
+    scrollEnabled: Boolean,
+    // 英雄卡底边的窗口坐标：输入框的抬升量按它算，不靠屏幕高度和若干 dp 猜
+    onHeroPlaced: (Float) -> Unit,
 ) {
+    val heroBlur = rememberMotionBlurSteps(maxRadius = 8.dp)
+    val enterBlurSpec = rememberSpatialSpec<Float>()
+    val exitBlurSpec = rememberFastSpatialSpec<Float>()
+    val fadeSpec = rememberEffectsSpec<Float>()
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
-            .imePadding(),
+            .padding(innerPadding),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), enabled = scrollEnabled)
                 .heightIn(min = maxHeight)
-                .navigationBarsPadding()
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            EmptyChatHero(
-                assistant = assistant,
-                slogan = slogan,
-                hazeState = hazeState,
-            )
-            Spacer(Modifier.height(16.dp))
-            input()
+            // 首条消息进来时英雄卡不跟着硬切：淡出并糊掉，列表和输入框各自就位
+            AnimatedVisibility(
+                visibleState = visibleState,
+                enter = fadeIn(fadeSpec),
+                exit = fadeOut(fadeSpec),
+            ) {
+                val blur by transition.animateFloat(
+                    transitionSpec = {
+                        if (targetState == EnterExitState.Visible) enterBlurSpec else exitBlurSpec
+                    },
+                    label = "emptyHeroBlur",
+                ) { state ->
+                    if (state == EnterExitState.Visible) 0f else 1f
+                }
+                Box(
+                    modifier = Modifier
+                        .onGloballyPositioned { onHeroPlaced(it.boundsInRoot().bottom) }
+                        .graphicsLayer {
+                            alpha = contentAlpha
+                            renderEffect = heroBlur.at(blur)
+                        },
+                ) {
+                    EmptyChatHero(
+                        assistant = assistant,
+                        slogan = slogan,
+                        hazeState = hazeState,
+                    )
+                }
+            }
         }
     }
 }

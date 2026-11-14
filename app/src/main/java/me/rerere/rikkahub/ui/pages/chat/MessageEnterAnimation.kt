@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.uuid.Uuid
@@ -59,7 +60,11 @@ internal class MessageEnterTracker(
     private var hasFrame = false
     private var pending: Map<Uuid, Long> = emptyMap()
 
-    fun track(ids: List<Uuid>): Set<Uuid> {
+    /**
+     * [animateAppends] 为 false 时只把这一帧记成已知，不产生入场：
+     * 打开已有会话时首帧也是空列表，紧接着到位的那一批是历史，不是刚追加的。
+     */
+    fun track(ids: List<Uuid>, animateAppends: Boolean = true): Set<Uuid> {
         // 流式输出时每帧都会重组，id 序列没变就直接沿用上一帧的结论
         if (hasFrame && ids === previousIds) {
             return pending.keys
@@ -74,7 +79,7 @@ internal class MessageEnterTracker(
         // 追加的时候 item 不在可见区（用户正在往上翻），超过窗口就作废，
         // 免得几分钟后滚到底时凭空冒出一段动画
         val alive = pending.filterValues { at - it <= ENTER_WINDOW_MS }
-        val appended = newAppendedMessageIds(previousIds, ids)
+        val appended = if (animateAppends) newAppendedMessageIds(previousIds, ids) else emptyList()
         previousIds = ids
         pending = if (appended.isEmpty()) alive else appended.associateWith { at }
         return pending.keys
@@ -132,12 +137,17 @@ private fun EnteringContent(
     // 名字不要叫 alpha / offset：graphicsLayer 的作用域里有同名属性，裸名会解析到那边去
     val offsetAnim = remember(messageId) { Animatable(startOffset) }
     val alphaAnim = remember(messageId) { Animatable(0f) }
+    // 整屏的位移速度很快，只做淡入看起来还是"凭空出现"；叠一层跟着位移一起收掉的模糊，
+    // 气泡入场的这一段才读得出是从下面上来的。起点在屏幕外，糊满也看不见，随后和位移同步聚焦
+    val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
+    val blurAnim = remember(messageId) { Animatable(1f) }
     val spatialSpec = rememberSpatialSpec<Float>()
     val effectsSpec = rememberEffectsSpec<Float>()
     val finish = rememberUpdatedState(onEnterFinished)
 
     LaunchedEffect(messageId) {
         launch { alphaAnim.animateTo(1f, effectsSpec) }
+        launch { blurAnim.animateTo(0f, spatialSpec) }
         offsetAnim.animateTo(0f, spatialSpec)
         finish.value(messageId)
     }
@@ -153,6 +163,7 @@ private fun EnteringContent(
             .graphicsLayer {
                 translationY = offsetAnim.value
                 alpha = alphaAnim.value
+                renderEffect = blurSteps.at(blurAnim.value)
             },
     ) {
         content()
