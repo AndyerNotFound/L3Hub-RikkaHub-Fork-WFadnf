@@ -253,7 +253,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
-    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val imeInsets = WindowInsets.ime
+    // 键盘动画期间 inset 每帧都在变；只把「是否可见」这一个布尔交给重组，
+    // 否则整个聊天页会在键盘拉起/收起的每一帧重组一次
+    val imeVisible by remember(density, imeInsets) {
+        derivedStateOf { imeInsets.getBottom(density) > 0 }
+    }
     LaunchedEffect(imeVisible) {
         if (!imeVisible) {
             focusManager.clearFocus(force = true)
@@ -591,6 +596,9 @@ private fun ChatPageContent(
     // 这里只推一个 0→1 的进度，发送后的第一帧还是发送前的位置，
     // 不会先落回底部、等下一帧再弹上来
     val inputExitProgress = remember { Animatable(0f) }
+    // 首条消息滑到底部期间保持「键盘 inset 交给页面平移」的布局，
+    // 等滑完再交回底栏；否则发送那一帧会把键盘高度加回底栏，输入区先跳一下
+    var inputExitRunning by remember { mutableStateOf(false) }
     val inputScrimAlpha by animateFloatAsState(
         targetValue = if (hasMessages) 1f else 0f,
         animationSpec = if (animateInputToBottom) inputLiftSpec else snap(),
@@ -601,17 +609,24 @@ private fun ChatPageContent(
     LaunchedEffect(hasMessages) {
         if (!hasMessages) {
             inputExitProgress.snapTo(0f)
+            inputExitRunning = false
             return@LaunchedEffect
         }
         if (animateInputToBottom) {
-            // 空态那一层滑动的模糊；本来就是带消息打开的不用糊
-            if (!setting.displaySetting.disableAnimations && emptyLayoutReady) {
-                inputBlur.snapTo(1f)
-                launch { inputBlur.animateTo(0f, inputLiftSpec) }
+            inputExitRunning = true
+            try {
+                // 空态那一层滑动的模糊；本来就是带消息打开的不用糊
+                if (!setting.displaySetting.disableAnimations && emptyLayoutReady) {
+                    inputBlur.snapTo(1f)
+                    launch { inputBlur.animateTo(0f, inputLiftSpec) }
+                }
+                inputExitProgress.animateTo(1f, inputLiftSpec)
+            } finally {
+                inputExitRunning = false
             }
-            inputExitProgress.animateTo(1f, inputLiftSpec)
         } else {
             inputExitProgress.snapTo(1f)
+            inputExitRunning = false
         }
     }
 
@@ -903,6 +918,8 @@ private fun ChatPageContent(
         modifier: Modifier = Modifier,
         liftedBy: Dp = 0.dp,
         applyWindowInsets: Boolean = true,
+        // 空会话把输入法位移交给页面绘制期平移，底栏不再随键盘改高度
+        deferImeInset: Boolean = false,
         // 底部渐变遮罩的浓淡：空会话里输入框被抬到页面中间，遮罩跟着淡出，
         // 免得跟着滑下来之前先在卡片周围显出一条底色带
         scrimAlpha: () -> Float = { 1f },
@@ -958,7 +975,11 @@ private fun ChatPageContent(
             onCancelClick = {
                 vm.stopGeneration()
             },
-            onSendClick = sendInput,
+            onSendClick = {
+                // 首条消息的滑落要先锁住底栏的键盘 inset 布局，滑完再交回
+                if (!hasMessages) inputExitRunning = true
+                sendInput()
+            },
             onInterjectClick = {
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
@@ -975,6 +996,7 @@ private fun ChatPageContent(
                 }
             },
             onLongSendClick = {
+                if (!hasMessages) inputExitRunning = true
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
                     if (contextLimitBlocksSend) return@ChatInput
@@ -1033,6 +1055,7 @@ private fun ChatPageContent(
             modifier = modifier,
             liftedBy = liftedBy,
             applyWindowInsets = applyWindowInsets,
+            deferImeInset = deferImeInset,
             // 横屏三栏去掉输入区上方的渐变遮罩
             showScrim = !threePane,
             // 绘制阶段才读，滑动时只重画遮罩，不带着整页重组
@@ -1130,9 +1153,12 @@ private fun ChatPageContent(
                             .graphicsLayer {
                                 // 空态：输入区顶边钉在英雄卡下面。栏高在绘制阶段现取，
                                 // 高度动画的每一帧都能同一帧对齐，不会往回拽一帧。
-                                // 离开空态时按同一份落点乘进度收回去，第一帧与发送前完全一致
+                                // 离开空态时按同一份落点乘进度收回去，第一帧与发送前完全一致。
+                                // 键盘 inset 不再进底栏高度，空态的输入区随英雄卡一起
+                                // 只上移键盘高度的一半，这里在绘制期读同一个 inset 对齐
+                                val imeBottom = imeInsets.getBottom(this)
                                 val emptyLift = size.height + emptyHeroBottomPx +
-                                    emptyAnchorGapPx - inputBarBottomPx
+                                    emptyAnchorGapPx - inputBarBottomPx - imeBottom / 2f
                                 translationY = when {
                                     !emptyLayoutReady -> 0f
                                     !hasMessages -> emptyLift
@@ -1148,6 +1174,7 @@ private fun ChatPageContent(
                     ) {
                         ChatInputContent(
                             todos = conversation.todos,
+                            deferImeInset = !hasMessages || inputExitRunning,
                             scrimAlpha = { inputScrimAlpha },
                         )
                     }
@@ -2097,6 +2124,7 @@ private fun EmptyChatContent(
     val enterBlurSpec = rememberMotionBlurSpec()
     val exitBlurSpec = rememberMotionBlurSpec(scale = 0.75f)
     val fadeSpec = rememberEffectsSpec<Float>()
+    val imeInsets = WindowInsets.ime
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -2129,6 +2157,9 @@ private fun EmptyChatContent(
                     modifier = Modifier
                         .onGloballyPositioned { onHeroPlaced(it.boundsInRoot().bottom) }
                         .graphicsLayer {
+                            // 键盘单独走绘制期位移：英雄卡和整页布局不跟着键盘每帧重排，
+                            // 输入区在下面读同一个 inset 一起上移，两者不会差一帧
+                            translationY = -imeInsets.getBottom(this) / 2f
                             alpha = contentAlpha
                             renderEffect = heroBlur.at(blur)
                         },

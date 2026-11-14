@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -222,6 +221,9 @@ fun ChatInput(
     pinContentToTop: Boolean = false,
     // 嵌在页面内容里时由外层负责键盘和导航栏 inset，避免重复留白
     applyWindowInsets: Boolean = true,
+    // 空会话把键盘位移交给页面层做绘制期平移：底栏不再随输入法每帧改高度，
+    // 英雄卡、Scaffold 的底部内边距和整页布局都不会跟着键盘动画重排
+    deferImeInset: Boolean = false,
     // 输入区上方的底部渐变遮罩；横屏三栏里消息本来就有边界，不再压这一层
     showScrim: Boolean = true,
     // 遮罩浓淡：空会话里输入框被抬到页面中间，遮罩要跟着淡出，
@@ -379,7 +381,11 @@ fun ChatInput(
         if (loading && state.isEmpty()) onCancelClick() else onLongSendClick()
     }
 
-    val imeVisible = WindowInsets.isImeVisible
+    // 键盘动画期间 inset 每帧都在变；派生状态只在可见性翻转时触发重组，
+    // 不让输入区跟着键盘动画每帧重组
+    val imeVisible by remember(density) {
+        derivedStateOf { WindowInsets.ime.getBottom(density) > 0 }
+    }
     LaunchedEffect(imeVisible) {
         if (!imeVisible) focusManager.clearFocus()
     }
@@ -436,13 +442,18 @@ fun ChatInput(
     // 嵌在空会话页面中间时不需要底部渐变遮罩
     val scrimModifier = if (applyWindowInsets && showScrim) {
         Modifier.drawBehind {
+            val imeBottom = imeInsets.getBottom(this)
             val brush = Brush.verticalGradient(
                 colors = listOf(
                     scrimColor.copy(alpha = 0f),
                     scrimColor.copy(alpha = scrimAlpha()),
                 ),
                 startY = 0f,
-                endY = (size.height - imeInsets.getBottom(this)).coerceAtLeast(1f),
+                endY = if (deferImeInset) {
+                    size.height.toFloat()
+                } else {
+                    (size.height - imeBottom).coerceAtLeast(1f)
+                },
             )
             drawRect(brush)
         }
@@ -455,7 +466,17 @@ fun ChatInput(
     ) {
         Column(
             modifier = modifier
-                .then(if (applyWindowInsets) Modifier.imePadding().navigationBarsPadding() else Modifier)
+                .then(
+                    if (applyWindowInsets) {
+                        if (deferImeInset) {
+                            Modifier.navigationBarsPadding()
+                        } else {
+                            Modifier.imePadding().navigationBarsPadding()
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
                 // 全宽模式下输入框贴到屏幕左右边，键盘 inset 与导航栏 inset 仍然保留
                 .adaptiveHorizontalPadding(8.dp)
                 .padding(bottom = 8.dp + liftedBy)
