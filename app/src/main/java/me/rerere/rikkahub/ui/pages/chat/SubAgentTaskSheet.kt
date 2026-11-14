@@ -550,7 +550,7 @@ private fun CodeBlock(text: String, maxLines: Int, emphasized: Boolean = false) 
         Column(
             modifier = Modifier
                 .padding(8.dp)
-                .animateContentSize()
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
                 .motionBlurOnToggle(expanded),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

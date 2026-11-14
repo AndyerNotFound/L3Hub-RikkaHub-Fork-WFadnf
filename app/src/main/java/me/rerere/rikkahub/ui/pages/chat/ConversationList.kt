@@ -395,6 +395,8 @@ internal fun CollapsibleSectionItem(
             fadeIn(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
         exit = shrinkVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +
             fadeOut(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
+        enterBlurSpec = tween(SECTION_TOGGLE_DURATION_MS),
+        exitBlurSpec = tween(SECTION_TOGGLE_DURATION_MS),
     ) {
         content()
     }

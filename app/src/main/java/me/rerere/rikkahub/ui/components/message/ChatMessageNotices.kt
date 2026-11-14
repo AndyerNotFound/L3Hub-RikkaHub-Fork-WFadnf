@@ -80,8 +80,8 @@ fun ChatMessageNotices(
             }
             MotionExpandCollapse(
                 visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically() + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically() + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     notices.forEach { notice ->

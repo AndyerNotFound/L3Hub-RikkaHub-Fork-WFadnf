@@ -177,7 +177,7 @@ internal fun EditedFilesList(
 
     FlowRow(
         modifier = Modifier
-            .animateContentSize()
+            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
             .motionBlurOnToggle(expanded),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),

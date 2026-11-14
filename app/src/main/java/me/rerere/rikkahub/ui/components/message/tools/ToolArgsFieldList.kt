@@ -129,7 +129,7 @@ private fun InlineValueField(field: ToolArgField, compact: Boolean) {
     val collapsible = field.isCollapsible()
     Column(
         modifier = Modifier
-            .animateContentSize()
+            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
             .motionBlurOnToggle(expanded),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -159,7 +159,7 @@ private fun BlockValueField(field: ToolArgField, compact: Boolean) {
     var expanded by remember(field.name, field.value, compact) { mutableStateOf(false) }
     Column(
         modifier = Modifier
-            .animateContentSize()
+            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
             .motionBlurOnToggle(expanded),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

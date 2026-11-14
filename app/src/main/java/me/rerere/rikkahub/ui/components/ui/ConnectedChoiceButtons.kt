@@ -141,9 +141,13 @@ fun ConnectedChoiceLabel(
     if (icon != null) {
         MotionExpandCollapse(
             visible = selected,
-            enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+            enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             maxBlurRadius = 4.dp,
+            enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+            exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         ) {
             Row {
                 Icon(

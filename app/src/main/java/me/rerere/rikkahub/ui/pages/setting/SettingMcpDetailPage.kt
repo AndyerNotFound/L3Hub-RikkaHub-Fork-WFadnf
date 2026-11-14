@@ -688,7 +688,7 @@ private fun McpToolCard(
     ) {
         Column(
             modifier = Modifier
-                .animateContentSize()
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
                 .motionBlurOnToggle(expanded)
                 .fillMaxWidth()
                 .padding(8.dp),

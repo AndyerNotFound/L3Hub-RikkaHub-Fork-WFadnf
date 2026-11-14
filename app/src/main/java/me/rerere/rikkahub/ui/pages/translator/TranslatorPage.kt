@@ -365,8 +365,8 @@ private fun ResultCard(
 
             MotionExpandCollapse(
                 visible = hasResult && !translating,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(),
                 maxBlurRadius = 4.dp,
             ) {
                 Row(

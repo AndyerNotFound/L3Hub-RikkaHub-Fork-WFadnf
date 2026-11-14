@@ -285,9 +285,13 @@ private fun SearchPicker(
                 ) {
                     MotionExpandCollapse(
                         visible = selected,
-                        enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-                        exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+                        enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                            fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+                        exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                         maxBlurRadius = 4.dp,
+                        enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                        exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                     ) {
                         Row {
                             Icon(
@@ -316,8 +320,12 @@ private fun SearchPicker(
 
         MotionExpandCollapse(
             visible = currentMode == SearchMode.LOCAL,
-            enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-            exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+            enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+            exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+            exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         ) {
             SegmentedListItem(
                 onClick = onSelectProvider,

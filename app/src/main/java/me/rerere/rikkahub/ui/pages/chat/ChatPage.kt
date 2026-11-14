@@ -1129,11 +1129,13 @@ private fun ChatPageContent(
                     enter = expandVertically(
                         expandFrom = Alignment.Top,
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    ) + fadeIn(),
+                    ) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                     exit = shrinkVertically(
                         shrinkTowards = Alignment.Top,
                         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                    ) + fadeOut(),
+                    ) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                    enterBlurSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                 ) {
                     ConversationDetailsPanel(
                         assistant = assistant,

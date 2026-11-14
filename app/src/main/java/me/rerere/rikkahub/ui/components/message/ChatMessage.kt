@@ -470,7 +470,9 @@ fun ChatMessage(
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
             exit = slideOutVertically(motionScheme.fastSpatialSpec()) { it / 2 } +
-                fadeOut(motionScheme.fastEffectsSpec())
+                fadeOut(motionScheme.fastEffectsSpec()),
+            enterBlurSpec = motionScheme.defaultSpatialSpec(),
+            exitBlurSpec = motionScheme.fastSpatialSpec(),
         ) {
             Column(
                 modifier = Modifier.animateContentSize()
@@ -820,10 +822,11 @@ private fun MessagePartsBlock(
                                     joinedToPrevious = joinedToPrevious,
                                     joinedToNext = joinedToNext,
                                     onClick = { onUserMessageClick?.invoke() },
-                                    // 用户气泡不占满整行，和助手的回复错开；全宽模式下贴到边
+                                    // 用户气泡不占满整行，和助手的回复错开；全宽模式下贴到边。
+                                    // 高度由里层的裁切进度逐帧带动，外层再 animateContentSize 会多一层延迟，
+                                    // 文字已经停在半路、模糊却先收完了
                                     modifier = Modifier
-                                        .padding(start = adaptiveHorizontalPaddingValue(24.dp))
-                                        .animateContentSize(),
+                                        .padding(start = adaptiveHorizontalPaddingValue(24.dp)),
                                 ) {
                                     CollapsibleUserMessageText(
                                         text = part.text,
@@ -1020,8 +1023,9 @@ private fun CollapsibleUserMessageText(
                         collapsible = collapsible,
                         progress = { collapseProgress },
                     )
-                    // 高度是逐帧裁出来的，光有位移会像被刀切；补一层随进度退掉的模糊
-                    .motionBlurOnToggle(expanded),
+                    // 高度是逐帧裁出来的，光有位移会像被刀切；补一层随进度退掉的模糊。
+                    // 模糊与裁切高度共用同一条曲线，动画速度设置改了两边一起变
+                    .motionBlurOnToggle(expanded, animationSpec = rememberSpatialSpec()),
             ) {
                 MarkdownBlock(
                     content = text.replaceRegexes(

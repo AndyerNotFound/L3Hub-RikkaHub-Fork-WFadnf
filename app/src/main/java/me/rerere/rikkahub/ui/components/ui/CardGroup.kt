@@ -429,6 +429,12 @@ fun CardGroup(
         } else {
             rememberSpatialSpec<IntSize>()
         }
+        // 模糊跟展开用同一条速度档位，用户把动画调快/调慢时两边一起变
+        val expandBlurSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
+            snap<Float>()
+        } else {
+            rememberSpatialSpec<Float>()
+        }
         val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         val count = scope.items.count { it.visible }
         // 收起的条目不占位置，后面的往前挪一格；圆角靠条目自己的 animateDp 平滑跟过去
@@ -440,6 +446,8 @@ fun CardGroup(
                 // 从上一项下面拉出来，到位后回弹一下
                 enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
                 exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),
+                enterBlurSpec = expandBlurSpec,
+                exitBlurSpec = expandBlurSpec,
             ) {
                 Column {
                     val formContent = item.formContent
@@ -532,12 +540,20 @@ private fun MiuixCardGroup(
         } else {
             rememberSpatialSpec<IntSize>()
         }
+        // 模糊跟展开用同一条速度档位，用户把动画调快/调慢时两边一起变
+        val expandBlurSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
+            snap<Float>()
+        } else {
+            rememberSpatialSpec<Float>()
+        }
         val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         scope.items.fastForEachIndexed { _, item ->
             MotionExpandCollapse(
                 visible = item.visible,
                 enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
                 exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),
+                enterBlurSpec = expandBlurSpec,
+                exitBlurSpec = expandBlurSpec,
             ) {
                 Column {
                     MiuixCardGroupItem(item = item)

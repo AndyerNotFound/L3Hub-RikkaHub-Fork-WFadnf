@@ -164,7 +164,7 @@ fun HighlightCodeBlock(
         Column(
             modifier = Modifier
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
-                .animateContentSize()
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
                 .motionBlurOnToggle(isExpanded),
         ) {
             when {

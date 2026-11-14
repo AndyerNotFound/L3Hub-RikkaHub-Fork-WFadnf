@@ -93,6 +93,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -249,6 +250,9 @@ internal fun FilesPicker(
                     (if (showMcp) 1 else 0) +
                     (if (showCompress) 1 else 0)
                 val pickerExpandSpec = rememberSpatialSpec<IntSize>()
+                // 收放与模糊都跟动画速度设置走；展开/收起用同一条曲线，模糊也取同一条
+                val pickerBlurSpec = rememberSpatialSpec<Float>()
+                val pickerFadeSpec = rememberEffectsSpec<Float>()
                 var itemIndex = 0
                 // 收起的项在退出动画期间还在渲染，给它末项形状，免得拿到首项的大圆角
                 val hiddenShapeIndex = (itemCount - 1).coerceAtLeast(0)
@@ -272,8 +276,10 @@ internal fun FilesPicker(
 
                     MotionExpandCollapse(
                         visible = showWorkspace,
-                        enter = expandVertically(pickerExpandSpec) + fadeIn(),
-                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(),
+                        enter = expandVertically(pickerExpandSpec) + fadeIn(pickerFadeSpec),
+                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(pickerFadeSpec),
+                        enterBlurSpec = pickerBlurSpec,
+                        exitBlurSpec = pickerBlurSpec,
                     ) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -350,8 +356,10 @@ internal fun FilesPicker(
 
                     MotionExpandCollapse(
                         visible = showMcp,
-                        enter = expandVertically(pickerExpandSpec) + fadeIn(),
-                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(),
+                        enter = expandVertically(pickerExpandSpec) + fadeIn(pickerFadeSpec),
+                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(pickerFadeSpec),
+                        enterBlurSpec = pickerBlurSpec,
+                        exitBlurSpec = pickerBlurSpec,
                     ) {
                         McpPickerListItem(
                             assistant = assistant,
@@ -408,8 +416,10 @@ internal fun FilesPicker(
                     // Compress History Button
                     MotionExpandCollapse(
                         visible = showCompress,
-                        enter = expandVertically(pickerExpandSpec) + fadeIn(),
-                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(),
+                        enter = expandVertically(pickerExpandSpec) + fadeIn(pickerFadeSpec),
+                        exit = shrinkVertically(pickerExpandSpec) + fadeOut(pickerFadeSpec),
+                        enterBlurSpec = pickerBlurSpec,
+                        exitBlurSpec = pickerBlurSpec,
                     ) {
                         SegmentedListItem(
                             onClick = { onShowCompressDialogChange(true) },

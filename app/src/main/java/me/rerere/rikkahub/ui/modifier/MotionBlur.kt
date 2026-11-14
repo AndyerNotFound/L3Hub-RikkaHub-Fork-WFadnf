@@ -108,14 +108,16 @@ fun MotionExpandCollapse(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec<Float>()),
     maxBlurRadius: Dp = 6.dp,
+    // 模糊跟各自方向的位移取同一条曲线：展开和收起本来就可以用不同速度，
+    // 共用一条时总有一边拖在位移后面，看起来就是那一侧的硬过渡
+    enterBlurSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+    exitBlurSpec: AnimationSpec<Float> = enterBlurSpec,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
     // 状态放在 AnimatedVisibility 外面：收起时内容会离开组合，
     // 放在里面的话再展开就是全新的一份状态，模糊播不出来。
     val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
     val decay = remember { Animatable(0f) }
-    // 和高度收放取同一条曲线：模糊与位移同时开始、同时结束，不会一边还在动一边已经清晰
-    val blurSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     // 首次进入组合不算一次翻转：页面加载时就展开的内容不该糊一下
     var lastVisible by remember { mutableStateOf(visible) }
     LaunchedEffect(visible) {
@@ -124,11 +126,11 @@ fun MotionExpandCollapse(
             if (visible) {
                 // 展开：内容还在零尺寸、透明度为零，起始就糊满也看不出来，随后随收放一起变清晰
                 decay.snapTo(1f)
-                decay.animateTo(0f, blurSpec)
+                decay.animateTo(0f, enterBlurSpec)
             } else {
-                // 收起：内容已经在屏幕上，从当前清晰度慢慢推上去，
+                // 收起：内容已经在屏幕上，从当前清晰度跟着这一侧的收放慢慢推上去，
                 // 被打断时也接着往上走，不会先跳回清晰再重新糊
-                decay.animateTo(1f, blurSpec)
+                decay.animateTo(1f, exitBlurSpec)
             }
         }
     }

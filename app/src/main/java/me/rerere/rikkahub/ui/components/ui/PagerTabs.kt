@@ -64,6 +64,8 @@ internal fun PagerTabs(
 
     // 未选中的选项卡是玻璃底；选中态保持 ToggleButton 默认的 secondaryContainer
     val tabContainerColor = glassColor(MaterialTheme.colorScheme.surfaceContainerHighest)
+    // 进出两个方向的位移与显隐用同一组曲线：收起就是展开的倒放，模糊也能跟着同一条时间线走
+    val motionScheme = MaterialTheme.motionScheme
 
     Row(
         modifier = modifier
@@ -87,7 +89,7 @@ internal fun PagerTabs(
                     .motionBlurOnToggle(
                         toggle = selected,
                         maxRadius = 5.dp,
-                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                        animationSpec = motionScheme.fastSpatialSpec(),
                     )
                     .semantics { role = Role.Tab },
                 colors = ToggleButtonDefaults.colors(
@@ -96,8 +98,10 @@ internal fun PagerTabs(
             ) {
                 AnimatedVisibility(
                     visible = selected,
-                    enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
-                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+                    enter = expandHorizontally(motionScheme.fastSpatialSpec()) +
+                        fadeIn(motionScheme.fastEffectsSpec()),
+                    exit = shrinkHorizontally(motionScheme.fastSpatialSpec()) +
+                        fadeOut(motionScheme.fastEffectsSpec()),
                 ) {
                     Row {
                         Icon(
