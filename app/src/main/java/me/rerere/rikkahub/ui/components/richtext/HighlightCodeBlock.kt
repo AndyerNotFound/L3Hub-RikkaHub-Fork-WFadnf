@@ -97,6 +97,8 @@ fun HighlightCodeBlock(
         fontSize = 12.sp,
         lineHeight = 16.sp,
     ),
+    /** 追加在复制、下载等内置按钮后面的操作, 例如 Markdown 的「切回渲染」 */
+    headerActions: (@Composable () -> Unit)? = null,
 ) {
     val darkMode = LocalDarkMode.current
     val colorPalette = if (darkMode) AtomOneDarkPalette else AtomOneLightPalette
@@ -159,6 +161,7 @@ fun HighlightCodeBlock(
                 onTogglePreviewMode = {
                     previewMode = !previewMode
                 },
+                trailingActions = headerActions,
             )
         }
         Column(
@@ -367,6 +370,7 @@ private fun HighlightCodeActions(
     previewMode: Boolean = false,
     canInlinePreview: Boolean = false,
     onTogglePreviewMode: () -> Unit = {},
+    trailingActions: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     Row(
@@ -472,6 +476,8 @@ private fun HighlightCodeActions(
                         .size(iconSize)
                 )
             }
+
+            trailingActions?.invoke()
         }
     }
 }

@@ -12,18 +12,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.http.jsonObjectOrNull
@@ -31,10 +27,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
-import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.ui.components.FormItem
 
@@ -154,27 +147,14 @@ object ToolUIRegistry {
 internal fun JsonElement?.getStringContent(key: String): String? =
     this?.jsonObjectOrNull?.get(key)?.jsonPrimitiveOrNull?.contentOrNull
 
-/**
- * 参数无法按字段展示时的兜底文本
- *
- * 入参不是 JSON 时 `inputAsJson()` 会退化成空对象, 这时直接显示原始文本,
- * 否则显示格式化后的 JSON, 与改造前的展示保持一致
- */
-private fun argumentFallbackCode(context: ToolUIContext): String {
-    val arguments = context.arguments
-    if (arguments is JsonObject && arguments.isEmpty() && context.tool.input.isNotBlank()) {
-        return context.tool.input
-    }
-    return runCatching { JsonInstantPretty.encodeToString(arguments) }.getOrDefault(context.tool.input)
-}
-
 private fun String.isJsonLike(): Boolean {
     val first = trimStart().firstOrNull()
     return first == '{' || first == '['
 }
 
 /**
- * 默认工具详情: 入参按单列字段展示 (解析不出字段时回落到 JSON 高亮), 输出仍按 JSON 高亮
+ * 默认工具详情: 入参按单列字段展示 (解析不出字段时回落到 JSON 高亮),
+ * 输出按内容识别: JSON 格式化、Markdown 渲染成富文本、纯文本可选中
  *
  * @param headerActions 标题栏右侧的附加操作区
  */
@@ -209,14 +189,14 @@ fun DefaultToolPreview(
         ) {
             val fields = context.argFields
             // 解析不出字段 (纯文本命令、非法 JSON) 时的兜底文本, 跟着入参一起缓存
-            val fallback = remember(context.arguments, context.tool.input) { argumentFallbackCode(context) }
+            val fallback = context.tool.input
             if (fields != null) {
                 ToolArgsFieldList(fields = fields)
-            } else {
-                HighlightCodeBlock(
-                    code = fallback,
-                    language = if (fallback.isJsonLike()) "json" else "plaintext",
-                    style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
+            } else if (fallback.isNotBlank()) {
+                ToolRichText(
+                    text = fallback,
+                    modifier = Modifier.fillMaxWidth(),
+                    languageHint = if (fallback.isJsonLike()) "json" else "plaintext",
                 )
             }
         }
@@ -229,15 +209,12 @@ fun DefaultToolPreview(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     context.tool.output.fastForEach { part ->
                         when (part) {
-                            is UIMessagePart.Text -> HighlightCodeBlock(
-                                code = runCatching {
-                                    JsonInstantPretty.encodeToString(
-                                        JsonInstant.parseToJsonElement(part.text)
-                                    )
-                                }.getOrElse { part.text },
-                                language = "json",
-                                style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp)
-                            )
+                            is UIMessagePart.Text -> if (part.text.isNotBlank()) {
+                                ToolRichText(
+                                    text = part.text,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
 
                             is UIMessagePart.Image -> ZoomableAsyncImage(
                                 model = part.url,

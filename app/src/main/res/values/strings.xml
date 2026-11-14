@@ -1695,6 +1695,8 @@
   <string name="tool_ui_speaking">Speaking: %s</string>
   <string name="tool_ui_replay">Replay</string>
   <string name="tool_ui_file">file</string>
+  <string name="tool_ui_show_source">Show source</string>
+  <string name="tool_ui_memory_not_found">Not found: %1$s</string>
   <string name="workspace_page_name_duplicate">Name already exists</string>
   <string name="setting_mcp_page_name_invalid">Name can only contain English letters and numbers</string>
   <string name="log_page_record_requests">Record requests</string>

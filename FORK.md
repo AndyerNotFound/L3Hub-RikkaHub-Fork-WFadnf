@@ -1162,6 +1162,16 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   竖屏与没有宿主时仍用原来的 BottomSheet
 - 面板里预览铺满高度（`LocalToolPreviewFullHeight`），BottomSheet 里仍留 20% 给手势区
 
+### 工具调用详情的富文本
+
+- 详情里的文本按内容选择展示：JSON 格式化后高亮，Markdown 渲染成富文本，其它代码按文件扩展名高亮，
+  纯文本按正文排版并可长按选择（其中的 URL 可点）
+- Markdown 块右上角可在渲染与源码之间切换；记忆、技能文件开头的 YAML frontmatter 只在源码里显示；
+  超过 60K 字符的 Markdown 默认只显示源码，避免面板一次排版几万行
+- `workspace_read_file` / `workspace_write_file` 按扩展名推断语言，`.md` 直接渲染；记忆库的读取、写入、
+  追加与片段替换分别显示排版后的正文和 diff
+- 未单独定制渲染器的工具（如 `use_skill`、MCP 文本输出）也会自动识别 Markdown，不再一律当作 JSON 源码
+
 ### 清单与引导收进右栏
 
 - `ChatSidePane` 新增 `Status`（清单与引导）：和输入区上方那张卡片是同一个

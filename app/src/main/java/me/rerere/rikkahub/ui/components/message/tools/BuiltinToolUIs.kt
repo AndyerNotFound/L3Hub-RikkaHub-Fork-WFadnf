@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
@@ -71,8 +70,8 @@ import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.memoryId
-import me.rerere.rikkahub.ui.components.richtext.CodeHighlightText
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -161,6 +160,11 @@ class MemoryFileToolUI(override val toolName: String) : ToolUIRenderer {
                 )
             }
         }
+    }
+
+    @Composable
+    override fun Preview(context: ToolUIContext, onDismissRequest: () -> Unit) {
+        MemoryToolPreview(context = context)
     }
 
     companion object {
@@ -787,13 +791,15 @@ private fun SearchWebPreview(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
-                    MarkdownBlock(
-                        content = answer,
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    SelectableContent {
+                        MarkdownBlock(
+                            content = answer,
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
         }
@@ -882,10 +888,10 @@ private fun SearchWebPreview(
             }
         } else {
             item {
-                CodeHighlightText(
-                    code = JsonInstantPretty.encodeToString(content),
-                    language = "json",
-                    fontSize = 12.sp
+                ToolRichText(
+                    text = JsonInstantPretty.encodeToString(content),
+                    modifier = Modifier.fillMaxWidth(),
+                    languageHint = "json",
                 )
             }
         }
@@ -913,6 +919,7 @@ private fun ScrapeWebPreview(content: JsonElement) {
 
         items(urls) { url ->
             val urlObject = url.jsonObject
+            val content = urlObject["content"]?.jsonPrimitive?.content.orEmpty()
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -923,12 +930,11 @@ private fun ScrapeWebPreview(content: JsonElement) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Card {
-                    MarkdownBlock(
-                        content = urlObject["content"]?.jsonPrimitive?.content ?: "",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
+                if (content.isNotBlank()) {
+                    ToolRichText(
+                        text = content,
+                        modifier = Modifier.fillMaxWidth(),
+                        languageHint = "markdown",
                     )
                 }
             }

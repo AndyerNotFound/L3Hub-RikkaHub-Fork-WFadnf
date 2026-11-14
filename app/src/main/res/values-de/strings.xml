@@ -1225,6 +1225,8 @@
   <string name="tool_ui_speaking">Spricht: %s</string>
   <string name="tool_ui_replay">Erneut abspielen</string>
   <string name="tool_ui_file">Datei</string>
+  <string name="tool_ui_show_source">Quelltext anzeigen</string>
+  <string name="tool_ui_memory_not_found">Nicht gefunden: %1$s</string>
   <string name="workspace_page_name_duplicate">Name existiert bereits</string>
   <string name="setting_mcp_page_name_invalid">Name darf nur englische Buchstaben und Zahlen enthalten</string>
   <string name="log_page_record_requests">Anfragen aufzeichnen</string>

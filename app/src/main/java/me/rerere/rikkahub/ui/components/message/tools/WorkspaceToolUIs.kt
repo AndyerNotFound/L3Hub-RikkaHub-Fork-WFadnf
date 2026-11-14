@@ -265,7 +265,11 @@ private fun FileContentSummary(text: String, path: String?, loading: Boolean) {
     }
 }
 
-/** BottomSheet 详情: 文件路径 + 按扩展名语法高亮的完整内容 */
+/**
+ * 详情: 文件路径 + 正文
+ *
+ * Markdown 默认渲染成富文本并可切回源码, 其它文件按扩展名语法高亮.
+ */
 @Composable
 private fun FileContentPreview(path: String?, code: String) {
     Column(
@@ -282,9 +286,9 @@ private fun FileContentPreview(path: String?, code: String) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
-        HighlightCodeBlock(
-            code = code,
-            language = syntaxLanguageOf(path),
+        ToolRichTextForPath(
+            path = path,
+            text = code,
             modifier = Modifier.fillMaxWidth(),
         )
     }

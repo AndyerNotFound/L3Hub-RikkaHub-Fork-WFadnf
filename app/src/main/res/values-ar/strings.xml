@@ -1261,6 +1261,8 @@
   <string name="tool_ui_edit_file">تعديل: %s</string>
   <string name="tool_ui_edit_file_default">تعديل ملف</string>
   <string name="tool_ui_file">ملف</string>
+  <string name="tool_ui_show_source">إظهار المصدر</string>
+  <string name="tool_ui_memory_not_found">غير موجود: %1$s</string>
   <string name="tool_ui_list_files">عرض: %s</string>
   <string name="tool_ui_list_files_default">عرض الملفات</string>
   <string name="tool_ui_list_files_empty">فارغ</string>
