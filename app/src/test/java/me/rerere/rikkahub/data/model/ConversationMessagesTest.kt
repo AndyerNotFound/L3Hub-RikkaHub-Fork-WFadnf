@@ -9,6 +9,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 class ConversationMessagesTest {
@@ -143,6 +144,36 @@ class ConversationMessagesTest {
 
         assertNull(conversation.cancelInterruptedTools())
         assertNull(Conversation.ofId(Uuid.random()).cancelInterruptedTools())
+    }
+
+    @Test
+    fun `thinking cut off by a killed process is closed where it started`() {
+        val startedAt = Instant.fromEpochMilliseconds(1_000)
+        val conversation = conversationOf(
+            UIMessage.user("hi").toMessageNode(),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Reasoning(reasoning = "想到一半", createdAt = startedAt, finishedAt = null),
+                ),
+            ).toMessageNode(),
+        )
+
+        val reasoning = conversation.closeInterruptedReasoning()!!
+            .currentMessages.last().parts.single() as UIMessagePart.Reasoning
+
+        // 收尾时刻无从得知：按段自己的开始时间收尾，界面显示 0.0s，不把停机时长算进去
+        assertEquals(startedAt, reasoning.finishedAt)
+    }
+
+    @Test
+    fun `closing interrupted thinking does nothing when everything is finished`() {
+        val conversation = conversationOf(
+            UIMessage.user("hi").toMessageNode(),
+            UIMessage.assistant("done").toMessageNode(),
+        )
+
+        assertNull(conversation.closeInterruptedReasoning())
     }
 
     private fun conversationOf(vararg nodes: MessageNode) =

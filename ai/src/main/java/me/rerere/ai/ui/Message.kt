@@ -12,6 +12,7 @@ import me.rerere.ai.provider.UsageCost
 import me.rerere.ai.util.json
 import kotlin.math.roundToInt
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 // 公共消息抽象, 具体的Provider实现会转换为API接口需要的DTO
@@ -342,25 +343,21 @@ fun List<UIMessagePart>.toSortedMessageParts(): List<UIMessagePart> {
     }
 }
 
-fun UIMessage.finishReasoning(): UIMessage {
-    return copy(
-        parts = parts.map { part ->
-            when (part) {
-                is UIMessagePart.Reasoning -> {
-                    if (part.finishedAt == null) {
-                        part.copy(
-                            finishedAt = Clock.System.now()
-                        )
-                    } else {
-                        part
-                    }
-                }
-
-                else -> part
-            }
-        }
-    )
+/**
+ * 把还没收尾的思考段封在 [at]。
+ *
+ * `finishedAt == null` 在数据层只有一个含义：这一段此刻还在写，界面据此决定要不要继续计时，
+ * 所以不在内存里的段不能留成 null。正常流式结束用当前时刻；进程被杀后从草稿恢复、
+ * 或者加载历史时已经无从得知真正的收尾时刻，由调用方给一个最近的已知时刻。
+ */
+fun List<UIMessagePart>.closeReasoning(at: Instant): List<UIMessagePart> = map { part ->
+    if (part is UIMessagePart.Reasoning && part.finishedAt == null) part.copy(finishedAt = at) else part
 }
+
+fun UIMessage.closeReasoning(at: Instant): UIMessage = copy(parts = parts.closeReasoning(at))
+
+/** 整轮结束：所有还没写完的思考段封在当前时刻 */
+fun UIMessage.finishReasoning(): UIMessage = closeReasoning(Clock.System.now())
 
 fun UIMessage.finishPendingTools(
     transform: (UIMessagePart.Tool) -> UIMessagePart.Tool

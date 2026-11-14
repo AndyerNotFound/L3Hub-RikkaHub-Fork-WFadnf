@@ -63,6 +63,7 @@ import me.rerere.rikkahub.utils.extractThinkingSummary
 import me.rerere.rikkahub.utils.extractThinkingTitle
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.DurationUnit
 
 enum class ReasoningCardState(val expanded: Boolean) {
@@ -88,8 +89,12 @@ private class ReasoningState(
     }
 }
 
+/**
+ * [running] 是这段思考此刻确实还在写，由这一轮真实的生成状态推出来，不是从数据字段猜的。
+ * 计时只跟它走：进程被杀留下的段没有真实任务在跑，就不会自己在界面上一直涨。
+ */
 @Composable
-private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<ReasoningState, Boolean> {
+private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning, running: Boolean): ReasoningState {
     val settings = LocalSettings.current
     val loading = reasoning.finishedAt == null
     val scrollState = rememberScrollState()
@@ -97,8 +102,9 @@ private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<Rea
     val state = remember(reasoning.createdAt) {
         ReasoningState(
             scrollState = scrollState,
+            // 断在半路的段猜不出写了多久：收尾时刻不知道，拿现在减开始会把停机时长也算进来
             initialDuration = reasoning.finishedAt?.let { it - reasoning.createdAt }
-                ?: (Clock.System.now() - reasoning.createdAt)
+                ?: if (running) Clock.System.now() - reasoning.createdAt else ZERO
         )
     }
 
@@ -120,16 +126,17 @@ private fun rememberReasoningState(reasoning: UIMessagePart.Reasoning): Pair<Rea
         }
     }
 
-    LaunchedEffect(loading) {
-        if (loading) {
+    // 只有确实在写的那一段才计时，周期与工具卡的耗时一致
+    LaunchedEffect(loading, running) {
+        if (loading && running) {
             while (isActive) {
                 state.duration = (reasoning.finishedAt ?: Clock.System.now()) - reasoning.createdAt
-                delay(50)
+                delay(100)
             }
         }
     }
 
-    return state to loading
+    return state
 }
 
 @Composable
@@ -219,19 +226,21 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     // 这段思考是否还在写：思考停下后模型会接着出正文或调工具，卡片这时就该收成 100%
     streaming: Boolean = generating,
 ) {
-    val (state, loading) = rememberReasoningState(reasoning)
+    val loading = reasoning.finishedAt == null
     // 没写完、已经不在生成、也不是正在写的那一段：只能是断在半路
     val failed = loading && !generating && !streaming
     // 只有正在写的那段才画波浪，后面出的正文或工具说明思考已经结束
     val running = loading && streaming
+    val state = rememberReasoningState(reasoning, running)
     val settings = LocalSettings.current
     val summaryEnabled = settings.displaySetting.showThinkingSummary
     // 只解析一段窗口：流式输出时思考内容每帧都在变长，全文扫一遍太贵。
-    // 生成中取最新写完的短句，标题跟着往下滚；结束后回到开头那句当摘要。
-    val thinkingTitle = remember(reasoning.reasoning, summaryEnabled, loading) {
+    // 正在写就取最新写完的短句、标题跟着往下滚；否则回到开头那句当摘要——
+    // 断在半路的段也按结束后的样子显示，不再滚动
+    val thinkingTitle = remember(reasoning.reasoning, summaryEnabled, running) {
         when {
             !summaryEnabled -> null
-            loading -> reasoning.reasoning.extractLatestThinkingTitle()
+            running -> reasoning.reasoning.extractLatestThinkingTitle()
             else -> reasoning.reasoning.extractThinkingSummary()
         }
     }
@@ -239,12 +248,13 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     val boldTitle = remember(reasoning.reasoning, summaryEnabled) {
         if (summaryEnabled) null else reasoning.reasoning.extractThinkingTitle()
     }
-    val showBoldTitle = loading && boldTitle != null
+    val showBoldTitle = running && boldTitle != null
     val chatFontFamily = LocalTextStyle.current.fontFamily
 
     ControlledChainOfThoughtStep(
         expanded = state.expandState == ReasoningCardState.Expanded,
-        onExpandedChange = { state.onExpandedChange(it, loading) },
+        // 正在写的段收起时留 100dp 预览，已经断掉的段要和跑完的一样能整段收起
+        onExpandedChange = { state.onExpandedChange(it, running) },
         icon = {
             Icon(
                 imageVector = HugeIcons.Idea01,
@@ -255,7 +265,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
         },
         label = {
             when {
-                thinkingTitle != null -> ReasoningTitleRow(title = thinkingTitle, loading = loading)
+                thinkingTitle != null -> ReasoningTitleRow(title = thinkingTitle, loading = running)
 
                 showBoldTitle -> ReasoningTitle(title = boldTitle!!, loading = true)
 
@@ -263,7 +273,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
                     text = stringResource(R.string.deep_thinking),
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = chatFontFamily),
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.shimmer(isLoading = loading),
+                    modifier = Modifier.shimmer(isLoading = running),
                 )
             }
         },
@@ -282,7 +292,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
                     textAlign = TextAlign.End,
                     modifier = Modifier
                         .widthIn(min = 40.dp)
-                        .shimmer(isLoading = loading),
+                        .shimmer(isLoading = running),
                 )
             },
         ),

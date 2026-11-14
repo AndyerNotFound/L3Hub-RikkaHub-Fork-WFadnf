@@ -86,6 +86,7 @@ import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
+import me.rerere.rikkahub.data.model.closeInterruptedReasoning
 import me.rerere.rikkahub.data.model.deleteMessage
 import me.rerere.rikkahub.data.model.hasActiveTodo
 import me.rerere.rikkahub.data.model.editMessage
@@ -467,8 +468,8 @@ class ChatService(
         withLoadedSession(conversationId) { session ->
             // 子代理会话按普通会话列在历史里，打开时侧边栏跟着切到它自己的助手
             settingsStore.selectAssistant(session.state.value.assistantId)
-            // 上一轮被进程杀掉时留下的草稿，进页面时补一次
-            restoreDraft(session)
+            // 上一轮被进程杀掉时留下的草稿和没来得及收尾的思考，进页面时补一次
+            recoverInterruptedTurn(session)
         }
         // 上一轮还在忙的时候攒下的子代理结果，等用户打开这个会话再投递
         flushSubAgentResults(conversationId)
@@ -479,7 +480,27 @@ class ChatService(
             load = { loadConversation(session.id) },
             create = { newConversation(session.id) },
         )
+        recoverInterruptedTurn(session)
+    }
+
+    /**
+     * 上一轮被进程杀掉留下的两样东西：写了一半的内容在草稿里，思考段的收尾时刻根本没人写。
+     * 进页面、发消息等所有入口都在会话加载完后走这一遍，每个会话每个进程一次。
+     */
+    private suspend fun recoverInterruptedTurn(session: ConversationSession) {
         restoreDraft(session)
+        sealInterruptedReasoning(session)
+    }
+
+    /**
+     * 上一轮没来得及收尾的思考段还挂着 `finishedAt = null`，界面会当成「此刻正在写」、
+     * 耗时跟着现在的时间一直涨。草稿只能补内容、补不回收尾时刻，所以这里统一收一次尾再让它显示。
+     */
+    private suspend fun sealInterruptedReasoning(session: ConversationSession) {
+        // 正在生成的那一轮自己会收尾，不能把此刻真正在写的那一段封掉
+        if (session.isGenerating) return
+        if (session.tryUpdate { it.closeInterruptedReasoning() } == null) return
+        runCatching { session.flush() }
     }
 
     // 每个会话在进程里只恢复一次草稿：之后进页面、重连都不再拿旧草稿盖库里的内容

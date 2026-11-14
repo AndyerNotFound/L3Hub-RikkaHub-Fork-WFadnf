@@ -101,6 +101,40 @@ internal fun Conversation.cancelInterruptedTools(): Conversation? {
     return upsertMessage(lastNode.id, updatedMessage)
 }
 
+/**
+ * 进程被杀时没来得及收尾的思考段：数据层的约定是 `finishedAt == null` 恒等于「此刻正在写」，
+ * 界面靠它决定要不要继续计时。真正的收尾时刻已经无从得知，取段自己的 createdAt（显示 0.0s），
+ * 不拿当前时刻充数——那会把停机这段时间也算成思考耗时。没有需要收尾的段时返回 null。
+ */
+internal fun Conversation.closeInterruptedReasoning(): Conversation? {
+    var closed = false
+    val nodes = messageNodes.map { node ->
+        var nodeClosed = false
+        val messages = node.messages.map { message ->
+            val dangling = message.parts.any { it is UIMessagePart.Reasoning && it.finishedAt == null }
+            if (!dangling) {
+                message
+            } else {
+                nodeClosed = true
+                message.copy(parts = message.parts.map { part ->
+                    if (part is UIMessagePart.Reasoning && part.finishedAt == null) {
+                        part.copy(finishedAt = part.createdAt)
+                    } else {
+                        part
+                    }
+                })
+            }
+        }
+        if (nodeClosed) {
+            closed = true
+            node.copy(messages = messages)
+        } else {
+            node
+        }
+    }
+    return if (!closed) null else copy(messageNodes = nodes)
+}
+
 private fun cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePart.Tool = tool.copy(
     output = listOf(
         UIMessagePart.Text(

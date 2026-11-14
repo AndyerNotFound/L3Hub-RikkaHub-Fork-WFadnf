@@ -16,10 +16,12 @@ import kotlinx.serialization.Serializable
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.closeReasoning
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 import java.io.File
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val TAG = "DraftStore"
@@ -179,13 +181,28 @@ class DraftStore(
     private fun tempFile(conversationId: Uuid): File = File(root, "$conversationId$DRAFT_TEMP_SUFFIX")
 }
 
-/** 恢复草稿的判定结果 */
+/**
+ * 恢复草稿的判定结果。
+ *
+ * 每条结果都带着 `closedAt`：草稿最后一帧的落盘时刻。进程死时正在写的那段思考按它收尾——
+ * 那是进程最后一个活着的时刻，误差不超过 `DRAFT_MIN_INTERVAL_MS`。
+ */
 internal sealed interface DraftRestore {
     /** 节点还在：用草稿的内容覆盖它当前这条消息的 parts */
-    data class ReplaceParts(val nodeId: Uuid, val messageId: Uuid, val parts: List<UIMessagePart>) : DraftRestore
+    data class ReplaceParts(
+        val nodeId: Uuid,
+        val messageId: Uuid,
+        val parts: List<UIMessagePart>,
+        val closedAt: Instant,
+    ) : DraftRestore
 
     /** 节点已经不在会话里（这条回复还没落过库）：把草稿作为助手消息追加到末尾 */
-    data class AppendMessage(val nodeId: Uuid, val messageId: Uuid, val parts: List<UIMessagePart>) : DraftRestore
+    data class AppendMessage(
+        val nodeId: Uuid,
+        val messageId: Uuid,
+        val parts: List<UIMessagePart>,
+        val closedAt: Instant,
+    ) : DraftRestore
 
     /** 草稿比会话旧，或者不比会话里的长：丢掉 */
     data object Discard : DraftRestore
@@ -208,33 +225,43 @@ internal fun decideDraftRestore(
         ?.maxOfOrNull { it.createdAt.toInstant(timeZone).toEpochMilliseconds() }
     if (lastMessageAt != null && draft.updatedAt < lastMessageAt) return DraftRestore.Discard
 
+    val closedAt = Instant.fromEpochMilliseconds(draft.updatedAt)
     val node = conversation.messageNodes.lastOrNull { it.id == draft.nodeId }
-        ?: return DraftRestore.AppendMessage(draft.nodeId, draft.messageId, draft.parts)
+        ?: return DraftRestore.AppendMessage(draft.nodeId, draft.messageId, draft.parts, closedAt)
     val message = node.messages.firstOrNull { it.id == draft.messageId }
         ?: node.messages.getOrNull(node.selectIndex)
-        ?: return DraftRestore.AppendMessage(draft.nodeId, draft.messageId, draft.parts)
+        ?: return DraftRestore.AppendMessage(draft.nodeId, draft.messageId, draft.parts, closedAt)
 
     return if (draft.parts.textLength() > message.parts.textLength()) {
-        DraftRestore.ReplaceParts(node.id, message.id, draft.parts)
+        DraftRestore.ReplaceParts(node.id, message.id, draft.parts, closedAt)
     } else {
         DraftRestore.Discard
     }
 }
 
-/** 把判定结果落到会话上：只换 parts 或者补一条消息，清单归属、分支选择等其它字段都不动 */
+/**
+ * 把判定结果落到会话上：只换 parts 或者补一条消息，清单归属、分支选择等其它字段都不动。
+ *
+ * 草稿的最后一帧停在进程被杀的那一刻，里面正在写的那段思考还挂着 `finishedAt = null`。
+ * 原样搬回来的话界面会把它当成一直在写、耗时跟着现在的时间往上涨，所以搬的时候按草稿的
+ * 落盘时刻收尾——这一轮确实断在这里，不是还在跑。
+ */
 internal fun Conversation.applyDraftRestore(restore: DraftRestore): Conversation = when (restore) {
     DraftRestore.Discard -> this
-    is DraftRestore.ReplaceParts -> copy(
-        messageNodes = messageNodes.map { node ->
-            if (node.id != restore.nodeId) {
-                node
-            } else {
-                node.copy(messages = node.messages.map { message ->
-                    if (message.id == restore.messageId) message.copy(parts = restore.parts) else message
-                })
+    is DraftRestore.ReplaceParts -> {
+        val parts = restore.parts.closeReasoning(restore.closedAt)
+        copy(
+            messageNodes = messageNodes.map { node ->
+                if (node.id != restore.nodeId) {
+                    node
+                } else {
+                    node.copy(messages = node.messages.map { message ->
+                        if (message.id == restore.messageId) message.copy(parts = parts) else message
+                    })
+                }
             }
-        }
-    )
+        )
+    }
 
     is DraftRestore.AppendMessage -> copy(
         messageNodes = messageNodes + MessageNode(
@@ -243,7 +270,7 @@ internal fun Conversation.applyDraftRestore(restore: DraftRestore): Conversation
                 UIMessage(
                     id = restore.messageId,
                     role = MessageRole.ASSISTANT,
-                    parts = restore.parts,
+                    parts = restore.parts.closeReasoning(restore.closedAt),
                 )
             ),
         )

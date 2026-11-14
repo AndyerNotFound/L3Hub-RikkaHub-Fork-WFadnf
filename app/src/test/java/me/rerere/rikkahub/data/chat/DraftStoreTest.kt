@@ -19,6 +19,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 class DraftStoreTest {
@@ -172,6 +173,35 @@ class DraftStoreTest {
         assertEquals(MessageRole.ASSISTANT, appended.currentMessage.role)
         assertEquals(messageId, appended.currentMessage.id)
         assertEquals(draft.parts, appended.currentMessage.parts)
+    }
+
+    @Test
+    fun restoreClosesTheThinkingThatWasStillBeingWritten() {
+        val conversation = Conversation.ofId(
+            id = conversationId,
+            messages = listOf(MessageNode(id = nodeId, messages = listOf(assistantMessage("写到一半")))),
+        )
+        // 进程死在思考中途：草稿最后一帧里这段思考还没有收尾
+        val draft = draftOf(
+            parts = listOf(
+                UIMessagePart.Reasoning(
+                    reasoning = "想到一半",
+                    createdAt = Instant.fromEpochMilliseconds(1_000),
+                    finishedAt = null,
+                ),
+                UIMessagePart.Text("写到一半，后面还有更多内容"),
+            ),
+            updatedAt = System.currentTimeMillis() + 60_000,
+        )
+
+        val restore = decideDraftRestore(draft, conversation)
+        assertTrue(restore is DraftRestore.ReplaceParts)
+
+        val reasoning = conversation.applyDraftRestore(restore)
+            .messageNodes.single().currentMessage.parts
+            .filterIsInstance<UIMessagePart.Reasoning>().single()
+        // 按草稿最后一帧的落盘时刻收尾：界面据此判定它已经不在写，耗时不再往上涨
+        assertEquals(Instant.fromEpochMilliseconds(draft.updatedAt), reasoning.finishedAt)
     }
 
     @Test
