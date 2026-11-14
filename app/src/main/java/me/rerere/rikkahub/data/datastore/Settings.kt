@@ -276,6 +276,8 @@ data class DisplaySetting(
     val showModelName: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
     val showTokenUsage: Boolean = true,
+    // 顶栏下方的限额折叠条：收起时一行摘要，展开后看当前渠道的限流与限额
+    val showQuotaBar: Boolean = false,
     // 以二进制量级(Ki/Mi/Gi)显示数量，关闭时按十进制 K/M/B；模型计价的单位也随之切换
     val binaryUnits: Boolean = false,
     // 输入框上方的上下文预警样式

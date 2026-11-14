@@ -149,6 +149,7 @@ import me.rerere.rikkahub.ui.components.ai.BackgroundTasksContent
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
 import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.ModelListContent
@@ -524,6 +525,10 @@ private fun ChatPageContent(
     // 模型可以关掉强制拦截，此时只在发送时提醒一次
     val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
     val contextLimitMessage = stringResource(R.string.chat_page_context_limit_reached)
+    // 顶栏限额条看的是当前模型所在的渠道，切换模型后跟着换
+    val currentProvider = remember(currentChatModel, setting.providers) {
+        currentChatModel?.findProvider(setting.providers)
+    }
 
     // Usage 看板里的最近一次请求速度
     val lastUsageMessage = remember(conversation.messageNodes) {
@@ -958,6 +963,13 @@ private fun ChatPageContent(
                         detailsExpanded = showDetails,
                         onToggleDetails = { toggleDetailsPane() },
                     )
+                    if (setting.displaySetting.showQuotaBar && currentProvider != null) {
+                        ChatQuotaStrip(
+                            provider = currentProvider,
+                            displaySetting = setting.displaySetting,
+                            hazeState = backgroundHazeState,
+                        )
+                    }
                 }
             },
             bottomBar = {

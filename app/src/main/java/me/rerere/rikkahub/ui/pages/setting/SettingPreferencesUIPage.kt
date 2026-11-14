@@ -269,6 +269,12 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                 )
                 switchItem(
+                    checked = displaySetting.showQuotaBar,
+                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(showQuotaBar = it)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_quota_bar_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_quota_bar_title)) },
+                )
+                switchItem(
                     checked = displaySetting.binaryUnits,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(binaryUnits = it)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_binary_units_desc)) },

@@ -2646,4 +2646,12 @@
   <string name="chat_message_usage_total">總計</string>
   <string name="chat_message_usage_total_tokens">總計 %1$s</string>
   <string name="setting_provider_page_price_rule_context_empty">閾值需大於 0，否則規則不會生效。</string>
+  <string name="setting_display_page_quota_bar_title">限額顯示</string>
+  <string name="setting_display_page_quota_bar_desc">在頂欄下方顯示目前渠道的限流與限額摺疊條，點擊展開看板</string>
+  <string name="chat_quota_bar_rate_limits">限流</string>
+  <string name="chat_quota_bar_quota">限額</string>
+  <string name="chat_quota_bar_balance">餘額</string>
+  <string name="chat_quota_bar_empty">目前渠道未配置限流或限額</string>
+  <string name="chat_quota_bar_expand">展開看板</string>
+  <string name="chat_quota_bar_collapse">收合看板</string>
 </resources>

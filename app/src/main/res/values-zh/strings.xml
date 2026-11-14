@@ -2970,4 +2970,12 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_usage_total">总计</string>
   <string name="chat_message_usage_total_tokens">总计 %1$s</string>
   <string name="setting_provider_page_price_rule_context_empty">阈值需大于 0，否则规则不会生效。</string>
+  <string name="setting_display_page_quota_bar_title">限额显示</string>
+  <string name="setting_display_page_quota_bar_desc">在顶栏下方显示当前渠道的限流与限额折叠条，点击展开看板</string>
+  <string name="chat_quota_bar_rate_limits">限流</string>
+  <string name="chat_quota_bar_quota">限额</string>
+  <string name="chat_quota_bar_balance">余额</string>
+  <string name="chat_quota_bar_empty">当前渠道未配置限流或限额</string>
+  <string name="chat_quota_bar_expand">展开看板</string>
+  <string name="chat_quota_bar_collapse">收起看板</string>
 </resources>

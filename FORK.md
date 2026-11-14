@@ -1355,3 +1355,20 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - `ProviderGuard` 是具体提供商数据类的构造参数，`copy(apiKey = ...)`、`copyProvider(...)` 都不会丢。
 - 覆写命令的解析在 `ai/.../RequestOverride.kt`，纯 JVM 单测见 `CurlCommandTest`；锁定窗口的计算见 `ProviderGuardTest`。
 - 覆写只对聊天请求生效，OCR、生图和余额查询仍走原来的请求构建。
+
+### 顶栏限额折叠条（2026-11-14）
+
+「偏好设置 → 界面 → 限额显示」打开后，聊天页顶栏下方出现一条折叠条：
+
+- 收起时一行摘要：提供商名 + 最近一分钟的 RPM / TPM 用量、各时间窗用量，以及能查到的余额或订阅用量。
+- 点按整条展开看板，再次点按收起；展开与收起走 `expandVertically` / `shrinkVertically`，箭头同步旋转，
+  动画速度跟随「动画速度」设置。
+- 看板内容取自两处：`ProviderGate.status()`（高级设置里的 RPM / TPM / 自定义时间段限额，每 5 秒刷新）
+  与 `getQuota()`（账号用量或自定义额度查询，按「余额刷新间隔」查询）。限流与额度窗口逐条带
+  `LinearWavyProgressIndicator`，满格转 error 色；余额与定时锁定单独占一行。
+- 没配限流、也没有额度查询的渠道显示一条空状态，不伪造数字。
+- 看板最高 280dp，内容超出时在看板内部滚动，避免横屏把聊天区挤没。
+- 开关存在 `DisplaySetting.showQuotaBar`，默认关闭；额度查询仍受提供商自己的「余额刷新间隔」约束。
+
+涉及文件：`ui/components/ai/ChatQuotaStrip.kt`（新增）、`ui/pages/chat/ChatPage.kt`（挂到顶栏下方）、
+`ui/pages/setting/SettingPreferencesUIPage.kt`（开关）、`data/datastore/Settings.kt`（字段）。

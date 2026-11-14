@@ -2972,4 +2972,12 @@
   <string name="chat_message_usage_total">Total</string>
   <string name="chat_message_usage_total_tokens">Total %1$s</string>
   <string name="setting_provider_page_price_rule_context_empty">Set a threshold above 0; the rule does not apply while it is 0.</string>
+  <string name="setting_display_page_quota_bar_title">Limit display</string>
+  <string name="setting_display_page_quota_bar_desc">Show a collapsible bar under the top bar with the current provider\'s rate limits and quota; tap it to expand the dashboard</string>
+  <string name="chat_quota_bar_rate_limits">Rate limits</string>
+  <string name="chat_quota_bar_quota">Quota</string>
+  <string name="chat_quota_bar_balance">Balance</string>
+  <string name="chat_quota_bar_empty">No rate limit or quota is configured for the current provider</string>
+  <string name="chat_quota_bar_expand">Expand dashboard</string>
+  <string name="chat_quota_bar_collapse">Collapse dashboard</string>
 </resources>
