@@ -138,7 +138,7 @@ private fun EnteringContent(
     val windowHeight = LocalWindowInfo.current.containerSize.height
     val fallbackHeight = with(density) { 720.dp.toPx() }
     val travelScale = displaySetting.motionBlur.travel / 32f
-    val startOffset = (if (windowHeight > 0) windowHeight else fallbackHeight) * travelScale
+    val startOffset = (if (windowHeight > 0) windowHeight.toFloat() else fallbackHeight) * travelScale
 
     // 名字不要叫 alpha / offset：graphicsLayer 的作用域里有同名属性，裸名会解析到那边去
     val offsetAnim = remember(messageId) { Animatable(startOffset) }
