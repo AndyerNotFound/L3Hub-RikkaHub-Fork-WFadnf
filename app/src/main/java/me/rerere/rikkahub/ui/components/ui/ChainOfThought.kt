@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -563,10 +562,9 @@ private class ChainOfThoughtScopeImpl(
                                     )
                                 }
                             }
-                            // 内容在展开态里还会继续变长（思考流式输出），高度仍要平滑跟上
-                            .animateContentSize(
-                                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
-                            )
+                            // 高度只由外面这一层收放带着走：收放动画的目标是子内容当前测量到的尺寸，
+                            // 流式输出每长一行目标就换一次，这里再叠一条 animateContentSize 就是
+                            // 两条弹簧互相追同一个高度，卡片会在目标附近来回摆
                             .padding(start = 32.dp, top = 4.dp, bottom = 8.dp)
                     ) {
                         expandableContent()

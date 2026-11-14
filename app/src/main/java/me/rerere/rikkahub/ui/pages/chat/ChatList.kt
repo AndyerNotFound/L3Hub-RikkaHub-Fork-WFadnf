@@ -638,7 +638,14 @@ private fun ChatListNormal(
                     // 滚到底时最后一项的底边正好停在 contentPadding 的上沿
                     val gap = lastItem.offset + lastItem.size -
                         (state.layoutInfo.viewportEndOffset - bottomPadding)
-                    if (gap > 1) state.scrollBy(gap.toFloat())
+                    // 两个方向都要补：内容变长要贴底，缩短（卡片收放、折叠收起）时多出来的
+                    // 位移也得退回去。只补正的话每次回摆都留下一点误差，看起来就是内容一路
+                    // 往上爬、底边离输入框越来越远
+                    if (gap > 1) {
+                        state.scrollBy(gap.toFloat())
+                    } else if (gap < -1 && state.canScrollBackward) {
+                        state.scrollBy(gap.toFloat())
+                    }
                 }
             }
         }

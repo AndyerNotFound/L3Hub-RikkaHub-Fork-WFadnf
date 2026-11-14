@@ -664,18 +664,25 @@ private fun MessagePartsBlock(
     }
 
     // Render parts in original order (group thinking/tool as chain-of-thought)
-    val groupedParts = remember(parts) { parts.groupMessageParts() }
+    // 空白文本块直接丢掉：流式的 TextStart 会先建出一条还没有字的 Text，
+    // 留着它既会白占一段行间距，也会让「正文首字到达」那一刻折叠层的结构翻一次
+    val groupedParts = remember(parts) {
+        parts.groupMessageParts().filterNot { block ->
+            block is MessagePartBlock.ContentBlock &&
+                (block.part as? UIMessagePart.Text)?.text?.isBlank() == true
+        }
+    }
     // 最后一段正文之前的内容整体再折叠一层；展开后思考和工具仍按原来的方式折叠
     val lastBodyIndex = groupedParts.indexOfLast { block ->
         block is MessagePartBlock.ContentBlock && (block.part as? UIMessagePart.Text)?.text?.isNotBlank() == true
     }
     // 流式过程中也参与折叠：正在输出的正文留在外面，之前的思考和工具先收起来
-    val blocksBeforeBody = if (role == MessageRole.ASSISTANT) {
+    val blocksBeforeBody = if (role == MessageRole.ASSISTANT && groupedParts.isNotEmpty()) {
         when {
             lastBodyIndex > 0 -> groupedParts.subList(0, lastBodyIndex)
             // 还没有正文（只有一段思考或一次工具调用）时整段内容都参与折叠
-            lastBodyIndex <= 0 && groupedParts.isNotEmpty() &&
-                groupedParts.none { it is MessagePartBlock.ContentBlock } -> groupedParts
+            lastBodyIndex < 0 -> groupedParts
+            // 第一块就是正文：前面没有可折叠的东西
             else -> emptyList()
         }
     } else {
@@ -687,9 +694,12 @@ private fun MessagePartsBlock(
     val hiddenPendingTool = hiddenBlocks.any { block ->
         block is MessagePartBlock.ThinkingBlock && block.steps.any { it is ThinkingStep.ToolStep && it.tool.isPending }
     }
-    val collapsibleCount = if (hiddenPendingTool) 0 else hiddenBlocks.size
+    // 折叠层的结构只由「前面有几块」决定，不跟临时状态走：待审批时改成强制展开，
+    // 而不是把这一层摘掉——结构一变就是没有动画的硬切，卡片会整块闪现再消失
+    val collapsibleCount = hiddenBlocks.size
     // 不能按 parts 记住：流式时每个 chunk 都会重建列表，展开状态会被重置
     var showEarlierSteps by remember { mutableStateOf(false) }
+    val earlierStepsVisible = showEarlierSteps || hiddenPendingTool
 
     val renderBlock: @Composable (MessagePartBlock) -> Unit = { block ->
         when (block) {
@@ -948,11 +958,11 @@ private fun MessagePartsBlock(
     if (collapsibleCount > 0) {
         Column {
             EarlierStepsToggle(
-                collapsed = !showEarlierSteps,
+                collapsed = !earlierStepsVisible,
                 count = collapsibleCount,
                 onToggle = { showEarlierSteps = !showEarlierSteps },
             )
-            MotionExpandCollapse(visible = showEarlierSteps, maxBlurRadius = 6.dp) {
+            MotionExpandCollapse(visible = earlierStepsVisible, maxBlurRadius = 6.dp) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
