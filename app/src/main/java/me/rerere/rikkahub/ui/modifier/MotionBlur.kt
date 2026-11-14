@@ -8,6 +8,9 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -55,6 +58,10 @@ class MotionBlurSteps(private val steps: List<RenderEffect?>) {
 private val blurStepsCache = mutableMapOf<Triple<Float, Float, Int>, MotionBlurSteps>()
 private const val BLUR_STEPS_CACHE_LIMIT = 8
 
+// 整块内容都可见的容器不能一翻状态就糊满，先给一小段把模糊推上去，后面的衰减才接得顺；
+// 推得太慢会错过收放最快的那一段，看起来像动画都快结束了才糊一下
+private const val BLUR_ATTACK_MILLIS = 60
+
 @Composable
 fun rememberMotionBlurSteps(
     maxRadius: Dp = 6.dp,
@@ -86,8 +93,9 @@ fun rememberMotionBlurSteps(
 /**
  * 展开/收起容器：与 [AnimatedVisibility] 用法一致，额外在高度收放的这段时间给内容叠一层动态模糊。
  *
- * 状态一翻，模糊立刻到位，随后随淡入淡出一起衰减到清晰；展开与收起两个方向都走同一条曲线。
- * 曲线取自主题的动效方案，关掉动效时是 snap，模糊一帧就归零。
+ * 两个方向的包络不同：展开时内容从零尺寸长出来并淡入，起始一帧就带最大模糊也看不见，随后跟着一起聚焦；
+ * 收起时内容已经完整地摆在屏幕上，模糊要从清晰慢慢推上去，不能一翻状态就糊满，否则第一帧会硬跳一下。
+ * 曲线取自主题的动效方案，关掉动效时收放与模糊一起 snap。
  */
 @Composable
 fun MotionExpandCollapse(
@@ -113,8 +121,15 @@ fun MotionExpandCollapse(
     LaunchedEffect(visible) {
         if (visible != lastVisible) {
             lastVisible = visible
-            decay.snapTo(1f)
-            decay.animateTo(0f, blurSpec)
+            if (visible) {
+                // 展开：内容还在零尺寸、透明度为零，起始就糊满也看不出来，随后随收放一起变清晰
+                decay.snapTo(1f)
+                decay.animateTo(0f, blurSpec)
+            } else {
+                // 收起：内容已经在屏幕上，从当前清晰度慢慢推上去，
+                // 被打断时也接着往上走，不会先跳回清晰再重新糊
+                decay.animateTo(1f, blurSpec)
+            }
         }
     }
     // 模糊加在 AnimatedVisibility 自己的层上：不额外套一层布局，
@@ -156,22 +171,30 @@ fun MotionExpandCollapseHorizontal(
 /**
  * 给已经用 [androidx.compose.animation.animateContentSize] 收放的容器补一层动态模糊。
  *
- * 状态每翻一次，模糊从最大衰减到没有；[toggle] 传的通常是控制展开的那个布尔值。
+ * 状态每翻一次，模糊从无快速推到最大、再衰减回没有；[toggle] 传的通常是控制展开的那个布尔值。
+ * 容器在整个动画里都可见，不能直接 snap 到最大，否则第一帧会硬跳一下。
  */
 @Composable
 fun Modifier.motionBlurOnToggle(
     toggle: Any?,
     maxRadius: Dp = 5.dp,
+    // 衰减曲线要和容器自己的收放对齐：拖得比收缩还久，容器停下来了模糊还在动
+    animationSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
 ): Modifier {
     val blur = rememberMotionBlurSteps(maxRadius = maxRadius)
     val decay = remember { Animatable(0f) }
-    val blurSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     var lastToggle by remember { mutableStateOf(toggle) }
     LaunchedEffect(toggle) {
         if (toggle != lastToggle) {
             lastToggle = toggle
-            decay.snapTo(1f)
-            decay.animateTo(0f, blurSpec)
+            decay.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = BLUR_ATTACK_MILLIS,
+                    easing = LinearOutSlowInEasing,
+                ),
+            )
+            decay.animateTo(0f, animationSpec)
         }
     }
     return this.graphicsLayer {

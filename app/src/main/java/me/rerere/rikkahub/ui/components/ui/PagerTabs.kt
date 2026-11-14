@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,7 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.launch
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 
 internal interface PagerTab {
     val icon: ImageVector
@@ -81,16 +82,22 @@ internal fun PagerTabs(
                 },
                 modifier = Modifier
                     .bringIntoViewRequester(requesters[index])
+                    // 模糊整块选项卡，而不只是展开的图标：底色（图标后面的「后景」）也跟着一起糊；
+                    // 收起时从清晰渐变推上去，不再一翻状态就糊满
+                    .motionBlurOnToggle(
+                        toggle = selected,
+                        maxRadius = 5.dp,
+                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                    )
                     .semantics { role = Role.Tab },
                 colors = ToggleButtonDefaults.colors(
                     containerColor = tabContainerColor,
                 ),
             ) {
-                MotionExpandCollapse(
+                AnimatedVisibility(
                     visible = selected,
                     enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
                     exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
-                    maxBlurRadius = 4.dp,
                 ) {
                     Row {
                         Icon(
