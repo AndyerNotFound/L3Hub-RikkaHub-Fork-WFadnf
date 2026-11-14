@@ -99,6 +99,7 @@ import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -251,10 +252,14 @@ fun ChatInput(
     // 单行布局里模型胶囊兼任思考强度入口，点开的就是这张带模型行的面板
     var showReasoningPicker by remember { mutableStateOf(false) }
 
-    // 悬浮栏：开启后先露出来，静默 5 秒收起；上滑输入框重新拉起
+    // 悬浮栏：开启后先露出来；输入框拿着焦点时收起，离开再展开；
+    // 自动隐藏开启时静默 5 秒收起，上滑输入框重新拉起
     val floatingBarEnabled = settings.displaySetting.enableFloatingBar && floatingBarItems.isNotEmpty()
+    val floatingBarAutoHide = settings.displaySetting.floatingBarAutoHide
     var floatingBarVisible by remember { mutableStateOf(false) }
     var floatingBarActivity by remember { mutableIntStateOf(0) }
+    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度
+    var inputFocused by remember { mutableStateOf(false) }
     LaunchedEffect(floatingBarEnabled, state) {
         if (!floatingBarEnabled) {
             floatingBarVisible = false
@@ -263,7 +268,19 @@ fun ChatInput(
         // 先按「收起」布局一帧，再拉起，首次进入也走同一条滑动模糊过渡
         floatingBarVisible = false
         withFrameNanos { }
-        floatingBarVisible = true
+        floatingBarVisible = !inputFocused
+    }
+    // 焦点进出输入框：进去就收起，把键盘上方的高度留给内容；离开再展开。
+    // 首帧的那次由上面的入场动画负责，这里跳过
+    LaunchedEffect(floatingBarEnabled) {
+        if (!floatingBarEnabled) return@LaunchedEffect
+        snapshotFlow { inputFocused }
+            .drop(1)
+            .collectLatest { focused -> floatingBarVisible = !focused }
+    }
+    // 自动隐藏：显示期间静默 5 秒收起
+    LaunchedEffect(floatingBarEnabled, floatingBarAutoHide) {
+        if (!floatingBarEnabled || !floatingBarAutoHide) return@LaunchedEffect
         snapshotFlow {
             Triple(state.textContent.text.length, floatingBarActivity, floatingBarVisible)
         }.collectLatest { (_, _, visible) ->
@@ -735,7 +752,10 @@ fun ChatInput(
                                             },
                                         )
                                     },
-                                    onFocusChange = { fieldFocused = it },
+                                    onFocusChange = { focused ->
+                                        fieldFocused = focused
+                                        inputFocused = focused
+                                    },
                                     onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
                                 )
                                 Row(
@@ -777,6 +797,7 @@ fun ChatInput(
                                 guideMessages = guideMessages,
                                 onAddGuidance = onAddGuidance,
                                 onSendAsGuidance = onSendAsGuidance,
+                                onFocusChange = { inputFocused = it },
                             )
 
                             Row(

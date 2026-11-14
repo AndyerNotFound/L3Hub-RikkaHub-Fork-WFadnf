@@ -3012,7 +3012,9 @@
 
   <string name="setting_display_page_floating_bar_title">Floating bar</string>
   <string name="setting_display_page_floating_bar_switch">Show floating bar</string>
-  <string name="setting_display_page_floating_bar_desc">Show a bar under the chat input. It hides after five seconds of inactivity; swipe up on the input to bring it back. At least one slot is required.</string>
+  <string name="setting_display_page_floating_bar_desc">Show a bar under the chat input. It collapses while the input has focus and comes back when focus leaves. At least one slot is required.</string>
+  <string name="setting_display_page_floating_bar_auto_hide_title">Auto-hide</string>
+  <string name="setting_display_page_floating_bar_auto_hide_desc">Collapse the bar after five seconds of inactivity; swipe up on the input to bring it back. When off, the bar stays on screen except while the input has focus.</string>
   <string name="setting_display_page_floating_bar_slot">Slot %1$d</string>
   <string name="setting_display_page_floating_bar_add_slot">Add slot</string>
   <string name="setting_display_page_floating_bar_slots_count">Configured slots: %1$d of %2$d</string>

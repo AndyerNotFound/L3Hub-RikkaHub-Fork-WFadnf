@@ -544,6 +544,19 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
                 )
+                switchItem(
+                    visible = displaySetting.enableFloatingBar,
+                    checked = displaySetting.floatingBarAutoHide,
+                    onCheckedChange = { autoHide ->
+                        updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc))
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_title))
+                    },
+                )
                 formItem(
                     visible = displaySetting.enableFloatingBar,
                     headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_title)) },

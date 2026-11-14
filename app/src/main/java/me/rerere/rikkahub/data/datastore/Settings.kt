@@ -349,6 +349,8 @@ data class DisplaySetting(
     val enableFloatingChatWindow: Boolean = false,
     // 输入框下方的悬浮栏：开启后可快速切换聊天、媒体创作与自定义槽位
     val enableFloatingBar: Boolean = false,
+    // 悬浮栏静默五秒后自动收起；关闭后常驻，只在输入框获得焦点时让位
+    val floatingBarAutoHide: Boolean = true,
     // 悬浮栏上的图标槽位，按列表顺序显示，最多 MAX_FLOATING_BAR_ITEMS 个
     val floatingBarItems: List<FloatingBarItem> = DEFAULT_FLOATING_BAR_ITEMS,
     // 悬浮栏的高度与图标缩放，1.0 为默认大小

@@ -2657,7 +2657,9 @@
 
   <string name="setting_display_page_floating_bar_title">懸浮欄</string>
   <string name="setting_display_page_floating_bar_switch">顯示懸浮欄</string>
-  <string name="setting_display_page_floating_bar_desc">在聊天輸入框下方顯示懸浮欄。靜默五秒後自動隱藏，上滑輸入框可重新拉起；至少需要一個槽位。</string>
+  <string name="setting_display_page_floating_bar_desc">在聊天輸入框下方顯示懸浮欄；輸入框取得焦點時收起，離開後展開。至少需要一個槽位。</string>
+  <string name="setting_display_page_floating_bar_auto_hide_title">自動隱藏</string>
+  <string name="setting_display_page_floating_bar_auto_hide_desc">靜默五秒後自動收起，上滑輸入框可重新拉起；關閉後懸浮欄常駐，僅在輸入框取得焦點時收起。</string>
   <string name="setting_display_page_floating_bar_slot">槽位 %1$d</string>
   <string name="setting_display_page_floating_bar_add_slot">新增槽位</string>
   <string name="setting_display_page_floating_bar_slots_count">已設定 %1$d / %2$d 個槽位</string>
