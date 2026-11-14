@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import android.graphics.RenderEffect
+import android.graphics.RenderEffect as AndroidRenderEffect
 import android.graphics.Shader
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
@@ -38,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -263,11 +265,13 @@ private fun rememberPlaceholderBlur(): PlaceholderBlur {
             PlaceholderBlur(
                 listOf<RenderEffect?>(null) + List(3) { step ->
                     val radius = maxRadius * (step + 1) / 3f
-                    RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.DECAL)
+                    AndroidRenderEffect
+                        .createBlurEffect(radius, radius, Shader.TileMode.DECAL)
+                        .asComposeRenderEffect()
                 }
             )
         } else {
-            PlaceholderBlur(emptyList<RenderEffect?>())
+            PlaceholderBlur(emptyList())
         }
     }
 }
