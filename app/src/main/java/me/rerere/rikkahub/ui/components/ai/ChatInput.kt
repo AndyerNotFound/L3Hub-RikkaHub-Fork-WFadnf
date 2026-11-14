@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -57,6 +60,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +89,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.CancellationException
@@ -314,7 +319,8 @@ fun ChatInput(
                 // 全宽模式下输入框贴到屏幕左右边，键盘 inset 与导航栏 inset 仍然保留
                 .adaptiveHorizontalPadding(8.dp)
                 .padding(bottom = 8.dp + liftedBy)
-                .animateContentSize(),
+                // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动
+                .animateContentSize(alignment = Alignment.BottomStart),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 清单只在「还没做完」的时候占位置。全部完成后收起来；
@@ -565,12 +571,42 @@ fun ChatInput(
                     }
 
                     if (singleLine) {
-                        var fieldHeight by remember { mutableIntStateOf(0) }
-                        var oneLineHeight by remember { mutableIntStateOf(0) }
-                        var stacked by remember { mutableStateOf(state.textContent.text.isNotEmpty()) }
-                        // 有内容时直接锁定「文字在上、按钮在下」的布局，避免测量误差来回切换
-                        LaunchedEffect(state.textContent.text.isNotEmpty()) {
-                            stacked = state.textContent.text.isNotEmpty()
+                        var fieldFocused by remember { mutableStateOf(false) }
+                        var oneLineHeightPx by remember { mutableIntStateOf(0) }
+                        val hasContent by remember(state) {
+                            derivedStateOf { state.textContent.text.isNotEmpty() }
+                        }
+                        // 唤起输入法（或框里已经有内容）时从一行展开成两行：
+                        // 文字带升到上一行，下一行的按钮组留在原地不动
+                        val expanded = fieldFocused || hasContent
+                        val expandProgress by animateFloatAsState(
+                            targetValue = if (expanded) 1f else 0f,
+                            animationSpec = tween(380, easing = ChatInputExpandEasing),
+                            label = "chatInputExpand",
+                        )
+                        val density = LocalDensity.current
+                        // 按钮行按 48dp 固定：刚好放得下 48dp 的模型图标按钮，
+                        // 高度定了，上下留白才能算准
+                        val actionRowHeight = 48.dp
+                        val oneLineHeight = with(density) { oneLineHeightPx.toDp() }
+                            .takeIf { it > 0.dp } ?: 56.dp
+                        // 收起时按钮跟单行文字居中对齐；两种状态共用同一个下边距，
+                        // 所以容器向上长高时按钮的屏幕坐标保持不变
+                        val actionRowInset = ((oneLineHeight - actionRowHeight) / 2f)
+                            .coerceAtLeast(0.dp)
+                        val textBottomPadding =
+                            (actionRowInset + actionRowHeight + 4.dp) * expandProgress
+                        // 卡片左右内边距变大时，把输入框自己的内缩减回去，
+                        // 文字可用宽度保持不变，行数就不会因为拖滑块而变
+                        val inputInsetFix = (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)
+                        val textStart = lerp((70 - inputInsetFix).dp, 4.dp, expandProgress)
+                        val textEnd = lerp((130 - inputInsetFix).dp, 4.dp, expandProgress)
+                        val collapsedPlaceholder = stringResource(R.string.chat_input_placeholder)
+                        val modelName = chatModel?.displayName
+                        val expandedPlaceholder = if (modelName != null) {
+                            stringResource(R.string.chat_input_placeholder_expanded, modelName)
+                        } else {
+                            collapsedPlaceholder
                         }
                         val leadingActions: @Composable () -> Unit = {
                             ActionIconButton(onClick = onMoreClick) {
@@ -615,55 +651,39 @@ fun ChatInput(
                                 onAddGuidance = onAddGuidance,
                                 onSendAsGuidance = onSendAsGuidance,
                                 contentPadding = PaddingValues(
-                                    // 卡片左右内边距变大时，把输入框自己的内缩减回去，
-                                    // 文字可用宽度保持不变，行数就不会因为拖滑块而变
-                                    start = if (stacked) {
-                                        4.dp
-                                    } else {
-                                        (70 - (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)).dp
-                                    },
-                                    end = if (stacked) {
-                                        4.dp
-                                    } else {
-                                        (130 - (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)).dp
-                                    },
-                                    bottom = if (stacked) 44.dp else 0.dp,
+                                    start = textStart,
+                                    end = textEnd,
+                                    bottom = textBottomPadding,
                                 ),
-                                onMeasure = { height, oneLine ->
-                                    fieldHeight = height
-                                    oneLineHeight = oneLine
+                                placeholder = {
+                                    MorphingPlaceholder(
+                                        target = if (expanded) {
+                                            expandedPlaceholder
+                                        } else {
+                                            collapsedPlaceholder
+                                        },
+                                    )
                                 },
+                                onFocusChange = { fieldFocused = it },
+                                onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
                             )
-                            if (!stacked) {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.CenterStart),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    leadingActions()
-                                }
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    trailingActions()
-                                }
-                            } else {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .fillMaxWidth()
-                                        .padding(vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    leadingActions()
-                                    Spacer(Modifier.weight(1f))
-                                    trailingActions()
-                                }
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .fillMaxWidth()
+                                    .padding(bottom = actionRowInset)
+                                    .height(actionRowHeight),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                leadingActions()
+                                ChatInputModelPill(
+                                    model = chatModel,
+                                    visible = expanded,
+                                    onClick = { modelListState.open() },
+                                )
+                                Spacer(Modifier.weight(1f))
+                                trailingActions()
                             }
                         }
                     } else {
@@ -884,6 +904,8 @@ private fun TextInputRow(
     onAddGuidance: (QuickMessage) -> Unit = {},
     onSendAsGuidance: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    placeholder: (@Composable () -> Unit)? = null,
+    onFocusChange: ((Boolean) -> Unit)? = null,
     onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
 ) {
     val settings = LocalSettings.current
@@ -999,6 +1021,13 @@ private fun TextInputRow(
         }
 
         val maxFieldHeight = with(density) { (lineHeightPx * 5f).toDp() } + 24.dp
+        val defaultPlaceholder: @Composable () -> Unit = {
+            Text(
+                text = stringResource(R.string.chat_input_placeholder),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         TextField(
             state = state.textContent,
             modifier = Modifier
@@ -1016,19 +1045,14 @@ private fun TextInputRow(
                 .contentReceiver(receiveContentListener)
                 .onFocusChanged {
                     isFocused = it.isFocused
+                    onFocusChange?.invoke(it.isFocused)
                 },
             shape = if (fullWidth) {
                 RoundedCornerShape(0.dp)
             } else {
                 MaterialTheme.shapes.largeIncreased
             },
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.chat_input_placeholder),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
+            placeholder = placeholder ?: defaultPlaceholder,
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences,
