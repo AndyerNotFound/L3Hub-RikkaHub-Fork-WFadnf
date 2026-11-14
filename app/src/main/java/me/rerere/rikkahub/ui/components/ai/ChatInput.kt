@@ -101,6 +101,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -288,6 +289,8 @@ fun ChatInput(
     }
     // 收起时的卡片高度：只在完全收起时记录，给空会话预留展开后的卡片槽位
     var collapsedCardHeightPx by remember { mutableIntStateOf(0) }
+    // 卡片当前的实际高度：多行文字、附件都会让它比「收起 + 一档展开」更高
+    var cardHeightPx by remember { mutableIntStateOf(0) }
 
     // 悬浮栏：开启后先露出来；输入框拿着焦点时收起，离开再展开；
     // 自动隐藏开启时静默 5 秒收起，上滑输入框重新拉起
@@ -383,14 +386,13 @@ fun ChatInput(
         if (loading && state.isEmpty()) onCancelClick() else onLongSendClick()
     }
 
-    // 键盘动画期间 inset 每帧都在变；派生状态只在可见性翻转时触发重组，
-    // 不让输入区跟着键盘动画每帧重组
+    // 键盘动画期间 inset 每帧都在变；这里连带「是否可见」也不读进组合，
+    // 只在收起来的那一下交还焦点，输入区不跟着键盘动画重组
     val imeInsets = WindowInsets.ime
-    val imeVisible by remember(density, imeInsets) {
-        derivedStateOf { imeInsets.getBottom(density) > 0 }
-    }
-    LaunchedEffect(imeVisible) {
-        if (!imeVisible) focusManager.clearFocus()
+    LaunchedEffect(imeInsets, density) {
+        snapshotFlow { imeInsets.getBottom(density) > 0 }
+            .filter { !it }
+            .collect { focusManager.clearFocus() }
     }
 
     // 关闭消息队列后，插话用的临时项只会停留几毫秒，别让它闪一下「待发送」。
@@ -593,13 +595,22 @@ fun ChatInput(
                     .fillMaxWidth()
                     .then(resetFloatingBarTimerModifier),
             ) {
-                // 空会话里输入区顶边钉在英雄卡下面，卡片会向下展开。
-                // 给卡片预留展开后的高度，底栏总高度在收放时不变，
-                // 英雄卡和 Scaffold 的底部内边距就不用跟着每帧重新布局
-                val cardSlotMinHeight = if (pinContentToTop && singleLine && collapsedCardHeightPx > 0) {
+                // 空会话里输入区顶边钉在英雄卡下面，卡片向下展开；槽位不变，底栏总高度就不变，
+                // 英雄卡和 Scaffold 的底部内边距也不用跟着每帧重新布局。
+                // 槽位按「卡片实际高度 + 悬浮栏」预留：只按收起高度 + 一档展开算的话，
+                // 文字折到第二行或带了附件时卡片比槽位高，离开输入框的瞬间悬浮栏
+                // 会把底栏再顶高一截，整页跟着重排一次，看起来就是页面重建闪一下
+                val expandedCardHeightPx = if (collapsedCardHeightPx > 0) {
+                    collapsedCardHeightPx + with(density) {
+                        if (singleLine) expansionHeight.roundToPx() else 0
+                    }
+                } else {
+                    0
+                }
+                val reservedCardHeightPx = maxOf(cardHeightPx, expandedCardHeightPx)
+                val cardSlotMinHeight = if (pinContentToTop && reservedCardHeightPx > 0) {
                     with(density) {
-                        (collapsedCardHeightPx + expansionHeight.roundToPx() +
-                            floatingBarFullHeight.roundToPx()).toDp()
+                        (reservedCardHeightPx + floatingBarFullHeight.roundToPx()).toDp()
                     }
                 } else {
                     null
@@ -625,6 +636,7 @@ fun ChatInput(
                                 .onSizeChanged { size ->
                                     // 只记完全收起时的高度；展开到一半的高度不能当基准
                                     if (expandProgress.value == 0f) collapsedCardHeightPx = size.height
+                                    cardHeightPx = size.height
                                 }
                                 .then(revealFloatingBarModifier)
                                 .clip(containerShape)
@@ -1262,7 +1274,15 @@ private fun TextInputRow(
                 .onSizeChanged { size ->
                     fieldHeight = size.height
                     if (state.textContent.text.isEmpty()) {
-                        oneLineHeight = size.height
+                        // 展开动画里量到的是「一行 + 当时的下边距」，直接当单行高度会喂回
+                        // expansionHeight，卡片每帧再长高一点，最后停在约三行的高度。
+                        // 扣掉当前下边距，任何进度下量到的都是真正的一行高度
+                        val expansionBottomPx = singleLineExpansion?.let { expansion ->
+                            with(density) {
+                                (expansion.bottom * expansion.progress.value).roundToPx()
+                            }
+                        } ?: 0
+                        oneLineHeight = (size.height - expansionBottomPx).coerceAtLeast(0)
                     }
                     onMeasure?.invoke(fieldHeight, oneLineHeight)
                 }

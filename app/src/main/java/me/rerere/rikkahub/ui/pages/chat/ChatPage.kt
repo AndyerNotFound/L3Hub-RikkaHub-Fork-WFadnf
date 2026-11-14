@@ -74,6 +74,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,6 +104,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
@@ -265,15 +267,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val imeInsets = WindowInsets.ime
-    // 键盘动画期间 inset 每帧都在变；只把「是否可见」这一个布尔交给重组，
-    // 否则整个聊天页会在键盘拉起/收起的每一帧重组一次
-    val imeVisible by remember(density, imeInsets) {
-        derivedStateOf { imeInsets.getBottom(density) > 0 }
-    }
-    LaunchedEffect(imeVisible) {
-        if (!imeVisible) {
-            focusManager.clearFocus(force = true)
-        }
+    // 键盘开合不进组合：inset 每帧都在变，读进这一层等于整页跟着键盘重组一遍，
+    // 玻璃、模糊、英雄卡都要重新走一次；这里只订阅「已经收起」这一个信号
+    LaunchedEffect(imeInsets, density) {
+        snapshotFlow { imeInsets.getBottom(density) > 0 }
+            .filter { !it }
+            .collect { focusManager.clearFocus(force = true) }
     }
 
     // 抽屉开着时接管返回键
