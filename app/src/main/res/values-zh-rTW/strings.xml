@@ -2681,4 +2681,6 @@
   <string name="floating_bar_item_terminal">終端</string>
   <string name="floating_bar_item_search">搜尋對話</string>
   <string name="floating_bar_item_settings">設定</string>
+  <string name="chat_message_edited_files_title">檔案變更</string>
+  <string name="chat_message_edited_files_count">%1$d 個檔案</string>
 </resources>

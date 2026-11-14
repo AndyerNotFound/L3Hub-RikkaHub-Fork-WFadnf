@@ -3035,4 +3035,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="floating_bar_item_terminal">终端</string>
   <string name="floating_bar_item_search">搜索会话</string>
   <string name="floating_bar_item_settings">设置</string>
+  <string name="chat_message_edited_files_title">文件变更</string>
+  <string name="chat_message_edited_files_count">%1$d 个文件</string>
 </resources>

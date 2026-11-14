@@ -1734,6 +1734,7 @@ private fun TurnChangesPane(
             assistant = assistant,
             conversationId = conversationId,
             isLastMessage = true,
+            initiallyExpanded = true,
         )
     }
 }

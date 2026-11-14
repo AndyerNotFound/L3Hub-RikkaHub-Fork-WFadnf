@@ -4,38 +4,45 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +56,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Refresh01
@@ -57,14 +67,16 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
-import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.compose.koinInject
 import java.io.File
 import kotlin.uuid.Uuid
 
-private const val DEFAULT_VISIBLE_COUNT = 3
+// 一条路径最长显示三行，再长就截断；换行优先于省略号，路径断在段中间也还能读
+private const val EDITED_PATH_MAX_LINES = 3
+private val EDITED_PATH_INDENT = 20.dp
 // workspace_shell 也列进来：SSH 之类只能用命令改文件的工作区没有写文件工具，
 // 本轮改了什么只能从命令结果里的 editedFiles 读出来
 private val WORKSPACE_FILE_TOOL_NAMES = setOf(
@@ -88,13 +100,13 @@ internal fun editedFilesIn(parts: List<UIMessagePart>): List<String> {
         .distinct()
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun EditedFilesList(
     parts: List<UIMessagePart>,
     assistant: Assistant?,
     conversationId: Uuid? = null,
     isLastMessage: Boolean = false,
+    initiallyExpanded: Boolean = false,
 ) {
     val workspaceId = assistant?.primaryWorkspaceId?.toString() ?: return
     val editedFiles = remember(parts) { editedFilesIn(parts) }
@@ -155,9 +167,11 @@ internal fun EditedFilesList(
     }
 
     var selectedPath by remember { mutableStateOf<String?>(null) }
-    var expanded by remember { mutableStateOf(false) }
-    val visibleFiles = if (expanded) editedFiles else editedFiles.take(DEFAULT_VISIBLE_COUNT)
-    val hasMore = editedFiles.size > DEFAULT_VISIBLE_COUNT
+    // 默认折叠，点开才铺开路径；展开状态跟着消息保存，滑走再回来不用重点一次
+    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    val pathTree = remember(editedFiles) { buildEditedPathTree(editedFiles) }
+    // 目录逐级折叠：只记折叠过的，默认全部展开，点开后看到的就是完整的路径结构
+    val foldedDirs = remember(editedFiles) { mutableStateMapOf<String, Boolean>() }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*"),
@@ -175,33 +189,61 @@ internal fun EditedFilesList(
         }
     }
 
-    FlowRow(
-        modifier = Modifier
-            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
-            .motionBlurOnToggle(expanded),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        visibleFiles.forEach { path ->
-            val fileName = remember(path) { path.substringAfterLast('/') }
-            ChatMessageFileChip(
-                text = fileName,
-                onClick = { selectedPath = path },
-                icon = {
-                    Icon(
-                        imageVector = HugeIcons.File02,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.File02,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.chat_message_edited_files_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = stringResource(R.string.chat_message_edited_files_count, editedFiles.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Icon(
+                    imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // 收放与目录折叠都用公共的带模糊收放，和消息里其他折叠块同一条动效
+            MotionExpandCollapse(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 8.dp, end = 8.dp)
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    EditedPathTreeContent(
+                        tree = pathTree,
+                        folded = { foldedDirs[it] == true },
+                        onToggle = { path -> foldedDirs[path] = foldedDirs[path] != true },
+                        onOpenFile = { path -> selectedPath = path },
                     )
-                },
-            )
-        }
-        if (hasMore && !expanded) {
-            ChatMessageFileChip(
-                text = "+${editedFiles.size - DEFAULT_VISIBLE_COUNT}",
-                onClick = { expanded = true },
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
+                }
+            }
         }
     }
 
@@ -383,5 +425,122 @@ private fun UIMessagePart.Tool.editedPaths(): List<String> {
     val files = obj?.get("files") as? JsonArray ?: return emptyList()
     return files.mapNotNull { element ->
         (element as? JsonObject)?.get("path")?.jsonPrimitive?.contentOrNull
+    }
+}
+
+/** 本轮改动的路径树：目录可逐级折叠，文件行点开仍是导出 / 分享 */
+@Composable
+private fun EditedPathTreeContent(
+    tree: EditedPathTree,
+    folded: (String) -> Boolean,
+    onToggle: (String) -> Unit,
+    onOpenFile: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        tree.files.forEach { file ->
+            EditedPathRow(
+                text = file,
+                icon = HugeIcons.File02,
+                indent = 0.dp,
+                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = { onOpenFile(file) },
+            )
+        }
+        EditedPathNodes(
+            nodes = tree.dirs,
+            folded = folded,
+            onToggle = onToggle,
+            onOpenFile = onOpenFile,
+            indent = 0.dp,
+        )
+    }
+}
+
+@Composable
+private fun EditedPathNodes(
+    nodes: List<EditedPathNode>,
+    folded: (String) -> Boolean,
+    onToggle: (String) -> Unit,
+    onOpenFile: (String) -> Unit,
+    indent: Dp,
+) {
+    nodes.forEach { node ->
+        val collapsed = folded(node.path)
+        Column {
+            EditedPathRow(
+                text = node.path,
+                icon = if (collapsed) HugeIcons.ArrowRight01 else HugeIcons.ArrowDown01,
+                indent = indent,
+                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                textColor = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                onClick = { onToggle(node.path) },
+            )
+            MotionExpandCollapse(visible = !collapsed, maxBlurRadius = 4.dp) {
+                Column(
+                    modifier = Modifier.padding(top = 1.dp, bottom = 1.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    node.files.forEach { file ->
+                        EditedPathRow(
+                            text = file,
+                            icon = HugeIcons.File02,
+                            indent = indent + EDITED_PATH_INDENT,
+                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            onClick = { onOpenFile(file) },
+                        )
+                    }
+                    EditedPathNodes(
+                        nodes = node.dirs,
+                        folded = folded,
+                        onToggle = onToggle,
+                        onOpenFile = onOpenFile,
+                        indent = indent + EDITED_PATH_INDENT,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 一行路径：目录行和文件行只差图标、缩进和点击行为，长路径换行到上限再截断 */
+@Composable
+private fun EditedPathRow(
+    text: String,
+    icon: ImageVector,
+    indent: Dp,
+    iconTint: Color,
+    textColor: Color,
+    onClick: () -> Unit,
+    fontWeight: FontWeight? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(start = indent, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(14.dp),
+            tint = iconTint,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            fontWeight = fontWeight,
+            color = textColor,
+            maxLines = EDITED_PATH_MAX_LINES,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
