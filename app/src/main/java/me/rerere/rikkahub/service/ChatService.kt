@@ -73,6 +73,7 @@ import me.rerere.rikkahub.data.chat.DraftStore
 import me.rerere.rikkahub.data.chat.applyDraftRestore
 import me.rerere.rikkahub.data.chat.decideDraftRestore
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
@@ -1506,6 +1507,10 @@ class ChatService(
                             true
                         },
                         liveAssistant = liveAssistant,
+                        // 价目表中途改了要当步生效：下一步请求的入账和消息费用都按新价目算
+                        livePricing = { model ->
+                            settingsStore.awaitLoaded().findModelById(model.id)?.pricing
+                        },
                         // 全部完成或取消后不再贴，和轮次开始时的判断保持一致
                         liveTodos = {
                             session.state.value.todos.takeIf { it.hasActiveTodo() } ?: emptyList()

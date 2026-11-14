@@ -407,6 +407,21 @@ class ProviderGateTest {
     }
 
     @Test
+    fun `repriced params settle at the new price table`() = runTest {
+        val provider = setting(ProviderGuard())
+        val oldModel = Model(modelId = "m", pricing = ModelPricing(perCall = 1.0))
+        val newModel = oldModel.repriced(ModelPricing(perCall = 3.0))
+
+        val first = gate.begin(provider, emptyList(), TextGenerationParams(model = oldModel))
+        val firstCost = gate.finish(first, TokenUsage(promptTokens = 1, completionTokens = 1))
+        val second = gate.begin(provider, emptyList(), TextGenerationParams(model = newModel))
+        val secondCost = gate.finish(second, TokenUsage(promptTokens = 1, completionTokens = 1))
+
+        assertEquals(1.0, firstCost!!.total, 1e-9)
+        assertEquals(3.0, secondCost!!.total, 1e-9)
+    }
+
+    @Test
     fun `no limits means every request passes`() = runTest {
         val provider = setting(ProviderGuard())
         repeat(5) {

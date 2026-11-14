@@ -1381,3 +1381,10 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 
 涉及文件：`ui/components/ai/ChatQuotaStrip.kt`（新增）、`ui/pages/chat/ChatPage.kt`（挂到顶栏下方）、
 `ui/pages/setting/SettingPreferencesUIPage.kt`（开关）、`data/datastore/Settings.kt`（字段）。
+
+## 模型计费（2026-11-14 补充）
+
+- 每次请求的费用在 `ProviderGate` 里按「请求开始那一刻的价目表」结算，写进 `usage_record` 和消息统计。
+- 对话循环里改价目表（含变价规则）后，下一步请求就按新价目算：`ChatRequestFactory` 在每一步请求前按最新设置
+  重新取一次价目（`Model.repriced`），只换价格表，模型身份仍用轮次快照，避免一轮里换模型或改系统提示词。
+- 已经在途的请求按开始时的价目结算，不会因为中途改价重算；压缩、标题、翻译这些即时取设置的后台请求本来就按最新价目。

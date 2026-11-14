@@ -17,6 +17,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
@@ -251,6 +252,8 @@ class ChatRequestFactory(
         // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
         liveAssistant: suspend () -> Assistant = { turn.assistant },
         liveTodos: suspend () -> List<TodoItem> = { turn.todos },
+        // 价目表可能在一轮里被改：每一步请求前按最新设置取一次价目，取不到再用轮次快照
+        livePricing: suspend (Model) -> ModelPricing? = { null },
     ): Pair<AgentRequest, AgentHooks> {
         val injectedMessages = mutableListOf<UIMessage>()
         val request = AgentRequest(
@@ -284,6 +287,7 @@ class ChatRequestFactory(
                     onInputError = onInputError,
                     todoRemindersEnabled = liveAssistant().todoReminderEnabled,
                     todos = liveTodos(),
+                    livePricing = livePricing,
                 )
                 return if (injectedMessages.isEmpty()) {
                     step
@@ -418,6 +422,8 @@ class ChatRequestFactory(
         // 清单提醒的开关和内容；默认用 turn 的快照，循环里由调用方换成最新值
         todoRemindersEnabled: Boolean = turn.assistant.todoReminderEnabled,
         todos: List<TodoItem> = turn.todos,
+        // 价目表单独按最新设置取：模型身份仍用快照，只换价格
+        livePricing: suspend (Model) -> ModelPricing? = { null },
     ): StepRequest {
         val assistant = turn.assistant
         val tools = if (includeTools) turn.tools else emptyList()
@@ -465,8 +471,10 @@ class ChatRequestFactory(
         val requestMessages = transformedMessages
             .expandNotices()
             .expandInjectedTools(includeTodoReminders = todoRemindersEnabled)
+        // 价目表中途改了，这一步之后的入账和消息费用都按新价目算
+        val stepModel = turn.model.repriced(livePricing(turn.model))
         val params = TextGenerationParams(
-            model = turn.model,
+            model = stepModel,
             temperature = assistant.temperature,
             topP = assistant.topP,
             topK = assistant.topK,
@@ -657,3 +665,12 @@ private fun Conversation.effectiveWorkspaceCwds(assistant: Assistant): Map<Strin
     val primary = assistant.primaryWorkspaceId?.toString() ?: return workspaceCwds
     return if (workspaceCwds.containsKey(primary)) workspaceCwds else workspaceCwds + (primary to legacy)
 }
+
+/**
+ * 换掉模型里那张价目表，其余字段不动。
+ *
+ * 价目表可以在一轮对话中途被改：每一步请求前按最新设置取一次，本轮后续请求的入账、
+ * 消息费用和提供商配额的费用窗口都跟着新价目走；模型身份（id、上下文长度、能力）仍用轮次快照。
+ */
+internal fun Model.repriced(pricing: ModelPricing?): Model =
+    if (pricing == null) this else copy(pricing = pricing)
