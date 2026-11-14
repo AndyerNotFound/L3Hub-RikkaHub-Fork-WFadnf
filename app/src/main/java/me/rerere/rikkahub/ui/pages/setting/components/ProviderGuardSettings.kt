@@ -56,6 +56,7 @@ import me.rerere.ai.provider.ProviderLockRepeat
 import me.rerere.ai.provider.ProviderLockSchedule
 import me.rerere.ai.provider.ProviderQuotaMetric
 import me.rerere.ai.provider.ProviderQuotaWindow
+import me.rerere.ai.provider.ProviderQuotaWindowMode
 import me.rerere.ai.provider.ProviderQuotaWindowUnit
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.RequestOverride
@@ -413,6 +414,15 @@ private fun WindowRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (window.mode == ProviderQuotaWindowMode.FIXED) {
+                Text(
+                    text = fixedAnchorLabel(window),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (window.isEnabled && usage != null) {
                 val full = if (isCost) {
                     usage.costUsed >= window.costLimit
@@ -461,6 +471,17 @@ private fun WindowRow(
             )
         }
     }
+}
+
+@Composable
+private fun fixedAnchorLabel(window: ProviderQuotaWindow): String {
+    val start = runCatching {
+        LocalDateTime.of(LocalDate.parse(window.anchorDate), LocalTime.parse(window.anchorTime))
+    }.getOrNull() ?: return stringResource(R.string.setting_provider_guard_window_anchor_natural)
+    return stringResource(
+        R.string.setting_provider_guard_window_anchor_prefix,
+        start.format(LOCK_DATE_TIME_FORMAT),
+    )
 }
 
 @Composable
@@ -798,9 +819,24 @@ private fun QuotaWindowSheet(
     onDismiss: () -> Unit,
     onConfirm: (ProviderQuotaWindow) -> Unit,
 ) {
-    val base = initial ?: ProviderQuotaWindow()
+    val base = initial ?: ProviderQuotaWindow(mode = ProviderQuotaWindowMode.FIXED)
     var amountText by remember { mutableStateOf(base.amount.coerceAtLeast(1).toString()) }
     var unit by remember { mutableStateOf(base.unit) }
+    var mode by remember { mutableStateOf(base.mode) }
+    var anchorDate by remember {
+        mutableStateOf(
+            base.anchorDate.takeIf { it.isNotBlank() }
+                ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?: naturalAnchor(base.unit)
+        )
+    }
+    var anchorTime by remember {
+        mutableStateOf(
+            runCatching { LocalTime.parse(base.anchorTime) }.getOrDefault(LocalTime.MIDNIGHT)
+        )
+    }
+    // 用户没动过起算时间时，换单位就跟着换成该单位的自然边界（周一 / 1 日 / 当天 0 点）
+    var anchorTouched by remember { mutableStateOf(base.anchorDate.isNotBlank()) }
     var metric by remember { mutableStateOf(base.metric) }
     var limitText by remember { mutableStateOf(base.limit.takeIf { it > 0 }?.toString().orEmpty()) }
     var costLimitText by remember {
@@ -858,7 +894,10 @@ private fun QuotaWindowSheet(
                     SegmentedButton(
                         colors = glassSegmentedButtonColors(),
                         selected = unit == item,
-                        onClick = { unit = item },
+                        onClick = {
+                            unit = item
+                            if (!anchorTouched) anchorDate = naturalAnchor(item)
+                        },
                         shape = SegmentedButtonDefaults.itemShape(
                             index,
                             ProviderQuotaWindowUnit.entries.size,
@@ -871,6 +910,7 @@ private fun QuotaWindowSheet(
                                     ProviderQuotaWindowUnit.HOUR -> R.string.setting_provider_guard_unit_hour
                                     ProviderQuotaWindowUnit.DAY -> R.string.setting_provider_guard_unit_day
                                     ProviderQuotaWindowUnit.WEEK -> R.string.setting_provider_guard_unit_week
+                                    ProviderQuotaWindowUnit.MONTH -> R.string.setting_provider_guard_unit_month
                                 }
                             )
                         )
@@ -930,6 +970,68 @@ private fun QuotaWindowSheet(
                 )
             }
             Text(
+                text = stringResource(R.string.setting_provider_guard_window_mode),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                ProviderQuotaWindowMode.entries.forEachIndexed { index, item ->
+                    SegmentedButton(
+                        colors = glassSegmentedButtonColors(),
+                        selected = mode == item,
+                        onClick = { mode = item },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index,
+                            ProviderQuotaWindowMode.entries.size,
+                        ),
+                    ) {
+                        Text(
+                            stringResource(
+                                when (item) {
+                                    ProviderQuotaWindowMode.ROLLING ->
+                                        R.string.setting_provider_guard_window_mode_rolling
+
+                                    ProviderQuotaWindowMode.FIXED ->
+                                        R.string.setting_provider_guard_window_mode_fixed
+                                }
+                            )
+                        )
+                    }
+                }
+            }
+            Text(
+                text = stringResource(
+                    if (mode == ProviderQuotaWindowMode.FIXED) {
+                        R.string.setting_provider_guard_window_mode_fixed_desc
+                    } else {
+                        R.string.setting_provider_guard_window_mode_rolling_desc
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (mode == ProviderQuotaWindowMode.FIXED) {
+                PickerRow(
+                    label = stringResource(R.string.setting_provider_guard_window_anchor_date),
+                    value = anchorDate.format(LOCK_DATE_FORMAT),
+                    onClick = {
+                        pickDate(context, anchorDate) {
+                            anchorDate = it
+                            anchorTouched = true
+                        }
+                    },
+                )
+                PickerRow(
+                    label = stringResource(R.string.setting_provider_guard_window_anchor_time),
+                    value = anchorTime.format(LOCK_TIME_FORMAT),
+                    onClick = {
+                        pickTime(context, anchorTime) {
+                            anchorTime = it
+                            anchorTouched = true
+                        }
+                    },
+                )
+            }
+            Text(
                 text = stringResource(R.string.setting_provider_guard_window_disabled),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -951,6 +1053,27 @@ private fun QuotaWindowSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                if (mode == ProviderQuotaWindowMode.FIXED) {
+                    val fixedWindow = (initial ?: ProviderQuotaWindow()).copy(
+                        amount = amount,
+                        unit = unit,
+                        mode = ProviderQuotaWindowMode.FIXED,
+                        anchorDate = anchorDate.format(LOCK_DATE_FORMAT),
+                        anchorTime = anchorTime.format(LOCK_TIME_FORMAT),
+                    )
+                    fixedWindow.nextResetAt(System.currentTimeMillis())?.let { nextReset ->
+                        Text(
+                            text = stringResource(
+                                R.string.setting_provider_guard_window_fixed_preview,
+                                LocalDateTime.of(anchorDate, anchorTime).format(LOCK_DATE_TIME_FORMAT),
+                                fixedWindow.label(context),
+                                formatGuardTime(context, Instant.fromEpochMilliseconds(nextReset)),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -968,6 +1091,17 @@ private fun QuotaWindowSheet(
                                 metric = metric,
                                 limit = limit,
                                 costLimit = costLimit,
+                                mode = mode,
+                                anchorDate = if (mode == ProviderQuotaWindowMode.FIXED) {
+                                    anchorDate.format(LOCK_DATE_FORMAT)
+                                } else {
+                                    ""
+                                },
+                                anchorTime = if (mode == ProviderQuotaWindowMode.FIXED) {
+                                    anchorTime.format(LOCK_TIME_FORMAT)
+                                } else {
+                                    "00:00"
+                                },
                             )
                         )
                     },
@@ -1315,4 +1449,14 @@ private fun pickTime(context: Context, initial: LocalTime, onPick: (LocalTime) -
         initial.minute,
         true,
     ).show()
+}
+
+/** 新的固定窗口默认落在单位的自然边界上：当天 0 点、本周一、本月 1 日 */
+private fun naturalAnchor(unit: ProviderQuotaWindowUnit): LocalDate {
+    val today = LocalDate.now()
+    return when (unit) {
+        ProviderQuotaWindowUnit.WEEK -> today.minusDays((today.dayOfWeek.value - 1).toLong())
+        ProviderQuotaWindowUnit.MONTH -> today.withDayOfMonth(1)
+        else -> today
+    }
 }

@@ -8,6 +8,7 @@ import me.rerere.ai.provider.ProviderGuard
 import me.rerere.ai.provider.ProviderLockSchedule
 import me.rerere.ai.provider.ProviderQuotaMetric
 import me.rerere.ai.provider.ProviderQuotaWindow
+import me.rerere.ai.provider.ProviderQuotaWindowMode
 import me.rerere.ai.provider.ProviderQuotaWindowUnit
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
@@ -16,6 +17,7 @@ import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
@@ -29,6 +31,9 @@ class ProviderGateTest {
     private val messages = listOf(UIMessage.user("hello"))
 
     private fun setting(guard: ProviderGuard) = ProviderSetting.OpenAI(name = "Provider", guard = guard)
+
+    private fun millis(zone: ZoneId, text: String): Long =
+        LocalDateTime.parse(text).atZone(zone).toInstant().toEpochMilli()
 
     private suspend fun begin(setting: ProviderSetting): Result<ProviderGate.RequestTicket> =
         runCatching { gate.begin(setting, messages, params) }
@@ -231,6 +236,121 @@ class ProviderGateTest {
             assertTrue(begin(provider).isSuccess)
             now += 1_000L
         }
+    }
+
+    @Test
+    fun `fixed window blocks until the period boundary`() = runTest {
+        val zone = ZoneId.of("Asia/Shanghai")
+        now = millis(zone, "2026-11-14T09:00:00")
+        val fixedGate = ProviderGate(dao = EmptyUsageDao(), clock = { now }, zone = zone)
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 5,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.REQUESTS,
+                        limit = 1,
+                        mode = ProviderQuotaWindowMode.FIXED,
+                        anchorDate = "2026-11-14",
+                        anchorTime = "08:00",
+                    )
+                )
+            )
+        )
+
+        assertTrue(runCatching { fixedGate.begin(provider, messages, params) }.isSuccess)
+
+        now = millis(zone, "2026-11-14T09:01:00")
+        val blocked = runCatching { fixedGate.begin(provider, messages, params) }.exceptionOrNull()
+        assertTrue(blocked is ProviderLimitException)
+        val limited = blocked as ProviderLimitException
+        // 固定窗口的恢复时间就是周期结束，不是「最早一条滚出去」的时刻
+        assertEquals(
+            millis(zone, "2026-11-14T13:00:00"),
+            limited.retryAt?.toEpochMilliseconds(),
+        )
+
+        now = millis(zone, "2026-11-14T12:59:00")
+        assertTrue(
+            runCatching { fixedGate.begin(provider, messages, params) }
+                .exceptionOrNull() is ProviderLimitException
+        )
+
+        // 13:00 进入下一个周期，旧用量整段作废
+        now = millis(zone, "2026-11-14T13:00:00")
+        assertTrue(runCatching { fixedGate.begin(provider, messages, params) }.isSuccess)
+        now = millis(zone, "2026-11-14T13:05:00")
+        assertTrue(
+            runCatching { fixedGate.begin(provider, messages, params) }
+                .exceptionOrNull() is ProviderLimitException
+        )
+        now = millis(zone, "2026-11-14T18:00:00")
+        assertTrue(runCatching { fixedGate.begin(provider, messages, params) }.isSuccess)
+    }
+
+    @Test
+    fun `fixed window drops usage from earlier periods while rolling still counts it`() = runTest {
+        val zone = ZoneId.of("Asia/Shanghai")
+        now = millis(zone, "2026-11-14T09:00:00")
+        val event = ProviderUsageEvent(
+            createdAt = millis(zone, "2026-11-13T23:50:00"),
+            tokens = 1_000,
+            promptTokens = 1_000,
+            completionTokens = 0,
+            cachedTokens = 0,
+            modelId = null,
+        )
+        val fixed = ProviderQuotaWindow(
+            amount = 1,
+            unit = ProviderQuotaWindowUnit.DAY,
+            metric = ProviderQuotaMetric.REQUESTS,
+            limit = 1,
+            mode = ProviderQuotaWindowMode.FIXED,
+            anchorDate = "2026-11-01",
+            anchorTime = "00:00",
+        )
+        val rolling = fixed.copy(mode = ProviderQuotaWindowMode.ROLLING)
+        val nightlyGate = ProviderGate(dao = EmptyUsageDao(listOf(event)), clock = { now }, zone = zone)
+
+        // 昨天的请求不在今天的固定窗口里
+        val fixedProvider = setting(ProviderGuard(windows = listOf(fixed)))
+        assertTrue(runCatching { nightlyGate.begin(fixedProvider, messages, params) }.isSuccess)
+
+        // 同样的请求落在滚动 24 小时窗口里，仍然计入
+        val rollingProvider = setting(ProviderGuard(windows = listOf(rolling)))
+        assertTrue(
+            runCatching { nightlyGate.begin(rollingProvider, messages, params) }
+                .exceptionOrNull() is ProviderLimitException
+        )
+    }
+
+    @Test
+    fun `fixed window status always reports the next reset`() = runTest {
+        val zone = ZoneId.of("Asia/Shanghai")
+        now = millis(zone, "2026-11-14T09:00:00")
+        val fixedGate = ProviderGate(dao = EmptyUsageDao(), clock = { now }, zone = zone)
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 1,
+                        unit = ProviderQuotaWindowUnit.WEEK,
+                        metric = ProviderQuotaMetric.REQUESTS,
+                        limit = 10,
+                        mode = ProviderQuotaWindowMode.FIXED,
+                        anchorDate = "2026-11-09",
+                        anchorTime = "00:00",
+                    )
+                )
+            )
+        )
+        fixedGate.begin(provider, messages, params)
+
+        now = millis(zone, "2026-11-14T09:30:00")
+        val usage = fixedGate.status(provider).windows.single()
+        assertEquals(1, usage.used)
+        assertEquals(millis(zone, "2026-11-16T00:00:00"), usage.resetAt?.toEpochMilliseconds())
     }
 
     @Test

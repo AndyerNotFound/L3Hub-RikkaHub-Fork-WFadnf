@@ -674,5 +674,6 @@ private fun ProviderQuotaWindow.compactLabel(): String {
         ProviderQuotaWindowUnit.HOUR -> "${count}h"
         ProviderQuotaWindowUnit.DAY -> "${count}d"
         ProviderQuotaWindowUnit.WEEK -> "${count}w"
+        ProviderQuotaWindowUnit.MONTH -> "${count}mo"
     }
 }

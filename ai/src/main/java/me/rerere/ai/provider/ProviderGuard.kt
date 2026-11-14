@@ -7,6 +7,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -38,7 +39,7 @@ data class ProviderGuard(
 
     /** 需要保留多久的请求流水，用来计算所有时间窗 */
     fun usageRetentionMillis(): Long {
-        val longestWindow = windows.maxOfOrNull { it.durationMillis() } ?: 0L
+        val longestWindow = windows.maxOfOrNull { it.retentionMillis() } ?: 0L
         return maxOf(60_000L, longestWindow)
     }
 }
@@ -71,12 +72,39 @@ enum class ProviderQuotaWindowUnit(val millis: Long) {
 
     @SerialName("week")
     WEEK(7 * 24 * 60 * 60_000L),
+
+    /**
+     * 一个月：长度按日历计算，[millis] 只是 30 天的估值，
+     * 只用在不需要精确边界的场合。
+     */
+    @SerialName("month")
+    MONTH(30 * 24 * 60 * 60_000L),
+}
+
+/** 没有指定起算日期时的网格原点；周从周一算起 */
+private val NATURAL_ANCHOR = LocalDate.of(1970, 1, 1)
+private val NATURAL_WEEK_ANCHOR = LocalDate.of(1969, 12, 29)
+
+/** 时间段限额的窗口算法 */
+@Serializable
+enum class ProviderQuotaWindowMode {
+    /** 滑动窗口：从当前时刻往前推一个窗口长度，用量随时间逐条释放 */
+    @SerialName("rolling")
+    ROLLING,
+
+    /** 固定窗口：按起算时刻对齐，每到一个窗口长度整段重置 */
+    @SerialName("fixed")
+    FIXED,
 }
 
 /**
  * 一条自定义时间段限额，例如「每 5 小时最多 40 次请求」或「每天最多 200 万 token」。
  *
- * 按滑动窗口计算：从当前时刻往前推 [amount] 个 [unit]，统计其中的请求次数或 token 用量。
+ * 窗口有两种算法：
+ *
+ * - [ProviderQuotaWindowMode.ROLLING]：从当前时刻往前推 [amount] 个 [unit]，用量随时间逐条释放；
+ * - [ProviderQuotaWindowMode.FIXED]：以 [anchorDate] [anchorTime] 为起算点，每满一个
+ *   [amount] × [unit] 的周期整段重置，像订阅额度那样从某刻起算、到某刻归零。
  */
 @Serializable
 data class ProviderQuotaWindow(
@@ -88,13 +116,108 @@ data class ProviderQuotaWindow(
     val limit: Int = 0,
     // COST 计量时时间窗内允许的花费，0 表示未启用；货币单位与模型计价一致
     val costLimit: Double = 0.0,
+    // 新增字段放在末尾，旧备份缺字段时按滚动窗口处理，与旧版行为一致
+    val mode: ProviderQuotaWindowMode = ProviderQuotaWindowMode.ROLLING,
+    // FIXED 的起算日期 yyyy-MM-dd；空串表示按固定网格原点对齐（本地 0 点 / 周一 0 点 / 每月 1 日 0 点）
+    val anchorDate: String = "",
+    // FIXED 的起算时刻 HH:mm
+    val anchorTime: String = "00:00",
 ) {
-    fun durationMillis(): Long = unit.millis * amount.coerceAtLeast(1).toLong()
+    /** 窗口长度；MONTH 按 30 天估值，精确边界见 fixedBounds */
+    fun durationMillis(): Long = unit.millis * safeAmount()
+
+    /** 需要保留的流水长度；MONTH 按 32 天留出日历差异的余量 */
+    fun retentionMillis(): Long = when (unit) {
+        ProviderQuotaWindowUnit.MONTH -> 32L * ProviderQuotaWindowUnit.DAY.millis * safeAmount()
+        else -> durationMillis()
+    }
 
     val isEnabled: Boolean
         get() = when (metric) {
             ProviderQuotaMetric.COST -> costLimit > 0
             else -> limit > 0
+        }
+
+    /** 旧备份或手改的配置可能给出夸张的数值，夹一下避免毫秒计算溢出 */
+    private fun safeAmount(): Long = amount.coerceIn(1, 100_000).toLong()
+
+    /**
+     * 固定窗口的起算时刻。日期为空时退化为自然边界，网格原点取固定的历史日期而不是「今天」，
+     * 否则「每 2 天」这类周期会随日期漂移：天/小时/分钟从 1970-01-01 0 点起算（0 点对齐），
+     * 周从 1969-12-29（周一）起算，月从 1970-01 起算。
+     */
+    private fun fixedAnchorAt(zone: ZoneId): LocalDateTime {
+        val explicit = anchorDate.takeIf { it.isNotBlank() }
+            ?.let { text -> runCatching { LocalDate.parse(text) }.getOrNull() }
+        if (explicit != null) {
+            val time = runCatching { LocalTime.parse(anchorTime) }.getOrDefault(LocalTime.MIDNIGHT)
+            return LocalDateTime.of(explicit, time)
+        }
+        val date = if (unit == ProviderQuotaWindowUnit.WEEK) {
+            NATURAL_WEEK_ANCHOR
+        } else {
+            NATURAL_ANCHOR
+        }
+        return date.atStartOfDay()
+    }
+
+    /** 固定窗口里包含 [nowMillis] 的周期 [start, end)；起点可以早于起算日期，网格照常往前延伸 */
+    private fun fixedBounds(nowMillis: Long, zone: ZoneId): Pair<Long, Long> {
+        val anchor = fixedAnchorAt(zone)
+        val count = safeAmount()
+        if (unit == ProviderQuotaWindowUnit.MONTH) {
+            val nowLocal = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone)
+            var index = ChronoUnit.MONTHS.between(anchor.toLocalDate(), nowLocal.toLocalDate()) / count
+            var step = 0
+            fun startOf(i: Long): Long =
+                anchor.plusMonths(i * count).atZone(zone).toInstant().toEpochMilli()
+            while (startOf(index) > nowMillis && step++ < 64) index--
+            while (startOf(index + 1) <= nowMillis && step++ < 64) index++
+            return startOf(index) to startOf(index + 1)
+        }
+        val anchorMillis = anchor.atZone(zone).toInstant().toEpochMilli()
+        val period = unit.millis * count
+        val index = Math.floorDiv(nowMillis - anchorMillis, period)
+        val start = anchorMillis + index * period
+        return start to start + period
+    }
+
+    /** 当前窗口的起点：固定窗口取周期边界，滑动窗口从当前时刻往前推 */
+    fun windowStartAt(nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        when (mode) {
+            ProviderQuotaWindowMode.FIXED -> fixedBounds(nowMillis, zone).first
+            ProviderQuotaWindowMode.ROLLING ->
+                if (unit == ProviderQuotaWindowUnit.MONTH) {
+                    LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone)
+                        .minusMonths(safeAmount())
+                        .atZone(zone)
+                        .toInstant()
+                        .toEpochMilli()
+                } else {
+                    nowMillis - durationMillis()
+                }
+        }
+
+    /** 固定窗口的下一次重置时刻；滑动窗口的恢复时间由用量释放决定，返回 null */
+    fun nextResetAt(nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long? =
+        if (mode == ProviderQuotaWindowMode.FIXED) fixedBounds(nowMillis, zone).second else null
+
+    /** 一条从 [startedAt] 开始的用量在 [nowMillis] 的窗口里是否仍然计入 */
+    fun countsAt(nowMillis: Long, startedAt: Long, zone: ZoneId = ZoneId.systemDefault()): Boolean {
+        val start = windowStartAt(nowMillis, zone)
+        return if (mode == ProviderQuotaWindowMode.FIXED) startedAt >= start else startedAt > start
+    }
+
+    /** 滑动窗口里一条用量滚出窗口的时刻 */
+    fun releaseAt(startedAt: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        if (unit == ProviderQuotaWindowUnit.MONTH) {
+            LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(startedAt), zone)
+                .plusMonths(safeAmount())
+                .atZone(zone)
+                .toInstant()
+                .toEpochMilli()
+        } else {
+            startedAt + durationMillis()
         }
 }
 

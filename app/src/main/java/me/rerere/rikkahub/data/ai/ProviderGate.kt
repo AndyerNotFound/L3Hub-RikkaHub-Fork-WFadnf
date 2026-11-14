@@ -152,6 +152,8 @@ class ProviderGate(
     private val clock: () -> Long = { System.currentTimeMillis() },
     // 计费用的 token 单价口径（1M 或 Mi），跟设置里的「以二进制量计数」保持一致
     private val unitTokens: () -> Double = { TOKENS_PER_MILLION },
+    // 时间窗按本地时区对齐；单测固定时区，避免依赖运行机器的时区
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) {
     private val processStart = clock()
     private val ledgerLock = Any()
@@ -256,7 +258,7 @@ class ProviderGate(
                 rpmUsed = minuteEvents.size,
                 tpmUsed = minuteEvents.sumOf { it.tokens },
                 windows = guard.windows.map { window ->
-                    val events = list.filter { now - it.startedAt < window.durationMillis() }
+                    val events = list.filter { window.countsAt(now, it.startedAt, zone) }
                     val used = when (window.metric) {
                         ProviderQuotaMetric.REQUESTS -> events.size
                         ProviderQuotaMetric.TOKENS -> events.sumOf { it.tokens }
@@ -276,9 +278,13 @@ class ProviderGate(
                         window = window,
                         used = used,
                         costUsed = costUsed,
-                        resetAt = if (window.isEnabled && full) {
-                            windowResetAt(events, window)
-                        } else null,
+                        // 固定窗口任何时候都有下一次重置；滑动窗口只在满额时算恢复时间
+                        resetAt = when {
+                            !window.isEnabled -> null
+                            else -> window.nextResetAt(now, zone)
+                                ?.let { Instant.fromEpochMilliseconds(it) }
+                                ?: if (full) windowResetAt(events, window) else null
+                        },
                     )
                 },
             )
@@ -310,7 +316,9 @@ class ProviderGate(
         val recent = events.filter { now - it.startedAt < 60_000L }
         val used = recent.sumOf { it.tokens }
         if (used + estimatedTokens <= limit) return
-        val retryAt = resolveRetryAt(recent, used + estimatedTokens - limit, 60_000L, now, tokens = true)
+        val retryAt = resolveRetryAt(recent, used + estimatedTokens - limit, now, tokens = true) {
+            it + 60_000L
+        }
         throw ProviderLimitException(
             texts.tpm(providerName, limit, estimatedTokens, retryAt),
             retryAt = retryAt,
@@ -326,14 +334,17 @@ class ProviderGate(
         providerName: String,
     ) {
         if (!window.isEnabled) return
-        val duration = window.durationMillis()
-        val recent = events.filter { now - it.startedAt < duration }
+        val recent = events.filter { window.countsAt(now, it.startedAt, zone) }
+        // 固定窗口的重置点就是周期边界，滑动窗口才需要算用量释放到何时
+        val resetAt = window.nextResetAt(now, zone)?.let { Instant.fromEpochMilliseconds(it) }
         when (window.metric) {
             ProviderQuotaMetric.REQUESTS -> {
                 val used = recent.size
                 val needed = used - window.limit + 1
                 if (needed <= 0) return
-                val retryAt = resolveRetryAt(recent, needed, duration, now, tokens = false)
+                val retryAt = resetAt ?: resolveRetryAt(recent, needed, now, tokens = false) {
+                    window.releaseAt(it, zone)
+                }
                 throw ProviderLimitException(
                     texts.windowRequests(providerName, window, retryAt),
                     retryAt = retryAt,
@@ -344,7 +355,9 @@ class ProviderGate(
                 val used = recent.sumOf { it.tokens }
                 val needed = used + estimatedTokens - window.limit
                 if (needed <= 0) return
-                val retryAt = resolveRetryAt(recent, needed, duration, now, tokens = true)
+                val retryAt = resetAt ?: resolveRetryAt(recent, needed, now, tokens = true) {
+                    window.releaseAt(it, zone)
+                }
                 throw ProviderLimitException(
                     texts.windowTokens(providerName, window, retryAt),
                     retryAt = retryAt,
@@ -355,7 +368,7 @@ class ProviderGate(
                 val used = recent.sumOf { it.cost }
                 val needed = used + estimatedCost - window.costLimit
                 if (needed <= 0) return
-                val retryAt = resolveRetryAtCost(recent, needed, duration, now)
+                val retryAt = resetAt ?: resolveRetryAtCost(recent, needed, window, now)
                 throw ProviderLimitException(
                     texts.windowCost(providerName, window, retryAt),
                     retryAt = retryAt,
@@ -364,39 +377,39 @@ class ProviderGate(
         }
     }
 
-    /** 还要释放多少用量才能通过，以及最早什么时候能释放够 */
+    /** 还要释放多少用量才能通过，以及最早什么时候能释放够；[releaseAt] 给出某条用量滚出窗口的时刻 */
     private fun resolveRetryAt(
         events: List<RequestStamp>,
         needed: Int,
-        durationMillis: Long,
         now: Long,
         tokens: Boolean,
+        releaseAt: (Long) -> Long,
     ): Instant {
         var freed = 0
         for (event in events) {
             freed += if (tokens) event.tokens else 1
             if (freed >= needed) {
-                return Instant.fromEpochMilliseconds(event.startedAt + durationMillis)
+                return Instant.fromEpochMilliseconds(releaseAt(event.startedAt))
             }
         }
-        return Instant.fromEpochMilliseconds(now + durationMillis)
+        return Instant.fromEpochMilliseconds(releaseAt(now))
     }
 
     /** 费用口径的释放时间：从最早的一条开始累加，直到释放够需要的花费 */
     private fun resolveRetryAtCost(
         events: List<RequestStamp>,
         needed: Double,
-        durationMillis: Long,
+        window: ProviderQuotaWindow,
         now: Long,
     ): Instant {
         var freed = 0.0
         for (event in events) {
             freed += event.cost
             if (freed + COST_EPSILON >= needed) {
-                return Instant.fromEpochMilliseconds(event.startedAt + durationMillis)
+                return Instant.fromEpochMilliseconds(window.releaseAt(event.startedAt, zone))
             }
         }
-        return Instant.fromEpochMilliseconds(now + durationMillis)
+        return Instant.fromEpochMilliseconds(window.releaseAt(now, zone))
     }
 
     private fun windowResetAt(
@@ -411,7 +424,7 @@ class ProviderGate(
                 for (event in events) {
                     freed += 1
                     if (freed >= needed) {
-                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                        return Instant.fromEpochMilliseconds(window.releaseAt(event.startedAt, zone))
                     }
                 }
                 null
@@ -424,7 +437,7 @@ class ProviderGate(
                 for (event in events) {
                     freed += event.tokens
                     if (freed >= needed) {
-                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                        return Instant.fromEpochMilliseconds(window.releaseAt(event.startedAt, zone))
                     }
                 }
                 null
@@ -437,7 +450,7 @@ class ProviderGate(
                 for (event in events) {
                     freed += event.cost
                     if (freed + COST_EPSILON >= needed) {
-                        return Instant.fromEpochMilliseconds(event.startedAt + window.durationMillis())
+                        return Instant.fromEpochMilliseconds(window.releaseAt(event.startedAt, zone))
                     }
                 }
                 null
@@ -545,6 +558,7 @@ fun ProviderQuotaWindow.label(context: Context): String {
             ProviderQuotaWindowUnit.HOUR -> R.plurals.provider_guard_duration_hours
             ProviderQuotaWindowUnit.DAY -> R.plurals.provider_guard_duration_days
             ProviderQuotaWindowUnit.WEEK -> R.plurals.provider_guard_duration_weeks
+            ProviderQuotaWindowUnit.MONTH -> R.plurals.provider_guard_duration_months
         },
         count,
         count,
