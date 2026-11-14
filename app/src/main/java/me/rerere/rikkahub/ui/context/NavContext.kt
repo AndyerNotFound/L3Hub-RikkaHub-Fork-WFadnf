@@ -45,9 +45,22 @@ class Navigator(private val backStack: MutableList<NavKey>) {
         backStack.add(screen)
     }
 
+    /**
+     * 转场是否还在播，由 `rememberNavTransitionReporter()` 从 scene 里回写。
+     *
+     * 同一段转场里所有 scene 共用同一个 Transition，算出来的值必然一致，
+     * 所以这里不需要引用计数，谁最后写都一样。
+     */
+    var transitionInFlight: Boolean = false
+
     fun popBackStack() {
         val now = SystemClock.uptimeMillis()
-        if (!throttle(now, lastPopAt)) return
+        // 同一帧里的重复回调只认第一次：nav3 的 onBack 按「待弹条数」回调多次，
+        // 第二次进来时栈还没刷新，放过去会把栈弹空。
+        if (now - lastPopAt < SAME_FRAME_MS) return
+        // 转场还在播时不防抖：这一下是「动画没播完就想再退一层」的明确意图，
+        // 交给 nav3 去重定向，代价是连点两下会一次退两层；空闲时的连点仍按 250ms 拦掉。
+        if (!transitionInFlight && !throttle(now, lastPopAt)) return
         if (backStack.size > 1) {
             lastPopAt = now
             backStack.removeLastOrNull()
@@ -56,6 +69,9 @@ class Navigator(private val backStack: MutableList<NavKey>) {
 }
 
 private const val NAVIGATION_THROTTLE_MS = 250L
+
+/** 同一帧内的重复回调窗口：转场在不在播都要拦，否则一次返回会弹掉两层。 */
+private const val SAME_FRAME_MS = 16L
 
 class NavigateOptionsBuilder {
     internal var popUpToScreen: Screen? = null

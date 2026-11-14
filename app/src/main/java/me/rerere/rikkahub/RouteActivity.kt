@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -121,6 +122,7 @@ import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.ui.hooks.rememberNavInputGuardDecorator
+import me.rerere.rikkahub.ui.hooks.rememberNavTransitionReporter
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
@@ -186,6 +188,7 @@ import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
@@ -506,6 +509,9 @@ class RouteActivity : ComponentActivity() {
                     // 页面滑入/滑出用 expressive 的空间曲线（有加速有减速），
                     // 默认那个弹簧偏匀速，看起来像线性
                     val pageSlideSpec = rememberSpatialSpec<IntOffset>()
+                    // 淡入淡出也走设置里的动画档位：原先吃 fadeIn/fadeOut 的默认弹簧，
+                    // 用户把动画调快以后位移已经收住、淡入还按原时长慢慢走
+                    val pageFadeSpec = rememberEffectsSpec<Float>()
                     val navController = LocalNavController.current
                     // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
                     // 栏本身不参与转场，NavDisplay 一直待在同一个槽位里，进出设置不会重建。
@@ -657,11 +663,12 @@ class RouteActivity : ComponentActivity() {
                                 MediaCreationSessionsPage()
                             }
 
-                            // 从会话列表展开（容器变换），页面本身只做淡入淡出，避免和平移打架
+                            // 从会话列表展开（容器变换）：进场只淡入淡出，免得和平移打架；
+                            // 返回不单独覆盖，跟其它页一样走 display 级的下滑
                             entry<Screen.MediaCreation>(
-                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
-                                    + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
-                                    + NavDisplay.predictivePopTransitionSpec { fadeIn() togetherWith fadeOut() }
+                                metadata = NavDisplay.transitionSpec {
+                                    fadeIn(pageFadeSpec) togetherWith fadeOut(pageFadeSpec)
+                                }
                             ) { key ->
                                 MediaCreationPage(key.id)
                             }
@@ -895,13 +902,15 @@ class RouteActivity : ComponentActivity() {
                             // 转场期间离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题）。
                             // 这一层把它的输入吞掉，不会再误触已经离场那一页的按钮
                             rememberNavInputGuardDecorator<NavKey>(),
+                            // 转场是否还在播回写给 Navigator，返回防抖据此放行
+                            rememberNavTransitionReporter<NavKey>(navController),
                         ),
                         modifier = Modifier
                             .width(middleColumnWidth)
                             .fillMaxHeight(),
-                        // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
-                        // 走 Navigator 而不是直接改 backStack：系统返回键也得过防抖，
-                        // 不然连按两下会一次退两层
+                        // 走 Navigator 而不是直接改 backStack：系统返回键也走同一套判断。
+                        // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时放行，
+                        // 让「动画没播完就想再退一层」真的生效
                         onBack = { navController.popBackStack() },
                         // 有源条目的页面：位移交给容器变换去演，这里只留淡入淡出，免得两层动画打架
                         // 没有源条目的页面（抽屉、聊天流里的入口）：从下方滑入、向下滑出，比纯淡出更有方向感
@@ -911,43 +920,29 @@ class RouteActivity : ComponentActivity() {
                             when {
                                 // 侧边栏点进来的会话：抽屉先收回去，会话页再从点击项那一侧落下来
                                 enterFromTop != null ->
-                                    (slideInVertically(animationSpec = pageSlideSpec) { if (enterFromTop) -it else it } + fadeIn()) togetherWith fadeOut()
+                                    (slideInVertically(animationSpec = pageSlideSpec) { if (enterFromTop) -it else it } +
+                                        fadeIn(pageFadeSpec)) togetherWith fadeOut(pageFadeSpec)
 
-                                target?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> (slideInVertically(animationSpec = pageSlideSpec) { it } + fadeIn()) togetherWith fadeOut()
+                                target?.usesHeroTransition() == true ->
+                                    fadeIn(pageFadeSpec) togetherWith fadeOut(pageFadeSpec)
+
+                                else -> (slideInVertically(animationSpec = pageSlideSpec) { it } +
+                                    fadeIn(pageFadeSpec)) togetherWith fadeOut(pageFadeSpec)
                             }
                         },
+                        // 返回只有一种：整页向下滑出，底下的页面原地露出，不淡入也不淡出
                         popTransitionSpec = {
-                            val initial = initialState as? Screen
-                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
-                            when {
-                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
-                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
-                                    animationSpec = pageSlideSpec,
-                                ) { if (enterFromTop) -it else it } + fadeOut())
-
-                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
-                            }
+                            EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
                         },
+                        // 手势返回跟手后收尾也走同一条下滑
                         predictivePopTransitionSpec = {
-                            val initial = initialState as? Screen
-                            val enterFromTop = (initial as? Screen.Chat)?.enterFromTop
-                            when {
-                                // 从上方落进来的会话，返回时要原路上去，不然方向不闭环
-                                enterFromTop != null -> fadeIn() togetherWith (slideOutVertically(
-                                    animationSpec = pageSlideSpec,
-                                ) { if (enterFromTop) -it else it } + fadeOut())
-
-                                initial?.usesHeroTransition() == true -> fadeIn() togetherWith fadeOut()
-                                else -> fadeIn() togetherWith (slideOutVertically(animationSpec = pageSlideSpec) { it } + fadeOut())
-                            }
+                            EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
                         },
                         entryProvider = navEntries,
                     )
 
-                    // 右列：只放设置页里的下钻页，进出用淡入淡出；宽度超出中列留出的那部分时，
-                    // 从右边盖住中列，而不是把中列压窄
+                    // 右列：只放设置页里的下钻页，进场淡入淡出、返回跟中列一样向下滑出；
+                    // 宽度超出中列留出的那部分时，从右边盖住中列，而不是把中列压窄
                     if (rightColumnFraction > 0.001f) {
                         Row(
                             modifier = Modifier
@@ -969,14 +964,19 @@ class RouteActivity : ComponentActivity() {
                                 rememberSaveableStateHolderNavEntryDecorator(),
                                 rememberViewModelStoreNavEntryDecorator(),
                                 rememberNavInputGuardDecorator<NavKey>(),
+                                rememberNavTransitionReporter<NavKey>(navController),
                             ),
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                             onBack = { navController.popBackStack() },
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                            popTransitionSpec = { fadeIn() togetherWith fadeOut() },
-                            predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                            transitionSpec = { fadeIn(pageFadeSpec) togetherWith fadeOut(pageFadeSpec) },
+                            popTransitionSpec = {
+                                EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
+                            },
+                            predictivePopTransitionSpec = {
+                                EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
+                            },
                             entryProvider = navEntries,
                         )
                         }

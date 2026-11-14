@@ -4,12 +4,14 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import me.rerere.rikkahub.ui.context.Navigator
 
 /**
  * 转场期间不让离场的那一页吃掉点击。
@@ -64,4 +66,30 @@ fun <T : Any> rememberNavInputGuardDecorator(): NavEntryDecorator<T> = remember 
             }
         }
     }
+}
+
+/**
+ * 把「转场是否还在播」回写到 [Navigator]，返回防抖靠它判断该不该放行。
+ *
+ * 判定和 guard 一样：`transition.currentState != transition.targetState` 就是还在演。
+ * 同一段转场里所有 scene 共用同一个 Transition，写进去的值必然一致，不需要引用计数。
+ * 只做回写，不碰布局也不碰输入。
+ */
+@Composable
+fun <T : Any> rememberNavTransitionReporter(
+    navigator: Navigator,
+): NavEntryDecorator<T> = remember(navigator) {
+    NavEntryDecorator<T> { entry ->
+        // 读转场状态单独占一个重组作用域：和 entry.Content() 放在同一个 lambda 里，
+        // 三次状态切换（PreEnter / Visible / PostExit）会连带整页重新调用一遍
+        NavTransitionReport(navigator)
+        entry.Content()
+    }
+}
+
+@Composable
+private fun NavTransitionReport(navigator: Navigator) {
+    val transition = LocalNavAnimatedContentScope.current.transition
+    val inFlight = transition.currentState != transition.targetState
+    SideEffect { navigator.transitionInFlight = inFlight }
 }

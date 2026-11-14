@@ -493,9 +493,11 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 
 ## 页面容器变换（fork 新增）
 
-页面切换不再整页横移，改成「容器变换」：点的那一行（设置里的分组卡片、助手卡片、列表项）自己展开成整页，
-返回时收回那一行里。位移交给 `SharedTransitionLayout` 里的 hero 容器演，`NavDisplay` 的
-`transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec` 只留淡入淡出，两层动画不再打架。
+页面切换不再整页横移，改成「容器变换」：点的那一行（设置里的分组卡片、助手卡片、列表项）自己展开成整页。
+位移交给 `SharedTransitionLayout` 里的 hero 容器演，`NavDisplay` 的 `transitionSpec` 只留淡入淡出，
+两层动画不再打架。只有进场参与共享元素：返回统一整页向下滑出（`popTransitionSpec` /
+`predictivePopTransitionSpec` 都是 `EnterTransition.None togetherWith slideOutVertically`），
+离场那一侧会先摘掉共享元素，页面不会一边下滑一边被 overlay 收进条目里。
 
 - 目标页：`RouteActivity.kt` 里绝大多数 `entry<T>` 换成 `heroEntry<T>`，把页面包进
   `HeroPage(key.heroKey())`；页面到位后圆角从 20dp 收到直角，退场时再长回去。
@@ -516,7 +518,18 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 看起来是空的，点下去算点它。`ui/hooks/NavInputGuard.kt` 的 `rememberNavInputGuardDecorator()` 给
 「目标状态不是 Visible」的 entry 盖一层 `Box`，在 `PointerEventPass.Initial` 把指针事件消费掉；
 正在进场的那一页不拦，它自己的位移是 `graphicsLayer` 做的，命中区域跟着视觉位置走。
-代价是纯 fade 的退场（`usesHeroTransition()` 为 false 的那几个页面）在 pop 时整屏有约一个动画时长的空窗。
+代价是转场开头那一小段整屏不可点：pop 改成整页下滑以后命中区域随位移让出，空窗从「整屏整段」
+缩到「首帧到滑走」；纯 fade 的退场（`Screen.Setting` 切配色那一路 `popUpTo` 原地重进）仍然整段都空。
+「点一下让转场提前结束」做不到：Compose 的同级命中测试命中第一个节点就停，这层一撤，
+被盖住的那一页马上重新吃点击，正是当初要修的问题。
+
+转场期间的返回由 `ui/context/NavContext.kt` 判定：同一帧里的重复回调吃掉（否则一次返回会弹掉两层），
+`Navigator.transitionInFlight` 为真时不走 250ms 防抖 —— 这一下是「动画没播完就想再退一层」的明确意图，
+交给 nav3 重定向，代价是连点两下会一次退两层。转场状态由 `rememberNavTransitionReporter()` 从 scene 里回写
+（同一段转场里所有 scene 共用一个 `Transition`，值必然一致，不需要引用计数）。
+
+淡入淡出统一取 `ui/theme/MotionSpecs.kt` 的 `rememberEffectsSpec()`（`RouteActivity` 里的 `pageFadeSpec`），
+和位移一起跟设置里的动画档位走；原先吃 `fadeIn()` / `fadeOut()` 的默认弹簧，调快档位后位移收住了、淡入还在按原时长走。
 
 `CardGroup` 跟着加了两样：
 
@@ -528,7 +541,8 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 | 文件 | 说明 |
 |---|---|
 | `ui/hooks/HeroAnimation.kt` | 新增 `HeroPage`、`heroSource`、`Screen.heroKey()`、`HeroSourceCorner` |
-| `RouteActivity.kt` | `heroEntry` 扩展；`transitionSpec` 只留淡入淡出 |
+| `RouteActivity.kt` | `heroEntry` 扩展；`transitionSpec` 只留淡入淡出；pop 一律下滑、淡入淡出取 `rememberEffectsSpec()` |
+| `ui/hooks/NavInputGuard.kt` | `rememberNavInputGuardDecorator()` 吞离场页指针输入；`rememberNavTransitionReporter()` 回写转场状态 |
 | `ui/components/ui/CardGroup.kt` | `heroScreen` / `visible` 参数、展开收起动画 |
 
 `CardGroup` 的 `content` 参数**不能**标 `@Composable`：标了之后它变成一个独立的重组作用域，

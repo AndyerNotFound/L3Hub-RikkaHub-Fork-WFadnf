@@ -64,10 +64,10 @@ fun Modifier.heroContainer(
 }
 
 /**
- * 目标页面侧的容器变换：把整页包进去，它就从源条目（同一个 [heroKey]）展开，返回时收回条目里。
+ * 目标页面侧的容器变换：把整页包进去，它就从源条目（同一个 [heroKey]）展开。
  *
- * 圆角跟着进出场做：进场时从源条目的圆角收到直角，退场时再长回去，和 [heroSource] 那一侧对上。
- * 页面自己不再播平移/景深，转场只留淡入淡出（见 RouteActivity 的 transitionSpec）。
+ * 只有进场参与共享元素。返回统一由 display 级的下滑演（RouteActivity 的 popTransitionSpec），
+ * 离场时这一层会被摘掉，页面不会一边下滑一边收进条目里。
  */
 @Composable
 fun HeroPage(
@@ -89,10 +89,25 @@ fun HeroPage(
         modifier = modifier
             .fillMaxSize()
             // 弹簧会过冲，负半径会让 RoundedCornerShape 直接抛异常
-            .heroContainer(heroKey, RoundedCornerShape(corner.coerceAtLeast(0.dp))),
+            .heroPageContainer(heroKey, RoundedCornerShape(corner.coerceAtLeast(0.dp))),
     ) {
         content()
     }
+}
+
+/**
+ * 页面侧（共享元素的目标那一半）的容器变换，只在进场时套上。
+ *
+ * `sharedBounds` 没有方向参数：推送和返回共用同一套配对逻辑，只要两边都在组合里就会演。
+ * 返回要的是整页下滑，所以离场这一半必须退出共享元素——摘掉修饰符后这一页老老实实跟着
+ * display 级的位移走，而不是被 overlay 收进条目里。判定和 [rememberNavInputGuardDecorator]
+ * 一样看 `transition.targetState`：目标状态不是 Visible 就是正在离场。
+ */
+@Composable
+fun Modifier.heroPageContainer(key: Any, shape: Shape): Modifier {
+    val entering = LocalNavAnimatedContentScope.current.transition.targetState ==
+        EnterExitState.Visible
+    return if (entering) heroContainer(key, shape) else Modifier
 }
 
 /** 源条目侧：和 [HeroPage] 成对使用，shape 要和条目自身的圆角一致。 */

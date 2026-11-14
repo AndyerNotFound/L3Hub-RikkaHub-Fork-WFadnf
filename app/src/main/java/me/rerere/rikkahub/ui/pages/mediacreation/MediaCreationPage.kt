@@ -80,7 +80,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.hooks.heroContainer
+import me.rerere.rikkahub.ui.hooks.heroPageContainer
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
@@ -135,7 +135,7 @@ fun MediaCreationPage(id: String) {
     }
 
     Scaffold(
-        modifier = Modifier.heroContainer(mediaCreationHeroKey(id), RoundedCornerShape(heroCorner)),
+        modifier = Modifier.heroPageContainer(mediaCreationHeroKey(id), RoundedCornerShape(heroCorner)),
         topBar = {
             TopAppBar(
                 title = {
