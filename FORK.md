@@ -1413,3 +1413,16 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - 没开助手气泡时同样作用在正文块上，两种模式的伸缩手感一致
 - 涉及文件：`ui/modifier/MotionBlur.kt`（`motionStretchHeight`）、
   `ui/components/message/ChatMessage.kt`（助手气泡与无气泡分支）
+
+## 本轮改动：悬浮栏并入顶栏胶囊（2026-11-15）
+
+输入框下方的悬浮栏不再是一块单独的圆角面板：容器换成顶栏两颗胶囊用的同一份实现（`ChatCapsule`），
+按钮按胶囊的切面平均分段。
+
+- 容器：`surfaceContainerLow` 底色、50% 圆角、按钮投影，模糊与描边走和顶栏同一条路径（只在模糊档描 1dp 细边）
+- 分段：每个槽位占胶囊的一段，两头的段跟着外圈收圆、中间的段是直角；按下反馈照段形裁切，
+  不再给每个按钮单独画一颗圆，全宽模式下那颗横跨整段的椭圆底色也一并去掉
+- 段与段之间是一条细线，高度按胶囊高度的 40% 随悬浮栏大小缩放，比例和顶栏一致
+- 紧凑模式不再留 4dp 内边距和 2dp 间隙，图标左右的可点区域就是整段，段与段之间没有死区
+- 涉及文件：`ui/components/ai/ChatCapsule.kt`（顶栏与悬浮栏共用，取代原 `ChatTopBarCapsule.kt`）、
+  `ui/components/ai/ChatFloatingBar.kt`、`ui/pages/chat/ChatPage.kt`（顶栏改用同一个容器）

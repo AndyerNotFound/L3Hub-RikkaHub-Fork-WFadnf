@@ -7,27 +7,26 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -49,14 +48,10 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
-import me.rerere.rikkahub.ui.theme.LocalUiSlots
-import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
@@ -118,8 +113,11 @@ internal fun FloatingBarItem.label(): String = stringResource(
 /**
  * 输入框下方的悬浮栏。
  *
+ * 容器直接用顶栏那颗胶囊（[ChatCapsule]）：同底色、同投影、同模糊与描边，
+ * 按钮按胶囊的切面平均分段，段与段之间用 [ChatCapsuleDivider] 隔开。
+ *
  * 拉起和隐藏都走同一条过渡：高度从 0 展开或收回，内容同时做竖向位移与模糊淡入淡出。
- * 背景和输入框共用 [chatInputHaze]，模糊/玻璃档位与透明度都跟随输入框的全局特效设置。
+ * 模糊/玻璃档位与透明度跟随输入框的全局特效设置。
  */
 @Composable
 internal fun ChatFloatingBar(
@@ -131,9 +129,6 @@ internal fun ChatFloatingBar(
     modifier: Modifier = Modifier,
 ) {
     val fullWidth = LocalFullWidthComponents.current
-    val containerColor = LocalUiSlots.current.inputBar
-    val shape = adaptiveShape(displaySetting.uiCornerRadius.dp)
-    val effect = displaySetting.effectiveBackgroundEffect
     val density = LocalDensity.current
     val slideDistance = with(density) { 18.dp.toPx() }
     val transition = updateTransition(targetState = visible, label = "chatFloatingBar")
@@ -174,73 +169,71 @@ internal fun ChatFloatingBar(
                 .padding(horizontal = if (fullWidth) 0.dp else 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Surface(
+            ChatCapsule(
+                displaySetting = displaySetting,
+                hazeState = hazeState,
                 modifier = Modifier
                     .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-                    .clip(shape)
-                    .chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = displaySetting,
-                        containerColor = containerColor,
-                        shape = shape,
-                    ),
-                shape = shape,
-                color = if (effect == BackgroundEffectType.OFF) {
-                    containerColor
-                } else {
-                    Color.Transparent
-                },
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                ),
+                    .height(itemExtent),
             ) {
-                Row(
-                    modifier = Modifier
-                        .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-                        .padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (fullWidth) {
-                        Arrangement.SpaceEvenly
-                    } else {
-                        Arrangement.spacedBy(2.dp)
-                    },
-                ) {
-                    items.forEach { item ->
-                        FloatingBarItemButton(
-                            item = item,
-                            onClick = { onItemClick(item) },
-                            fullWidth = fullWidth,
-                            itemExtent = itemExtent,
-                            iconExtent = iconExtent,
-                            modifier = if (fullWidth) Modifier.weight(1f) else Modifier,
-                        )
+                items.forEachIndexed { index, item ->
+                    // 分隔线只切中间一段，胶囊仍是一整块；高度跟着缩放走，比例和顶栏一致
+                    if (index > 0) {
+                        ChatCapsuleDivider(height = itemExtent * 0.4f)
                     }
+                    FloatingBarItemButton(
+                        item = item,
+                        onClick = { onItemClick(item) },
+                        shape = segmentShape(
+                            index = index,
+                            lastIndex = items.lastIndex,
+                            radius = itemExtent / 2,
+                            fullWidth = fullWidth,
+                        ),
+                        iconExtent = iconExtent,
+                        modifier = Modifier
+                            .then(if (fullWidth) Modifier.weight(1f) else Modifier.width(itemExtent))
+                            .fillMaxHeight(),
+                    )
                 }
             }
         }
     }
 }
 
+/**
+ * 一段按钮的背景形状：就是胶囊在这一段上的切面。
+ *
+ * 两头的段跟着胶囊收圆，中间的段是直角。按下/长按的反馈照这个形状裁，
+ * 每一段的底色都是切开的区域，而不是各自画一颗圆。
+ */
+private fun segmentShape(
+    index: Int,
+    lastIndex: Int,
+    radius: Dp,
+    fullWidth: Boolean,
+): Shape = when {
+    fullWidth -> RectangleShape
+    lastIndex <= 0 -> RoundedCornerShape(radius)
+    index == 0 -> RoundedCornerShape(topStart = radius, bottomStart = radius)
+    index == lastIndex -> RoundedCornerShape(topEnd = radius, bottomEnd = radius)
+    else -> RectangleShape
+}
+
 @Composable
 private fun FloatingBarItemButton(
     item: FloatingBarItem,
     onClick: () -> Unit,
-    fullWidth: Boolean,
-    itemExtent: Dp,
+    shape: Shape,
     iconExtent: Dp,
     modifier: Modifier = Modifier,
 ) {
     val label = item.label()
-    Tooltip(
-        modifier = modifier.then(if (fullWidth) Modifier else Modifier.width(itemExtent)),
-        tooltip = { Text(label) },
-    ) {
+    Tooltip(modifier = modifier, tooltip = { Text(label) }) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(itemExtent)
-                .clip(CircleShape)
+                .fillMaxSize()
+                .clip(shape)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {

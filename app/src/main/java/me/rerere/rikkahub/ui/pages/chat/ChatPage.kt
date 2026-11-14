@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -157,7 +156,8 @@ import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
-import me.rerere.rikkahub.ui.components.ai.ChatTopBarCapsule
+import me.rerere.rikkahub.ui.components.ai.ChatCapsule
+import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
@@ -1861,7 +1861,11 @@ private fun TopBar(
             ) {
                 // 和左侧的会话胶囊共用同一个容器，入口之间同样用一条细线隔开，
                 // 顶栏两头的胶囊才是同一套东西
-                TopBarPill(settings = settings, hazeState = hazeState) {
+                ChatCapsule(
+                    displaySetting = settings.displaySetting,
+                    hazeState = hazeState,
+                    modifier = Modifier.height(TopBarButtonSize),
+                ) {
                     // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
                     if (!threePane) {
                         IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
@@ -1878,7 +1882,7 @@ private fun TopBar(
                             )
                         }
 
-                        TopBarPillDivider()
+                        ChatCapsuleDivider()
 
                         IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
                             Icon(
@@ -1888,14 +1892,14 @@ private fun TopBar(
                             )
                         }
 
-                        TopBarPillDivider()
+                        ChatCapsuleDivider()
                     }
 
                     IconButton(onClick = { onNewChat() }, modifier = Modifier.size(TopBarButtonSize)) {
                         Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(TopBarButtonIconSize))
                     }
 
-                    TopBarPillDivider()
+                    ChatCapsuleDivider()
 
                     ChatPageMenu(
                         enabled = hasMessages,
@@ -1908,72 +1912,6 @@ private fun TopBar(
         },
     )
 }
-
-
-/**
- * 顶栏两侧共用的胶囊容器：同高、同圆角、同投影，模糊与描边也只有这一份实现。
- *
- * 里面的入口各自点击，段与段之间用 [TopBarPillDivider] 隔开。
- * 关闭背景特效时容器自己铺实色，开着时着色交给 chatInputHaze。
- */
-@Composable
-private fun TopBarPill(
-    settings: Settings,
-    hazeState: HazeState,
-    modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit,
-) {
-    val effect = settings.displaySetting.effectiveBackgroundEffect
-    val shape = if (LocalFullWidthComponents.current) {
-        RoundedCornerShape(0.dp)
-    } else {
-        RoundedCornerShape(50)
-    }
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-
-    Row(
-        modifier = modifier
-            .height(TopBarButtonSize)
-            .appButtonShadow(shape, 2.dp)
-            .clip(shape)
-            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
-            .chatInputHaze(
-                hazeState = hazeState,
-                displaySetting = settings.displaySetting,
-                containerColor = containerColor,
-                shape = shape,
-            )
-            // 描边画在模糊层之后，否则会被糊掉
-            .then(
-                if (effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        shape,
-                    )
-                } else {
-                    Modifier
-                }
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // 入口按 45dp 铺满胶囊，不被 M3 的最小触控尺寸撑大，左右两侧才同高
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            content()
-        }
-    }
-}
-
-/** 胶囊里两个入口之间的细线：只切中间一段，胶囊还是一整块。 */
-@Composable
-private fun TopBarPillDivider() {
-    Box(
-        modifier = Modifier
-            .width(1.dp)
-            .height(18.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-    )
-}
-
 
 /**
  * 顶栏的会话胶囊：左半边是会话文件夹，右边是当前模型。
@@ -1998,10 +1936,10 @@ private fun ChatModelFolderPill(
     val folder = folders.firstOrNull { it.id == folderId }
     var menuExpanded by remember { mutableStateOf(false) }
 
-    TopBarPill(
-        settings = settings,
+    ChatCapsule(
+        displaySetting = settings.displaySetting,
         hazeState = hazeState,
-        modifier = modifier,
+        modifier = modifier.height(TopBarButtonSize),
     ) {
         Box {
             Row(
@@ -2042,7 +1980,7 @@ private fun ChatModelFolderPill(
             )
         }
 
-        TopBarPillDivider()
+        ChatCapsuleDivider()
 
         Row(
             modifier = Modifier
