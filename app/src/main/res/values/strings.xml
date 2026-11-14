@@ -2462,7 +2462,7 @@
   <string name="setting_display_page_motion_blur_duration_title">Transition duration</string>
   <string name="setting_display_page_motion_blur_duration_desc">%1$d ms; shorter feels snappier, longer leaves a softer tail</string>
   <string name="setting_display_page_motion_blur_travel_title">Scroll travel</string>
-  <string name="setting_display_page_motion_blur_travel_desc">%1$d dp; distance covered when content is replaced</string>
+  <string name="setting_display_page_motion_blur_travel_desc">%1$d dp; travel distance for message entries and content swaps, 32 dp is the baseline</string>
   <string name="heartbeat_page_model_clear">Clear current</string>
   <string name="chat_page_select_multiple">Multi-select</string>
   <string name="chat_page_selected_count">%1$d selected</string>

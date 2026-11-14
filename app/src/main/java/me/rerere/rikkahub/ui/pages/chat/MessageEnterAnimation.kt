@@ -132,10 +132,13 @@ private fun EnteringContent(
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
-    // 起点取窗口高度：要的是"从屏幕外进来"，不是"从自己头顶掉下来"
+    val displaySetting = LocalSettings.current.displaySetting
+    // 起点取窗口高度，再乘上设置里的行程倍率：要的是"从屏幕外进来"，不是"从自己头顶掉下来"。
+    // 32dp 记作 1.0（正好一整屏），调小就从更近的地方滑进来，调大则从更远处
     val windowHeight = LocalWindowInfo.current.containerSize.height
     val fallbackHeight = with(density) { 720.dp.toPx() }
-    val startOffset = if (windowHeight > 0) windowHeight.toFloat() else fallbackHeight
+    val travelScale = displaySetting.motionBlur.travel / 32f
+    val startOffset = (if (windowHeight > 0) windowHeight else fallbackHeight) * travelScale
 
     // 名字不要叫 alpha / offset：graphicsLayer 的作用域里有同名属性，裸名会解析到那边去
     val offsetAnim = remember(messageId) { Animatable(startOffset) }
@@ -146,7 +149,6 @@ private fun EnteringContent(
     val blurAnim = remember(messageId) { Animatable(1f) }
     // 入场比普通收放长一点：起点在屏幕外，飞完整屏不能太急。
     // 时长从动态模糊设置里取，调「过渡时长」时入场跟着一起变；关了动效则直接落位
-    val displaySetting = LocalSettings.current.displaySetting
     val enterDuration = displaySetting.motionBlur.durationMillis
     val disableAnimations = displaySetting.disableAnimations
     val spatialSpec = remember(enterDuration, disableAnimations) {

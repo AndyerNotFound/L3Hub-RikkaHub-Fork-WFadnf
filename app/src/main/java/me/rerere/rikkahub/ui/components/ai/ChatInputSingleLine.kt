@@ -49,6 +49,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import java.util.concurrent.atomic.AtomicReference
 
@@ -248,7 +249,9 @@ private fun PlaceholderChars(
     outgoing: Boolean,
 ) {
     val density = LocalDensity.current
-    val travel = with(density) { 9.dp.toPx() }
+    // 逐字滚动的位移也跟着设置里的行程缩放：32dp 是基准，调小时字从更近处滚进来
+    val travelScale = LocalSettings.current.displaySetting.motionBlur.travel / 32f
+    val travel = with(density) { (9.dp * travelScale).toPx() }
     val blurSteps = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 8)
     Row(modifier = Modifier.fillMaxWidth()) {
         text.forEachIndexed { index, char ->
