@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -79,6 +80,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionScrollSwap
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -171,79 +173,30 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
         },
         containerColor = CustomColors.topBarColors.containerColor,
     ) { padding ->
-        if (stats.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .drawWithContent {
-                            graphicsLayer.record { this@drawWithContent.drawContent() }
-                            drawLayer(graphicsLayer)
-                        }
-                        .background(CustomColors.topBarColors.containerColor)
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+        MotionScrollSwap(
+            targetState = stats.isLoading,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            enterTravel = 24.dp,
+            exitTravel = 8.dp,
+            label = "stats_body",
+        ) { loading ->
+            if (loading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    HeatmapCard(
-                        requestsPerDay = stats.requestsPerDay,
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
-                    StatsGrid(
-                        stats = stats,
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
-                    UsageHeader(
-                        range = range,
-                        onRangeChange = vm::setRange,
-                        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 16.dp),
-                    )
-                    usage?.let { usage ->
-                        if (usage.totals.promptTokens + usage.totals.completionTokens == 0L) {
-                            EmptyUsageCard(modifier = Modifier.padding(horizontal = 8.dp))
-                        } else {
-                            UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
-                            UsagePieCard(models = usage.models, modifier = Modifier.padding(horizontal = 8.dp))
-                            UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
-                            val unknownModel = stringResource(R.string.stats_page_unknown_model)
-                            RankingCard(
-                                title = stringResource(R.string.stats_page_by_model),
-                                items = usage.models.map { model ->
-                                    RankingItem(
-                                        label = model.name ?: unknownModel,
-                                        tokens = model.totalTokens,
-                                        cost = model.cost,
-                                    )
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            )
-                            RankingCard(
-                                title = stringResource(R.string.stats_page_by_source),
-                                items = usage.sources.map { source ->
-                                    RankingItem(
-                                        label = sourceLabel(source.source),
-                                        tokens = source.totalTokens,
-                                        cost = source.cost,
-                                    )
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            )
-                        }
-                    }
+                    CircularProgressIndicator()
                 }
+            } else {
+                StatsContent(
+                    stats = stats,
+                    usage = usage,
+                    range = range,
+                    onRangeChange = vm::setRange,
+                    graphicsLayer = graphicsLayer,
+                )
             }
         }
     }
@@ -274,6 +227,100 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                     Text(stringResource(R.string.stats_page_export_cancel))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun StatsContent(
+    stats: AppStats,
+    usage: UsageStats?,
+    range: UsageRange,
+    onRangeChange: (UsageRange) -> Unit,
+    graphicsLayer: GraphicsLayer,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawWithContent {
+                    graphicsLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(graphicsLayer)
+                }
+                .background(CustomColors.topBarColors.containerColor)
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            HeatmapCard(
+                requestsPerDay = stats.requestsPerDay,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+            StatsGrid(
+                stats = stats,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+            UsageHeader(
+                range = range,
+                onRangeChange = onRangeChange,
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 16.dp),
+            )
+            MotionScrollSwap(
+                targetState = usage,
+                modifier = Modifier.fillMaxWidth(),
+                enterTravel = 40.dp,
+                exitTravel = 24.dp,
+                label = "stats_usage",
+            ) { current ->
+                if (current != null) {
+                    UsageCards(
+                        usage = current,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsageCards(usage: UsageStats, modifier: Modifier = Modifier) {
+    if (usage.totals.promptTokens + usage.totals.completionTokens == 0L) {
+        EmptyUsageCard(modifier = modifier.padding(horizontal = 8.dp))
+        return
+    }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        UsageTotalsGrid(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+        UsagePieCard(models = usage.models, modifier = Modifier.padding(horizontal = 8.dp))
+        UsageTrendCard(usage = usage, modifier = Modifier.padding(horizontal = 8.dp))
+        val unknownModel = stringResource(R.string.stats_page_unknown_model)
+        RankingCard(
+            title = stringResource(R.string.stats_page_by_model),
+            items = usage.models.map { model ->
+                RankingItem(
+                    label = model.name ?: unknownModel,
+                    tokens = model.totalTokens,
+                    cost = model.cost,
+                )
+            },
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        RankingCard(
+            title = stringResource(R.string.stats_page_by_source),
+            items = usage.sources.map { source ->
+                RankingItem(
+                    label = sourceLabel(source.source),
+                    tokens = source.totalTokens,
+                    cost = source.cost,
+                )
+            },
+            modifier = Modifier.padding(horizontal = 8.dp),
         )
     }
 }

@@ -3,13 +3,18 @@ package me.rerere.rikkahub.ui.modifier
 import android.graphics.RenderEffect as AndroidRenderEffect
 import android.graphics.Shader
 import android.os.Build
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -17,6 +22,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,14 +34,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.roundToInt
 
 /**
@@ -202,5 +216,68 @@ fun Modifier.motionBlurOnToggle(
     }
     return this.graphicsLayer {
         renderEffect = blur.at(decay.value)
+    }
+}
+
+/**
+ * 内容刷新 / 切换时的纵向滚动过渡：旧内容向上滚出，新内容从下方滚入，两层都带动态模糊。
+ *
+ * 用于同一块位置换了一份数据（统计页换时间范围、重新查询），不是页面进出场：
+ * 位移给出「滚过去」的方向感，模糊跟着收放，内容替换不再是一帧硬切。
+ *
+ * 位移和淡入淡出交给 [AnimatedContent] 自己的进出场，曲线取主题（关掉动效时一起 snap）；
+ * 模糊挂在场景自己的 [AnimatedVisibilityScope.transition] 上，进场 1→0、退场 0→1，
+ * 和进出场同一条时间线，退场内容被回收前一定播完。
+ * 尺寸变化用 `SizeTransform(clip = false)` 收放，滚入的内容不会被容器边缘提前裁掉。
+ */
+@Composable
+fun <S> MotionScrollSwap(
+    targetState: S,
+    modifier: Modifier = Modifier,
+    maxBlurRadius: Dp = 8.dp,
+    enterTravel: Dp = 32.dp,
+    exitTravel: Dp = 24.dp,
+    contentAlignment: Alignment = Alignment.TopStart,
+    label: String = "MotionScrollSwap",
+    content: @Composable AnimatedContentScope.(S) -> Unit,
+) {
+    val density = LocalDensity.current
+    val enterDistance = with(density) { enterTravel.roundToPx() }
+    val exitDistance = with(density) { exitTravel.roundToPx() }
+    val enterSlide = rememberSpatialSpec<IntOffset>()
+    val exitSlide = rememberFastSpatialSpec<IntOffset>()
+    val enterFade = rememberEffectsSpec<Float>()
+    val exitFade = rememberEffectsSpec<Float>()
+    val sizeSpec = rememberSpatialSpec<IntSize>()
+
+    AnimatedContent(
+        targetState = targetState,
+        modifier = modifier,
+        transitionSpec = {
+            (slideInVertically(enterSlide) { enterDistance } + fadeIn(enterFade)) togetherWith
+                (slideOutVertically(exitSlide) { -exitDistance } + fadeOut(exitFade)) using
+                SizeTransform(clip = false) { _, _ -> sizeSpec }
+        },
+        contentAlignment = contentAlignment,
+        label = label,
+    ) { state ->
+        val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
+        val enterBlur = rememberSpatialSpec<Float>()
+        val exitBlur = rememberFastSpatialSpec<Float>()
+        val blurAmount by transition.animateFloat(
+            transitionSpec = {
+                if (targetState == EnterExitState.Visible) enterBlur else exitBlur
+            },
+            label = "$label blur",
+        ) { enterExitState ->
+            if (enterExitState == EnterExitState.Visible) 0f else 1f
+        }
+        Box(
+            modifier = Modifier.graphicsLayer {
+                renderEffect = blur.at(blurAmount)
+            },
+        ) {
+            content(state)
+        }
     }
 }
