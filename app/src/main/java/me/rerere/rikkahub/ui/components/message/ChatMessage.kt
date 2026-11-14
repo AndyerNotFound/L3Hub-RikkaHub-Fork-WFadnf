@@ -709,8 +709,9 @@ private fun MessagePartsBlock(
                     // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明
                     val chainHasEffect = chainEffect != BackgroundEffectType.OFF && hazeState != null
                     ChainOfThought(
+                        // 高度交给卡片里各步骤的收放动画；这里再包一层 animateContentSize
+                        // 会和它串联成两条弹簧，展开后卡片高度在目标附近反复上下
                         modifier = Modifier
-                            .then(if (loading) Modifier else Modifier.animateContentSize())
                             .then(
                                 if (chainHasEffect) {
                                     Modifier

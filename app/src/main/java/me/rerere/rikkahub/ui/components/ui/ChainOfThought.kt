@@ -94,12 +94,11 @@ fun <T> ChainOfThought(
         shape = adaptiveShape(20.dp),
         border = border,
     ) {
+        // 这一层不要再套 animateContentSize：卡片高度由各步骤自己的收放负责，
+        // 外面再跟一层会让两层弹簧互相追，展开时高度在目标附近来回摆
         Column(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .animateContentSize(
-                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
-                ),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             // 折叠时藏起来的是最前面那几步；收起的尾部步骤始终保留。
             val allVisible = expanded || !canCollapse
