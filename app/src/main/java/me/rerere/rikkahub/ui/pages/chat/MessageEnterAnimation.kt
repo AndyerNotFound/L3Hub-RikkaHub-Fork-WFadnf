@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -63,14 +66,20 @@ internal class MessageEnterTracker(
     private var hasFrame = false
     private var pending: Map<Uuid, Long> = emptyMap()
 
+    // 已经播完的 id。用 State 记：页面不再逐 token 重组，consume 之后没有别的失效源，
+    // 不用 State 的话 enteringMessageIds 会一直留着已经播完的 id，消息滚出屏幕再回来会重播。
+    // pending 本身仍用普通字段：track 在组合期写入，改成 State 会多一轮重组。
+    private var consumed by mutableStateOf(emptySet<Uuid>())
+
     /**
      * [animateAppends] 为 false 时只把这一帧记成已知，不产生入场：
      * 打开已有会话时首帧也是空列表，紧接着到位的那一批是历史，不是刚追加的。
      */
     fun track(ids: List<Uuid>, animateAppends: Boolean = true): Set<Uuid> {
+        val alreadyConsumed = consumed
         // 流式输出时每帧都会重组，id 序列没变就直接沿用上一帧的结论
         if (hasFrame && ids === previousIds) {
-            return pending.keys
+            return pending.keys - alreadyConsumed
         }
         if (!hasFrame) {
             // 首帧是"打开会话"，整段历史一起出现，不播
@@ -85,13 +94,14 @@ internal class MessageEnterTracker(
         val appended = if (animateAppends) newAppendedMessageIds(previousIds, ids) else emptyList()
         previousIds = ids
         pending = if (appended.isEmpty()) alive else appended.associateWith { at }
-        return pending.keys
+        return pending.keys - alreadyConsumed
     }
 
     /** 动画播完就销账，滚出屏幕再滚回来时不重播。 */
     fun consume(id: Uuid) {
         if (id in pending) {
             pending = pending - id
+            consumed = consumed + id
         }
     }
 }
