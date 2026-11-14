@@ -192,7 +192,8 @@ class ProviderGuardTest {
     }
 
     @Test
-    fun `usage retention covers the longest window`() {
+    fun `usage since covers the longest window`() {
+        val now = at("2026-11-14T12:00:00").toEpochMilliseconds()
         val guard = ProviderGuard(
             windows = listOf(
                 ProviderQuotaWindow(amount = 5, unit = ProviderQuotaWindowUnit.HOUR, limit = 1),
@@ -200,7 +201,7 @@ class ProviderGuardTest {
             ),
             locks = listOf(schedule(minutes = 480)),
         )
-        assertEquals(2 * 24 * 60 * 60 * 1000L, guard.usageRetentionMillis())
+        assertEquals(now - 2 * 24 * 60 * 60 * 1000L, guard.usageSinceMillis(now))
     }
 
     private fun window(
@@ -209,6 +210,7 @@ class ProviderGuardTest {
         mode: ProviderQuotaWindowMode = ProviderQuotaWindowMode.FIXED,
         anchorDate: String = "",
         anchorTime: String = "00:00",
+        effectiveAt: String = "",
         limit: Int = 1,
         metric: ProviderQuotaMetric = ProviderQuotaMetric.REQUESTS,
     ) = ProviderQuotaWindow(
@@ -219,14 +221,23 @@ class ProviderGuardTest {
         mode = mode,
         anchorDate = anchorDate,
         anchorTime = anchorTime,
+        effectiveAt = if (effectiveAt.isBlank()) 0L else at(effectiveAt).toEpochMilliseconds(),
     )
 
-    private fun ProviderQuotaWindow.startAt(text: String): Instant =
-        Instant.fromEpochMilliseconds(windowStartAt(at(text).toEpochMilliseconds(), zone))
+    private fun ProviderQuotaWindow.period(
+        nowText: String,
+        usage: List<String> = emptyList(),
+    ): ProviderQuotaPeriod = periodAt(
+        usageAtMillis = usage.map { at(it).toEpochMilliseconds() },
+        nowMillis = at(nowText).toEpochMilliseconds(),
+        zone = zone,
+    )
 
-    private fun ProviderQuotaWindow.resetAt(text: String) =
-        nextResetAt(at(text).toEpochMilliseconds(), zone)
-            ?.let { Instant.fromEpochMilliseconds(it) }
+    private fun ProviderQuotaPeriod.startAt(): Instant? =
+        fromMillis?.let { Instant.fromEpochMilliseconds(it) }
+
+    private fun ProviderQuotaPeriod.resetAt(): Instant? =
+        resetAtMillis?.let { Instant.fromEpochMilliseconds(it) }
 
     @Test
     fun `fixed window counts from the anchor and resets on the period grid`() {
@@ -237,32 +248,32 @@ class ProviderGuardTest {
             anchorTime = "08:00",
         )
 
-        assertEquals(at("2026-11-01T08:00:00"), w.startAt("2026-11-01T09:30:00"))
-        assertEquals(at("2026-11-01T13:00:00"), w.resetAt("2026-11-01T09:30:00"))
-        assertEquals(at("2026-11-01T08:00:00"), w.startAt("2026-11-01T12:59:00"))
+        assertEquals(at("2026-11-01T08:00:00"), w.period("2026-11-01T09:30:00").startAt())
+        assertEquals(at("2026-11-01T13:00:00"), w.period("2026-11-01T09:30:00").resetAt())
+        assertEquals(at("2026-11-01T08:00:00"), w.period("2026-11-01T12:59:00").startAt())
         // 边界就在重置点：13:00 已经进入下一个周期
-        assertEquals(at("2026-11-01T13:00:00"), w.startAt("2026-11-01T13:00:00"))
-        assertEquals(at("2026-11-01T08:00:00"), w.startAt("2026-11-01T08:00:00"))
+        assertEquals(at("2026-11-01T13:00:00"), w.period("2026-11-01T13:00:00").startAt())
+        assertEquals(at("2026-11-01T08:00:00"), w.period("2026-11-01T08:00:00").startAt())
         // 起算点之前也按同一网格往前推，不会出现「未起算就不限额」的空档
-        assertEquals(at("2026-10-31T22:00:00"), w.startAt("2026-11-01T02:30:00"))
-        assertEquals(at("2026-11-01T03:00:00"), w.resetAt("2026-11-01T02:30:00"))
+        assertEquals(at("2026-10-31T22:00:00"), w.period("2026-11-01T02:30:00").startAt())
+        assertEquals(at("2026-11-01T03:00:00"), w.period("2026-11-01T02:30:00").resetAt())
     }
 
     @Test
     fun `fixed window without an anchor follows calendar boundaries`() {
         val daily = window(amount = 1, unit = ProviderQuotaWindowUnit.DAY)
-        assertEquals(at("2026-11-14T00:00:00"), daily.startAt("2026-11-14T12:00:00"))
-        assertEquals(at("2026-11-15T00:00:00"), daily.resetAt("2026-11-14T12:00:00"))
+        assertEquals(at("2026-11-14T00:00:00"), daily.period("2026-11-14T12:00:00").startAt())
+        assertEquals(at("2026-11-15T00:00:00"), daily.period("2026-11-14T12:00:00").resetAt())
         // 数量大于 1 时网格不能随「今天」漂移：间隔 5 小时的两个时刻必然落在同一个 2 天周期里
         val everyTwoDays = window(amount = 2, unit = ProviderQuotaWindowUnit.DAY)
         assertEquals(
-            everyTwoDays.startAt("2026-11-15T20:00:00"),
-            everyTwoDays.startAt("2026-11-16T01:00:00"),
+            everyTwoDays.period("2026-11-15T20:00:00").startAt(),
+            everyTwoDays.period("2026-11-16T01:00:00").startAt(),
         )
-        val blockStart = everyTwoDays.startAt("2026-11-15T20:00:00").toEpochMilliseconds()
+        val blockStart = everyTwoDays.period("2026-11-15T20:00:00").startAt()!!.toEpochMilliseconds()
         assertEquals(
             blockStart + 2L * 24 * 60 * 60 * 1000,
-            everyTwoDays.resetAt("2026-11-15T20:00:00")?.toEpochMilliseconds(),
+            everyTwoDays.period("2026-11-15T20:00:00").resetAt()?.toEpochMilliseconds(),
         )
         val blockStartLocal = LocalDateTime.ofInstant(
             java.time.Instant.ofEpochMilli(blockStart),
@@ -273,8 +284,8 @@ class ProviderGuardTest {
 
         val weekly = window(amount = 1, unit = ProviderQuotaWindowUnit.WEEK)
         // 2026-11-14 是周六，自然边界是本周一 11-09 0 点
-        assertEquals(at("2026-11-09T00:00:00"), weekly.startAt("2026-11-14T12:00:00"))
-        assertEquals(at("2026-11-16T00:00:00"), weekly.resetAt("2026-11-14T12:00:00"))
+        assertEquals(at("2026-11-09T00:00:00"), weekly.period("2026-11-14T12:00:00").startAt())
+        assertEquals(at("2026-11-16T00:00:00"), weekly.period("2026-11-14T12:00:00").resetAt())
     }
 
     @Test
@@ -285,27 +296,27 @@ class ProviderGuardTest {
             anchorDate = "2026-01-31",
         )
 
-        assertEquals(at("2026-01-31T00:00:00"), monthly.startAt("2026-02-10T00:00:00"))
-        assertEquals(at("2026-02-28T00:00:00"), monthly.resetAt("2026-02-10T00:00:00"))
+        assertEquals(at("2026-01-31T00:00:00"), monthly.period("2026-02-10T00:00:00").startAt())
+        assertEquals(at("2026-02-28T00:00:00"), monthly.period("2026-02-10T00:00:00").resetAt())
         // 2 月只有 28 天，下一个周期到 3-31 结束
-        assertEquals(at("2026-02-28T00:00:00"), monthly.startAt("2026-03-15T00:00:00"))
-        assertEquals(at("2026-03-31T00:00:00"), monthly.resetAt("2026-03-15T00:00:00"))
-        assertEquals(at("2026-03-31T00:00:00"), monthly.startAt("2026-04-15T00:00:00"))
-        assertEquals(at("2026-04-30T00:00:00"), monthly.resetAt("2026-04-15T00:00:00"))
+        assertEquals(at("2026-02-28T00:00:00"), monthly.period("2026-03-15T00:00:00").startAt())
+        assertEquals(at("2026-03-31T00:00:00"), monthly.period("2026-03-15T00:00:00").resetAt())
+        assertEquals(at("2026-03-31T00:00:00"), monthly.period("2026-04-15T00:00:00").startAt())
+        assertEquals(at("2026-04-30T00:00:00"), monthly.period("2026-04-15T00:00:00").resetAt())
     }
 
     @Test
     fun `rolling window keeps releasing usage instead of resetting`() {
-        val now = at("2026-11-14T12:00:00")
-        val rolling = window(amount = 5, unit = ProviderQuotaWindowUnit.HOUR, mode = ProviderQuotaWindowMode.ROLLING)
-
-        assertEquals(
-            at("2026-11-14T07:00:00").toEpochMilliseconds(),
-            rolling.windowStartAt(now.toEpochMilliseconds(), zone),
+        val rolling = window(
+            amount = 5,
+            unit = ProviderQuotaWindowUnit.HOUR,
+            mode = ProviderQuotaWindowMode.ROLLING,
         )
-        assertNull(rolling.nextResetAt(now.toEpochMilliseconds(), zone))
-        assertTrue(rolling.countsAt(now.toEpochMilliseconds(), at("2026-11-14T11:00:00").toEpochMilliseconds(), zone))
-        assertFalse(rolling.countsAt(now.toEpochMilliseconds(), at("2026-11-14T07:00:00").toEpochMilliseconds(), zone))
+        val period = rolling.period("2026-11-14T12:00:00")
+
+        assertEquals(at("2026-11-14T07:00:00"), period.startAt())
+        assertTrue(period.fromExclusive)
+        assertNull(period.resetAt())
         assertEquals(
             at("2026-11-14T16:00:00").toEpochMilliseconds(),
             rolling.releaseAt(at("2026-11-14T11:00:00").toEpochMilliseconds(), zone),
@@ -313,15 +324,106 @@ class ProviderGuardTest {
     }
 
     @Test
-    fun `monthly retention leaves room for calendar months`() {
-        val guard = ProviderGuard(
-            windows = listOf(window(amount = 1, unit = ProviderQuotaWindowUnit.MONTH)),
+    fun `first request window starts at the first request after it is set`() {
+        val w = window(
+            amount = 5,
+            unit = ProviderQuotaWindowUnit.HOUR,
+            mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+            effectiveAt = "2026-11-14T09:00:00",
         )
-        assertEquals(32L * 24 * 60 * 60 * 1000, guard.usageRetentionMillis())
+        val period = w.period(
+            nowText = "2026-11-14T12:00:00",
+            usage = listOf(
+                // 设定之前的请求不参与计算
+                "2026-11-14T08:59:00",
+                "2026-11-14T10:00:00",
+                "2026-11-14T11:00:00",
+            ),
+        )
+
+        assertEquals(at("2026-11-14T10:00:00"), period.startAt())
+        assertEquals(at("2026-11-14T15:00:00"), period.resetAt())
+        assertFalse(period.fromExclusive)
     }
 
     @Test
-    fun `fixed windows survive serialization and old backups stay rolling`() {
+    fun `first request window restarts at the next request after a reset`() {
+        val w = window(
+            amount = 5,
+            unit = ProviderQuotaWindowUnit.HOUR,
+            mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+            effectiveAt = "2026-11-14T09:00:00",
+        )
+        val usage = listOf(
+            "2026-11-14T10:00:00",
+            "2026-11-14T10:30:00",
+            "2026-11-14T16:30:00",
+        )
+
+        // 第一段 10:00–15:00 结束后一直没有请求，当前没有进行中的周期
+        assertNull(w.period("2026-11-14T16:00:00", usage).startAt())
+
+        // 16:30 的下一条请求重新起算
+        val period = w.period("2026-11-14T17:00:00", usage)
+        assertEquals(at("2026-11-14T16:30:00"), period.startAt())
+        assertEquals(at("2026-11-14T21:30:00"), period.resetAt())
+    }
+
+    @Test
+    fun `first request window counts nothing before the first request`() {
+        val w = window(
+            amount = 1,
+            unit = ProviderQuotaWindowUnit.HOUR,
+            mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+            effectiveAt = "2026-11-14T09:00:00",
+        )
+        // 设定了但还没请求：没有进行中的周期，用量为 0
+        assertNull(w.period("2026-11-14T09:30:00").startAt())
+    }
+
+    @Test
+    fun `first request window uses calendar months for the period end`() {
+        val w = window(
+            amount = 1,
+            unit = ProviderQuotaWindowUnit.MONTH,
+            mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+            effectiveAt = "2026-01-01T00:00:00",
+        )
+        val period = w.period(
+            nowText = "2026-02-01T00:00:00",
+            usage = listOf("2026-01-31T00:00:00"),
+        )
+        assertEquals(at("2026-01-31T00:00:00"), period.startAt())
+        assertEquals(at("2026-02-28T00:00:00"), period.resetAt())
+    }
+
+    @Test
+    fun `usage since reaches back to the effective time`() {
+        val now = at("2026-11-14T12:00:00").toEpochMilliseconds()
+        val guard = ProviderGuard(
+            windows = listOf(
+                window(
+                    amount = 1,
+                    unit = ProviderQuotaWindowUnit.DAY,
+                    mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+                    effectiveAt = "2026-11-01T00:00:00",
+                ),
+            ),
+        )
+        assertEquals(at("2026-11-01T00:00:00").toEpochMilliseconds(), guard.usageSinceMillis(now))
+    }
+
+    @Test
+    fun `monthly retention leaves room for calendar months`() {
+        val now = at("2026-11-14T12:00:00").toEpochMilliseconds()
+        val guard = ProviderGuard(
+            windows = listOf(window(amount = 1, unit = ProviderQuotaWindowUnit.MONTH)),
+        )
+        assertEquals(now - 32L * 24 * 60 * 60 * 1000, guard.usageSinceMillis(now))
+    }
+
+    @Test
+    fun `windows survive serialization and old backups stay rolling`() {
         val fixed = window(
             amount = 2,
             unit = ProviderQuotaWindowUnit.MONTH,
@@ -336,10 +438,24 @@ class ProviderGuardTest {
         assertEquals("2026-11-01", decoded.anchorDate)
         assertEquals("08:30", decoded.anchorTime)
 
-        // 旧备份里没有这三个字段，按滚动窗口补齐，与旧版行为一致
+        val firstRequest = window(
+            amount = 5,
+            unit = ProviderQuotaWindowUnit.HOUR,
+            mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+            effectiveAt = "2026-11-14T09:00:00",
+        )
+        val roundTrip = Json.decodeFromString(
+            ProviderQuotaWindow.serializer(),
+            Json.encodeToString(ProviderQuotaWindow.serializer(), firstRequest),
+        )
+        assertEquals(ProviderQuotaWindowMode.FIRST_REQUEST, roundTrip.mode)
+        assertEquals(at("2026-11-14T09:00:00").toEpochMilliseconds(), roundTrip.effectiveAt)
+
+        // 旧备份里没有这些字段，按滚动窗口补齐，与旧版行为一致
         val legacy = Json.decodeFromString(ProviderQuotaWindow.serializer(), "{}")
         assertEquals(ProviderQuotaWindowMode.ROLLING, legacy.mode)
         assertEquals("", legacy.anchorDate)
+        assertEquals(0L, legacy.effectiveAt)
     }
 
     @Test

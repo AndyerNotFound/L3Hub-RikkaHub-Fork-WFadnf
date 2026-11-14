@@ -10,6 +10,7 @@ import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.PriceRuleContext
 import me.rerere.ai.provider.ProviderLockState
 import me.rerere.ai.provider.ProviderQuotaMetric
+import me.rerere.ai.provider.ProviderQuotaPeriod
 import me.rerere.ai.provider.ProviderQuotaWindow
 import me.rerere.ai.provider.ProviderQuotaWindowUnit
 import me.rerere.ai.provider.ProviderSetting
@@ -191,12 +192,12 @@ class ProviderGate(
             atMillis = now,
         ).total
         if (guard.hasRateLimit) {
-            ensureHydrated(setting, now - guard.usageRetentionMillis())
+            ensureHydrated(setting, guard.usageSinceMillis(now))
         }
         synchronized(ledgerLock) {
             val providerId = setting.id.toString()
             val list = stamps.getOrPut(providerId) { mutableListOf() }
-            prune(list, now - guard.usageRetentionMillis())
+            prune(list, guard.usageSinceMillis(now))
 
             val lock = guard.lockState(Instant.fromEpochMilliseconds(now))
             lock.lockedUntil?.let { until ->
@@ -246,10 +247,10 @@ class ProviderGate(
     suspend fun status(setting: ProviderSetting): ProviderGateStatus {
         val now = clock()
         val guard = setting.guard
-        ensureHydrated(setting, now - guard.usageRetentionMillis())
+        ensureHydrated(setting, guard.usageSinceMillis(now))
         synchronized(ledgerLock) {
             val list = stamps.getOrPut(setting.id.toString()) { mutableListOf() }
-            prune(list, now - guard.usageRetentionMillis())
+            prune(list, guard.usageSinceMillis(now))
             val lock = guard.lockState(Instant.fromEpochMilliseconds(now))
             val minuteEvents = list.filter { now - it.startedAt < 60_000L }
             return ProviderGateStatus(
@@ -258,7 +259,8 @@ class ProviderGate(
                 rpmUsed = minuteEvents.size,
                 tpmUsed = minuteEvents.sumOf { it.tokens },
                 windows = guard.windows.map { window ->
-                    val events = list.filter { window.countsAt(now, it.startedAt, zone) }
+                    val period = window.periodAt(list.map { it.startedAt }, now, zone)
+                    val events = list.within(period)
                     val used = when (window.metric) {
                         ProviderQuotaMetric.REQUESTS -> events.size
                         ProviderQuotaMetric.TOKENS -> events.sumOf { it.tokens }
@@ -274,16 +276,18 @@ class ProviderGate(
                         ProviderQuotaMetric.TOKENS -> used >= window.limit
                         ProviderQuotaMetric.COST -> costUsed >= window.costLimit
                     }
+                    val periodResetAt = period.resetAtMillis
+                        ?.let { Instant.fromEpochMilliseconds(it) }
                     ProviderWindowUsage(
                         window = window,
                         used = used,
                         costUsed = costUsed,
-                        // 固定窗口任何时候都有下一次重置；滑动窗口只在满额时算恢复时间
+                        // 固定与首条请求窗口直接给出下一次重置；滑动窗口只在满额时算恢复时间
                         resetAt = when {
                             !window.isEnabled -> null
-                            else -> window.nextResetAt(now, zone)
-                                ?.let { Instant.fromEpochMilliseconds(it) }
-                                ?: if (full) windowResetAt(events, window) else null
+                            periodResetAt != null -> periodResetAt
+                            full -> windowResetAt(events, window)
+                            else -> null
                         },
                     )
                 },
@@ -334,9 +338,10 @@ class ProviderGate(
         providerName: String,
     ) {
         if (!window.isEnabled) return
-        val recent = events.filter { window.countsAt(now, it.startedAt, zone) }
-        // 固定窗口的重置点就是周期边界，滑动窗口才需要算用量释放到何时
-        val resetAt = window.nextResetAt(now, zone)?.let { Instant.fromEpochMilliseconds(it) }
+        val period = window.periodAt(events.map { it.startedAt }, now, zone)
+        val recent = events.within(period)
+        // 固定与首条请求窗口的重置点就是周期末尾，滑动窗口才需要算用量释放到何时
+        val resetAt = period.resetAtMillis?.let { Instant.fromEpochMilliseconds(it) }
         when (window.metric) {
             ProviderQuotaMetric.REQUESTS -> {
                 val used = recent.size
@@ -374,6 +379,16 @@ class ProviderGate(
                     retryAt = retryAt,
                 )
             }
+        }
+    }
+
+    /** 周期起点为空表示当前没有进行中的周期，一条用量都不计入 */
+    private fun List<RequestStamp>.within(period: ProviderQuotaPeriod): List<RequestStamp> {
+        val from = period.fromMillis ?: return emptyList()
+        return if (period.fromExclusive) {
+            filter { it.startedAt > from }
+        } else {
+            filter { it.startedAt >= from }
         }
     }
 

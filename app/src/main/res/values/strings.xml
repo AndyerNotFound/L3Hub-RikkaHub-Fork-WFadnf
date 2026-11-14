@@ -2839,7 +2839,7 @@
   <string name="setting_provider_guard_tpm">TPM limit</string>
   <string name="setting_provider_guard_tpm_desc">Maximum tokens per minute, with input estimated and output counted from actual usage. 0 means unlimited.</string>
   <string name="setting_provider_guard_windows">Custom time-window limits</string>
-  <string name="setting_provider_guard_windows_desc">Count requests, tokens, or estimated cost in a rolling window or a fixed window that resets on a schedule. Multiple limits are allowed.</string>
+  <string name="setting_provider_guard_windows_desc">Count requests, tokens, or estimated cost in a rolling window, a fixed window that resets on a schedule, or a window that starts at the first request. Multiple limits are allowed.</string>
   <string name="setting_provider_guard_window_add">Add time-window limit</string>
   <string name="setting_provider_guard_window_empty">No time-window limit configured.</string>
   <string name="setting_provider_guard_window_edit">Edit time-window limit</string>
@@ -2849,12 +2849,16 @@
   <string name="setting_provider_guard_window_mode">Window</string>
   <string name="setting_provider_guard_window_mode_rolling">Rolling</string>
   <string name="setting_provider_guard_window_mode_fixed">Fixed</string>
+  <string name="setting_provider_guard_window_mode_first_request">First request</string>
   <string name="setting_provider_guard_window_mode_rolling_desc">Counts usage in the last window length from now; usage is released one request at a time, with no shared reset point</string>
   <string name="setting_provider_guard_window_mode_fixed_desc">Aligns to the start time and clears the whole window at every boundary</string>
+  <string name="setting_provider_guard_window_mode_first_request_desc">Starts with the first request after it is set and clears at the end of each period; the next request then starts a new period</string>
   <string name="setting_provider_guard_window_anchor_date">Start date</string>
   <string name="setting_provider_guard_window_anchor_time">Start time</string>
   <string name="setting_provider_guard_window_anchor_prefix">From %1$s</string>
   <string name="setting_provider_guard_window_anchor_natural">Aligned to calendar boundaries</string>
+  <string name="setting_provider_guard_window_effective_at">Set %1$s; counts from the first request</string>
+  <string name="setting_provider_guard_window_effective_unset">Counts from the first request</string>
   <string name="setting_provider_guard_window_fixed_preview">Fixed from %1$s, %2$s, next reset %3$s</string>
   <string name="setting_provider_guard_metric_requests">Requests</string>
   <string name="setting_provider_guard_metric_tokens">Tokens</string>

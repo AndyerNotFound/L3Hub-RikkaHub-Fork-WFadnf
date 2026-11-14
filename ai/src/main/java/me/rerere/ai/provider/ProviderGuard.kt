@@ -37,10 +37,18 @@ data class ProviderGuard(
     val hasRateLimit: Boolean
         get() = rpmLimit > 0 || tpmLimit > 0 || windows.any { it.isEnabled }
 
-    /** 需要保留多久的请求流水，用来计算所有时间窗 */
-    fun usageRetentionMillis(): Long {
-        val longestWindow = windows.maxOfOrNull { it.retentionMillis() } ?: 0L
-        return maxOf(60_000L, longestWindow)
+    /**
+     * 计算所有窗口所需的流水起点。首条请求窗口要从设定时刻起读回历史，否则找不到周期起点；
+     * 太久以前的部分按 [LONGEST_LOOKBACK_MILLIS] 截断，避免一次读回所有历史。
+     */
+    fun usageSinceMillis(nowMillis: Long): Long {
+        val span = maxOf(60_000L, windows.maxOfOrNull { it.retentionMillis() } ?: 0L)
+        val since = windows
+            .filter { it.mode == ProviderQuotaWindowMode.FIRST_REQUEST && it.effectiveAt > 0 }
+            .minOfOrNull { it.effectiveAt }
+            ?.let { minOf(it, nowMillis - span) }
+            ?: (nowMillis - span)
+        return maxOf(since, nowMillis - LONGEST_LOOKBACK_MILLIS)
     }
 }
 
@@ -81,6 +89,9 @@ enum class ProviderQuotaWindowUnit(val millis: Long) {
     MONTH(30 * 24 * 60 * 60_000L),
 }
 
+/** 首条请求窗口最多回溯这么久的历史，再久就按截断后的第一条流水起算 */
+private const val LONGEST_LOOKBACK_MILLIS = 366L * 24 * 60 * 60 * 1000
+
 /** 没有指定起算日期时的网格原点；周从周一算起 */
 private val NATURAL_ANCHOR = LocalDate.of(1970, 1, 1)
 private val NATURAL_WEEK_ANCHOR = LocalDate.of(1969, 12, 29)
@@ -95,7 +106,24 @@ enum class ProviderQuotaWindowMode {
     /** 固定窗口：按起算时刻对齐，每到一个窗口长度整段重置 */
     @SerialName("fixed")
     FIXED,
+
+    /** 首条请求窗口：设定后第一条请求起算，归零后由下一条请求重新起算 */
+    @SerialName("first_request")
+    FIRST_REQUEST,
 }
+
+/**
+ * 当前周期的统计口径。
+ *
+ * [fromMillis] 为周期起点（用量从这里开始计入），null 表示当前没有进行中的周期；
+ * [fromExclusive] 为 true 时起点那一毫秒不算（滑动窗口的旧口径）；
+ * [resetAtMillis] 是下一次重置时刻，滑动窗口没有确定的重置点。
+ */
+data class ProviderQuotaPeriod(
+    val fromMillis: Long?,
+    val fromExclusive: Boolean,
+    val resetAtMillis: Long?,
+)
 
 /**
  * 一条自定义时间段限额，例如「每 5 小时最多 40 次请求」或「每天最多 200 万 token」。
@@ -104,7 +132,9 @@ enum class ProviderQuotaWindowMode {
  *
  * - [ProviderQuotaWindowMode.ROLLING]：从当前时刻往前推 [amount] 个 [unit]，用量随时间逐条释放；
  * - [ProviderQuotaWindowMode.FIXED]：以 [anchorDate] [anchorTime] 为起算点，每满一个
- *   [amount] × [unit] 的周期整段重置，像订阅额度那样从某刻起算、到某刻归零。
+ *   [amount] × [unit] 的周期整段重置，像订阅额度那样从某刻起算、到某刻归零；
+ * - [ProviderQuotaWindowMode.FIRST_REQUEST]：设定（[effectiveAt]）之后的第一条请求起算，
+ *   到周期末尾整段归零；归零后如果没有请求，就没有进行中的周期，下一条请求再重新起算。
  */
 @Serializable
 data class ProviderQuotaWindow(
@@ -122,8 +152,10 @@ data class ProviderQuotaWindow(
     val anchorDate: String = "",
     // FIXED 的起算时刻 HH:mm
     val anchorTime: String = "00:00",
+    // FIRST_REQUEST 的设定时刻（毫秒）；0 表示没有记录，退化为按最早一条流水起算
+    val effectiveAt: Long = 0L,
 ) {
-    /** 窗口长度；MONTH 按 30 天估值，精确边界见 fixedBounds */
+    /** 窗口长度；MONTH 按 30 天估值，精确边界见 periodEndFrom */
     fun durationMillis(): Long = unit.millis * safeAmount()
 
     /** 需要保留的流水长度；MONTH 按 32 天留出日历差异的余量 */
@@ -142,7 +174,7 @@ data class ProviderQuotaWindow(
     private fun safeAmount(): Long = amount.coerceIn(1, 100_000).toLong()
 
     /**
-     * 固定窗口的起算时刻。日期为空时退化为自然边界，网格原点取固定的历史日期而不是「今天」，
+     * 固定窗口的网格原点。日期为空时退化为固定的历史日期，而不是「今天」，
      * 否则「每 2 天」这类周期会随日期漂移：天/小时/分钟从 1970-01-01 0 点起算（0 点对齐），
      * 周从 1969-12-29（周一）起算，月从 1970-01 起算。
      */
@@ -153,11 +185,7 @@ data class ProviderQuotaWindow(
             val time = runCatching { LocalTime.parse(anchorTime) }.getOrDefault(LocalTime.MIDNIGHT)
             return LocalDateTime.of(explicit, time)
         }
-        val date = if (unit == ProviderQuotaWindowUnit.WEEK) {
-            NATURAL_WEEK_ANCHOR
-        } else {
-            NATURAL_ANCHOR
-        }
+        val date = if (unit == ProviderQuotaWindowUnit.WEEK) NATURAL_WEEK_ANCHOR else NATURAL_ANCHOR
         return date.atStartOfDay()
     }
 
@@ -182,12 +210,51 @@ data class ProviderQuotaWindow(
         return start to start + period
     }
 
-    /** 当前窗口的起点：固定窗口取周期边界，滑动窗口从当前时刻往前推 */
-    fun windowStartAt(nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+    /** 从一个周期起点算到该周期结束；MONTH 按日历月份算 */
+    fun periodEndFrom(startMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        if (unit == ProviderQuotaWindowUnit.MONTH) {
+            LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(startMillis), zone)
+                .plusMonths(safeAmount())
+                .atZone(zone)
+                .toInstant()
+                .toEpochMilli()
+        } else {
+            startMillis + durationMillis()
+        }
+
+    /**
+     * 首条请求窗口：把 [usageAtMillis]（按时间升序）按周期切段，每段从段内第一条请求起算。
+     * 设定（[effectiveAt]）之前的流水不参与；当前没有进行中的段时返回 null，下一条请求再起算。
+     */
+    private fun firstRequestBounds(
+        usageAtMillis: List<Long>,
+        nowMillis: Long,
+        zone: ZoneId,
+    ): Pair<Long, Long>? {
+        val from = effectiveAt.takeIf { it > 0 } ?: Long.MIN_VALUE
+        var start: Long? = null
+        var end = 0L
+        for (stamp in usageAtMillis) {
+            if (stamp > nowMillis) break
+            if (stamp < from) continue
+            if (start == null || stamp >= end) {
+                start = stamp
+                end = periodEndFrom(stamp, zone)
+            }
+        }
+        val current = start ?: return null
+        return if (nowMillis < end) current to end else null
+    }
+
+    /** 当前周期的统计口径；[usageAtMillis] 是已经发生的请求时刻（升序） */
+    fun periodAt(
+        usageAtMillis: List<Long>,
+        nowMillis: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): ProviderQuotaPeriod =
         when (mode) {
-            ProviderQuotaWindowMode.FIXED -> fixedBounds(nowMillis, zone).first
-            ProviderQuotaWindowMode.ROLLING ->
-                if (unit == ProviderQuotaWindowUnit.MONTH) {
+            ProviderQuotaWindowMode.ROLLING -> ProviderQuotaPeriod(
+                fromMillis = if (unit == ProviderQuotaWindowUnit.MONTH) {
                     LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone)
                         .minusMonths(safeAmount())
                         .atZone(zone)
@@ -195,18 +262,21 @@ data class ProviderQuotaWindow(
                         .toEpochMilli()
                 } else {
                     nowMillis - durationMillis()
-                }
+                },
+                fromExclusive = true,
+                resetAtMillis = null,
+            )
+
+            ProviderQuotaWindowMode.FIXED -> {
+                val (start, end) = fixedBounds(nowMillis, zone)
+                ProviderQuotaPeriod(fromMillis = start, fromExclusive = false, resetAtMillis = end)
+            }
+
+            ProviderQuotaWindowMode.FIRST_REQUEST ->
+                firstRequestBounds(usageAtMillis, nowMillis, zone)
+                    ?.let { ProviderQuotaPeriod(it.first, false, it.second) }
+                    ?: ProviderQuotaPeriod(fromMillis = null, fromExclusive = false, resetAtMillis = null)
         }
-
-    /** 固定窗口的下一次重置时刻；滑动窗口的恢复时间由用量释放决定，返回 null */
-    fun nextResetAt(nowMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Long? =
-        if (mode == ProviderQuotaWindowMode.FIXED) fixedBounds(nowMillis, zone).second else null
-
-    /** 一条从 [startedAt] 开始的用量在 [nowMillis] 的窗口里是否仍然计入 */
-    fun countsAt(nowMillis: Long, startedAt: Long, zone: ZoneId = ZoneId.systemDefault()): Boolean {
-        val start = windowStartAt(nowMillis, zone)
-        return if (mode == ProviderQuotaWindowMode.FIXED) startedAt >= start else startedAt > start
-    }
 
     /** 滑动窗口里一条用量滚出窗口的时刻 */
     fun releaseAt(startedAt: Long, zone: ZoneId = ZoneId.systemDefault()): Long =

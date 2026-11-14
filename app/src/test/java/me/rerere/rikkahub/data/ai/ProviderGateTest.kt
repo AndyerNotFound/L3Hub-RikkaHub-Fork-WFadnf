@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
@@ -351,6 +352,58 @@ class ProviderGateTest {
         val usage = fixedGate.status(provider).windows.single()
         assertEquals(1, usage.used)
         assertEquals(millis(zone, "2026-11-16T00:00:00"), usage.resetAt?.toEpochMilliseconds())
+    }
+
+    @Test
+    fun `first request window starts counting at the first request and restarts after a reset`() = runTest {
+        val zone = ZoneId.of("Asia/Shanghai")
+        now = millis(zone, "2026-11-14T09:00:00")
+        val firstGate = ProviderGate(dao = EmptyUsageDao(), clock = { now }, zone = zone)
+        val provider = setting(
+            ProviderGuard(
+                windows = listOf(
+                    ProviderQuotaWindow(
+                        amount = 3,
+                        unit = ProviderQuotaWindowUnit.HOUR,
+                        metric = ProviderQuotaMetric.REQUESTS,
+                        limit = 1,
+                        mode = ProviderQuotaWindowMode.FIRST_REQUEST,
+                        effectiveAt = millis(zone, "2026-11-14T09:00:00"),
+                    )
+                )
+            )
+        )
+
+        // 设定之后还没有请求：没有进行中的周期，不会拦
+        assertEquals(0, firstGate.status(provider).windows.single().used)
+        assertNull(firstGate.status(provider).windows.single().resetAt)
+
+        now = millis(zone, "2026-11-14T10:00:00")
+        assertTrue(runCatching { firstGate.begin(provider, messages, params) }.isSuccess)
+        val usage = firstGate.status(provider).windows.single()
+        assertEquals(1, usage.used)
+        assertEquals(millis(zone, "2026-11-14T13:00:00"), usage.resetAt?.toEpochMilliseconds())
+
+        // 周期内的下一个请求被挡，恢复时间就是本周期末尾
+        now = millis(zone, "2026-11-14T10:05:00")
+        val blocked = runCatching { firstGate.begin(provider, messages, params) }.exceptionOrNull()
+        assertTrue(blocked is ProviderLimitException)
+        assertEquals(
+            millis(zone, "2026-11-14T13:00:00"),
+            (blocked as ProviderLimitException).retryAt?.toEpochMilliseconds(),
+        )
+
+        // 周期结束后一直没有请求：用量归零，等下一条请求再起算
+        now = millis(zone, "2026-11-14T15:00:00")
+        val idle = firstGate.status(provider).windows.single()
+        assertEquals(0, idle.used)
+        assertNull(idle.resetAt)
+
+        now = millis(zone, "2026-11-14T16:00:00")
+        assertTrue(runCatching { firstGate.begin(provider, messages, params) }.isSuccess)
+        val restarted = firstGate.status(provider).windows.single()
+        assertEquals(1, restarted.used)
+        assertEquals(millis(zone, "2026-11-14T19:00:00"), restarted.resetAt?.toEpochMilliseconds())
     }
 
     @Test

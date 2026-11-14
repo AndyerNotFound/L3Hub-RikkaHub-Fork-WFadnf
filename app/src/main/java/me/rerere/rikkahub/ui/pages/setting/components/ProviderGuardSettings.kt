@@ -414,9 +414,9 @@ private fun WindowRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (window.mode == ProviderQuotaWindowMode.FIXED) {
+            if (window.mode != ProviderQuotaWindowMode.ROLLING) {
                 Text(
-                    text = fixedAnchorLabel(window),
+                    text = windowStartLabel(window),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -474,7 +474,17 @@ private fun WindowRow(
 }
 
 @Composable
-private fun fixedAnchorLabel(window: ProviderQuotaWindow): String {
+private fun windowStartLabel(window: ProviderQuotaWindow): String {
+    val context = LocalContext.current
+    if (window.mode == ProviderQuotaWindowMode.FIRST_REQUEST) {
+        if (window.effectiveAt <= 0) {
+            return stringResource(R.string.setting_provider_guard_window_effective_unset)
+        }
+        return stringResource(
+            R.string.setting_provider_guard_window_effective_at,
+            formatGuardTime(context, Instant.fromEpochMilliseconds(window.effectiveAt)),
+        )
+    }
     val start = runCatching {
         LocalDateTime.of(LocalDate.parse(window.anchorDate), LocalTime.parse(window.anchorTime))
     }.getOrNull() ?: return stringResource(R.string.setting_provider_guard_window_anchor_natural)
@@ -819,7 +829,7 @@ private fun QuotaWindowSheet(
     onDismiss: () -> Unit,
     onConfirm: (ProviderQuotaWindow) -> Unit,
 ) {
-    val base = initial ?: ProviderQuotaWindow(mode = ProviderQuotaWindowMode.FIXED)
+    val base = initial ?: ProviderQuotaWindow(mode = ProviderQuotaWindowMode.FIRST_REQUEST)
     var amountText by remember { mutableStateOf(base.amount.coerceAtLeast(1).toString()) }
     var unit by remember { mutableStateOf(base.unit) }
     var mode by remember { mutableStateOf(base.mode) }
@@ -992,6 +1002,9 @@ private fun QuotaWindowSheet(
 
                                     ProviderQuotaWindowMode.FIXED ->
                                         R.string.setting_provider_guard_window_mode_fixed
+
+                                    ProviderQuotaWindowMode.FIRST_REQUEST ->
+                                        R.string.setting_provider_guard_window_mode_first_request
                                 }
                             )
                         )
@@ -1000,10 +1013,15 @@ private fun QuotaWindowSheet(
             }
             Text(
                 text = stringResource(
-                    if (mode == ProviderQuotaWindowMode.FIXED) {
-                        R.string.setting_provider_guard_window_mode_fixed_desc
-                    } else {
-                        R.string.setting_provider_guard_window_mode_rolling_desc
+                    when (mode) {
+                        ProviderQuotaWindowMode.ROLLING ->
+                            R.string.setting_provider_guard_window_mode_rolling_desc
+
+                        ProviderQuotaWindowMode.FIXED ->
+                            R.string.setting_provider_guard_window_mode_fixed_desc
+
+                        ProviderQuotaWindowMode.FIRST_REQUEST ->
+                            R.string.setting_provider_guard_window_mode_first_request_desc
                     }
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -1061,7 +1079,7 @@ private fun QuotaWindowSheet(
                         anchorDate = anchorDate.format(LOCK_DATE_FORMAT),
                         anchorTime = anchorTime.format(LOCK_TIME_FORMAT),
                     )
-                    fixedWindow.nextResetAt(System.currentTimeMillis())?.let { nextReset ->
+                    fixedWindow.periodAt(emptyList(), System.currentTimeMillis()).resetAtMillis?.let { nextReset ->
                         Text(
                             text = stringResource(
                                 R.string.setting_provider_guard_window_fixed_preview,
@@ -1092,6 +1110,11 @@ private fun QuotaWindowSheet(
                                 limit = limit,
                                 costLimit = costLimit,
                                 mode = mode,
+                                effectiveAt = if (mode != ProviderQuotaWindowMode.FIRST_REQUEST) {
+                                    initial?.effectiveAt ?: 0L
+                                } else {
+                                    initial?.effectiveAt?.takeIf { it > 0 } ?: System.currentTimeMillis()
+                                },
                                 anchorDate = if (mode == ProviderQuotaWindowMode.FIXED) {
                                     anchorDate.format(LOCK_DATE_FORMAT)
                                 } else {

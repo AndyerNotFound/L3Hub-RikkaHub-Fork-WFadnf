@@ -2841,7 +2841,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_tpm">TPM 限制</string>
   <string name="setting_provider_guard_tpm_desc">每分钟最多消耗多少 token，输入按估算、输出按实际用量，0 表示不限制</string>
   <string name="setting_provider_guard_windows">自定义时间段限额</string>
-  <string name="setting_provider_guard_windows_desc">按滚动窗口或固定起算时间统计请求次数、token 用量或费用，可以添加多条</string>
+  <string name="setting_provider_guard_windows_desc">按滚动、固定起算或首条请求三种口径统计请求次数、token 用量或费用，可以添加多条</string>
   <string name="setting_provider_guard_window_add">添加时间段限额</string>
   <string name="setting_provider_guard_window_empty">尚未设置时间段限额</string>
   <string name="setting_provider_guard_window_edit">编辑时间段限额</string>
@@ -2851,12 +2851,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_window_mode">窗口算法</string>
   <string name="setting_provider_guard_window_mode_rolling">滚动</string>
   <string name="setting_provider_guard_window_mode_fixed">固定</string>
+  <string name="setting_provider_guard_window_mode_first_request">首条请求</string>
   <string name="setting_provider_guard_window_mode_rolling_desc">从当前时刻往前推一个窗口长度，用量随时间逐条释放，没有统一的归零时刻</string>
   <string name="setting_provider_guard_window_mode_fixed_desc">从起算时刻对齐，每满一个窗口长度整段归零</string>
+  <string name="setting_provider_guard_window_mode_first_request_desc">设定后第一条请求起算，每满一个窗口长度整段归零；归零后由下一条请求重新起算</string>
   <string name="setting_provider_guard_window_anchor_date">起算日期</string>
   <string name="setting_provider_guard_window_anchor_time">起算时刻</string>
   <string name="setting_provider_guard_window_anchor_prefix">自 %1$s 起算</string>
   <string name="setting_provider_guard_window_anchor_natural">按自然边界起算</string>
+  <string name="setting_provider_guard_window_effective_at">设定于 %1$s，由首条请求起算</string>
+  <string name="setting_provider_guard_window_effective_unset">由首条请求起算</string>
   <string name="setting_provider_guard_window_fixed_preview">自 %1$s 起算，%2$s重置一次，下次重置 %3$s</string>
   <string name="setting_provider_guard_metric_requests">请求次数</string>
   <string name="setting_provider_guard_metric_tokens">Token</string>
