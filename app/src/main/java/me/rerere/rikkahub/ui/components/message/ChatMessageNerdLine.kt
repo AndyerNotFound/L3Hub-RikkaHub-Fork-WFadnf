@@ -78,7 +78,6 @@ import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Repeat
-import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -200,7 +199,7 @@ fun ChatMessageNerdLine(
                     color = color,
                     fontFeatureSettings = "tnum",
                 )
-                // 统计行固定两行，某一行暂时没有内容（速度、费用要到生成结束才有）也占住行高，
+                // 统计行固定两行，某一行暂时没有内容（费用要到生成结束才有）也占住行高，
                 // 否则整块统计会在生成过程中反复长高、塌陷
                 val lineHeight = statsTextStyle.lineHeight
                     .takeOrElse { statsTextStyle.fontSize * 1.4f }
@@ -219,12 +218,6 @@ fun ChatMessageNerdLine(
                                     StatsItem(
                                         icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
                                         content = { StatsText(stringResource(R.string.chat_message_usage_steps, stats.steps)) },
-                                    )
-                                }
-                                if (stats.tps != null) {
-                                    StatsItem(
-                                        icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
-                                        content = { StatsText("${stats.tps.toFixed(1)} tok/s") },
                                     )
                                 }
                                 if (cost.total > 0) {

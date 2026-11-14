@@ -6,6 +6,7 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -373,6 +374,9 @@ private fun ChatListNormal(
     val conversation = conversationState.value
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
+    // 加载图标的颜色跟着本轮生成速度走，采样挂在这里（不跟着 item 的进出场重建）；
+    // 速度读数只在 item 里读，采样本身不会把整个列表重组一遍
+    val generationSpeed = rememberGenerationSpeed(conversationState, loading)
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val density = LocalDensity.current
@@ -859,6 +863,12 @@ private fun ChatListNormal(
             // 结束时行高跟着动画收回，列表贴着底部会把多出来的这段一点点退回去，
             // 正文是滑回原位，不会在图标消失的那一帧整体瞬移。
             item(LoadingIndicatorKey) {
+                // 采样是 100ms 一次的台阶，颜色的变化交给动画补齐，档位之间看起来是连续的
+                val speedRatio by animateFloatAsState(
+                    targetValue = generationSpeed.peakRatio,
+                    animationSpec = tween(durationMillis = 420),
+                    label = "loadingIndicatorSpeed",
+                )
                 MotionExpandCollapse(
                     visible = loading,
                     maxBlurRadius = 6.dp,
@@ -873,8 +883,10 @@ private fun ChatListNormal(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        // 停住或极慢是灰，中等冰蓝，摸到本轮最高速转红
                         ContainedLoadingIndicator(
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(28.dp),
+                            indicatorColor = generationIndicatorColor(speedRatio),
                         )
                         MotionExpandCollapse(
                             visible = processingStatus != null,
