@@ -131,6 +131,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.modifier.motionStretchHeight
 import me.rerere.rikkahub.ui.modifier.streamingTextMotion
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
@@ -834,7 +835,9 @@ private fun MessagePartsBlock(
                                         hazeState = hazeState,
                                         joinedToPrevious = joinedToPrevious,
                                         joinedToNext = joinedToNext,
-                                        modifier = if (streamingText) Modifier else Modifier.animateContentSize(),
+                                        // 高度改由气泡内部的弹性伸缩带动：伸缩时整只气泡带动态模糊，
+                                        // 外面的 animateContentSize 只在报告高度，气泡底边会先一步到位
+                                        stretchHeight = true,
                                     ) {
                                         MarkdownBlock(
                                             content = renderedText,
@@ -852,11 +855,17 @@ private fun MessagePartsBlock(
                                         content = renderedText,
                                         streaming = streamingText,
                                         onClickCitation = handleClickCitation,
-                                        modifier = if (streamingText) {
-                                            Modifier.streamingTextMotion(renderedText.length)
-                                        } else {
-                                            Modifier.animateContentSize()
-                                        }
+                                        // 没有气泡时同样让正文块弹性伸缩：文字还是原来的飘入，
+                                        // 只把高度与模糊交给伸缩层
+                                        modifier = Modifier
+                                            .motionStretchHeight()
+                                            .then(
+                                                if (streamingText) {
+                                                    Modifier.streamingTextMotion(renderedText.length)
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
                                     )
                                 }
                             }
@@ -1120,6 +1129,8 @@ private fun ChatMessageBubble(
     color: Color,
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier,
+    // 正文气泡的弹性伸展与折叠：高度追着内容走，伸缩过程整只气泡带动态模糊
+    stretchHeight: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
@@ -1200,6 +1211,9 @@ private fun ChatMessageBubble(
                     Modifier
                 },
             )
+            // 伸缩层放在气泡底色与形状裁剪的里侧：背景、圆角都按报告出去的高度画，
+            // 内容按自然高度排版，超出的部分被上面的 clipDrawing 按当前形状裁掉
+            .then(if (stretchHeight) Modifier.motionStretchHeight() else Modifier)
             // MarkdownBlock 自带 4dp 的水平内边距
             .padding(horizontal = 10.dp, vertical = 10.dp),
     ) {

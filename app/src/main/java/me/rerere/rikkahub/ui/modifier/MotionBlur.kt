@@ -13,6 +13,8 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -33,22 +35,27 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -232,6 +239,78 @@ fun Modifier.motionBlurOnToggle(
     return this.graphicsLayer {
         renderEffect = blur.at(decay.value)
     }
+}
+
+/**
+ * 容器高度的弹性伸展与折叠：内容长高时高度按空间曲线追上去，内容变少时收回来。
+ *
+ * 只改报告给父布局的高度，内容仍按自然高度排版并贴顶放置，超出的那一截由外层裁掉，
+ * 所以文字不会在伸缩过程中重新换行；气泡自己的圆角与背景跟着报告高度走，看起来就是气泡在长。
+ *
+ * 模糊跟着「离目标还差多少」走：差得越多越糊，追上目标就回到清晰。连续输出时每来一个
+ * token 只差几个像素，气泡不会一直糊着；新起一段、整块换内容这类大跨度的伸缩才会明显模糊。
+ *
+ * [enabled] 为 false 时原样返回；关闭动画速度或动态模糊时，伸缩与模糊分别退化。
+ */
+@Composable
+fun Modifier.motionStretchHeight(
+    enabled: Boolean = true,
+    maxBlurRadius: Dp = 5.dp,
+    // 离目标还差这么远时模糊拉满；比它近就按比例退掉，近到一半（约一行）以内完全不糊。
+    // 单行换行只差一个行高，糊得很轻；新起一段这类大跨度才推得明显
+    blurReference: Dp = 36.dp,
+    animationSpec: FiniteAnimationSpec<Float> = rememberSpatialSpec(),
+): Modifier {
+    if (!enabled) return this
+    val density = LocalDensity.current
+    val blurEnabled = LocalMotionBlur.current.enabled
+    val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
+    val referencePx = with(density) { blurReference.toPx() }
+    val scope = rememberCoroutineScope()
+    val state = remember { StretchHeightState() }
+    return this
+        // 内容按自然高度排版，比报告出去的高度长；裁切线就是气泡当前的底边
+        .clipToBounds()
+        // 关掉动态模糊时不挂这一层：静态气泡不该为了一条用不到的 RenderEffect 多开一个图层
+        .then(
+            if (blurEnabled) {
+                Modifier.graphicsLayer {
+                    val anim = state.animatable
+                    val remaining = if (anim == null) 0f else abs(state.target - anim.value)
+                    val amount = ((remaining / referencePx - 0.5f) / 0.5f).coerceIn(0f, 1f)
+                    renderEffect = if (amount > 0f) blur.at(amount) else null
+                }
+            } else {
+                Modifier
+            }
+        )
+        .layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            val natural = placeable.height.toFloat()
+            val anim = state.animatable
+                ?: Animatable(natural).also { created ->
+                    state.animatable = created
+                    state.target = natural
+                }
+            if (state.target != natural) {
+                state.target = natural
+                scope.launch { anim.animateTo(natural, animationSpec) }
+            }
+            val animated = anim.value.roundToInt()
+            // 量的时候放开了高度限制，报出去还得守住父容器的上限
+            val height = if (constraints.hasBoundedHeight) {
+                animated.coerceIn(0, constraints.maxHeight)
+            } else {
+                animated.coerceAtLeast(0)
+            }
+            layout(placeable.width, height) { placeable.place(0, 0) }
+        }
+}
+
+/** [motionStretchHeight] 的动画对象挂在组合外：测量里懒创建，绘制层只读。 */
+private class StretchHeightState {
+    var animatable: Animatable<Float, AnimationVector1D>? = null
+    var target: Float = 0f
 }
 
 /**
