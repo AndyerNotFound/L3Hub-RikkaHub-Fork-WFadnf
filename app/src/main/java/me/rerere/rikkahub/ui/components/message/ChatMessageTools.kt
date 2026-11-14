@@ -59,6 +59,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.guidanceText
 import me.rerere.rikkahub.data.ai.todoReminderText
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.toolCallTimeout
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
@@ -265,6 +266,10 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
     val duration = rememberToolDuration(tool, loading)
+    // 这次调用真正的超时预算：进度条按「耗时 / 超时时长」填充；没有时限的工具为 null
+    val timeout = remember(tool.toolName, context.arguments) {
+        toolCallTimeout(tool.toolName, context.arguments)
+    }
 
     // 摘要由注册的渲染器决定; 图片输出与拒绝原因为所有工具通用
     val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
@@ -329,6 +334,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         progress = duration?.takeIf { it >= 100.milliseconds }?.let { elapsed ->
             ChainOfThoughtProgress(
                 running = loading,
+                fraction = timeout?.let { (elapsed / it).toFloat() },
                 label = {
                     Text(
                         text = elapsed.toString(DurationUnit.SECONDS, 1),

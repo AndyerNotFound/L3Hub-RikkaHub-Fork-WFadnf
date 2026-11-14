@@ -86,9 +86,6 @@ import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.rememberLocalNetworkPermissionState
 import me.rerere.rikkahub.ui.components.ui.permission.rememberNotificationPermissionState
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.hooks.rememberDrawerAvatarBoundsTransform
-import me.rerere.rikkahub.ui.hooks.DrawerSettingsAvatarKey
-import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -151,11 +148,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         name = nickname,
                         value = settings.displaySetting.userAvatar,
                         avatarSize = 88.dp,
-                        // 和抽屉底部那张头像是同一个 key，页面切换时互相飞过去
-                        modifier = Modifier.heroAnimation(
-                            key = DrawerSettingsAvatarKey,
-                            boundsTransform = rememberDrawerAvatarBoundsTransform(),
-                        ),
                         onUpdate = { avatar ->
                             vm.updateSettings {
                                 it.copy(displaySetting = it.displaySetting.copy(userAvatar = avatar))

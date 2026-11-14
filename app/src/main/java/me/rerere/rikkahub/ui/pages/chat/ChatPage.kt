@@ -135,6 +135,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
@@ -382,7 +383,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                                 onNewChat = startNewChat,
                                 onOpenSettings = openSettingsFromDrawer,
                                 // 不传 onCloseDrawer：点会话时左栏要留着，它是常驻列不是抽屉
-                                avatarHero = sidebarOpen,
                                 hazeState = backgroundHazeState,
                                 widthOverride = sidebarWidthDp.dp,
                             )
@@ -441,8 +441,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         onNewChat = startNewChat,
                         onOpenSettings = openSettingsFromDrawer,
                         onCloseDrawer = { drawerOpen = false },
-                        // 收起状态的抽屉在屏幕外，这时别让头像参与转场
-                        avatarHero = drawerOpen,
                         hazeState = backgroundHazeState,
                     )
                 },
@@ -890,6 +888,23 @@ private fun ChatPageContent(
             onUpdateAssistant = vm::updateAssistant,
             onMoreClick = {
                 openPane(ChatSidePane.Files)
+            },
+            floatingBarItems = setting.displaySetting.floatingBarItems,
+            onFloatingBarItemClick = { item ->
+                when (item) {
+                    // 聊天槽位只负责把会话列表拉出来；已经展开时不再点一下关掉
+                    FloatingBarItem.CHAT -> if (!sidebarOpen) onOpenSidebar()
+                    FloatingBarItem.MEDIA_CREATION -> navController.navigate(Screen.MediaCreationSessions)
+                    FloatingBarItem.TRANSLATOR -> navController.navigate(Screen.Translator)
+                    FloatingBarItem.ASSISTANT -> navController.navigate(Screen.Assistant)
+                    FloatingBarItem.FAVORITE -> navController.navigate(Screen.Favorite)
+                    FloatingBarItem.HISTORY -> navController.navigate(Screen.History)
+                    FloatingBarItem.STATS -> navController.navigate(Screen.Stats)
+                    FloatingBarItem.IMAGE_GEN -> navController.navigate(Screen.ImageGen)
+                    FloatingBarItem.WORKSPACES -> navController.navigate(Screen.Workspaces)
+                    FloatingBarItem.SEARCH -> navController.navigate(Screen.MessageSearch)
+                    FloatingBarItem.SETTINGS -> navController.navigate(Screen.Setting)
+                }
             },
             modifier = modifier,
             liftedBy = liftedBy,

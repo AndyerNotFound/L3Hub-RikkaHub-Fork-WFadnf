@@ -183,32 +183,47 @@ fun <T> ChainOfThought(
  *
  * 耗时不再和标题挤在同一行，数字变化时卡片标题不会跟着跳动。
  *
- * @param running 是否仍在进行；进行中显示不定进度动画，结束后进度条填满
+ * @param running 是否仍在进行；进行中显示进度动画，结束后进度条填满
+ * @param fraction 进行中已经用完的额度（0~1，通常按耗时 / 超时时长算）；为 `null` 时画不定进度动画
  * @param label 右侧文案，通常为耗时；为 `null` 时进度条占满整行
  */
 class ChainOfThoughtProgress(
     val running: Boolean,
+    val fraction: Float? = null,
     val label: (@Composable () -> Unit)? = null,
 )
 
 /**
- * 步骤状态行里的进度条：进行中显示不定进度动画，完成后显示填满的实心条。
+ * 步骤状态行里的进度条：有明确时限时按 [fraction] 画确定进度，否则进行中显示不定进度动画，
+ * 完成后显示填满的实心条。
  */
 @Composable
 private fun ChainOfThoughtProgressBar(
     running: Boolean,
+    fraction: Float?,
     modifier: Modifier = Modifier,
 ) {
     val color = MaterialTheme.colorScheme.secondary
     val trackColor = color.copy(alpha = 0.15f)
-    if (running) {
-        LinearWavyProgressIndicator(
+    val progressValue = fraction?.coerceIn(0f, 1f)
+    when {
+        running && progressValue != null -> {
+            val value = progressValue
+            LinearWavyProgressIndicator(
+                progress = { value },
+                modifier = modifier,
+                color = color,
+                trackColor = trackColor,
+            )
+        }
+
+        running -> LinearWavyProgressIndicator(
             modifier = modifier,
             color = color,
             trackColor = trackColor,
         )
-    } else {
-        LinearWavyProgressIndicator(
+
+        else -> LinearWavyProgressIndicator(
             progress = { 1f },
             modifier = modifier,
             color = color.copy(alpha = 0.4f),
@@ -499,6 +514,7 @@ private class ChainOfThoughtScopeImpl(
                 ) {
                     ChainOfThoughtProgressBar(
                         running = progress.running,
+                        fraction = progress.fraction,
                         modifier = Modifier.weight(1f),
                     )
                     progress.label?.invoke()

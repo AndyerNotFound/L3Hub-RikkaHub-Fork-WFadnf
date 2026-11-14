@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
@@ -61,9 +67,15 @@ import me.rerere.rikkahub.data.datastore.DisplayMode
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FileUtils
+import me.rerere.rikkahub.data.model.DEFAULT_FLOATING_BAR_ITEMS
+import me.rerere.rikkahub.data.model.FloatingBarItem
+import me.rerere.rikkahub.data.model.MAX_FLOATING_BAR_ITEMS
+import me.rerere.rikkahub.ui.components.ai.icon
+import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -95,6 +107,15 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
         vm.updateSettings { it.copy(displaySetting = setting) }
+    }
+
+    var showFloatingBarAddSheet by rememberSaveable { mutableStateOf(false) }
+
+    fun moveFloatingBarItem(from: Int, to: Int) {
+        val items = displaySetting.floatingBarItems.toMutableList()
+        if (from !in items.indices || to !in items.indices) return
+        items.add(to, items.removeAt(from))
+        updateDisplaySetting(displaySetting.copy(floatingBarItems = items))
     }
 
     // 自定义字体回退链：优先用列表；旧配置只有单字体时退化为单元素列表
@@ -397,6 +418,103 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
+            CardGroup(
+                title = { Text(stringResource(R.string.setting_display_page_floating_bar_title)) },
+            ) {
+                switchItem(
+                    checked = displaySetting.enableFloatingBar,
+                    onCheckedChange = { enabled ->
+                        updateDisplaySetting(
+                            displaySetting.copy(
+                                enableFloatingBar = enabled,
+                                // 槽位被全部清空后重新打开开关时，先放回默认的两个，避免开关看起来没反应
+                                floatingBarItems = if (enabled && displaySetting.floatingBarItems.isEmpty()) {
+                                    DEFAULT_FLOATING_BAR_ITEMS
+                                } else {
+                                    displaySetting.floatingBarItems
+                                },
+                            )
+                        )
+                    },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
+                )
+                if (displaySetting.enableFloatingBar) {
+                    displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
+                        item(
+                            leadingContent = { CardGroupIcon(barItem.icon) },
+                            headlineContent = { Text(barItem.label()) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_display_page_floating_bar_slot,
+                                        index + 1,
+                                    )
+                                )
+                            },
+                            trailingContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (index > 0) {
+                                        IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
+                                            Icon(
+                                                HugeIcons.ArrowUp01,
+                                                contentDescription = stringResource(
+                                                    R.string.setting_display_page_floating_bar_move_up
+                                                ),
+                                            )
+                                        }
+                                    }
+                                    if (index < displaySetting.floatingBarItems.lastIndex) {
+                                        IconButton(onClick = { moveFloatingBarItem(index, index + 1) }) {
+                                            Icon(
+                                                HugeIcons.ArrowDown01,
+                                                contentDescription = stringResource(
+                                                    R.string.setting_display_page_floating_bar_move_down
+                                                ),
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            updateDisplaySetting(
+                                                displaySetting.copy(
+                                                    floatingBarItems = displaySetting.floatingBarItems
+                                                        .filterIndexed { i, _ -> i != index },
+                                                )
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            HugeIcons.Delete02,
+                                            contentDescription = stringResource(
+                                                R.string.setting_display_page_floating_bar_clear
+                                            ),
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    if (displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
+                        item(
+                            onClick = { showFloatingBarAddSheet = true },
+                            leadingContent = { CardGroupIcon(HugeIcons.Add01) },
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_add_slot)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_display_page_floating_bar_slots_count,
+                                        displaySetting.floatingBarItems.size,
+                                        MAX_FLOATING_BAR_ITEMS,
+                                    )
+                                )
+                            },
+                            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                        )
+                    }
+                }
+            }
+
             CardGroup {
                 formItem(
                     headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
@@ -587,6 +705,24 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
 
         }
     }
+    if (showFloatingBarAddSheet) {
+        FloatingBarAddSheet(
+            configured = displaySetting.floatingBarItems,
+            onAdd = { barItem ->
+                if (displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS &&
+                    barItem !in displaySetting.floatingBarItems
+                ) {
+                    updateDisplaySetting(
+                        displaySetting.copy(
+                            floatingBarItems = displaySetting.floatingBarItems + barItem,
+                        )
+                    )
+                }
+                showFloatingBarAddSheet = false
+            },
+            onDismiss = { showFloatingBarAddSheet = false },
+        )
+    }
     if (embedded) {
         content()
     } else {
@@ -613,6 +749,40 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     .padding(contentPadding),
             ) {
                 content()
+            }
+        }
+    }
+}
+
+/** 给悬浮栏挑一个新槽位；已经放上去的项目不再列出。 */
+@Composable
+private fun FloatingBarAddSheet(
+    configured: List<FloatingBarItem>,
+    onAdd: (FloatingBarItem) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val available = FloatingBarItem.entries.filter { it !in configured }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.setting_display_page_floating_bar_add_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            CardGroup {
+                available.forEach { barItem ->
+                    item(
+                        onClick = { onAdd(barItem) },
+                        leadingContent = { CardGroupIcon(barItem.icon) },
+                        headlineContent = { Text(barItem.label()) },
+                    )
+                }
             }
         }
     }

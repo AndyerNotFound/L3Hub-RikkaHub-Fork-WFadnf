@@ -3000,4 +3000,26 @@
   <string name="chat_quota_bar_empty">No rate limit or quota is configured for the current provider</string>
   <string name="chat_quota_bar_expand">Expand dashboard</string>
   <string name="chat_quota_bar_collapse">Collapse dashboard</string>
+
+  <string name="setting_display_page_floating_bar_title">Floating bar</string>
+  <string name="setting_display_page_floating_bar_switch">Show floating bar</string>
+  <string name="setting_display_page_floating_bar_desc">Show a bar under the chat input. It hides after five seconds of inactivity; swipe up on the input to bring it back. At least one slot is required.</string>
+  <string name="setting_display_page_floating_bar_slot">Slot %1$d</string>
+  <string name="setting_display_page_floating_bar_add_slot">Add slot</string>
+  <string name="setting_display_page_floating_bar_slots_count">Configured slots: %1$d of %2$d</string>
+  <string name="setting_display_page_floating_bar_add_sheet_title">Add slot</string>
+  <string name="setting_display_page_floating_bar_move_up">Move up</string>
+  <string name="setting_display_page_floating_bar_move_down">Move down</string>
+  <string name="setting_display_page_floating_bar_clear">Clear slot</string>
+  <string name="floating_bar_item_chat">Chat</string>
+  <string name="floating_bar_item_media_creation">Media creation</string>
+  <string name="floating_bar_item_translator">Translator</string>
+  <string name="floating_bar_item_assistant">Assistants</string>
+  <string name="floating_bar_item_favorite">Favorites</string>
+  <string name="floating_bar_item_history">History</string>
+  <string name="floating_bar_item_stats">Usage stats</string>
+  <string name="floating_bar_item_image_gen">Image generation</string>
+  <string name="floating_bar_item_workspaces">Workspaces</string>
+  <string name="floating_bar_item_search">Search chats</string>
+  <string name="floating_bar_item_settings">Settings</string>
 </resources>

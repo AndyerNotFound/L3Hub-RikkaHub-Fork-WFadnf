@@ -14,6 +14,8 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
+import me.rerere.rikkahub.data.model.DEFAULT_FLOATING_BAR_ITEMS
+import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.data.model.FloatingBubbleIcon
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
@@ -325,6 +327,10 @@ data class DisplaySetting(
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,
     val enableFloatingChatWindow: Boolean = false,
+    // 输入框下方的悬浮栏：开启后可快速切换聊天、媒体创作与自定义槽位
+    val enableFloatingBar: Boolean = false,
+    // 悬浮栏上的图标槽位，按列表顺序显示，最多 MAX_FLOATING_BAR_ITEMS 个
+    val floatingBarItems: List<FloatingBarItem> = DEFAULT_FLOATING_BAR_ITEMS,
     // 面板宽度占屏幕宽度的比例，设置里的滑块和面板右下角的拖动改的是同一个值
     val floatingPanelWidthRatio: Float = 1.0f,
     // 面板最高占可用高度的比例；内容少时照常收缩，这个只是上限

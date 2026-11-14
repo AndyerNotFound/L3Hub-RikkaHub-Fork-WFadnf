@@ -4,62 +4,27 @@ import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.SharedTransitionDefaults
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
-import me.rerere.rikkahub.ui.theme.LocalAnimationSpeed
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 
 /** 源条目侧的圆角。页面到位后收到 0，退场时再长回这个值。 */
 val HeroSourceCorner = 20.dp
-
-/** 抽屉底部头像 → 设置页顶部头像，同一张图飞过去。 */
-const val DrawerSettingsAvatarKey = "drawer_settings_avatar"
-
-/**
- * 抽屉 ↔ 设置页头像的飞行曲线，故意做得很硬。
- *
- * 转场里那个跟着飞的层是按时间插值的，它每帧只把「目标当前坐标」当终点，不会硬贴上去。
- * 返回设置页时如果用户顺手把抽屉滑回去，目标会快速移出屏幕，默认那条软弹簧追不上，
- * 看起来就是头像落在后面。stiffness 拉高、damping 拉满，基本贴着目标走。
- */
-@Composable
-fun rememberDrawerAvatarBoundsTransform(): BoundsTransform {
-    val motionScheme = MaterialTheme.motionScheme
-    val speed = LocalAnimationSpeed.current
-    return remember(motionScheme, speed) {
-        // 显式标一层 BoundsTransform：remember 的返回值推断不出 lambda 的参数类型，
-        // 直接写在 remember 里会报 Cannot infer type for implicit value parameter 'it'
-        val transform: BoundsTransform = { _, _ ->
-            when (speed) {
-                // SYSTEM 走 motionScheme：关掉动效时它已经是 snap，这条自动跟着关
-                AnimationSpeed.SYSTEM -> motionScheme.defaultSpatialSpec()
-                AnimationSpeed.FAST -> spring<Rect>(dampingRatio = 1f, stiffness = 1800f)
-                AnimationSpeed.GENTLE -> spring<Rect>(dampingRatio = 1f, stiffness = 700f)
-            }
-        }
-        transform
-    }
-}
 
 @Composable
 fun Modifier.heroAnimation(

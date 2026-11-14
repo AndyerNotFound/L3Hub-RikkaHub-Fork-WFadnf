@@ -102,11 +102,8 @@ import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.hooks.rememberDrawerAvatarBoundsTransform
-import me.rerere.rikkahub.ui.hooks.DrawerSettingsAvatarKey
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
-import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
@@ -148,8 +145,6 @@ fun ChatDrawerContent(
     onOpenSettings: () -> Unit = {},
     // 大屏的抽屉是常驻栏，没有"收起来"这回事；只有模态抽屉会传这个
     onCloseDrawer: (suspend () -> Unit)? = null,
-    // 头像能不能当共享元素：抽屉收起时它在屏幕外，参与转场会从界面外侧飞进来
-    avatarHero: Boolean = false,
     // 抽屉底板的玻璃取样源（聊天页的背景层）。没有源时 canGlassPane 返回 false，底板退回实色
     hazeState: HazeState? = null,
     // 横屏三栏的左栏宽度由列宽决定，不再按窗口比例算
@@ -456,7 +451,6 @@ fun ChatDrawerContent(
                 name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                 onNewChat = onNewChat,
                 onOpenSettings = onOpenSettings,
-                heroAvatar = avatarHero,
             )
         }
     }
@@ -863,7 +857,6 @@ private fun DrawerBottomBar(
     name: String,
     onNewChat: () -> Unit,
     onOpenSettings: () -> Unit,
-    heroAvatar: Boolean,
 ) {
     Row(
         modifier = Modifier
@@ -916,18 +909,6 @@ private fun DrawerBottomBar(
             avatarSize = 52.dp,
             videoPlayback = true,
             modifier = Modifier
-                // 点开设置时这张头像飞到设置页顶部那个位置
-                .then(
-                    if (heroAvatar) {
-                        Modifier.heroAnimation(
-                            key = DrawerSettingsAvatarKey,
-                            // 抽屉被顺手滑回去时目标是快速移出屏幕的，用硬曲线贴着走，别落在后面
-                            boundsTransform = rememberDrawerAvatarBoundsTransform(),
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
                 .graphicsLayer {
                     scaleX = DRAWER_AVATAR_SCALE
                     scaleY = DRAWER_AVATAR_SCALE

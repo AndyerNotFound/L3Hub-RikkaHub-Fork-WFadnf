@@ -2997,4 +2997,26 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_quota_bar_empty">当前渠道未配置限流或限额</string>
   <string name="chat_quota_bar_expand">展开看板</string>
   <string name="chat_quota_bar_collapse">收起看板</string>
+
+  <string name="setting_display_page_floating_bar_title">悬浮栏</string>
+  <string name="setting_display_page_floating_bar_switch">显示悬浮栏</string>
+  <string name="setting_display_page_floating_bar_desc">在聊天输入框下方显示悬浮栏。静默五秒后自动隐藏，上滑输入框可重新拉起；至少需要一个槽位。</string>
+  <string name="setting_display_page_floating_bar_slot">槽位 %1$d</string>
+  <string name="setting_display_page_floating_bar_add_slot">添加槽位</string>
+  <string name="setting_display_page_floating_bar_slots_count">已设置 %1$d / %2$d 个槽位</string>
+  <string name="setting_display_page_floating_bar_add_sheet_title">添加槽位</string>
+  <string name="setting_display_page_floating_bar_move_up">上移</string>
+  <string name="setting_display_page_floating_bar_move_down">下移</string>
+  <string name="setting_display_page_floating_bar_clear">清除槽位</string>
+  <string name="floating_bar_item_chat">聊天</string>
+  <string name="floating_bar_item_media_creation">媒体创作</string>
+  <string name="floating_bar_item_translator">翻译</string>
+  <string name="floating_bar_item_assistant">助手</string>
+  <string name="floating_bar_item_favorite">收藏</string>
+  <string name="floating_bar_item_history">历史记录</string>
+  <string name="floating_bar_item_stats">用量统计</string>
+  <string name="floating_bar_item_image_gen">图像生成</string>
+  <string name="floating_bar_item_workspaces">工作区</string>
+  <string name="floating_bar_item_search">搜索会话</string>
+  <string name="floating_bar_item_settings">设置</string>
 </resources>

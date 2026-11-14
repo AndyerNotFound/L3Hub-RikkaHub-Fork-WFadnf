@@ -40,7 +40,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.file.FileSystems
 import java.nio.file.Paths
 
-private const val SHELL_TIMEOUT_MAX_SECONDS = 600L
+internal const val SHELL_TIMEOUT_MAX_SECONDS = 600L
 private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
 private const val MAX_SNAPSHOT_FILE_BYTES = 4L * 1024 * 1024
 private const val DEFAULT_READ_LINES = 2000

@@ -7,6 +7,7 @@ import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -27,6 +28,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -35,7 +37,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,19 +73,22 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
@@ -134,9 +138,9 @@ import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
-import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.urlDecode
 import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
@@ -144,6 +148,7 @@ import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.webview.WebViewContentCache
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 
 // 一条消息内部各块（思考卡、正文气泡、附件、引用）之间的垂直间距。
@@ -955,61 +960,113 @@ private fun CollapsibleUserMessageText(
     onClickCitation: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val explicitLineCount = remember(text) { text.trimEnd().lineSequence().count() }
     var expanded by remember(text) { mutableStateOf(false) }
-    var measuredOverflow by remember(text) { mutableStateOf(false) }
-    val lineHeight = LocalTextStyle.current.lineHeight.toDp()
-    val collapsedHeight = (if (lineHeight.value > 0f) lineHeight else 20.dp) *
-        USER_MESSAGE_COLLAPSED_LINES.toFloat()
-    val collapsedHeightPx = with(LocalDensity.current) { collapsedHeight.toPx() }
-    val collapsible = explicitLineCount > USER_MESSAGE_COLLAPSED_LINES || measuredOverflow
-    val clipped = collapsible && !expanded
+    val measurer = rememberTextMeasurer()
+    val style = LocalTextStyle.current
+    val markdownPaddingPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+    // 行高从实际排版量出来：fontSizeRatio、自定义字体、未指定 lineHeight 时都能对上，
+    // 不能再拿 LocalTextStyle 的 lineHeight 猜，猜小了会把三行的话也算成需要折叠
+    val lineHeightPx = remember(measurer, style) {
+        measurer.measure(
+            text = AnnotatedString("M"),
+            style = style,
+            maxLines = 1,
+        ).size.height.toFloat().coerceAtLeast(1f)
+    }
+    val collapsedHeightPx = (lineHeightPx * USER_MESSAGE_COLLAPSED_LINES).roundToInt()
 
-    Column(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .then(
-                    if (clipped) {
-                        Modifier
-                            .heightIn(max = collapsedHeight)
-                            .clipToBounds()
-                    } else {
-                        Modifier
-                    }
-                )
-                .onSizeChanged { size ->
-                    if (!measuredOverflow && size.height > collapsedHeightPx) {
-                        measuredOverflow = true
-                    }
-                }
-        ) {
-            MarkdownBlock(
-                content = text.replaceRegexes(
-                    assistant = assistant,
-                    scope = AssistantAffectScope.USER,
-                    visual = true,
-                ),
-                onClickCitation = onClickCitation,
-            )
+    val collapseProgress by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
+        animationSpec = rememberSpatialSpec(),
+        label = "userMessageCollapse",
+    )
+
+    BoxWithConstraints(modifier = modifier) {
+        // 按正文本身的排版行数判断，量的是 MarkdownBlock 拿到的宽度（它自带左右各 4dp 内边距）
+        val availableWidthPx = constraints.maxWidth - markdownPaddingPx
+        val collapsible = remember(text, availableWidthPx, style, measurer) {
+            availableWidthPx > 0 && measurer.measure(
+                text = AnnotatedString(text.userMessageLineSample()),
+                style = style,
+                maxLines = USER_MESSAGE_COLLAPSED_LINES,
+                constraints = Constraints(maxWidth = availableWidthPx),
+            ).didOverflowHeight
         }
-        if (collapsible) {
-            Text(
-                text = stringResource(
-                    if (expanded) {
-                        R.string.chat_message_collapse_content
-                    } else {
-                        R.string.chat_message_expand_content
-                    }
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = LocalContentColor.current.copy(alpha = 0.7f),
+
+        Column {
+            Box(
                 modifier = Modifier
-                    .align(Alignment.End)
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { expanded = !expanded }
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-            )
+                    .clipToBounds()
+                    .collapsibleContentHeight(
+                        collapsedHeightPx = collapsedHeightPx,
+                        collapsible = collapsible,
+                        progress = { collapseProgress },
+                    ),
+            ) {
+                MarkdownBlock(
+                    content = text.replaceRegexes(
+                        assistant = assistant,
+                        scope = AssistantAffectScope.USER,
+                        visual = true,
+                    ),
+                    onClickCitation = onClickCitation,
+                )
+            }
+            if (collapsible) {
+                Text(
+                    text = stringResource(
+                        if (expanded) {
+                            R.string.chat_message_collapse_content
+                        } else {
+                            R.string.chat_message_expand_content
+                        }
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable { expanded = !expanded }
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
         }
+    }
+}
+
+// 段落之间的空行在渲染里只是间距，不会多占一行；量行数前先收掉，
+// 否则两三个短段落会被算成五六行，三行以内也冒出展开按钮
+private val UserMessageBlankLines = Regex("\\n{2,}")
+
+private fun String.userMessageLineSample(): String =
+    replace("\r\n", "\n").replace('\r', '\n').trimEnd().replace(UserMessageBlankLines, "\n")
+
+/**
+ * 正文始终按完整高度排版，只把可视区域的高度从三行渐开到全文。
+ *
+ * 让布局先量一遍不受限的内容，收起/展开只改裁切高度；文字不会先跳到三行、
+ * 再等气泡慢慢缩，收起和展开都是一整块跟着边缘走的过渡。
+ */
+private fun Modifier.collapsibleContentHeight(
+    collapsedHeightPx: Int,
+    collapsible: Boolean,
+    progress: () -> Float,
+): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(
+        constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+    )
+    val fullHeight = placeable.height
+    val height = if (collapsible && fullHeight > collapsedHeightPx) {
+        (collapsedHeightPx + (fullHeight - collapsedHeightPx) * progress())
+            .roundToInt()
+            .coerceIn(collapsedHeightPx, fullHeight)
+    } else {
+        fullHeight
+    }
+    // 量的时候放开了高度限制，报出去还得守住父容器的上限
+    val bounded = if (constraints.hasBoundedHeight) height.coerceAtMost(constraints.maxHeight) else height
+    layout(placeable.width, bounded) {
+        placeable.place(0, 0)
     }
 }
 
@@ -1233,8 +1290,7 @@ private fun UserMessageContent(
         onLongClickLabel = stringResource(R.string.chat_message_long_press_actions),
         popup = menu,
         modifier = Modifier
-            .padding(start = adaptiveHorizontalPaddingValue(24.dp))
-            .animateContentSize(),
+            .padding(start = adaptiveHorizontalPaddingValue(24.dp)),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (attachments.isNotEmpty()) {

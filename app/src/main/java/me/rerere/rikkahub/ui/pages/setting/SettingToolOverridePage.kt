@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import me.rerere.hugeicons.HugeIcons
@@ -323,6 +325,19 @@ private fun ToolOverrideSheet(
 
     val effectiveDescription = toolOverride?.description ?: entry.description
     val effectiveInstructions = toolOverride?.instructions ?: entry.instructions
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    // 关闭要走 sheet 自己的收起动画：直接清掉选中项会把整张弹窗从组合里抽走，
+    // 看上去是一下消失。点外部和返回键本来就先 hide 再回调，这里补齐按钮那一侧。
+    fun dismiss() {
+        scope.launch {
+            sheetState.hide()
+            onDismiss()
+        }
+    }
     val effectiveParameters: JsonElement? = remember(toolOverride?.parameters, entry.parameters) {
         toolOverride?.parameters
             ?.let { raw -> runCatching { JsonInstant.parseToJsonElement(raw) }.getOrNull() }
@@ -330,11 +345,8 @@ private fun ToolOverrideSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        ),
+        onDismissRequest = { dismiss() },
+        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -427,7 +439,7 @@ private fun ToolOverrideSheet(
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    androidx.compose.material3.TextButton(onClick = { dismiss() }) {
                         Text(stringResource(R.string.tool_override_action_close))
                     }
                     Button(

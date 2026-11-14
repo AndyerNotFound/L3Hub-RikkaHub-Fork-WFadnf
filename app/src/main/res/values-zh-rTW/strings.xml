@@ -2654,4 +2654,26 @@
   <string name="chat_quota_bar_empty">目前渠道未配置限流或限額</string>
   <string name="chat_quota_bar_expand">展開看板</string>
   <string name="chat_quota_bar_collapse">收合看板</string>
+
+  <string name="setting_display_page_floating_bar_title">懸浮欄</string>
+  <string name="setting_display_page_floating_bar_switch">顯示懸浮欄</string>
+  <string name="setting_display_page_floating_bar_desc">在聊天輸入框下方顯示懸浮欄。靜默五秒後自動隱藏，上滑輸入框可重新拉起；至少需要一個槽位。</string>
+  <string name="setting_display_page_floating_bar_slot">槽位 %1$d</string>
+  <string name="setting_display_page_floating_bar_add_slot">新增槽位</string>
+  <string name="setting_display_page_floating_bar_slots_count">已設定 %1$d / %2$d 個槽位</string>
+  <string name="setting_display_page_floating_bar_add_sheet_title">新增槽位</string>
+  <string name="setting_display_page_floating_bar_move_up">上移</string>
+  <string name="setting_display_page_floating_bar_move_down">下移</string>
+  <string name="setting_display_page_floating_bar_clear">清除槽位</string>
+  <string name="floating_bar_item_chat">聊天</string>
+  <string name="floating_bar_item_media_creation">媒體創作</string>
+  <string name="floating_bar_item_translator">翻譯</string>
+  <string name="floating_bar_item_assistant">助手</string>
+  <string name="floating_bar_item_favorite">收藏</string>
+  <string name="floating_bar_item_history">歷史記錄</string>
+  <string name="floating_bar_item_stats">用量統計</string>
+  <string name="floating_bar_item_image_gen">圖像生成</string>
+  <string name="floating_bar_item_workspaces">工作區</string>
+  <string name="floating_bar_item_search">搜尋對話</string>
+  <string name="floating_bar_item_settings">設定</string>
 </resources>

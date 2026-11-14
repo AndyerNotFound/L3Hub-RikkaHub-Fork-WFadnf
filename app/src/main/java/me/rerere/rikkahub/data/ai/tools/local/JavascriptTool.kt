@@ -136,7 +136,7 @@ internal suspend fun evaluateJavascript(
     }
 }
 
-private const val JS_EXECUTION_TIMEOUT_MS = 10_000L
+internal const val JS_EXECUTION_TIMEOUT_MS = 10_000L
 private const val JS_MEMORY_LIMIT_BYTES = 64L * 1024 * 1024
 private const val JS_MAX_STACK_BYTES = 256L * 1024
 private const val JS_MAX_LOG_CHARS = 64 * 1024

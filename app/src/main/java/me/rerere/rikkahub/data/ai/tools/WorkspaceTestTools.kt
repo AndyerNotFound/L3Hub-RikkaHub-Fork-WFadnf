@@ -19,8 +19,8 @@ import me.rerere.rikkahub.data.workspace.shQuote
 
 const val WORKSPACE_TEST_TOOL_NAME = "workspace_test"
 
-private const val TEST_TIMEOUT_DEFAULT_SECONDS = 600L
-private const val TEST_TIMEOUT_MAX_SECONDS = 1800L
+internal const val TEST_TIMEOUT_DEFAULT_SECONDS = 600L
+internal const val TEST_TIMEOUT_MAX_SECONDS = 1800L
 
 /**
  * 跑测试并把输出解析成结构化 diagnostics。

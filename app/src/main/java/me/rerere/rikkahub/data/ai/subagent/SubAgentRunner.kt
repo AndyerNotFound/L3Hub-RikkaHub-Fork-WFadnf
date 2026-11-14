@@ -26,8 +26,8 @@ private const val MAX_DEPTH = 2
 
 // wait=true 时最多让父回合等多久；超时后按后台任务处理，结果照常投递
 const val DEFAULT_SUB_AGENT_WAIT_SECONDS = 600
-private const val MIN_WAIT_TIMEOUT_SECONDS = 30
-private const val MAX_WAIT_TIMEOUT_SECONDS = 1800
+internal const val MIN_WAIT_TIMEOUT_SECONDS = 30
+internal const val MAX_WAIT_TIMEOUT_SECONDS = 1800
 
 /** 子代理的显示名：名字没填时用 id，回复里不会出现一对空引号 */
 internal fun subAgentLabel(assistant: Assistant): String =

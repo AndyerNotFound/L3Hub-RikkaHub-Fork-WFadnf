@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -41,7 +43,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.takeOrElse
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -70,6 +75,7 @@ import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
+import me.rerere.rikkahub.utils.toDp
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
 import java.time.Duration
@@ -79,6 +85,7 @@ import kotlin.math.roundToInt
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
  *
  * 上下文取最后一次请求；多步工具调用时行内还会显示这一轮累计的 token 和费用，明细在详情里。
+ * 行内固定两行：生成指标在上，token 与上下文在下，超宽时末尾省略，避免边生成边折行。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,68 +138,81 @@ fun ChatMessageNerdLine(
         enableUserInput = false,
         modifier = modifier,
     ) {
-        ProvideTextStyle(MaterialTheme.typography.labelSmall.copy(color = color)) {
+        // 等宽数字：流式生成时数值逐位变长，同一行里的其他项不会跟着左右挪
+        val statsTextStyle = MaterialTheme.typography.labelSmall.copy(
+            color = color,
+            fontFeatureSettings = "tnum",
+        )
+        // 统计行固定两行，某一行暂时没有内容（速度、费用要到生成结束才有）也占住行高，
+        // 否则整块统计会在生成过程中反复长高、塌陷
+        val lineHeight = statsTextStyle.lineHeight
+            .takeOrElse { statsTextStyle.fontSize * 1.4f }
+            .toDp()
+        ProvideTextStyle(statsTextStyle) {
             CompositionLocalProvider(LocalContentColor provides color) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { scope.launch { tooltipState.show() } }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
-                    if (stats.steps > 1) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
-                            content = { Text(text = stringResource(R.string.chat_message_usage_steps, stats.steps)) }
-                        )
+                    StatsLine(minHeight = lineHeight) {
+                        if (stats.steps > 1) {
+                            StatsItem(
+                                icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
+                                content = { StatsText(stringResource(R.string.chat_message_usage_steps, stats.steps)) },
+                            )
+                        }
+                        if (stats.tps != null) {
+                            StatsItem(
+                                icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
+                                content = { StatsText("${stats.tps.toFixed(1)} tok/s") },
+                            )
+                        }
+                        if (cost.total > 0) {
+                            StatsItem(
+                                icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
+                                content = { StatsText(cost.total.formatCost()) },
+                            )
+                        }
                     }
-                    if (stats.tps != null) {
+                    StatsLine(minHeight = lineHeight) {
                         StatsItem(
-                            icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
-                            content = { Text(text = "${stats.tps.toFixed(1)} tok/s") }
-                        )
-                    }
-                    if (cost.total > 0) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
-                            content = { Text(text = cost.total.formatCost()) },
-                        )
-                    }
-                    if (stats.steps > 1) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.ChartColumn, stringResource(R.string.chat_message_usage_total)) },
+                            icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
                             content = {
-                                Text(
-                                    text = stringResource(
-                                        R.string.chat_message_usage_total_tokens,
-                                        (stats.total.promptTokens + stats.total.completionTokens)
-                                            .formatNumber(binaryUnits),
+                                StatsText(
+                                    stringResource(
+                                        R.string.chat_message_usage_context_short,
+                                        stats.contextTokens.formatNumber(binaryUnits),
                                     )
                                 )
+                                val cached = stats.lastUsage.cachedTokens
+                                if (cached > 0) {
+                                    StatsText(
+                                        stringResource(
+                                            R.string.chat_message_usage_cached_short,
+                                            cached.formatNumber(binaryUnits),
+                                        )
+                                    )
+                                }
                             },
                         )
-                    }
-                    StatsItem(
-                        icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
-                        content = {
-                            Text(
-                                text = stringResource(
-                                    R.string.chat_message_usage_context_short,
-                                    stats.contextTokens.formatNumber(binaryUnits),
-                                )
-                            )
-                            val cached = stats.lastUsage.cachedTokens
-                            if (cached > 0) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.chat_message_usage_cached_short,
-                                        cached.formatNumber(binaryUnits),
+                        if (stats.steps > 1) {
+                            StatsItem(
+                                icon = { StatsIcon(HugeIcons.ChartColumn, stringResource(R.string.chat_message_usage_total)) },
+                                content = {
+                                    StatsText(
+                                        stringResource(
+                                            R.string.chat_message_usage_total_tokens,
+                                            (stats.total.promptTokens + stats.total.completionTokens)
+                                                .formatNumber(binaryUnits),
+                                        )
                                     )
-                                )
-                            }
+                                },
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -685,6 +705,26 @@ private fun StatsIcon(imageVector: ImageVector, contentDescription: String) {
         contentDescription = contentDescription,
         modifier = Modifier.size(12.dp)
     )
+}
+
+/** 统计行：固定占一行高度，内容放不下时交给最后一个元素省略，不换行 */
+@Composable
+private fun StatsLine(
+    minHeight: Dp,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier.heightIn(min = minHeight),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        content = content,
+    )
+}
+
+/** 统计行里的文字只占一行，超出宽度省略，数值变化不会把同行内容挤走 */
+@Composable
+private fun StatsText(text: String) {
+    Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable

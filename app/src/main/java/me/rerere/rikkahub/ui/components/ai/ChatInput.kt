@@ -16,6 +16,8 @@ import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,6 +79,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -93,6 +97,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -117,6 +122,7 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.data.model.Guidance
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.TodoItem
@@ -151,6 +157,7 @@ import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.components.AnimatedBasicAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
+import kotlin.math.abs
 import kotlin.uuid.Uuid
 
 /** 上下文预警进度条左右滑动的最小位移(px)，小于这个值当作点击 */
@@ -181,6 +188,9 @@ fun ChatInput(
     onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onMoreClick: () -> Unit,
+    // 输入框下方悬浮栏的槽位与点击回调；空列表时不显示悬浮栏
+    floatingBarItems: List<FloatingBarItem> = emptyList(),
+    onFloatingBarItemClick: (FloatingBarItem) -> Unit = {},
     onCancelClick: () -> Unit,
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
@@ -231,6 +241,65 @@ fun ChatInput(
     )
     // 单行布局里模型胶囊兼任思考强度入口，点开的就是这张带模型行的面板
     var showReasoningPicker by remember { mutableStateOf(false) }
+
+    // 悬浮栏：开启后先露出来，静默 5 秒收起；上滑输入框重新拉起
+    val floatingBarEnabled = settings.displaySetting.enableFloatingBar && floatingBarItems.isNotEmpty()
+    var floatingBarVisible by remember { mutableStateOf(false) }
+    var floatingBarActivity by remember { mutableIntStateOf(0) }
+    LaunchedEffect(floatingBarEnabled, state) {
+        if (!floatingBarEnabled) {
+            floatingBarVisible = false
+            return@LaunchedEffect
+        }
+        // 先按「收起」布局一帧，再拉起，首次进入也走同一条滑动模糊过渡
+        floatingBarVisible = false
+        withFrameNanos { }
+        floatingBarVisible = true
+        snapshotFlow {
+            Triple(state.textContent.text.length, floatingBarActivity, floatingBarVisible)
+        }.collectLatest { (_, _, visible) ->
+            if (!visible) return@collectLatest
+            delay(5_000)
+            floatingBarVisible = false
+        }
+    }
+    val revealFloatingBarModifier = if (floatingBarEnabled && !floatingBarVisible) {
+        Modifier.pointerInput(floatingBarEnabled, floatingBarVisible) {
+            val threshold = 24.dp.toPx()
+            awaitEachGesture {
+                val down = awaitFirstDown(
+                    requireUnconsumed = false,
+                    pass = PointerEventPass.Initial,
+                )
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                    val dx = change.position.x - down.position.x
+                    val dy = change.position.y - down.position.y
+                    if (dy < -threshold && abs(dy) > abs(dx)) {
+                        // 认成上滑后吃掉这一次移动，输入框内部不再跟着滚一截
+                        change.consume()
+                        floatingBarVisible = true
+                        floatingBarActivity++
+                        break
+                    }
+                }
+            }
+        }
+    } else {
+        Modifier
+    }
+    val resetFloatingBarTimerModifier = if (floatingBarEnabled) {
+        Modifier.pointerInput(floatingBarEnabled) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                floatingBarActivity++
+            }
+        }
+    } else {
+        Modifier
+    }
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
@@ -417,305 +486,322 @@ fun ChatInput(
                     }
                 }
             }
-            Surface(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(containerShape)
-                    .chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = settings.displaySetting,
-                        containerColor = containerColor,
-                        shape = containerShape,
-                    ),
-                shape = containerShape,
-                tonalElevation = 0.dp,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                ),
-                // 着色由 chatInputHaze 统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
-                color = if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
-                    containerColor
-                } else {
-                    Color.Transparent
-                },
+                    .then(resetFloatingBarTimerModifier),
             ) {
-                Column(
-                    modifier = Modifier.padding(
-                        horizontal = settings.displaySetting.inputPadding.dp,
-                        vertical = 4.dp,
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(revealFloatingBarModifier)
+                        .clip(containerShape)
+                        .chatInputHaze(
+                            hazeState = hazeState,
+                            displaySetting = settings.displaySetting,
+                            containerColor = containerColor,
+                            shape = containerShape,
+                        ),
+                    shape = containerShape,
+                    tonalElevation = 0.dp,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     ),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    // 着色由 chatInputHaze 统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
+                    color = if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
+                        containerColor
+                    } else {
+                        Color.Transparent
+                    },
                 ) {
-                    if (assistant.planMode) {
-                        Text(
-                            text = stringResource(R.string.chat_input_plan_mode_hint),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onUpdateAssistant(assistant.copy(planMode = false)) }
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                        )
-                    }
-                    if (voiceState.phase != VoicePhase.Off) {
-                        VoiceModeRow(
-                            state = voiceState,
-                            onStop = onStopVoiceMode,
-                            onRetry = { onStartVoiceMode?.invoke() },
-                        )
-                        androidx.compose.material3.HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        )
-                    }
-                    if (state.messageContent.isNotEmpty()) {
-                        MediaFileInputRow(state = state)
-                    }
-                    // 必须在 TextInputRow 外面：单行布局的按钮以 TextInputRow 整体高度居中，
-                    // 提示条排在 TextField 之前会把按钮顶到输入框上部
-                    if (state.isEditing()) {
-                        EditingBanner(
-                            state = state,
-                            shape = innerShape,
-                            onEditReasoning = { isEditingReasoning = true },
-                        )
-                    }
+                    Column(
+                        modifier = Modifier.padding(
+                            horizontal = settings.displaySetting.inputPadding.dp,
+                            vertical = 4.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        if (assistant.planMode) {
+                            Text(
+                                text = stringResource(R.string.chat_input_plan_mode_hint),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onUpdateAssistant(assistant.copy(planMode = false)) }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                            )
+                        }
+                        if (voiceState.phase != VoicePhase.Off) {
+                            VoiceModeRow(
+                                state = voiceState,
+                                onStop = onStopVoiceMode,
+                                onRetry = { onStartVoiceMode?.invoke() },
+                            )
+                            androidx.compose.material3.HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            )
+                        }
+                        if (state.messageContent.isNotEmpty()) {
+                            MediaFileInputRow(state = state)
+                        }
+                        // 必须在 TextInputRow 外面：单行布局的按钮以 TextInputRow 整体高度居中，
+                        // 提示条排在 TextField 之前会把按钮顶到输入框上部
+                        if (state.isEditing()) {
+                            EditingBanner(
+                                state = state,
+                                shape = innerShape,
+                                onEditReasoning = { isEditingReasoning = true },
+                            )
+                        }
 
-                    val singleLine = settings.displaySetting.inputLayoutStyle == InputLayoutStyle.SINGLE
-                    val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
-                        settings.getQuickMessagesOfAssistant(assistant)
-                    }
-                    val asrButton: @Composable () -> Unit = {
-                        if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
-                            AsrButton(
-                                state = asrState,
-                                onClick = {
-                                    when (asrState.status) {
-                                        ASRStatus.Listening -> asr.stop()
-                                        ASRStatus.Idle, ASRStatus.Error -> {
-                                            if (!asrPermission.allRequiredPermissionsGranted) {
-                                                asrPermission.requestPermissions()
-                                            } else {
-                                                asrBaseText = state.textContent.text.toString()
-                                                asr.start { transcript ->
-                                                    val spacer =
-                                                        if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
-                                                    state.setMessageText(asrBaseText + spacer + transcript)
+                        val singleLine = settings.displaySetting.inputLayoutStyle == InputLayoutStyle.SINGLE
+                        val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
+                            settings.getQuickMessagesOfAssistant(assistant)
+                        }
+                        val asrButton: @Composable () -> Unit = {
+                            if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
+                                AsrButton(
+                                    state = asrState,
+                                    onClick = {
+                                        when (asrState.status) {
+                                            ASRStatus.Listening -> asr.stop()
+                                            ASRStatus.Idle, ASRStatus.Error -> {
+                                                if (!asrPermission.allRequiredPermissionsGranted) {
+                                                    asrPermission.requestPermissions()
+                                                } else {
+                                                    asrBaseText = state.textContent.text.toString()
+                                                    asr.start { transcript ->
+                                                        val spacer =
+                                                            if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
+                                                        state.setMessageText(asrBaseText + spacer + transcript)
+                                                    }
                                                 }
                                             }
+
+                                            ASRStatus.Connecting, ASRStatus.Stopping -> {}
                                         }
-
-                                        ASRStatus.Connecting, ASRStatus.Stopping -> {}
                                     }
+                                )
+                            }
+                        }
+                        val interjectButton: @Composable () -> Unit = {
+                            if (loading && settings.enableMessageQueue && !state.isEmpty()) {
+                                ActionIconButton(onClick = onInterjectClick) {
+                                    Icon(
+                                        imageVector = HugeIcons.MessageAdd01,
+                                        contentDescription = stringResource(R.string.chat_page_interject),
+                                    )
                                 }
-                            )
+                            }
                         }
-                    }
-                    val interjectButton: @Composable () -> Unit = {
-                        if (loading && settings.enableMessageQueue && !state.isEmpty()) {
-                            ActionIconButton(onClick = onInterjectClick) {
-                                Icon(
-                                    imageVector = HugeIcons.MessageAdd01,
-                                    contentDescription = stringResource(R.string.chat_page_interject),
+                        val sendButton: @Composable () -> Unit = {
+                            if (loading) {
+                                KeepScreenOn()
+                            }
+                            AnimatedVisibility(
+                                visible = !asrState.isRecording,
+                                enter = fadeIn() + scaleIn(),
+                                exit = fadeOut() + scaleOut(),
+                            ) {
+                                SendButton(
+                                    loading = loading,
+                                    empty = state.isEmpty(),
+                                    onClick = { sendMessage() },
+                                    onLongClick = { sendMessageWithoutAnswer() },
                                 )
                             }
                         }
-                    }
-                    val sendButton: @Composable () -> Unit = {
-                        if (loading) {
-                            KeepScreenOn()
+                        val reasoningButton: @Composable () -> Unit = {
+                            if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+                                ReasoningButton(
+                                    reasoningLevel = assistant.reasoningLevel,
+                                    onUpdateReasoningLevel = {
+                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
+                                    },
+                                    onlyIcon = true,
+                                    useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
+                                )
+                            }
                         }
-                        AnimatedVisibility(
-                            visible = !asrState.isRecording,
-                            enter = fadeIn() + scaleIn(),
-                            exit = fadeOut() + scaleOut(),
-                        ) {
-                            SendButton(
-                                loading = loading,
-                                empty = state.isEmpty(),
-                                onClick = { sendMessage() },
-                                onLongClick = { sendMessageWithoutAnswer() },
-                            )
-                        }
-                    }
-                    val reasoningButton: @Composable () -> Unit = {
-                        if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-                            ReasoningButton(
-                                reasoningLevel = assistant.reasoningLevel,
-                                onUpdateReasoningLevel = {
-                                    onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                },
-                                onlyIcon = true,
-                                useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
-                            )
-                        }
-                    }
 
-                    if (singleLine) {
-                        var fieldFocused by remember { mutableStateOf(false) }
-                        var oneLineHeightPx by remember { mutableIntStateOf(0) }
-                        val hasContent by remember(state) {
-                            derivedStateOf { state.textContent.text.isNotEmpty() }
-                        }
-                        // 唤起输入法（或框里已经有内容）时从一行展开成两行：
-                        // 文字带升到上一行，下一行的按钮组留在原地不动
-                        val expanded = fieldFocused || hasContent
-                        val expandProgress by animateFloatAsState(
-                            targetValue = if (expanded) 1f else 0f,
-                            animationSpec = tween(380, easing = ChatInputExpandEasing),
-                            label = "chatInputExpand",
-                        )
-                        val density = LocalDensity.current
-                        // 按钮行固定 48dp：点击区域留够，行高定了上下留白才能算准
-                        val actionRowHeight = 48.dp
-                        val oneLineHeight = with(density) { oneLineHeightPx.toDp() }
-                            .takeIf { it > 0.dp } ?: 56.dp
-                        // 收起时按钮跟单行文字居中对齐；两种状态共用同一个下边距，
-                        // 所以容器向上长高时按钮的屏幕坐标保持不变
-                        val actionRowInset = ((oneLineHeight - actionRowHeight) / 2f)
-                            .coerceAtLeast(0.dp)
-                        val textBottomPadding =
-                            (actionRowInset + actionRowHeight + 4.dp) * expandProgress
-                        // 卡片左右内边距变大时，把输入框自己的内缩减回去，
-                        // 文字可用宽度保持不变，行数就不会因为拖滑块而变
-                        val inputInsetFix = (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)
-                        val textStart = lerp((70 - inputInsetFix).dp, 4.dp, expandProgress)
-                        val textEnd = lerp((112 - inputInsetFix).dp, 4.dp, expandProgress)
-                        val collapsedPlaceholder = stringResource(R.string.chat_input_placeholder)
-                        val modelName = chatModel?.displayName
-                        val expandedPlaceholder = if (modelName != null) {
-                            stringResource(R.string.chat_input_placeholder_expanded, modelName)
-                        } else {
-                            collapsedPlaceholder
-                        }
-                        val leadingActions: @Composable () -> Unit = {
-                            ActionIconButton(onClick = onMoreClick) {
-                                Icon(
-                                    imageVector = HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options),
+                        if (singleLine) {
+                            var fieldFocused by remember { mutableStateOf(false) }
+                            var oneLineHeightPx by remember { mutableIntStateOf(0) }
+                            val hasContent by remember(state) {
+                                derivedStateOf { state.textContent.text.isNotEmpty() }
+                            }
+                            // 唤起输入法（或框里已经有内容）时从一行展开成两行：
+                            // 文字带升到上一行，下一行的按钮组留在原地不动
+                            val expanded = fieldFocused || hasContent
+                            val expandProgress by animateFloatAsState(
+                                targetValue = if (expanded) 1f else 0f,
+                                animationSpec = tween(380, easing = ChatInputExpandEasing),
+                                label = "chatInputExpand",
+                            )
+                            val density = LocalDensity.current
+                            // 按钮行固定 48dp：点击区域留够，行高定了上下留白才能算准
+                            val actionRowHeight = 48.dp
+                            val oneLineHeight = with(density) { oneLineHeightPx.toDp() }
+                                .takeIf { it > 0.dp } ?: 56.dp
+                            // 收起时按钮跟单行文字居中对齐；两种状态共用同一个下边距，
+                            // 所以容器向上长高时按钮的屏幕坐标保持不变
+                            val actionRowInset = ((oneLineHeight - actionRowHeight) / 2f)
+                                .coerceAtLeast(0.dp)
+                            val textBottomPadding =
+                                (actionRowInset + actionRowHeight + 4.dp) * expandProgress
+                            // 卡片左右内边距变大时，把输入框自己的内缩减回去，
+                            // 文字可用宽度保持不变，行数就不会因为拖滑块而变
+                            val inputInsetFix = (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)
+                            val textStart = lerp((70 - inputInsetFix).dp, 4.dp, expandProgress)
+                            val textEnd = lerp((112 - inputInsetFix).dp, 4.dp, expandProgress)
+                            val collapsedPlaceholder = stringResource(R.string.chat_input_placeholder)
+                            val modelName = chatModel?.displayName
+                            val expandedPlaceholder = if (modelName != null) {
+                                stringResource(R.string.chat_input_placeholder_expanded, modelName)
+                            } else {
+                                collapsedPlaceholder
+                            }
+                            val leadingActions: @Composable () -> Unit = {
+                                ActionIconButton(onClick = onMoreClick) {
+                                    Icon(
+                                        imageVector = HugeIcons.Add01,
+                                        contentDescription = stringResource(R.string.more_options),
+                                    )
+                                }
+                                // 一直显示：长按它是把输入框内容当引导发出去的入口，
+                                // 没有预设时也得能按，否则这个手势就藏起来了
+                                QuickMessageButton(
+                                    quickMessages = quickMessages,
+                                    guideMessages = guideMessages,
+                                    state = state,
+                                    onAddGuidance = onAddGuidance,
+                                    onSendAsGuidance = onSendAsGuidance,
                                 )
                             }
-                            // 一直显示：长按它是把输入框内容当引导发出去的入口，
-                            // 没有预设时也得能按，否则这个手势就藏起来了
-                            QuickMessageButton(
-                                quickMessages = quickMessages,
-                                guideMessages = guideMessages,
-                                state = state,
-                                onAddGuidance = onAddGuidance,
-                                onSendAsGuidance = onSendAsGuidance,
-                            )
-                        }
-                        // 模型与思考强度都收进左侧胶囊，右侧只留输入相关按钮
-                        val reasoningSupported =
-                            chatModel?.abilities?.contains(ModelAbility.REASONING) == true
-                        val trailingActions: @Composable () -> Unit = {
-                            asrButton()
-                            interjectButton()
-                            sendButton()
-                        }
-                        Box(modifier = Modifier.fillMaxWidth()) {
+                            // 模型与思考强度都收进左侧胶囊，右侧只留输入相关按钮
+                            val reasoningSupported =
+                                chatModel?.abilities?.contains(ModelAbility.REASONING) == true
+                            val trailingActions: @Composable () -> Unit = {
+                                asrButton()
+                                interjectButton()
+                                sendButton()
+                            }
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                TextInputRow(
+                                    state = state,
+                                    assistant = assistant,
+                                    completionProviders = completionProviders,
+                                    onSendMessage = { sendMessage() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    showQuickMessageButton = false,
+                                    fullscreenOnOverflow = true,
+                                    guideMessages = guideMessages,
+                                    onAddGuidance = onAddGuidance,
+                                    onSendAsGuidance = onSendAsGuidance,
+                                    contentPadding = PaddingValues(
+                                        start = textStart,
+                                        end = textEnd,
+                                        bottom = textBottomPadding,
+                                    ),
+                                    placeholder = {
+                                        MorphingPlaceholder(
+                                            target = if (expanded) {
+                                                expandedPlaceholder
+                                            } else {
+                                                collapsedPlaceholder
+                                            },
+                                        )
+                                    },
+                                    onFocusChange = { fieldFocused = it },
+                                    onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .padding(bottom = actionRowInset)
+                                        .height(actionRowHeight),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    leadingActions()
+                                    ChatInputModelPill(
+                                        model = chatModel,
+                                        reasoningLevel = assistant.reasoningLevel
+                                            .takeIf { reasoningSupported },
+                                        useL3HubReasoningStyle = settings.displaySetting.useL3HubReasoningStyle,
+                                        visible = expanded,
+                                        onClick = {
+                                            // 能思考的模型点开强度面板（面板首行就是模型选择），
+                                            // 不能思考的直接落到模型列表
+                                            if (reasoningSupported) {
+                                                showReasoningPicker = true
+                                            } else {
+                                                modelListState.open()
+                                            }
+                                        },
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    trailingActions()
+                                }
+                            }
+                        } else {
                             TextInputRow(
                                 state = state,
                                 assistant = assistant,
                                 completionProviders = completionProviders,
                                 onSendMessage = { sendMessage() },
-                                modifier = Modifier.fillMaxWidth(),
-                                showQuickMessageButton = false,
-                                fullscreenOnOverflow = true,
                                 guideMessages = guideMessages,
                                 onAddGuidance = onAddGuidance,
                                 onSendAsGuidance = onSendAsGuidance,
-                                contentPadding = PaddingValues(
-                                    start = textStart,
-                                    end = textEnd,
-                                    bottom = textBottomPadding,
-                                ),
-                                placeholder = {
-                                    MorphingPlaceholder(
-                                        target = if (expanded) {
-                                            expandedPlaceholder
-                                        } else {
-                                            collapsedPlaceholder
-                                        },
-                                    )
-                                },
-                                onFocusChange = { fieldFocused = it },
-                                onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
                             )
+
                             Row(
                                 modifier = Modifier
-                                    .align(Alignment.BottomStart)
                                     .fillMaxWidth()
-                                    .padding(bottom = actionRowInset)
-                                    .height(actionRowHeight),
+                                    .padding(horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                leadingActions()
-                                ChatInputModelPill(
-                                    model = chatModel,
-                                    reasoningLevel = assistant.reasoningLevel
-                                        .takeIf { reasoningSupported },
-                                    useL3HubReasoningStyle = settings.displaySetting.useL3HubReasoningStyle,
-                                    visible = expanded,
-                                    onClick = {
-                                        // 能思考的模型点开强度面板（面板首行就是模型选择），
-                                        // 不能思考的直接落到模型列表
-                                        if (reasoningSupported) {
-                                            showReasoningPicker = true
-                                        } else {
-                                            modelListState.open()
-                                        }
-                                    },
-                                )
-                                Spacer(Modifier.weight(1f))
-                                trailingActions()
-                            }
-                        }
-                    } else {
-                        TextInputRow(
-                            state = state,
-                            assistant = assistant,
-                            completionProviders = completionProviders,
-                            onSendMessage = { sendMessage() },
-                            guideMessages = guideMessages,
-                            onAddGuidance = onAddGuidance,
-                            onSendAsGuidance = onSendAsGuidance,
-                        )
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    ModelSelectorButton(
+                                        state = modelListState,
+                                        onlyIcon = true,
+                                        modifier = Modifier,
+                                    )
+                                    reasoningButton()
+                                }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                ModelSelectorButton(
-                                    state = modelListState,
-                                    onlyIcon = true,
-                                    modifier = Modifier,
-                                )
-                                reasoningButton()
-                            }
+                                ActionIconButton(onClick = onMoreClick) {
+                                    Icon(
+                                        imageVector = HugeIcons.Add01,
+                                        contentDescription = stringResource(R.string.more_options),
+                                    )
+                                }
 
-                            ActionIconButton(onClick = onMoreClick) {
-                                Icon(
-                                    imageVector = HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options),
-                                )
+                                asrButton()
+                                interjectButton()
+                                sendButton()
                             }
-
-                            asrButton()
-                            interjectButton()
-                            sendButton()
                         }
                     }
+                }
+
+                if (floatingBarEnabled) {
+                    ChatFloatingBar(
+                        visible = floatingBarVisible,
+                        items = floatingBarItems,
+                        onItemClick = onFloatingBarItemClick,
+                        hazeState = hazeState,
+                        displaySetting = settings.displaySetting,
+                    )
                 }
             }
 
