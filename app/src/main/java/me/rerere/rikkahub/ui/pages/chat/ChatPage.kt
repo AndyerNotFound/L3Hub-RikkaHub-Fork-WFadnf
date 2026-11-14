@@ -197,9 +197,8 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -1269,8 +1268,6 @@ private fun ChatPageContent(
                         shrinkTowards = Alignment.Top,
                         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                     ) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-                    enterBlurSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                 ) {
                     ConversationDetailsPanel(
                         assistant = assistant,
@@ -2153,8 +2150,9 @@ private fun EmptyChatContent(
     onHeroPlaced: (Float) -> Unit,
 ) {
     val heroBlur = rememberMotionBlurSteps(maxRadius = 8.dp)
-    val enterBlurSpec = rememberSpatialSpec<Float>()
-    val exitBlurSpec = rememberFastSpatialSpec<Float>()
+    // 模糊的收放跟随动态模糊设置里的时长，透明度仍走动画速度档位
+    val enterBlurSpec = rememberMotionBlurSpec()
+    val exitBlurSpec = rememberMotionBlurSpec(scale = 0.75f)
     val fadeSpec = rememberEffectsSpec<Float>()
     BoxWithConstraints(
         modifier = Modifier
