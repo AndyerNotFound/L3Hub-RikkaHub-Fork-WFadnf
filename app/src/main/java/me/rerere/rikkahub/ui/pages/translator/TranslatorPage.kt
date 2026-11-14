@@ -82,6 +82,7 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
@@ -362,10 +363,11 @@ private fun ResultCard(
                 )
             }
 
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = hasResult && !translating,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
+                maxBlurRadius = 4.dp,
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

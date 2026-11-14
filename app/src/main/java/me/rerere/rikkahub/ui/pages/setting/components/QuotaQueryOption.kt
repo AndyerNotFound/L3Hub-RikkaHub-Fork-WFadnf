@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +36,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -77,7 +77,7 @@ fun SettingProviderQuotaQuery(
                 }
             },
         ) {
-            AnimatedVisibility(visible = expand) {
+            MotionExpandCollapse(visible = expand) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {

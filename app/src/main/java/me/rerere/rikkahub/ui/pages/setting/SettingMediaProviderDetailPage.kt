@@ -56,6 +56,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.ui.pages.setting.components.MediaGenerationProviderBasicConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.MediaGenerationProviderModelsConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
@@ -202,7 +203,7 @@ fun SettingMediaProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(HugeIcons.FloppyDisk, contentDescription = stringResource(R.string.chat_page_save))
-                            AnimatedVisibility(expanded) {
+                            MotionExpandCollapseHorizontal(visible = expanded) {
                                 Row {
                                     Spacer(modifier = Modifier.size(8.dp))
                                     Text(stringResource(R.string.chat_page_save))

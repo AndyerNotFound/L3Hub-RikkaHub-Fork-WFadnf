@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import android.graphics.RenderEffect as AndroidRenderEffect
-import android.graphics.Shader
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
@@ -27,13 +24,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -59,6 +53,7 @@ import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.FloatingBarItem
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveShape
@@ -151,7 +146,7 @@ internal fun ChatFloatingBar(
         },
         label = "chatFloatingBarProgress",
     ) { shown -> if (shown) 1f else 0f }
-    val blur = rememberFloatingBarBlur()
+    val blur = rememberMotionBlurSteps(maxRadius = 6.dp, steps = 4)
     val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
     val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
 
@@ -255,40 +250,6 @@ private fun FloatingBarItemButton(
                 modifier = Modifier.size(iconExtent),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-    }
-}
-
-/**
- * 过渡用的几档 RenderEffect。
- *
- * 和逐字渐变同一套做法：模糊半径只做几档，按进度取最近的一档，避免每帧新建对象。
- * API 31 以下没有 RenderEffect，退化成纯位移淡入淡出。
- */
-private class FloatingBarBlur(private val steps: List<RenderEffect?>) {
-    fun at(progress: Float): RenderEffect? {
-        if (steps.isEmpty()) return null
-        val index = (progress * steps.lastIndex).roundToInt().coerceIn(0, steps.lastIndex)
-        return steps[index]
-    }
-}
-
-@Composable
-private fun rememberFloatingBarBlur(): FloatingBarBlur {
-    val density = LocalDensity.current
-    return remember(density) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val maxRadius = with(density) { 6.dp.toPx() }
-            FloatingBarBlur(
-                listOf<RenderEffect?>(null) + List(4) { step ->
-                    val radius = maxRadius * (step + 1) / 4f
-                    AndroidRenderEffect
-                        .createBlurEffect(radius, radius, Shader.TileMode.DECAL)
-                        .asComposeRenderEffect()
-                }
-            )
-        } else {
-            FloatingBarBlur(emptyList())
         }
     }
 }

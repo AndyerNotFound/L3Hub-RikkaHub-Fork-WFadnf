@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
@@ -46,10 +45,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -77,8 +76,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -90,9 +89,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.toast.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -159,21 +155,21 @@ import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
-import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.EditedFilesList
+import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
+import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
+import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
-import me.rerere.rikkahub.ui.components.message.EditedFilesList
-import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
-import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
-import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -183,16 +179,20 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
-import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
+import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
+import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -1120,8 +1120,7 @@ private fun ChatPageContent(
                         )
                 }
                 // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区。
-                // 外层有 RowScope，直接写 AnimatedVisibility 会解析到 RowScope 的扩展，这里显式用顶层版本
-                androidx.compose.animation.AnimatedVisibility(
+                MotionExpandCollapse(
                     visible = showDetails && !threePane,
                     modifier = Modifier
                         .align(Alignment.TopCenter)

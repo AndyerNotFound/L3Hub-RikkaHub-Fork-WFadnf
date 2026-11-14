@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -33,6 +36,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.CustomTtsState
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.tts.model.PlaybackState
@@ -94,7 +98,17 @@ fun TTSController() {
                     )
                 }
 
-                AnimatedVisibility(expand) {
+                // 这一行是横向展开的：按钮从左往右挤出来，不能套默认的竖向收放
+                MotionExpandCollapse(
+                    visible = expand,
+                    enter = expandHorizontally(
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                    ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    maxBlurRadius = 4.dp,
+                ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,

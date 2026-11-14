@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,6 +33,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.TextButton
 
@@ -84,49 +84,53 @@ fun ChatMessageContextCheckpoint(
             HorizontalDivider(modifier = Modifier.weight(1f))
         }
 
-        if (!expanded) {
-            Text(
-                text = message.toText().trim(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-        }
+        // 摘要预览和详情一进一出，两段都走收放，切换时不会有一截瞬间消失。
+        // 两者套一层无间距的 Column：同一时刻只有一个占位置，外面那圈 8dp 不会被多算一份。
+        Column {
+            MotionExpandCollapse(visible = !expanded, maxBlurRadius = 4.dp) {
+                Text(
+                    text = message.toText().trim(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
 
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            MotionExpandCollapse(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
             ) {
-                Column(
-                    modifier = Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
-                    Text(
-                        text = stringResource(R.string.chat_page_compress_checkpoint_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    MarkdownBlock(content = message.toText())
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                    Column(
+                        modifier = Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        TextButton(onClick = onEdit) {
-                            Text(stringResource(R.string.edit))
-                        }
-                        TextButton(onClick = onDelete) {
-                            Text(
-                                text = stringResource(R.string.delete),
-                                color = MaterialTheme.colorScheme.error,
-                            )
+                        Text(
+                            text = stringResource(R.string.chat_page_compress_checkpoint_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        MarkdownBlock(content = message.toText())
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(onClick = onEdit) {
+                                Text(stringResource(R.string.edit))
+                            }
+                            TextButton(onClick = onDelete) {
+                                Text(
+                                    text = stringResource(R.string.delete),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                 }

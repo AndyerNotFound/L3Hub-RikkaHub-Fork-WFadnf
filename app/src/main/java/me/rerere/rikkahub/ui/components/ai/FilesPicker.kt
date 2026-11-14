@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -93,6 +92,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -270,7 +270,7 @@ internal fun FilesPicker(
                         onClick = { page = FilesPickerPage.SEARCH },
                     )
 
-                    AnimatedVisibility(
+                    MotionExpandCollapse(
                         visible = showWorkspace,
                         enter = expandVertically(pickerExpandSpec) + fadeIn(),
                         exit = shrinkVertically(pickerExpandSpec) + fadeOut(),
@@ -348,7 +348,7 @@ internal fun FilesPicker(
                         }
                     }
 
-                    AnimatedVisibility(
+                    MotionExpandCollapse(
                         visible = showMcp,
                         enter = expandVertically(pickerExpandSpec) + fadeIn(),
                         exit = shrinkVertically(pickerExpandSpec) + fadeOut(),
@@ -406,7 +406,7 @@ internal fun FilesPicker(
                     }
 
                     // Compress History Button
-                    AnimatedVisibility(
+                    MotionExpandCollapse(
                         visible = showCompress,
                         enter = expandVertically(pickerExpandSpec) + fadeIn(),
                         exit = shrinkVertically(pickerExpandSpec) + fadeOut(),

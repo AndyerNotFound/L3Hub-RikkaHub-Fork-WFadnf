@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -50,6 +49,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.TranslationLanguages
 import me.rerere.rikkahub.ui.components.ai.translationLanguageName
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -196,7 +196,7 @@ fun CollapsibleTranslationText(
         }
 
         // Translation content (collapsible)
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = !isCollapsed,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()

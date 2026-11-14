@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
@@ -42,6 +41,7 @@ import kotlinx.serialization.json.longOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 
 @Composable
@@ -136,7 +136,7 @@ private fun JsonObjectNode(
             )
         }
 
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = expanded,
             enter = expandVertically(),
             exit = shrinkVertically()
@@ -199,7 +199,7 @@ private fun JsonArrayNode(
             )
         }
 
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = expanded,
             enter = expandVertically(),
             exit = shrinkVertically()

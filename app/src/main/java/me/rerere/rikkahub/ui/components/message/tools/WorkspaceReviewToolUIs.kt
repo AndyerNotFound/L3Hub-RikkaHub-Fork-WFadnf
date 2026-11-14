@@ -40,6 +40,7 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import org.koin.compose.koinInject
 
 /** workspace_apply_patch：显示改了哪些文件，以及冲突时哪个 hunk 哪一行 */
@@ -277,7 +278,7 @@ object WorkspaceTestToolUI : ToolUIRenderer {
                             Text(test, style = MaterialTheme.typography.labelSmall)
                         }
                         Text(diagnostic.str("message").orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        if (isExpanded) {
+                        MotionExpandCollapse(visible = isExpanded, maxBlurRadius = 4.dp) {
                             val code = snippet
                             if (code == null && snippetError != null) {
                                 Text(

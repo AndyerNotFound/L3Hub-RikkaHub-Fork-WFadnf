@@ -82,10 +82,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlin.math.roundToInt
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -114,6 +113,7 @@ import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.account.preserveCredential
 import me.rerere.rikkahub.data.datastore.removeProvider
 import me.rerere.rikkahub.data.model.ContextThresholdPresets
@@ -150,8 +150,9 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.hooks.heroSource
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
-import me.rerere.ui.toast.ToastType
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.PriceRuleSettings
 import me.rerere.rikkahub.ui.pages.setting.components.PricingInput
@@ -172,13 +173,13 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import kotlinx.coroutines.delay
+import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.ui.hooks.heroSource
+import kotlin.math.roundToInt
+import kotlin.uuid.Uuid
 
 private enum class ProviderDetailTab(
     override val icon: ImageVector,
@@ -669,7 +670,7 @@ private fun SettingProviderConfigPage(
                             HugeIcons.FloppyDisk,
                             contentDescription = stringResource(R.string.setting_provider_page_save)
                         )
-                        AnimatedVisibility(expanded) {
+                        MotionExpandCollapseHorizontal(visible = expanded) {
                             Row {
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(stringResource(R.string.setting_provider_page_save))
@@ -1460,7 +1461,7 @@ private fun AddModelButton(
                     HugeIcons.Add01,
                     contentDescription = stringResource(R.string.setting_provider_page_add_model)
                 )
-                AnimatedVisibility(expanded) {
+                MotionExpandCollapseHorizontal(visible = expanded) {
                     Row {
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(stringResource(R.string.setting_provider_page_add_new_model))

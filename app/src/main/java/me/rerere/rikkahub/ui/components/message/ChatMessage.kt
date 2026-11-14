@@ -1,30 +1,24 @@
 package me.rerere.rikkahub.ui.components.message
 
-import me.rerere.rikkahub.ui.components.ai.chatInputHaze
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
-import dev.chrisbanes.haze.HazeState
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,10 +29,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -68,13 +62,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -83,30 +78,31 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
+import coil3.compose.AsyncImage
+import dev.chrisbanes.haze.HazeState
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.OcrMetadata
-import me.rerere.ai.ui.VideoRecognitionMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.VideoRecognitionMetadata
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.ai.ui.metadataAs
 import me.rerere.hugeicons.HugeIcons
-import coil3.compose.AsyncImage
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.File02
@@ -115,10 +111,13 @@ import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
@@ -128,12 +127,14 @@ import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
 import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
-import me.rerere.rikkahub.ui.theme.LocalUiSlots
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
+import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.adaptiveShape
@@ -464,7 +465,7 @@ fun ChatMessage(
         val showActionRow = showActions && message.role != MessageRole.USER
 
         val motionScheme = MaterialTheme.motionScheme
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = showActionRow,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
@@ -696,10 +697,7 @@ private fun MessagePartsBlock(
             onToggle = { showEarlierSteps = !showEarlierSteps },
         )
     }
-    groupedParts.fastForEachIndexed { index, block ->
-        if (collapsibleCount > 0 && !showEarlierSteps && index < collapsibleCount) {
-            return@fastForEachIndexed
-        }
+    val renderBlock: @Composable (MessagePartBlock) -> Unit = { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {
@@ -946,6 +944,23 @@ private fun MessagePartsBlock(
         }
     }
 
+    // 折叠起来的那些块整段收放：高度、透明度与模糊一起过渡，展开时再整段落回来
+    if (collapsibleCount > 0) {
+        MotionExpandCollapse(visible = showEarlierSteps, maxBlurRadius = 6.dp) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(MessageBlockGap),
+            ) {
+                groupedParts.take(collapsibleCount).fastForEach { hidden ->
+                    renderBlock(hidden)
+                }
+            }
+        }
+    }
+    groupedParts.drop(collapsibleCount).fastForEach { visible ->
+        renderBlock(visible)
+    }
+
     // Annotations (always rendered at the end)
     if (annotations.isNotEmpty()) {
         ChatMessageCitations(annotations = annotations)
@@ -1002,7 +1017,9 @@ private fun CollapsibleUserMessageText(
                         collapsedHeightPx = collapsedHeightPx,
                         collapsible = collapsible,
                         progress = { collapseProgress },
-                    ),
+                    )
+                    // 高度是逐帧裁出来的，光有位移会像被刀切；补一层随进度退掉的模糊
+                    .motionBlurOnToggle(expanded),
             ) {
                 MarkdownBlock(
                     content = text.replaceRegexes(
@@ -1201,7 +1218,9 @@ private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
         }
     }
     Column(
-        modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        modifier = Modifier
+            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+            .motionBlurOnToggle(expand),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ChatMessageFileChip(

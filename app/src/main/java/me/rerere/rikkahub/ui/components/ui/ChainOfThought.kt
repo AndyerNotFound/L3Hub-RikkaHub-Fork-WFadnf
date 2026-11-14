@@ -46,6 +46,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -101,11 +102,10 @@ fun <T> ChainOfThought(
                     animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
                 ),
         ) {
-            val visibleSteps = if (expanded || !canCollapse) {
-                steps
-            } else {
-                steps.takeLast(collapsedVisibleCount)
-            }
+            // 折叠时藏起来的是最前面那几步；收起的尾部步骤始终保留。
+            val allVisible = expanded || !canCollapse
+            val hiddenSteps = if (canCollapse) steps.dropLast(collapsedVisibleCount) else emptyList()
+            val visibleSteps = if (canCollapse) steps.takeLast(collapsedVisibleCount) else steps
 
             // 显示展开/折叠按钮（统一在顶部）
             if (canCollapse) {
@@ -160,8 +160,26 @@ fun <T> ChainOfThought(
                 LocalChainOfThoughtCollapsed provides (canCollapse && !expanded)
             ) {
             Column {
+                // 折叠掉的步骤整段收放，点「展开/收起」时高度、透明度与模糊一起过渡，
+                // 不会像直接换列表那样一瞬间跳变。
+                if (hiddenSteps.isNotEmpty()) {
+                    MotionExpandCollapse(visible = allVisible) {
+                        Column {
+                            hiddenSteps.fastForEachIndexed { index, step ->
+                                val scope = remember(index, lineColor) {
+                                    ChainOfThoughtScopeImpl(
+                                        isFirst = index == 0,
+                                        isLast = false,
+                                        lineColor = lineColor,
+                                    )
+                                }
+                                scope.content(step)
+                            }
+                        }
+                    }
+                }
                 visibleSteps.fastForEachIndexed { index, step ->
-                    val isFirst = index == 0
+                    val isFirst = index == 0 && !allVisible
                     val isLast = index == visibleSteps.lastIndex
                     val scope = remember(isFirst, isLast, lineColor) {
                         ChainOfThoughtScopeImpl(
@@ -536,33 +554,40 @@ private class ChainOfThoughtScopeImpl(
             }
 
             // 展开内容（缩进对齐 label）
-            if (contentVisible && hasContent) {
-                Box(
-                    modifier = Modifier
-                        .then(
-                            if (shouldFillMaxWidth) {
-                                Modifier.fillMaxWidth()
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .drawBehind {
-                            if (!isLast) {
-                                val x = 12.dp.toPx()
-                                drawLine(
-                                    color = lineColor,
-                                    start = Offset(x, 0f),
-                                    end = Offset(x, size.height),
-                                    strokeWidth = 1.dp.toPx(),
-                                )
-                            }
-                        }
-                        .animateContentSize(
-                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
-                        )
-                        .padding(start = 32.dp, top = 4.dp, bottom = 8.dp)
+            val expandableContent = content
+            if (expandableContent != null) {
+                MotionExpandCollapse(
+                    visible = contentVisible,
+                    maxBlurRadius = 5.dp,
                 ) {
-                    content()
+                    Box(
+                        modifier = Modifier
+                            .then(
+                                if (shouldFillMaxWidth) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .drawBehind {
+                                if (!isLast) {
+                                    val x = 12.dp.toPx()
+                                    drawLine(
+                                        color = lineColor,
+                                        start = Offset(x, 0f),
+                                        end = Offset(x, size.height),
+                                        strokeWidth = 1.dp.toPx(),
+                                    )
+                                }
+                            }
+                            // 内容在展开态里还会继续变长（思考流式输出），高度仍要平滑跟上
+                            .animateContentSize(
+                                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                            )
+                            .padding(start = 32.dp, top = 4.dp, bottom = 8.dp)
+                    ) {
+                        expandableContent()
+                    }
                 }
             }
         }

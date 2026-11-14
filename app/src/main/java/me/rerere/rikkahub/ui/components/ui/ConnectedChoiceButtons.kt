@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 
 // 连接式单选按钮组，选中项更宽；选项不多（两到四个）时用来代替下拉框
 @Composable
@@ -139,10 +139,11 @@ fun ConnectedChoiceLabel(
     icon: ImageVector? = null,
 ) {
     if (icon != null) {
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = selected,
             enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
             exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+            maxBlurRadius = 4.dp,
         ) {
             Row {
                 Icon(

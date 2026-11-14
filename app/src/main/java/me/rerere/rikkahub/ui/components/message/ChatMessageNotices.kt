@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,6 +32,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 
 /**
  * 空闲时单独开一轮的运行时通知。角色是 user 但不是用户说的话，
@@ -78,7 +78,7 @@ fun ChatMessageNotices(
                     )
                 }
             }
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = expanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.mediacreation
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -121,6 +120,7 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.pages.setting.components.label
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -206,7 +206,7 @@ internal fun MediaCreationComposer(
                     modifier = Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp),
                 )
             }
-            AnimatedVisibility(visible = showAssets) {
+            MotionExpandCollapse(visible = showAssets) {
                 if (capabilities != null) {
                     AssetRow(
                         assets = draft.assets,

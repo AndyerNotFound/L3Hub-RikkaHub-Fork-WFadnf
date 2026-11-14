@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import android.graphics.RenderEffect as AndroidRenderEffect
-import android.graphics.Shader
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -38,8 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -54,8 +49,8 @@ import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.roundToInt
 
 /**
  * 单行输入框从一行展开到两行用的曲线。
@@ -254,7 +249,7 @@ private fun PlaceholderChars(
 ) {
     val density = LocalDensity.current
     val travel = with(density) { 9.dp.toPx() }
-    val blurSteps = rememberPlaceholderBlur()
+    val blurSteps = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 3)
     Row(modifier = Modifier.fillMaxWidth()) {
         text.forEachIndexed { index, char ->
             val progress = {
@@ -272,40 +267,6 @@ private fun PlaceholderChars(
                     renderEffect = blurSteps.at(if (outgoing) value else 1f - value)
                 },
             )
-        }
-    }
-}
-
-/**
- * 逐字模糊用的几档 RenderEffect。
- *
- * 模糊半径逐帧现造会一直分配对象，这里预备几档、按进度取最近的一档；
- * API 31 以下没有 RenderEffect，直接给空列表，退化成纯位移淡入淡出。
- */
-private class PlaceholderBlur(private val steps: List<RenderEffect?>) {
-    fun at(progress: Float): RenderEffect? {
-        if (steps.isEmpty()) return null
-        val index = (progress * steps.lastIndex).roundToInt().coerceIn(0, steps.lastIndex)
-        return steps[index]
-    }
-}
-
-@Composable
-private fun rememberPlaceholderBlur(): PlaceholderBlur {
-    val density = LocalDensity.current
-    return remember(density) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val maxRadius = with(density) { 3.dp.toPx() }
-            PlaceholderBlur(
-                listOf<RenderEffect?>(null) + List(3) { step ->
-                    val radius = maxRadius * (step + 1) / 3f
-                    AndroidRenderEffect
-                        .createBlurEffect(radius, radius, Shader.TileMode.DECAL)
-                        .asComposeRenderEffect()
-                }
-            )
-        } else {
-            PlaceholderBlur(emptyList())
         }
     }
 }

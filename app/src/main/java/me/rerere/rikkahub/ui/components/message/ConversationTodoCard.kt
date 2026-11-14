@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +68,7 @@ import me.rerere.rikkahub.data.model.removeTodoAt
 import me.rerere.rikkahub.data.model.setTodoStatusAt
 import me.rerere.rikkahub.data.model.toggleTodoCompletedAt
 import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import kotlin.math.roundToInt
@@ -204,7 +204,7 @@ internal fun ConversationTodoCard(
                     amplitude = 1.5.dp,
                 )
             }
-            AnimatedVisibility(visible = expanded) {
+            MotionExpandCollapse(visible = expanded) {
                 Column(
                     modifier = Modifier.padding(top = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp),

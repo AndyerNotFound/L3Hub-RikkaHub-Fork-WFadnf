@@ -84,6 +84,8 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -293,7 +295,7 @@ private fun McpBasicSettingsTab(
                             HugeIcons.FloppyDisk,
                             contentDescription = stringResource(R.string.setting_mcp_page_save)
                         )
-                        AnimatedVisibility(expanded) {
+                        MotionExpandCollapseHorizontal(visible = expanded) {
                             Row {
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(stringResource(R.string.setting_mcp_page_save))
@@ -687,6 +689,7 @@ private fun McpToolCard(
         Column(
             modifier = Modifier
                 .animateContentSize()
+                .motionBlurOnToggle(expanded)
                 .fillMaxWidth()
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),

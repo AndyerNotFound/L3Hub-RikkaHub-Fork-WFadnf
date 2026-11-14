@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
@@ -44,7 +45,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.GitFileStat
 import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceGit
-import androidx.compose.material3.Surface
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.richtext.DiffView
 import org.koin.compose.koinInject
@@ -216,7 +217,7 @@ internal fun TurnDiffActions(
                                     Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            if (expandedPath == path) {
+                            MotionExpandCollapse(visible = expandedPath == path) {
                                 val diff = expandedDiff
                                 if (diff == null) {
                                     Text(stringResource(R.string.turn_diff_reading_diff), style = MaterialTheme.typography.bodySmall)

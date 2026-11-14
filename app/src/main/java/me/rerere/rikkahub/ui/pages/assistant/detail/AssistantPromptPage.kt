@@ -88,6 +88,7 @@ import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
@@ -521,7 +522,8 @@ private fun AssistantRegexCard(
         Column(
             modifier = Modifier
                 .padding(horizontal = 8.dp, vertical = 8.dp)
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionBlurOnToggle(expanded),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(

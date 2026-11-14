@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,6 +102,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.rememberExporter
 import me.rerere.rikkahub.ui.hooks.rememberImporter
 import me.rerere.rikkahub.ui.hooks.useEditState
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
@@ -269,7 +270,7 @@ private fun ModeInjectionTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(HugeIcons.Add01, null)
-                    AnimatedVisibility(expanded) {
+                    MotionExpandCollapseHorizontal(visible = expanded) {
                         Row {
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(stringResource(R.string.prompt_page_add_mode_injection))
@@ -478,7 +479,7 @@ private fun ModeInjectionEditSheet(
                     onSelect = { onEdit(injection.copy(position = it)) }
                 )
 
-                AnimatedVisibility(visible = injection.position == InjectionPosition.AT_DEPTH) {
+                MotionExpandCollapse(visible = injection.position == InjectionPosition.AT_DEPTH) {
                     OutlinedTextField(
                         value = injection.injectDepth.toString(),
                         onValueChange = {
@@ -490,7 +491,7 @@ private fun ModeInjectionEditSheet(
                     )
                 }
 
-                AnimatedVisibility(visible = injection.position.usesStandaloneMessage()) {
+                MotionExpandCollapse(visible = injection.position.usesStandaloneMessage()) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(
                             stringResource(R.string.prompt_page_injection_role),
@@ -674,7 +675,7 @@ private fun LorebookTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(HugeIcons.Add01, null)
-                    AnimatedVisibility(expanded) {
+                    MotionExpandCollapseHorizontal(visible = expanded) {
                         Row {
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(stringResource(R.string.prompt_page_add_lorebook))
@@ -1079,7 +1080,7 @@ private fun RegexInjectionEditDialog(
                     onSelect = { onEdit(entry.copy(position = it)) }
                 )
 
-                AnimatedVisibility(visible = entry.position == InjectionPosition.AT_DEPTH) {
+                MotionExpandCollapse(visible = entry.position == InjectionPosition.AT_DEPTH) {
                     OutlinedTextField(
                         value = entry.injectDepth.toString(),
                         onValueChange = {
@@ -1180,7 +1181,7 @@ private fun RegexInjectionEditDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
-                AnimatedVisibility(visible = entry.position.usesStandaloneMessage()) {
+                MotionExpandCollapse(visible = entry.position.usesStandaloneMessage()) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             stringResource(R.string.prompt_page_injection_role),

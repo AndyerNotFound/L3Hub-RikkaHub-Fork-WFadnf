@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.mediacreation
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,6 +86,7 @@ import me.rerere.rikkahub.ui.components.ui.VideoPlayerDialog
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toMessageTimeString
@@ -252,7 +254,10 @@ private fun RecordInput(
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = if (expanded) Int.MAX_VALUE else 4,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable { expanded = !expanded },
+                modifier = Modifier
+                    .clickable { expanded = !expanded }
+                    .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    .motionBlurOnToggle(expanded),
             )
         }
         val time = remember(record.createAt) {

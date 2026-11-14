@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,6 +60,7 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroAnimation
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -358,7 +358,7 @@ internal fun AssistantBasicContent(
                     )
                 }
             ) {
-                AnimatedVisibility(visible = assistant.temperature != null) {
+                MotionExpandCollapse(visible = assistant.temperature != null) {
                     var temperatureInput by remember(assistant.id) {
                         mutableStateOf(assistant.temperature.toString())
                     }
@@ -401,7 +401,7 @@ internal fun AssistantBasicContent(
                     )
                 }
             ) {
-                AnimatedVisibility(visible = assistant.topP != null) {
+                MotionExpandCollapse(visible = assistant.topP != null) {
                     var topPInput by remember(assistant.id) {
                         mutableStateOf(assistant.topP.toString())
                     }
@@ -444,7 +444,7 @@ internal fun AssistantBasicContent(
                     )
                 }
             ) {
-                AnimatedVisibility(visible = assistant.topK != null) {
+                MotionExpandCollapse(visible = assistant.topK != null) {
                     var topKInput by remember(assistant.id) {
                         mutableStateOf(assistant.topK.toString())
                     }

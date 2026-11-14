@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +42,7 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import java.time.LocalDate
 import kotlin.uuid.Uuid
 
@@ -206,7 +206,7 @@ fun ColumnScope.ConversationSectionList(
     }
 
     Column(modifier = modifier) {
-        AnimatedVisibility(visible = selectionMode) {
+        MotionExpandCollapse(visible = selectionMode) {
             SelectionBar(
                 count = selectedIds.size,
                 onPin = {

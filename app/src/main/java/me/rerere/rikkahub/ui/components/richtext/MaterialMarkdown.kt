@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.richtext
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -50,6 +49,7 @@ import me.rerere.bettertext.markdown.TableCell
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Image02
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.ui.table.DataTable
 import kotlin.math.max
 import me.rerere.bettertext.markdown.Markdown as BetterMarkdown
@@ -165,7 +165,7 @@ object MaterialMarkdownDefaults {
                     summary()
                 }
             }
-            AnimatedVisibility(visible = expanded) {
+            MotionExpandCollapse(visible = expanded) {
                 Column(Modifier.padding(start = 22.dp, top = 6.dp)) {
                     content()
                 }

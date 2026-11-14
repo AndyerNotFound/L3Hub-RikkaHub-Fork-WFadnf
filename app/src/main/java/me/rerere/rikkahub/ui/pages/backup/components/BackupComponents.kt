@@ -67,6 +67,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -214,7 +215,7 @@ internal fun RemoteBackupLayout(
                             modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
                     }
-                    AnimatedVisibility(expanded) {
+                    MotionExpandCollapseHorizontal(visible = expanded) {
                         Row {
                             Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                             Text(

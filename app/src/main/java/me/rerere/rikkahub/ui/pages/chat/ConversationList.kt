@@ -35,8 +35,8 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -70,14 +70,15 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.glassColor
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
+import me.rerere.ui.components.AnimatedAlertDialog
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.uuid.Uuid
-import me.rerere.ui.components.AnimatedAlertDialog
 
 /**
  * Represents different types of items in the conversation list
@@ -226,7 +227,7 @@ fun ColumnScope.ConversationList(
     }
 
     Column(modifier = modifier) {
-    AnimatedVisibility(visible = selectionMode) {
+    MotionExpandCollapse(visible = selectionMode) {
         SelectionBar(
             count = selectedIds.size,
             onPin = {
@@ -387,7 +388,7 @@ internal fun CollapsibleSectionItem(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    AnimatedVisibility(
+    MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
         enter = expandVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +

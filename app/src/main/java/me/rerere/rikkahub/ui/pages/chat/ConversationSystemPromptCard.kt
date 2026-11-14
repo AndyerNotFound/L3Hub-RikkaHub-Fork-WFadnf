@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Setting07
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.TextButton
 
 @Composable
@@ -59,7 +59,7 @@ fun ConversationSystemPromptButton(
             )
         }
 
-        AnimatedVisibility(visible = expanded) {
+        MotionExpandCollapse(visible = expanded) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

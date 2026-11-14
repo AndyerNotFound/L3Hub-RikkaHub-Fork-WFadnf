@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroSource
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.data.datastore.UiStyle
@@ -435,7 +435,7 @@ fun CardGroup(
         var visibleIndex = 0
         scope.items.fastForEachIndexed { _, item ->
             val index = if (item.visible) visibleIndex++ else (count - 1).coerceAtLeast(0)
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = item.visible,
                 // 从上一项下面拉出来，到位后回弹一下
                 enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
@@ -534,7 +534,7 @@ private fun MiuixCardGroup(
         }
         val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         scope.items.fastForEachIndexed { _, item ->
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = item.visible,
                 enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
                 exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),

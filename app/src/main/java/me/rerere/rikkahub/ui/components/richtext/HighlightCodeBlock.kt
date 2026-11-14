@@ -72,6 +72,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.Navigator
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
@@ -161,7 +162,10 @@ fun HighlightCodeBlock(
             )
         }
         Column(
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+            modifier = Modifier
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+                .animateContentSize()
+                .motionBlurOnToggle(isExpanded),
         ) {
             when {
                 canInlinePreview && previewMode -> {

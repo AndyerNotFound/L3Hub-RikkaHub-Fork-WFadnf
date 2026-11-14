@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.animation.AnimatedVisibility as PlainAnimatedVisibility
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +56,7 @@ import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.utils.compactMagnitude
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.icons.HeartIcon
@@ -169,13 +167,7 @@ fun ModelPickerTwoPane(
     }
 
     Row(modifier = Modifier.fillMaxSize()) {
-        // 在 Row 里直接写 AnimatedVisibility 会命中 RowScope 的那个重载（自带 weight 语义），
-        // 这里要的是不带作用域的动画，所以上面的 import 起了别名
-        PlainAnimatedVisibility(
-            visible = sidebarExpanded,
-            enter = expandHorizontally(),
-            exit = shrinkHorizontally(),
-        ) {
+        MotionExpandCollapseHorizontal(visible = sidebarExpanded) {
             Row(modifier = Modifier.fillMaxHeight()) {
                 ModelPickerSidebar(
                     providersByGroup = providersByGroup,

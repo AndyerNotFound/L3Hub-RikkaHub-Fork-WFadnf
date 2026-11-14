@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.clickable
@@ -53,6 +52,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -145,7 +145,7 @@ fun ChatMessageSubAgentNotice(
                 )
             }
         }
-        AnimatedVisibility(visible = expanded) {
+        MotionExpandCollapse(visible = expanded) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = colorScheme.surfaceContainerLow,

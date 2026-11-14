@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 
 internal interface PagerTab {
     val icon: ImageVector
@@ -86,10 +86,11 @@ internal fun PagerTabs(
                     containerColor = tabContainerColor,
                 ),
             ) {
-                AnimatedVisibility(
+                MotionExpandCollapse(
                     visible = selected,
                     enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
                     exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+                    maxBlurRadius = 4.dp,
                 ) {
                     Row {
                         Icon(

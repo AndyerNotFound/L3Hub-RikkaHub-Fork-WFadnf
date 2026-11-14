@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import android.graphics.RenderEffect as AndroidRenderEffect
-import android.graphics.Shader
-import android.os.Build
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -37,8 +34,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -60,11 +55,12 @@ import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtProgress
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractLatestThinkingTitle
 import me.rerere.rikkahub.utils.extractThinkingSummary
 import me.rerere.rikkahub.utils.extractThinkingTitle
-import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -160,6 +156,8 @@ private fun ReasoningContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // 预览高度与全文高度之间切换也走一次模糊，和折叠按钮的手感一致
+            .motionBlurOnToggle(expandState)
             .let { contentModifier ->
                 if (isPreview) {
                     contentModifier
@@ -338,7 +336,7 @@ private fun ReasoningTitle(
     val style = MaterialTheme.typography.titleSmall.copy(fontFamily = chatFontFamily)
     val color = MaterialTheme.colorScheme.secondary
     val travel = with(LocalDensity.current) { 10.dp.toPx() }
-    val blur = rememberTitleBlur()
+    val blur = rememberMotionBlurSteps(maxRadius = 3.dp, steps = 3)
 
     // 正在显示的标题和正在退场的标题分开存；中途又来了新句子就直接换，不排队
     var shown by remember { mutableStateOf(title) }
@@ -393,40 +391,6 @@ private fun ReasoningTitle(
                     },
                 )
             }
-        }
-    }
-}
-
-/**
- * 标题滚动用的几档 RenderEffect。
- *
- * 模糊半径逐帧现造会一直分配对象，这里预备几档、按进度取最近的一档；
- * API 31 以下没有 RenderEffect，退化成纯位移淡入淡出。
- */
-private class TitleBlur(private val steps: List<RenderEffect?>) {
-    fun at(progress: Float): RenderEffect? {
-        if (steps.isEmpty()) return null
-        val index = (progress * steps.lastIndex).roundToInt().coerceIn(0, steps.lastIndex)
-        return steps[index]
-    }
-}
-
-@Composable
-private fun rememberTitleBlur(): TitleBlur {
-    val density = LocalDensity.current
-    return remember(density) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val maxRadius = with(density) { 3.dp.toPx() }
-            TitleBlur(
-                listOf<RenderEffect?>(null) + List(3) { step ->
-                    val radius = maxRadius * (step + 1) / 3f
-                    AndroidRenderEffect
-                        .createBlurEffect(radius, radius, Shader.TileMode.DECAL)
-                        .asComposeRenderEffect()
-                }
-            )
-        } else {
-            TitleBlur(emptyList())
         }
     }
 }

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -64,6 +63,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
 import me.rerere.rikkahub.ui.terminal.Checkbox
 import me.rerere.rikkahub.ui.terminal.IconButton
@@ -283,10 +283,11 @@ private fun SearchPicker(
                     ),
                     contentPadding = PaddingValues(horizontal = 8.dp),
                 ) {
-                    AnimatedVisibility(
+                    MotionExpandCollapse(
                         visible = selected,
                         enter = expandHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
                         exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+                        maxBlurRadius = 4.dp,
                     ) {
                         Row {
                             Icon(
@@ -313,7 +314,7 @@ private fun SearchPicker(
             }
         }
 
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = currentMode == SearchMode.LOCAL,
             enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeIn(),
             exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),

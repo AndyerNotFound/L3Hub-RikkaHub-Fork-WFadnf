@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message.tools
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.CodeHighlightText
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 
 /** 内联摘要里展开后最多显示的行数, 避免一张卡片吃掉整屏 */
 private const val COMPACT_EXPANDED_LINES = 8
@@ -125,7 +127,12 @@ private fun InlineValueField(field: ToolArgField, compact: Boolean) {
 
     var expanded by remember(field.name, field.value) { mutableStateOf(false) }
     val collapsible = field.isCollapsible()
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(
+        modifier = Modifier
+            .animateContentSize()
+            .motionBlurOnToggle(expanded),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         ArgName(name = field.name, compact = compact)
         Text(
             text = field.value,
@@ -150,7 +157,12 @@ private fun BlockValueField(field: ToolArgField, compact: Boolean) {
     val collapsedLines = ToolArgsPresentation.COLLAPSED_LINES
     val collapsible = field.isCollapsible(collapsedLines)
     var expanded by remember(field.name, field.value, compact) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        modifier = Modifier
+            .animateContentSize()
+            .motionBlurOnToggle(expanded),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

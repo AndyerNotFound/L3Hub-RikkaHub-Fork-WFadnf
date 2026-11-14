@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,6 +65,8 @@ import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatNumber
@@ -377,7 +379,7 @@ private fun ToolDefinitionRow(tool: ChatRequestPreviewTool) {
             title = tool.name,
             onClick = { expanded = !expanded },
         )
-        AnimatedVisibility(visible = expanded) {
+        MotionExpandCollapse(visible = expanded) {
             Column(modifier = Modifier.padding(start = 20.dp, top = 2.dp)) {
                 val parameters = tool.parameters
                 if (parameters == null) {
@@ -411,9 +413,12 @@ private fun ToolDescriptionRow(tool: ChatRequestPreviewTool) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 20.dp),
+            modifier = Modifier
+                .padding(start = 20.dp)
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionBlurOnToggle(expanded),
         )
-        AnimatedVisibility(visible = expanded && tool.instructions.isNotBlank()) {
+        MotionExpandCollapse(visible = expanded && tool.instructions.isNotBlank()) {
             Column(
                 modifier = Modifier.padding(start = 20.dp, top = 2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -455,7 +460,7 @@ private fun InjectionRow(injection: ChatRequestPreviewInjection) {
             trailing = "$source · $position",
             onClick = { expanded = !expanded },
         )
-        AnimatedVisibility(visible = expanded) {
+        MotionExpandCollapse(visible = expanded) {
             Text(
                 text = injection.content.ifBlank { "—" },
                 style = MaterialTheme.typography.bodySmall,
