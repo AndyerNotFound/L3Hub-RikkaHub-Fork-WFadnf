@@ -60,6 +60,7 @@ import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Repeat
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.TokenBreakdown
@@ -77,7 +78,7 @@ import kotlin.math.roundToInt
 /**
  * 显示消息的技术统计信息（如 token 使用量），点击查看详情
  *
- * 多轮工具调用时 usage 是各步累计值，行内只显示最后一次请求的上下文占用，累计值放在详情里。
+ * 上下文取最后一次请求；多步工具调用时行内还会显示这一轮累计的 token 和费用，明细在详情里。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,26 +97,23 @@ fun ChatMessageNerdLine(
         settings.findModelById(message.modelId)?.effectiveContextWindow
     }
     val binaryUnits = settings.displaySetting.binaryUnits
-    // 计价跟着模型走；模型被删掉或没有配置价格时费用为 0，不显示。
-    // 变价规则按最后一次请求的上下文判断，计费仍按整条消息累计的 usage。
+    // 优先用每步入账时缓存的费用；旧消息没有快照时才按当前价目回退估算
     val cost = remember(
         settings.providers,
         message.modelId,
         message.createdAt,
+        message.cost,
+        message.costTracked,
         usage,
         stats.lastUsage,
         stats.steps,
         binaryUnits,
     ) {
-        settings.findModelById(message.modelId)
-            ?.pricing
-            ?.estimateCost(
-                usage = usage,
-                unitTokens = priceUnitTokens(binaryUnits),
-                calls = stats.steps,
-                context = message.priceRuleContext(stats.lastUsage),
-            )
-            ?: UsageCost()
+        message.cost ?: if (message.costTracked) {
+            UsageCost()
+        } else {
+            message.estimatedCost(settings, binaryUnits)
+        }
     }
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
@@ -248,18 +246,12 @@ fun ConversationUsageDetails(
     val binaryUnits = settings.displaySetting.binaryUnits
     val cost = remember(usageMessages, settings.providers, binaryUnits) {
         usageMessages.fold(UsageCost()) { acc, message ->
-            val messageUsage = message.usage ?: TokenUsage()
-            val calls = message.stepCount ?: 1
-            val usageCost = settings.findModelById(message.modelId)
-                ?.pricing
-                ?.estimateCost(
-                    usage = messageUsage,
-                    unitTokens = priceUnitTokens(binaryUnits),
-                    calls = calls,
-                    context = message.priceRuleContext(message.lastUsage ?: messageUsage),
-                )
-                ?: UsageCost()
-            acc + usageCost
+            val messageCost = message.cost ?: if (message.costTracked) {
+                UsageCost()
+            } else {
+                message.estimatedCost(settings, binaryUnits)
+            }
+            acc + messageCost
         }
     }
     val lastMessage = usageMessages.last()
@@ -740,6 +732,23 @@ private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
 }
 
 private fun Int.exact(): String = NumberFormat.getIntegerInstance().format(this)
+
+/**
+ * 旧消息没有费用快照时的回退估算：按当前价目和最后一次请求的上下文算。
+ * 新消息在 AgentLoop 里已经按每步入账，不应再走这里。
+ */
+private fun UIMessage.estimatedCost(settings: Settings, binaryUnits: Boolean): UsageCost {
+    val messageUsage = usage ?: TokenUsage()
+    return settings.findModelById(modelId)
+        ?.pricing
+        ?.estimateCost(
+            usage = messageUsage,
+            unitTokens = priceUnitTokens(binaryUnits),
+            calls = stepCount ?: 1,
+            context = priceRuleContext(lastUsage ?: messageUsage),
+        )
+        ?: UsageCost()
+}
 
 /** 变价规则按消息的生成时间和一次请求的 token 快照判断；多步消息传最后一次请求的 usage */
 private fun UIMessage.priceRuleContext(usage: TokenUsage) = PriceRuleContext(

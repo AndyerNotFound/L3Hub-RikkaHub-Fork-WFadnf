@@ -51,7 +51,13 @@ class UsageRecorder(
     fun <T : ProviderSetting> wrap(provider: Provider<T>, tag: UsageTag): Provider<T> =
         UsageRecordingProvider(provider, tag)
 
-    private fun record(tag: UsageTag, providerSetting: ProviderSetting, params: TextGenerationParams, usage: TokenUsage) {
+    private fun record(
+        tag: UsageTag,
+        providerSetting: ProviderSetting,
+        params: TextGenerationParams,
+        usage: TokenUsage,
+        cost: Double,
+    ) {
         if (usage.promptTokens <= 0 && usage.completionTokens <= 0) return
         val record = UsageRecordEntity(
             createdAt = System.currentTimeMillis(),
@@ -64,6 +70,7 @@ class UsageRecorder(
             promptTokens = usage.promptTokens,
             completionTokens = usage.completionTokens,
             cachedTokens = usage.cachedTokens,
+            cost = cost,
         )
         // Room 的 suspend 写入自己会切到后台线程
         scope.launch {
@@ -87,10 +94,11 @@ class UsageRecorder(
             try {
                 val result = delegate.generateText(providerSetting, messages, params)
                 usage = result.usage
-                usage?.let { record(tag, providerSetting, params, it) }
                 return result
             } finally {
-                gate.finish(ticket, usage)
+                // 先让 gate 按真实 usage 结算费用，再把费用和 token 一起写进流水
+                val cost = gate.finish(ticket, usage)
+                usage?.let { record(tag, providerSetting, params, it, cost?.total ?: 0.0) }
             }
         }
 
@@ -109,8 +117,8 @@ class UsageRecorder(
                     emit(chunk)
                 }
             } finally {
-                gate.finish(ticket, usage)
-                usage?.let { record(tag, providerSetting, params, it) }
+                val cost = gate.finish(ticket, usage)
+                usage?.let { record(tag, providerSetting, params, it, cost?.total ?: 0.0) }
             }
         }
     }

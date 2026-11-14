@@ -74,6 +74,8 @@ data class TextGenerationParams(
     val reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBody: List<CustomBody> = emptyList(),
+    // 计费用的 token 单价口径（每 1M 或每 Mi），按显示设置传入
+    val priceUnitTokens: Double = TOKENS_PER_MILLION,
     val sessionId: String? = Uuid.random().toString(),
 )
 

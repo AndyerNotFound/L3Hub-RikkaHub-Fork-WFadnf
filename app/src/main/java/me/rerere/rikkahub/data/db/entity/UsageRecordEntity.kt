@@ -40,4 +40,7 @@ data class UsageRecordEntity(
     val completionTokens: Int,
     @ColumnInfo("cached_tokens")
     val cachedTokens: Int,
+    // 这次请求按当时价目与规则算出的费用；账本上线前的旧流水没有快照，为 null
+    @ColumnInfo("cost")
+    val cost: Double? = null,
 )

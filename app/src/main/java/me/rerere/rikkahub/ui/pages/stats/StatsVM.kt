@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.PriceRuleContext
@@ -22,8 +24,8 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
 import me.rerere.rikkahub.data.db.dao.ModelUsage
-import me.rerere.rikkahub.data.db.dao.PriceRuleUsageRow
 import me.rerere.rikkahub.data.db.dao.SourceModelUsage
+import me.rerere.rikkahub.data.db.dao.UnpricedUsageRow
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import java.time.DayOfWeek
@@ -56,7 +58,7 @@ data class UsagePoint(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
-    // 这天的估算费用，单位的币种与模型价目一致
+    // 这天入账的费用，币种与模型价目一致
     val cost: Double = 0.0,
 ) {
     val totalTokens get() = promptTokens + completionTokens
@@ -78,9 +80,9 @@ data class SourceUsageItem(
 data class UsageStats(
     val range: UsageRange,
     val totals: UsageTotals,
-    // 已设置价目的模型按当前价目估算出的费用
+    // 本期已入账的费用总和
     val totalCost: Double,
-    // 至少有一个用到的模型设置了价目；否则费用一栏没有可信数字
+    // 本期是否有可看的费用：有入账费用，或用到的模型配置了价目
     val hasPricing: Boolean,
     val points: List<UsagePoint>,
     val byMonth: Boolean,
@@ -157,43 +159,27 @@ class StatsVM(
             val zone = ZoneId.systemDefault()
             val startDate = range.days?.let { today.minusDays(it - 1L) }
             val since = startDate?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: 0L
-            // 用量流水包含标题、翻译等不落到消息里的请求，删掉的会话也还算在内
-            val totals = usageRecordDAO.getTotals(since)
             val settings = settingsStore.awaitLoaded()
             // 价目按「每 1M / 每 Mi」token 填写，和设置里的计数口径一起换算
             val unitTokens = priceUnitTokens(settings.displaySetting.binaryUnits)
-            val byMonth = range.days == null
-            val bucketFormat = if (byMonth) "%Y-%m" else "%Y-%m-%d"
-            // 时间型变价规则依赖每条流水自己的时间，聚合后的桶没有这个信息；
-            // 只有确实配置了启用的规则时才逐条算一遍
-            val hasPriceRules = settings.providers.any { provider ->
-                provider.models.any { model -> model.pricing.rules.any { it.enabled } }
-            }
-            val ruleCosts = if (hasPriceRules) {
-                withContext(Dispatchers.Default) {
-                    loadRuleCosts(
-                        rows = usageRecordDAO.getPriceRuleUsageRows(bucketFormat, since),
-                        settings = settings,
-                        unitTokens = unitTokens,
-                    )
-                }
-            } else {
-                null
-            }
+            // 账本上线前的流水没有费用快照，先按当前价目补一次；之后统计只读 cost 列
+            backfillUsageCosts(settings, unitTokens, since)
+            // 用量流水包含标题、翻译等不落到消息里的请求，删掉的会话也还算在内
+            val totals = usageRecordDAO.getTotals(since)
             val modelRows = usageRecordDAO.getTotalsByModel(since)
             val models = modelRows.map { usage ->
                 ModelUsageItem(
                     name = usage.displayName(settings),
                     totalTokens = usage.totalTokens,
-                    cost = ruleCosts?.byModel?.get(usage.costKey())
-                        ?: if (ruleCosts == null) usage.costOf(settings, unitTokens) else 0.0,
+                    cost = usage.cost,
                 )
             }
+            val byMonth = range.days == null
             val buckets = bucketTotals(
-                rows = usageRecordDAO.getTotalsByModelBucket(format = bucketFormat, since = since),
-                settings = settings,
-                unitTokens = unitTokens,
-                ruleCosts = ruleCosts,
+                usageRecordDAO.getTotalsByModelBucket(
+                    format = if (byMonth) "%Y-%m" else "%Y-%m-%d",
+                    since = since,
+                )
             )
             val points = if (byMonth) {
                 monthlyPoints(buckets, today)
@@ -206,19 +192,15 @@ class StatsVM(
                     SourceUsageItem(
                         source = source,
                         totalTokens = rows.sumOf { it.totalTokens },
-                        cost = if (ruleCosts == null) {
-                            rows.sumOf { it.costOf(settings, unitTokens) }
-                        } else {
-                            rows.sumOf { ruleCosts.bySourceModel[it.source to it.costKey()] ?: 0.0 }
-                        },
+                        cost = rows.sumOf { it.cost },
                     )
                 }
                 .sortedByDescending { it.totalTokens }
             _usage.value = UsageStats(
                 range = range,
                 totals = totals,
-                totalCost = models.sumOf { it.cost },
-                hasPricing = modelRows.any { it.modelId.pricingOf(settings) != null },
+                totalCost = totals.cost,
+                hasPricing = totals.cost > 0 || modelRows.any { it.modelId.pricingOf(settings) != null },
                 points = points,
                 byMonth = byMonth,
                 models = models,
@@ -249,12 +231,48 @@ class StatsVM(
             .map { month -> byMonth[month].toPoint(month.atDay(1)) }
             .toList()
     }
+
+    /**
+     * 旧流水没有费用快照：按当前价目和规则补算一次，之后价目/规则的改动只影响新请求。
+     * 处理过的行会写回 cost，下一次统计不再重复计算。
+     */
+    private suspend fun backfillUsageCosts(settings: Settings, unitTokens: Double, since: Long) {
+        // 一个价目都没填时先不补算，免得把历史写成 0；等用户填了价目再处理
+        val anyPriced = settings.providers.any { provider ->
+            provider.models.any { it.pricing.isConfigured }
+        }
+        if (!anyPriced) return
+        withContext(Dispatchers.Default) {
+            costBackfillMutex.withLock {
+                val pricingById = settings.providers
+                    .flatMap { it.models }
+                    .associate { it.id to it.pricing }
+                var afterId = 0L
+                while (true) {
+                    val rows = usageRecordDAO.getUnpricedUsageRows(COST_BACKFILL_BATCH, since, afterId)
+                    if (rows.isEmpty()) break
+                    rows.forEach { row ->
+                        // 模型没价目时保持 NULL，等用户填了价目再补；不要把历史提前写成 0
+                        row.costOf(pricingById, unitTokens)?.let { cost ->
+                            usageRecordDAO.updateCost(row.id, cost)
+                        }
+                    }
+                    afterId = rows.last().id
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val COST_BACKFILL_BATCH = 500
+        val costBackfillMutex = Mutex()
+    }
 }
 
 private val ModelUsage.totalTokens get() = promptTokens + completionTokens
 private val SourceModelUsage.totalTokens get() = promptTokens + completionTokens
 
-/** 按模型分桶的原始汇总，加上按当前价目算出的费用 */
+/** 按模型分桶的原始汇总，费用直接取流水里的快照 */
 private class BucketTotals {
     var promptTokens: Long = 0
     var completionTokens: Long = 0
@@ -262,81 +280,17 @@ private class BucketTotals {
     var cost: Double = 0.0
 }
 
-private fun bucketTotals(
-    rows: List<ModelBucketUsage>,
-    settings: Settings,
-    unitTokens: Double,
-    ruleCosts: RuleCostTotals?,
-): Map<String, BucketTotals> {
+private fun bucketTotals(rows: List<ModelBucketUsage>): Map<String, BucketTotals> {
     val totals = mutableMapOf<String, BucketTotals>()
     rows.forEach { row ->
         val bucket = totals.getOrPut(row.bucket) { BucketTotals() }
         bucket.promptTokens += row.promptTokens
         bucket.completionTokens += row.completionTokens
         bucket.cachedTokens += row.cachedTokens
-        bucket.cost += if (ruleCosts == null) {
-            row.costOf(settings, unitTokens)
-        } else {
-            ruleCosts.byBucketModel[row.bucket to row.costKey()] ?: 0.0
-        }
+        bucket.cost += row.cost
     }
     return totals
 }
-
-/** 按逐条流水套用变价规则后的费用，三个维度各汇总一份 */
-private class RuleCostTotals {
-    val byModel = mutableMapOf<String, Double>()
-    val byBucketModel = mutableMapOf<Pair<String, String>, Double>()
-    val bySourceModel = mutableMapOf<Pair<String, String>, Double>()
-}
-
-private fun loadRuleCosts(
-    rows: List<PriceRuleUsageRow>,
-    settings: Settings,
-    unitTokens: Double,
-): RuleCostTotals {
-    val totals = RuleCostTotals()
-    rows.forEach { row ->
-        val pricing = row.modelId
-            ?.toModelUuid()
-            ?.let { settings.findModelById(it) }
-            ?.pricing
-            ?: return@forEach
-        val cost = pricing.applyRules(
-            PriceRuleContext(
-                atMillis = row.createdAt,
-                promptTokens = row.promptTokens.toLong(),
-                completionTokens = row.completionTokens.toLong(),
-                cachedTokens = row.cachedTokens.toLong(),
-            )
-        ).estimateCost(
-            promptTokens = row.promptTokens.toLong(),
-            completionTokens = row.completionTokens.toLong(),
-            cachedTokens = row.cachedTokens.toLong(),
-            unitTokens = unitTokens,
-            calls = 1,
-        ).total
-        if (cost == 0.0) return@forEach
-        val key = row.costKey()
-        totals.byModel[key] = (totals.byModel[key] ?: 0.0) + cost
-        val bucketKey = row.bucket to key
-        totals.byBucketModel[bucketKey] = (totals.byBucketModel[bucketKey] ?: 0.0) + cost
-        val sourceKey = row.source to key
-        totals.bySourceModel[sourceKey] = (totals.bySourceModel[sourceKey] ?: 0.0) + cost
-    }
-    return totals
-}
-
-private fun costKey(modelId: String?, modelName: String?): String =
-    modelId?.let { "id:$it" } ?: "name:${modelName.orEmpty()}"
-
-private fun ModelUsage.costKey(): String = costKey(modelId, modelName)
-
-private fun ModelBucketUsage.costKey(): String = costKey(modelId, modelName)
-
-private fun SourceModelUsage.costKey(): String = costKey(modelId, modelName)
-
-private fun PriceRuleUsageRow.costKey(): String = costKey(modelId, modelName)
 
 private fun BucketTotals?.toPoint(date: LocalDate) = UsagePoint(
     date = date,
@@ -351,32 +305,23 @@ private fun ModelUsage.displayName(settings: Settings): String? {
     return model?.displayName?.ifBlank { null } ?: model?.modelId ?: modelName
 }
 
-private fun ModelUsage.costOf(settings: Settings, unitTokens: Double): Double =
-    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
-
-private fun ModelBucketUsage.costOf(settings: Settings, unitTokens: Double): Double =
-    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
-
-private fun SourceModelUsage.costOf(settings: Settings, unitTokens: Double): Double =
-    costOf(modelId, promptTokens, completionTokens, cachedTokens, calls, settings, unitTokens)
-
-private fun costOf(
-    modelId: String?,
-    promptTokens: Long,
-    completionTokens: Long,
-    cachedTokens: Long,
-    calls: Int,
-    settings: Settings,
-    unitTokens: Double,
-): Double {
-    val pricing = modelId.pricingOf(settings) ?: return 0.0
-    // usage_record 没有缓存写入字段，写入缓存的 token 会按输入价计入
+private fun UnpricedUsageRow.costOf(pricingById: Map<Uuid, ModelPricing>, unitTokens: Double): Double? {
+    val pricing = modelId.toModelUuid()
+        ?.let { pricingById[it] }
+        ?.takeIf { it.isConfigured }
+        ?: return null
     return pricing.estimateCost(
-        promptTokens = promptTokens,
-        completionTokens = completionTokens,
-        cachedTokens = cachedTokens,
+        promptTokens = promptTokens.toLong(),
+        completionTokens = completionTokens.toLong(),
+        cachedTokens = cachedTokens.toLong(),
         unitTokens = unitTokens,
-        calls = calls,
+        calls = 1,
+        context = PriceRuleContext(
+            atMillis = createdAt,
+            promptTokens = promptTokens.toLong(),
+            completionTokens = completionTokens.toLong(),
+            cachedTokens = cachedTokens.toLong(),
+        ),
     ).total
 }
 

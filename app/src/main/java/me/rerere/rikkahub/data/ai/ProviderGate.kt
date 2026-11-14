@@ -15,6 +15,7 @@ import me.rerere.ai.provider.ProviderQuotaWindowUnit
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TOKENS_PER_MILLION
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.UsageCost
 import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.provider.lockState
 import me.rerere.ai.ui.UIMessage
@@ -181,12 +182,12 @@ class ProviderGate(
         val guard = setting.guard
         val estimatedTokens = messages.sumOf { estimateMessageTokens(it) }
         val priceUnit = unitTokens()
-        val estimatedCost = costOf(
+        val estimatedCost = usageCostOf(
             pricing = params.model.pricing,
             usage = TokenUsage(promptTokens = estimatedTokens),
             unitTokens = priceUnit,
             atMillis = now,
-        )
+        ).total
         if (guard.hasRateLimit) {
             ensureHydrated(setting, now - guard.usageRetentionMillis())
         }
@@ -219,25 +220,25 @@ class ProviderGate(
         }
     }
 
-    fun finish(ticket: RequestTicket, usage: TokenUsage?) {
+    /**
+     * 请求结束，返回这次请求按当时价目和规则算出的费用，调用方据此写入 usage_record。
+     * 费用在这里用完整的 usage 算一次（含缓存写入），之后所有汇总只读这份快照。
+     */
+    fun finish(ticket: RequestTicket, usage: TokenUsage?): UsageCost? {
         val actual = usage?.let { it.promptTokens + it.completionTokens } ?: 0
+        val actualCost = usage?.let {
+            usageCostOf(
+                pricing = ticket.pricing,
+                usage = it,
+                unitTokens = ticket.unitTokens,
+                atMillis = ticket.stamp.startedAt,
+            )
+        }
         synchronized(ledgerLock) {
             if (actual > 0) ticket.stamp.tokens = actual
-            ticket.stamp.cost = usage?.let {
-                // 内存里的流水只保留能写进 usage_record 的字段，缓存写入按输入价回落，
-                // 和重启后从历史恢复出来的费用口径保持一致
-                costOf(
-                    pricing = ticket.pricing,
-                    usage = TokenUsage(
-                        promptTokens = it.promptTokens,
-                        completionTokens = it.completionTokens,
-                        cachedTokens = it.cachedTokens,
-                    ),
-                    unitTokens = ticket.unitTokens,
-                    atMillis = ticket.stamp.startedAt,
-                )
-            } ?: 0.0
+            ticket.stamp.cost = actualCost?.total ?: 0.0
         }
+        return actualCost
     }
 
     suspend fun status(setting: ProviderSetting): ProviderGateStatus {
@@ -493,14 +494,15 @@ class ProviderGate(
     }
 
     /**
-     * 历史流水只存了未缓存输入、缓存读取和输出，缓存写入按输入价回落；
-     * 和 [finish] 写入内存时的口径一致，重启前后同一条记录算出来的费用不会变。
+     * 新流水直接用入账时的费用快照，重启前后不会变；
+     * 只有账本上线前的旧流水没有 cost，才按当前价目和当时的时间回退估算。
      */
     private fun eventCost(event: ProviderUsageEvent, setting: ProviderSetting, unitTokens: Double): Double {
+        event.cost?.let { return it }
         val model = event.modelId
             ?.let { id -> setting.models.firstOrNull { model -> model.id.toString() == id } }
             ?: return 0.0
-        return costOf(
+        return usageCostOf(
             pricing = model.pricing,
             usage = TokenUsage(
                 promptTokens = event.promptTokens,
@@ -509,16 +511,16 @@ class ProviderGate(
             ),
             unitTokens = unitTokens,
             atMillis = event.createdAt,
-        )
+        ).total
     }
 
-    private fun costOf(
+    private fun usageCostOf(
         pricing: ModelPricing,
         usage: TokenUsage,
         unitTokens: Double,
         atMillis: Long,
-    ): Double = if (!pricing.isConfigured) {
-        0.0
+    ): UsageCost = if (!pricing.isConfigured) {
+        UsageCost()
     } else {
         pricing.estimateCost(
             usage = usage,
@@ -530,7 +532,7 @@ class ProviderGate(
                 completionTokens = usage.completionTokens.toLong(),
                 cachedTokens = usage.cachedTokens.toLong(),
             ),
-        ).total
+        )
     }
 }
 

@@ -14,7 +14,7 @@ interface UsageRecordDAO {
     @Query(
         "SELECT created_at AS createdAt, (prompt_tokens + completion_tokens) AS tokens, " +
             "prompt_tokens AS promptTokens, completion_tokens AS completionTokens, " +
-            "cached_tokens AS cachedTokens, model_id AS modelId " +
+            "cached_tokens AS cachedTokens, model_id AS modelId, cost AS cost " +
             "FROM usage_record WHERE provider_id = :providerId AND created_at >= :since " +
             "AND created_at < :before ORDER BY created_at"
     )
@@ -27,7 +27,8 @@ interface UsageRecordDAO {
     @Query(
         "SELECT COALESCE(SUM(prompt_tokens), 0) AS promptTokens, " +
             "COALESCE(SUM(completion_tokens), 0) AS completionTokens, " +
-            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens " +
+            "COALESCE(SUM(cached_tokens), 0) AS cachedTokens, " +
+            "COALESCE(SUM(cost), 0) AS cost " +
             "FROM usage_record WHERE created_at >= :since"
     )
     suspend fun getTotals(since: Long = 0): UsageTotals
@@ -37,7 +38,7 @@ interface UsageRecordDAO {
         "SELECT strftime(:format, created_at / 1000, 'unixepoch', 'localtime') AS bucket, " +
             "model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
+            "SUM(cached_tokens) AS cachedTokens, COALESCE(SUM(cost), 0) AS cost " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY bucket, COALESCE(model_id, model_name) ORDER BY bucket"
     )
@@ -54,35 +55,35 @@ interface UsageRecordDAO {
     @Query(
         "SELECT model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
+            "SUM(cached_tokens) AS cachedTokens, COALESCE(SUM(cost), 0) AS cost " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY COALESCE(model_id, model_name) " +
             "ORDER BY SUM(prompt_tokens + completion_tokens) DESC"
     )
     suspend fun getTotalsByModel(since: Long): List<ModelUsage>
 
-    /** 按来源拆开、再按模型拆开：来源排行要按各自模型的单价算费用 */
+    /** 按来源拆开、再按模型拆开 */
     @Query(
         "SELECT source, model_id AS modelId, MAX(model_name) AS modelName, " +
             "SUM(prompt_tokens) AS promptTokens, SUM(completion_tokens) AS completionTokens, " +
-            "SUM(cached_tokens) AS cachedTokens, COUNT(*) AS calls " +
+            "SUM(cached_tokens) AS cachedTokens, COALESCE(SUM(cost), 0) AS cost " +
             "FROM usage_record WHERE created_at >= :since " +
             "GROUP BY source, COALESCE(model_id, model_name)"
     )
     suspend fun getTotalsBySourceModel(since: Long): List<SourceModelUsage>
 
-    /**
-     * 给变价规则用的逐条流水：规则可能依赖请求时刻，聚合后的桶没有这个信息。
-     * 只在有模型配置了启用的规则时查询。
-     */
+    /** 账本上线前的流水没有费用快照，按条取出来补算一次 */
     @Query(
-        "SELECT strftime(:format, created_at / 1000, 'unixepoch', 'localtime') AS bucket, " +
-            "created_at AS createdAt, source, model_id AS modelId, model_name AS modelName, " +
+        "SELECT id, created_at AS createdAt, model_id AS modelId, " +
             "prompt_tokens AS promptTokens, completion_tokens AS completionTokens, " +
             "cached_tokens AS cachedTokens " +
-            "FROM usage_record WHERE created_at >= :since ORDER BY created_at"
+            "FROM usage_record WHERE cost IS NULL AND created_at >= :since AND id > :afterId " +
+            "ORDER BY id LIMIT :limit"
     )
-    suspend fun getPriceRuleUsageRows(format: String, since: Long): List<PriceRuleUsageRow>
+    suspend fun getUnpricedUsageRows(limit: Int, since: Long, afterId: Long): List<UnpricedUsageRow>
+
+    @Query("UPDATE usage_record SET cost = :cost WHERE id = :id")
+    suspend fun updateCost(id: Long, cost: Double)
 }
 
 data class ProviderUsageEvent(
@@ -92,12 +93,14 @@ data class ProviderUsageEvent(
     val completionTokens: Int,
     val cachedTokens: Int,
     val modelId: String?,
+    val cost: Double? = null,
 )
 
 data class UsageTotals(
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
+    val cost: Double = 0.0,
 )
 
 data class DayCount(
@@ -112,7 +115,7 @@ data class ModelBucketUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
-    val calls: Int,
+    val cost: Double,
 )
 
 data class ModelUsage(
@@ -121,7 +124,7 @@ data class ModelUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
-    val calls: Int,
+    val cost: Double,
 )
 
 data class SourceModelUsage(
@@ -131,15 +134,13 @@ data class SourceModelUsage(
     val promptTokens: Long,
     val completionTokens: Long,
     val cachedTokens: Long,
-    val calls: Int,
+    val cost: Double,
 )
 
-data class PriceRuleUsageRow(
-    val bucket: String,
+data class UnpricedUsageRow(
+    val id: Long,
     val createdAt: Long,
-    val source: String,
     val modelId: String?,
-    val modelName: String?,
     val promptTokens: Int,
     val completionTokens: Int,
     val cachedTokens: Int,

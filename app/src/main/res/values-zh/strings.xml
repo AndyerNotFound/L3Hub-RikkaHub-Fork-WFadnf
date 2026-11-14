@@ -2915,7 +2915,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_guard_enabled">启用</string>
   <string name="setting_provider_page_other_settings">其它设置</string>
   <string name="setting_provider_page_pricing">计费</string>
-  <string name="setting_provider_page_pricing_desc">按 token 用量估算每次回复的费用，价格单位为每 %1$s token，货币单位沿用你填写的价格；留空的项目不计费。切换计数口径后价格单位随之改变，数字不会自动换算。</string>
+  <string name="setting_provider_page_pricing_desc">按 token 用量估算每次回复的费用，价格单位为每 %1$s token，货币单位沿用你填写的价格；留空的项目不计费。切换计数口径后价格单位随之改变，数字不会自动换算。修改价目只影响之后的请求，已入账的历史费用不会重算。</string>
   <string name="setting_provider_page_price_input">输入</string>
   <string name="setting_provider_page_price_output">输出</string>
   <string name="setting_provider_page_price_cache_hit">缓存命中</string>
@@ -2933,7 +2933,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="provider_limit_window_cost">%1$s 的「%2$s」费用上限 %3$s 已用完，%4$s 后恢复</string>
   <string name="stats_page_total_cost">估算费用</string>
   <string name="stats_page_cost">费用</string>
-  <string name="stats_page_cost_hint">按模型编辑页填写的单价估算，未填写价格的模型不计入。</string>
+  <string name="stats_page_cost_hint">费用按入账时的价目记录，未设置价目的请求不计入。</string>
   <string name="stats_page_cost_unset">本期用到的模型尚未设置价目，在模型编辑页填写单价后显示金额。</string>
   <string name="setting_provider_page_price_rules">变价规则</string>
   <string name="setting_provider_page_price_rules_desc">按请求发生的时间、上下文长度或自定义表达式切换价目。规则自上而下匹配，第一条启用的规则命中后，整张价目表替换为规则中的价格。</string>

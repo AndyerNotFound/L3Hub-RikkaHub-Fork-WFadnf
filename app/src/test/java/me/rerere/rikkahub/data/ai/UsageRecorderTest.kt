@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
@@ -18,9 +19,9 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.DayCount
 import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
 import me.rerere.rikkahub.data.db.dao.ModelUsage
-import me.rerere.rikkahub.data.db.dao.PriceRuleUsageRow
 import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
 import me.rerere.rikkahub.data.db.dao.SourceModelUsage
+import me.rerere.rikkahub.data.db.dao.UnpricedUsageRow
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
 import me.rerere.rikkahub.data.db.entity.UsageRecordEntity
@@ -53,6 +54,22 @@ class UsageRecorderTest {
         assertEquals(tag.assistantId.toString(), record.assistantId)
         assertEquals(tag.conversationId.toString(), record.conversationId)
         assertEquals(listOf(10, 2, 4), listOf(record.promptTokens, record.completionTokens, record.cachedTokens))
+    }
+
+    @Test
+    fun `generateText records the cost calculated from the model price`() = runTest {
+        val pricedModel = Model(
+            modelId = "gpt-priced",
+            pricing = ModelPricing(input = 3.0, output = 15.0),
+        )
+        val provider = FakeProvider(result = TokenUsage(promptTokens = 1_000_000, completionTokens = 100_000))
+
+        recorder().wrap(provider, tag)
+            .generateText(setting, emptyList(), TextGenerationParams(model = pricedModel))
+        testScheduler.advanceUntilIdle()
+
+        // 每 1M token：输入 3、输出 15
+        assertEquals(4.5, dao.records.single().cost!!, 1e-9)
     }
 
     @Test
@@ -118,8 +135,9 @@ private class FakeUsageRecordDAO : UsageRecordDAO {
 
     override suspend fun getTotalsBySourceModel(since: Long) = emptyList<SourceModelUsage>()
 
-    override suspend fun getPriceRuleUsageRows(format: String, since: Long) =
-        emptyList<PriceRuleUsageRow>()
+    override suspend fun getUnpricedUsageRows(limit: Int, since: Long, afterId: Long) = emptyList<UnpricedUsageRow>()
+
+    override suspend fun updateCost(id: Long, cost: Double) = Unit
 
     override suspend fun getProviderUsageEvents(
         providerId: String,

@@ -8,6 +8,7 @@ import kotlinx.serialization.Transient
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.UsageCost
 import me.rerere.ai.util.json
 import kotlin.math.roundToInt
 import kotlin.time.Clock
@@ -31,6 +32,12 @@ data class UIMessage(
     val generationTimeMs: Long? = null,
     // 最后一次请求自己的 usage；usage 是多步累计值，看上下文占用和缓存命中要用这个
     val lastUsage: TokenUsage? = null,
+    // 这条消息各步累计的费用；旧消息没有快照时为空，界面按当前价目回退估算
+    val cost: UsageCost? = null,
+    // 最后一次请求自己的费用
+    val lastCost: UsageCost? = null,
+    // 费用由账本按步记录；旧消息没有这个标记，界面才回退到按当前价目估算
+    val costTracked: Boolean = false,
     // 这条消息累计请求了多少次模型（多轮工具调用共用同一条消息）
     val stepCount: Int? = null,
     val translation: String? = null,

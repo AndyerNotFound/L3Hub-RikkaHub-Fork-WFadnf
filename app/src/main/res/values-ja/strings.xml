@@ -2561,7 +2561,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_message_ocr_result_image">画像 %1$d</string>
   <string name="setting_provider_page_other_settings">その他の設定</string>
   <string name="setting_provider_page_pricing">課金</string>
-  <string name="setting_provider_page_pricing_desc">token 使用量から返信ごとの費用を概算します。価格は %1$s token あたりで、入力した通貨をそのまま使います。空欄の項目は課金されません。計数単位を切り替えると価格の単位も変わり、数字は自動換算されません。</string>
+  <string name="setting_provider_page_pricing_desc">token 使用量から返信ごとの費用を概算します。価格は %1$s token あたりで、入力した通貨をそのまま使います。空欄の項目は課金されません。計数単位を切り替えると価格の単位も変わり、数字は自動換算されません。価格の変更は以降のリクエストにのみ適用され、計上済みの過去の費用は再計算されません。</string>
   <string name="setting_provider_page_price_input">入力</string>
   <string name="setting_provider_page_price_output">出力</string>
   <string name="setting_provider_page_price_cache_hit">キャッシュヒット</string>
@@ -2579,7 +2579,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="provider_limit_window_cost">%1$s の「%2$s」費用上限 %3$s に達しました。%4$s 後に再試行できます</string>
   <string name="stats_page_total_cost">概算費用</string>
   <string name="stats_page_cost">費用</string>
-  <string name="stats_page_cost_hint">モデル編集ページで設定した単価から概算します。価格が未設定のモデルは集計されません。</string>
+  <string name="stats_page_cost_hint">費用は計上時の価格で記録されます。価格が未設定のリクエストは含まれません。</string>
   <string name="stats_page_cost_unset">この期間に使ったモデルの価格が未設定です。モデル編集ページで単価を入力すると金額が表示されます。</string>
   <string name="setting_provider_page_price_rules">価格ルール</string>
   <string name="setting_provider_page_price_rules_desc">リクエストの時刻、コンテキスト長、またはカスタム式に応じて価格表を切り替えます。ルールは上から順に照合され、有効な最初の一致が価格表全体を置き換えます。</string>

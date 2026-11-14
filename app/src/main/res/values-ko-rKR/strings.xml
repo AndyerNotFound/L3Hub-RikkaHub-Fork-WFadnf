@@ -2561,7 +2561,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_message_ocr_result_image">이미지 %1$d</string>
   <string name="setting_provider_page_other_settings">기타 설정</string>
   <string name="setting_provider_page_pricing">과금</string>
-  <string name="setting_provider_page_pricing_desc">token 사용량으로 응답마다의 비용을 추산합니다. 가격은 %1$s token당이며 입력한 통화를 그대로 사용합니다. 비어 있는 항목은 과금되지 않습니다. 계수 단위를 바꾸면 가격 단위도 바뀌며 숫자는 자동 변환되지 않습니다.</string>
+  <string name="setting_provider_page_pricing_desc">token 사용량으로 응답마다의 비용을 추산합니다. 가격은 %1$s token당이며 입력한 통화를 그대로 사용합니다. 비어 있는 항목은 과금되지 않습니다. 계수 단위를 바꾸면 가격 단위도 바뀌며 숫자는 자동 변환되지 않습니다.가격 변경은 이후 요청에만 적용되며, 이미 기장된 과거 비용은 다시 계산되지 않습니다.</string>
   <string name="setting_provider_page_price_input">입력</string>
   <string name="setting_provider_page_price_output">출력</string>
   <string name="setting_provider_page_price_cache_hit">캐시 적중</string>
@@ -2579,7 +2579,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="provider_limit_window_cost">%1$s의 「%2$s」 비용 한도 %3$s에 도달했습니다. %4$s 후에 다시 시도할 수 있습니다.</string>
   <string name="stats_page_total_cost">추산 비용</string>
   <string name="stats_page_cost">비용</string>
-  <string name="stats_page_cost_hint">모델 편집 페이지에 입력한 단가로 추산하며, 가격이 없는 모델은 집계하지 않습니다.</string>
+  <string name="stats_page_cost_hint">비용은 기장 시점의 가격으로 기록되며, 가격이 없는 요청은 포함되지 않습니다.</string>
   <string name="stats_page_cost_unset">이 기간에 사용한 모델의 가격이 설정되지 않았습니다. 모델 편집 페이지에서 단가를 입력하면 금액이 표시됩니다.</string>
   <string name="setting_provider_page_price_rules">가격 규칙</string>
   <string name="setting_provider_page_price_rules_desc">요청 시각, 컨텍스트 길이 또는 사용자 지정 표현식에 따라 가격표를 전환합니다. 규칙은 위에서 아래로 검사하며, 활성화된 첫 번째 일치 규칙이 가격표 전체를 대체합니다.</string>

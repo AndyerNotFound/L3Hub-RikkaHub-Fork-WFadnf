@@ -59,6 +59,7 @@ data class ModelPricing(
 }
 
 /** 一次（或累计）用量的费用明细，单位和模型单价一致 */
+@Serializable
 data class UsageCost(
     val input: Double = 0.0,
     val output: Double = 0.0,

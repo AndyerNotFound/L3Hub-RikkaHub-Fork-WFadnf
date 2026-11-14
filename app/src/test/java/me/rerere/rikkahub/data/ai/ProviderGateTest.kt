@@ -258,8 +258,10 @@ private class EmptyUsageDao(
 
     override suspend fun getTotalsBySourceModel(since: Long) = emptyList<me.rerere.rikkahub.data.db.dao.SourceModelUsage>()
 
-    override suspend fun getPriceRuleUsageRows(format: String, since: Long) =
-        emptyList<me.rerere.rikkahub.data.db.dao.PriceRuleUsageRow>()
+    override suspend fun getUnpricedUsageRows(limit: Int, since: Long, afterId: Long) =
+        emptyList<me.rerere.rikkahub.data.db.dao.UnpricedUsageRow>()
+
+    override suspend fun updateCost(id: Long, cost: Double) = Unit
 
     override suspend fun getProviderUsageEvents(
         providerId: String,

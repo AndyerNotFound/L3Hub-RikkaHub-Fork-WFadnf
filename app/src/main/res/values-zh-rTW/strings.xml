@@ -2599,7 +2599,7 @@
   <string name="chat_message_ocr_result_image">第 %1$d 張圖片</string>
   <string name="setting_provider_page_other_settings">其它設定</string>
   <string name="setting_provider_page_pricing">計費</string>
-  <string name="setting_provider_page_pricing_desc">依 token 用量估算每次回覆的費用，價格單位為每 %1$s token，貨幣單位沿用你填寫的價格；留空的項目不計費。切換計數口徑後價格單位隨之改變，數字不會自動換算。</string>
+  <string name="setting_provider_page_pricing_desc">依 token 用量估算每次回覆的費用，價格單位為每 %1$s token，貨幣單位沿用你填寫的價格；留空的項目不計費。切換計數口徑後價格單位隨之改變，數字不會自動換算。修改價目只影響之後的請求，已入帳的歷史費用不會重算。</string>
   <string name="setting_provider_page_price_input">輸入</string>
   <string name="setting_provider_page_price_output">輸出</string>
   <string name="setting_provider_page_price_cache_hit">快取命中</string>
@@ -2617,7 +2617,7 @@
   <string name="provider_limit_window_cost">%1$s 的「%2$s」費用上限 %3$s 已用完，%4$s 後恢復</string>
   <string name="stats_page_total_cost">估算費用</string>
   <string name="stats_page_cost">費用</string>
-  <string name="stats_page_cost_hint">依模型編輯頁填寫的單價估算，未填寫價格的模型不計入。</string>
+  <string name="stats_page_cost_hint">費用依入帳時的價目記錄，未設定價目的請求不計入。</string>
   <string name="stats_page_cost_unset">本期用到的模型尚未設定價目，在模型編輯頁填寫單價後顯示金額。</string>
   <string name="setting_provider_page_price_rules">變價規則</string>
   <string name="setting_provider_page_price_rules_desc">按請求發生的時間、上下文長度或自訂表達式切換價目。規則自上而下匹配，第一條啟用的規則命中後，整張價目表替換為規則中的價格。</string>

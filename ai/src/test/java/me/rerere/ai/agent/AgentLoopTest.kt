@@ -16,6 +16,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelPricing
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
@@ -33,7 +34,11 @@ import org.junit.Test
 import java.io.IOException
 
 class AgentLoopTest {
-    private val model = Model(modelId = "test-model")
+    // 每 token 输入 1、输出 2，方便核对多步费用累加
+    private val model = Model(
+        modelId = "test-model",
+        pricing = ModelPricing(input = 1_000_000.0, output = 2_000_000.0),
+    )
     private val provider = FakeProvider()
     private val hooks = RecordingHooks(model)
 
@@ -471,6 +476,9 @@ class AgentLoopTest {
         assertEquals(TokenUsage(promptTokens = 150, completionTokens = 20, totalTokens = 170), message.lastUsage)
         assertEquals(2, message.stepCount)
         assertNotNull(message.generationTimeMs)
+        // 第一步 100 + 10×2，第二步 150 + 20×2
+        assertEquals(310.0, message.cost?.total ?: 0.0, 1e-9)
+        assertEquals(190.0, message.lastCost?.total ?: 0.0, 1e-9)
     }
 
     @Test

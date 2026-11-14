@@ -20,6 +20,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.limitContext
@@ -480,6 +481,7 @@ class ChatRequestFactory(
                 addAll(assistant.customBodies)
                 addAll(turn.model.customBodies)
             },
+            priceUnitTokens = priceUnitTokens(turn.settings.displaySetting.binaryUnits),
             sessionId = turn.conversationId.toString(),
         )
         return StepRequest(requestMessages, params)
