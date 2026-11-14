@@ -1,5 +1,13 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,8 +37,13 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,12 +52,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.takeOrElse
 import kotlinx.coroutines.launch
@@ -73,6 +88,10 @@ import me.rerere.rikkahub.data.model.TokenBucket
 import me.rerere.rikkahub.data.model.TokenDestination
 import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toDp
@@ -96,9 +115,20 @@ fun ChatMessageNerdLine(
 ) {
     val settings = LocalSettings.current
     val usage = message.usage
-    if (!settings.displaySetting.showTokenUsage || usage == null) return
+    // 重新生成/切分支时 usage 会先变成 null，收起的动画里还得有上一份数字可画，
+    // 否则统计行会在退场的第一帧塌成空白
+    var lastUsage by remember(message.id) { mutableStateOf(usage) }
+    SideEffect { if (usage != null) lastUsage = usage }
+    val shownUsage = usage ?: lastUsage
+    val visible = settings.displaySetting.showTokenUsage && usage != null
+    // 与英雄卡同一套收放：先按可见性滚动过渡，等动画收完再把这一行整体摘掉，
+    // 不然它会在气泡下面留一段 4dp 的空档
+    val visibility = remember(message.id) { MutableTransitionState(visible) }
+    LaunchedEffect(visible) { visibility.targetState = visible }
+    val keepLine = visible || visibility.currentState || !visibility.isIdle
+    if (shownUsage == null || !keepLine) return
 
-    val stats = remember(message) { message.nerdStats(usage) }
+    val stats = remember(message, shownUsage) { message.nerdStats(shownUsage) }
     // 消息里的模型快照不带上下文窗口，只能从设置里按 ID 找；模型被删了就不显示窗口大小
     val contextLength = remember(settings.providers, message.modelId) {
         settings.findModelById(message.modelId)?.effectiveContextWindow
@@ -111,7 +141,7 @@ fun ChatMessageNerdLine(
         message.createdAt,
         message.cost,
         message.costTracked,
-        usage,
+        shownUsage,
         stats.lastUsage,
         stats.steps,
         binaryUnits,
@@ -125,92 +155,119 @@ fun ChatMessageNerdLine(
     val tooltipState = rememberTooltipState(isPersistent = true)
     val scope = rememberCoroutineScope()
 
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-        tooltip = {
-            RichTooltip(
-                title = { Text(stringResource(R.string.chat_message_usage_title)) },
-            ) {
-                UsageDetails(stats, contextLength, cost)
-            }
-        },
-        state = tooltipState,
-        enableUserInput = false,
+    // 生成结束拿到 usage 的一刻，这一行和加载图标的退场同时发生：
+    // 数字带模糊渐显、行高从上往下展开；重新生成清掉 usage 时反向收起
+    val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
+    val enterSize = rememberSpatialSpec<IntSize>()
+    val exitSize = rememberFastSpatialSpec<IntSize>()
+    val fadeSpec = rememberEffectsSpec<Float>()
+    val enterBlurSpec = rememberSpatialSpec<Float>()
+    val exitBlurSpec = rememberFastSpatialSpec<Float>()
+    AnimatedVisibility(
+        visibleState = visibility,
         modifier = modifier,
+        enter = expandVertically(animationSpec = enterSize) + fadeIn(fadeSpec),
+        exit = shrinkVertically(animationSpec = exitSize) + fadeOut(fadeSpec),
+        label = "nerdLine",
     ) {
-        // 等宽数字：流式生成时数值逐位变长，同一行里的其他项不会跟着左右挪
-        val statsTextStyle = MaterialTheme.typography.labelSmall.copy(
-            color = color,
-            fontFeatureSettings = "tnum",
-        )
-        // 统计行固定两行，某一行暂时没有内容（速度、费用要到生成结束才有）也占住行高，
-        // 否则整块统计会在生成过程中反复长高、塌陷
-        val lineHeight = statsTextStyle.lineHeight
-            .takeOrElse { statsTextStyle.fontSize * 1.4f }
-            .toDp()
-        ProvideTextStyle(statsTextStyle) {
-            CompositionLocalProvider(LocalContentColor provides color) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { scope.launch { tooltipState.show() } }
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
-                    StatsLine(minHeight = lineHeight) {
-                        if (stats.steps > 1) {
-                            StatsItem(
-                                icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
-                                content = { StatsText(stringResource(R.string.chat_message_usage_steps, stats.steps)) },
-                            )
-                        }
-                        if (stats.tps != null) {
-                            StatsItem(
-                                icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
-                                content = { StatsText("${stats.tps.toFixed(1)} tok/s") },
-                            )
-                        }
-                        if (cost.total > 0) {
-                            StatsItem(
-                                icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
-                                content = { StatsText(cost.total.formatCost()) },
-                            )
-                        }
+        val blur by transition.animateFloat(
+            transitionSpec = {
+                if (targetState == EnterExitState.Visible) enterBlurSpec else exitBlurSpec
+            },
+            label = "nerdLineBlur",
+        ) { state ->
+            if (state == EnterExitState.Visible) 0f else 1f
+        }
+        Box(
+            modifier = Modifier.graphicsLayer { renderEffect = blurSteps.at(blur) },
+        ) {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = {
+                    RichTooltip(
+                        title = { Text(stringResource(R.string.chat_message_usage_title)) },
+                    ) {
+                        UsageDetails(stats, contextLength, cost)
                     }
-                    StatsLine(minHeight = lineHeight) {
-                        StatsItem(
-                            icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
-                            content = {
-                                StatsText(
-                                    stringResource(
-                                        R.string.chat_message_usage_context_short,
-                                        stats.contextTokens.formatNumber(binaryUnits),
-                                    )
-                                )
-                                val cached = stats.lastUsage.cachedTokens
-                                if (cached > 0) {
-                                    StatsText(
-                                        stringResource(
-                                            R.string.chat_message_usage_cached_short,
-                                            cached.formatNumber(binaryUnits),
-                                        )
+                },
+                state = tooltipState,
+                enableUserInput = false,
+            ) {
+                // 等宽数字：流式生成时数值逐位变长，同一行里的其他项不会跟着左右挪
+                val statsTextStyle = MaterialTheme.typography.labelSmall.copy(
+                    color = color,
+                    fontFeatureSettings = "tnum",
+                )
+                // 统计行固定两行，某一行暂时没有内容（速度、费用要到生成结束才有）也占住行高，
+                // 否则整块统计会在生成过程中反复长高、塌陷
+                val lineHeight = statsTextStyle.lineHeight
+                    .takeOrElse { statsTextStyle.fontSize * 1.4f }
+                    .toDp()
+                ProvideTextStyle(statsTextStyle) {
+                    CompositionLocalProvider(LocalContentColor provides color) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { scope.launch { tooltipState.show() } }
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                        ) {
+                            StatsLine(minHeight = lineHeight) {
+                                if (stats.steps > 1) {
+                                    StatsItem(
+                                        icon = { StatsIcon(HugeIcons.Repeat, stringResource(R.string.chat_message_usage_step_count)) },
+                                        content = { StatsText(stringResource(R.string.chat_message_usage_steps, stats.steps)) },
                                     )
                                 }
-                            },
-                        )
-                        if (stats.steps > 1) {
-                            StatsItem(
-                                icon = { StatsIcon(HugeIcons.ChartColumn, stringResource(R.string.chat_message_usage_total)) },
-                                content = {
-                                    StatsText(
-                                        stringResource(
-                                            R.string.chat_message_usage_total_tokens,
-                                            (stats.total.promptTokens + stats.total.completionTokens)
-                                                .formatNumber(binaryUnits),
-                                        )
+                                if (stats.tps != null) {
+                                    StatsItem(
+                                        icon = { StatsIcon(HugeIcons.Zap, stringResource(R.string.chat_message_usage_speed)) },
+                                        content = { StatsText("${stats.tps.toFixed(1)} tok/s") },
                                     )
-                                },
-                            )
+                                }
+                                if (cost.total > 0) {
+                                    StatsItem(
+                                        icon = { StatsIcon(HugeIcons.MoneyBag02, stringResource(R.string.chat_message_usage_cost)) },
+                                        content = { StatsText(cost.total.formatCost()) },
+                                    )
+                                }
+                            }
+                            StatsLine(minHeight = lineHeight) {
+                                StatsItem(
+                                    icon = { StatsIcon(HugeIcons.Layers01, stringResource(R.string.chat_message_usage_context)) },
+                                    content = {
+                                        StatsText(
+                                            stringResource(
+                                                R.string.chat_message_usage_context_short,
+                                                stats.contextTokens.formatNumber(binaryUnits),
+                                            )
+                                        )
+                                        val cached = stats.lastUsage.cachedTokens
+                                        if (cached > 0) {
+                                            StatsText(
+                                                stringResource(
+                                                    R.string.chat_message_usage_cached_short,
+                                                    cached.formatNumber(binaryUnits),
+                                                )
+                                            )
+                                        }
+                                    },
+                                )
+                                if (stats.steps > 1) {
+                                    StatsItem(
+                                        icon = { StatsIcon(HugeIcons.ChartColumn, stringResource(R.string.chat_message_usage_total)) },
+                                        content = {
+                                            StatsText(
+                                                stringResource(
+                                                    R.string.chat_message_usage_total_tokens,
+                                                    (stats.total.promptTokens + stats.total.completionTokens)
+                                                        .formatNumber(binaryUnits),
+                                                )
+                                            )
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
