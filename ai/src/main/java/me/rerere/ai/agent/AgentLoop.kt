@@ -335,7 +335,6 @@ private fun UIMessage.withStepStats(
                 promptTokens = stepUsage.promptTokens.toLong(),
                 completionTokens = stepUsage.completionTokens.toLong(),
                 cachedTokens = stepUsage.cachedTokens.toLong(),
-                calls = 1,
             ),
         )
     } else {
