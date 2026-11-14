@@ -9,6 +9,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.time.Instant
@@ -27,12 +28,14 @@ class ProviderGuardTest {
         minutes: Int = 8 * 60,
         repeat: ProviderLockRepeat = ProviderLockRepeat.ONCE,
         until: String = "",
+        weekday: Int = 0,
     ) = ProviderLockSchedule(
         startDate = startDate,
         startTime = startTime,
         durationMinutes = minutes,
         repeat = repeat,
         repeatUntil = until,
+        repeatWeekday = weekday,
     )
 
     @Test
@@ -58,6 +61,46 @@ class ProviderGuardTest {
         assertNotNull(lock.activeWindowAt(at("2026-11-17T00:30:00"), zone))
         assertNull(lock.activeWindowAt(at("2026-11-17T08:00:00"), zone))
         assertNull(lock.activeWindowAt(at("2026-11-14T22:30:00"), zone))
+    }
+
+    @Test
+    fun `weekly lock only fires on the selected weekday`() {
+        // 2026-11-14 是周六，计划从周六开始，每周一 23:00 锁定 8 小时
+        val lock = schedule(repeat = ProviderLockRepeat.WEEKLY, weekday = DayOfWeek.MONDAY.value)
+
+        assertNull(lock.activeWindowAt(at("2026-11-15T23:30:00"), zone))
+        assertNull(lock.activeWindowAt(at("2026-11-16T22:59:00"), zone))
+        assertEquals(
+            at("2026-11-16T23:00:00") to at("2026-11-17T07:00:00"),
+            lock.activeWindowAt(at("2026-11-17T01:00:00"), zone),
+        )
+        assertNotNull(lock.activeWindowAt(at("2026-11-23T23:30:00"), zone))
+        assertEquals(at("2026-11-23T23:00:00"), lock.nextStartAfter(at("2026-11-17T08:00:00"), zone))
+    }
+
+    @Test
+    fun `weekly lock starts from start date and honours repeatUntil`() {
+        val lock = schedule(
+            startDate = "2026-11-16",
+            repeat = ProviderLockRepeat.WEEKLY,
+            until = "2026-11-23",
+            weekday = DayOfWeek.MONDAY.value,
+        )
+
+        assertNull(lock.activeWindowAt(at("2026-11-09T23:30:00"), zone))
+        assertNotNull(lock.activeWindowAt(at("2026-11-16T23:30:00"), zone))
+        assertNotNull(lock.activeWindowAt(at("2026-11-23T23:30:00"), zone))
+        assertNull(lock.activeWindowAt(at("2026-11-30T23:30:00"), zone))
+        assertNull(lock.nextStartAfter(at("2026-11-24T08:00:00"), zone))
+    }
+
+    @Test
+    fun `weekly lock without an explicit weekday follows the start date`() {
+        val lock = schedule(startDate = "2026-11-14", repeat = ProviderLockRepeat.WEEKLY)
+
+        assertEquals(DayOfWeek.SATURDAY, lock.weekdayOf(lock.parsedStart()!!))
+        assertNotNull(lock.activeWindowAt(at("2026-11-21T23:30:00"), zone))
+        assertNull(lock.activeWindowAt(at("2026-11-22T23:30:00"), zone))
     }
 
     @Test

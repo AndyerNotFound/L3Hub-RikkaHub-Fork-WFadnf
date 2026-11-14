@@ -81,10 +81,13 @@ import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.compose.koinInject
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlin.time.Instant
 
 private val LOCK_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -545,14 +548,21 @@ private fun lockSummary(lock: ProviderLockSchedule): String {
     val context = LocalContext.current
     val start = lock.parsedStart() ?: return "—"
     val duration = formatGuardDuration(context, lock.durationMinutes)
-    return if (lock.repeat == ProviderLockRepeat.DAILY) {
-        stringResource(
+    return when (lock.repeat) {
+        ProviderLockRepeat.DAILY -> stringResource(
             R.string.setting_provider_guard_lock_summary_daily,
             start.format(LOCK_TIME_FORMAT),
             duration,
         )
-    } else {
-        stringResource(
+
+        ProviderLockRepeat.WEEKLY -> stringResource(
+            R.string.setting_provider_guard_lock_summary_weekly,
+            weekdayLabel(lock.weekdayOf(start)),
+            start.format(LOCK_TIME_FORMAT),
+            duration,
+        )
+
+        ProviderLockRepeat.ONCE -> stringResource(
             R.string.setting_provider_guard_lock_summary_once,
             start.format(LOCK_DATE_TIME_FORMAT),
             duration,
@@ -560,16 +570,60 @@ private fun lockSummary(lock: ProviderLockSchedule): String {
     }
 }
 
+private fun weekdayLabel(day: DayOfWeek): String =
+    day.getDisplayName(TextStyle.FULL, Locale.getDefault())
+
+@Composable
+private fun WeekdayPickerDialog(
+    selected: DayOfWeek,
+    onDismiss: () -> Unit,
+    onPick: (DayOfWeek) -> Unit,
+) {
+    AnimatedAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_provider_guard_lock_weekday)) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 420.dp)) {
+                DayOfWeek.values().forEach { day ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(day) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = selected == day, onClick = { onPick(day) })
+                        Text(weekdayLabel(day))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
+
 @Composable
 private fun lockSupportingText(lock: ProviderLockSchedule): String {
     val start = lock.parsedStart() ?: return ""
-    val end = start.plusMinutes(lock.durationMinutes.coerceAtLeast(1).toLong())
+    val firstDate = if (lock.repeat == ProviderLockRepeat.WEEKLY) {
+        val weekday = lock.weekdayOf(start)
+        (0L..6L).map { start.toLocalDate().plusDays(it) }.firstOrNull { it.dayOfWeek == weekday }
+            ?: start.toLocalDate()
+    } else {
+        start.toLocalDate()
+    }
+    val end = LocalDateTime.of(firstDate, start.toLocalTime())
+        .plusMinutes(lock.durationMinutes.coerceAtLeast(1).toLong())
     val endText = stringResource(
         R.string.setting_provider_guard_lock_end,
         end.format(LOCK_DATE_TIME_FORMAT),
     )
     val until = lock.parsedRepeatUntil()
-    return if (lock.repeat == ProviderLockRepeat.DAILY && until != null) {
+    return if (lock.repeat != ProviderLockRepeat.ONCE && until != null) {
         endText + " · " + stringResource(
             R.string.setting_provider_guard_lock_until,
             until.format(DateTimeFormatter.ofPattern("MM-dd")),
@@ -994,9 +1048,39 @@ private fun LockScheduleSheet(
     }
     var repeat by remember { mutableStateOf(base.repeat) }
     var repeatUntil by remember { mutableStateOf(base.parsedRepeatUntil()) }
+    var weekday by remember {
+        mutableStateOf(
+            base.repeatWeekday
+                .takeIf { it in 1..7 }
+                ?.let { DayOfWeek.of(it) }
+                ?: startDate.dayOfWeek
+        )
+    }
+    var weekdayPicked by remember {
+        mutableStateOf(base.repeat == ProviderLockRepeat.WEEKLY && base.repeatWeekday in 1..7)
+    }
+    var showWeekdayPicker by remember { mutableStateOf(false) }
     var enabled by remember { mutableStateOf(base.enabled) }
     val durationValue = durationText.toIntOrNull() ?: 0
     val totalMinutes = (if (durationInHours) durationValue * 60 else durationValue).coerceAtLeast(0)
+    // 每周重复时第一次触发不一定落在开始日期当天
+    val firstStartDate = if (repeat == ProviderLockRepeat.WEEKLY) {
+        (0L..6L).map { startDate.plusDays(it) }.firstOrNull { it.dayOfWeek == weekday } ?: startDate
+    } else {
+        startDate
+    }
+
+    if (showWeekdayPicker) {
+        WeekdayPickerDialog(
+            selected = weekday,
+            onDismiss = { showWeekdayPicker = false },
+            onPick = { day ->
+                weekday = day
+                weekdayPicked = true
+                showWeekdayPicker = false
+            },
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1028,7 +1112,10 @@ private fun LockScheduleSheet(
                 label = stringResource(R.string.setting_provider_guard_lock_start_date),
                 value = startDate.format(LOCK_DATE_FORMAT),
                 onClick = {
-                    pickDate(context, startDate) { startDate = it }
+                    pickDate(context, startDate) { picked ->
+                        startDate = picked
+                        if (!weekdayPicked) weekday = picked.dayOfWeek
+                    }
                 },
             )
             PickerRow(
@@ -1091,6 +1178,10 @@ private fun LockScheduleSheet(
                         onClick = {
                             repeat = item
                             if (item == ProviderLockRepeat.ONCE) repeatUntil = null
+                            if (item == ProviderLockRepeat.WEEKLY && base.repeat != ProviderLockRepeat.WEEKLY) {
+                                weekday = startDate.dayOfWeek
+                                weekdayPicked = false
+                            }
                         },
                         shape = SegmentedButtonDefaults.itemShape(
                             index,
@@ -1102,19 +1193,32 @@ private fun LockScheduleSheet(
                                 when (item) {
                                     ProviderLockRepeat.ONCE -> R.string.setting_provider_guard_lock_once
                                     ProviderLockRepeat.DAILY -> R.string.setting_provider_guard_lock_daily
+                                    ProviderLockRepeat.WEEKLY -> R.string.setting_provider_guard_lock_weekly
                                 }
                             )
                         )
                     }
                 }
             }
-            if (repeat == ProviderLockRepeat.DAILY) {
+            if (repeat == ProviderLockRepeat.WEEKLY) {
+                PickerRow(
+                    label = stringResource(R.string.setting_provider_guard_lock_weekday),
+                    value = weekdayLabel(weekday),
+                    onClick = { showWeekdayPicker = true },
+                )
+            }
+            if (repeat != ProviderLockRepeat.ONCE) {
                 PickerRow(
                     label = stringResource(R.string.setting_provider_guard_lock_repeat_until),
                     value = repeatUntil?.format(LOCK_DATE_FORMAT)
                         ?: stringResource(R.string.setting_provider_guard_lock_forever),
                     onClick = {
-                        pickDate(context, repeatUntil ?: startDate.plusDays(1)) { repeatUntil = it }
+                        val fallback = if (repeat == ProviderLockRepeat.WEEKLY) {
+                            firstStartDate.plusWeeks(1)
+                        } else {
+                            firstStartDate.plusDays(1)
+                        }
+                        pickDate(context, repeatUntil ?: fallback) { repeatUntil = it }
                     },
                 )
                 if (repeatUntil != null) {
@@ -1135,7 +1239,7 @@ private fun LockScheduleSheet(
                 Switch(checked = enabled, onCheckedChange = { enabled = it })
             }
             if (totalMinutes > 0) {
-                val start = LocalDateTime.of(startDate, startTime)
+                val start = LocalDateTime.of(firstStartDate, startTime)
                 val end = start.plusMinutes(totalMinutes.toLong())
                 Text(
                     text = stringResource(
@@ -1169,9 +1273,10 @@ private fun LockScheduleSheet(
                                 startTime = startTime.format(LOCK_TIME_FORMAT),
                                 durationMinutes = totalMinutes,
                                 repeat = repeat,
-                                repeatUntil = if (repeat == ProviderLockRepeat.DAILY) {
+                                repeatWeekday = weekday.value,
+                                repeatUntil = if (repeat != ProviderLockRepeat.ONCE) {
                                     repeatUntil
-                                        ?.takeIf { !it.isBefore(startDate) }
+                                        ?.takeIf { !it.isBefore(firstStartDate) }
                                         ?.format(LOCK_DATE_FORMAT)
                                         .orEmpty()
                                 } else {

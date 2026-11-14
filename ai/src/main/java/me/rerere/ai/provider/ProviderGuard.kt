@@ -2,6 +2,7 @@ package me.rerere.ai.provider
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -107,6 +108,10 @@ enum class ProviderLockRepeat {
     /** 从 [ProviderLockSchedule.startDate] 起每天触发，可再用 repeatUntil 设定截止日期 */
     @SerialName("daily")
     DAILY,
+
+    /** 从 [ProviderLockSchedule.startDate] 起每周在 [ProviderLockSchedule.repeatWeekday] 指定的星期触发 */
+    @SerialName("weekly")
+    WEEKLY,
 }
 
 /**
@@ -125,8 +130,10 @@ data class ProviderLockSchedule(
     val startTime: String = "23:00",
     val durationMinutes: Int = 60,
     val repeat: ProviderLockRepeat = ProviderLockRepeat.ONCE,
-    // 仅 DAILY 生效的截止日期 yyyy-MM-dd；空串表示一直重复
+    // 仅 DAILY / WEEKLY 生效的截止日期 yyyy-MM-dd；空串表示一直重复
     val repeatUntil: String = "",
+    // 仅 WEEKLY 生效的星期，ISO-8601：1 = 周一 … 7 = 周日；0 表示沿用 startDate 的星期
+    val repeatWeekday: Int = 0,
 ) {
     fun parsedStart(): LocalDateTime? = runCatching {
         LocalDateTime.of(LocalDate.parse(startDate), LocalTime.parse(startTime))
@@ -136,6 +143,10 @@ data class ProviderLockSchedule(
         repeatUntil.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
 
     fun summaryDurationMinutes(): Int = durationMinutes.coerceAtLeast(1)
+
+    /** WEEKLY 生效的星期；旧备份没有 repeatWeekday 时沿用开始日期那一天 */
+    fun weekdayOf(start: LocalDateTime): DayOfWeek =
+        DayOfWeek.of(repeatWeekday.takeIf { it in 1..7 } ?: start.dayOfWeek.value)
 }
 
 /**
@@ -158,16 +169,19 @@ fun ProviderLockSchedule.activeWindowAt(
     if (!enabled) return null
     val start = parsedStart() ?: return null
     val until = parsedRepeatUntil()
-    val nowLocal = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(now.toEpochMilliseconds()), zone)
-    val today = nowLocal.toLocalDate()
+    val nowMillis = now.toEpochMilliseconds()
+    val today = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone).toLocalDate()
+    val durationMillis = summaryDurationMinutes().toLong() * 60_000L
+    // 锁定可能跨过午夜（每周重复的时长甚至可能超过一天），往前多找几天
+    val lookbackDays = ((durationMillis + 86_400_000L - 1) / 86_400_000L).toInt()
 
-    val dates = listOf(today, today.minusDays(1))
-    for (date in dates) {
-        if (!occursOn(date, start.toLocalDate(), until, repeat)) continue
+    for (offset in 0..lookbackDays) {
+        val date = today.minusDays(offset.toLong())
+        if (!occursOn(date, start, until)) continue
         val startMillis = LocalDateTime.of(date, start.toLocalTime()).atZone(zone).toInstant().toEpochMilli()
-        val endMillis = startMillis + summaryDurationMinutes().toLong() * 60_000L
-        if (now.toEpochMilliseconds() >= startMillis && now.toEpochMilliseconds() < endMillis) {
-            return Instant.fromEpochMilliseconds(startMillis) to Instant.fromEpochMilliseconds(endMillis)
+        if (nowMillis >= startMillis && nowMillis < startMillis + durationMillis) {
+            return Instant.fromEpochMilliseconds(startMillis) to
+                Instant.fromEpochMilliseconds(startMillis + durationMillis)
         }
     }
     return null
@@ -180,13 +194,13 @@ fun ProviderLockSchedule.nextStartAfter(
 ): Instant? {
     if (!enabled) return null
     val start = parsedStart() ?: return null
-    val nowLocal = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(now.toEpochMilliseconds()), zone)
-    var date = nowLocal.toLocalDate()
+    val nowMillis = now.toEpochMilliseconds()
+    var date = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone).toLocalDate()
 
     if (repeat == ProviderLockRepeat.ONCE) {
         if (date > start.toLocalDate()) return null
         val candidate = start.atZone(zone).toInstant().toEpochMilli()
-        return if (candidate > now.toEpochMilliseconds()) Instant.fromEpochMilliseconds(candidate) else null
+        return if (candidate > nowMillis) Instant.fromEpochMilliseconds(candidate) else null
     }
 
     if (date < start.toLocalDate()) date = start.toLocalDate()
@@ -194,23 +208,28 @@ fun ProviderLockSchedule.nextStartAfter(
     var guard = 0
     while (guard++ < 400) {
         if (until != null && date > until) return null
-        val candidate = date.atTime(start.toLocalTime()).atZone(zone).toInstant().toEpochMilli()
-        if (candidate > now.toEpochMilliseconds()) return Instant.fromEpochMilliseconds(candidate)
+        if (occursOn(date, start, until)) {
+            val candidate = date.atTime(start.toLocalTime()).atZone(zone).toInstant().toEpochMilli()
+            if (candidate > nowMillis) return Instant.fromEpochMilliseconds(candidate)
+        }
         date = date.plusDays(1)
     }
     return null
 }
 
-private fun occursOn(
+private fun ProviderLockSchedule.occursOn(
     date: LocalDate,
-    startDate: LocalDate,
+    start: LocalDateTime,
     repeatUntil: LocalDate?,
-    repeat: ProviderLockRepeat,
 ): Boolean {
+    val startDate = start.toLocalDate()
     if (repeat == ProviderLockRepeat.ONCE) return date == startDate
     if (date < startDate) return false
     if (repeatUntil != null && date > repeatUntil) return false
-    return true
+    return when (repeat) {
+        ProviderLockRepeat.WEEKLY -> date.dayOfWeek == weekdayOf(start)
+        else -> true
+    }
 }
 
 /** 所有锁定计划合并后的状态：锁定取最晚结束，下一次开始取最早 */
