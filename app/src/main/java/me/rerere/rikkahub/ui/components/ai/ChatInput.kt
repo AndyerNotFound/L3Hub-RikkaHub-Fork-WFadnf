@@ -229,6 +229,8 @@ fun ChatInput(
         providers = settings.providers,
         type = ModelType.CHAT,
     )
+    // 单行布局里模型胶囊兼任思考强度入口，点开的就是这张带模型行的面板
+    var showReasoningPicker by remember { mutableStateOf(false) }
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
@@ -544,27 +546,6 @@ fun ChatInput(
                                     onUpdateAssistant(assistant.copy(reasoningLevel = it))
                                 },
                                 onlyIcon = true,
-                                modelName = if (singleLine) chatModel.displayName else null,
-                                onOpenModelList = if (singleLine) {
-                                    { modelListState.open() }
-                                } else {
-                                    null
-                                },
-                                // 单行模式下点模型名不关面板，直接把模型列表滑进来
-                                modelContent = if (singleLine) {
-                                    { dismiss ->
-                                        ModelListContent(
-                                            state = modelListState,
-                                            onSelect = { model ->
-                                                onUpdateChatModel(model)
-                                                dismiss()
-                                            },
-                                            onDismiss = dismiss,
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
                                 useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                             )
                         }
@@ -585,8 +566,7 @@ fun ChatInput(
                             label = "chatInputExpand",
                         )
                         val density = LocalDensity.current
-                        // 按钮行按 48dp 固定：刚好放得下 48dp 的模型图标按钮，
-                        // 高度定了，上下留白才能算准
+                        // 按钮行固定 48dp：点击区域留够，行高定了上下留白才能算准
                         val actionRowHeight = 48.dp
                         val oneLineHeight = with(density) { oneLineHeightPx.toDp() }
                             .takeIf { it > 0.dp } ?: 56.dp
@@ -600,7 +580,7 @@ fun ChatInput(
                         // 文字可用宽度保持不变，行数就不会因为拖滑块而变
                         val inputInsetFix = (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)
                         val textStart = lerp((70 - inputInsetFix).dp, 4.dp, expandProgress)
-                        val textEnd = lerp((130 - inputInsetFix).dp, 4.dp, expandProgress)
+                        val textEnd = lerp((112 - inputInsetFix).dp, 4.dp, expandProgress)
                         val collapsedPlaceholder = stringResource(R.string.chat_input_placeholder)
                         val modelName = chatModel?.displayName
                         val expandedPlaceholder = if (modelName != null) {
@@ -625,17 +605,12 @@ fun ChatInput(
                                 onSendAsGuidance = onSendAsGuidance,
                             )
                         }
+                        // 模型与思考强度都收进左侧胶囊，右侧只留输入相关按钮
+                        val reasoningSupported =
+                            chatModel?.abilities?.contains(ModelAbility.REASONING) == true
                         val trailingActions: @Composable () -> Unit = {
                             asrButton()
                             interjectButton()
-                            if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                reasoningButton()
-                            } else {
-                                ModelSelectorButton(
-                                    state = modelListState,
-                                    onlyIcon = true,
-                                )
-                            }
                             sendButton()
                         }
                         Box(modifier = Modifier.fillMaxWidth()) {
@@ -679,8 +654,19 @@ fun ChatInput(
                                 leadingActions()
                                 ChatInputModelPill(
                                     model = chatModel,
+                                    reasoningLevel = assistant.reasoningLevel
+                                        .takeIf { reasoningSupported },
+                                    useL3HubReasoningStyle = settings.displaySetting.useL3HubReasoningStyle,
                                     visible = expanded,
-                                    onClick = { modelListState.open() },
+                                    onClick = {
+                                        // 能思考的模型点开强度面板（面板首行就是模型选择），
+                                        // 不能思考的直接落到模型列表
+                                        if (reasoningSupported) {
+                                            showReasoningPicker = true
+                                        } else {
+                                            modelListState.open()
+                                        }
+                                    },
                                 )
                                 Spacer(Modifier.weight(1f))
                                 trailingActions()
@@ -750,6 +736,28 @@ fun ChatInput(
         state = modelListState,
         onSelect = onUpdateChatModel,
     )
+
+    if (showReasoningPicker) {
+        ReasoningPicker(
+            reasoningLevel = assistant.reasoningLevel,
+            onDismissRequest = { showReasoningPicker = false },
+            onUpdateReasoningLevel = {
+                onUpdateAssistant(assistant.copy(reasoningLevel = it))
+            },
+            modelName = chatModel?.displayName,
+            modelContent = { dismiss ->
+                ModelListContent(
+                    state = modelListState,
+                    onSelect = { model ->
+                        onUpdateChatModel(model)
+                        dismiss()
+                    },
+                    onDismiss = dismiss,
+                )
+            },
+            useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
+        )
+    }
 }
 
 @Composable

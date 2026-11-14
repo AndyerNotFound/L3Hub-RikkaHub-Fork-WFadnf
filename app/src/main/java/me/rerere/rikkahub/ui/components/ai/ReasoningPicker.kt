@@ -327,7 +327,7 @@ fun ReasoningPicker(
     }
 }
 
-private fun ReasoningLevel.icon(): ImageVector = when (this) {
+internal fun ReasoningLevel.icon(): ImageVector = when (this) {
     ReasoningLevel.OFF -> HugeIcons.Idea
     ReasoningLevel.AUTO -> HugeIcons.Idea01
     ReasoningLevel.MINIMAL -> ReasoningLow
@@ -364,7 +364,7 @@ internal fun ReasoningLevel.label(): String = when (this) {
     ReasoningLevel.ULTRA -> stringResource(R.string.reasoning_ultra)
 }
 
-private fun ReasoningLevel.badgeText(): String = when (this) {
+internal fun ReasoningLevel.badgeText(): String = when (this) {
     ReasoningLevel.OFF -> "OFF"
     ReasoningLevel.AUTO -> "AUTO"
     ReasoningLevel.MINIMAL -> "MIN"
@@ -388,7 +388,7 @@ private fun ReasoningLevel.letter(): String = when (this) {
     ReasoningLevel.ULTRA -> "U"
 }
 
-private fun ReasoningLevel.indicatorColor(): Color = when (this) {
+internal fun ReasoningLevel.indicatorColor(): Color = when (this) {
     ReasoningLevel.OFF -> Color(0xFF8A8A8A)
     ReasoningLevel.AUTO -> Color(0xFF43A047)
     ReasoningLevel.MINIMAL -> Color(0xFF66BB6A)

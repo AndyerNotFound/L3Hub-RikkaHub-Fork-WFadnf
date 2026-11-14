@@ -43,15 +43,18 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.rikkahub.R
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
 /**
@@ -62,10 +65,12 @@ import kotlin.math.roundToInt
  */
 internal val ChatInputExpandEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
 
-/** 模型选择胶囊：展开时贴着左侧按钮组滑出，收起时原路退回 */
+/** 模型选择胶囊：展开时贴着左侧按钮组滑出，收起时原路退回；单行布局里兼任思考强度入口 */
 @Composable
 internal fun ChatInputModelPill(
     model: Model?,
+    reasoningLevel: ReasoningLevel?,
+    useL3HubReasoningStyle: Boolean,
     visible: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -96,7 +101,7 @@ internal fun ChatInputModelPill(
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .height(30.dp)
-                .widthIn(max = 128.dp),
+                .widthIn(max = 148.dp),
         ) {
             Row(
                 modifier = Modifier
@@ -118,6 +123,28 @@ internal fun ChatInputModelPill(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
+                if (reasoningLevel != null) {
+                    // 合并后的思考强度仍然要看得到：文字风格跟思考按钮保持一套
+                    if (useL3HubReasoningStyle) {
+                        Text(
+                            text = reasoningLevel.badgeText(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                                lineHeight = 10.sp,
+                            ),
+                            color = reasoningLevel.indicatorColor(),
+                            maxLines = 1,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = reasoningLevel.icon(),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = reasoningLevel.indicatorColor(),
+                        )
+                    }
+                }
                 Icon(
                     imageVector = HugeIcons.ArrowDown01,
                     contentDescription = null,
@@ -155,15 +182,23 @@ internal fun MorphingPlaceholder(
     var morphing by remember { mutableStateOf(false) }
     val outDriver = remember { Animatable(0f) }
     val inDriver = remember { Animatable(1f) }
+    // 每轮 effect 领一个令牌，只有最新一轮能收尾：被取消的旧动画晚一步跑完时
+    // 不能把新一轮的状态抹掉，也不能让它自己的中间态留在屏幕上
+    val activeToken = remember { AtomicReference<Any?>(null) }
 
     LaunchedEffect(target) {
-        if (target == resting) return@LaunchedEffect
-        val from = resting
-        leaving = from
+        val token = Any()
+        activeToken.set(token)
+        if (target == resting) {
+            // 上一次动画被打断后又回到原样：直接退回静止态，别停在半透明的逐字层上
+            leaving = null
+            morphing = false
+            return@LaunchedEffect
+        }
+        leaving = resting
         morphing = true
-        // 中途再换文案时（快速聚焦又收起）要能退回静止态，不能停在半透明的逐字层上
         try {
-            val outTotal = from.length * PLACEHOLDER_STAGGER_MS + PLACEHOLDER_OUT_MS
+            val outTotal = resting.length * PLACEHOLDER_STAGGER_MS + PLACEHOLDER_OUT_MS
             val inStart = outTotal + PLACEHOLDER_GAP_MS
             val inTotal = target.length * PLACEHOLDER_STAGGER_MS + PLACEHOLDER_IN_MS
             outDriver.snapTo(0f)
@@ -173,10 +208,9 @@ internal fun MorphingPlaceholder(
             launch { outDriver.animateTo(1f, tween(durationMillis = outTotal, easing = LinearEasing)) }
             delay(inStart.toLong())
             inDriver.animateTo(1f, tween(durationMillis = inTotal, easing = LinearEasing))
-            resting = target
+            if (activeToken.get() === token) resting = target
         } finally {
-            // 被取消时交给下一次 effect 接管，别在这里把它的状态抹掉
-            if (isActive) {
+            if (activeToken.get() === token) {
                 leaving = null
                 morphing = false
             }
