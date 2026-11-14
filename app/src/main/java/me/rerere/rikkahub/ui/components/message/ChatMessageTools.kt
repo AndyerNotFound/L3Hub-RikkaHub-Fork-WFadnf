@@ -80,7 +80,6 @@ import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.DotLoading
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 
 @Composable
@@ -340,35 +339,30 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        // 失败的工具即使没跑满 100ms 也要露出那条红色进度条，否则界面只剩一句摘要
-        progress = if (failed || duration?.let { it >= 100.milliseconds } == true) {
-            val elapsed = duration
-            ChainOfThoughtProgress(
-                running = loading,
-                failed = failed,
-                // 失败时停在失败那一刻的比例；正常的完成由卡片画成 100%
-                fraction = elapsed?.let { spent -> timeout?.let { (spent / it).toFloat() } },
-                label = elapsed?.let { spent ->
-                    @Composable {
-                        Text(
-                            text = spent.toString(DurationUnit.SECONDS, 1),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (failed) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.secondary
-                            },
-                            textAlign = TextAlign.End,
-                            modifier = Modifier
-                                .widthIn(min = 40.dp)
-                                .shimmer(isLoading = loading),
-                        )
-                    }
-                },
-            )
-        } else {
-            null
-        },
+        // 每张工具卡都留一条进度：跑完就是 100%，失败转错误色，没有计时的工具只画状态
+        progress = ChainOfThoughtProgress(
+            running = loading,
+            failed = failed,
+            // 失败时停在失败那一刻的比例；正常完成由卡片画成 100%
+            fraction = duration?.let { spent -> timeout?.let { (spent / it).toFloat() } },
+            label = duration?.let { spent ->
+                @Composable {
+                    Text(
+                        text = spent.toString(DurationUnit.SECONDS, 1),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (failed) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        },
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .widthIn(min = 40.dp)
+                            .shimmer(isLoading = loading),
+                    )
+                }
+            },
+        ),
         onClick = {
             if (landscape && toolDetailHost != null) {
                 toolDetailHost.request = ToolDetailRequest(

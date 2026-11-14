@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -214,7 +213,7 @@ class ChainOfThoughtProgress(
 )
 
 /**
- * 步骤状态行里的进度条：有明确时限时按 [fraction] 画确定进度，否则进行中显示不定进度动画。
+ * 步骤状态行里的进度条：有明确时限时按 [fraction] 画确定进度，没有时限就在运行中画不定进度。
  *
  * 正常完成一律显示填满的 100%；失败时整条转成错误色——有进度的固定停在失败那一刻的比例，
  * 没有进度的归零，两者都不再滚动。
@@ -226,25 +225,10 @@ private fun ChainOfThoughtProgressBar(
     modifier: Modifier = Modifier,
     failed: Boolean = false,
 ) {
-    val errorColor = MaterialTheme.colorScheme.error
-    val color = if (failed) errorColor else MaterialTheme.colorScheme.secondary
+    val color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
     val trackColor = color.copy(alpha = 0.15f)
     val progressValue = fraction?.coerceIn(0f, 1f)
     when {
-        running && progressValue != null -> WaveProgressBar(
-            fraction = progressValue,
-            running = true,
-            modifier = modifier,
-            color = color,
-            trackColor = trackColor,
-        )
-
-        running -> LinearWavyProgressIndicator(
-            modifier = modifier,
-            color = color,
-            trackColor = trackColor,
-        )
-
         failed -> WaveProgressBar(
             fraction = progressValue ?: 0f,
             running = false,
@@ -254,10 +238,10 @@ private fun ChainOfThoughtProgressBar(
         )
 
         else -> WaveProgressBar(
-            fraction = 1f,
-            running = false,
+            fraction = if (running) progressValue else 1f,
+            running = running,
             modifier = modifier,
-            color = color.copy(alpha = 0.45f),
+            color = color,
             trackColor = trackColor,
         )
     }

@@ -759,6 +759,8 @@ private fun MessagePartsBlock(
                                         model = model,
                                         assistant = assistant,
                                         generating = loading,
+                                        // 思考后面已经接上正文或工具，就说明这段思考写完了
+                                        streaming = loading && step.reasoning === parts.lastOrNull(),
                                     )
                                 }
                             }

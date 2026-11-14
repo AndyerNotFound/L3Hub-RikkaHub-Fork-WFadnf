@@ -1,135 +1,74 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** 一道波浪滚过整段波长要多久 */
-private const val WAVE_TRAVEL_MILLIS = 1_300
+/** 波浪条的原生高度（10dp）；直条只有 4dp，统一按这个行高排版 */
+private val WaveProgressBarHeight = 10.dp
 
 /**
- * 一条会「呼吸」的进度条。
+ * 进度条：运行中交给 MD3 的波浪条，停下来换回 MD3 的直条。
  *
- * 运行中沿着填充方向滚过一道正弦波，停下来后波幅收回、落成普通直条；
- * 动的只是形状，填充量始终是 [fraction]，用到多少照样读得出来。
+ * 两种原生指示器高度不同，外面统一套一层固定行高，生成开始和结束时进度条原地换样式，
+ * 行高不会跟着跳。
+ *
+ * @param fraction 0~1 的填充比例；运行中传 `null` 表示没有可量的额度，画成不定进度
  */
 @Composable
 fun WaveProgressBar(
-    fraction: Float,
+    fraction: Float?,
     running: Boolean,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
-    strokeWidth: Dp = 4.dp,
-    amplitude: Dp = 2.dp,
-    wavelength: Dp = 14.dp,
+    color: Color = ProgressIndicatorDefaults.linearColor,
+    trackColor: Color = ProgressIndicatorDefaults.linearTrackColor,
 ) {
-    val fill by animateFloatAsState(
-        targetValue = fraction.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 320),
+    val target = (fraction ?: 0f).coerceIn(0f, 1f)
+    val progress by animateFloatAsState(
+        targetValue = target,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
         label = "waveProgressFill",
     )
-    val wave by animateFloatAsState(
-        targetValue = if (running) 1f else 0f,
-        animationSpec = tween(durationMillis = 320),
-        label = "waveProgressWave",
-    )
-    // 相位只在运行中推进：停下来时波纹就地收回，不会继续空转
-    val phase = if (running) {
-        rememberInfiniteTransition(label = "waveProgressTravel").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = WAVE_TRAVEL_MILLIS, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-            label = "waveProgressPhase",
-        )
-    } else {
-        null
-    }
-
-    Canvas(modifier = modifier.height(strokeWidth + amplitude * 2)) {
-        // 三个值都在绘制阶段读取，每帧只重画，不重组这一层
-        val travel = phase?.value ?: 0f
-        val barHeight = strokeWidth.toPx()
-        val crest = amplitude.toPx() * wave
-        val step = wavelength.toPx()
-        val centerY = size.height / 2f
-        val fillWidth = size.width * fill
-
-        drawRoundRect(
-            color = trackColor,
-            topLeft = Offset(0f, centerY - barHeight / 2f),
-            size = Size(size.width, barHeight),
-            cornerRadius = CornerRadius(barHeight / 2f),
-        )
-        if (fillWidth <= 0f) return@Canvas
-
-        // 波浪就是一条描粗的曲线：波幅归零时它退化成直条，和静止状态同一个画法
-        val wavePath = Path().apply {
-            var x = -step
-            var rising = true
-            moveTo(x, centerY)
-            while (x < fillWidth + step) {
-                quadraticTo(
-                    x + step / 4f,
-                    centerY + if (rising) -crest * 2f else crest * 2f,
-                    x + step / 2f,
-                    centerY,
-                )
-                x += step / 2f
-                rising = !rising
-            }
-        }
-        // 圆角裁切让填充的末端始终是圆的，波浪从切口里穿过去也不会露直角
-        val clip = Path().apply {
-            addRoundRect(
-                RoundRect(
-                    left = 0f,
-                    top = 0f,
-                    right = fillWidth,
-                    bottom = size.height,
-                    cornerRadius = CornerRadius(size.height / 2f),
-                )
+    Box(
+        modifier = modifier.height(WaveProgressBarHeight),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        when {
+            running && fraction == null -> LinearWavyProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                color = color,
+                trackColor = trackColor,
             )
-        }
-        clipPath(clip) {
-            translate(left = -travel * step) {
-                drawPath(
-                    path = wavePath,
-                    color = color,
-                    style = Stroke(width = barHeight, cap = StrokeCap.Round),
-                )
-            }
+
+            running -> LinearWavyProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = color,
+                trackColor = trackColor,
+            )
+
+            else -> LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = color,
+                trackColor = trackColor,
+            )
         }
     }
 }
@@ -142,7 +81,10 @@ private fun WaveProgressBarPreview() {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text("running", style = MaterialTheme.typography.labelSmall)
             WaveProgressBar(fraction = 0.35f, running = true, modifier = Modifier.fillMaxWidth())
+            WaveProgressBar(fraction = null, running = true, modifier = Modifier.fillMaxWidth())
+            Text("idle", style = MaterialTheme.typography.labelSmall)
             WaveProgressBar(fraction = 0.35f, running = false, modifier = Modifier.fillMaxWidth())
             WaveProgressBar(fraction = 1f, running = false, modifier = Modifier.fillMaxWidth())
             WaveProgressBar(fraction = 0f, running = false, modifier = Modifier.fillMaxWidth())

@@ -213,10 +213,14 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     collapsedAdaptiveWidth: Boolean = false,
     // 这条消息是否还在生成：生成都结束了思考还没收尾，说明这一步失败了
     generating: Boolean = false,
+    // 这段思考是否还在写：思考停下后模型会接着出正文或调工具，卡片这时就该收成 100%
+    streaming: Boolean = generating,
 ) {
     val (state, loading) = rememberReasoningState(reasoning)
-    // 没写完又不生成，只能是断在半路
-    val failed = loading && !generating
+    // 没写完、已经不在生成、也不是正在写的那一段：只能是断在半路
+    val failed = loading && !generating && !streaming
+    // 只有正在写的那段才画波浪，后面出的正文或工具说明思考已经结束
+    val running = loading && streaming
     val settings = LocalSettings.current
     val summaryEnabled = settings.displaySetting.showThinkingSummary
     // 只解析一段窗口：流式输出时思考内容每帧都在变长，全文扫一遍太贵。
@@ -261,7 +265,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
             }
         },
         progress = ChainOfThoughtProgress(
-            running = loading,
+            running = running,
             failed = failed,
             label = {
                 Text(

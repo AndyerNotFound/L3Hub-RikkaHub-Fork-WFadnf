@@ -143,8 +143,6 @@ private fun ContextMeterRow(
             modifier = Modifier.weight(1f),
             color = fillColor,
             trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
-            strokeWidth = 3.5.dp,
-            amplitude = 1.5.dp,
         )
         Text(
             text = contextMeterText(used, limit),

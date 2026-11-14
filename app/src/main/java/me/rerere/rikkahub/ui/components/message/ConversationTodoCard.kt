@@ -200,8 +200,6 @@ internal fun ConversationTodoCard(
                         MaterialTheme.colorScheme.primary
                     },
                     trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    strokeWidth = 3.dp,
-                    amplitude = 1.5.dp,
                 )
             }
             MotionExpandCollapse(visible = expanded) {
