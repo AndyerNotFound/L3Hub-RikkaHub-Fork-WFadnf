@@ -691,13 +691,6 @@ private fun MessagePartsBlock(
     // 不能按 parts 记住：流式时每个 chunk 都会重建列表，展开状态会被重置
     var showEarlierSteps by remember { mutableStateOf(false) }
 
-    if (collapsibleCount > 0) {
-        EarlierStepsToggle(
-            collapsed = !showEarlierSteps,
-            count = collapsibleCount,
-            onToggle = { showEarlierSteps = !showEarlierSteps },
-        )
-    }
     val renderBlock: @Composable (MessagePartBlock) -> Unit = { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -953,15 +946,27 @@ private fun MessagePartsBlock(
         }
     }
 
-    // 折叠起来的那些块整段收放：高度、透明度与模糊一起过渡，展开时再整段落回来
+    // 折叠起来的那些块整段收放：高度、透明度与模糊一起过渡，展开时再整段落回来。
+    // 开关和收放层套进一个无间距的 Column：AnimatedVisibility 收起动画播完会把内容从组合里摘掉，
+    // 它若直接作为 spacedBy 的子项，上下那两条 4dp 间距会在同一帧一起消失，下面的正文和统计行就硬跳 4dp。
+    // 收放层自己的上间距放进内容里，跟着高度一起缩到零，收起、展开两头都不会再挪这一下。
     if (collapsibleCount > 0) {
-        MotionExpandCollapse(visible = showEarlierSteps, maxBlurRadius = 6.dp) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(MessageBlockGap),
-            ) {
-                groupedParts.take(collapsibleCount).fastForEach { hidden ->
-                    renderBlock(hidden)
+        Column {
+            EarlierStepsToggle(
+                collapsed = !showEarlierSteps,
+                count = collapsibleCount,
+                onToggle = { showEarlierSteps = !showEarlierSteps },
+            )
+            MotionExpandCollapse(visible = showEarlierSteps, maxBlurRadius = 6.dp) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = MessageBlockGap),
+                    verticalArrangement = Arrangement.spacedBy(MessageBlockGap),
+                ) {
+                    groupedParts.take(collapsibleCount).fastForEach { hidden ->
+                        renderBlock(hidden)
+                    }
                 }
             }
         }
