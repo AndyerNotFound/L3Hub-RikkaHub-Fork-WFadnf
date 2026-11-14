@@ -55,7 +55,6 @@ import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -84,9 +83,6 @@ private const val BLUR_STEPS_CACHE_LIMIT = 16
 
 /** 调用点传进来的半径都是相对强度：6dp 记作 1.0，其余按比例换算成设置里的基准。 */
 private const val MOTION_BLUR_BASE_RADIUS = 6f
-
-/** 弹性伸缩的高度每帧都在变，模糊半径按这几档取，避免逐帧重建图层。 */
-private const val STRETCH_BLUR_STEPS = 6f
 
 @Composable
 fun rememberMotionBlurSteps(
@@ -250,50 +246,22 @@ fun Modifier.motionBlurOnToggle(
  * 只改报告给父布局的高度，内容仍按自然高度排版并贴顶放置，超出的那一截由外层裁掉，
  * 所以文字不会在伸缩过程中重新换行；气泡自己的圆角与背景跟着报告高度走，看起来就是气泡在长。
  *
- * 模糊跟着「离目标还差多少」走：差得越多越糊，追上目标就回到清晰。连续输出时每来一个
- * token 只差几个像素，气泡不会一直糊着；新起一段、整块换内容这类大跨度的伸缩才会明显模糊。
+ * 这里不再叠模糊：高度每帧都在变，跟着高度走的 RenderEffect 会在「差得远」和「追上」之间
+ * 反复切换，流式追加时整只气泡就跟着忽明忽暗。要模糊的过渡交给专门的收放动画去带。
  *
- * [enabled] 为 false 时原样返回；关闭动画速度或动态模糊时，伸缩与模糊分别退化。
+ * [enabled] 为 false 时原样返回。
  */
 @Composable
 fun Modifier.motionStretchHeight(
     enabled: Boolean = true,
-    maxBlurRadius: Dp = 5.dp,
-    // 离目标还差这么远时模糊拉满；比它近就按比例退掉，近到一半（约一行）以内完全不糊。
-    // 单行换行只差一个行高，糊得很轻；新起一段这类大跨度才推得明显
-    blurReference: Dp = 36.dp,
     animationSpec: FiniteAnimationSpec<Float> = rememberSpatialSpec(),
 ): Modifier {
     if (!enabled) return this
-    val density = LocalDensity.current
-    val blurEnabled = LocalMotionBlur.current.enabled
-    val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
-    val referencePx = with(density) { blurReference.toPx() }
     val scope = rememberCoroutineScope()
     val state = remember { StretchHeightState() }
     return this
         // 内容按自然高度排版，比报告出去的高度长；裁切线就是气泡当前的底边
         .clipToBounds()
-        // 关掉动态模糊时不挂这一层：静态气泡不该为了一条用不到的 RenderEffect 多开一个图层
-        .then(
-            if (blurEnabled) {
-                Modifier.graphicsLayer {
-                    val anim = state.animatable
-                    val remaining = if (anim == null) 0f else abs(state.target - anim.value)
-                    val amount = ((remaining / referencePx - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                    // 按档位取模糊：高度每帧都在动，若每帧都换一个半径，
-                    // 图层会一直重建，流式追加时整块忽明忽暗；量化后只在跨档时换
-                    val step = (amount * STRETCH_BLUR_STEPS).roundToInt()
-                    renderEffect = if (step > 0) {
-                        blur.at(step.toFloat() / STRETCH_BLUR_STEPS)
-                    } else {
-                        null
-                    }
-                }
-            } else {
-                Modifier
-            }
-        )
         .layout { measurable, constraints ->
             val placeable = measurable.measure(constraints)
             val natural = placeable.height.toFloat()
