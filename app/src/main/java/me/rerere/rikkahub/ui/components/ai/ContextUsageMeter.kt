@@ -2,22 +2,18 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +40,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.contextUsageFraction
 import me.rerere.rikkahub.data.model.isContextLimitReached
+import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
@@ -69,6 +66,8 @@ fun ContextUsageMeter(
     maxTokens: Int?,
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
+    // 对话还在生成：进度条显示为流动的波浪，停下来后落成静态直条
+    running: Boolean = false,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -89,6 +88,7 @@ fun ContextUsageMeter(
                 used = used,
                 limit = warnTokens,
                 hardLimit = false,
+                running = running,
             )
         }
         if (maxTokens != null) {
@@ -97,6 +97,7 @@ fun ContextUsageMeter(
                 used = used,
                 limit = maxTokens,
                 hardLimit = true,
+                running = running,
             )
         }
         if (limitReached) {
@@ -115,13 +116,10 @@ private fun ContextMeterRow(
     used: Int,
     limit: Int,
     hardLimit: Boolean,
+    running: Boolean,
 ) {
     val fraction = contextUsageFraction(used, limit)
     val fillColor = contextMeterColor(fraction, hardLimit)
-    val animatedFraction by animateFloatAsState(
-        targetValue = fraction,
-        label = "contextMeterFill",
-    )
     val textColor = if (fraction >= ALERT_FRACTION) {
         fillColor
     } else {
@@ -139,21 +137,15 @@ private fun ContextMeterRow(
             color = textColor,
             modifier = Modifier.widthIn(min = 34.dp),
         )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(6.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(animatedFraction)
-                    .clip(CircleShape)
-                    .background(fillColor),
-            )
-        }
+        WaveProgressBar(
+            fraction = fraction,
+            running = running,
+            modifier = Modifier.weight(1f),
+            color = fillColor,
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+            strokeWidth = 3.5.dp,
+            amplitude = 1.5.dp,
+        )
         Text(
             text = contextMeterText(used, limit),
             style = MaterialTheme.typography.labelMedium,

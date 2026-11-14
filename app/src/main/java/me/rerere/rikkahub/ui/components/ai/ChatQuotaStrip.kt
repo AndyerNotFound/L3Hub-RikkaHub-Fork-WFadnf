@@ -24,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
@@ -69,6 +68,7 @@ import me.rerere.rikkahub.data.ai.label
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
+import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
@@ -102,6 +102,8 @@ fun ChatQuotaStrip(
     displaySetting: DisplaySetting,
     hazeState: HazeState,
     modifier: Modifier = Modifier,
+    // 当前对话正在生成：看板里的进度条画成流动的波浪，停下来后落成静态直条
+    running: Boolean = false,
 ) {
     val context = LocalContext.current
     val gate = koinInject<ProviderGate>()
@@ -298,6 +300,7 @@ fun ChatQuotaStrip(
                 status = gateStatus,
                 lockState = lockState,
                 quotaResult = quotaResult,
+                running = running,
             )
         }
     }
@@ -310,6 +313,7 @@ private fun QuotaDashboard(
     status: ProviderGateStatus?,
     lockState: ProviderLockState,
     quotaResult: Result<ProviderQuota>?,
+    running: Boolean,
 ) {
     val context = LocalContext.current
     val guard = provider.guard
@@ -353,6 +357,7 @@ private fun QuotaDashboard(
                         },
                         fraction = fractionOf(status?.rpmUsed, guard.rpmLimit),
                         reached = status != null && status.rpmUsed >= guard.rpmLimit,
+                        running = running,
                     )
                 }
 
@@ -369,6 +374,7 @@ private fun QuotaDashboard(
                         },
                         fraction = fractionOf(status?.tpmUsed, guard.tpmLimit),
                         reached = status != null && status.tpmUsed >= guard.tpmLimit,
+                        running = running,
                     )
                 }
 
@@ -433,6 +439,7 @@ private fun QuotaDashboard(
                         } else {
                             usage.used >= window.limit
                         },
+                        running = running,
                     )
                 }
             }
@@ -482,6 +489,7 @@ private fun QuotaDashboard(
                                 },
                                 fraction = (window.usedPercent / 100).toFloat().coerceIn(0f, 1f),
                                 reached = quota.limitReached || window.usedPercent >= 100,
+                                running = running,
                             )
                         }
                     }
@@ -594,6 +602,7 @@ private fun LimitProgressRow(
     detail: String?,
     fraction: Float,
     reached: Boolean,
+    running: Boolean,
 ) {
     val indicatorColor = if (reached) {
         MaterialTheme.colorScheme.error
@@ -620,10 +629,12 @@ private fun LimitProgressRow(
                 },
             )
         }
-        LinearWavyProgressIndicator(
-            progress = { fraction },
+        WaveProgressBar(
+            fraction = fraction,
+            running = running,
             modifier = Modifier.fillMaxWidth(),
             color = indicatorColor,
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
         )
         if (detail != null) {
             Text(

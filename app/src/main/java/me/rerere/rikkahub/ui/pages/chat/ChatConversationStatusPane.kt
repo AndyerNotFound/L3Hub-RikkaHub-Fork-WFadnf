@@ -39,6 +39,8 @@ internal fun ConversationStatusPane(
     onGuidanceToggleMode: (Guidance) -> Unit,
     onGuidanceRemove: (Guidance) -> Unit,
     modifier: Modifier = Modifier,
+    // 对话正在生成：清单进度条跟着输入区那张一起画成流动的波浪
+    running: Boolean = false,
 ) {
     // 和输入区那张一样：全部完成且开了开关时收起清单，引导不受影响
     val hideCompleted = hideCompletedTodos &&
@@ -91,6 +93,7 @@ internal fun ConversationStatusPane(
             guidances = guidances,
             onGuidanceToggleMode = onGuidanceToggleMode,
             onGuidanceRemove = onGuidanceRemove,
+            running = running,
             modifier = Modifier.fillMaxWidth(),
         )
     }

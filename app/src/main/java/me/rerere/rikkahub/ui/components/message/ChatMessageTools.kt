@@ -47,6 +47,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
@@ -85,6 +86,7 @@ import kotlin.time.DurationUnit
 @Composable
 fun ChainOfThoughtScope.ChatMessageServerToolStep(tool: UIMessagePart.ServerTool) {
     val loading = !tool.isFinished
+    val failed = tool.status == ServerToolStatus.FAILED
     ChainOfThoughtStep(
         icon = {
             if (loading) {
@@ -108,6 +110,11 @@ fun ChainOfThoughtScope.ChatMessageServerToolStep(tool: UIMessagePart.ServerTool
                 overflow = TextOverflow.Ellipsis,
             )
         },
+        // 服务端工具拿不到耗时和超时预算，只画状态：进行中滚动、成功填满、失败转错误色归零
+        progress = ChainOfThoughtProgress(
+            running = loading,
+            failed = failed,
+        ),
     )
 }
 
@@ -270,6 +277,8 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val timeout = remember(tool.toolName, context.arguments) {
         toolCallTimeout(tool.toolName, context.arguments)
     }
+    // 失败只有两种样子：被拒绝，或者结果就是一条 {"error": ...}（被停止的工具也落在这条）
+    val failed = isDenied || (outputJson as? JsonObject)?.containsKey("error") == true
 
     // 摘要由注册的渲染器决定; 图片输出与拒绝原因为所有工具通用
     val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
@@ -331,22 +340,34 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        progress = duration?.takeIf { it >= 100.milliseconds }?.let { elapsed ->
+        // 失败的工具即使没跑满 100ms 也要露出那条红色进度条，否则界面只剩一句摘要
+        progress = if (failed || duration?.let { it >= 100.milliseconds } == true) {
+            val elapsed = duration
             ChainOfThoughtProgress(
                 running = loading,
-                fraction = timeout?.let { (elapsed / it).toFloat() },
-                label = {
-                    Text(
-                        text = elapsed.toString(DurationUnit.SECONDS, 1),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier
-                            .widthIn(min = 40.dp)
-                            .shimmer(isLoading = loading),
-                    )
+                failed = failed,
+                // 失败时停在失败那一刻的比例；正常的完成由卡片画成 100%
+                fraction = elapsed?.let { spent -> timeout?.let { (spent / it).toFloat() } },
+                label = elapsed?.let { spent ->
+                    @Composable {
+                        Text(
+                            text = spent.toString(DurationUnit.SECONDS, 1),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (failed) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.secondary
+                            },
+                            textAlign = TextAlign.End,
+                            modifier = Modifier
+                                .widthIn(min = 40.dp)
+                                .shimmer(isLoading = loading),
+                        )
+                    }
                 },
             )
+        } else {
+            null
         },
         onClick = {
             if (landscape && toolDetailHost != null) {

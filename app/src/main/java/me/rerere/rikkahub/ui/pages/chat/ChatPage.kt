@@ -1007,6 +1007,7 @@ private fun ChatPageContent(
                             provider = currentProvider,
                             displaySetting = setting.displaySetting,
                             hazeState = backgroundHazeState,
+                            running = loadingJob != null,
                         )
                     }
                 }
@@ -1206,6 +1207,7 @@ private fun ChatPageContent(
                         onUpdateAssistant = vm::updateAssistant,
                         onGuidanceToggleMode = vm::toggleGuidanceMode,
                         onGuidanceRemove = vm::removeGuidance,
+                        running = loadingJob != null,
                         modifier = Modifier.fillMaxSize(),
                     )
 

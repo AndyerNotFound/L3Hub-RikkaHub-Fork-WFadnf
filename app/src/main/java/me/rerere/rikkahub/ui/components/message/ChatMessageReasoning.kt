@@ -213,8 +213,12 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     assistant: Assistant?,
     fadeHeight: Float = 64f,
     collapsedAdaptiveWidth: Boolean = false,
+    // 这条消息是否还在生成：生成都结束了思考还没收尾，说明这一步失败了
+    generating: Boolean = false,
 ) {
     val (state, loading) = rememberReasoningState(reasoning)
+    // 没写完又不生成，只能是断在半路
+    val failed = loading && !generating
     val settings = LocalSettings.current
     val summaryEnabled = settings.displaySetting.showThinkingSummary
     // 只解析一段窗口：流式输出时思考内容每帧都在变长，全文扫一遍太贵。
@@ -260,11 +264,16 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
         },
         progress = ChainOfThoughtProgress(
             running = loading,
+            failed = failed,
             label = {
                 Text(
                     text = state.duration.toString(DurationUnit.SECONDS, 1),
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = chatFontFamily),
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = if (failed) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    },
                     textAlign = TextAlign.End,
                     modifier = Modifier
                         .widthIn(min = 40.dp)

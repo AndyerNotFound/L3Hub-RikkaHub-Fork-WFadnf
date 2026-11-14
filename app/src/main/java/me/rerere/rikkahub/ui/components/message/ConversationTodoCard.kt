@@ -68,6 +68,7 @@ import me.rerere.rikkahub.data.model.addTodo
 import me.rerere.rikkahub.data.model.removeTodoAt
 import me.rerere.rikkahub.data.model.setTodoStatusAt
 import me.rerere.rikkahub.data.model.toggleTodoCompletedAt
+import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import kotlin.math.roundToInt
@@ -106,6 +107,8 @@ internal fun ConversationTodoCard(
     guidances: List<Guidance> = emptyList(),
     onGuidanceToggleMode: (Guidance) -> Unit = {},
     onGuidanceRemove: (Guidance) -> Unit = {},
+    // 对话正在生成：清单进度条画成流动的波浪，停下来后落成静态直条
+    running: Boolean = false,
 ) {
     if (todos.isEmpty() && guidances.isEmpty()) return
     var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
@@ -182,6 +185,24 @@ internal fun ConversationTodoCard(
                         color = MaterialTheme.colorScheme.secondary,
                     )
                 }
+            }
+            // 清单进度：折叠时也留着，做了一半的活一眼看得出还剩几项
+            if (hasTodos && countable > 0) {
+                WaveProgressBar(
+                    fraction = completed.toFloat() / countable,
+                    running = running,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    color = if (completed >= countable) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    strokeWidth = 3.dp,
+                    amplitude = 1.5.dp,
+                )
             }
             AnimatedVisibility(visible = expanded) {
                 Column(

@@ -423,6 +423,7 @@ fun ChatInput(
                     guidances = visibleQueue.guidances,
                     onGuidanceToggleMode = onGuidanceToggleMode,
                     onGuidanceRemove = onGuidanceRemove,
+                    running = loading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .adaptiveHorizontalPadding(12.dp)
@@ -470,6 +471,7 @@ fun ChatInput(
                             maxTokens = chatModel.maxContextTokens,
                             onShowUsage = onShowUsage,
                             modifier = Modifier.padding(horizontal = 4.dp),
+                            running = loading,
                         )
 
                         ContextMeterStyle.RING -> ContextUsageRing(
