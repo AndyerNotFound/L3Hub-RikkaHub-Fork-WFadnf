@@ -1136,7 +1136,11 @@ private fun ChatPageContent(
                                 translationY = when {
                                     !emptyLayoutReady -> 0f
                                     !hasMessages -> emptyLift
-                                    else -> emptyLift * (1f - inputExitProgress.value)
+                                    // 只有新会话发出首条消息时才从这里滑下去；
+                                    // 已有会话（或删空后重发）没有空态那一段，直接贴底
+                                    animateInputToBottom ->
+                                        emptyLift * (1f - inputExitProgress.value)
+                                    else -> 0f
                                 }
                                 alpha = if (hasMessages || emptyLayoutReady) 1f else 0f
                                 renderEffect = inputBlurSteps.at(inputBlur.value)
