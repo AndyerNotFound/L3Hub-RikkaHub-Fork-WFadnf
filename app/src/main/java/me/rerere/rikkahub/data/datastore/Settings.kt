@@ -225,6 +225,24 @@ enum class AnimationSpeed {
     GENTLE,
 }
 
+/**
+ * 动态模糊的统一参数。
+ *
+ * 列表滚动、卡片收放、消息入场这些过渡共用同一套数：半径按各处的相对强度缩放，
+ * 时长决定模糊收放与入场位移走多久，行程决定滚动过渡的位移长度。
+ * 任何一项调整都对整棵界面里的模糊同时生效，不必一个效果一个效果地改。
+ */
+@Serializable
+data class MotionBlurSetting(
+    val enabled: Boolean = true,
+    // 基准半径(dp)：各处按自己的相对强度（6dp 记作 1.0）缩放，调到 0 就是完全不糊
+    val radius: Int = 6,
+    // 模糊收放与入场位移的时长(ms)；越小越利落，越大尾段拖得越长
+    val durationMillis: Int = 280,
+    // 滚动过渡的位移行程(dp)
+    val travel: Int = 32,
+)
+
 /** 整套界面走哪套组件：原生 Material 3，或 Miuix（HyperOS 风格）。 */
 @Serializable
 enum class UiStyle {
@@ -296,6 +314,8 @@ data class DisplaySetting(
     val disableAnimations: Boolean = false,
     // 页面转场和列表展开的速度手感；disableAnimations 打开时忽略这一项
     val animationSpeed: AnimationSpeed = AnimationSpeed.SYSTEM,
+    // 动态模糊：滚动、收放、入场共用的一整套参数
+    val motionBlur: MotionBlurSetting = MotionBlurSetting(),
     // 上下文预警条用绝对值(数字/数字)显示, 关闭时显示百分比
     val contextMeterAbsolute: Boolean = false,
     val showThinkingContent: Boolean = true,

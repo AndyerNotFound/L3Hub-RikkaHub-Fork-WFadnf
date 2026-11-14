@@ -2455,6 +2455,15 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_task">任务</string>
   <string name="setting_display_page_disable_animations_title">关闭所有动画</string>
   <string name="setting_display_page_disable_animations_desc">界面切换与卡片展开直接跳变，不使用 Material 动效</string>
+  <string name="setting_display_page_motion_blur_title">动态模糊</string>
+  <string name="setting_display_page_motion_blur_desc">滚动、收放与入场过渡的模糊，整份界面共用这一套</string>
+  <string name="setting_display_page_motion_blur_switch">启用动态模糊</string>
+  <string name="setting_display_page_motion_blur_radius_title">模糊半径</string>
+  <string name="setting_display_page_motion_blur_radius_desc">最大半径 %1$d dp；6 dp 为基准，调到 0 即不模糊</string>
+  <string name="setting_display_page_motion_blur_duration_title">过渡时长</string>
+  <string name="setting_display_page_motion_blur_duration_desc">%1$d ms；越短越利落，越长收尾越柔</string>
+  <string name="setting_display_page_motion_blur_travel_title">滚动行程</string>
+  <string name="setting_display_page_motion_blur_travel_desc">%1$d dp；内容切换时位移的长度</string>
   <string name="heartbeat_page_model_clear">清除当前</string>
   <string name="chat_page_select_multiple">多选</string>
   <string name="chat_page_selected_count">已选 %1$d 项</string>

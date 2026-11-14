@@ -471,8 +471,6 @@ fun ChatMessage(
                 fadeIn(motionScheme.defaultEffectsSpec()),
             exit = slideOutVertically(motionScheme.fastSpatialSpec()) { it / 2 } +
                 fadeOut(motionScheme.fastEffectsSpec()),
-            enterBlurSpec = motionScheme.defaultSpatialSpec(),
-            exitBlurSpec = motionScheme.fastSpatialSpec(),
         ) {
             Column(
                 modifier = Modifier.animateContentSize()
@@ -1025,7 +1023,7 @@ private fun CollapsibleUserMessageText(
                     )
                     // 高度是逐帧裁出来的，光有位移会像被刀切；补一层随进度退掉的模糊。
                     // 模糊与裁切高度共用同一条曲线，动画速度设置改了两边一起变
-                    .motionBlurOnToggle(expanded, animationSpec = rememberSpatialSpec()),
+                    .motionBlurOnToggle(expanded),
             ) {
                 MarkdownBlock(
                     content = text.replaceRegexes(

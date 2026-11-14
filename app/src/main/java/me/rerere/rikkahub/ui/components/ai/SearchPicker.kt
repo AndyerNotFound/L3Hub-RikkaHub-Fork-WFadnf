@@ -290,8 +290,6 @@ private fun SearchPicker(
                         exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
                             fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                         maxBlurRadius = 4.dp,
-                        enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                        exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                     ) {
                         Row {
                             Icon(
@@ -324,8 +322,6 @@ private fun SearchPicker(
                 fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
             exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
                 fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-            enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-            exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         ) {
             SegmentedListItem(
                 onClick = onSelectProvider,

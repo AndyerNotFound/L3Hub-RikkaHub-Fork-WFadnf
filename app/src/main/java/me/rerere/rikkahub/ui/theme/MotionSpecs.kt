@@ -9,9 +9,32 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
+import me.rerere.rikkahub.data.datastore.MotionBlurSetting
 
 /** 当前这一帧该用哪一档动画速度，由设置页写入、RouteActivity 提供。 */
 val LocalAnimationSpeed = compositionLocalOf { AnimationSpeed.SYSTEM }
+
+/** 当前生效的动态模糊参数，由主题层写入；没有主题包着时按默认值走。 */
+val LocalMotionBlur = compositionLocalOf { MotionBlurSetting() }
+
+/**
+ * 模糊自己的收放曲线：时长跟设置里的「过渡时长」走，和位移动画各用各的档位。
+ *
+ * 各处带模糊的过渡原先各拿各的 spec，用户调不了节奏；统一到这里以后，
+ * 设置页一改，卡片收放、滚动过渡、消息入场的模糊一起变快或变慢。
+ * 关了动态模糊时直接 snap，模糊不会拖在收放后面。
+ *
+ * [scale] 给退出方向用：退场通常比进场收紧一些，传 0.75 左右即可。
+ */
+@Composable
+fun rememberMotionBlurSpec(scale: Float = 1f): FiniteAnimationSpec<Float> {
+    val setting = LocalMotionBlur.current
+    if (!setting.enabled) return snap()
+    return tween(
+        durationMillis = (setting.durationMillis * scale).toInt().coerceAtLeast(1),
+        easing = FastOutSlowInEasing,
+    )
+}
 
 /**
  * 页面转场、列表展开这类"位移"动画统一从这里取曲线。

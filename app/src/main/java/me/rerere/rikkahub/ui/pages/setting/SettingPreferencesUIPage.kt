@@ -425,6 +425,104 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
+            // 动画速度下面紧跟动态模糊：这两项调的都是过渡手感，放在一起才找得到。
+            // 三项数值对所有带模糊的过渡一起生效，不需要一个效果一个效果地改
+            if (!displaySetting.disableAnimations) {
+                val motionBlur = displaySetting.motionBlur
+                CardGroup(
+                    title = { Text(stringResource(R.string.setting_display_page_motion_blur_title)) },
+                ) {
+                    switchItem(
+                        checked = motionBlur.enabled,
+                        onCheckedChange = {
+                            updateDisplaySetting(
+                                displaySetting.copy(
+                                    motionBlur = displaySetting.motionBlur.copy(enabled = it)
+                                )
+                            )
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_switch)) },
+                    )
+                    if (motionBlur.enabled) {
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_radius_title)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_display_page_motion_blur_radius_desc,
+                                        motionBlur.radius,
+                                    )
+                                )
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.radius,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(radius = it)
+                                        )
+                                    )
+                                },
+                                valueRange = 0..12,
+                                suffix = "dp",
+                            )
+                        }
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_duration_title)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_display_page_motion_blur_duration_desc,
+                                        motionBlur.durationMillis,
+                                    )
+                                )
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.durationMillis,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(durationMillis = it)
+                                        )
+                                    )
+                                },
+                                valueRange = 80..600,
+                                suffix = "ms",
+                                // 跨度过大，轨道上不画刻度
+                                steps = 0,
+                            )
+                        }
+                        formItem(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_travel_title)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_display_page_motion_blur_travel_desc,
+                                        motionBlur.travel,
+                                    )
+                                )
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.travel,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(travel = it)
+                                        )
+                                    )
+                                },
+                                valueRange = 8..64,
+                                suffix = "dp",
+                            )
+                        }
+                    }
+                }
+            }
+
             CardGroup(
                 title = { Text(stringResource(R.string.setting_display_page_floating_bar_title)) },
             ) {

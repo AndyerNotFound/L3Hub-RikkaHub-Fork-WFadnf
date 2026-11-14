@@ -293,8 +293,6 @@ fun ChatQuotaStrip(
                 shrinkTowards = Alignment.Top,
                 animationSpec = rememberFastSpatialSpec(),
             ) + fadeOut(animationSpec = rememberEffectsSpec()),
-            enterBlurSpec = rememberSpatialSpec(),
-            exitBlurSpec = rememberFastSpatialSpec(),
         ) {
             QuotaDashboard(
                 provider = provider,

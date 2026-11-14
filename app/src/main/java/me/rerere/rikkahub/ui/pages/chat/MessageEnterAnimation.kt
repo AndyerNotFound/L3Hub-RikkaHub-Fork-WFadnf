@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
@@ -14,9 +17,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.uuid.Uuid
 
 /** 一条消息从追加到真正被组合出来，允许的最大间隔；超过就说明当时不在可见区，不再补播。 */
@@ -141,7 +144,21 @@ private fun EnteringContent(
     // 气泡入场的这一段才读得出是从下面上来的。起点在屏幕外，糊满也看不见，随后和位移同步聚焦
     val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
     val blurAnim = remember(messageId) { Animatable(1f) }
-    val spatialSpec = rememberSpatialSpec<Float>()
+    // 入场比普通收放长一点：起点在屏幕外，飞完整屏不能太急。
+    // 时长从动态模糊设置里取，调「过渡时长」时入场跟着一起变；关了动效则直接落位
+    val displaySetting = LocalSettings.current.displaySetting
+    val enterDuration = displaySetting.motionBlur.durationMillis
+    val disableAnimations = displaySetting.disableAnimations
+    val spatialSpec = remember(enterDuration, disableAnimations) {
+        if (disableAnimations) {
+            snap<Float>()
+        } else {
+            tween<Float>(
+                durationMillis = (enterDuration * 1.8f).toInt().coerceAtLeast(1),
+                easing = FastOutSlowInEasing,
+            )
+        }
+    }
     val effectsSpec = rememberEffectsSpec<Float>()
     val finish = rememberUpdatedState(onEnterFinished)
 

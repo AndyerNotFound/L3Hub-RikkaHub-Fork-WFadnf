@@ -91,6 +91,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
@@ -161,8 +162,9 @@ fun ChatMessageNerdLine(
     val enterSize = rememberSpatialSpec<IntSize>()
     val exitSize = rememberFastSpatialSpec<IntSize>()
     val fadeSpec = rememberEffectsSpec<Float>()
-    val enterBlurSpec = rememberSpatialSpec<Float>()
-    val exitBlurSpec = rememberFastSpatialSpec<Float>()
+    // 模糊跟着动态模糊设置里的时长走，位移仍按动画速度档位
+    val enterBlurSpec = rememberMotionBlurSpec()
+    val exitBlurSpec = rememberMotionBlurSpec(scale = 0.75f)
     AnimatedVisibility(
         visibleState = visibility,
         modifier = modifier,

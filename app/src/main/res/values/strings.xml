@@ -2454,6 +2454,15 @@
   <string name="task_tree_task">Task</string>
   <string name="setting_display_page_disable_animations_title">Disable all animations</string>
   <string name="setting_display_page_disable_animations_desc">Page transitions and card expansions jump directly without Material animations</string>
+  <string name="setting_display_page_motion_blur_title">Dynamic blur</string>
+  <string name="setting_display_page_motion_blur_desc">Blur on scroll, expand and enter transitions, shared by the whole interface</string>
+  <string name="setting_display_page_motion_blur_switch">Enable dynamic blur</string>
+  <string name="setting_display_page_motion_blur_radius_title">Blur radius</string>
+  <string name="setting_display_page_motion_blur_radius_desc">Maximum radius %1$d dp; 6 dp is the baseline, 0 turns blur off</string>
+  <string name="setting_display_page_motion_blur_duration_title">Transition duration</string>
+  <string name="setting_display_page_motion_blur_duration_desc">%1$d ms; shorter feels snappier, longer leaves a softer tail</string>
+  <string name="setting_display_page_motion_blur_travel_title">Scroll travel</string>
+  <string name="setting_display_page_motion_blur_travel_desc">%1$d dp; distance covered when content is replaced</string>
   <string name="heartbeat_page_model_clear">Clear current</string>
   <string name="chat_page_select_multiple">Multi-select</string>
   <string name="chat_page_selected_count">%1$d selected</string>

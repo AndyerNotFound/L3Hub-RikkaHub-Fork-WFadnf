@@ -146,8 +146,6 @@ fun ConnectedChoiceLabel(
             exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
                 fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             maxBlurRadius = 4.dp,
-            enterBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-            exitBlurSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         ) {
             Row {
                 Icon(

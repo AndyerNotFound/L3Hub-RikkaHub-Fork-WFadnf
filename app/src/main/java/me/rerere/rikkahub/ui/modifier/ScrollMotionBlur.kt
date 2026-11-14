@@ -16,7 +16,9 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -28,12 +30,6 @@ private const val SCROLL_BLUR_MIN_SPEED = 40f
 
 /** 滚动时至少压上的一层薄雾。流式跟随每帧只挪几个像素，纯按速度换算根本看不见。 */
 private const val SCROLL_BLUR_BASE = 0.2f
-
-/** 停下后先等一小段再散焦：相邻两次刷新之间要是立刻变清晰，看起来就是一直在闪。 */
-private const val SCROLL_BLUR_SETTLE_MILLIS = 90L
-
-/** 散焦每帧的衰减系数，约八帧落回零。 */
-private const val SCROLL_BLUR_DECAY = 0.84f
 
 /** 模糊量的量化档数，与 [rememberMotionBlurSteps] 的档位对齐。 */
 private const val SCROLL_BLUR_STEPS = 16
@@ -56,10 +52,19 @@ fun Modifier.scrollMotionBlur(
     maxRadius: Dp = 4.dp,
 ): Modifier {
     val blurSteps = rememberMotionBlurSteps(maxRadius = maxRadius, steps = SCROLL_BLUR_STEPS)
+    val setting = LocalMotionBlur.current
+    // 停下后先等一小段再散焦：相邻两次刷新之间要是立刻变清晰，看起来就是一直在闪。
+    // 这段等待跟着设置里的「过渡时长」缩放，时长调大，雾也留得久一点
+    val settleMillis = (setting.durationMillis * 0.35f).toLong().coerceAtLeast(16L)
+    // 每帧衰减系数按「整段散焦约占时长的三分之二」折算，掉帧时总时长也基本对得上
+    val decayPerFrame = 0.05f
+        .pow(16.7f / (setting.durationMillis * 0.65f).coerceAtLeast(1f))
+        .coerceIn(0.3f, 0.95f)
+    val active = enabled && setting.enabled
     var applied by remember(state) { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(state, enabled) {
-        if (!enabled) {
+    LaunchedEffect(state, active, settleMillis, decayPerFrame) {
+        if (!active) {
             applied = 0f
             return@LaunchedEffect
         }
@@ -107,10 +112,10 @@ fun Modifier.scrollMotionBlur(
                 settle?.cancel()
                 settle = if (amount > 0f) {
                     launch {
-                        delay(SCROLL_BLUR_SETTLE_MILLIS)
+                        delay(settleMillis)
                         while (amount > 0f) {
                             withFrameNanos { }
-                            amount *= SCROLL_BLUR_DECAY
+                            amount *= decayPerFrame
                             if (amount < 0.5f / SCROLL_BLUR_STEPS) amount = 0f
                             applied = quantizeBlur(amount)
                         }

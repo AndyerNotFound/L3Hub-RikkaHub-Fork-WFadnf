@@ -44,8 +44,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.roundToInt
 
@@ -71,11 +73,10 @@ class MotionBlurSteps(private val steps: List<RenderEffect?>) {
  * RenderEffect 本身不可变，多处 graphicsLayer 引用同一个实例是安全的。
  */
 private val blurStepsCache = mutableMapOf<Triple<Float, Float, Int>, MotionBlurSteps>()
-private const val BLUR_STEPS_CACHE_LIMIT = 8
+private const val BLUR_STEPS_CACHE_LIMIT = 16
 
-// 整块内容都可见的容器不能一翻状态就糊满，先给一小段把模糊推上去，后面的衰减才接得顺；
-// 推得太慢会错过收放最快的那一段，看起来像动画都快结束了才糊一下
-private const val BLUR_ATTACK_MILLIS = 60
+/** 调用点传进来的半径都是相对强度：6dp 记作 1.0，其余按比例换算成设置里的基准。 */
+private const val MOTION_BLUR_BASE_RADIUS = 6f
 
 @Composable
 fun rememberMotionBlurSteps(
@@ -83,18 +84,26 @@ fun rememberMotionBlurSteps(
     steps: Int = 16,
 ): MotionBlurSteps {
     val density = LocalDensity.current
-    return remember(density.density, maxRadius, steps) {
-        val key = Triple(density.density, maxRadius.value, steps)
+    val setting = LocalMotionBlur.current
+    // 各处的 maxRadius 是相对强度，这里统一按设置里的基准半径缩放：
+    // 调一次对整棵界面的模糊同时生效，各效果之间的强弱比例保持不变
+    val radius = if (setting.enabled) {
+        (maxRadius.value * setting.radius / MOTION_BLUR_BASE_RADIUS).coerceIn(0f, 32f)
+    } else {
+        0f
+    }
+    return remember(density.density, radius, steps) {
+        val key = Triple(density.density, radius, steps)
         blurStepsCache.getOrPut(key) {
             // 组合只在主线程跑，这里不加锁；条目数上限很小，满了整批换掉
             if (blurStepsCache.size >= BLUR_STEPS_CACHE_LIMIT) blurStepsCache.clear()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && steps > 0) {
-                val maxPx = with(density) { maxRadius.toPx() }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && steps > 0 && radius > 0f) {
+                val maxPx = radius * density.density
                 MotionBlurSteps(
                     listOf<RenderEffect?>(null) + List(steps) { index ->
-                        val radius = maxPx * (index + 1) / steps
+                        val stepRadius = maxPx * (index + 1) / steps
                         AndroidRenderEffect
-                            .createBlurEffect(radius, radius, Shader.TileMode.DECAL)
+                            .createBlurEffect(stepRadius, stepRadius, Shader.TileMode.DECAL)
                             .asComposeRenderEffect()
                     }
                 )
@@ -124,8 +133,9 @@ fun MotionExpandCollapse(
     ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec<Float>()),
     maxBlurRadius: Dp = 6.dp,
     // 模糊跟各自方向的位移取同一条曲线：展开和收起本来就可以用不同速度，
-    // 共用一条时总有一边拖在位移后面，看起来就是那一侧的硬过渡
-    enterBlurSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+    // 共用一条时总有一边拖在位移后面，看起来就是那一侧的硬过渡。
+    // 默认值改由设置里的「过渡时长」决定，用户调一次对所有收放一起生效
+    enterBlurSpec: AnimationSpec<Float> = rememberMotionBlurSpec(),
     exitBlurSpec: AnimationSpec<Float> = enterBlurSpec,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
@@ -195,10 +205,15 @@ fun MotionExpandCollapseHorizontal(
 fun Modifier.motionBlurOnToggle(
     toggle: Any?,
     maxRadius: Dp = 5.dp,
-    // 衰减曲线要和容器自己的收放对齐：拖得比收缩还久，容器停下来了模糊还在动
-    animationSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+    // 衰减曲线跟随设置里的「过渡时长」；要和容器自己的收放对上，
+    // 容器可以单独传自己的 spec，默认这一条已经和收放同一档速度
+    animationSpec: AnimationSpec<Float> = rememberMotionBlurSpec(),
 ): Modifier {
     val blur = rememberMotionBlurSteps(maxRadius = maxRadius)
+    // 起手那一段跟着总时长走：默认 280ms 对应约 70ms，整块内容不会一翻状态就糊满
+    val attackMillis = (LocalMotionBlur.current.durationMillis * 0.25f)
+        .toInt()
+        .coerceAtLeast(16)
     val decay = remember { Animatable(0f) }
     var lastToggle by remember { mutableStateOf(toggle) }
     LaunchedEffect(toggle) {
@@ -207,7 +222,7 @@ fun Modifier.motionBlurOnToggle(
             decay.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = BLUR_ATTACK_MILLIS,
+                    durationMillis = attackMillis,
                     easing = LinearOutSlowInEasing,
                 ),
             )
@@ -235,8 +250,9 @@ fun <S> MotionScrollSwap(
     targetState: S,
     modifier: Modifier = Modifier,
     maxBlurRadius: Dp = 8.dp,
-    enterTravel: Dp = 32.dp,
-    exitTravel: Dp = 24.dp,
+    // 行程由设置里的「滚动行程」决定：进场走满，退场收紧一些
+    enterTravel: Dp = LocalMotionBlur.current.travel.dp,
+    exitTravel: Dp = (LocalMotionBlur.current.travel * 0.75f).dp,
     contentAlignment: Alignment = Alignment.TopStart,
     label: String = "MotionScrollSwap",
     content: @Composable AnimatedContentScope.(S) -> Unit,

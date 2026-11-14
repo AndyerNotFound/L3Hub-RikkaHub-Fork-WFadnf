@@ -216,6 +216,13 @@ fun RikkahubTheme(
                     },
                     LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
                     LocalDialogExitSpec provides rememberFastSpatialSpec<Float>(),
+                    // 动态模糊的参数也在这一层下发：滚动、收放、入场都读同一份，
+                    // 关掉动效时连同模糊一起停掉，不用每个效果自己判断
+                    LocalMotionBlur provides if (settings.displaySetting.disableAnimations) {
+                        settings.displaySetting.motionBlur.copy(enabled = false)
+                    } else {
+                        settings.displaySetting.motionBlur
+                    },
                 ) {
                     val body: @Composable () -> Unit = {
                         if (wrapContent) {
