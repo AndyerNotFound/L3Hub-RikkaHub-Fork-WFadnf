@@ -130,6 +130,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
+import me.rerere.rikkahub.ui.modifier.scrollMotionBlur
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
@@ -586,17 +587,35 @@ private fun ChatListNormal(
             }
         }
 
-        // 自动滚动到底部
+        // 顶部留白放进 contentPadding，让消息可以滚动到透明标题栏下面
+        // 全宽组件：左右不再留白，气泡/卡片的边缘直接对齐屏幕；
+        // 刘海和侧边系统栏的安全区照样让出来
+        val listContentPadding = PaddingValues(
+            horizontal = adaptiveHorizontalPaddingValue(16.dp) + fullWidthHorizontalInset(),
+            vertical = 16.dp,
+        ) + PaddingValues(
+            top = innerPadding.calculateTopPadding(),
+            bottom = 32.dp + innerPadding.calculateBottomPadding(),
+        )
+
+        // 自动滚动到底部：只补最后一项到视口底部之间差的那一段。
+        // 原来每次都 requestScrollToItem 一把贴底，内容每长一截就跳一次，流式输出看着是一格一格地窜；
+        // 按缺口逐帧补，每帧只挪内容真正长出来的那几像素，位移才连得起来，滚动模糊也才有东西可跟。
         if (settings.displaySetting.enableAutoScroll) {
-            LaunchedEffect(state) {
+            // 滚到底时最后一项的底边停在 contentPadding 的上沿，这里取同一份额度
+            val bottomPadding = with(LocalDensity.current) {
+                listContentPadding.calculateBottomPadding().toPx().roundToInt()
+            }
+            LaunchedEffect(state, bottomPadding) {
                 snapshotFlow { state.layoutInfo.visibleItemsInfo }.collect { visibleItemsInfo ->
-                    // println("is bottom = ${visibleItemsInfo.isAtBottom()}, scroll = ${state.isScrollInProgress}, can_scroll = ${state.canScrollForward}, loading = $loading")
-                    if (!state.isScrollInProgress && loadingState) {
-                        if (visibleItemsInfo.isAtBottom()) {
-                            state.requestScrollToItem(conversationUpdated.messageNodes.lastIndex + 10)
-                            // Log.i(TAG, "ChatList: scroll to ${conversationUpdated.messageNodes.lastIndex}")
-                        }
-                    }
+                    if (state.isScrollInProgress || !loadingState) return@collect
+                    // 用户往回翻过就不再跟随，和跳转按钮用的是同一条「在底部」判定
+                    if (!visibleItemsInfo.isAtBottom()) return@collect
+                    val lastItem = visibleItemsInfo.lastOrNull() ?: return@collect
+                    // 滚到底时最后一项的底边正好停在 contentPadding 的上沿
+                    val gap = lastItem.offset + lastItem.size -
+                        (state.layoutInfo.viewportEndOffset - bottomPadding)
+                    if (gap > 1) state.scrollBy(gap.toFloat())
                 }
             }
         }
@@ -616,20 +635,16 @@ private fun ChatListNormal(
         ChatFontProvider(displaySetting = settings.displaySetting) {
             LazyColumn(
                 state = state,
-                // 顶部留白放进 contentPadding，让消息可以滚动到透明标题栏下面
-                // 全宽组件：左右不再留白，气泡/卡片的边缘直接对齐屏幕；
-                // 刘海和侧边系统栏的安全区照样让出来
-                contentPadding = PaddingValues(
-                    horizontal = adaptiveHorizontalPaddingValue(16.dp) + fullWidthHorizontalInset(),
-                    vertical = 16.dp,
-                ) + PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = 32.dp + innerPadding.calculateBottomPadding(),
-                ),
+                contentPadding = listContentPadding,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier
                     .fillMaxSize()
+                    // 滚动模糊放在渐隐带外面：模糊的是整块列表，上下边缘的渐隐也在里面
+                    .scrollMotionBlur(
+                        state = state,
+                        enabled = !settings.displaySetting.disableAnimations,
+                    )
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
                     // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
                     .topFadingEdge(minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp))
