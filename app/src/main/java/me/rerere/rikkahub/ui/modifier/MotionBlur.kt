@@ -85,6 +85,9 @@ private const val BLUR_STEPS_CACHE_LIMIT = 16
 /** 调用点传进来的半径都是相对强度：6dp 记作 1.0，其余按比例换算成设置里的基准。 */
 private const val MOTION_BLUR_BASE_RADIUS = 6f
 
+/** 弹性伸缩的高度每帧都在变，模糊半径按这几档取，避免逐帧重建图层。 */
+private const val STRETCH_BLUR_STEPS = 6f
+
 @Composable
 fun rememberMotionBlurSteps(
     maxRadius: Dp = 6.dp,
@@ -278,7 +281,14 @@ fun Modifier.motionStretchHeight(
                     val anim = state.animatable
                     val remaining = if (anim == null) 0f else abs(state.target - anim.value)
                     val amount = ((remaining / referencePx - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                    renderEffect = if (amount > 0f) blur.at(amount) else null
+                    // 按档位取模糊：高度每帧都在动，若每帧都换一个半径，
+                    // 图层会一直重建，流式追加时整块忽明忽暗；量化后只在跨档时换
+                    val step = (amount * STRETCH_BLUR_STEPS).roundToInt()
+                    renderEffect = if (step > 0) {
+                        blur.at(step.toFloat() / STRETCH_BLUR_STEPS)
+                    } else {
+                        null
+                    }
                 }
             } else {
                 Modifier

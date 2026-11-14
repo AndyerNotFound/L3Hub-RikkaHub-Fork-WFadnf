@@ -60,6 +60,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -265,7 +266,7 @@ fun ChatInput(
     }
     // 唤起输入法（或框里已经有内容）时从一行展开成两行
     val expanded = singleLine && (fieldFocused || hasContent)
-    val expandProgress by animateFloatAsState(
+    val expandProgress = animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = tween(380, easing = ChatInputExpandEasing),
         label = "chatInputExpand",
@@ -622,7 +623,7 @@ fun ChatInput(
                                 .fillMaxWidth()
                                 .onSizeChanged { size ->
                                     // 只记完全收起时的高度；展开到一半的高度不能当基准
-                                    if (expandProgress == 0f) collapsedCardHeightPx = size.height
+                                    if (expandProgress.value == 0f) collapsedCardHeightPx = size.height
                                 }
                                 .then(revealFloatingBarModifier)
                                 .clip(containerShape)
@@ -757,12 +758,9 @@ fun ChatInput(
 
                                 if (singleLine) {
                                     // 文字带升到上一行，下一行的按钮组留在原地不动
-                                    val textBottomPadding = expansionHeight * expandProgress
                                     // 卡片左右内边距变大时，把输入框自己的内缩减回去，
                                     // 文字可用宽度保持不变，行数就不会因为拖滑块而变
                                     val inputInsetFix = (settings.displaySetting.inputPadding - 8).coerceAtLeast(0)
-                                    val textStart = lerp((70 - inputInsetFix).dp, 4.dp, expandProgress)
-                                    val textEnd = lerp((112 - inputInsetFix).dp, 4.dp, expandProgress)
                                     val collapsedPlaceholder = stringResource(R.string.chat_input_placeholder)
                                     val modelName = chatModel?.displayName
                                     val expandedPlaceholder = if (modelName != null) {
@@ -807,10 +805,11 @@ fun ChatInput(
                                             guideMessages = guideMessages,
                                             onAddGuidance = onAddGuidance,
                                             onSendAsGuidance = onSendAsGuidance,
-                                            contentPadding = PaddingValues(
-                                                start = textStart,
-                                                end = textEnd,
-                                                bottom = textBottomPadding,
+                                            singleLineExpansion = SingleLineExpansion(
+                                                progress = expandProgress,
+                                                collapsedStart = (70 - inputInsetFix).dp,
+                                                collapsedEnd = (112 - inputInsetFix).dp,
+                                                bottom = expansionHeight,
                                             ),
                                             placeholder = {
                                                 MorphingPlaceholder(
@@ -1097,6 +1096,13 @@ private fun EditingBanner(
     }
 }
 
+private data class SingleLineExpansion(
+    val progress: State<Float>,
+    val collapsedStart: Dp,
+    val collapsedEnd: Dp,
+    val bottom: Dp,
+)
+
 @Composable
 private fun TextInputRow(
     state: ChatInputState,
@@ -1110,6 +1116,9 @@ private fun TextInputRow(
     onAddGuidance: (QuickMessage) -> Unit = {},
     onSendAsGuidance: () -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    // 单行布局的内边距随展开进度逐帧变化。把进度放在这里读，
+    // 重组范围只到输入框，不会把整个 ChatInput（清单/悬浮栏/按钮行）每帧重组
+    singleLineExpansion: SingleLineExpansion? = null,
     placeholder: (@Composable () -> Unit)? = null,
     onFocusChange: ((Boolean) -> Unit)? = null,
     onMeasure: ((fieldHeight: Int, oneLineHeight: Int) -> Unit)? = null,
@@ -1226,6 +1235,14 @@ private fun TextInputRow(
             )
         }
 
+        val fieldContentPadding = singleLineExpansion?.let { expansion ->
+            val progress = expansion.progress.value
+            PaddingValues(
+                start = lerp(expansion.collapsedStart, 4.dp, progress),
+                end = lerp(expansion.collapsedEnd, 4.dp, progress),
+                bottom = expansion.bottom * progress,
+            )
+        } ?: contentPadding
         val maxFieldHeight = with(density) { (lineHeightPx * 5f).toDp() } + 24.dp
         val defaultPlaceholder: @Composable () -> Unit = {
             Text(
@@ -1238,7 +1255,7 @@ private fun TextInputRow(
             state = state.textContent,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(contentPadding)
+                .padding(fieldContentPadding)
                 .heightIn(max = maxFieldHeight)
                 .testTag("chat_input")
                 .onSizeChanged { size ->

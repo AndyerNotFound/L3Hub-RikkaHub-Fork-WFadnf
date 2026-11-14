@@ -132,7 +132,6 @@ import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
-import me.rerere.rikkahub.ui.modifier.streamingTextMotion
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -844,11 +843,6 @@ private fun MessagePartsBlock(
                                             content = renderedText,
                                             streaming = streamingText,
                                             onClickCitation = handleClickCitation,
-                                            modifier = if (streamingText) {
-                                                Modifier.streamingTextMotion(renderedText.length)
-                                            } else {
-                                                Modifier
-                                            },
                                         )
                                     }
                                 } else {
@@ -856,17 +850,8 @@ private fun MessagePartsBlock(
                                         content = renderedText,
                                         streaming = streamingText,
                                         onClickCitation = handleClickCitation,
-                                        // 没有气泡时同样让正文块弹性伸缩：文字还是原来的飘入，
-                                        // 只把高度与模糊交给伸缩层
-                                        modifier = Modifier
-                                            .motionStretchHeight()
-                                            .then(
-                                                if (streamingText) {
-                                                    Modifier.streamingTextMotion(renderedText.length)
-                                                } else {
-                                                    Modifier
-                                                }
-                                            )
+                                        // 没有气泡时同样让正文块弹性伸缩，只把高度与模糊交给伸缩层
+                                        modifier = Modifier.motionStretchHeight(),
                                     )
                                 }
                             }
