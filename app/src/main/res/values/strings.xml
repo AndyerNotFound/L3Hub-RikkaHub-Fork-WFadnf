@@ -2937,6 +2937,31 @@
   <string name="stats_page_cost">Cost</string>
   <string name="stats_page_cost_hint">Estimated from the prices set in the model editor; models without prices are not counted.</string>
   <string name="stats_page_cost_unset">The models used in this period have no prices set. Enter unit prices in the model editor to see costs.</string>
+  <string name="setting_provider_page_price_rules">Price rules</string>
+  <string name="setting_provider_page_price_rules_desc">Change the price table by request time, context length, or a custom expression. Rules are checked from top to bottom; the first enabled match replaces the entire table.</string>
+  <string name="setting_provider_page_price_rule_add">Add rule</string>
+  <string name="setting_provider_page_price_rule_title">Rule %1$d</string>
+  <string name="setting_provider_page_price_rule_delete">Delete rule</string>
+  <string name="setting_provider_page_price_rule_time">Time range</string>
+  <string name="setting_provider_page_price_rule_context">Context length</string>
+  <string name="setting_provider_page_price_rule_expression">Expression</string>
+  <string name="setting_provider_page_price_rule_start">Start</string>
+  <string name="setting_provider_page_price_rule_end">End</string>
+  <string name="setting_provider_page_price_rule_time_desc">Based on the device time zone. An end earlier than the start crosses midnight; equal start and end means all day.</string>
+  <string name="setting_provider_page_price_rule_time_all_day">All day</string>
+  <string name="setting_provider_page_price_rule_context_desc">Uses the input token count of this request.</string>
+  <string name="setting_provider_page_price_rule_context_at_least">At least</string>
+  <string name="setting_provider_page_price_rule_context_less_than">Less than</string>
+  <string name="setting_provider_page_price_rule_context_summary_at_least">Input at least %1$d tokens</string>
+  <string name="setting_provider_page_price_rule_context_summary_less_than">Input under %1$d tokens</string>
+  <string name="setting_provider_page_price_rule_context_tokens">tokens</string>
+  <string name="setting_provider_page_price_rule_expression_hint">Variables: hour, minute, weekday (1 = Monday), promptTokens, completionTokens, cachedTokens, totalTokens. Supports + - * /, remainder, comparisons, &amp;&amp; || ! and parentheses.</string>
+  <string name="setting_provider_page_price_rule_expression_invalid">Invalid expression at character %1$d.</string>
+  <string name="setting_provider_page_price_rule_expression_empty">The rule does not apply until an expression is entered.</string>
+  <string name="setting_provider_page_price_rule_price">Prices after match</string>
+  <string name="setting_provider_page_price_rule_price_desc">Copied from the base prices when added; blank items are not billed.</string>
+  <string name="setting_provider_page_price_rule_empty">No price rules yet. Every request uses the base price table above.</string>
   <string name="chat_message_usage_total">Total</string>
   <string name="chat_message_usage_total_tokens">Total %1$s</string>
+  <string name="setting_provider_page_price_rule_context_empty">Set a threshold above 0; the rule does not apply while it is 0.</string>
 </resources>

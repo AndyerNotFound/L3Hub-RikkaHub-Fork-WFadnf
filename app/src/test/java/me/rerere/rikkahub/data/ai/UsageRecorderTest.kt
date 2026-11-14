@@ -18,6 +18,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.dao.DayCount
 import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
 import me.rerere.rikkahub.data.db.dao.ModelUsage
+import me.rerere.rikkahub.data.db.dao.PriceRuleUsageRow
 import me.rerere.rikkahub.data.db.dao.ProviderUsageEvent
 import me.rerere.rikkahub.data.db.dao.SourceModelUsage
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
@@ -116,6 +117,9 @@ private class FakeUsageRecordDAO : UsageRecordDAO {
     override suspend fun getRequestCountPerDay(source: String, since: Long) = emptyList<DayCount>()
 
     override suspend fun getTotalsBySourceModel(since: Long) = emptyList<SourceModelUsage>()
+
+    override suspend fun getPriceRuleUsageRows(format: String, since: Long) =
+        emptyList<PriceRuleUsageRow>()
 
     override suspend fun getProviderUsageEvents(
         providerId: String,

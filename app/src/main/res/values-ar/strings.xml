@@ -2579,6 +2579,31 @@
   <string name="stats_page_cost">التكلفة</string>
   <string name="stats_page_cost_hint">يُقدَّر من الأسعار المدخلة في محرر النموذج؛ النماذج بلا أسعار لا تُحتسب.</string>
   <string name="stats_page_cost_unset">لم تُضبط أسعار النماذج المستخدمة في هذه الفترة بعد. أدخل الأسعار في محرر النموذج لعرض التكلفة.</string>
+  <string name="setting_provider_page_price_rules">قواعد الأسعار</string>
+  <string name="setting_provider_page_price_rules_desc">تبديل جدول الأسعار حسب وقت الطلب أو طول السياق أو تعبير مخصص. تُفحص القواعد من الأعلى إلى الأسفل، وأول قاعدة مفعّلة مطابقة تستبدل جدول الأسعار بالكامل.</string>
+  <string name="setting_provider_page_price_rule_add">إضافة قاعدة</string>
+  <string name="setting_provider_page_price_rule_title">القاعدة %1$d</string>
+  <string name="setting_provider_page_price_rule_delete">حذف القاعدة</string>
+  <string name="setting_provider_page_price_rule_time">الفترة الزمنية</string>
+  <string name="setting_provider_page_price_rule_context">طول السياق</string>
+  <string name="setting_provider_page_price_rule_expression">تعبير</string>
+  <string name="setting_provider_page_price_rule_start">البداية</string>
+  <string name="setting_provider_page_price_rule_end">النهاية</string>
+  <string name="setting_provider_page_price_rule_time_desc">يُحسب وفق المنطقة الزمنية للجهاز. إذا كانت النهاية قبل البداية تمتد الفترة عبر منتصف الليل، وإذا تساوى البداية والنهاية فالمقصود اليوم كامل.</string>
+  <string name="setting_provider_page_price_rule_time_all_day">اليوم كامل</string>
+  <string name="setting_provider_page_price_rule_context_desc">يُحسب بعدد رموز الإدخال في هذا الطلب.</string>
+  <string name="setting_provider_page_price_rule_context_at_least">على الأقل</string>
+  <string name="setting_provider_page_price_rule_context_less_than">أقل من</string>
+  <string name="setting_provider_page_price_rule_context_summary_at_least">الإدخال لا يقل عن %1$d رمز</string>
+  <string name="setting_provider_page_price_rule_context_summary_less_than">الإدخال أقل من %1$d رمز</string>
+  <string name="setting_provider_page_price_rule_context_tokens">رمز</string>
+  <string name="setting_provider_page_price_rule_expression_hint">المتغيرات المتاحة: hour وminute وweekday (1 = الاثنين) وpromptTokens وcompletionTokens وcachedTokens وtotalTokens. يدعم + - * / والباقي والمقارنات و&amp;&amp; || ! والأقواس.</string>
+  <string name="setting_provider_page_price_rule_expression_invalid">خطأ في التعبير عند الرمز %1$d.</string>
+  <string name="setting_provider_page_price_rule_expression_empty">لا تُطبّق القاعدة حتى يُدخل تعبير.</string>
+  <string name="setting_provider_page_price_rule_price">الأسعار بعد المطابقة</string>
+  <string name="setting_provider_page_price_rule_price_desc">تُنسخ الأسعار الأساسية الحالية عند الإضافة، والبنود الفارغة لا تُحتسب.</string>
+  <string name="setting_provider_page_price_rule_empty">لا توجد قواعد أسعار بعد. تُحتسب جميع الطلبات وفق جدول الأسعار الأساسي أعلاه.</string>
   <string name="chat_message_usage_total">الإجمالي</string>
   <string name="chat_message_usage_total_tokens">الإجمالي %1$s</string>
+  <string name="setting_provider_page_price_rule_context_empty">يجب أن تكون العتبة أكبر من 0؛ ولن تُطبّق القاعدة وهي 0.</string>
 </resources>

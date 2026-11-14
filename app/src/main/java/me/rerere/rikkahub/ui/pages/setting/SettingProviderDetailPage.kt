@@ -153,6 +153,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.ui.toast.ToastType
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
+import me.rerere.rikkahub.ui.pages.setting.components.PriceRuleSettings
+import me.rerere.rikkahub.ui.pages.setting.components.PricingInput
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderGuardSettings
@@ -1349,6 +1351,16 @@ private fun ModelOtherOptions(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        PriceRuleSettings(
+            modelKey = model.id,
+            rules = model.pricing.rules,
+            basePrice = model.pricing.priceTable(),
+            unit = unit,
+            perCallUnit = perCallUnit,
+            onRulesChange = { rules ->
+                onModelChange(model.copy(pricing = model.pricing.copy(rules = rules)))
+            },
+        )
     }
 }
 
@@ -1366,45 +1378,6 @@ private fun CardGroupScope.PricingItem(
         },
     )
 }
-
-@Composable
-private fun PricingInput(
-    value: Double,
-    unit: String,
-    modelKey: Any,
-    onValueChange: (Double) -> Unit,
-) {
-    // 输入框自己保存草稿：只按本地值格式化一次，避免逐字符解析导致小数点被吃掉；
-    // 换模型时按 modelKey 重建，防止旧文本被写进新模型
-    var text by remember(modelKey) { mutableStateOf(value.toPriceText()) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { input ->
-            val candidate = input.replace(',', '.')
-            if (candidate.length <= 12 && PRICE_INPUT_REGEX.matches(candidate)) {
-                text = candidate
-                onValueChange(candidate.toDoubleOrNull() ?: 0.0)
-            }
-        },
-        modifier = Modifier.width(136.dp),
-        textStyle = MaterialTheme.typography.bodyMedium,
-        suffix = {
-            Text(
-                text = "/$unit",
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-            )
-        },
-        placeholder = { Text("0") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        singleLine = true,
-    )
-}
-
-private val PRICE_INPUT_REGEX = Regex("""^\d{0,9}(\.\d{0,6})?$""")
-
-private fun Double.toPriceText(): String =
-    if (this <= 0) "" else java.math.BigDecimal.valueOf(this).stripTrailingZeros().toPlainString()
 
 /** 提供商远端的可用模型列表，[error] 不为空时 [models] 是上次成功拿到的结果 */
 private data class RemoteModels(

@@ -70,6 +70,19 @@ interface UsageRecordDAO {
             "GROUP BY source, COALESCE(model_id, model_name)"
     )
     suspend fun getTotalsBySourceModel(since: Long): List<SourceModelUsage>
+
+    /**
+     * 给变价规则用的逐条流水：规则可能依赖请求时刻，聚合后的桶没有这个信息。
+     * 只在有模型配置了启用的规则时查询。
+     */
+    @Query(
+        "SELECT strftime(:format, created_at / 1000, 'unixepoch', 'localtime') AS bucket, " +
+            "created_at AS createdAt, source, model_id AS modelId, model_name AS modelName, " +
+            "prompt_tokens AS promptTokens, completion_tokens AS completionTokens, " +
+            "cached_tokens AS cachedTokens " +
+            "FROM usage_record WHERE created_at >= :since ORDER BY created_at"
+    )
+    suspend fun getPriceRuleUsageRows(format: String, since: Long): List<PriceRuleUsageRow>
 }
 
 data class ProviderUsageEvent(
@@ -119,4 +132,15 @@ data class SourceModelUsage(
     val completionTokens: Long,
     val cachedTokens: Long,
     val calls: Int,
+)
+
+data class PriceRuleUsageRow(
+    val bucket: String,
+    val createdAt: Long,
+    val source: String,
+    val modelId: String?,
+    val modelName: String?,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val cachedTokens: Int,
 )

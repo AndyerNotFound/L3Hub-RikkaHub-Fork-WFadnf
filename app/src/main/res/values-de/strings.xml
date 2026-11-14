@@ -2579,6 +2579,31 @@
   <string name="stats_page_cost">Kosten</string>
   <string name="stats_page_cost_hint">Geschätzt anhand der im Modell-Editor eingegebenen Preise; Modelle ohne Preise werden nicht gezählt.</string>
   <string name="stats_page_cost_unset">Für die in diesem Zeitraum verwendeten Modelle sind keine Preise hinterlegt. Trage im Modell-Editor Stückpreise ein, um Kosten zu sehen.</string>
+  <string name="setting_provider_page_price_rules">Preisregeln</string>
+  <string name="setting_provider_page_price_rules_desc">Wechselt die Preistabelle nach Anfragezeit, Kontextlänge oder einem eigenen Ausdruck. Regeln werden von oben nach unten geprüft; die erste aktivierte Übereinstimmung ersetzt die gesamte Preistabelle.</string>
+  <string name="setting_provider_page_price_rule_add">Regel hinzufügen</string>
+  <string name="setting_provider_page_price_rule_title">Regel %1$d</string>
+  <string name="setting_provider_page_price_rule_delete">Regel löschen</string>
+  <string name="setting_provider_page_price_rule_time">Zeitraum</string>
+  <string name="setting_provider_page_price_rule_context">Kontextlänge</string>
+  <string name="setting_provider_page_price_rule_expression">Ausdruck</string>
+  <string name="setting_provider_page_price_rule_start">Beginn</string>
+  <string name="setting_provider_page_price_rule_end">Ende</string>
+  <string name="setting_provider_page_price_rule_time_desc">Es gilt die Zeitzone des Geräts. Liegt das Ende vor dem Beginn, reicht der Zeitraum über Mitternacht; gleicher Beginn und gleiches Ende bedeuten den ganzen Tag.</string>
+  <string name="setting_provider_page_price_rule_time_all_day">Ganzer Tag</string>
+  <string name="setting_provider_page_price_rule_context_desc">Es zählt die Eingabe-Tokenzahl dieser Anfrage.</string>
+  <string name="setting_provider_page_price_rule_context_at_least">Mindestens</string>
+  <string name="setting_provider_page_price_rule_context_less_than">Weniger als</string>
+  <string name="setting_provider_page_price_rule_context_summary_at_least">Eingabe mindestens %1$d Token</string>
+  <string name="setting_provider_page_price_rule_context_summary_less_than">Eingabe unter %1$d Token</string>
+  <string name="setting_provider_page_price_rule_context_tokens">Token</string>
+  <string name="setting_provider_page_price_rule_expression_hint">Verfügbare Variablen: hour, minute, weekday (1 = Montag), promptTokens, completionTokens, cachedTokens, totalTokens. Unterstützt + - * / und Rest, Vergleiche, &amp;&amp; || ! und Klammern.</string>
+  <string name="setting_provider_page_price_rule_expression_invalid">Fehler im Ausdruck an Zeichen %1$d.</string>
+  <string name="setting_provider_page_price_rule_expression_empty">Die Regel gilt erst, wenn ein Ausdruck eingegeben wurde.</string>
+  <string name="setting_provider_page_price_rule_price">Preise nach Treffer</string>
+  <string name="setting_provider_page_price_rule_price_desc">Beim Hinzufügen werden die aktuellen Grundpreise kopiert; leere Felder werden nicht berechnet.</string>
+  <string name="setting_provider_page_price_rule_empty">Noch keine Preisregeln. Alle Anfragen verwenden die Grundpreistabelle oben.</string>
   <string name="chat_message_usage_total">Gesamt</string>
   <string name="chat_message_usage_total_tokens">Gesamt %1$s</string>
+  <string name="setting_provider_page_price_rule_context_empty">Der Schwellenwert muss über 0 liegen; bei 0 wird die Regel nicht angewendet.</string>
 </resources>

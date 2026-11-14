@@ -43,9 +43,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.sum
+import me.rerere.ai.provider.PriceRuleContext
 import me.rerere.ai.provider.UsageCost
 import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.provider.priceUnitTokens
@@ -93,11 +96,25 @@ fun ChatMessageNerdLine(
         settings.findModelById(message.modelId)?.effectiveContextWindow
     }
     val binaryUnits = settings.displaySetting.binaryUnits
-    // 计价跟着模型走；模型被删掉或没有配置价格时费用为 0，不显示
-    val cost = remember(settings.providers, message.modelId, usage, stats.steps, binaryUnits) {
+    // 计价跟着模型走；模型被删掉或没有配置价格时费用为 0，不显示。
+    // 变价规则按最后一次请求的上下文判断，计费仍按整条消息累计的 usage。
+    val cost = remember(
+        settings.providers,
+        message.modelId,
+        message.createdAt,
+        usage,
+        stats.lastUsage,
+        stats.steps,
+        binaryUnits,
+    ) {
         settings.findModelById(message.modelId)
             ?.pricing
-            ?.estimateCost(usage, priceUnitTokens(binaryUnits), stats.steps)
+            ?.estimateCost(
+                usage = usage,
+                unitTokens = priceUnitTokens(binaryUnits),
+                calls = stats.steps,
+                context = message.priceRuleContext(stats.lastUsage),
+            )
             ?: UsageCost()
     }
     val tooltipState = rememberTooltipState(isPersistent = true)
@@ -231,12 +248,15 @@ fun ConversationUsageDetails(
     val binaryUnits = settings.displaySetting.binaryUnits
     val cost = remember(usageMessages, settings.providers, binaryUnits) {
         usageMessages.fold(UsageCost()) { acc, message ->
+            val messageUsage = message.usage ?: TokenUsage()
+            val calls = message.stepCount ?: 1
             val usageCost = settings.findModelById(message.modelId)
                 ?.pricing
                 ?.estimateCost(
-                    usage = message.usage ?: TokenUsage(),
+                    usage = messageUsage,
                     unitTokens = priceUnitTokens(binaryUnits),
-                    calls = message.stepCount ?: 1,
+                    calls = calls,
+                    context = message.priceRuleContext(message.lastUsage ?: messageUsage),
                 )
                 ?: UsageCost()
             acc + usageCost
@@ -720,3 +740,11 @@ private fun UIMessage.nerdStats(usage: TokenUsage): NerdStats {
 }
 
 private fun Int.exact(): String = NumberFormat.getIntegerInstance().format(this)
+
+/** 变价规则按消息的生成时间和一次请求的 token 快照判断；多步消息传最后一次请求的 usage */
+private fun UIMessage.priceRuleContext(usage: TokenUsage) = PriceRuleContext(
+    atMillis = createdAt.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds(),
+    promptTokens = usage.promptTokens.toLong(),
+    completionTokens = usage.completionTokens.toLong(),
+    cachedTokens = usage.cachedTokens.toLong(),
+)

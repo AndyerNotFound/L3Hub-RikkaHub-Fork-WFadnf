@@ -7,6 +7,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.ModelPricing
+import me.rerere.ai.provider.PriceRuleContext
 import me.rerere.ai.provider.ProviderLockState
 import me.rerere.ai.provider.ProviderQuotaMetric
 import me.rerere.ai.provider.ProviderQuotaWindow
@@ -184,6 +185,7 @@ class ProviderGate(
             pricing = params.model.pricing,
             usage = TokenUsage(promptTokens = estimatedTokens),
             unitTokens = priceUnit,
+            atMillis = now,
         )
         if (guard.hasRateLimit) {
             ensureHydrated(setting, now - guard.usageRetentionMillis())
@@ -232,6 +234,7 @@ class ProviderGate(
                         cachedTokens = it.cachedTokens,
                     ),
                     unitTokens = ticket.unitTokens,
+                    atMillis = ticket.stamp.startedAt,
                 )
             } ?: 0.0
         }
@@ -505,11 +508,30 @@ class ProviderGate(
                 cachedTokens = event.cachedTokens,
             ),
             unitTokens = unitTokens,
+            atMillis = event.createdAt,
         )
     }
 
-    private fun costOf(pricing: ModelPricing, usage: TokenUsage, unitTokens: Double): Double =
-        if (!pricing.isConfigured) 0.0 else pricing.estimateCost(usage, unitTokens, calls = 1).total
+    private fun costOf(
+        pricing: ModelPricing,
+        usage: TokenUsage,
+        unitTokens: Double,
+        atMillis: Long,
+    ): Double = if (!pricing.isConfigured) {
+        0.0
+    } else {
+        pricing.estimateCost(
+            usage = usage,
+            unitTokens = unitTokens,
+            calls = 1,
+            context = PriceRuleContext(
+                atMillis = atMillis,
+                promptTokens = usage.promptTokens.toLong(),
+                completionTokens = usage.completionTokens.toLong(),
+                cachedTokens = usage.cachedTokens.toLong(),
+            ),
+        ).total
+    }
 }
 
 /** 窗口名称，例如「每 5 小时」 */

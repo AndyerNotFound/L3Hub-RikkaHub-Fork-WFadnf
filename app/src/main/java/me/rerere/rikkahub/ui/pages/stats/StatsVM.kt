@@ -2,13 +2,16 @@ package me.rerere.rikkahub.ui.pages.stats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.ModelPricing
+import me.rerere.ai.provider.PriceRuleContext
 import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.rikkahub.data.ai.UsageSource
@@ -19,6 +22,7 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.ModelBucketUsage
 import me.rerere.rikkahub.data.db.dao.ModelUsage
+import me.rerere.rikkahub.data.db.dao.PriceRuleUsageRow
 import me.rerere.rikkahub.data.db.dao.SourceModelUsage
 import me.rerere.rikkahub.data.db.dao.UsageRecordDAO
 import me.rerere.rikkahub.data.db.dao.UsageTotals
@@ -158,22 +162,38 @@ class StatsVM(
             val settings = settingsStore.awaitLoaded()
             // 价目按「每 1M / 每 Mi」token 填写，和设置里的计数口径一起换算
             val unitTokens = priceUnitTokens(settings.displaySetting.binaryUnits)
+            val byMonth = range.days == null
+            val bucketFormat = if (byMonth) "%Y-%m" else "%Y-%m-%d"
+            // 时间型变价规则依赖每条流水自己的时间，聚合后的桶没有这个信息；
+            // 只有确实配置了启用的规则时才逐条算一遍
+            val hasPriceRules = settings.providers.any { provider ->
+                provider.models.any { model -> model.pricing.rules.any { it.enabled } }
+            }
+            val ruleCosts = if (hasPriceRules) {
+                withContext(Dispatchers.Default) {
+                    loadRuleCosts(
+                        rows = usageRecordDAO.getPriceRuleUsageRows(bucketFormat, since),
+                        settings = settings,
+                        unitTokens = unitTokens,
+                    )
+                }
+            } else {
+                null
+            }
             val modelRows = usageRecordDAO.getTotalsByModel(since)
             val models = modelRows.map { usage ->
                 ModelUsageItem(
                     name = usage.displayName(settings),
                     totalTokens = usage.totalTokens,
-                    cost = usage.costOf(settings, unitTokens),
+                    cost = ruleCosts?.byModel?.get(usage.costKey())
+                        ?: if (ruleCosts == null) usage.costOf(settings, unitTokens) else 0.0,
                 )
             }
-            val byMonth = range.days == null
             val buckets = bucketTotals(
-                rows = usageRecordDAO.getTotalsByModelBucket(
-                    format = if (byMonth) "%Y-%m" else "%Y-%m-%d",
-                    since = since,
-                ),
+                rows = usageRecordDAO.getTotalsByModelBucket(format = bucketFormat, since = since),
                 settings = settings,
                 unitTokens = unitTokens,
+                ruleCosts = ruleCosts,
             )
             val points = if (byMonth) {
                 monthlyPoints(buckets, today)
@@ -186,7 +206,11 @@ class StatsVM(
                     SourceUsageItem(
                         source = source,
                         totalTokens = rows.sumOf { it.totalTokens },
-                        cost = rows.sumOf { it.costOf(settings, unitTokens) },
+                        cost = if (ruleCosts == null) {
+                            rows.sumOf { it.costOf(settings, unitTokens) }
+                        } else {
+                            rows.sumOf { ruleCosts.bySourceModel[it.source to it.costKey()] ?: 0.0 }
+                        },
                     )
                 }
                 .sortedByDescending { it.totalTokens }
@@ -242,6 +266,7 @@ private fun bucketTotals(
     rows: List<ModelBucketUsage>,
     settings: Settings,
     unitTokens: Double,
+    ruleCosts: RuleCostTotals?,
 ): Map<String, BucketTotals> {
     val totals = mutableMapOf<String, BucketTotals>()
     rows.forEach { row ->
@@ -249,10 +274,69 @@ private fun bucketTotals(
         bucket.promptTokens += row.promptTokens
         bucket.completionTokens += row.completionTokens
         bucket.cachedTokens += row.cachedTokens
-        bucket.cost += row.costOf(settings, unitTokens)
+        bucket.cost += if (ruleCosts == null) {
+            row.costOf(settings, unitTokens)
+        } else {
+            ruleCosts.byBucketModel[row.bucket to row.costKey()] ?: 0.0
+        }
     }
     return totals
 }
+
+/** 按逐条流水套用变价规则后的费用，三个维度各汇总一份 */
+private class RuleCostTotals {
+    val byModel = mutableMapOf<String, Double>()
+    val byBucketModel = mutableMapOf<Pair<String, String>, Double>()
+    val bySourceModel = mutableMapOf<Pair<String, String>, Double>()
+}
+
+private fun loadRuleCosts(
+    rows: List<PriceRuleUsageRow>,
+    settings: Settings,
+    unitTokens: Double,
+): RuleCostTotals {
+    val totals = RuleCostTotals()
+    rows.forEach { row ->
+        val pricing = row.modelId
+            ?.toModelUuid()
+            ?.let { settings.findModelById(it) }
+            ?.pricing
+            ?: return@forEach
+        val cost = pricing.applyRules(
+            PriceRuleContext(
+                atMillis = row.createdAt,
+                promptTokens = row.promptTokens.toLong(),
+                completionTokens = row.completionTokens.toLong(),
+                cachedTokens = row.cachedTokens.toLong(),
+            )
+        ).estimateCost(
+            promptTokens = row.promptTokens.toLong(),
+            completionTokens = row.completionTokens.toLong(),
+            cachedTokens = row.cachedTokens.toLong(),
+            unitTokens = unitTokens,
+            calls = 1,
+        ).total
+        if (cost == 0.0) return@forEach
+        val key = row.costKey()
+        totals.byModel[key] = (totals.byModel[key] ?: 0.0) + cost
+        val bucketKey = row.bucket to key
+        totals.byBucketModel[bucketKey] = (totals.byBucketModel[bucketKey] ?: 0.0) + cost
+        val sourceKey = row.source to key
+        totals.bySourceModel[sourceKey] = (totals.bySourceModel[sourceKey] ?: 0.0) + cost
+    }
+    return totals
+}
+
+private fun costKey(modelId: String?, modelName: String?): String =
+    modelId?.let { "id:$it" } ?: "name:${modelName.orEmpty()}"
+
+private fun ModelUsage.costKey(): String = costKey(modelId, modelName)
+
+private fun ModelBucketUsage.costKey(): String = costKey(modelId, modelName)
+
+private fun SourceModelUsage.costKey(): String = costKey(modelId, modelName)
+
+private fun PriceRuleUsageRow.costKey(): String = costKey(modelId, modelName)
 
 private fun BucketTotals?.toPoint(date: LocalDate) = UsagePoint(
     date = date,
