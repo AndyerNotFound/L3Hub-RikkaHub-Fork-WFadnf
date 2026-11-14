@@ -2115,8 +2115,6 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_display_page_input_layout_title">入力バーのレイアウト</string>
   <string name="setting_display_page_input_padding_desc">入力バーの内容の左右の余白は %1$d dp です。小さくすると内側の角丸がより自然に合います</string>
   <string name="setting_display_page_input_padding_title">入力バーの左右パディング</string>
-  <string name="setting_display_page_message_nav_position_desc">スクロール時に画面端のメッセージバーを左側へ移動します。既定では右側にあります</string>
-  <string name="setting_display_page_message_nav_position_title">メッセージナビを左に配置</string>
   <string name="setting_display_page_message_queue_desc">返信中に送信したメッセージは順番待ちになります。オフにすると現在の返信を中断してすぐに送信します</string>
   <string name="setting_display_page_message_queue_title">メッセージキュー</string>
   <string name="setting_display_page_show_context_meter_desc">入力バーの上にコンテキスト使用量のバーを表示します</string>

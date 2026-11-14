@@ -2121,8 +2121,6 @@
   <string name="setting_display_page_input_layout_title">Раскладка поля ввода</string>
   <string name="setting_display_page_input_padding_desc">Отступ содержимого поля ввода от боковых границ, %1$d dp; при уменьшении внутренние скругления подходят плотнее</string>
   <string name="setting_display_page_input_padding_title">Боковые отступы поля ввода</string>
-  <string name="setting_display_page_message_nav_position_desc">При прокрутке полоса навигации по сообщениям смещается к левому краю; по умолчанию она справа</string>
-  <string name="setting_display_page_message_nav_position_title">Навигация по сообщениям слева</string>
   <string name="setting_display_page_message_queue_desc">Сообщения, отправленные во время ответа, встают в очередь; если выключить, текущий ответ прерывается и сообщение отправляется сразу</string>
   <string name="setting_display_page_message_queue_title">Очередь сообщений</string>
   <string name="setting_display_page_show_context_meter_desc">Показывать индикатор занятости контекста над полем ввода</string>

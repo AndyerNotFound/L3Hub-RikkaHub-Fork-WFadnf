@@ -911,16 +911,6 @@ private fun ChatListNormal(
 
             val captureProgress = LocalScrollCaptureInProgress.current
 
-            MessageNavBars(
-                messageCount = conversation.messageNodes.size,
-                firstMessageItemIndex = 0,
-                state = state,
-                onLeft = settings.displaySetting.messageNavOnLeft,
-                modifier = Modifier.align(
-                    if (settings.displaySetting.messageNavOnLeft) Alignment.CenterStart else Alignment.CenterEnd
-                ),
-            )
-
             // 消息快速跳转
             MessageJumper(
                 show = isRecentScroll && !state.isScrollInProgress && settings.displaySetting.showMessageJumper && !captureProgress,

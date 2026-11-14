@@ -2116,8 +2116,6 @@
   <string name="setting_display_page_input_layout_title">Layout des Eingabefelds</string>
   <string name="setting_display_page_input_padding_desc">Seitlicher Innenabstand des Eingabefeldinhalts, %1$d dp; ein kleinerer Wert lässt die inneren Ecken besser anschließen</string>
   <string name="setting_display_page_input_padding_title">Seitlicher Innenabstand des Eingabefelds</string>
-  <string name="setting_display_page_message_nav_position_desc">Verschiebt die Nachrichtenleiste am Rand beim Scrollen nach links; standardmäßig rechts</string>
-  <string name="setting_display_page_message_nav_position_title">Nachrichtenleiste links</string>
   <string name="setting_display_page_message_queue_desc">Während einer Antwort gesendete Nachrichten warten in der Warteschlange; wenn aus, wird die laufende Antwort unterbrochen und sofort gesendet</string>
   <string name="setting_display_page_message_queue_title">Nachrichtenwarteschlange</string>
   <string name="setting_display_page_show_context_meter_desc">Kontextnutzung als Fortschrittsbalken über dem Eingabefeld anzeigen</string>

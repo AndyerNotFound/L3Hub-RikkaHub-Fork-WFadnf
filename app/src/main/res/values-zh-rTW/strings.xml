@@ -1921,8 +1921,6 @@
   <string name="about_page_sponsor">贊助原作者</string>
   <string name="about_page_sponsor_desc">開啟贊助頁面，支援原作者 re-ovo (RE)</string>
   <string name="about_page_attribution">本應用為 RikkaHub 的修改版本，原作者署名與版權歸 re-ovo (RE) 所有，修改部分由本分支維護者負責。若喜歡本應用，請支援原作者。</string>
-  <string name="setting_display_page_message_nav_position_title">訊息導航位於左側</string>
-  <string name="setting_display_page_message_nav_position_desc">滾動時將邊緣的訊息橫條移至左側；預設位於右側</string>
   <string name="task_tree_task">任務</string>
   <string name="setting_display_page_disable_animations_title">關閉所有動畫</string>
   <string name="setting_display_page_disable_animations_desc">介面切換與卡片展開等直接跳變，不使用 Material 動效</string>

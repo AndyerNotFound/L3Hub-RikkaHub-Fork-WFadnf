@@ -2115,8 +2115,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_display_page_input_layout_title">입력창 레이아웃</string>
   <string name="setting_display_page_input_padding_desc">입력창 내용과 좌우 테두리 사이의 간격 %1$d dp입니다. 줄이면 내부 모서리가 더 잘 맞습니다</string>
   <string name="setting_display_page_input_padding_title">입력창 좌우 안쪽 여백</string>
-  <string name="setting_display_page_message_nav_position_desc">스크롤할 때 가장자리의 메시지 탐색 막대를 왼쪽으로 옮깁니다. 기본값은 오른쪽입니다</string>
-  <string name="setting_display_page_message_nav_position_title">메시지 탐색을 왼쪽에</string>
   <string name="setting_display_page_message_queue_desc">응답 중에 보낸 메시지는 대기열에서 기다립니다. 끄면 현재 응답을 중단하고 즉시 전송합니다</string>
   <string name="setting_display_page_message_queue_title">메시지 대기열</string>
   <string name="setting_display_page_show_context_meter_desc">입력창 위에 컨텍스트 사용량 진행 표시줄을 표시합니다</string>

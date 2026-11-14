@@ -2452,8 +2452,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="about_page_sponsor">赞助原作者</string>
   <string name="about_page_sponsor_desc">打开赞助页面，支持原作者 re-ovo (RE)</string>
   <string name="about_page_attribution">本应用为 RikkaHub 的修改版本，原作者署名与版权归 re-ovo (RE) 所有，修改部分由本分支维护者负责。若喜欢本应用，请支持原作者。</string>
-  <string name="setting_display_page_message_nav_position_title">消息导航位于左侧</string>
-  <string name="setting_display_page_message_nav_position_desc">滚动时将边缘的消息导航条移至左侧；默认位于右侧</string>
   <string name="task_tree_task">任务</string>
   <string name="setting_display_page_disable_animations_title">关闭所有动画</string>
   <string name="setting_display_page_disable_animations_desc">界面切换与卡片展开直接跳变，不使用 Material 动效</string>

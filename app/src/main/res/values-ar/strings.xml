@@ -2113,8 +2113,6 @@
   <string name="setting_display_page_input_layout_title">تخطيط حقل الإدخال</string>
   <string name="setting_display_page_input_padding_desc">الحشو الأفقي لمحتوى حقل الإدخال، %1$d dp؛ وتقليله يجعل الزوايا الداخلية أكثر تلاؤمًا</string>
   <string name="setting_display_page_input_padding_title">الحشو الأفقي لحقل الإدخال</string>
-  <string name="setting_display_page_message_nav_position_desc">نقل شريط التنقل بين الرسائل إلى اليسار أثناء التمرير؛ والافتراضي في اليمين</string>
-  <string name="setting_display_page_message_nav_position_title">تنقل الرسائل على اليسار</string>
   <string name="setting_display_page_message_queue_desc">الرسائل المرسلة أثناء الرد تنتظر في القائمة؛ وعند الإيقاف يُقطع الرد الحالي وتُرسل فورًا</string>
   <string name="setting_display_page_message_queue_title">قائمة انتظار الرسائل</string>
   <string name="setting_display_page_show_context_meter_desc">إظهار شريط استخدام السياق أعلى حقل الإدخال</string>

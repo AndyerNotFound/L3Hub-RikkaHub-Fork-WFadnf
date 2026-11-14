@@ -2451,8 +2451,6 @@
   <string name="about_page_sponsor">Sponsor the original author</string>
   <string name="about_page_sponsor_desc">Open the sponsor page to support the original author re-ovo (RE)</string>
   <string name="about_page_attribution">This app is a modified version of RikkaHub. The original author\'s attribution and copyright belong to re-ovo (RE); modifications are maintained by this fork\'s maintainer. If you like it, please support the original author.</string>
-  <string name="setting_display_page_message_nav_position_title">Message nav on the left</string>
-  <string name="setting_display_page_message_nav_position_desc">Move the edge message nav bar to the left while scrolling; default is on the right</string>
   <string name="task_tree_task">Task</string>
   <string name="setting_display_page_disable_animations_title">Disable all animations</string>
   <string name="setting_display_page_disable_animations_desc">Page transitions and card expansions jump directly without Material animations</string>
