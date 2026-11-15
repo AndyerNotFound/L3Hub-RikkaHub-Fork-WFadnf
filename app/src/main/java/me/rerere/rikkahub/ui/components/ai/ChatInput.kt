@@ -184,6 +184,8 @@ fun ChatInput(
     // 当前会话已占用的上下文 token(最近一次回复的真实用量)
     contextTokens: Int? = null,
     usageTokenSpeed: Float? = null,
+    // 本轮生成速度：上下文预警栏右侧的车速仪表盘读它取指针与满刻度
+    generationSpeed: GenerationSpeed,
     onUpdateContextMeterStyle: (ContextMeterStyle) -> Unit = {},
     injectedLorebookCount: Int = 0,
     onShowUsage: () -> Unit = {},
@@ -581,7 +583,13 @@ fun ChatInput(
                             onShowUsage = onShowUsage,
                             modifier = Modifier.padding(horizontal = 4.dp),
                             running = loading,
-                            tokenSpeed = usageTokenSpeed,
+                            speedIndicator = {
+                                TokenSpeedGauge(
+                                    generationSpeed = generationSpeed,
+                                    running = loading,
+                                    fallbackSpeed = usageTokenSpeed,
+                                )
+                            },
                         )
 
                         ContextMeterStyle.RING -> ContextUsageRing(
@@ -591,7 +599,13 @@ fun ChatInput(
                             onShowUsage = onShowUsage,
                             modifier = Modifier.padding(horizontal = 4.dp),
                             provider = chatModel.findProvider(settings.providers),
-                            tokenSpeed = usageTokenSpeed,
+                            speedIndicator = {
+                                TokenSpeedGauge(
+                                    generationSpeed = generationSpeed,
+                                    running = loading,
+                                    fallbackSpeed = usageTokenSpeed,
+                                )
+                            },
                         )
 
                         ContextMeterStyle.OFF -> Unit

@@ -170,6 +170,7 @@ import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
+import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.EditedFilesList
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
@@ -552,6 +553,8 @@ private fun ChatPageContent(
     val conversationId by remember(conversationState) {
         derivedStateOf { conversationState.value.id }
     }
+    // 本轮生成速度：消息列表下方的加载图标与输入区上方的表盘共用这一份采样
+    val generationSpeed = rememberGenerationSpeed(conversationState, loadingJob != null)
     val messageCount by remember(conversationState) {
         derivedStateOf { conversationState.value.messageNodes.size }
     }
@@ -1014,6 +1017,7 @@ private fun ChatPageContent(
             onTodosChange = vm::updateTodos,
             contextTokens = contextTokens,
             usageTokenSpeed = usageTokenSpeed,
+            generationSpeed = generationSpeed,
             onUpdateContextMeterStyle = { style ->
                 vm.updateSettings { latest ->
                     latest.copy(displaySetting = latest.displaySetting.copy(contextMeterStyle = style))
@@ -1254,6 +1258,7 @@ private fun ChatPageContent(
                         previewListState = previewListState,
                         selectionState = selectionState,
                         loading = loadingJob != null,
+                        generationSpeed = generationSpeed,
                         compressing = sessionActivity == SessionActivity.Compressing,
                         onCreateNewChat = onCreateNewChat,
                         processingStatus = processingStatus,

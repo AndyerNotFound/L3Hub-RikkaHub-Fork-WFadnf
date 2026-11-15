@@ -125,6 +125,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.ai.GenerationSpeed
 import me.rerere.rikkahub.ui.components.ai.tokenSpeedRatioColor
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
@@ -195,6 +196,8 @@ fun ChatList(
     enteringMessageIds: Set<Uuid> = emptySet(),
     onMessageEnterFinished: (Uuid) -> Unit = {},
     loading: Boolean,
+    // 当前轮次的生成速度，加载图标的颜色按它取
+    generationSpeed: GenerationSpeed,
     compressing: Boolean = false,
     processingStatus: String? = null,
     previewMode: Boolean,
@@ -266,6 +269,7 @@ fun ChatList(
                 conversationState = conversationState,
                 state = state,
                 loading = loading,
+                generationSpeed = generationSpeed,
                 compressing = compressing,
                 processingStatus = processingStatus,
                 settings = settings,
@@ -344,6 +348,7 @@ private fun ChatListNormal(
     conversationState: State<Conversation>,
     state: LazyListState,
     loading: Boolean,
+    generationSpeed: GenerationSpeed,
     compressing: Boolean,
     processingStatus: String? = null,
     settings: Settings,
@@ -375,9 +380,7 @@ private fun ChatListNormal(
     val conversation = conversationState.value
     val scope = rememberCoroutineScope()
     val loadingState by rememberUpdatedState(loading)
-    // 加载图标的颜色跟着本轮生成速度走，采样挂在这里（不跟着 item 的进出场重建）；
-    // 速度读数只在 item 里读，采样本身不会把整个列表重组一遍
-    val generationSpeed = rememberGenerationSpeed(conversationState, loading)
+    // 加载图标的颜色跟着本轮生成速度走；采样挂在页面层，输入区的表盘共用同一份
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
     val density = LocalDensity.current

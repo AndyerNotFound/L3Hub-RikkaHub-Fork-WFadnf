@@ -67,8 +67,8 @@ fun ContextUsageMeter(
     modifier: Modifier = Modifier,
     // 对话还在生成：进度条显示为流动的波浪，停下来后落成静态直条
     running: Boolean = false,
-    // 最近一次请求的输出速度，只决定右侧圆点的颜色
-    tokenSpeed: Float? = null,
+    // 速度指示（车速仪表盘）：内容由调用方给，位置固定在整条的右端
+    speedIndicator: (@Composable () -> Unit)? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -114,8 +114,7 @@ fun ContextUsageMeter(
                 )
             }
         }
-        // 生成速度不再写成文字，改成条右侧的一个圆点：灰慢、冰蓝中、红快
-        TokenSpeedDot(speed = tokenSpeed)
+        speedIndicator?.invoke()
     }
 }
 
@@ -200,7 +199,8 @@ fun ContextUsageRing(
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
     provider: ProviderSetting? = null,
-    tokenSpeed: Float? = null,
+    // 速度指示（车速仪表盘）：内容由调用方给，位置固定在环形图右侧
+    speedIndicator: (@Composable () -> Unit)? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
@@ -276,8 +276,7 @@ fun ContextUsageRing(
                 maxLines = 1,
             )
         }
-        // 生成速度不再写成文字，改成环右侧的一个圆点：灰慢、冰蓝中、红快
-        TokenSpeedDot(speed = tokenSpeed)
+        speedIndicator?.invoke()
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.Start,
