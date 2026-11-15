@@ -454,13 +454,12 @@ private fun WorkspaceBasicPage(
                     },
                     leadingContent = { CardGroupIcon(HugeIcons.Tag01) },
                 )
-                if (hasRootfs) {
-                    item(
-                        headlineContent = { Text(stringResource(R.string.workspace_detail_shell_status)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
-                        trailingContent = { ShellStatusBadge(shellStatus) },
-                    )
-                }
+                item(
+                    visible = hasRootfs,
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_shell_status)) },
+                    leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
+                    trailingContent = { ShellStatusBadge(shellStatus) },
+                )
             }
         }
 

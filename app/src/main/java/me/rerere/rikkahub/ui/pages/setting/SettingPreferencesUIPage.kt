@@ -85,6 +85,7 @@ import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -374,8 +375,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_disable_animations_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_disable_animations_title)) },
                 )
-                // 关掉动效以后这一项没有意义，直接收起来
-                if (!displaySetting.disableAnimations) {
+                // 关掉动效以后这一项没有意义，跟着开关一起收起
+                optionGroup(visible = !displaySetting.disableAnimations) {
                     AnimationSpeed.entries.forEach { speed ->
                         item(
                             onClick = {
@@ -427,7 +428,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
 
             // 动画速度下面紧跟动态模糊：这两项调的都是过渡手感，放在一起才找得到。
             // 三项数值对所有带模糊的过渡一起生效，不需要一个效果一个效果地改
-            if (!displaySetting.disableAnimations) {
+            // 整张卡也跟着「关闭动效」收放：if 掉的话一帧消失，卡片圆角却还在缓动
+            MotionExpandCollapse(visible = !displaySetting.disableAnimations) {
                 val motionBlur = displaySetting.motionBlur
                 CardGroup(
                     title = { Text(stringResource(R.string.setting_display_page_motion_blur_title)) },
@@ -444,7 +446,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_switch)) },
                     )
-                    if (motionBlur.enabled) {
+                    optionGroup(visible = motionBlur.enabled) {
                         switchItem(
                             checked = motionBlur.scrollBlur,
                             onCheckedChange = {

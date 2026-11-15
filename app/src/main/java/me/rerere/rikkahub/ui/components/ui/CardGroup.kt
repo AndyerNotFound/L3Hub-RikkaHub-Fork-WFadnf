@@ -117,10 +117,33 @@ interface CardGroupScope {
         trailingContent: (@Composable () -> Unit)? = null,
         content: @Composable ColumnScope.() -> Unit,
     )
+
+    // 一组附加选项挂在同一个条件上：整组一起展开、一起收起。
+    //
+    // 别写成 `if (cond) { item(...) }`。那不是「收起」，是在收集阶段就把条目删掉了，
+    // 渲染时没有对象可以交给 MotionExpandCollapse：尺寸一帧跳到头，后面的条目跟着瞬移，
+    // 而 count 立刻变化、相邻卡片的圆角还在 animateDp 里缓动，两套时间线对不上就是硬过渡。
+    fun optionGroup(
+        visible: Boolean,
+        content: CardGroupScope.() -> Unit,
+    )
 }
 
 private class CardGroupScopeImpl : CardGroupScope {
     val items = mutableListOf<CardGroupItem>()
+
+    // 组内条目照常收集，收集完统一打上组条件；条目自己已经写过 visible 的与之取与，嵌套时不会互相抹掉
+    override fun optionGroup(
+        visible: Boolean,
+        content: CardGroupScope.() -> Unit,
+    ) {
+        val start = items.size
+        content()
+        for (index in start until items.size) {
+            val item = items[index]
+            items[index] = item.copy(visible = item.visible && visible)
+        }
+    }
 
     override fun item(
         onClick: (() -> Unit)?,

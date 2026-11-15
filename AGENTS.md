@@ -17,6 +17,11 @@ Material 3 look (cards with dividers, plain forms).
 - Settings-style and form pages use segmented groups via `CardGroup` (
   app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt) instead of a card with dividers.
 - Favor larger corner radii, filled/tonal containers, and whole-row click targets.
+- Conditional options inside a `CardGroup` stay registered and hide themselves through the `visible` flag; a block of
+  options shares one condition through `optionGroup(visible = ...) { }`. Never wrap `item` / `switchItem` /
+  `formItem` in `if`: a conditionally registered item never reaches `items`, so it never goes through
+  `MotionExpandCollapse` and pops in or out in a single frame while the neighbours' corner radii are still
+  animating.
 
 ## Build, Test, and Development Commands
 

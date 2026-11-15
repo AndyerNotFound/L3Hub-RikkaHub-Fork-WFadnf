@@ -72,6 +72,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
 import me.rerere.rikkahub.ui.terminal.TextButton
@@ -286,10 +287,13 @@ private fun CardGroupScope.textFieldItem(
     monospace: Boolean = false,
     supportingText: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
+    visible: Boolean = true,
 ) = formItem(
+    visible = visible,
     headlineContent = { Text(stringResource(label)) },
 ) {
-    var visible by remember { mutableStateOf(false) }
+    // 明文开关是本项自己的局部状态，与条目的 visible 无关，另起名字免得遮住参数
+    var showValue by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -302,11 +306,11 @@ private fun CardGroupScope.textFieldItem(
             MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
         } else LocalTextStyle.current,
         supportingText = supportingText,
-        visualTransformation = if (secret && !visible) PasswordVisualTransformation() else VisualTransformation.None,
+        visualTransformation = if (secret && !showValue) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = if (secret) {
             {
-                IconButton(onClick = { visible = !visible }) {
-                    Icon(if (visible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                IconButton(onClick = { showValue = !showValue }) {
+                    Icon(if (showValue) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
                 }
             }
         } else trailingIcon,
@@ -327,8 +331,10 @@ private fun CardGroupScope.apiKeyItem(
     apiKey: String,
     disabledApiKeys: List<String>,
     apiKeyLabels: Map<String, String>,
+    visible: Boolean = true,
     onValueChange: (apiKey: String, disabledApiKeys: List<String>, apiKeyLabels: Map<String, String>) -> Unit,
 ) = formItem(
+    visible = visible,
     headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
     supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
 ) {
@@ -355,7 +361,7 @@ private fun CardGroupScope.apiKeyItem(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         keys.forEachIndexed { index, key ->
-            var visible by remember(providerId, index) { mutableStateOf(false) }
+            var keyShown by remember(providerId, index) { mutableStateOf(false) }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -383,15 +389,15 @@ private fun CardGroupScope.apiKeyItem(
                         )
                     },
                     singleLine = true,
-                    visualTransformation = if (visible) {
+                    visualTransformation = if (keyShown) {
                         VisualTransformation.None
                     } else {
                         PasswordVisualTransformation()
                     },
                     trailingIcon = {
-                        IconButton(onClick = { visible = !visible }) {
+                        IconButton(onClick = { keyShown = !keyShown }) {
                             Icon(
-                                imageVector = if (visible) HugeIcons.ViewOff else HugeIcons.View,
+                                imageVector = if (keyShown) HugeIcons.ViewOff else HugeIcons.View,
                                 contentDescription = null,
                             )
                         }
@@ -726,27 +732,30 @@ private fun ProviderConfigureGoogle(
 
     CardGroup {
         nameItem(provider, onEdit)
-        if (!useServiceAccount) {
-            apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
-                onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
-            }
+        apiKeyItem(
+            providerId = provider.id,
+            apiKey = provider.apiKey,
+            disabledApiKeys = provider.disabledApiKeys,
+            apiKeyLabels = provider.apiKeyLabels,
+            visible = !useServiceAccount,
+        ) { apiKey, disabledKeys, labels ->
+            onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
         }
-        if (!provider.vertexAI) {
-            textFieldItem(
-                label = R.string.setting_provider_page_api_base_url,
-                value = provider.baseUrl,
-                onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
-                isError = provider.baseUrl.isNotBlank() && (
-                    !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
-                    ),
-                supportingText = if (!provider.baseUrl.endsWith("/v1beta")) {
-                    { Text("The base URL usually ends with `/v1beta`") }
-                } else null,
-                trailingIcon = resetBaseUrlButton(provider) {
-                    onEdit(provider.copy(baseUrl = provider.defaultBaseUrlForReset()))
-                },
-            )
-        }
+        textFieldItem(
+            visible = !provider.vertexAI,
+            label = R.string.setting_provider_page_api_base_url,
+            value = provider.baseUrl,
+            onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+            isError = provider.baseUrl.isNotBlank() && (
+                !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
+                ),
+            supportingText = if (!provider.baseUrl.endsWith("/v1beta")) {
+                { Text("The base URL usually ends with `/v1beta`") }
+            } else null,
+            trailingIcon = resetBaseUrlButton(provider) {
+                onEdit(provider.copy(baseUrl = provider.defaultBaseUrlForReset()))
+            },
+        )
     }
 
     CardGroup {
@@ -755,22 +764,22 @@ private fun ProviderConfigureGoogle(
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
             headlineContent = { Text(stringResource(R.string.setting_provider_page_vertex_ai)) },
         )
-        if (provider.vertexAI) {
-            switchItem(
-                checked = provider.useServiceAccount,
-                onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
-            )
-        } else {
-            switchItem(
-                checked = provider.useInteractionsApi,
-                onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
-                headlineContent = { Text("Interactions API (Beta)") },
-            )
-        }
+        // 两条互斥：都注册、靠 visible 交叉收放，切换时一条收下去另一条才拉出来
+        switchItem(
+            visible = provider.vertexAI,
+            checked = provider.useServiceAccount,
+            onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
+        )
+        switchItem(
+            visible = !provider.vertexAI,
+            checked = provider.useInteractionsApi,
+            onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
+            headlineContent = { Text("Interactions API (Beta)") },
+        )
     }
 
-    if (useServiceAccount) {
+    MotionExpandCollapse(visible = useServiceAccount) {
         CardGroup {
             item(
                 onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
