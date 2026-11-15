@@ -18,7 +18,6 @@ import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -163,10 +162,6 @@ import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
 import kotlin.math.abs
 import kotlin.uuid.Uuid
-
-/** 上下文预警进度条左右滑动的最小位移(px)，小于这个值当作点击 */
-
-private const val CONTEXT_METER_SWIPE_THRESHOLD = 60f
 
 @Composable
 fun ChatInput(
@@ -556,59 +551,22 @@ fun ChatInput(
                 )
             }
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
-                Box(
-                    modifier = Modifier.pointerInput(settings.displaySetting.contextMeterStyle) {
-                        var totalDrag = 0f
-                        detectHorizontalDragGestures(
-                            onDragStart = { totalDrag = 0f },
-                            onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount },
-                            onDragEnd = {
-                                when {
-                                    totalDrag <= -CONTEXT_METER_SWIPE_THRESHOLD ->
-                                        onUpdateContextMeterStyle(ContextMeterStyle.BAR)
-
-                                    totalDrag >= CONTEXT_METER_SWIPE_THRESHOLD ->
-                                        onUpdateContextMeterStyle(ContextMeterStyle.RING)
-                                }
-                            },
-                        )
-                    }
-                ) {
-                    when (settings.displaySetting.contextMeterStyle) {
-                        ContextMeterStyle.BAR -> ContextUsageMeter(
-                            tokens = contextTokens,
-                            warnTokens = chatModel.warnContextTokens,
-                            maxTokens = chatModel.maxContextTokens,
-                            onShowUsage = onShowUsage,
-                            modifier = Modifier.padding(horizontal = 4.dp),
+                ContextMeterSwitcher(
+                    tokens = contextTokens,
+                    warnTokens = chatModel.warnContextTokens,
+                    maxTokens = chatModel.maxContextTokens,
+                    style = settings.displaySetting.contextMeterStyle,
+                    onStyleChange = onUpdateContextMeterStyle,
+                    onShowUsage = onShowUsage,
+                    running = loading,
+                    speedIndicator = {
+                        TokenSpeedGauge(
+                            generationSpeed = generationSpeed,
                             running = loading,
-                            speedIndicator = {
-                                TokenSpeedGauge(
-                                    generationSpeed = generationSpeed,
-                                    running = loading,
-                                    fallbackSpeed = usageTokenSpeed,
-                                )
-                            },
+                            fallbackSpeed = usageTokenSpeed,
                         )
-
-                        ContextMeterStyle.RING -> ContextUsageRing(
-                            tokens = contextTokens,
-                            warnTokens = chatModel.warnContextTokens,
-                            maxTokens = chatModel.maxContextTokens,
-                            onShowUsage = onShowUsage,
-                            modifier = Modifier.padding(horizontal = 4.dp),
-                            speedIndicator = {
-                                TokenSpeedGauge(
-                                    generationSpeed = generationSpeed,
-                                    running = loading,
-                                    fallbackSpeed = usageTokenSpeed,
-                                )
-                            },
-                        )
-
-                        ContextMeterStyle.OFF -> Unit
-                    }
-                }
+                    },
+                )
             }
             Column(
                 modifier = Modifier
