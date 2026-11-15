@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -93,6 +92,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
@@ -857,24 +857,23 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
 
         }
     }
-    if (showFloatingBarAddSheet) {
-        FloatingBarAddSheet(
-            configured = displaySetting.floatingBarItems,
-            onAdd = { barItem ->
-                if (displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS &&
-                    barItem !in displaySetting.floatingBarItems
-                ) {
-                    updateDisplaySetting(
-                        displaySetting.copy(
-                            floatingBarItems = displaySetting.floatingBarItems + barItem,
-                        )
+    FloatingBarAddSheet(
+        visible = showFloatingBarAddSheet,
+        configured = displaySetting.floatingBarItems,
+        onAdd = { barItem ->
+            if (displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS &&
+                barItem !in displaySetting.floatingBarItems
+            ) {
+                updateDisplaySetting(
+                    displaySetting.copy(
+                        floatingBarItems = displaySetting.floatingBarItems + barItem,
                     )
-                }
-                showFloatingBarAddSheet = false
-            },
-            onDismiss = { showFloatingBarAddSheet = false },
-        )
-    }
+                )
+            }
+            showFloatingBarAddSheet = false
+        },
+        onDismiss = { showFloatingBarAddSheet = false },
+    )
     if (embedded) {
         content()
     } else {
@@ -909,12 +908,16 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
 /** 给悬浮栏挑一个新槽位；已经放上去的项目不再列出。 */
 @Composable
 private fun FloatingBarAddSheet(
+    visible: Boolean,
     configured: List<FloatingBarItem>,
     onAdd: (FloatingBarItem) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val available = FloatingBarItem.entries.filter { it !in configured }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

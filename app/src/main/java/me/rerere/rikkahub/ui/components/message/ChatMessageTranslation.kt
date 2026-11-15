@@ -25,10 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,17 +50,19 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import java.util.Locale
 
 @Composable
 fun LanguageSelectionDialog(
+    visible: Boolean,
     onLanguageSelected: (Locale) -> Unit,
     onClearTranslation: () -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismissRequest,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {
         Column(
             modifier = Modifier

@@ -20,11 +20,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +48,8 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.rememberAssistantState
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.rememberSheetDismiss
 import kotlin.uuid.Uuid
 
 @Composable
@@ -94,30 +93,30 @@ fun AssistantPicker(
         selected = false,
     )
 
-    if (showPicker) {
-        AssistantPickerSheet(
-            settings = settings,
-            currentAssistant = state.currentAssistant,
-            onAssistantSelected = { assistant ->
-                showPicker = false
-                state.setSelectAssistant(assistant)
-            },
-            onDismiss = {
-                showPicker = false
-            }
-        )
-    }
+    AssistantPickerSheet(
+        visible = showPicker,
+        settings = settings,
+        currentAssistant = state.currentAssistant,
+        onAssistantSelected = { assistant ->
+            showPicker = false
+            state.setSelectAssistant(assistant)
+        },
+        onDismiss = {
+            showPicker = false
+        }
+    )
 }
 
 @Composable
 private fun AssistantPickerSheet(
+    visible: Boolean,
     settings: Settings,
     currentAssistant: Assistant,
     onAssistantSelected: (Assistant) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-    val scope = rememberCoroutineScope()
+    // 内容里的按钮要「播完退场再跳页面」，走 sheet 自己的关闭入口
+    val dismissSheet = rememberSheetDismiss()
     val defaultAssistantName = stringResource(R.string.assistant_page_default_assistant)
 
     // 标签过滤状态
@@ -134,9 +133,9 @@ private fun AssistantPickerSheet(
         }
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -198,8 +197,7 @@ private fun AssistantPickerSheet(
                             assistant = assistant,
                             defaultAssistantName = defaultAssistantName,
                             onEdit = {
-                                scope.launch {
-                                    sheetState.hide()
+                                dismissSheet {
                                     onDismiss()
                                     navController.navigate(Screen.AssistantDetail(assistant.id.toString()))
                                 }

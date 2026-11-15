@@ -20,12 +20,9 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -64,6 +61,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.crop.NormalizedCrop
 import org.koin.compose.koinInject
 import java.security.MessageDigest
@@ -334,24 +332,22 @@ fun UIAvatar(
         )
     }
 
-    if (showEmojiPicker) {
-        ModalBottomSheet(
-            onDismissRequest = {
+    AnimatedModalBottomSheet(
+        visible = showEmojiPicker,
+        onDismissRequest = {
+            showEmojiPicker = false
+        },
+    ) {
+        EmojiPicker(
+            onEmojiSelected = { emoji ->
+                onUpdate?.invoke(Avatar.Emoji(content = emoji.emoji))
                 showEmojiPicker = false
             },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-        ) {
-            EmojiPicker(
-                onEmojiSelected = { emoji ->
-                    onUpdate?.invoke(Avatar.Emoji(content = emoji.emoji))
-                    showEmojiPicker = false
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(16.dp)
-            )
-        }
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(16.dp)
+        )
     }
 
     if (showUrlInput) {

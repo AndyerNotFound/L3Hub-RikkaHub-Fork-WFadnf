@@ -14,10 +14,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +40,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.ui.components.AnimatedModalBottomSheet
 
 @Composable
 fun JsonTree(
@@ -62,23 +60,24 @@ fun JsonTree(
         )
     }
 
-    selectedString?.let { content ->
-        ModalBottomSheet(
-            onDismissRequest = { selectedString = null },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-        ) {
-            // Sheet 在独立窗口中，需要自己的 SelectionContainer，否则会沿用外层的 SelectionRegistrar 导致崩溃
-            SelectionContainer {
-                Text(
-                    text = content,
-                    fontFamily = JetbrainsMono,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+    // 收起动画期间 selectedString 已经是 null，用最后一份内容把退场演完
+    var shownString by remember { mutableStateOf(selectedString) }
+    LaunchedEffect(selectedString) { if (selectedString != null) shownString = selectedString }
+    AnimatedModalBottomSheet(
+        visible = selectedString != null,
+        onDismissRequest = { selectedString = null },
+    ) {
+        // Sheet 在独立窗口中，需要自己的 SelectionContainer，否则会沿用外层的 SelectionRegistrar 导致崩溃
+        SelectionContainer {
+            Text(
+                text = shownString.orEmpty(),
+                fontFamily = JetbrainsMono,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

@@ -320,16 +320,15 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
 
         }
     }
-    if (showFloatingIconPicker) {
-        FloatingBubbleIconPicker(
-            current = displaySetting.floatingBubbleIcon,
-            onSelect = { icon ->
-                // 旧图片由 FilesManager.saveBubbleIcon 自己在写入成功之后清掉，这里只管存设置
-                updateDisplaySetting(displaySetting.copy(floatingBubbleIcon = icon))
-            },
-            onDismiss = { showFloatingIconPicker = false },
-        )
-    }
+    FloatingBubbleIconPicker(
+        visible = showFloatingIconPicker,
+        current = displaySetting.floatingBubbleIcon,
+        onSelect = { icon ->
+            // 旧图片由 FilesManager.saveBubbleIcon 自己在写入成功之后清掉，这里只管存设置
+            updateDisplaySetting(displaySetting.copy(floatingBubbleIcon = icon))
+        },
+        onDismiss = { showFloatingIconPicker = false },
+    )
     if (embedded) {
         content()
     } else {

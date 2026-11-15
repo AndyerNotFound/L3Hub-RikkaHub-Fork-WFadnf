@@ -40,18 +40,14 @@ import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,6 +106,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.toast.ToastType
@@ -273,10 +270,6 @@ private fun ImageGenScreen(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     var showSettingsSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-    )
 
     LaunchedEffect(error) {
         error?.let { errorMessage ->
@@ -340,16 +333,14 @@ private fun ImageGenScreen(
         )
     }
 
-    if (showSettingsSheet) {
-        SettingsBottomSheet(
-            vm = vm,
-            numberOfImages = numberOfImages,
-            size = size,
-            scope = scope,
-            sheetState = sheetState,
-            onDismiss = { showSettingsSheet = false }
-        )
-    }
+    SettingsBottomSheet(
+        visible = showSettingsSheet,
+        vm = vm,
+        numberOfImages = numberOfImages,
+        size = size,
+        scope = scope,
+        onDismiss = { showSettingsSheet = false }
+    )
 }
 
 @Composable
@@ -817,16 +808,16 @@ private fun ImageGalleryScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsBottomSheet(
+    visible: Boolean,
     vm: ImgGenVM,
     numberOfImages: Int,
     size: String,
     scope: CoroutineScope,
-    sheetState: SheetState,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(

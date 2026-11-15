@@ -52,15 +52,12 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -1522,13 +1519,12 @@ private fun ChatPageContent(
         }
 
         // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
-        if (showBackgroundTasks && !threePane) {
-            BackgroundTasksSheet(
-                tasks = backgroundTasks,
-                onStop = vm::stopBackgroundTask,
-                onDismiss = { showBackgroundTasks = false },
-            )
-        }
+        BackgroundTasksSheet(
+            visible = showBackgroundTasks && !threePane,
+            tasks = backgroundTasks,
+            onStop = vm::stopBackgroundTask,
+            onDismiss = { showBackgroundTasks = false },
+        )
 
         if (showCompressAndSendDialog) {
             AnimatedAlertDialog(
@@ -1553,46 +1549,38 @@ private fun ChatPageContent(
             )
         }
 
-        if (showUsageSheet && !threePane) {
-            // 默认允许半展开，show() 会先停在半屏，得用手再拉一次；这里只留 Hidden / Expanded
-            val usageSheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-            )
-            ModalBottomSheet(
-                onDismissRequest = { showUsageSheet = false },
-                sheetState = usageSheetState,
+        AnimatedModalBottomSheet(
+            visible = showUsageSheet && !threePane,
+            onDismissRequest = { showUsageSheet = false },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.chat_message_usage_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    ConversationUsageDetails(
-                        messages = conversationState.value.currentMessages,
-                        contextLength = currentChatModel?.effectiveContextWindow,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.chat_message_usage_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                ConversationUsageDetails(
+                    messages = conversationState.value.currentMessages,
+                    contextLength = currentChatModel?.effectiveContextWindow,
+                )
             }
         }
 
-        if (showTaskTree && !threePane) {
-            SubAgentTaskSheet(
-                conversationId = conversationId,
-                hazeState = backgroundHazeState,
-                onDismiss = { showTaskTree = false },
-                onOpenConversation = { id ->
-                    showTaskTree = false
-                    navigateToChatPage(navController, chatId = id)
-                },
-            )
-        }
+        SubAgentTaskSheet(
+            visible = showTaskTree && !threePane,
+            conversationId = conversationId,
+            hazeState = backgroundHazeState,
+            onDismiss = { showTaskTree = false },
+            onOpenConversation = { id ->
+                showTaskTree = false
+                navigateToChatPage(navController, chatId = id)
+            },
+        )
 
         if (showCreateFolderDialog) {
             var folderName by remember { mutableStateOf("") }
@@ -1643,31 +1631,29 @@ private fun ChatPageContent(
             text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
         )
 
-        if (showFilesSheet && !threePane) {
-            ChatFilesPickerSheet(
-                inputState = inputState,
-                setting = setting,
-                conversationState = conversationState,
-                folderWorkspaceName = folderWorkspaceName,
-                assistant = assistant,
-                chatModel = currentChatModel,
-                vm = vm,
-                attachmentPickerActions = attachmentPickerActions,
-                onStartVoiceMode = onStartVoiceMode,
-                onDismiss = { showFilesSheet = false },
-            )
-        }
+        ChatFilesPickerSheet(
+            visible = showFilesSheet && !threePane,
+            inputState = inputState,
+            setting = setting,
+            conversationState = conversationState,
+            folderWorkspaceName = folderWorkspaceName,
+            assistant = assistant,
+            chatModel = currentChatModel,
+            vm = vm,
+            attachmentPickerActions = attachmentPickerActions,
+            onStartVoiceMode = onStartVoiceMode,
+            onDismiss = { showFilesSheet = false },
+        )
 
-        if (showTerminalPicker && !threePane) {
-            TerminalWorkspacePickerSheet(
-                workspaces = floatingBarTerminalWorkspaces,
-                onSelect = { workspaceId ->
-                    showTerminalPicker = false
-                    navController.navigate(Screen.WorkspaceTerminal(workspaceId))
-                },
-                onDismiss = { showTerminalPicker = false },
-            )
-        }
+        TerminalWorkspacePickerSheet(
+            visible = showTerminalPicker && !threePane,
+            workspaces = floatingBarTerminalWorkspaces,
+            onSelect = { workspaceId ->
+                showTerminalPicker = false
+                navController.navigate(Screen.WorkspaceTerminal(workspaceId))
+            },
+            onDismiss = { showTerminalPicker = false },
+        )
 
         // 横屏用右侧栏里的那份，这里只在竖屏组合
         if (!threePane) {
@@ -1680,6 +1666,7 @@ private fun ChatPageContent(
 
 @Composable
 private fun ChatFilesPickerSheet(
+    visible: Boolean,
     inputState: ChatInputState,
     setting: Settings,
     conversationState: State<Conversation>,
@@ -1691,12 +1678,8 @@ private fun ChatFilesPickerSheet(
     onStartVoiceMode: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val filesSheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-    )
-    ModalBottomSheet(
-        sheetState = filesSheetState,
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
     ) {
         ChatFilesPickerContent(
@@ -2393,11 +2376,15 @@ private fun ChatPageMenu(
 /** 悬浮栏「终端」槽位：绑定了多个工作区时，先让用户挑一个再进终端。 */
 @Composable
 private fun TerminalWorkspacePickerSheet(
+    visible: Boolean,
     workspaces: List<WorkspaceEntity>,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

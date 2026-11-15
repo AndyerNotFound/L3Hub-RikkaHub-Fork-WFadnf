@@ -20,18 +20,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -78,6 +74,8 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -245,16 +243,20 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
         }
     }
 
-    if (selected != null) {
+    // 收起动画期间 selected 已经是 null，用最后一份把退场演完
+    var shownEntry by remember { mutableStateOf(selected) }
+    LaunchedEffect(selected) { if (selected != null) shownEntry = selected }
+    shownEntry?.let { entry ->
         ToolOverrideSheet(
-            entry = selected,
-            toolOverride = overrides[selected.name],
+            visible = selected != null,
+            entry = entry,
+            toolOverride = overrides[entry.name],
             onSave = { saved ->
-                saveOverride(selected.name, saved)
+                saveOverride(entry.name, saved)
                 toaster.show(savedToast)
             },
             onReset = {
-                saveOverride(selected.name, null)
+                saveOverride(entry.name, null)
                 toaster.show(resetToast)
             },
             onDismiss = { selectedName = null },
@@ -310,6 +312,7 @@ private fun ToolCatalogGroup.icon(): ImageVector = when (this) {
 
 @Composable
 private fun ToolOverrideSheet(
+    visible: Boolean,
     entry: ToolCatalogEntry,
     toolOverride: ToolOverride?,
     onSave: (ToolOverride) -> Unit,
@@ -325,28 +328,17 @@ private fun ToolOverrideSheet(
 
     val effectiveDescription = toolOverride?.description ?: entry.description
     val effectiveInstructions = toolOverride?.instructions ?: entry.instructions
-    val scope = rememberCoroutineScope()
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    // 关闭要走 sheet 自己的收起动画：直接清掉选中项会把整张弹窗从组合里抽走，
-    // 看上去是一下消失。点外部和返回键本来就先 hide 再回调，这里补齐按钮那一侧。
-    fun dismiss() {
-        scope.launch {
-            sheetState.hide()
-            onDismiss()
-        }
-    }
+    // 内容里的关闭按钮走 sheet 自己的入口：先播退场再回调
+    val dismissSheet = rememberSheetDismiss()
     val effectiveParameters: JsonElement? = remember(toolOverride?.parameters, entry.parameters) {
         toolOverride?.parameters
             ?.let { raw -> runCatching { JsonInstant.parseToJsonElement(raw) }.getOrNull() }
             ?: entry.parameters
     }
 
-    ModalBottomSheet(
-        onDismissRequest = { dismiss() },
-        sheetState = sheetState,
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
     ) {
         Column(
             modifier = Modifier
@@ -439,7 +431,7 @@ private fun ToolOverrideSheet(
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    androidx.compose.material3.TextButton(onClick = { dismiss() }) {
+                    androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
                         Text(stringResource(R.string.tool_override_action_close))
                     }
                     Button(

@@ -22,11 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,6 +69,7 @@ import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.utils.JsonInstantPretty
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -94,23 +92,19 @@ private val TaskTreeTitleHeight = 40.dp
 
 @Composable
 fun SubAgentTaskSheet(
+    visible: Boolean,
     conversationId: Uuid,
     onDismiss: () -> Unit,
     onOpenConversation: (Uuid) -> Unit,
     // 底板玻璃的取样源；没有源时退回实色底，见 canGlassPane
     hazeState: HazeState? = null,
 ) {
-    // 默认 sheetState 允许半展开，show() 会停到半屏：看起来就是「打开后往下掉一截」
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
     // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
     val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         // 只改底板，sheet 自己的 scrim / 手势不变
         shape = GlassSheetShape,
         // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层

@@ -19,11 +19,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -77,6 +74,7 @@ import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.DotLoading
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -420,25 +418,20 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         )
     }
 
-    if (showResult) {
-        ModalBottomSheet(
-            sheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-            ),
-            onDismissRequest = { showResult = false },
-            content = {
-                if (outputUnparsable) {
-                    DefaultToolPreview(context = context)
-                } else {
-                    renderer.Preview(
-                        context = context,
-                        onDismissRequest = { showResult = false },
-                    )
-                }
-            },
-        )
-    }
+    AnimatedModalBottomSheet(
+        visible = showResult,
+        onDismissRequest = { showResult = false },
+        content = {
+            if (outputUnparsable) {
+                DefaultToolPreview(context = context)
+            } else {
+                renderer.Preview(
+                    context = context,
+                    onDismissRequest = { showResult = false },
+                )
+            }
+        },
+    )
 }
 
 /**

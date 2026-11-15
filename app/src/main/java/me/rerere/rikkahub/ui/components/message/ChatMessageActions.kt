@@ -21,13 +21,10 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -87,6 +84,7 @@ import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import java.util.Locale
 
@@ -207,22 +205,21 @@ fun ColumnScope.ChatMessageActionButtons(
         }
     }
 
-    // Translation dialog
-    if (showTranslateDialog && onTranslate != null) {
-        LanguageSelectionDialog(
-            onLanguageSelected = { language ->
-                showTranslateDialog = false
-                onTranslate(message, language)
-            },
+    // Translation dialog。可见性交给 sheet 自己：收起时先播完退场再拆窗口
+    LanguageSelectionDialog(
+        visible = showTranslateDialog,
+        onLanguageSelected = { language ->
+            showTranslateDialog = false
+            onTranslate?.invoke(message, language)
+        },
             onClearTranslation = {
                 showTranslateDialog = false
                 onClearTranslation(message)
             },
-            onDismissRequest = {
-                showTranslateDialog = false
-            },
-        )
-    }
+        onDismissRequest = {
+            showTranslateDialog = false
+        },
+    )
 
     // Regenerate confirmation dialog
     RikkaConfirmDialog(
@@ -279,6 +276,7 @@ private class MessageSheetAction(
 
 @Composable
 fun ChatMessageActionsSheet(
+    visible: Boolean,
     message: UIMessage,
     model: Model?,
     onDelete: () -> Unit,
@@ -293,9 +291,9 @@ fun ChatMessageActionsSheet(
     // 弹窗顶部的一排快捷操作
     quickActions: (@Composable () -> Unit)? = null,
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismissRequest,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {
         ChatMessageActionList(
             message = message,

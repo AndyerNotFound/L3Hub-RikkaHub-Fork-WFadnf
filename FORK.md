@@ -1464,3 +1464,25 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - 紧凑模式不再留 4dp 内边距和 2dp 间隙，图标左右的可点区域就是整段，段与段之间没有死区
 - 涉及文件：`ui/components/ai/ChatCapsule.kt`（顶栏与悬浮栏共用，取代原 `ChatTopBarCapsule.kt`）、
   `ui/components/ai/ChatFloatingBar.kt`、`ui/pages/chat/ChatPage.kt`（顶栏改用同一个容器）
+
+## 本轮改动：底部抽屉补上统一退场，动画档位交给主题（2026-11-16）
+
+底部抽屉（`ModalBottomSheet`）原先只有进场是自带的：material3 在组合时自己播 `show()`，
+退场却只能由调用方先 `hide()` 再关状态。全仓 52 处调用里有 42 处是「点按钮就把布尔翻回 false」，
+窗口随组合销毁，收起一帧消失——观感就是「打开有动画、关闭硬切」。
+
+- 新增 `ui/components/SheetMotion.kt`：`AnimatedModalBottomSheet(visible, onDismissRequest)` 把窗口存活
+  和可见性拆开，`visible` 变 false 时先 `hide()`、播完再拆窗口。52 处调用点统一换成它，不再自己
+  `rememberBottomSheetState` / `hide()`，关窗怎么写（点按钮、选中一项、点外部）都走同一条退场
+- 内容里的按钮要「播完再执行」（跳页面、弹确认框）时走 `rememberSheetDismiss()`，与对话框的
+  `LocalDialogDismiss` 是同一个约定：没有 sheet 包着时退化为直接执行
+- 退场期间要保住最后一份内容：`selectedLog`、`editingProvider` 这类状态在关闭瞬间已经是 null，
+  统一用 `shownXxx` 记住最后一份再传进 sheet。`SettingProviderDetailPage` 的
+  `remember(editingProvider) { editingProvider!! }` 就是会被 null 直接打崩的那一类
+- `ui/theme/MotionSpecs.kt` 新增 `motionSchemeOf(animationSpeed)`：FAST / GENTLE 两档各给一套
+  `MotionScheme` 交给主题。material3 自己的动效（抽屉收放、菜单、遮罩淡入、拖拽吸附）只读这一个口子，
+  原先「动画速度」只作用于手写的位移，弹窗还按默认时长慢慢走；`rememberSpatialSpec()` /
+  `rememberEffectsSpec()` / `rememberFastSpatialSpec()` 现在直接读当前 scheme，参数不再各写一份
+- 横屏工具详情侧滑（`ToolDetailSidePanel`）的 `tween(160 / 220 / 180)` 换成主题档位，进出场同参
+- 涉及文件：`ui/components/SheetMotion.kt`（新增）、`ui/theme/MotionSpecs.kt`、`ui/theme/Theme.kt`、
+  52 处 `ModalBottomSheet` 调用点、`ui/pages/chat/ToolDetailSidePanel.kt`

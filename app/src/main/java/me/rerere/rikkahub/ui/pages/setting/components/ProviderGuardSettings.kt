@@ -22,16 +22,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -84,6 +81,7 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -183,45 +181,43 @@ fun ProviderGuardSettings(
         )
     }
 
-    if (showWindowSheet) {
-        QuotaWindowSheet(
-            initial = editingWindow,
-            onDismiss = { showWindowSheet = false },
-            onConfirm = { window ->
-                val exists = guard.windows.any { it.id == window.id }
-                update(
-                    guard.copy(
-                        windows = if (exists) {
-                            guard.windows.map { if (it.id == window.id) window else it }
-                        } else {
-                            guard.windows + window
-                        }
-                    )
+    QuotaWindowSheet(
+        visible = showWindowSheet,
+        initial = editingWindow,
+        onDismiss = { showWindowSheet = false },
+        onConfirm = { window ->
+            val exists = guard.windows.any { it.id == window.id }
+            update(
+                guard.copy(
+                    windows = if (exists) {
+                        guard.windows.map { if (it.id == window.id) window else it }
+                    } else {
+                        guard.windows + window
+                    }
                 )
-                showWindowSheet = false
-            },
-        )
-    }
+            )
+            showWindowSheet = false
+        },
+    )
 
-    if (showLockSheet) {
-        LockScheduleSheet(
-            initial = editingLock,
-            onDismiss = { showLockSheet = false },
-            onConfirm = { lock ->
-                val exists = guard.locks.any { it.id == lock.id }
-                update(
-                    guard.copy(
-                        locks = if (exists) {
-                            guard.locks.map { if (it.id == lock.id) lock else it }
-                        } else {
-                            guard.locks + lock
-                        }
-                    )
+    LockScheduleSheet(
+        visible = showLockSheet,
+        initial = editingLock,
+        onDismiss = { showLockSheet = false },
+        onConfirm = { lock ->
+            val exists = guard.locks.any { it.id == lock.id }
+            update(
+                guard.copy(
+                    locks = if (exists) {
+                        guard.locks.map { if (it.id == lock.id) lock else it }
+                    } else {
+                        guard.locks + lock
+                    }
                 )
-                showLockSheet = false
-            },
-        )
-    }
+            )
+            showLockSheet = false
+        },
+    )
 }
 
 @Composable
@@ -825,6 +821,7 @@ private fun NumberField(
 
 @Composable
 private fun QuotaWindowSheet(
+    visible: Boolean,
     initial: ProviderQuotaWindow?,
     onDismiss: () -> Unit,
     onConfirm: (ProviderQuotaWindow) -> Unit,
@@ -859,12 +856,9 @@ private fun QuotaWindowSheet(
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        ),
     ) {
         Column(
             modifier = Modifier
@@ -1139,6 +1133,7 @@ private fun QuotaWindowSheet(
 
 @Composable
 private fun LockScheduleSheet(
+    visible: Boolean,
     initial: ProviderLockSchedule?,
     onDismiss: () -> Unit,
     onConfirm: (ProviderLockSchedule) -> Unit,
@@ -1204,12 +1199,9 @@ private fun LockScheduleSheet(
         )
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        ),
     ) {
         Column(
             modifier = Modifier

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.chat
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -41,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -49,6 +49,8 @@ import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolPreviewFullHeight
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailRequest
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
 /**
  * 横屏时的工具调用详情：从右侧滑入，盖在聊天区与右栏之上。
@@ -81,8 +83,9 @@ internal fun ToolDetailSidePanel(
 
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(animationSpec = tween(160)),
-            exit = fadeOut(animationSpec = tween(160)),
+            // 遮罩和面板取同一档曲线与时长：进出场同参，收起不会比展开快一半
+            enter = fadeIn(animationSpec = rememberEffectsSpec()),
+            exit = fadeOut(animationSpec = rememberEffectsSpec()),
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
@@ -98,10 +101,10 @@ internal fun ToolDetailSidePanel(
 
         AnimatedVisibility(
             visible = visible,
-            enter = slideInHorizontally(animationSpec = tween(220)) { it } +
-                fadeIn(animationSpec = tween(220)),
-            exit = slideOutHorizontally(animationSpec = tween(180)) { it } +
-                fadeOut(animationSpec = tween(180)),
+            enter = slideInHorizontally(animationSpec = rememberSpatialSpec<IntOffset>()) { it } +
+                fadeIn(animationSpec = rememberEffectsSpec()),
+            exit = slideOutHorizontally(animationSpec = rememberSpatialSpec<IntOffset>()) { it } +
+                fadeOut(animationSpec = rememberEffectsSpec()),
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             Surface(

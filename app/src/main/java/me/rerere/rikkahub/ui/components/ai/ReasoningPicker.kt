@@ -37,14 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,6 +69,7 @@ import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.rikkahub.R
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.ToggleSurface
 import me.rerere.ui.icons.ReasoningHigh
 import me.rerere.ui.icons.ReasoningLow
@@ -96,17 +94,16 @@ fun ReasoningButton(
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    if (showPicker) {
-        ReasoningPicker(
-            reasoningLevel = reasoningLevel,
-            onDismissRequest = { showPicker = false },
-            onUpdateReasoningLevel = onUpdateReasoningLevel,
-            modelName = modelName,
-            onOpenModelList = onOpenModelList,
-            modelContent = modelContent,
-            useL3HubStyle = useL3HubStyle,
-        )
-    }
+    ReasoningPicker(
+        visible = showPicker,
+        reasoningLevel = reasoningLevel,
+        onDismissRequest = { showPicker = false },
+        onUpdateReasoningLevel = onUpdateReasoningLevel,
+        modelName = modelName,
+        onOpenModelList = onOpenModelList,
+        modelContent = modelContent,
+        useL3HubStyle = useL3HubStyle,
+    )
 
     ToggleSurface(
         checked = reasoningLevel.isEnabled,
@@ -148,6 +145,7 @@ fun ReasoningButton(
 
 @Composable
 fun ReasoningPicker(
+    visible: Boolean,
     reasoningLevel: ReasoningLevel,
     onDismissRequest: () -> Unit = {},
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
@@ -184,13 +182,13 @@ fun ReasoningPicker(
         }
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         // 返回键和点外部都走这里：先在面板内部退一级，退无可退才真关掉。
         // 这样即使 BackHandler 被 Dialog 自己吃了，行为也是对的
         onDismissRequest = {
             if (showModelList) showModelList = false else onDismissRequest()
         },
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) sheet@{
         // 在模型列表那一页按返回，先退回思考强度，别一下把整个面板关掉
         BackHandler(enabled = showModelList) {
@@ -523,6 +521,7 @@ private fun ReasoningPickerPreview() {
     MaterialTheme {
         var level by remember { mutableStateOf(ReasoningLevel.AUTO) }
         ReasoningPicker(
+            visible = true,
             reasoningLevel = level,
             onUpdateReasoningLevel = { level = it }
         )

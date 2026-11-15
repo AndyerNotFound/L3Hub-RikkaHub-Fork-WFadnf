@@ -665,20 +665,19 @@ internal fun AssistantBasicContent(
             }
         }
     }
-    if (showWorkspaceSheet) {
-        WorkspaceSelectSheet(
-            boundIds = assistant.allWorkspaceIds,
-            workspaces = workspaces,
-            onSelect = { ids ->
-                val parsed = ids.mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }.toSet()
-                val primary = assistant.primaryWorkspaceId?.takeIf { it in parsed } ?: parsed.firstOrNull()
-                onUpdate(assistant.copy(workspaceIds = parsed, workspaceId = primary))
-            },
-            onManage = {
-                showWorkspaceSheet = false
-                navController.navigate(Screen.Workspaces)
-            },
-            onDismiss = { showWorkspaceSheet = false },
-        )
-    }
+    WorkspaceSelectSheet(
+        visible = showWorkspaceSheet,
+        boundIds = assistant.allWorkspaceIds,
+        workspaces = workspaces,
+        onSelect = { ids ->
+            val parsed = ids.mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }.toSet()
+            val primary = assistant.primaryWorkspaceId?.takeIf { it in parsed } ?: parsed.firstOrNull()
+            onUpdate(assistant.copy(workspaceIds = parsed, workspaceId = primary))
+        },
+        onManage = {
+            showWorkspaceSheet = false
+            navController.navigate(Screen.Workspaces)
+        },
+        onDismiss = { showWorkspaceSheet = false },
+    )
 }

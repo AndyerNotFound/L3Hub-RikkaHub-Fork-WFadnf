@@ -10,11 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,22 +29,21 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 
 // 新建服务商时先选类型的面板
 @Composable
 internal fun <T> ProviderTypeSheet(
+    visible: Boolean,
     title: String,
     types: List<T>,
     typeName: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-        )
     ) {
         Column(
             modifier = Modifier
@@ -97,6 +93,7 @@ internal fun <T> ProviderTypeSheet(
 // 新建 / 编辑服务商的面板：标题、表单、底部的取消和确认；确认之前改动只留在面板里
 @Composable
 internal fun <T> ProviderEditSheet(
+    visible: Boolean,
     title: String,
     initial: T,
     confirmText: String,
@@ -106,12 +103,9 @@ internal fun <T> ProviderEditSheet(
 ) {
     var current by remember(initial) { mutableStateOf(initial) }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-        ),
     ) {
         Column(
             modifier = Modifier

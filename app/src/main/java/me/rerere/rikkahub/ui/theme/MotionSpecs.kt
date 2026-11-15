@@ -6,6 +6,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
@@ -44,13 +45,66 @@ fun rememberMotionBlurSpec(scale: Float = 1f): FiniteAnimationSpec<Float> {
  * 关了动效时上层会把 [LocalAnimationSpeed] 固定成 SYSTEM，
  * 而那时的 motionScheme 已经是 snap，所以这里不用再单独判断。
  */
+/**
+ * 档位到 MotionScheme 的映射：material3 自己的动效（底部抽屉的收放、菜单、对话框遮罩、
+ * 拖拽吸附）只读 [MaterialTheme.motionScheme]，不走下面这几个自定义 helper。
+ *
+ * 只挂 [androidx.compose.material3.MotionScheme.expressive] 的话，「动画速度」调成快 / 缓
+ * 只影响我们手写的位移动画，弹窗还按原来的时长慢慢滑——所以三档在这里各给一套。
+ * 数值与 [rememberSpatialSpec] / [rememberFastSpatialSpec] / [rememberEffectsSpec] 同源，
+ * 那两个 helper 现在直接读当前 scheme，改这里等于一起改。
+ */
+private object FastMotionScheme : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.9f, stiffness = 900f)
+
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.95f, stiffness = 1400f)
+
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.9f, stiffness = 600f)
+
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 120)
+
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 90)
+
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 180)
+}
+
+private object GentleMotionScheme : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.8f, stiffness = 220f)
+
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.8f, stiffness = 420f)
+
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.75f, stiffness = 150f)
+
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 320)
+
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 240)
+
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 420)
+}
+
+/** 当前档位对应的 MotionScheme：SYSTEM 用 Material 的 expressive，其余两档用上面那两套。 */
+fun motionSchemeOf(speed: AnimationSpeed): MotionScheme = when (speed) {
+    AnimationSpeed.SYSTEM -> MotionScheme.expressive()
+    AnimationSpeed.FAST -> FastMotionScheme
+    AnimationSpeed.GENTLE -> GentleMotionScheme
+}
+
+/**
+ * 页面转场、列表展开这类"位移"动画统一从这里取曲线。
+ *
+ * 直接读当前 [MotionScheme]：档位已经在 [motionSchemeOf] 里换成对应的 scheme，
+ * material3 自己的动画与手写的位移取到的是同一组参数。
+ * 关了动效时上层把 motionScheme 换成全 snap，这里不用再单独判断。
+ */
 @Composable
 fun <T> rememberSpatialSpec(): FiniteAnimationSpec<T> {
-    return when (LocalAnimationSpeed.current) {
-        AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.defaultSpatialSpec()
-        AnimationSpeed.FAST -> spring<T>(dampingRatio = 0.9f, stiffness = 900f)
-        AnimationSpeed.GENTLE -> spring<T>(dampingRatio = 0.8f, stiffness = 220f)
-    }
+    return MaterialTheme.motionScheme.defaultSpatialSpec()
 }
 
 /**
@@ -61,11 +115,7 @@ fun <T> rememberSpatialSpec(): FiniteAnimationSpec<T> {
  */
 @Composable
 fun <T> rememberEffectsSpec(): FiniteAnimationSpec<T> {
-    return when (LocalAnimationSpeed.current) {
-        AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.defaultEffectsSpec()
-        AnimationSpeed.FAST -> tween<T>(durationMillis = 120)
-        AnimationSpeed.GENTLE -> tween<T>(durationMillis = 320)
-    }
+    return MaterialTheme.motionScheme.defaultEffectsSpec()
 }
 
 /**
@@ -74,11 +124,7 @@ fun <T> rememberEffectsSpec(): FiniteAnimationSpec<T> {
  */
 @Composable
 fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
-    return when (LocalAnimationSpeed.current) {
-        AnimationSpeed.SYSTEM -> MaterialTheme.motionScheme.fastSpatialSpec()
-        AnimationSpeed.FAST -> spring<T>(dampingRatio = 0.95f, stiffness = 1400f)
-        AnimationSpeed.GENTLE -> spring<T>(dampingRatio = 0.8f, stiffness = 420f)
-    }
+    return MaterialTheme.motionScheme.fastSpatialSpec()
 }
 
 /**

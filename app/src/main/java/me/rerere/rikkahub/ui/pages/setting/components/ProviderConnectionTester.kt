@@ -13,10 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +46,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 
 @Composable
@@ -286,14 +284,15 @@ private fun TestResultItem(
         }
     }
 
-    if (showErrorSheet && state is UiState.Error) {
-        val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-        val stackTrace = remember(state.error) {
-            state.error.stackTraceToString()
-        }
-        ModalBottomSheet(
+    val errorState = state as? UiState.Error
+    // 收起动画期间 state 已经不是错误态，用最后一份报错把退场演完
+    var shownError by remember { mutableStateOf(errorState?.error) }
+    LaunchedEffect(errorState) { if (errorState != null) shownError = errorState.error }
+    shownError?.let { error ->
+        val stackTrace = remember(error) { error.stackTraceToString() }
+        AnimatedModalBottomSheet(
+            visible = showErrorSheet && errorState != null,
             onDismissRequest = { showErrorSheet = false },
-            sheetState = sheetState,
         ) {
             Column(
                 modifier = Modifier
@@ -308,7 +307,7 @@ private fun TestResultItem(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = state.error.message ?: "Error",
+                    text = error.message ?: "Error",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.extendColors.red6
                 )

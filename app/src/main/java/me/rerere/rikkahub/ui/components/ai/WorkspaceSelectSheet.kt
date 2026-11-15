@@ -13,10 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,9 +32,11 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.terminal.Checkbox
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 
 @Composable
 internal fun WorkspaceSelectSheet(
+    visible: Boolean,
     boundIds: Set<Uuid>,
     workspaces: List<WorkspaceEntity>,
     onSelect: (Set<String>) -> Unit,
@@ -47,12 +46,9 @@ internal fun WorkspaceSelectSheet(
     supportingText: String? = null,
 ) {
     val selectedIds = boundIds.map { it.toString() }.toSet()
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-        ),
     ) {
         Column(
             modifier = Modifier

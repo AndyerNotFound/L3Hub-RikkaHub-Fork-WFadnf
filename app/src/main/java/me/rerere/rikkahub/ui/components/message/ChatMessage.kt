@@ -278,22 +278,20 @@ fun ChatMessage(
     // 菜单作为气泡的子节点渲染，锚点就是气泡本身
     val userMessageMenu: (@Composable () -> Unit)? = if (inPlaceMenu) {
         {
-            if (showActionsSheet) {
-                UserMessageActionsMenu(
-                    message = message,
-                    model = model,
-                    onEdit = onEdit,
-                    onDelete = onDelete,
-                    onShare = onShare,
-                    onFork = onFork,
-                    onSelectAndCopy = onSelectAndCopy,
-                    isFavorite = isFavorite,
-                    onToggleFavorite = onToggleFavorite,
-                    onWebViewPreview = onWebViewPreview,
-                    quickActions = userMenuQuickActions,
-                    onDismissRequest = { showActionsSheet = false },
-                )
-            }
+            UserMessageActionsMenu(
+                message = message,
+                model = model,
+                onEdit = onEdit,
+                onDelete = onDelete,
+                onShare = onShare,
+                onFork = onFork,
+                onSelectAndCopy = onSelectAndCopy,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onWebViewPreview = onWebViewPreview,
+                quickActions = userMenuQuickActions,
+                onDismissRequest = { showActionsSheet = false },
+            )
         }
     } else {
         null
@@ -508,6 +506,7 @@ fun ChatMessage(
     // 用户消息的菜单在气泡里原地弹，这里只剩助手消息的底部弹窗
     if (showActionsSheet && !inPlaceMenu) {
         ChatMessageActionsSheet(
+            visible = showActionsSheet && !inPlaceMenu,
             message = message,
             onEdit = onEdit,
             onDelete = onDelete,
@@ -538,15 +537,14 @@ fun ChatMessage(
         text = { Text(stringResource(R.string.regenerate_confirm_message)) },
     )
 
-    if (showSelectCopySheet) {
-        ChatMessageCopySheet(
-            message = message,
-            hazeState = hazeState,
-            onDismissRequest = {
-                showSelectCopySheet = false
-            }
-        )
-    }
+    ChatMessageCopySheet(
+        visible = showSelectCopySheet,
+        message = message,
+        hazeState = hazeState,
+        onDismissRequest = {
+            showSelectCopySheet = false
+        }
+    )
 }
 
 // 最后一段正文之前的步骤整体折叠时显示的开关

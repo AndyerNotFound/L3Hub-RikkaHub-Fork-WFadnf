@@ -27,11 +27,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +54,8 @@ import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.android.ext.android.inject
 import kotlin.uuid.Uuid
 
@@ -161,17 +160,16 @@ class SafeModeActivity : ComponentActivity() {
                     }
                 }
 
-                if (showAssistantPicker) {
-                    AssistantPickerSheet(
-                        settings = settings,
-                        onAssistantSelected = { assistantId ->
-                            scope.launch { settingsStore.selectAssistant(assistantId) }
-                            context.writeStringPreference("lastConversationId", null)
-                            showAssistantPicker = false
-                        },
-                        onDismiss = { showAssistantPicker = false }
-                    )
-                }
+                AssistantPickerSheet(
+                    visible = showAssistantPicker,
+                    settings = settings,
+                    onAssistantSelected = { assistantId ->
+                        scope.launch { settingsStore.selectAssistant(assistantId) }
+                        context.writeStringPreference("lastConversationId", null)
+                        showAssistantPicker = false
+                    },
+                    onDismiss = { showAssistantPicker = false }
+                )
             }
         }
     }
@@ -180,21 +178,22 @@ class SafeModeActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AssistantPickerSheet(
+    visible: Boolean,
     settings: Settings,
     onAssistantSelected: (Uuid) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-    val scope = rememberCoroutineScope()
+    // 内容里的按钮要「播完退场再执行」，走 sheet 自己的关闭入口
+    val dismissSheet = rememberSheetDismiss()
     var selectedTagIds by remember { mutableStateOf(emptySet<Uuid>()) }
     val filteredAssistants = remember(settings.assistants, selectedTagIds) {
         if (selectedTagIds.isEmpty()) settings.assistants
         else settings.assistants.filter { it.tags.any { id -> id in selectedTagIds } }
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -239,10 +238,7 @@ private fun AssistantPickerSheet(
                     val checked = assistant.id == settings.assistantId
                     Card(
                         onClick = {
-                            scope.launch {
-                                sheetState.hide()
-                                onAssistantSelected(assistant.id)
-                            }
+                            dismissSheet { onAssistantSelected(assistant.id) }
                         },
                         modifier = Modifier.animateItem(),
                         shape = MaterialTheme.shapes.large,

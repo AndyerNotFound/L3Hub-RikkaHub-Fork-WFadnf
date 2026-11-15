@@ -251,10 +251,13 @@ fun RikkahubTheme(
                     }
                 }
             },
+            // 档位直接换成对应的 MotionScheme：material3 自己的动效（底部抽屉、菜单、
+            // 对话框遮罩、拖拽吸附）只认这一个口子，不换成自定义 scheme 的话，
+            // 「动画速度」调成快 / 缓只影响手写的位移动画
             motionScheme = if (settings.displaySetting.disableAnimations) {
                 SnapMotionScheme
             } else {
-                MotionScheme.expressive()
+                motionSchemeOf(settings.displaySetting.animationSpeed)
             }
         )
     }

@@ -14,13 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +44,7 @@ import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceGit
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.richtext.DiffView
 import org.koin.compose.koinInject
 
@@ -131,152 +129,147 @@ internal fun TurnDiffActions(
         }
     }
 
-    if (showSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
-            sheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-            ),
+    AnimatedModalBottomSheet(
+        visible = showSheet,
+        onDismissRequest = { showSheet = false },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.turn_diff_this_turn),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                loading = true
-                                val result = withContext(Dispatchers.IO) {
-                                    runCatching { git.discard(workspaceId, paths = normalizedFiles) }.getOrNull()
-                                }
-                                loading = false
-                                Toast.makeText(
-                                    context,
-                                    if (result?.ok == true) context.getString(R.string.turn_diff_discard_all_done) else context.getString(R.string.turn_diff_discard_all_failed, result?.output.orEmpty().take(120)),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                                reload()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.turn_diff_this_turn),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            loading = true
+                            val result = withContext(Dispatchers.IO) {
+                                runCatching { git.discard(workspaceId, paths = normalizedFiles) }.getOrNull()
                             }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Refresh01,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(Modifier.size(4.dp))
-                        Text(stringResource(R.string.turn_diff_discard_all), style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-                if (loading && stats.isEmpty()) {
-                    Text(stringResource(R.string.turn_diff_loading), style = MaterialTheme.typography.bodySmall)
-                }
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 460.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                            loading = false
+                            Toast.makeText(
+                                context,
+                                if (result?.ok == true) context.getString(R.string.turn_diff_discard_all_done) else context.getString(R.string.turn_diff_discard_all_failed, result?.output.orEmpty().take(120)),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            reload()
+                        }
+                    },
                 ) {
-                    items(normalizedFiles) { path ->
-                        val stat = stats.firstOrNull { it.path == path }
-                        Column {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { expandedPath = if (expandedPath == path) null else path }
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = statusLabels[path] ?: "M",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(end = 8.dp),
-                                )
-                                Text(
-                                    text = path.substringAfterLast('/'),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(
-                                    text = if (stat == null || stat.untracked) stringResource(R.string.turn_diff_new_file) else "+${stat.added} -${stat.removed}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                TextButton(onClick = { pendingDiscard = path }) {
-                                    Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall)
-                                }
+                    Icon(
+                        imageVector = HugeIcons.Refresh01,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(stringResource(R.string.turn_diff_discard_all), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            if (loading && stats.isEmpty()) {
+                Text(stringResource(R.string.turn_diff_loading), style = MaterialTheme.typography.bodySmall)
+            }
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 460.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(normalizedFiles) { path ->
+                    val stat = stats.firstOrNull { it.path == path }
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedPath = if (expandedPath == path) null else path }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = statusLabels[path] ?: "M",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                            Text(
+                                text = path.substringAfterLast('/'),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = if (stat == null || stat.untracked) stringResource(R.string.turn_diff_new_file) else "+${stat.added} -${stat.removed}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(onClick = { pendingDiscard = path }) {
+                                Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall)
                             }
-                            MotionExpandCollapse(visible = expandedPath == path) {
-                                val diff = expandedDiff
-                                if (diff == null) {
-                                    Text(stringResource(R.string.turn_diff_reading_diff), style = MaterialTheme.typography.bodySmall)
-                                } else if (diff.isBlank()) {
-                                    Text(stringResource(R.string.turn_diff_no_diff), style = MaterialTheme.typography.bodySmall)
+                        }
+                        MotionExpandCollapse(visible = expandedPath == path) {
+                            val diff = expandedDiff
+                            if (diff == null) {
+                                Text(stringResource(R.string.turn_diff_reading_diff), style = MaterialTheme.typography.bodySmall)
+                            } else if (diff.isBlank()) {
+                                Text(stringResource(R.string.turn_diff_no_diff), style = MaterialTheme.typography.bodySmall)
+                            } else {
+                                val fileDiff = remember(diff) { UnifiedDiff.parse(diff).firstOrNull() }
+                                val hunks = fileDiff?.hunks.orEmpty()
+                                if (hunks.isEmpty()) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        DiffView(diff = diff, maxLines = 400, modifier = Modifier.fillMaxWidth())
+                                    }
                                 } else {
-                                    val fileDiff = remember(diff) { UnifiedDiff.parse(diff).firstOrNull() }
-                                    val hunks = fileDiff?.hunks.orEmpty()
-                                    if (hunks.isEmpty()) {
+                                    hunks.forEachIndexed { index, hunk ->
+                                        val hunkText = remember(diff, index) {
+                                            buildString {
+                                                appendLine("@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@")
+                                                hunk.lines.forEach { appendLine(it) }
+                                            }
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = stringResource(R.string.turn_diff_hunk_header, index + 1, hunk.oldStart),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    scope.launch {
+                                                        val result = withContext(Dispatchers.IO) {
+                                                            runCatching {
+                                                                git.discardHunk(workspaceId, path = path, hunkIndex = index)
+                                                            }.getOrNull()
+                                                        }
+                                                        Toast.makeText(
+                                                            context,
+                                                            if (result?.ok == true) context.getString(R.string.turn_diff_hunk_discard_done) else context.getString(R.string.turn_diff_hunk_discard_failed, result?.output.orEmpty().take(100)),
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
+                                                        expandedDiff = withContext(Dispatchers.IO) {
+                                                            runCatching { git.diff(workspaceId, paths = listOf(path)) }.getOrDefault("")
+                                                        }
+                                                        reload()
+                                                    }
+                                                },
+                                            ) { Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall) }
+                                        }
                                         Surface(
                                             shape = MaterialTheme.shapes.small,
                                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
-                                            DiffView(diff = diff, maxLines = 400, modifier = Modifier.fillMaxWidth())
-                                        }
-                                    } else {
-                                        hunks.forEachIndexed { index, hunk ->
-                                            val hunkText = remember(diff, index) {
-                                                buildString {
-                                                    appendLine("@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@")
-                                                    hunk.lines.forEach { appendLine(it) }
-                                                }
-                                            }
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = stringResource(R.string.turn_diff_hunk_header, index + 1, hunk.oldStart),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.weight(1f),
-                                                )
-                                                TextButton(
-                                                    onClick = {
-                                                        scope.launch {
-                                                            val result = withContext(Dispatchers.IO) {
-                                                                runCatching {
-                                                                    git.discardHunk(workspaceId, path = path, hunkIndex = index)
-                                                                }.getOrNull()
-                                                            }
-                                                            Toast.makeText(
-                                                                context,
-                                                                if (result?.ok == true) context.getString(R.string.turn_diff_hunk_discard_done) else context.getString(R.string.turn_diff_hunk_discard_failed, result?.output.orEmpty().take(100)),
-                                                                Toast.LENGTH_SHORT,
-                                                            ).show()
-                                                            expandedDiff = withContext(Dispatchers.IO) {
-                                                                runCatching { git.diff(workspaceId, paths = listOf(path)) }.getOrDefault("")
-                                                            }
-                                                            reload()
-                                                        }
-                                                    },
-                                                ) { Text(stringResource(R.string.turn_diff_discard), style = MaterialTheme.typography.labelSmall) }
-                                            }
-                                            Surface(
-                                                shape = MaterialTheme.shapes.small,
-                                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                                modifier = Modifier.fillMaxWidth(),
-                                            ) {
-                                                DiffView(diff = hunkText, maxLines = 60, showFileHeader = false)
-                                            }
+                                            DiffView(diff = hunkText, maxLines = 60, showFileHeader = false)
                                         }
                                     }
                                 }

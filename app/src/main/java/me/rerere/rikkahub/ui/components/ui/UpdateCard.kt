@@ -12,10 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +42,7 @@ import me.rerere.rikkahub.utils.Version
 import me.rerere.rikkahub.utils.onError
 import me.rerere.rikkahub.utils.onSuccess
 import me.rerere.rikkahub.utils.toLocalDateTime
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.toast.ToastType
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -121,66 +119,64 @@ fun UpdateCard(vm: ChatVM) {
                 }
             }
         }
-        if (showDetail) {
-            val downloadHandler = useThrottle<UpdateDownload>(500) { item ->
-                vm.updateChecker.downloadUpdate(context, item)
-                showDetail = false
-                toaster.show(context.getString(R.string.update_card_downloading), type = ToastType.Info)
-            }
-            ModalBottomSheet(
-                onDismissRequest = { showDetail = false },
-                sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
+        val downloadHandler = useThrottle<UpdateDownload>(500) { item ->
+            vm.updateChecker.downloadUpdate(context, item)
+            showDetail = false
+            toaster.show(context.getString(R.string.update_card_downloading), type = ToastType.Info)
+        }
+        AnimatedModalBottomSheet(
+            visible = showDetail,
+            onDismissRequest = { showDetail = false },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Column(
+                Text(
+                    text = info.version,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = Instant.parse(info.publishedAt).toJavaInstant().toLocalDateTime(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                MarkdownBlock(
+                    content = info.changelog,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = info.version,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = Instant.parse(info.publishedAt).toJavaInstant().toLocalDateTime(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    MarkdownBlock(
-                        content = info.changelog,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                            .verticalScroll(rememberScrollState()),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    info.downloads.fastForEach { downloadItem ->
-                        OutlinedCard(
-                            onClick = {
-                                downloadHandler(downloadItem)
+                        .height(300.dp)
+                        .verticalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                info.downloads.fastForEach { downloadItem ->
+                    OutlinedCard(
+                        onClick = {
+                            downloadHandler(downloadItem)
+                        },
+                    ) {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = downloadItem.name,
+                                )
                             },
-                        ) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = downloadItem.name,
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = downloadItem.size
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        imageVector = HugeIcons.Download01,
-                                        contentDescription = null
-                                    )
-                                }
-                            )
-                        }
+                            supportingContent = {
+                                Text(
+                                    text = downloadItem.size
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = HugeIcons.Download01,
+                                    contentDescription = null
+                                )
+                            }
+                        )
                     }
                 }
             }

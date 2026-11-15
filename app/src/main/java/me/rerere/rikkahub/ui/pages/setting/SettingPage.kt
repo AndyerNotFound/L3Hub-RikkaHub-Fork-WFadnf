@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -97,6 +96,7 @@ import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.icons.DiscordIcon
 import me.rerere.ui.icons.TencentQQIcon
 import org.koin.androidx.compose.koinViewModel
@@ -449,11 +449,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                         tint = MaterialTheme.colorScheme.secondary
                                     )
                                 }
-                                if (showQQGroupSheet) {
-                                    QQGroupBottomSheet(
-                                        onDismiss = { showQQGroupSheet = false }
-                                    )
-                                }
+                                QQGroupBottomSheet(
+                                    visible = showQQGroupSheet,
+                                    onDismiss = { showQQGroupSheet = false }
+                                )
                                 IconButton(
                                     onClick = {
                                         context.openUrl("https://discord.gg/9weBqxe5c4")
@@ -589,9 +588,12 @@ private val QQ_GROUPS = listOf(
 )
 
 @Composable
-private fun QQGroupBottomSheet(onDismiss: () -> Unit) {
+private fun QQGroupBottomSheet(visible: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

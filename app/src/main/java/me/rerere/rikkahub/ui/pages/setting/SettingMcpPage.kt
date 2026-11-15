@@ -26,15 +26,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +81,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
@@ -238,17 +236,16 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
             }
         }
     }
-    if (showImportDialog) {
-        McpImportModal(
-            onDismiss = { showImportDialog = false },
-            onImport = { newConfigs ->
-                val existingIds = mcpConfigs.map { it.commonOptions.name }.toSet()
-                val toAdd = newConfigs.filter { it.commonOptions.name.isNotBlank() && it.commonOptions.name !in existingIds }
-                vm.updateSettings { it.copy(mcpServers = it.mcpServers + toAdd) }
-                showImportDialog = false
-            }
-        )
-    }
+    McpImportModal(
+        visible = showImportDialog,
+        onDismiss = { showImportDialog = false },
+        onImport = { newConfigs ->
+            val existingIds = mcpConfigs.map { it.commonOptions.name }.toSet()
+            val toAdd = newConfigs.filter { it.commonOptions.name.isNotBlank() && it.commonOptions.name !in existingIds }
+            vm.updateSettings { it.copy(mcpServers = it.mcpServers + toAdd) }
+            showImportDialog = false
+        }
+    )
 }
 
 @Composable
@@ -417,6 +414,7 @@ private fun McpServerItem(
 
 @Composable
 private fun McpImportModal(
+    visible: Boolean,
     onDismiss: () -> Unit,
     onImport: (List<McpServerConfig>) -> Unit,
 ) {
@@ -425,9 +423,9 @@ private fun McpImportModal(
     val noValidConfigMsg = stringResource(R.string.setting_mcp_page_import_no_valid_config)
     val parseErrorMsg = stringResource(R.string.setting_mcp_page_import_parse_error)
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     ) {
         Column(
             modifier = Modifier

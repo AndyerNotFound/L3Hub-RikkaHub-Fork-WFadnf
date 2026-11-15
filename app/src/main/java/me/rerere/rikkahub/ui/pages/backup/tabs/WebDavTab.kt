@@ -179,37 +179,36 @@ fun WebDavTab(
         }
     }
 
-    if (showBackupFiles) {
-        BackupFilesSheet(
-            title = stringResource(R.string.backup_page_webdav_backup_files),
-            state = backupItemsState,
-            restoringName = restoringItemId,
-            info = { BackupFileInfo(name = it.displayName, size = it.size, lastModified = it.lastModified) },
-            onDelete = { item ->
-                scope.launch {
-                    runCatching {
-                        vm.deleteWebDavBackupFile(item)
-                        toaster.show(
-                            context.getString(R.string.backup_page_delete_success),
-                            type = ToastType.Success
-                        )
-                        vm.loadBackupFileItems()
-                    }.onFailure { err ->
-                        err.printStackTrace()
-                        toaster.show(
-                            context.getString(
-                                R.string.backup_page_delete_failed,
-                                err.message ?: ""
-                            ),
-                            type = ToastType.Error
-                        )
-                    }
+    BackupFilesSheet(
+        visible = showBackupFiles,
+        title = stringResource(R.string.backup_page_webdav_backup_files),
+        state = backupItemsState,
+        restoringName = restoringItemId,
+        info = { BackupFileInfo(name = it.displayName, size = it.size, lastModified = it.lastModified) },
+        onDelete = { item ->
+            scope.launch {
+                runCatching {
+                    vm.deleteWebDavBackupFile(item)
+                    toaster.show(
+                        context.getString(R.string.backup_page_delete_success),
+                        type = ToastType.Success
+                    )
+                    vm.loadBackupFileItems()
+                }.onFailure { err ->
+                    err.printStackTrace()
+                    toaster.show(
+                        context.getString(
+                            R.string.backup_page_delete_failed,
+                            err.message ?: ""
+                        ),
+                        type = ToastType.Error
+                    )
                 }
-            },
-            onRestore = { item -> pendingRestoreItem = item },
-            onDismiss = { showBackupFiles = false },
-        )
-    }
+            }
+        },
+        onRestore = { item -> pendingRestoreItem = item },
+        onDismiss = { showBackupFiles = false },
+    )
 
     pendingRestoreItem?.let { item ->
         RestoreOptionsDialog(

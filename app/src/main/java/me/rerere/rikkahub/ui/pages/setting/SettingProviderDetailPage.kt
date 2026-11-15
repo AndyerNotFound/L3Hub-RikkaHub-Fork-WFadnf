@@ -52,15 +52,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -172,6 +169,7 @@ import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
@@ -1484,194 +1482,192 @@ private fun ModelPicker(
     onAllModelDeselected: (List<Model>) -> Unit
 ) {
     var showModal by remember { mutableStateOf(false) }
-    if (showModal) {
-        ModalBottomSheet(
-            onDismissRequest = { showModal = false },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
+    AnimatedModalBottomSheet(
+        visible = showModal,
+        onDismissRequest = { showModal = false },
+    ) {
+        var filterText by remember { mutableStateOf("") }
+        val filteredModels = remoteModels.models.filterByKeywords(filterText)
+        val loading = remoteModels.loading
+        val refreshError = remoteModels.error
+        val hasModels = remoteModels.models.isNotEmpty()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(8.dp)
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            var filterText by remember { mutableStateOf("") }
-            val filteredModels = remoteModels.models.filterByKeywords(filterText)
-            val loading = remoteModels.loading
-            val refreshError = remoteModels.error
-            val hasModels = remoteModels.models.isNotEmpty()
-            Column(
+            // 标题栏和添加所有按钮
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.9f)
-                    .padding(8.dp)
-                    .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 标题栏和添加所有按钮
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = stringResource(R.string.setting_provider_page_avaliable_models),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+
+                // 拉取期间按钮置灰，进度由标题下的那条进度条给出
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = !loading,
                 ) {
-                    Text(
-                        text = stringResource(R.string.setting_provider_page_avaliable_models),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    // 拉取期间按钮置灰，进度由标题下的那条进度条给出
-                    IconButton(
-                        onClick = onRefresh,
-                        enabled = !loading,
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Refresh01,
-                            contentDescription = stringResource(R.string.setting_provider_page_models_refresh),
-                        )
-                    }
-
-                    // 一个模型都没拿到时，全选没有意义
-                    if (hasModels) {
-                        val unselectedCount = filteredModels.count { model ->
-                            selectedModels.none { it.modelId == model.modelId }
-                        }
-
-                        TextButton(
-                            onClick = {
-                                if (unselectedCount > 0) {
-                                    onAllModelSelected(filteredModels)
-                                } else {
-                                    onAllModelDeselected(filteredModels)
-                                }
-                            },
-                        ) {
-                            Text(
-                                if (unselectedCount > 0) stringResource(
-                                    R.string.setting_provider_page_select_all,
-                                    unselectedCount
-                                ) else stringResource(R.string.setting_provider_page_deselect_models)
-                            )
-                        }
-                    }
-                }
-
-                // 拉取期间标题下面一直有一条进度条，首次加载时下面还有整块加载态
-                if (loading) {
-                    LinearWavyProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                    Icon(
+                        imageVector = HugeIcons.Refresh01,
+                        contentDescription = stringResource(R.string.setting_provider_page_models_refresh),
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                ) {
-                    when {
-                        // 还没有任何结果：给一块明确的加载态，别让抽屉看起来是空的
-                        loading && !hasModels -> RemoteModelsLoading()
+                // 一个模型都没拿到时，全选没有意义
+                if (hasModels) {
+                    val unselectedCount = filteredModels.count { model ->
+                        selectedModels.none { it.modelId == model.modelId }
+                    }
 
-                        // 一个模型都读不到：说清原因，留一个重试入口
-                        refreshError != null && !hasModels -> RemoteModelsError(
-                            error = refreshError,
-                            onRetry = onRefresh,
-                        )
-
-                        else -> Column(modifier = Modifier.fillMaxSize()) {
-                            // 刷新失败但手上还有上次的结果：列表照旧显示，错误收在上方
-                            if (refreshError != null) {
-                                RemoteModelsErrorBanner(error = refreshError)
-                            }
-
-                            if (filteredModels.isEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = stringResource(
-                                            if (filterText.isBlank()) {
-                                                R.string.setting_provider_page_models_empty
-                                            } else {
-                                                R.string.model_list_no_match
-                                            }
-                                        ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                    TextButton(
+                        onClick = {
+                            if (unselectedCount > 0) {
+                                onAllModelSelected(filteredModels)
                             } else {
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                                    contentPadding = PaddingValues(8.dp),
-                                ) {
-                                    itemsIndexed(filteredModels) { index, it ->
-                                        Surface(
-                                            shape = cardGroupItemShape(index, filteredModels.size),
-                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(
-                                                    12.dp
-                                                ),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
-                                            ) {
-                                                AutoAIIcon(
-                                                    it.modelId,
-                                                    Modifier.size(32.dp)
-                                                )
-                                                Column(
-                                                    verticalArrangement = Arrangement.spacedBy(
-                                                        4.dp
-                                                    ),
-                                                    modifier = Modifier.weight(1f),
-                                                ) {
-                                                    Text(
-                                                        text = it.modelId,
-                                                        style = MaterialTheme.typography.titleSmall,
-                                                    )
+                                onAllModelDeselected(filteredModels)
+                            }
+                        },
+                    ) {
+                        Text(
+                            if (unselectedCount > 0) stringResource(
+                                R.string.setting_provider_page_select_all,
+                                unselectedCount
+                            ) else stringResource(R.string.setting_provider_page_deselect_models)
+                        )
+                    }
+                }
+            }
 
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                                    ) {
-                                                        val modelMeta = remember(it) {
-                                                            it.copy(
-                                                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(it.modelId),
-                                                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(it.modelId),
-                                                                abilities = ModelRegistry.MODEL_ABILITIES.getData(it.modelId),
-                                                            )
-                                                        }
-                                                        ModelModalityTag(
-                                                            model = modelMeta,
-                                                        )
-                                                        ModelAbilityTag(
-                                                            model = modelMeta,
-                                                        )
-                                                    }
-                                                }
-                                                val added = selectedModels.any { model -> model.modelId == it.modelId }
-                                                FilledTonalIconToggleButton(
-                                                    checked = added,
-                                                    onCheckedChange = { checked ->
-                                                        if (checked) {
-                                                            onModelSelected(it)
-                                                        } else {
-                                                            // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
-                                                            onModelDeselected(selectedModels.firstOrNull { model -> model.modelId == it.modelId }
-                                                                ?: it)
-                                                        }
-                                                    }
+            // 拉取期间标题下面一直有一条进度条，首次加载时下面还有整块加载态
+            if (loading) {
+                LinearWavyProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                when {
+                    // 还没有任何结果：给一块明确的加载态，别让抽屉看起来是空的
+                    loading && !hasModels -> RemoteModelsLoading()
+
+                    // 一个模型都读不到：说清原因，留一个重试入口
+                    refreshError != null && !hasModels -> RemoteModelsError(
+                        error = refreshError,
+                        onRetry = onRefresh,
+                    )
+
+                    else -> Column(modifier = Modifier.fillMaxSize()) {
+                        // 刷新失败但手上还有上次的结果：列表照旧显示，错误收在上方
+                        if (refreshError != null) {
+                            RemoteModelsErrorBanner(error = refreshError)
+                        }
+
+                        if (filteredModels.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (filterText.isBlank()) {
+                                            R.string.setting_provider_page_models_empty
+                                        } else {
+                                            R.string.model_list_no_match
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                                contentPadding = PaddingValues(8.dp),
+                            ) {
+                                itemsIndexed(filteredModels) { index, it ->
+                                    Surface(
+                                        shape = cardGroupItemShape(index, filteredModels.size),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(
+                                                12.dp
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+                                        ) {
+                                            AutoAIIcon(
+                                                it.modelId,
+                                                Modifier.size(32.dp)
+                                            )
+                                            Column(
+                                                verticalArrangement = Arrangement.spacedBy(
+                                                    4.dp
+                                                ),
+                                                modifier = Modifier.weight(1f),
+                                            ) {
+                                                Text(
+                                                    text = it.modelId,
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                )
+
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                                                 ) {
-                                                    Icon(if (added) HugeIcons.Tick01 else HugeIcons.Add01, null)
+                                                    val modelMeta = remember(it) {
+                                                        it.copy(
+                                                            inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(it.modelId),
+                                                            outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(it.modelId),
+                                                            abilities = ModelRegistry.MODEL_ABILITIES.getData(it.modelId),
+                                                        )
+                                                    }
+                                                    ModelModalityTag(
+                                                        model = modelMeta,
+                                                    )
+                                                    ModelAbilityTag(
+                                                        model = modelMeta,
+                                                    )
                                                 }
+                                            }
+                                            val added = selectedModels.any { model -> model.modelId == it.modelId }
+                                            FilledTonalIconToggleButton(
+                                                checked = added,
+                                                onCheckedChange = { checked ->
+                                                    if (checked) {
+                                                        onModelSelected(it)
+                                                    } else {
+                                                        // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
+                                                        onModelDeselected(selectedModels.firstOrNull { model -> model.modelId == it.modelId }
+                                                            ?: it)
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(if (added) HugeIcons.Tick01 else HugeIcons.Add01, null)
                                             }
                                         }
                                     }
@@ -1680,21 +1676,21 @@ private fun ModelPicker(
                         }
                     }
                 }
+            }
 
-                // 没有模型可筛的时候不摆筛选框
-                if (hasModels) {
-                    OutlinedTextField(
-                        value = filterText,
-                        onValueChange = {
-                            filterText = it
-                        },
-                        label = { Text(stringResource(R.string.setting_provider_page_filter_placeholder)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text(stringResource(R.string.setting_provider_page_filter_example))
-                        },
-                    )
-                }
+            // 没有模型可筛的时候不摆筛选框
+            if (hasModels) {
+                OutlinedTextField(
+                    value = filterText,
+                    onValueChange = {
+                        filterText = it
+                    },
+                    label = { Text(stringResource(R.string.setting_provider_page_filter_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(stringResource(R.string.setting_provider_page_filter_example))
+                    },
+                )
             }
         }
     }
@@ -2365,17 +2361,21 @@ private fun ProviderOverrideSettings(
         }
 
         // Provider configuration modal
-        if (showProviderConfig && editingProvider != null) {
-            ModalBottomSheet(
+        // 收起动画期间 editingProvider 已经是 null，用最后一份把退场演完
+        // （里面的 internalProvider 是 remember(editingProvider) 初始化的，读到 null 会炸）
+        var shownProvider by remember { mutableStateOf(editingProvider) }
+        LaunchedEffect(editingProvider) { if (editingProvider != null) shownProvider = editingProvider }
+        shownProvider?.let { provider ->
+            AnimatedModalBottomSheet(
+                visible = showProviderConfig,
                 onDismissRequest = {
                     showProviderConfig = false
                     editingProvider = null
                 },
-                sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
                 // 和服务商详情页同一个底色，里面的分段表单才分得开
                 containerColor = CustomColors.topBarColors.containerColor,
             ) {
-                var internalProvider by remember(editingProvider) { mutableStateOf(editingProvider!!) }
+                var internalProvider by remember(provider) { mutableStateOf(provider) }
 
                 Column(
                     modifier = Modifier

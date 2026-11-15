@@ -49,12 +49,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -82,6 +79,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.toast.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -241,94 +239,92 @@ fun ChatExportSheet(
         }
     }
 
-    if (visible) {
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismissRequest,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
+            Text(
+                text = stringResource(id = R.string.chat_page_export_format),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ConnectedChoiceButtons(
+                    options = ChatExportFormat.entries,
+                    selected = format,
+                    onSelect = { format = it },
+                ) { option, selected ->
+                    ConnectedChoiceLabel(
+                        text = when (option) {
+                            ChatExportFormat.Markdown -> stringResource(R.string.chat_page_export_markdown)
+                            ChatExportFormat.Image -> stringResource(R.string.media_kind_image)
+                            ChatExportFormat.Xml -> stringResource(R.string.chat_page_export_xml)
+                        },
+                        selected = selected,
+                        icon = when (option) {
+                            ChatExportFormat.Markdown -> HugeIcons.File02
+                            ChatExportFormat.Image -> HugeIcons.Image02
+                            ChatExportFormat.Xml -> HugeIcons.File02
+                        },
+                    )
+                }
                 Text(
-                    text = stringResource(id = R.string.chat_page_export_format),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = when (format) {
+                        ChatExportFormat.Markdown -> stringResource(R.string.chat_page_export_markdown_desc)
+                        ChatExportFormat.Image -> stringResource(R.string.chat_page_export_image_desc)
+                        ChatExportFormat.Xml -> stringResource(R.string.chat_page_export_xml_desc)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
+            }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ConnectedChoiceButtons(
-                        options = ChatExportFormat.entries,
-                        selected = format,
-                        onSelect = { format = it },
-                    ) { option, selected ->
-                        ConnectedChoiceLabel(
-                            text = when (option) {
-                                ChatExportFormat.Markdown -> stringResource(R.string.chat_page_export_markdown)
-                                ChatExportFormat.Image -> stringResource(R.string.media_kind_image)
-                                ChatExportFormat.Xml -> stringResource(R.string.chat_page_export_xml)
-                            },
-                            selected = selected,
-                            icon = when (option) {
-                                ChatExportFormat.Markdown -> HugeIcons.File02
-                                ChatExportFormat.Image -> HugeIcons.Image02
-                                ChatExportFormat.Xml -> HugeIcons.File02
-                            },
-                        )
-                    }
-                    Text(
-                        text = when (format) {
-                            ChatExportFormat.Markdown -> stringResource(R.string.chat_page_export_markdown_desc)
-                            ChatExportFormat.Image -> stringResource(R.string.chat_page_export_image_desc)
-                            ChatExportFormat.Xml -> stringResource(R.string.chat_page_export_xml_desc)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    )
+            CardGroup {
+                switchItem(
+                    checked = exportOptions.includeReasoning,
+                    onCheckedChange = { exportOptions = exportOptions.copy(includeReasoning = it) },
+                ) {
+                    Text(stringResource(R.string.chat_page_export_include_reasoning))
                 }
-
-                CardGroup {
+                if (format == ChatExportFormat.Image) {
                     switchItem(
-                        checked = exportOptions.includeReasoning,
-                        onCheckedChange = { exportOptions = exportOptions.copy(includeReasoning = it) },
+                        checked = exportOptions.expandReasoning,
+                        enabled = exportOptions.includeReasoning,
+                        onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
                     ) {
-                        Text(stringResource(R.string.chat_page_export_include_reasoning))
-                    }
-                    if (format == ChatExportFormat.Image) {
-                        switchItem(
-                            checked = exportOptions.expandReasoning,
-                            enabled = exportOptions.includeReasoning,
-                            onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
-                        ) {
-                            Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
-                        }
+                        Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
                     }
                 }
+            }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChatExportButton(
-                        text = stringResource(R.string.common_save),
-                        icon = HugeIcons.Download04,
-                        loading = exporting == ChatExportAction.Save,
-                        enabled = exporting == null,
-                        tonal = true,
-                        onClick = { export(ChatExportAction.Save) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    ChatExportButton(
-                        text = stringResource(R.string.export_share),
-                        icon = HugeIcons.Share04,
-                        loading = exporting == ChatExportAction.Share,
-                        enabled = exporting == null,
-                        tonal = false,
-                        onClick = { export(ChatExportAction.Share) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChatExportButton(
+                    text = stringResource(R.string.common_save),
+                    icon = HugeIcons.Download04,
+                    loading = exporting == ChatExportAction.Save,
+                    enabled = exporting == null,
+                    tonal = true,
+                    onClick = { export(ChatExportAction.Save) },
+                    modifier = Modifier.weight(1f),
+                )
+                ChatExportButton(
+                    text = stringResource(R.string.export_share),
+                    icon = HugeIcons.Share04,
+                    loading = exporting == ChatExportAction.Share,
+                    enabled = exporting == null,
+                    tonal = false,
+                    onClick = { export(ChatExportAction.Share) },
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }

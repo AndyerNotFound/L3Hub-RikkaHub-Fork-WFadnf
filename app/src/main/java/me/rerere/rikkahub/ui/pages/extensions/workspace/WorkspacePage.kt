@@ -14,7 +14,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -54,6 +53,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
 
@@ -111,33 +111,34 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         }
     }
 
-    if (showTypeSheet) {
-        ModalBottomSheet(onDismissRequest = { showTypeSheet = false }) {
-            CardGroup(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
-                title = { Text(stringResource(R.string.workspace_page_create)) },
-            ) {
-                item(
-                    onClick = {
-                        showTypeSheet = false
-                        showAddDialog = true
-                    },
-                    leadingContent = { CardGroupIcon(HugeIcons.FolderCode) },
-                    supportingContent = { Text(stringResource(R.string.workspace_page_type_local_desc)) },
-                    headlineContent = { Text(stringResource(R.string.workspace_page_type_local)) },
-                )
-                item(
-                    onClick = {
-                        showTypeSheet = false
-                        navController.navigate(Screen.WorkspaceSshEditor())
-                    },
-                    leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
-                    supportingContent = { Text(stringResource(R.string.workspace_page_type_ssh_desc)) },
-                    headlineContent = { Text(stringResource(R.string.workspace_page_type_ssh)) },
-                )
-            }
+    AnimatedModalBottomSheet(
+        visible = showTypeSheet,
+        onDismissRequest = { showTypeSheet = false },
+    ) {
+        CardGroup(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            title = { Text(stringResource(R.string.workspace_page_create)) },
+        ) {
+            item(
+                onClick = {
+                    showTypeSheet = false
+                    showAddDialog = true
+                },
+                leadingContent = { CardGroupIcon(HugeIcons.FolderCode) },
+                supportingContent = { Text(stringResource(R.string.workspace_page_type_local_desc)) },
+                headlineContent = { Text(stringResource(R.string.workspace_page_type_local)) },
+            )
+            item(
+                onClick = {
+                    showTypeSheet = false
+                    navController.navigate(Screen.WorkspaceSshEditor())
+                },
+                leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
+                supportingContent = { Text(stringResource(R.string.workspace_page_type_ssh_desc)) },
+                headlineContent = { Text(stringResource(R.string.workspace_page_type_ssh)) },
+            )
         }
     }
 

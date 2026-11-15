@@ -31,15 +31,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -86,6 +83,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -144,32 +142,26 @@ fun SettingFilesPage(
         )
     }
 
-    if (showCleanSheet) {
-        val sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    AnimatedModalBottomSheet(
+        visible = showCleanSheet,
+        onDismissRequest = { showCleanSheet = false },
+    ) {
+        CleanFilesSheet(
+            selectedRange = selectedCleanRange,
+            onRangeSelected = { selectedCleanRange = it },
+            onClean = {
+                showCleanSheet = false
+                scope.launch {
+                    val ok = selectedCleanRange.days?.let { days ->
+                        filesManager.deleteOlderThan(
+                            folder = selectedFolder,
+                            cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()),
+                        )
+                    } ?: filesManager.deleteAll(selectedFolder)
+                    toaster.show(if (ok) cleanedToast else cleanFailedToast)
+                }
+            },
         )
-        ModalBottomSheet(
-            onDismissRequest = { showCleanSheet = false },
-            sheetState = sheetState,
-        ) {
-            CleanFilesSheet(
-                selectedRange = selectedCleanRange,
-                onRangeSelected = { selectedCleanRange = it },
-                onClean = {
-                    showCleanSheet = false
-                    scope.launch {
-                        val ok = selectedCleanRange.days?.let { days ->
-                            filesManager.deleteOlderThan(
-                                folder = selectedFolder,
-                                cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()),
-                            )
-                        } ?: filesManager.deleteAll(selectedFolder)
-                        toaster.show(if (ok) cleanedToast else cleanFailedToast)
-                    }
-                },
-            )
-        }
     }
 
     Scaffold(

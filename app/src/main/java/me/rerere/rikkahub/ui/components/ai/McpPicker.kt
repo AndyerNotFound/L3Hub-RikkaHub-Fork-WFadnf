@@ -22,11 +22,8 @@ import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +50,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.Switch
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.ToggleSurface
 import org.koin.compose.koinInject
 
@@ -113,49 +111,47 @@ fun McpPickerButton(
             }
         }
     }
-    if (showMcpPicker) {
-        ModalBottomSheet(
-            onDismissRequest = { showMcpPicker = false },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
+    AnimatedModalBottomSheet(
+        visible = showMcpPicker,
+        onDismissRequest = { showMcpPicker = false },
+    ) {
+        Column(
+            modifier = Modifier.Companion
+                .fillMaxWidth()
+                .fillMaxHeight(0.7f)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier.Companion
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.7f)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.mcp_picker_title),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
+            Text(
+                text = stringResource(id = R.string.mcp_picker_title),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            AnimatedVisibility(loading) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    LinearWavyProgressIndicator()
+                    Text(
+                        text = stringResource(id = R.string.mcp_picker_syncing),
+                        style = MaterialTheme.typography.bodyLarge
                     )
-                )
-                AnimatedVisibility(loading) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        LinearWavyProgressIndicator()
-                        Text(
-                            text = stringResource(id = R.string.mcp_picker_syncing),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
                 }
-                McpPicker(
-                    assistant = assistant,
-                    servers = servers,
-                    onUpdateAssistant = {
-                        onUpdateAssistant(it)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                )
             }
+            McpPicker(
+                assistant = assistant,
+                servers = servers,
+                onUpdateAssistant = {
+                    onUpdateAssistant(it)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            )
         }
     }
 }

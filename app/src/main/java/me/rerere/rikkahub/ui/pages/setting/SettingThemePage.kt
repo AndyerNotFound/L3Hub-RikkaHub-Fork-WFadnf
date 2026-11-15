@@ -27,13 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +75,7 @@ import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
@@ -247,26 +245,25 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
         }
     }
 
-    if (showEditSheet) {
-        CustomThemeEditSheet(
-            theme = editingTheme,
-            onDismiss = { showEditSheet = false },
-            onSave = { theme ->
-                val newThemes = if (editingTheme != null) {
-                    settings.customThemes.map { if (it.id == theme.id) theme else it }
-                } else {
-                    settings.customThemes + theme
-                }
-                vm.updateSettings {
-                    it.copy(
-                        customThemes = newThemes,
-                        themeId = theme.id
-                    )
-                }
-                showEditSheet = false
+    CustomThemeEditSheet(
+        visible = showEditSheet,
+        theme = editingTheme,
+        onDismiss = { showEditSheet = false },
+        onSave = { theme ->
+            val newThemes = if (editingTheme != null) {
+                settings.customThemes.map { if (it.id == theme.id) theme else it }
+            } else {
+                settings.customThemes + theme
             }
-        )
-    }
+            vm.updateSettings {
+                it.copy(
+                    customThemes = newThemes,
+                    themeId = theme.id
+                )
+            }
+            showEditSheet = false
+        }
+    )
 
     if (showImportDialog) {
         ImportThemeDialog(
@@ -386,18 +383,18 @@ private fun CustomThemeItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomThemeEditSheet(
+    visible: Boolean,
     theme: CustomTheme?,
     onDismiss: () -> Unit,
     onSave: (CustomTheme) -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
     var currentTheme by remember {
         mutableStateOf(theme ?: CustomTheme())
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier

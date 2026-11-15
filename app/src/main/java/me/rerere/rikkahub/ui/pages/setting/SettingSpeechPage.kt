@@ -171,8 +171,12 @@ fun SettingSpeechPage(vm: SettingVM = koinViewModel()) {
         }
     }
 
-    editingTTSProvider?.let { provider ->
+    // 收起动画期间 editingTTSProvider 已经是 null，用最后一份把退场演完
+    var shownTtsEdit by remember { mutableStateOf(editingTTSProvider) }
+    LaunchedEffect(editingTTSProvider) { if (editingTTSProvider != null) shownTtsEdit = editingTTSProvider }
+    shownTtsEdit?.let { provider ->
         ProviderEditSheet(
+            visible = editingTTSProvider != null,
             title = stringResource(R.string.setting_tts_page_edit_provider),
             initial = provider,
             confirmText = stringResource(R.string.chat_page_save),
@@ -187,8 +191,12 @@ fun SettingSpeechPage(vm: SettingVM = koinViewModel()) {
         }
     }
 
-    editingASRProvider?.let { provider ->
+    // 收起动画期间 editingASRProvider 已经是 null，用最后一份把退场演完
+    var shownAsrEdit by remember { mutableStateOf(editingASRProvider) }
+    LaunchedEffect(editingASRProvider) { if (editingASRProvider != null) shownAsrEdit = editingASRProvider }
+    shownAsrEdit?.let { provider ->
         ProviderEditSheet(
+            visible = editingASRProvider != null,
             title = stringResource(R.string.setting_asr_page_edit_provider),
             initial = provider,
             confirmText = stringResource(R.string.chat_page_save),
@@ -370,8 +378,12 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
         Icon(HugeIcons.Add01, stringResource(R.string.setting_tts_page_add_provider_content_description))
     }
 
-    newProvider?.let { provider ->
+    // 收起动画期间 newProvider 已经是 null，用最后一份把退场演完
+    var shownNew by remember { mutableStateOf(newProvider) }
+    LaunchedEffect(newProvider) { if (newProvider != null) shownNew = newProvider }
+    shownNew?.let { provider ->
         ProviderEditSheet(
+            visible = newProvider != null,
             title = stringResource(R.string.setting_tts_page_add_provider),
             initial = provider,
             confirmText = stringResource(R.string.setting_tts_page_add),
@@ -405,21 +417,24 @@ private fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
         Icon(HugeIcons.Add01, stringResource(R.string.setting_asr_page_add_provider))
     }
 
-    if (showTypeSheet) {
-        ProviderTypeSheet(
-            title = stringResource(R.string.setting_asr_page_add_provider),
-            types = factories,
-            typeName = { create -> remember(create) { create() }.typeName },
-            onSelect = { create ->
-                showTypeSheet = false
-                newProvider = create()
-            },
-            onDismiss = { showTypeSheet = false },
-        )
-    }
+    ProviderTypeSheet(
+        visible = showTypeSheet,
+        title = stringResource(R.string.setting_asr_page_add_provider),
+        types = factories,
+        typeName = { create -> remember(create) { create() }.typeName },
+        onSelect = { create ->
+            showTypeSheet = false
+            newProvider = create()
+        },
+        onDismiss = { showTypeSheet = false },
+    )
 
-    newProvider?.let { provider ->
+    // 收起动画期间 newProvider 已经是 null，用最后一份把退场演完
+    var shownNew by remember { mutableStateOf(newProvider) }
+    LaunchedEffect(newProvider) { if (newProvider != null) shownNew = newProvider }
+    shownNew?.let { provider ->
         ProviderEditSheet(
+            visible = newProvider != null,
             title = stringResource(R.string.setting_asr_page_add_provider),
             initial = provider,
             confirmText = stringResource(R.string.setting_tts_page_add),

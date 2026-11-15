@@ -36,17 +36,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,6 +109,7 @@ import me.rerere.rikkahub.ui.theme.parseHexColor
 import me.rerere.rikkahub.ui.theme.roleColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
 
@@ -368,9 +366,13 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
         }
     }
 
-    editingDarkMode?.let { dark ->
+    // 收起动画期间 editingDarkMode 已经是 null，用最后一份把退场演完
+    var shownDarkMode by remember { mutableStateOf(editingDarkMode) }
+    LaunchedEffect(editingDarkMode) { if (editingDarkMode != null) shownDarkMode = editingDarkMode }
+    shownDarkMode?.let { dark ->
         val preset = palette.preset()
         PaletteEditSheet(
+            visible = editingDarkMode != null,
             darkMode = dark,
             initial = palette.effectiveColors(dark).full(dark),
             presetColors = (preset ?: findPalettePreset(DEFAULT_PALETTE_ID)).colors(dark).full(dark),
@@ -468,6 +470,7 @@ private fun PaletteStrip(colors: PaletteColors, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PaletteEditSheet(
+    visible: Boolean,
     darkMode: Boolean,
     initial: PaletteColors,
     presetColors: PaletteColors,
@@ -475,10 +478,6 @@ private fun PaletteEditSheet(
     onDismiss: () -> Unit,
     onSave: (PaletteColors, UiSlotColors) -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
     var colors by remember(initial) { mutableStateOf(initial) }
     var slots by remember(initialSlots) { mutableStateOf(initialSlots) }
     var editingRole by remember { mutableStateOf<PaletteRole?>(null) }
@@ -491,9 +490,9 @@ private fun PaletteEditSheet(
     val baseSlots = remember(scheme) { uiSlotsFrom(scheme) }
     val effectiveSlots = remember(colors, slots, scheme) { slots.overlay(baseSlots) }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier

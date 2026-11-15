@@ -338,18 +338,17 @@ private fun AddMediaProviderButton(onAdd: (MediaGenerationProviderSetting) -> Un
         Icon(HugeIcons.Add01, stringResource(R.string.setting_media_page_add_provider))
     }
 
-    if (showTypeSheet) {
-        ProviderTypeSheet(
-            title = stringResource(R.string.setting_media_page_add_provider),
-            types = factories,
-            typeName = { create -> remember(create) { create() }.typeName },
-            onSelect = { create ->
-                showTypeSheet = false
-                onAdd(create())
-            },
-            onDismiss = { showTypeSheet = false },
-        )
-    }
+    ProviderTypeSheet(
+        visible = showTypeSheet,
+        title = stringResource(R.string.setting_media_page_add_provider),
+        types = factories,
+        typeName = { create -> remember(create) { create() }.typeName },
+        onSelect = { create ->
+            showTypeSheet = false
+            onAdd(create())
+        },
+        onDismiss = { showTypeSheet = false },
+    )
 }
 
 @Composable

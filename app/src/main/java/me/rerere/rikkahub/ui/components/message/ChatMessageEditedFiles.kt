@@ -15,12 +15,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -69,6 +66,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.Card
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.compose.koinInject
 import java.io.File
@@ -307,97 +305,94 @@ internal fun EditedFilesList(
         )
     }
 
-    if (selectedPath != null) {
-        val path = selectedPath!!
-        val fileName = remember(path) { path.substringAfterLast('/') }
-        ModalBottomSheet(
-            onDismissRequest = { selectedPath = null },
-            sheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-            ),
+    // 收起动画期间 selectedPath 已经是 null，用最后一份路径把退场演完
+    var shownPath by remember { mutableStateOf(selectedPath) }
+    LaunchedEffect(selectedPath) { if (selectedPath != null) shownPath = selectedPath }
+    val fileName = remember(shownPath) { shownPath?.substringAfterLast('/').orEmpty() }
+    AnimatedModalBottomSheet(
+        visible = selectedPath != null,
+        onDismissRequest = { selectedPath = null },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Text(
+                text = fileName,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Card(
+                onClick = {
+                    val p = selectedPath ?: return@Card
+                    exportLauncher.launch(p.substringAfterLast('/'))
+                },
+                shape = MaterialTheme.shapes.medium,
             ) {
-                Text(
-                    text = fileName,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Card(
-                    onClick = {
-                        val p = selectedPath ?: return@Card
-                        exportLauncher.launch(p.substringAfterLast('/'))
-                    },
-                    shape = MaterialTheme.shapes.medium,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.FileImport,
-                            contentDescription = null,
-                            modifier = Modifier.padding(4.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.common_export),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
+                    Icon(
+                        imageVector = HugeIcons.FileImport,
+                        contentDescription = null,
+                        modifier = Modifier.padding(4.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_export),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                 }
-                Card(
-                    onClick = {
-                        val p = selectedPath ?: return@Card
-                        selectedPath = null
-                        scope.launch {
-                            runCatching {
-                                val dir = File(context.cacheDir, "workspace_share").apply { mkdirs() }
-                                val file = File(dir, p.substringAfterLast('/'))
-                                file.outputStream().use { output ->
-                                    workspaceRepository.exportAbsoluteFile(workspaceId, p, output)
-                                }
-                                val uri = FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    file,
-                                )
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/octet-stream"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
+            }
+            Card(
+                onClick = {
+                    val p = selectedPath ?: return@Card
+                    selectedPath = null
+                    scope.launch {
+                        runCatching {
+                            val dir = File(context.cacheDir, "workspace_share").apply { mkdirs() }
+                            val file = File(dir, p.substringAfterLast('/'))
+                            file.outputStream().use { output ->
+                                workspaceRepository.exportAbsoluteFile(workspaceId, p, output)
                             }
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file,
+                            )
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/octet-stream"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, null))
                         }
-                    },
-                    shape = MaterialTheme.shapes.medium,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Share08,
-                            contentDescription = null,
-                            modifier = Modifier.padding(4.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.common_share),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
                     }
+                },
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Share08,
+                        contentDescription = null,
+                        modifier = Modifier.padding(4.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.common_share),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                 }
             }
         }

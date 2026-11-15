@@ -927,27 +927,26 @@ fun ChatInput(
         onSelect = onUpdateChatModel,
     )
 
-    if (showReasoningPicker) {
-        ReasoningPicker(
-            reasoningLevel = assistant.reasoningLevel,
-            onDismissRequest = { showReasoningPicker = false },
-            onUpdateReasoningLevel = {
-                onUpdateAssistant(assistant.copy(reasoningLevel = it))
-            },
-            modelName = chatModel?.displayName,
-            modelContent = { dismiss ->
-                ModelListContent(
-                    state = modelListState,
-                    onSelect = { model ->
-                        onUpdateChatModel(model)
-                        dismiss()
-                    },
-                    onDismiss = dismiss,
-                )
-            },
-            useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
-        )
-    }
+    ReasoningPicker(
+        visible = showReasoningPicker,
+        reasoningLevel = assistant.reasoningLevel,
+        onDismissRequest = { showReasoningPicker = false },
+        onUpdateReasoningLevel = {
+            onUpdateAssistant(assistant.copy(reasoningLevel = it))
+        },
+        modelName = chatModel?.displayName,
+        modelContent = { dismiss ->
+            ModelListContent(
+                state = modelListState,
+                onSelect = { model ->
+                    onUpdateChatModel(model)
+                    dismiss()
+                },
+                onDismiss = dismiss,
+            )
+        },
+        useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
+    )
 }
 
 /**

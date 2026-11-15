@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +42,7 @@ import me.rerere.rikkahub.ui.floating.BubbleIconContent
 import me.rerere.rikkahub.ui.floating.BubblePresets
 import me.rerere.rikkahub.ui.floating.bubblePresetIcon
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 
 /**
@@ -53,6 +53,7 @@ import org.koin.compose.koinInject
  */
 @Composable
 internal fun FloatingBubbleIconPicker(
+    visible: Boolean,
     current: FloatingBubbleIcon,
     onSelect: (FloatingBubbleIcon) -> Unit,
     onDismiss: () -> Unit,
@@ -84,7 +85,10 @@ internal fun FloatingBubbleIconPicker(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AnimatedModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+    ) {
         if (showEmojiPicker) {
             EmojiPicker(
                 onEmojiSelected = { emoji ->

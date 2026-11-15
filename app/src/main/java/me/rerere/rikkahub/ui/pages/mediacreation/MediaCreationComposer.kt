@@ -52,9 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -62,7 +60,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonSize
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -126,6 +123,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
@@ -304,25 +302,28 @@ internal fun MediaCreationComposer(
         }
     }
 
-    if (showModels) {
-        ModelSheet(
-            providers = providers,
-            selectedModelId = draft.modelId,
-            onSelect = { provider, model ->
-                vm.selectModel(provider, model)
-                showModels = false
-            },
-            onManage = {
-                showModels = false
-                onOpenMediaSettings()
-            },
-            onDismiss = { showModels = false },
-        )
-    }
+    ModelSheet(
+        visible = showModels,
+        providers = providers,
+        selectedModelId = draft.modelId,
+        onSelect = { provider, model ->
+            vm.selectModel(provider, model)
+            showModels = false
+        },
+        onManage = {
+            showModels = false
+            onOpenMediaSettings()
+        },
+        onDismiss = { showModels = false },
+    )
 
-    if (showParams && selection != null) {
+    // 收起动画期间 selection 已经是 null，用最后一份选择把退场演完
+    var shownSelection by remember { mutableStateOf(selection) }
+    LaunchedEffect(selection) { if (selection != null) shownSelection = selection }
+    shownSelection?.let { currentSelection ->
         ParamsSheet(
-            selection = selection,
+            visible = showParams && selection != null,
+            selection = currentSelection,
             params = draft.params,
             onParamsChange = vm::updateParams,
             onDismiss = { showParams = false },
@@ -330,10 +331,14 @@ internal fun MediaCreationComposer(
     }
 
     val role = pickingRole
-    if (role != null && capabilities != null) {
+    // 收起动画期间 pickingRole 已经是 null，用最后一份角色把退场演完
+    var shownRole by remember { mutableStateOf(role) }
+    LaunchedEffect(role) { if (role != null) shownRole = role }
+    shownRole?.let { role ->
         // 视频只能作为参考素材
-        val acceptsVideo = capabilities.videoInput && role == ImageRole.REFERENCE
+        val acceptsVideo = capabilities?.videoInput == true && role == ImageRole.REFERENCE
         AssetPickerSheet(
+            visible = pickingRole != null && capabilities != null,
             role = role,
             acceptsVideo = acceptsVideo,
             recentOutputs = recentOutputs.filter { acceptsVideo || !it.output.isVideo },
@@ -668,6 +673,7 @@ private fun EmptyAssetTile(label: String, onClick: () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AssetPickerSheet(
+    visible: Boolean,
     role: ImageRole,
     acceptsVideo: Boolean,
     recentOutputs: List<MediaCreationRecentOutput>,
@@ -678,7 +684,7 @@ private fun AssetPickerSheet(
     onSelect: (MediaCreationOutput) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ComposerSheet(onDismiss = onDismiss) {
+    ComposerSheet(visible = visible, onDismiss = onDismiss) {
         Text(
             text = stringResource(
                 when (role) {
@@ -754,6 +760,7 @@ private fun AssetPickerSheet(
 
 @Composable
 private fun ModelSheet(
+    visible: Boolean,
     providers: List<MediaGenerationProviderSetting>,
     selectedModelId: Uuid?,
     onSelect: (MediaGenerationProviderSetting, MediaGenerationModel) -> Unit,
@@ -765,7 +772,7 @@ private fun ModelSheet(
         .map { provider -> provider to provider.models.filter { provider.capabilities(it.kind) != null } }
         .filter { it.second.isNotEmpty() }
 
-    ComposerSheet(onDismiss = onDismiss) {
+    ComposerSheet(visible = visible, onDismiss = onDismiss) {
         Text(
             text = stringResource(R.string.media_creation_page_select_model),
             style = MaterialTheme.typography.titleMedium,
@@ -862,6 +869,7 @@ private fun ModelRow(
  */
 @Composable
 private fun ParamsSheet(
+    visible: Boolean,
     selection: MediaCreationModelSelection,
     params: MediaCreationParams,
     onParamsChange: (MediaCreationParams) -> Unit,
@@ -880,7 +888,7 @@ private fun ParamsSheet(
     val presets = remember(selection.provider, kind) { selection.provider.presets(kind) }
     val defaults = presets.defaults
 
-    ComposerSheet(onDismiss = onDismiss) {
+    ComposerSheet(visible = visible, onDismiss = onDismiss) {
         // 改过的参数，和输入区按钮上显示的是同一份
         val changed = current.summary(kind)
         PickerHeader(
@@ -1201,16 +1209,13 @@ private fun ToggleParam(
 
 @Composable
 private fun ComposerSheet(
+    visible: Boolean,
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-    )
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(

@@ -16,10 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +43,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.compose.koinInject
@@ -53,6 +51,7 @@ import java.util.concurrent.CancellationException
 
 @Composable
 fun WorkspaceCwdPickerSheet(
+    visible: Boolean,
     workspaceId: String,
     workspaceDir: String,
     currentCwd: String?,
@@ -66,12 +65,6 @@ fun WorkspaceCwdPickerSheet(
     var loading by remember { mutableStateOf(true) }
     var loadFailed by remember { mutableStateOf(false) }
     var truncated by remember { mutableStateOf(false) }
-    // 默认 sheetState 允许半展开，show() 会停到半屏：看起来就是「打开后往下掉一截」
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-
     LaunchedEffect(browsePath) {
         loading = true
         loadFailed = false
@@ -98,9 +91,11 @@ fun WorkspaceCwdPickerSheet(
         }
     }
 
-    ModalBottomSheet(
+    // 半展开会让打开时先停在半屏（看起来像「打开后往下掉一截」）：
+    // AnimatedModalBottomSheet 只留 Hidden / Expanded 两个锚点
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         // 面板高度只看窗口、不看内容：目录数怎么变都不会重算锚点往上/往下跳
         Column(

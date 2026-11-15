@@ -35,14 +35,11 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -111,9 +108,11 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.Select
+import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableColumn
 import sh.calvin.reorderable.ReorderableItem
@@ -281,15 +280,17 @@ private fun ModeInjectionTab(
         }
     }
 
-    if (editState.isEditing) {
-        editState.currentState?.let { state ->
-            ModeInjectionEditSheet(
-                injection = state,
-                onDismiss = { editState.dismiss() },
-                onConfirm = { editState.confirm() },
-                onEdit = { editState.currentState = it }
-            )
-        }
+    // 收起动画期间 currentState 已经是 null，用最后一份把退场演完
+    var shownState by remember { mutableStateOf(editState.currentState) }
+    LaunchedEffect(editState.currentState) { if (editState.currentState != null) shownState = editState.currentState }
+    shownState?.let { state ->
+        ModeInjectionEditSheet(
+            visible = editState.isEditing,
+            injection = state,
+            onDismiss = { editState.dismiss() },
+            onConfirm = { editState.confirm() },
+            onEdit = { editState.currentState = it }
+        )
     }
 }
 
@@ -401,25 +402,21 @@ private fun ModeInjectionCard(
 
 @Composable
 private fun ModeInjectionEditSheet(
+    visible: Boolean,
     injection: PromptInjection.ModeInjection,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     onEdit: (PromptInjection.ModeInjection) -> Unit
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-    val scope = rememberCoroutineScope()
+    // 内容里的关闭按钮走 sheet 自己的入口：先播退场再回调
+    val dismissSheet = rememberSheetDismiss()
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         sheetGesturesEnabled = false,
         dragHandle = {
-            IconButton(onClick = {
-                scope.launch {
-                    sheetState.hide()
-                    onDismiss()
-                }
-            }) {
+            IconButton(onClick = { dismissSheet { onDismiss() } }) {
                 Icon(HugeIcons.ArrowDown01, null)
             }
         }
@@ -686,15 +683,17 @@ private fun LorebookTab(
         }
     }
 
-    if (editState.isEditing) {
-        editState.currentState?.let { state ->
-            LorebookEditSheet(
-                book = state,
-                onDismiss = { editState.dismiss() },
-                onConfirm = { editState.confirm() },
-                onEdit = { editState.currentState = it }
-            )
-        }
+    // 收起动画期间 currentState 已经是 null，用最后一份把退场演完
+    var shownBook by remember { mutableStateOf(editState.currentState) }
+    LaunchedEffect(editState.currentState) { if (editState.currentState != null) shownBook = editState.currentState }
+    shownBook?.let { state ->
+        LorebookEditSheet(
+            visible = editState.isEditing,
+            book = state,
+            onDismiss = { editState.dismiss() },
+            onConfirm = { editState.confirm() },
+            onEdit = { editState.currentState = it }
+        )
     }
 }
 
@@ -817,13 +816,14 @@ private fun LorebookCard(
 
 @Composable
 private fun LorebookEditSheet(
+    visible: Boolean,
     book: Lorebook,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     onEdit: (Lorebook) -> Unit
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
-    val scope = rememberCoroutineScope()
+    // 内容里的关闭按钮走 sheet 自己的入口：先播退场再回调
+    val dismissSheet = rememberSheetDismiss()
     val entryEditState = useEditState<PromptInjection.RegexInjection> { edited ->
         val index = book.entries.indexOfFirst { it.id == edited.id }
         if (index >= 0) {
@@ -833,17 +833,12 @@ private fun LorebookEditSheet(
         }
     }
 
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         sheetGesturesEnabled = false,
         dragHandle = {
-            IconButton(onClick = {
-                scope.launch {
-                    sheetState.hide()
-                    onDismiss()
-                }
-            }) {
+            IconButton(onClick = { dismissSheet { onDismiss() } }) {
                 Icon(HugeIcons.ArrowDown01, null)
             }
         }

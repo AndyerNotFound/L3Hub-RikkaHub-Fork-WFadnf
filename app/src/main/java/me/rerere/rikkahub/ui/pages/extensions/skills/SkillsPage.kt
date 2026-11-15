@@ -21,16 +21,13 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +78,7 @@ import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
 
@@ -226,30 +224,29 @@ fun SkillsPage() {
         }
     }
 
-    if (showImportSheet) {
-        SkillImportSheet(
-            onDismiss = { showImportSheet = false },
-            onAddManually = {
-                showImportSheet = false
-                showAddDialog = true
-            },
-            onImportFromFile = {
-                showImportSheet = false
-                fileImportLauncher.launch(
-                    arrayOf(
-                        "text/*",
-                        "application/zip",
-                        "application/x-zip-compressed",
-                        "application/octet-stream",
-                    )
+    SkillImportSheet(
+        visible = showImportSheet,
+        onDismiss = { showImportSheet = false },
+        onAddManually = {
+            showImportSheet = false
+            showAddDialog = true
+        },
+        onImportFromFile = {
+            showImportSheet = false
+            fileImportLauncher.launch(
+                arrayOf(
+                    "text/*",
+                    "application/zip",
+                    "application/x-zip-compressed",
+                    "application/octet-stream",
                 )
-            },
-            onImportFromGitHub = {
-                showImportSheet = false
-                showImportDialog = true
-            },
-        )
-    }
+            )
+        },
+        onImportFromGitHub = {
+            showImportSheet = false
+            showImportDialog = true
+        },
+    )
 
     if (showAddDialog) {
         AddSkillDialog(
@@ -446,14 +443,15 @@ private fun SkillCard(
 
 @Composable
 private fun SkillImportSheet(
+    visible: Boolean,
     onDismiss: () -> Unit,
     onAddManually: () -> Unit,
     onImportFromFile: () -> Unit,
     onImportFromGitHub: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
     ) {
         Column(
             modifier = Modifier

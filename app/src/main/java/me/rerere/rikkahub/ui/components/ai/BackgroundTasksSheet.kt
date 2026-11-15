@@ -18,10 +18,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +53,7 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 import java.io.IOException
 
@@ -65,13 +64,14 @@ private const val LOG_POLL_INTERVAL_MS = 1_000L
 /** 会话的后台命令：列表里看状态、终止，点进去看日志 */
 @Composable
 fun BackgroundTasksSheet(
+    visible: Boolean,
     tasks: List<BackgroundShellTask>,
     onStop: suspend (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         BackgroundTasksContent(
             tasks = tasks,

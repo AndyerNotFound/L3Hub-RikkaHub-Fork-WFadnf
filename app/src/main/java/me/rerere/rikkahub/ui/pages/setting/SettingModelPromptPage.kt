@@ -12,11 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +45,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.ui.components.AnimatedModalBottomSheet
 
 @Composable
 internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPadding: PaddingValues) {
@@ -104,8 +102,12 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
         }
     }
 
-    editing?.let { slot ->
+    // 收起动画期间 editing 已经是 null，用最后一份槽位把退场演完
+    var shownSlot by remember { mutableStateOf(editing) }
+    LaunchedEffect(editing) { if (editing != null) shownSlot = editing }
+    shownSlot?.let { slot ->
         PromptEditSheet(
+            visible = editing != null,
             title = stringResource(slot.title),
             description = stringResource(slot.variables),
             value = slot.get(settings),
@@ -196,6 +198,7 @@ private fun CardGroupScope.promptItem(
 
 @Composable
 private fun PromptEditSheet(
+    visible: Boolean,
     title: String,
     description: String,
     value: String,
@@ -203,13 +206,10 @@ private fun PromptEditSheet(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    // 半展开时键盘会把输入框整个盖住：AnimatedModalBottomSheet 只留 Hidden / Expanded
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        // 直接全展开，半展开时键盘会把输入框整个盖住
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-        ),
     ) {
         Column(
             modifier = Modifier

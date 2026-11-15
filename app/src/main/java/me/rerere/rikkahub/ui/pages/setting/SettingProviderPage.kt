@@ -29,16 +29,13 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -107,6 +104,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
@@ -665,35 +663,71 @@ private fun AddButton(
         Icon(HugeIcons.Add01, "Add")
     }
 
-    if (showSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
-            sheetState = rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-            )
+    AnimatedModalBottomSheet(
+        visible = showSheet,
+        onDismissRequest = { showSheet = false },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Text(
+                text = stringResource(R.string.setting_provider_page_add_provider),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                templates.fastForEachIndexed { index, template ->
+                    Surface(
+                        onClick = {
+                            showSheet = false
+                            onAdd(template.copyProvider(Uuid.random()))
+                        },
+                        shape = cardGroupItemShape(index, templates.size),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            val typeName = template.typeName()
+                            AutoAIIcon(
+                                name = typeName,
+                                modifier = Modifier.size(40.dp),
+                                iconAsset = template.localModelIconAsset(),
+                            )
+                            Text(
+                                text = typeName,
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        }
+                    }
+                }
+            }
+
+            if (removedBuiltIns.isNotEmpty()) {
                 Text(
-                    text = stringResource(R.string.setting_provider_page_add_provider),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    text = stringResource(R.string.setting_provider_page_restore_builtin),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                    templates.fastForEachIndexed { index, template ->
+                    removedBuiltIns.fastForEachIndexed { index, provider ->
                         Surface(
                             onClick = {
                                 showSheet = false
-                                onAdd(template.copyProvider(Uuid.random()))
+                                onRestore(provider)
                             },
-                            shape = cardGroupItemShape(index, templates.size),
+                            shape = cardGroupItemShape(index, removedBuiltIns.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         ) {
                             Row(
@@ -703,58 +737,17 @@ private fun AddButton(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                val typeName = template.typeName()
                                 AutoAIIcon(
-                                    name = typeName,
+                                    name = provider.name,
                                     modifier = Modifier.size(40.dp),
-                                    iconAsset = template.localModelIconAsset(),
+                                    iconAsset = provider.localModelIconAsset(),
                                 )
                                 Text(
-                                    text = typeName,
+                                    text = provider.name,
                                     style = MaterialTheme.typography.titleMediumEmphasized,
                                     modifier = Modifier.weight(1f),
                                 )
-                                Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                            }
-                        }
-                    }
-                }
-
-                if (removedBuiltIns.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.setting_provider_page_restore_builtin),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                        removedBuiltIns.fastForEachIndexed { index, provider ->
-                            Surface(
-                                onClick = {
-                                    showSheet = false
-                                    onRestore(provider)
-                                },
-                                shape = cardGroupItemShape(index, removedBuiltIns.size),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    AutoAIIcon(
-                                        name = provider.name,
-                                        modifier = Modifier.size(40.dp),
-                                        iconAsset = provider.localModelIconAsset(),
-                                    )
-                                    Text(
-                                        text = provider.name,
-                                        style = MaterialTheme.typography.titleMediumEmphasized,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    Icon(HugeIcons.Add01, contentDescription = null)
-                                }
+                                Icon(HugeIcons.Add01, contentDescription = null)
                             }
                         }
                     }

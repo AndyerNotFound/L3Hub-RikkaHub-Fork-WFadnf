@@ -19,11 +19,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +67,7 @@ import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.toDp
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -332,31 +330,15 @@ fun ModelListSheet(
     state: ModelListState,
     onSelect: (Model) -> Unit,
 ) {
-    if (!state.visible) return
-
-    val coroutineScope = rememberCoroutineScope()
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
-    )
-
-    fun dismiss() {
-        coroutineScope.launch {
-            sheetState.hide()
-            state.close()
-        }
-    }
-
-    // 页面被导航走时 hide() 会被取消，state.close() 就没机会跑，
-    // 回来时这张 sheet 会自己再冒出来。这里兜住这一种情况，动画照旧保留
+    // 页面被导航走时就地关掉，回来时这张 sheet 不会自己再冒出来
     DisposableEffect(Unit) {
         onDispose { state.close() }
     }
 
-    ModalBottomSheet(
-        // 走同一条有动画的路径，别让点外部和返回键瞬间消失
-        onDismissRequest = { dismiss() },
-        sheetState = sheetState,
+    AnimatedModalBottomSheet(
+        // 关窗统一走 state：wrapper 先播完退场再拆窗口，点外部 / 返回键 / X 走同一条
+        visible = state.visible,
+        onDismissRequest = { state.close() },
         // 列表本身要上下滑，sheet 的下拉手势很容易在滚动时误触关闭；
         // 只留两种关法：点弹窗外部，或点右上角 X
         sheetGesturesEnabled = false,
@@ -366,7 +348,7 @@ fun ModelListSheet(
         ModelListContent(
             state = state,
             onSelect = onSelect,
-            onDismiss = { dismiss() },
+            onDismiss = { state.close() },
         )
     }
 }

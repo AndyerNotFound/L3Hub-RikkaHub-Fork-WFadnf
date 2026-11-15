@@ -462,17 +462,16 @@ internal fun FilesPicker(
     }
 
     val cwdWorkspace = cwdWorkspaceId?.let { id -> cwdWorkspaces.find { it.id == id } }
-    if (cwdWorkspace != null) {
-        WorkspaceCwdPickerSheet(
-            workspaceId = cwdWorkspace.id,
-            workspaceDir = cwdWorkspace.workspaceDir(),
-            currentCwd = conversation.workspaceCwds[cwdWorkspace.id],
-            onSelectCwd = { newCwd ->
-                onUpdateWorkspaceCwd(Uuid.parse(cwdWorkspace.id), newCwd)
-            },
-            onDismiss = { cwdWorkspaceId = null },
-        )
-    }
+    WorkspaceCwdPickerSheet(
+        visible = cwdWorkspace != null,
+        workspaceId = cwdWorkspace?.id.orEmpty(),
+        workspaceDir = cwdWorkspace?.workspaceDir().orEmpty(),
+        currentCwd = cwdWorkspace?.let { conversation.workspaceCwds[it.id] },
+        onSelectCwd = { newCwd ->
+            cwdWorkspace?.let { onUpdateWorkspaceCwd(Uuid.parse(it.id), newCwd) }
+        },
+        onDismiss = { cwdWorkspaceId = null },
+    )
 
     // Compress Context Dialog
     if (showCompressDialog) {
@@ -597,30 +596,29 @@ private fun WorkspacePickerListItem(
         Text(stringResource(R.string.assistant_page_workspace))
     }
 
-    if (showSheet) {
-        WorkspaceSelectSheet(
-            boundIds = assistant.allWorkspaceIds,
-            workspaces = workspaces,
-            onSelect = { workspaceIds ->
-                val newIds = workspaceIds.mapNotNull { id ->
-                    runCatching { Uuid.parse(id) }.getOrNull()
-                }.toSet()
-                val newPrimary = assistant.primaryWorkspaceId?.takeIf { it in newIds }
-                    ?: newIds.firstOrNull()
-                onUpdateAssistant(
-                    assistant.copy(
-                        workspaceIds = newIds,
-                        workspaceId = newPrimary,
-                    )
+    WorkspaceSelectSheet(
+        visible = showSheet,
+        boundIds = assistant.allWorkspaceIds,
+        workspaces = workspaces,
+        onSelect = { workspaceIds ->
+            val newIds = workspaceIds.mapNotNull { id ->
+                runCatching { Uuid.parse(id) }.getOrNull()
+            }.toSet()
+            val newPrimary = assistant.primaryWorkspaceId?.takeIf { it in newIds }
+                ?: newIds.firstOrNull()
+            onUpdateAssistant(
+                assistant.copy(
+                    workspaceIds = newIds,
+                    workspaceId = newPrimary,
                 )
-            },
-            onManage = {
-                showSheet = false
-                onNavigateToManage()
-            },
-            onDismiss = { showSheet = false },
-        )
-    }
+            )
+        },
+        onManage = {
+            showSheet = false
+            onNavigateToManage()
+        },
+        onDismiss = { showSheet = false },
+    )
 }
 
 // 扩展选择页，作为子页面嵌在加号 sheet 里

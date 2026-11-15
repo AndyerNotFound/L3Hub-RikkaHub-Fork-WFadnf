@@ -14,10 +14,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,18 +38,20 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
+import me.rerere.ui.components.AnimatedModalBottomSheet
 
 @Composable
 fun ChatMessageCopySheet(
+    visible: Boolean,
     message: UIMessage,
     onDismissRequest: () -> Unit,
     // 底板玻璃的取样源；选字要读得清，没有源时老实保持实色
     hazeState: HazeState? = null,
 ) {
     val context = LocalContext.current
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismissRequest,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)),
         sheetGesturesEnabled = false,
         dragHandle = null,
         shape = GlassSheetShape,

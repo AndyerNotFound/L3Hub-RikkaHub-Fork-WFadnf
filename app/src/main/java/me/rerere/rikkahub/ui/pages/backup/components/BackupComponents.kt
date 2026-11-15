@@ -33,11 +33,8 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +71,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.toLocalDateTime
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import java.time.Instant
 
 // 列表项开头的图标，操作进行中时换成进度圈
@@ -242,6 +240,7 @@ internal class BackupFileInfo(
 // 远程备份文件列表，可以恢复或删除其中一份
 @Composable
 internal fun <T> BackupFilesSheet(
+    visible: Boolean,
     title: String,
     state: UiState<List<T>>,
     // 正在恢复的那份备份的文件名，恢复期间所有按钮都不可点
@@ -251,12 +250,9 @@ internal fun <T> BackupFilesSheet(
     onRestore: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AnimatedModalBottomSheet(
+        visible = visible,
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-        ),
     ) {
         Column(
             modifier = Modifier

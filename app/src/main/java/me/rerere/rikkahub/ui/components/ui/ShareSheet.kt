@@ -10,10 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +29,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.migration.migrateProviderQuotaQuery
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import kotlin.io.encoding.Base64
 
 @Composable
@@ -39,53 +37,51 @@ fun ShareSheet(
     state: ShareSheetState,
 ) {
     val context = LocalContext.current
-    if (state.isShow) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                state.dismiss()
-            },
-            sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
+    AnimatedModalBottomSheet(
+        visible = state.isShow,
+        onDismissRequest = {
+            state.dismiss()
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(R.string.share_sheet_title), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.share_sheet_title), style = MaterialTheme.typography.titleLarge)
 
-                    IconButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_SEND)
-                            intent.type = "text/plain"
-                            intent.putExtra(
-                                Intent.EXTRA_TEXT,
-                                state.currentProvider?.encodeForShare() ?: ""
-                            )
-                            try {
-                                context.startActivity(Intent.createChooser(intent, null))
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                IconButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SEND)
+                        intent.type = "text/plain"
+                        intent.putExtra(
+                            Intent.EXTRA_TEXT,
+                            state.currentProvider?.encodeForShare() ?: ""
+                        )
+                        try {
+                            context.startActivity(Intent.createChooser(intent, null))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
-                    ) {
-                        Icon(HugeIcons.Share03, null)
                     }
+                ) {
+                    Icon(HugeIcons.Share03, null)
                 }
-
-                QRCode(
-                    value = state.currentProvider?.encodeForShare() ?: "",
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                )
             }
+
+            QRCode(
+                value = state.currentProvider?.encodeForShare() ?: "",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            )
         }
     }
 }
