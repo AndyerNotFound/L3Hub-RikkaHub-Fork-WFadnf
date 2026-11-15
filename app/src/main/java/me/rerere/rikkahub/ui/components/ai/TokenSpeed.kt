@@ -21,12 +21,13 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import me.rerere.ai.core.MessageRole
+import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.estimateTokens
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.uuid.Uuid
 
 /** 生成速度的三档配色：极慢灰、中等冰蓝、最快红，给消息列表下方的加载图标用 */
 internal val TokenSpeedSlowColor = Color(0xFF9E9E9E)
@@ -94,11 +95,11 @@ class GenerationSpeed {
 /** 采样间隔：图标颜色与表盘指针都以这个频率重算 */
 private const val SAMPLE_INTERVAL_MS = 100L
 
-/** 统计窗口：窗口越长越稳，越短越跟手；1.6s 大致是「一句话」的尺度 */
-private const val SPEED_WINDOW_MS = 1600L
-
-/** 起步阶段窗口还没铺开，一次首字爆发就能算出几百 tok/s，等这之后再公布速度 */
-private const val WARM_UP_MS = 900L
+/**
+ * 统计窗口：要盖住一次网络突发。代理攒批、SSE 合并常常 1s 才到一批 token，
+ * 窗口短于批间隔时窗口里有时一批都没有，速度就掉到 0，指针在两极之间来回跳。
+ */
+private const val SPEED_WINDOW_MS = 2500L
 
 /**
  * 采样当前轮次的生成速度。
@@ -117,20 +118,27 @@ fun rememberGenerationSpeed(
         if (!loading) return@LaunchedEffect
         speed.reset()
         val samples = ArrayDeque<Pair<Long, Int>>()
-        var lastTokens = -1
+        val startedAt = System.nanoTime() / 1_000_000
+        // 读数会回落：多步之间消息被整条替换、重新生成、切分支都会把累计值退回去。
+        // 把落差记进基数让计数器保持单调，否则每回落一次速度都要从零重算，看起来就是停住了
+        val counter = GeneratedTokenCounter()
+        var baseline = 0
+        var lastRaw = -1
         while (true) {
             val now = System.nanoTime() / 1_000_000
-            val tokens = conversationState.value.generatedTokens()
-            // 重新生成、切分支会把计数退回去，从这一刻重新起算
-            if (lastTokens >= 0 && tokens < lastTokens) samples.clear()
-            lastTokens = tokens
+            val raw = counter.count(conversationState.value.currentMessages)
+            if (lastRaw >= 0 && raw < lastRaw) baseline += lastRaw - raw
+            lastRaw = raw
+            val tokens = raw + baseline
             samples.addLast(now to tokens)
             while (samples.size > 2 && now - samples.first().first > SPEED_WINDOW_MS) {
                 samples.removeFirst()
             }
-            val (startTime, startTokens) = samples.first()
-            val span = now - startTime
-            if (span >= WARM_UP_MS) {
+            // 窗口铺满才公布：不足一个窗口时读到的全是首包突发，峰值会被一次爆发顶到天上，
+            // 之后整轮都够不着，指针就一直贴在零附近
+            if (now - startedAt >= SPEED_WINDOW_MS) {
+                val (startTime, startTokens) = samples.first()
+                val span = (now - startTime).coerceAtLeast(1)
                 speed.publish(((tokens - startTokens) * 1000f / span).coerceAtLeast(0f))
             }
             delay(SAMPLE_INTERVAL_MS)
@@ -140,94 +148,47 @@ fun rememberGenerationSpeed(
 }
 
 /**
- * 本轮模型已经写出来的 token：正文、思考与工具入参都算，工具输出不算——
+ * 单条消息里模型已经写出来的 token：正文、思考与工具入参都算，工具输出不算——
  * 那是工具在跑，不是模型在生成。
  */
-private fun Conversation.generatedTokens(): Int {
-    val message = messageNodes.lastOrNull { it.role == MessageRole.ASSISTANT }?.currentMessage
-        ?: return 0
-    return message.parts.sumOf { part ->
-        when (part) {
-            is UIMessagePart.Text -> estimateTokens(part.text)
-            is UIMessagePart.Reasoning -> estimateTokens(part.reasoning)
-            is UIMessagePart.ToolCall -> estimateTokens(part.arguments)
-            is UIMessagePart.Tool -> estimateTokens(part.input)
-            is UIMessagePart.ServerTool -> estimateTokens(part.input?.toString().orEmpty())
-            else -> 0
+private fun UIMessage.modelWrittenTokens(): Int = parts.sumOf { part ->
+    when (part) {
+        is UIMessagePart.Text -> estimateTokens(part.text)
+        is UIMessagePart.Reasoning -> estimateTokens(part.reasoning)
+        is UIMessagePart.ToolCall -> estimateTokens(part.arguments)
+        is UIMessagePart.Tool -> estimateTokens(part.input)
+        is UIMessagePart.ServerTool -> estimateTokens(part.input?.toString().orEmpty())
+        else -> 0
+    }
+}
+
+/**
+ * 整段会话的累计值，按消息 id 缓存每条消息的计数。
+ *
+ * 累计整段而不是只看最后一条回复：多步之间回复会被整条替换、后面还可能追加通知节点，
+ * 只看最后一条时读数会不断回落，速度就跟着归零。
+ * 缓存按对象同一性判断，一轮里只有正在写的那条会换对象，其余直接复用，不每一帧扫全文。
+ */
+private class GeneratedTokenCounter {
+    private val cache = HashMap<Uuid, Pair<UIMessage, Int>>()
+
+    fun count(messages: List<UIMessage>): Int {
+        // 删消息、切分支之后把不再出现的 id 清掉，别留着旧对象
+        if (cache.size > messages.size * 2 + 16) {
+            cache.keys.retainAll(messages.mapTo(HashSet()) { it.id })
         }
+        var total = 0
+        for (message in messages) {
+            val cached = cache[message.id]
+            total += if (cached != null && cached.first === message) {
+                cached.second
+            } else {
+                message.modelWrittenTokens().also { cache[message.id] = message to it }
+            }
+        }
+        return total
     }
 }
 
 /** 表盘凹槽占整圈的比例，剩下的是正下方的开口 */
 private const val GAUGE_SWEEP = 270f
-private const val GAUGE_START = 135f
-
-/**
- * 车速仪样式的小表盘：满刻度是本轮跑过的最高速度，指针是当前速度。
- *
- * 颜色取自主题的主色容器一套（凹槽 primaryContainer、弧与轴 primary、指针 onPrimaryContainer），
- * 不再用灰/蓝/红那套自定义色。读数在绘制阶段取，采样每 100ms 只重画这只表盘，不引起重组。
- */
-@Composable
-fun TokenSpeedGauge(
-    generationSpeed: GenerationSpeed,
-    running: Boolean,
-    fallbackSpeed: Float?,
-    modifier: Modifier = Modifier,
-    diameter: Dp = 30.dp,
-) {
-    val colors = MaterialTheme.colorScheme
-    Canvas(modifier = modifier.size(diameter)) {
-        val stroke = 2.5.dp.toPx()
-        val arcSize = Size(size.width - stroke, size.height - stroke)
-        val arcTopLeft = Offset(stroke / 2f, stroke / 2f)
-
-        // 生成中看实时速度；停下来看这一轮的均值，刻度仍是这一轮跑到的最高速度
-        val live = generationSpeed.tokensPerSecond
-        val peak = generationSpeed.peakTokensPerSecond
-        val speed = if (running) live else (fallbackSpeed ?: live)
-        val scale = when {
-            peak > 0f -> maxOf(peak, speed)
-            // 历史会话没有采样数据，留出余量让指针落在八分位，不至于一上来就顶到满格
-            speed > 0f -> speed * 1.25f
-            else -> 0f
-        }
-        val ratio = if (scale > 0f) (speed / scale).coerceIn(0f, 1f) else 0f
-
-        drawArc(
-            color = colors.primaryContainer,
-            startAngle = GAUGE_START,
-            sweepAngle = GAUGE_SWEEP,
-            useCenter = false,
-            topLeft = arcTopLeft,
-            size = arcSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-        if (ratio > 0f) {
-            drawArc(
-                color = colors.primary,
-                startAngle = GAUGE_START,
-                sweepAngle = GAUGE_SWEEP * ratio,
-                useCenter = false,
-                topLeft = arcTopLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-        }
-
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val needleLength = size.minDimension / 2f - stroke - 1.5.dp.toPx()
-        val angle = Math.toRadians((GAUGE_START + GAUGE_SWEEP * ratio).toDouble())
-        drawLine(
-            color = colors.onPrimaryContainer,
-            start = center,
-            end = center + Offset(
-                x = (cos(angle) * needleLength).toFloat(),
-                y = (sin(angle) * needleLength).toFloat(),
-            ),
-            strokeWidth = 1.6.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawCircle(color = colors.primary, radius = 1.4.dp.toPx(), center = center)
-    }
-}
