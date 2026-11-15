@@ -523,9 +523,18 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 「点一下让转场提前结束」做不到：Compose 的同级命中测试命中第一个节点就停，这层一撤，
 被盖住的那一页马上重新吃点击，正是当初要修的问题。
 
-转场期间的返回由 `ui/context/NavContext.kt` 判定：同一帧里的重复回调吃掉（否则一次返回会弹掉两层），
-`Navigator.transitionInFlight` 为真时不走 250ms 防抖 —— 这一下是「动画没播完就想再退一层」的明确意图，
-交给 nav3 重定向，代价是连点两下会一次退两层。转场状态由 `rememberNavTransitionReporter()` 从 scene 里回写
+转场期间的返回由 `ui/context/NavContext.kt` 判定：同一帧里的重复回调吃掉（否则一次返回会弹掉两层）；
+`Navigator.transitionInFlight` 为真时不直接出栈，而是记一笔 `pendingPops`，由 `RouteActivity` 里一条常驻的
+`LaunchedEffect(navigator) { navigator.drainPendingPops() }` 在这一段转场落下后逐层出栈（每一层都等自己的
+退场真正起来、落下之后再继续）。排队不等于防抖吞掉，按下一定生效，只是生效点推后。
+
+早期做法是转场中直接出栈、交给 nav3 重定向，观感会算到上一页头上：nav3 把这次 pop 当成「打断正在播的进场」，
+重定向到同一个 `Transition`；而 Compose 的 `AnimatedContent` 给每个 content 缓存的进场参数（`specOnEnter`，
+连带 `targetContentZIndex`）只在目标变化时重算，重定向后拿到的还是上一段进场的参数 —— 上一页会重播一遍进场，
+且 zIndex 与离场页打平、又排在绘制顺序末尾，于是盖在正在下滑的那一页上面。
+代价是「按下返回到开始退场」最多多等一个进场动画的剩余时长（SYSTEM 档约 300–500ms，快档更短）。
+`navigate` / `clearAndNavigate` 会清掉排队，免得那一下把刚打开的页面弹掉。
+转场状态由 `rememberNavTransitionReporter()` 从 scene 里回写
 （同一段转场里所有 scene 共用一个 `Transition`，值必然一致，不需要引用计数）。
 
 淡入淡出统一取 `ui/theme/MotionSpecs.kt` 的 `rememberEffectsSpec()`（`RouteActivity` 里的 `pageFadeSpec`），

@@ -490,6 +490,10 @@ class RouteActivity : ComponentActivity() {
             // 每次重组新建一个 Navigator 会把防抖窗口和栈操作的节流全清掉，
             // 而且 Local 的值一直在变，读它的页面会跟着整片重组
             val navigator = remember(backStack) { Navigator(backStack) }
+            // 排队返回的常驻消费端：转场中按下的返回等这一段演完再出栈。
+            // 直接出栈会被 nav3 当成打断进场重定向，进场参数按 content 缓存，
+            // 上一页会拿旧参数重播一遍进场并且盖在离场页上面。
+            LaunchedEffect(navigator) { navigator.drainPendingPops() }
             CompositionLocalProvider(
                 LocalNavController provides navigator,
                 LocalSharedTransitionScope provides this,
@@ -909,8 +913,8 @@ class RouteActivity : ComponentActivity() {
                             .width(middleColumnWidth)
                             .fillMaxHeight(),
                         // 走 Navigator 而不是直接改 backStack：系统返回键也走同一套判断。
-                        // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时放行，
-                        // 让「动画没播完就想再退一层」真的生效
+                        // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
+                        // 等这一段演完再出栈，不吃掉也不重定向
                         onBack = { navController.popBackStack() },
                         // 有源条目的页面：位移交给容器变换去演，这里只留淡入淡出，免得两层动画打架
                         // 没有源条目的页面（抽屉、聊天流里的入口）：从下方滑入、向下滑出，比纯淡出更有方向感
