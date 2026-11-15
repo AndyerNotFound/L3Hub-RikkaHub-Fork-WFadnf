@@ -192,3 +192,74 @@ private class GeneratedTokenCounter {
 
 /** 表盘凹槽占整圈的比例，剩下的是正下方的开口 */
 private const val GAUGE_SWEEP = 270f
+private const val GAUGE_START = 135f
+
+/**
+ * 车速仪样式的小表盘：满刻度是本轮跑过的最高速度，指针是当前速度。
+ *
+ * 颜色取自主题的主色容器一套（凹槽 primaryContainer、弧与轴 primary、指针 onPrimaryContainer），
+ * 不再用灰/蓝/红那套自定义色。读数在绘制阶段取，采样每 100ms 只重画这只表盘，不引起重组。
+ */
+@Composable
+fun TokenSpeedGauge(
+    generationSpeed: GenerationSpeed,
+    running: Boolean,
+    fallbackSpeed: Float?,
+    modifier: Modifier = Modifier,
+    diameter: Dp = 30.dp,
+) {
+    val colors = MaterialTheme.colorScheme
+    Canvas(modifier = modifier.size(diameter)) {
+        val stroke = 2.5.dp.toPx()
+        val arcSize = Size(size.width - stroke, size.height - stroke)
+        val arcTopLeft = Offset(stroke / 2f, stroke / 2f)
+
+        // 生成中看实时速度；停下来看这一轮的均值，刻度仍是这一轮跑到的最高速度
+        val live = generationSpeed.tokensPerSecond
+        val peak = generationSpeed.peakTokensPerSecond
+        val speed = if (running) live else (fallbackSpeed ?: live)
+        val scale = when {
+            peak > 0f -> maxOf(peak, speed)
+            // 历史会话没有采样数据，留出余量让指针落在八分位，不至于一上来就顶到满格
+            speed > 0f -> speed * 1.25f
+            else -> 0f
+        }
+        val ratio = if (scale > 0f) (speed / scale).coerceIn(0f, 1f) else 0f
+
+        drawArc(
+            color = colors.primaryContainer,
+            startAngle = GAUGE_START,
+            sweepAngle = GAUGE_SWEEP,
+            useCenter = false,
+            topLeft = arcTopLeft,
+            size = arcSize,
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
+        if (ratio > 0f) {
+            drawArc(
+                color = colors.primary,
+                startAngle = GAUGE_START,
+                sweepAngle = GAUGE_SWEEP * ratio,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+        }
+
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val needleLength = size.minDimension / 2f - stroke - 1.5.dp.toPx()
+        val angle = Math.toRadians((GAUGE_START + GAUGE_SWEEP * ratio).toDouble())
+        drawLine(
+            color = colors.onPrimaryContainer,
+            start = center,
+            end = center + Offset(
+                x = (cos(angle) * needleLength).toFloat(),
+                y = (sin(angle) * needleLength).toFloat(),
+            ),
+            strokeWidth = 1.6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawCircle(color = colors.primary, radius = 1.4.dp.toPx(), center = center)
+    }
+}
