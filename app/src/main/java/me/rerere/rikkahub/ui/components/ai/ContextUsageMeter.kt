@@ -43,7 +43,6 @@ import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
-import me.rerere.rikkahub.utils.toFixed
 import kotlin.math.roundToInt
 
 /** 占用超过门限的这个比例后, 进度条转为提醒色 */
@@ -68,45 +67,55 @@ fun ContextUsageMeter(
     modifier: Modifier = Modifier,
     // 对话还在生成：进度条显示为流动的波浪，停下来后落成静态直条
     running: Boolean = false,
+    // 最近一次请求的输出速度，只决定右侧圆点的颜色
+    tokenSpeed: Float? = null,
 ) {
     if (warnTokens == null && maxTokens == null) return
 
     val used = (tokens ?: 0).coerceAtLeast(0)
     val limitReached = isContextLimitReached(tokens, maxTokens)
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onShowUsage)
             .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (warnTokens != null) {
-            ContextMeterRow(
-                label = stringResource(R.string.chat_page_context_meter_warn),
-                used = used,
-                limit = warnTokens,
-                hardLimit = false,
-                running = running,
-            )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (warnTokens != null) {
+                ContextMeterRow(
+                    label = stringResource(R.string.chat_page_context_meter_warn),
+                    used = used,
+                    limit = warnTokens,
+                    hardLimit = false,
+                    running = running,
+                )
+            }
+            if (maxTokens != null) {
+                ContextMeterRow(
+                    label = stringResource(R.string.chat_page_context_meter_max),
+                    used = used,
+                    limit = maxTokens,
+                    hardLimit = true,
+                    running = running,
+                )
+            }
+            if (limitReached) {
+                Text(
+                    text = stringResource(R.string.chat_page_context_limit_reached),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
-        if (maxTokens != null) {
-            ContextMeterRow(
-                label = stringResource(R.string.chat_page_context_meter_max),
-                used = used,
-                limit = maxTokens,
-                hardLimit = true,
-                running = running,
-            )
-        }
-        if (limitReached) {
-            Text(
-                text = stringResource(R.string.chat_page_context_limit_reached),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
+        // 生成速度不再写成文字，改成条右侧的一个圆点：灰慢、冰蓝中、红快
+        TokenSpeedDot(speed = tokenSpeed)
     }
 }
 
@@ -267,6 +276,8 @@ fun ContextUsageRing(
                 maxLines = 1,
             )
         }
+        // 生成速度不再写成文字，改成环右侧的一个圆点：灰慢、冰蓝中、红快
+        TokenSpeedDot(speed = tokenSpeed)
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.Start,
@@ -286,14 +297,6 @@ fun ContextUsageRing(
                     used = used,
                     limit = maxTokens,
                     color = mainColor,
-                )
-            }
-            if (tokenSpeed != null) {
-                Text(
-                    text = "${tokenSpeed.toFixed(1)} tok/s",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             if (limitReached) {

@@ -8,8 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import kotlinx.coroutines.delay
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessagePart
@@ -58,33 +56,6 @@ private const val SPEED_WINDOW_MS = 1600L
 
 /** 起步阶段窗口还没铺开，一次首字爆发就能算出几百 tok/s，等这之后再公布速度 */
 private const val WARM_UP_MS = 900L
-
-private val SlowIndicatorColor = Color(0xFF9E9E9E)
-private val MediumIndicatorColor = Color(0xFF8DDDF2)
-private val PeakIndicatorColor = Color(0xFFFF4D4F)
-
-// 相对本轮峰值的档位：≤15% 停在灰色，50% 是冰蓝，≥85% 转为红色
-private const val SLOW_RATIO = 0.15f
-private const val MEDIUM_RATIO = 0.50f
-private const val PEAK_RATIO = 0.85f
-
-/** 速度档位对应的图标颜色，档位之间按比例插值 */
-internal fun generationIndicatorColor(peakRatio: Float): Color = when {
-    peakRatio <= SLOW_RATIO -> SlowIndicatorColor
-    peakRatio < MEDIUM_RATIO -> lerp(
-        SlowIndicatorColor,
-        MediumIndicatorColor,
-        (peakRatio - SLOW_RATIO) / (MEDIUM_RATIO - SLOW_RATIO),
-    )
-
-    peakRatio < PEAK_RATIO -> lerp(
-        MediumIndicatorColor,
-        PeakIndicatorColor,
-        (peakRatio - MEDIUM_RATIO) / (PEAK_RATIO - MEDIUM_RATIO),
-    )
-
-    else -> PeakIndicatorColor
-}
 
 /**
  * 采样当前轮次的生成速度。

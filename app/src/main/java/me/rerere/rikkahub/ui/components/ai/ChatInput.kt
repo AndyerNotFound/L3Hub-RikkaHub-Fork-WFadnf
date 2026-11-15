@@ -581,6 +581,7 @@ fun ChatInput(
                             onShowUsage = onShowUsage,
                             modifier = Modifier.padding(horizontal = 4.dp),
                             running = loading,
+                            tokenSpeed = usageTokenSpeed,
                         )
 
                         ContextMeterStyle.RING -> ContextUsageRing(

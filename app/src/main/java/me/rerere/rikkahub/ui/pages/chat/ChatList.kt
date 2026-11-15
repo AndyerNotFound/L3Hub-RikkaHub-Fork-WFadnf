@@ -125,6 +125,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.ui.components.ai.tokenSpeedRatioColor
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
@@ -863,7 +864,8 @@ private fun ChatListNormal(
             // 结束时行高跟着动画收回，列表贴着底部会把多出来的这段一点点退回去，
             // 正文是滑回原位，不会在图标消失的那一帧整体瞬移。
             item(LoadingIndicatorKey) {
-                // 采样是 100ms 一次的台阶，颜色的变化交给动画补齐，档位之间看起来是连续的
+                // 采样是 100ms 一次的台阶，颜色的变化交给动画补齐，档位之间看起来是连续的；
+                // 档位与配色跟上下文预警里的速度圆点共用一套，只是这里按本轮峰值归一化
                 val speedRatio by animateFloatAsState(
                     targetValue = generationSpeed.peakRatio,
                     animationSpec = tween(durationMillis = 420),
@@ -886,7 +888,7 @@ private fun ChatListNormal(
                         // 停住或极慢是灰，中等冰蓝，摸到本轮最高速转红
                         ContainedLoadingIndicator(
                             modifier = Modifier.size(28.dp),
-                            indicatorColor = generationIndicatorColor(speedRatio),
+                            indicatorColor = tokenSpeedRatioColor(speedRatio),
                         )
                         MotionExpandCollapse(
                             visible = processingStatus != null,
