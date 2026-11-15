@@ -158,6 +158,8 @@ import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
+import me.rerere.rikkahub.ui.components.ai.ChatQuotaStripDashboard
+import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
 import me.rerere.rikkahub.ui.components.ai.ChatCapsule
 import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
@@ -686,6 +688,11 @@ private fun ChatPageContent(
     val currentProvider = remember(currentChatModel, setting.providers) {
         currentChatModel?.findProvider(setting.providers)
     }
+    // 限额看板：折叠条留在顶栏，展开的看板叠在内容层上，展开时不改顶栏的布局高度。
+    // 轮询只跑一份，折叠条的摘要和看板读同一份数据
+    val quotaProvider = currentProvider.takeIf { setting.displaySetting.showQuotaBar }
+    val quotaData = quotaProvider?.let { rememberChatQuotaStripData(it) }
+    var quotaExpanded by rememberSaveable(currentProvider?.id?.toString()) { mutableStateOf(false) }
 
     // Usage 看板里的最近一次请求速度
     val usageTokenSpeed = remember(lastUsageMessage) { lastUsageMessage?.usageTokenSpeed() }
@@ -1171,12 +1178,14 @@ private fun ChatPageContent(
                         detailsExpanded = showDetails,
                         onToggleDetails = { toggleDetailsPane() },
                     )
-                    if (setting.displaySetting.showQuotaBar && currentProvider != null) {
+                    if (quotaProvider != null && quotaData != null) {
                         ChatQuotaStrip(
-                            provider = currentProvider,
+                            provider = quotaProvider,
+                            data = quotaData,
+                            expanded = quotaExpanded,
+                            onToggle = { quotaExpanded = !quotaExpanded },
                             displaySetting = setting.displaySetting,
                             hazeState = backgroundHazeState,
-                            running = loadingJob != null,
                         )
                     }
                 }
@@ -1358,6 +1367,22 @@ private fun ChatPageContent(
                         hazeState = backgroundHazeState,
                         onCollapse = { showDetails = false },
                         modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                    )
+                }
+                // 限额看板也走叠层：展开只动这一层的高度，顶栏与内容层的可用高度不变。
+                // 之前挂在顶栏里，展开动画每帧改一次顶栏高度，空会话页的英雄卡与输入栏
+                // 要跟着逐帧重排，看起来整页在重建
+                if (quotaProvider != null && quotaData != null) {
+                    ChatQuotaStripDashboard(
+                        provider = quotaProvider,
+                        data = quotaData,
+                        expanded = quotaExpanded,
+                        running = loadingJob != null,
+                        displaySetting = setting.displaySetting,
+                        hazeState = backgroundHazeState,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = innerPadding.calculateTopPadding()),
                     )
                 }
             }

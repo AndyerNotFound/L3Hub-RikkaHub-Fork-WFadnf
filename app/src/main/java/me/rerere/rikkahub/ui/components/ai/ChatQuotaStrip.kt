@@ -21,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
@@ -31,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,29 +85,26 @@ private const val STATUS_REFRESH_MILLIS = 5_000L
 private val DashboardMaxHeight = 280.dp
 
 /**
- * 顶栏下方的限额折叠条。
+ * 折叠条与看板共用的轮询结果。
  *
- * 收起时是一行摘要（提供商名 + 最近一分钟与各时间窗的用量），点击后在下方展开看板：
- * 先是 [ProviderSetting.guard] 里的 RPM / TPM / 自定义时间段限额，随后是提供商返回的
- * 订阅用量（[ProviderQuota]）；没配限流、也没额度可查时给一条空状态说明。
+ * 顶栏那一行摘要和叠在内容层上的看板读同一份：两处各查一次的话额度查询会翻倍，
+ * 数字也会在两次刷新之间错开。
+ */
+data class ChatQuotaStripData(
+    val status: ProviderGateStatus?,
+    val lockState: ProviderLockState,
+    val quota: Result<ProviderQuota>?,
+)
+
+/**
+ * 轮询本机限流状态、定时锁定与渠道额度，5 秒一次，和高级设置里的状态卡一致。
  *
- * 哪些渠道有东西可看由提供商自己的配置决定：高级设置里没开限流、也没有额度查询时，
- * 这里只显示空状态，不会凭空造出数字。
+ * 只查一次、两处共用，所以提到折叠条外面；[provider] 或它的限流配置变了会重新起一段查询。
  */
 @Composable
-fun ChatQuotaStrip(
-    provider: ProviderSetting,
-    displaySetting: DisplaySetting,
-    hazeState: HazeState,
-    modifier: Modifier = Modifier,
-    // 当前对话正在生成：看板里的进度条画成流动的波浪，停下来后落成静态直条
-    running: Boolean = false,
-) {
-    val context = LocalContext.current
+fun rememberChatQuotaStripData(provider: ProviderSetting): ChatQuotaStripData {
     val gate = koinInject<ProviderGate>()
     val guard = provider.guard
-    var expanded by rememberSaveable(provider.id.toString()) { mutableStateOf(false) }
-
     var status by remember(provider.id) { mutableStateOf<ProviderGateStatus?>(null) }
     var lockState by remember(provider.id) { mutableStateOf(gate.lockState(provider)) }
     LaunchedEffect(provider.id, guard) {
@@ -121,14 +116,40 @@ fun ChatQuotaStrip(
             delay(STATUS_REFRESH_MILLIS)
         }
     }
-
     // 委托属性的读取每次都会走 getter，先取成局部值，下面既少读几次，也能正常做空判断
-    val gateStatus = status
-    val quotaResult = if (provider.supportsQuota) {
+    val quota = if (provider.supportsQuota) {
         rememberProviderQuota(provider, guard.quotaRefreshSeconds * 1_000L)
     } else {
         null
     }
+    return ChatQuotaStripData(status = status, lockState = lockState, quota = quota)
+}
+
+/**
+ * 顶栏下方的限额折叠条，只有收起的那一行摘要。
+ *
+ * 摘要里是提供商名加最近一分钟与各时间窗的用量；点按切换看板的展开状态。
+ * 看板不在这里渲染：展开的看板由 [ChatQuotaStripDashboard] 叠在内容层上，
+ * 这样展开动画不会改动这个折叠条与顶栏的高度，页面也就不会跟着逐帧重排。
+ *
+ * 哪些渠道有东西可看由提供商自己的配置决定：高级设置里没开限流、也没有额度查询时，
+ * 这里只显示空状态，不会凭空造出数字。
+ */
+@Composable
+fun ChatQuotaStrip(
+    provider: ProviderSetting,
+    data: ChatQuotaStripData,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    displaySetting: DisplaySetting,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val guard = provider.guard
+    val gateStatus = data.status
+    val lockState = data.lockState
+    val quotaResult = data.quota
     val quota = quotaResult?.getOrNull()
 
     val quotaLabel = stringResource(R.string.chat_quota_bar_quota)
@@ -208,7 +229,7 @@ fun ChatQuotaStrip(
         label = "ChatQuotaStripChevron",
     )
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(
@@ -236,73 +257,120 @@ fun ChatQuotaStrip(
                 } else {
                     Modifier
                 }
-            ),
+            )
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
+        Icon(
+            imageVector = if (warning) HugeIcons.Alert02 else HugeIcons.DashboardSpeed02,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = provider.name,
+                style = MaterialTheme.typography.titleSmallEmphasized,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (warning) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = HugeIcons.ArrowDown01,
+            contentDescription = stringResource(
+                if (expanded) R.string.chat_quota_bar_collapse else R.string.chat_quota_bar_expand
+            ),
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                imageVector = if (warning) HugeIcons.Alert02 else HugeIcons.DashboardSpeed02,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-            )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(
-                    text = provider.name,
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (warning) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Icon(
-                imageVector = HugeIcons.ArrowDown01,
-                contentDescription = stringResource(
-                    if (expanded) R.string.chat_quota_bar_collapse else R.string.chat_quota_bar_expand
-                ),
-                modifier = Modifier
-                    .size(18.dp)
-                    .rotate(rotation),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+                .size(18.dp)
+                .rotate(rotation),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
-        MotionExpandCollapse(
-            visible = expanded,
-            enter = expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = rememberSpatialSpec(),
-            ) + fadeIn(animationSpec = rememberEffectsSpec()),
-            exit = shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = rememberFastSpatialSpec(),
-            ) + fadeOut(animationSpec = rememberEffectsSpec()),
-        ) {
-            QuotaDashboard(
-                provider = provider,
-                binaryUnits = displaySetting.binaryUnits,
-                status = gateStatus,
-                lockState = lockState,
-                quotaResult = quotaResult,
-                running = running,
+/**
+ * 展开后的限额看板，叠在内容层上。
+ *
+ * 展开走的是叠层自己的高度动画，不占 `Scaffold` 顶栏的布局高度：顶栏高度一变，
+ * 内容层的可用高度每帧都跟着变，空会话页的英雄卡要重新居中、输入栏要跟着量出来的
+ * 底边挪，整页看着就是在重建。叠层只动自己这一层，下面的内容原样不动。
+ */
+@Composable
+fun ChatQuotaStripDashboard(
+    provider: ProviderSetting,
+    data: ChatQuotaStripData,
+    expanded: Boolean,
+    running: Boolean,
+    displaySetting: DisplaySetting,
+    hazeState: HazeState,
+    modifier: Modifier = Modifier,
+) {
+    val shape: RoundedCornerShape = if (LocalFullWidthComponents.current) {
+        RoundedCornerShape(0.dp)
+    } else {
+        RoundedCornerShape(20.dp)
+    }
+    val effect = displaySetting.effectiveBackgroundEffect
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+
+    MotionExpandCollapse(
+        visible = expanded,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = adaptiveHorizontalPaddingValue(12.dp),
+                end = adaptiveHorizontalPaddingValue(12.dp),
             )
-        }
+            .appButtonShadow(shape, 4.dp)
+            .clip(shape)
+            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
+            .chatInputHaze(
+                hazeState = hazeState,
+                displaySetting = displaySetting,
+                containerColor = containerColor,
+                shape = shape,
+            )
+            .then(
+                if (effect == BackgroundEffectType.BLUR) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        enter = expandVertically(
+            expandFrom = Alignment.Top,
+            animationSpec = rememberSpatialSpec(),
+        ) + fadeIn(animationSpec = rememberEffectsSpec()),
+        exit = shrinkVertically(
+            shrinkTowards = Alignment.Top,
+            animationSpec = rememberFastSpatialSpec(),
+        ) + fadeOut(animationSpec = rememberEffectsSpec()),
+    ) {
+        QuotaDashboard(
+            provider = provider,
+            binaryUnits = displaySetting.binaryUnits,
+            status = data.status,
+            lockState = data.lockState,
+            quotaResult = data.quota,
+            running = running,
+        )
     }
 }
 
@@ -329,11 +397,9 @@ private fun QuotaDashboard(
             .fillMaxWidth()
             .heightIn(max = DashboardMaxHeight)
             .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
         if (!hasRateLimits && !hasQuota && locks.isEmpty()) {
             Text(
                 text = stringResource(R.string.chat_quota_bar_empty),
