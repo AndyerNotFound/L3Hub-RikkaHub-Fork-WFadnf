@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.hugeicons.HugeIcons
@@ -49,6 +54,8 @@ import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
 /**
  * 外层 ChainOfThought 是否处于「全部折叠」状态，供步骤内部（如思考块）联动收起。
@@ -538,9 +545,19 @@ private class ChainOfThoughtScopeImpl(
             // 展开内容（缩进对齐 label）
             val expandableContent = content
             if (expandableContent != null) {
+                // 位移、淡出与模糊取同一条曲线：原先模糊是固定时长的 tween、位移是主题弹簧，
+                // 收尾那一段位移已经收住、模糊还在推，尾巴上就露出一下硬过渡。
+                // 进出共用同一组参数，收放两头手感一致。
+                val collapseSpec = rememberSpatialSpec<IntSize>()
+                val collapseBlurSpec = rememberSpatialSpec<Float>()
+                val collapseFadeSpec = rememberEffectsSpec<Float>()
                 MotionExpandCollapse(
                     visible = contentVisible,
+                    enter = expandVertically(collapseSpec) + fadeIn(collapseFadeSpec),
+                    exit = shrinkVertically(collapseSpec) + fadeOut(collapseFadeSpec),
                     maxBlurRadius = 5.dp,
+                    enterBlurSpec = collapseBlurSpec,
+                    exitBlurSpec = collapseBlurSpec,
                 ) {
                     Box(
                         modifier = Modifier

@@ -148,7 +148,17 @@ private fun ReasoningContent(
     fadeHeight: Float,
     loading: Boolean,
 ) {
-    val isPreview = expandState == ReasoningCardState.Preview
+    // 收起时不能把预览窗口当场换回全文：一翻成 Collapsed，高度上限与滚动就没了，
+    // 子内容会在收起的头一帧先长回整段思考的高度，外面再从那个高度往下收，
+    // 看起来就是一帧硬切。这里让预览几何一直留到下一次真正展开为止，
+    // 收起就是从这 100dp 的窗口本身收回卡片头，模糊才能跟着位移一起走。
+    var previewLayout by remember { mutableStateOf(expandState == ReasoningCardState.Preview) }
+    LaunchedEffect(expandState) {
+        if (expandState != ReasoningCardState.Collapsed) {
+            previewLayout = expandState == ReasoningCardState.Preview
+        }
+    }
+    val isPreview = previewLayout
     val fontSizeRatio = LocalSettings.current.displaySetting.fontSizeRatio
     val bodySmall = MaterialTheme.typography.bodySmall
     val reasoningTextStyle = bodySmall.copy(
@@ -166,8 +176,10 @@ private fun ReasoningContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // 预览高度与全文高度之间切换也走一次模糊，和折叠按钮的手感一致
-            .motionBlurOnToggle(expandState)
+            // 预览高度与全文高度之间切换也走一次模糊，和折叠按钮的手感一致；
+            // 收起本身由外层 MotionExpandCollapse 带模糊，这里不再叠第二层，
+            // 只认「预览 ↔ 全文」这一个几何切换
+            .motionBlurOnToggle(expandState == ReasoningCardState.Expanded)
             .let { contentModifier ->
                 if (isPreview) {
                     contentModifier

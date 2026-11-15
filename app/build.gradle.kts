@@ -28,8 +28,8 @@ android {
         applicationId = "com.rikkahub.l3hub.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 343
-        versionName = "L.3.2.26.165"
+        versionCode = 344
+        versionName = "L.3.2.27.166"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
         // 精简版没有 LiteRT 运行时，设置里的本地模型入口按这个字段隐藏
         buildConfigField("boolean", "HAS_LITERT", if (noLitert) "false" else "true")
