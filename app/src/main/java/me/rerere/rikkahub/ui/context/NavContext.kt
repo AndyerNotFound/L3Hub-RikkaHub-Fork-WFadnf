@@ -19,6 +19,9 @@ class Navigator(private val backStack: MutableList<NavKey>) {
 
     private fun throttle(now: Long, last: Long) = now - last >= NAVIGATION_THROTTLE_MS
 
+    /** 当前栈顶，reporter 用它判断转场是不是奔向下层页。 */
+    val topKey: NavKey? get() = backStack.lastOrNull()
+
     fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit = {}) {
         val now = SystemClock.uptimeMillis()
         if (!throttle(now, lastNavigateAt)) return
@@ -76,17 +79,30 @@ class Navigator(private val backStack: MutableList<NavKey>) {
     var pendingPops: Int by mutableStateOf(0)
         private set
 
+    /**
+     * 转场正奔向下层页：预测性返回手势把 seekTo 的目标记成下层页的 scene，这时出栈
+     * 落地正好是 seek 的终点，直接出栈不排队。由 `rememberNavTransitionReporter()` 从
+     * 进场中的 scene 回写（进场 scene 的 key 不是当前栈顶即是），可观察。
+     */
+    var transitionSeekingPop: Boolean by mutableStateOf(false)
+
     fun popBackStack() {
         val now = SystemClock.uptimeMillis()
         // 同一帧里的重复回调只认第一次：nav3 的 onBack 按「待弹条数」回调多次，
         // 第二次进来时栈还没刷新，放过去会把栈弹空。
         if (now - lastPopAt < SAME_FRAME_MS) return
-        // 转场里不直接出栈：这一下是「动画没播完就想再退一层」的明确意图，先记下来，
-        // 等这一段转场落下再走正常 pop，交给 drainPendingPops 消费
         if (transitionInFlight) {
-            // 同一帧里的重复回调同样要拦：排队不改栈，靠时间戳挡住第二次
             lastPopAt = now
-            pendingPops++
+            if (transitionSeekingPop) {
+                // 转场正奔向下层页（预测性返回手势的 seek）：出栈落地就是这段 seek 的
+                // 终点，直接出栈让 seek 顺势收尾。排队的话 nav3 等不到出栈，会按
+                // 「手势被取消」把 seek 倒放回当前页——页面退出后又闪回来
+                popTop(now)
+            } else {
+                // 这一屏的进场还在播：这一下是「动画没播完就想再退一层」的明确意图，
+                // 先记下来，等这一段转场落下再走正常 pop，交给 drainPendingPops 消费
+                pendingPops++
+            }
             return
         }
         // 空闲时的连点仍按 250ms 拦掉

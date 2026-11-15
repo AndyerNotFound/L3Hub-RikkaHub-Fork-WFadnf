@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import me.rerere.rikkahub.ui.context.Navigator
@@ -31,8 +32,7 @@ import me.rerere.rikkahub.ui.context.Navigator
  * 被盖住的那一页根本进不了命中链。所以离场期间点到的是空的，不会触发下面那一页的按钮，
  * 也不会触发已经离场那一页的按钮。
  *
- * 代价：纯 fade 的退场（usesHeroTransition() 的那些页）在 pop 时整屏有一整个动画时长的空窗；
- * 带位移的退场会随位移逐步让出可点区域。要缩短这个空窗，只能压短对应的 exit 时长。
+ * 代价：带位移的退场会随位移逐步让出可点区域，pop 后期点到底部露出的区域会落到空处。
  *
  * 判定是 per-scene 的：AnimatedContent 的 content 是一个 Scene，同一 scene 里的多个 entry
  * 共用同一个 transition。多窗格布局里，目标 scene 内的每个 entry 都是 Visible，
@@ -82,14 +82,26 @@ fun <T : Any> rememberNavTransitionReporter(
     NavEntryDecorator<T> { entry ->
         // 读转场状态单独占一个重组作用域：和 entry.Content() 放在同一个 lambda 里，
         // 三次状态切换（PreEnter / Visible / PostExit）会连带整页重新调用一遍
-        NavTransitionReport(navigator)
+        NavTransitionReport(navigator, entry)
         entry.Content()
     }
 }
 
 @Composable
-private fun NavTransitionReport(navigator: Navigator) {
+private fun <T : Any> NavTransitionReport(
+    navigator: Navigator,
+    entry: NavEntry<T>,
+) {
     val transition = LocalNavAnimatedContentScope.current.transition
     val inFlight = transition.currentState != transition.targetState
-    SideEffect { navigator.transitionInFlight = inFlight }
+    // 只有进场中的 scene（targetState 是 Visible）才有资格写 seekingPop，离场的
+    // scene 不写，免得把进场 scene 写下的值又盖回去。进场 scene 的 key 不是当前
+    // 栈顶 = 转场奔向下层页：预测性返回手势的 seekTo 目标就是下层页的 scene
+    val entering = transition.targetState == EnterExitState.Visible
+    SideEffect {
+        navigator.transitionInFlight = inFlight
+        if (entering) {
+            navigator.transitionSeekingPop = inFlight && entry.key != navigator.topKey
+        }
+    }
 }
