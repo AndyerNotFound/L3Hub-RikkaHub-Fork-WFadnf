@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -84,6 +85,9 @@ private const val STATUS_REFRESH_MILLIS = 5_000L
 /** 展开后的看板最高占多少高度，内容更多时在看板内部滚动，不能把聊天区挤没 */
 private val DashboardMaxHeight = 280.dp
 
+/** 折叠条右侧的余额最多占多宽，再长就在这一格里省略 */
+private val BalanceCellMaxWidth = 120.dp
+
 /**
  * 折叠条与看板共用的轮询结果。
  *
@@ -128,7 +132,7 @@ fun rememberChatQuotaStripData(provider: ProviderSetting): ChatQuotaStripData {
 /**
  * 顶栏下方的限额折叠条，只有收起的那一行摘要。
  *
- * 摘要里是提供商名加最近一分钟与各时间窗的用量；点按切换看板的展开状态。
+ * 摘要里是提供商名加最近一分钟与各时间窗的用量，右侧单列当前余额；点按切换看板的展开状态。
  * 看板不在这里渲染：展开的看板由 [ChatQuotaStripDashboard] 叠在内容层上，
  * 这样展开动画不会改动这个折叠条与顶栏的高度，页面也就不会跟着逐帧重排。
  *
@@ -151,6 +155,7 @@ fun ChatQuotaStrip(
     val lockState = data.lockState
     val quotaResult = data.quota
     val quota = quotaResult?.getOrNull()
+    val balance = quota as? ProviderQuota.Balance
 
     val quotaLabel = stringResource(R.string.chat_quota_bar_quota)
     val quotaFailureLabel = stringResource(R.string.setting_provider_page_usage_failed)
@@ -173,7 +178,9 @@ fun ChatQuotaStrip(
                 add("${window.shortLabel().ifBlank { quotaLabel }} ${window.usedPercent.roundToInt()}%")
             }
 
-            is ProviderQuota.Balance -> add(quota.value)
+            // 余额不进这行摘要：多币种、十二位小数的余额很长，混进来会把限流用量挤出去，
+            // 也可能被下面的 take(4) 截掉。它单独占折叠条右侧一格
+            is ProviderQuota.Balance -> Unit
             null -> if (provider.supportsQuota && quotaResult?.isFailure == true) {
                 add(quotaFailureLabel)
             }
@@ -193,7 +200,7 @@ fun ChatQuotaStrip(
     val quotaExhausted = (quota as? ProviderQuota.UsageLimits)?.let { limits ->
         limits.limitReached || limits.windows.any { it.usedPercent >= 100 }
     } == true
-    val lowBalance = (quota as? ProviderQuota.Balance)?.let { balanceIsLow(provider, it) } == true
+    val lowBalance = balance?.let { balanceIsLow(provider, it) } == true
     val warning = lockedUntil != null || rateExhausted || quotaExhausted || lowBalance
     val summary = when {
         lockedUntil != null -> stringResource(
@@ -207,6 +214,9 @@ fun ChatQuotaStrip(
 
         quota is ProviderQuota.UsageLimits ->
             stringResource(R.string.setting_provider_page_usage_none)
+
+        // 只有余额可看时，副标题充当右侧金额的标签，免得折叠条看起来只剩一行空
+        balance != null -> stringResource(R.string.chat_quota_bar_balance)
 
         nextLockAt != null -> stringResource(
             R.string.setting_provider_guard_lock_next,
@@ -287,6 +297,36 @@ fun ChatQuotaStrip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        // 余额独占右侧一格：宽度封顶后靠右省略，长余额不会把提供商名与用量摘要挤没
+        if (balance != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    imageVector = if (lowBalance) HugeIcons.Alert02 else HugeIcons.MoneyBag02,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = if (lowBalance) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+                Text(
+                    text = balance.value,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (lowBalance) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = BalanceCellMaxWidth),
+                )
+            }
         }
         Icon(
             imageVector = HugeIcons.ArrowDown01,

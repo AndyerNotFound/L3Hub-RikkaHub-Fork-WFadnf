@@ -122,7 +122,6 @@ import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
-import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -598,7 +597,6 @@ fun ChatInput(
                             maxTokens = chatModel.maxContextTokens,
                             onShowUsage = onShowUsage,
                             modifier = Modifier.padding(horizontal = 4.dp),
-                            provider = chatModel.findProvider(settings.providers),
                             speedIndicator = {
                                 TokenSpeedGauge(
                                     generationSpeed = generationSpeed,

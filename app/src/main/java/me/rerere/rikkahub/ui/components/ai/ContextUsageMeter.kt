@@ -35,7 +35,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.contextUsageFraction
@@ -198,7 +197,6 @@ fun ContextUsageRing(
     maxTokens: Int?,
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
-    provider: ProviderSetting? = null,
     // 速度指示（车速仪表盘）：内容由调用方给，位置固定在环形图右侧
     speedIndicator: (@Composable () -> Unit)? = null,
 ) {
@@ -305,16 +303,6 @@ fun ContextUsageRing(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-        }
-        if (provider != null) {
-            // 刷新间隔取提供商高级设置里的值，0 表示不自动刷新；失败时保留上一次的数字。
-            // 与左侧用量各占一半，余额再长也只在自己的格子里截断，不会把环形图和数值挤变形
-            ProviderQuotaText(
-                providerSetting = provider,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelSmall,
-                refreshIntervalMillis = provider.guard.quotaRefreshSeconds * 1_000L,
-            )
         }
     }
 }
