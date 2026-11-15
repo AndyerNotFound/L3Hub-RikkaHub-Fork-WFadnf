@@ -95,13 +95,19 @@ private fun <T : Any> NavTransitionReport(
     val transition = LocalNavAnimatedContentScope.current.transition
     val inFlight = transition.currentState != transition.targetState
     // 只有进场中的 scene（targetState 是 Visible）才有资格写 seekingPop，离场的
-    // scene 不写，免得把进场 scene 写下的值又盖回去。进场 scene 的 key 不是当前
-    // 栈顶 = 转场奔向下层页：预测性返回手势的 seekTo 目标就是下层页的 scene
+    // scene 不写，免得把进场 scene 写下的值又盖回去。进场 scene 不是当前栈顶
+    // = 转场奔向下层页：预测性返回手势的 seekTo 目标就是下层页的 scene
     val entering = transition.targetState == EnterExitState.Visible
+    // nav3 1.2 起 NavEntry.key 是私有的，公开的只剩 contentKey，而 contentKey 的默认值
+    // 是库自己从 key 推出来的（1.2.0 起是 Pair(key.toString(), key::class)）。
+    // 这里用同一个构造函数把栈顶 key 的 contentKey 算出来再比：判据与原先的
+    // 「进场 scene 的 key 不是栈顶」逐字等价，不是近似，所以不会把闪回那一版带回来。
+    // 按 key 记住，一个栈顶只造一次，不在每帧分配。
+    val topContentKey = navigator.topKey?.let { key -> remember(key) { NavEntry(key) {}.contentKey } }
     SideEffect {
         navigator.transitionInFlight = inFlight
         if (entering) {
-            navigator.transitionSeekingPop = inFlight && entry.key != navigator.topKey
+            navigator.transitionSeekingPop = inFlight && entry.contentKey != topContentKey
         }
     }
 }
