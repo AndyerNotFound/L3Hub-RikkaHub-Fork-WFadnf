@@ -41,10 +41,10 @@ import kotlinx.coroutines.launch
 
 private val DefaultSlideSpec = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
 
-// 收起时只认从左边缘起手，避免把聊天页自己的横向手势当成开抽屉
-private val EdgeSwipeWidth = 24.dp
 // 松手时甩动速度达到这个值，直接按甩动方向收/开；否则看位移是否过半
 private val IntentSwipeVelocity = 350.dp
+// 横向位移要压过纵向这么多倍才算开抽屉的起手，否则这一下是列表滚动
+private const val HorizontalDominance = 1.5f
 
 /**
  * 从侧边整块滑进来的遮罩式抽屉，替代 Material 的 ModalNavigationDrawer。
@@ -53,7 +53,9 @@ private val IntentSwipeVelocity = 350.dp
  * 所以跟手的每一帧只更新这一层的平移，抽屉里再重的列表也不会重新测量或重组；
  * 松手后位移过半或者甩动速度够格，就从手指停下的位置继续播完开/关动画。
  *
- * 收起状态只接从左边缘起手的右滑，向左留给会话里自己的左滑操作；展开后左滑收起，点外侧收起。
+ * 收起状态在内容上任意位置向右拖都能把抽屉拉出来：左边缘那条窄带被系统返回手势占着，只认边缘起手等于用不了。
+ * 向左留给会话里自己的左滑操作；展开后左滑收起，点外侧收起。
+ * 竖着拖、按住不动等长按菜单、子组件已经接手的横向拖动，都不算开抽屉。
  */
 @Composable
 internal fun SlideOverDrawer(
@@ -103,13 +105,11 @@ internal fun SlideOverDrawer(
 
         val dragGesture = if (gesturesEnabled) {
             Modifier.pointerInput(open, travel) {
-                val edgeWidth = EdgeSwipeWidth.toPx()
                 val flingVelocity = IntentSwipeVelocity.toPx()
+                val longPressTimeout = viewConfiguration.longPressTimeoutMillis
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val opening = !open
-                    // 收起时只认左边缘起手；展开时不限起手位置
-                    if (opening && down.position.x > edgeWidth) return@awaitEachGesture
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPosition(down.uptimeMillis, down.position)
                     val startOffset = offset
@@ -120,15 +120,18 @@ internal fun SlideOverDrawer(
                         if (!change.pressed) break
                         if (horizontal) {
                             change.consume()
-                        } else if (change.isConsumed) {
-                            break
+                        } else {
+                            // 子组件已经接手的横向拖动（译文左右划、翻页）交给它
+                            if (change.isConsumed) break
+                            // 按住超过长按时长还没动，是在选词或等长按菜单，别抢
+                            if (change.uptimeMillis - down.uptimeMillis > longPressTimeout) break
                         }
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
                         val dx = change.position.x - down.position.x
                         val dy = change.position.y - down.position.y
                         if (!horizontal) {
                             if (abs(dx) < viewConfiguration.touchSlop) continue
-                            if (abs(dx) <= abs(dy) * 1.5f) break
+                            if (abs(dx) <= abs(dy) * HorizontalDominance) break
                             if (opening != (dx > 0f)) break
                             horizontal = true
                             // 拖上了就把正在播放的开/关动画掐掉，位置改由手指说话
