@@ -39,7 +39,7 @@ private const val MEDIUM_RATIO = 0.50f
 private const val FAST_RATIO = 0.85f
 
 /** 按「当前速度占据本轮峰值的比例」取色 */
-internal fun tokenSpeedRatioColor(peakRatio: Float): Color = when {
+fun tokenSpeedRatioColor(peakRatio: Float): Color = when {
     peakRatio <= SLOW_RATIO -> TokenSpeedSlowColor
     peakRatio < MEDIUM_RATIO -> lerp(
         TokenSpeedSlowColor,
@@ -63,7 +63,7 @@ internal fun tokenSpeedRatioColor(peakRatio: Float): Color = when {
  * 供上下文预警里的表盘显示；下一轮开始时才清空。
  */
 @Stable
-internal class GenerationSpeed {
+class GenerationSpeed {
     /** 当前速度（tok/s），已按采样窗口平滑 */
     var tokensPerSecond by mutableFloatStateOf(0f)
         private set
@@ -107,7 +107,7 @@ private const val WARM_UP_MS = 900L
  * [GenerationSpeed] 的那一小块界面（颜色、表盘）。
  */
 @Composable
-internal fun rememberGenerationSpeed(
+fun rememberGenerationSpeed(
     conversationState: State<Conversation>,
     loading: Boolean,
 ): GenerationSpeed {
@@ -169,7 +169,7 @@ private const val GAUGE_START = 135f
  * 不再用灰/蓝/红那套自定义色。读数在绘制阶段取，采样每 100ms 只重画这只表盘，不引起重组。
  */
 @Composable
-internal fun TokenSpeedGauge(
+fun TokenSpeedGauge(
     generationSpeed: GenerationSpeed,
     running: Boolean,
     fallbackSpeed: Float?,
