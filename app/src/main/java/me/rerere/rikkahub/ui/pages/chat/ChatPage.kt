@@ -204,6 +204,7 @@ import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
