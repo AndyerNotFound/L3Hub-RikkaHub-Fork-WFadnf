@@ -61,8 +61,8 @@ internal suspend fun Request.Builder.configureAccountAuth(
     credentials: AccountCredentialProvider,
     setting: ProviderSetting.Account,
     customHeaders: List<CustomHeader>,
-    applyHeaders: AccountHeaders,
     authHeader: AccountAuthHeader = AccountAuthHeader.Bearer,
+    applyHeaders: AccountHeaders,
 ) {
     val credential = credentials.getCredential(setting, rejectedAccessToken = null)
     headers(setting.mergeCustomHeaders(customHeaders))

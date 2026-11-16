@@ -12,8 +12,8 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.provider.providers.AccountAuthHeader
 import me.rerere.ai.provider.providers.AccountRequestTag
-import me.rerere.ai.provider.providers.MessagesAuth
 import me.rerere.ai.provider.providers.claude.ClaudeProvider
+import me.rerere.ai.provider.providers.claude.MessagesAuth
 import me.rerere.ai.provider.providers.withAccountAuthenticator
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
