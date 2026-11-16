@@ -13,21 +13,20 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
-import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
-import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonObjectOrNull
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Headers
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -55,19 +54,22 @@ internal fun cleanDeepSeekOcrText(raw: String): String = raw.replace(OCR_BOX_BLO
  * 这里把用户消息里的第一张图片取出来上传，再把逐页文本拼成一条 assistant 消息返回，
  * 这样 OCR 缓存、并发限制、结果固化等现有逻辑都不用改。
  */
-class DeepSeekOcrAPI(
-    private val client: OkHttpClient,
-    private val keyRoulette: KeyRoulette,
-) {
+class DeepSeekOcrAPI(private val client: OkHttpClient) {
+    /**
+     * [auth] 负责写鉴权头：API Key 用 `Bearer`，平台账号用 `x-dsh-auth-token`，
+     * 因此这一份实现同时服务官方提供商与账号登录的提供商。
+     */
     suspend fun generateText(
-        providerSetting: ProviderSetting.OpenAI,
+        baseUrl: String,
+        requestHeaders: Headers,
+        sessionId: String?,
+        model: Model,
         messages: List<UIMessage>,
-        params: TextGenerationParams,
+        auth: Request.Builder.() -> Unit,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
         val image = messages.firstImage()
             ?: error("DeepSeek OCR needs an image message, but none was provided")
         val upload = image.readUpload()
-        val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
 
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -80,11 +82,11 @@ class DeepSeekOcrAPI(
             .build()
 
         val request = Request.Builder()
-            .url(deepSeekOcrUrl(providerSetting.baseUrl))
-            .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
-            .addHeader("Authorization", "Bearer $key")
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .url(deepSeekOcrUrl(baseUrl))
+            .headers(requestHeaders)
+            .apply(auth)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, sessionId)
             .post(multipart)
             .build()
 
@@ -131,7 +133,7 @@ class DeepSeekOcrAPI(
 
         TextGenerationResult(
             id = root["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-            model = params.model.modelId,
+            model = model.modelId,
             message = UIMessage(
                 role = MessageRole.ASSISTANT,
                 parts = listOf(UIMessagePart.Text(text)),
@@ -142,11 +144,14 @@ class DeepSeekOcrAPI(
     }
 
     fun streamText(
-        providerSetting: ProviderSetting.OpenAI,
+        baseUrl: String,
+        requestHeaders: Headers,
+        sessionId: String?,
+        model: Model,
         messages: List<UIMessage>,
-        params: TextGenerationParams,
+        auth: Request.Builder.() -> Unit,
     ): Flow<StreamChunk> = flow {
-        val result = generateText(providerSetting, messages, params)
+        val result = generateText(baseUrl, requestHeaders, sessionId, model, messages, auth)
         val id = result.id.ifBlank { "deepseek-ocr" }
         val text = result.message.toText()
         emit(StreamChunk.TextStart(id))
