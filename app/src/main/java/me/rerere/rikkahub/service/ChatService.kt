@@ -34,6 +34,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -1495,7 +1496,7 @@ class ChatService(
             } else {
                 turn.model.displayName
             }
-            warnIfToolsUnavailable(turn, conversationId)
+            warnIfToolsUnavailable(turn, settings.providers, conversationId)
 
             // 清单和引导的开关、间隔按最新设置走：一轮可能跑很久，用户中途关掉插入要当步生效。
             // 其它字段仍用 turn 的快照，避免一轮里换模型或改系统提示词
@@ -1637,9 +1638,13 @@ class ChatService(
     }
 
     // 模型不支持工具调用时，搜索和 MCP 工具都不会生效，提醒一下
-    private fun warnIfToolsUnavailable(turn: ChatTurnContext, conversationId: Uuid) {
+    private fun warnIfToolsUnavailable(
+        turn: ChatTurnContext,
+        providers: List<ProviderSetting>,
+        conversationId: Uuid,
+    ) {
         if (ModelAbility.TOOL in turn.model.abilities) return
-        if (shouldUseExternalWebSearch(turn.assistant, turn.model) ||
+        if (shouldUseExternalWebSearch(turn.assistant, turn.model, providers) ||
             mcpManager.getAllAvailableTools(turn.assistant).isNotEmpty()
         ) {
             addError(

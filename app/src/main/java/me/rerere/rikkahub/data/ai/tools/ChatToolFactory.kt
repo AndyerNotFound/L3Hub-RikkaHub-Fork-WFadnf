@@ -8,12 +8,15 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.local.LocalTools
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -54,8 +57,21 @@ private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
 // 搜索结果的体积由用户设置的结果数决定，且结果列表 UI 与引用跳转都依赖完整的 JSON 结构，不参与截断
 private val TOOLS_WITHOUT_OUTPUT_TRUNCATION = setOf("search_web")
 
-internal fun shouldUseExternalWebSearch(assistant: Assistant, model: Model): Boolean {
-    return assistant.enableWebSearch && BuiltInTools.Search !in model.tools
+/**
+ * 这一次生成要不要挂客户端搜索。
+ *
+ * 模型上标了内置搜索就不再挂客户端搜索；但提供商根本发不出内置搜索时（账号型走 Messages
+ * 协议，模型上那个标记只会让两边都落空），忽略这个标记，照常挂客户端搜索。
+ */
+internal fun shouldUseExternalWebSearch(
+    assistant: Assistant,
+    model: Model,
+    providers: List<ProviderSetting>,
+): Boolean {
+    if (!assistant.enableWebSearch) return false
+    if (BuiltInTools.Search !in model.tools) return true
+    val provider = model.findProvider(providers, checkOverwrite = false)
+    return provider?.supportsBuiltInSearch == false
 }
 
 class InvalidMcpServerNamesException(val names: List<String>) :
@@ -100,7 +116,7 @@ class ChatToolFactory(
                     )
                 )
             }
-            if (shouldUseExternalWebSearch(assistant, model)) {
+            if (shouldUseExternalWebSearch(assistant, model, settings.providers)) {
                 addAll(createSearchTools(settings))
             }
             addAll(

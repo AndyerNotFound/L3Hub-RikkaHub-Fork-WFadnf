@@ -2148,6 +2148,7 @@
   <string name="setting_provider_page_account_disabled">Disabled</string>
   <string name="setting_provider_page_type_account">%s Account</string>
   <string name="setting_provider_page_bonus_balance">Bonus credit</string>
+  <string name="setting_provider_page_built_in_tool_unsupported">This provider never sends this tool, so turning it on has no effect.</string>
   <string name="setting_provider_page_device_code_hint">Confirm this code in the browser</string>
   <string name="setting_provider_page_device_code_reopen">Tap to open the page again</string>
   <string name="setting_provider_page_type_subscription">%s Subscription</string>

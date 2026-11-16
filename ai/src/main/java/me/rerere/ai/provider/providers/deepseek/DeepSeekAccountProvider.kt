@@ -46,33 +46,47 @@ class DeepSeekAccountProvider(
     private val ocrAPI = DeepSeekOcrAPI(this.client)
 
     override suspend fun listModels(providerSetting: ProviderSetting.DeepSeekAccount): List<Model> =
-        withAccount(providerSetting) { token ->
-            val chatModels = DeepSeekAccountPlatform.modelListing(client, token).map { listed ->
-                val vision = listed.inputModalities.any { it.equals("image", ignoreCase = true) }
-                Model(
-                    modelId = listed.id,
-                    displayName = listed.name,
-                    inputModalities = if (vision) {
-                        listOf(Modality.TEXT, Modality.IMAGE)
-                    } else {
-                        listOf(Modality.TEXT)
-                    },
-                    outputModalities = listOf(Modality.TEXT),
-                    // 不声明推理档位：Claude 适配层发的是 Anthropic 的 adaptive + output_config，
-                    // DeepSeek 的 Messages 只认 thinking.type 的 enabled/disabled，交给服务端默认值
-                    abilities = listOf(ModelAbility.TOOL),
-                    contextLength = listed.contextWindow ?: DEFAULT_CONTEXT_LENGTH,
-                )
-            }
-            // 账号 token 同样能调 OCR 工具端点，单独列一个 OCR 模型给「OCR 辅助模型」选
-            chatModels + Model(
-                modelId = DeepSeekAccountPlatform.OCR_MODEL_ID,
-                displayName = "DeepSeek OCR",
-                type = ModelType.OCR,
-                inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+        withAccount(providerSetting) { token -> catalog(token) }
+
+    /**
+     * 按指定账号拉目录：平台按账号给模型，几份登录的目录可能不同，
+     * 模型页才能像多 Key 那样一页一账号各拉一份。
+     */
+    override suspend fun listModelsForAccount(
+        providerSetting: ProviderSetting.DeepSeekAccount,
+        accountId: Uuid,
+    ): List<Model> = withAccount(providerSetting, preferredAccountId = accountId) { token ->
+        catalog(token)
+    }
+
+    /** 模型目录：平台列表 + 单独列出的 OCR 模型 */
+    private suspend fun catalog(token: String): List<Model> {
+        val chatModels = DeepSeekAccountPlatform.modelListing(client, token).map { listed ->
+            val vision = listed.inputModalities.any { it.equals("image", ignoreCase = true) }
+            Model(
+                modelId = listed.id,
+                displayName = listed.name,
+                inputModalities = if (vision) {
+                    listOf(Modality.TEXT, Modality.IMAGE)
+                } else {
+                    listOf(Modality.TEXT)
+                },
                 outputModalities = listOf(Modality.TEXT),
+                // 不声明推理档位：Claude 适配层发的是 Anthropic 的 adaptive + output_config，
+                // DeepSeek 的 Messages 只认 thinking.type 的 enabled/disabled，交给服务端默认值
+                abilities = listOf(ModelAbility.TOOL),
+                contextLength = listed.contextWindow ?: DEFAULT_CONTEXT_LENGTH,
             )
         }
+        // 账号 token 同样能调 OCR 工具端点，单独列一个 OCR 模型给「OCR 辅助模型」选
+        return chatModels + Model(
+            modelId = DeepSeekAccountPlatform.OCR_MODEL_ID,
+            displayName = "DeepSeek OCR",
+            type = ModelType.OCR,
+            inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+            outputModalities = listOf(Modality.TEXT),
+        )
+    }
 
     /**
      * 余额：主值与 [ProviderQuota.Balance.secondary] 是所有账号的合计（其他地方只显示这个），

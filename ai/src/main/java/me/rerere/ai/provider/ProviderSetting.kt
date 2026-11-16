@@ -66,6 +66,22 @@ val ProviderSetting.supportsBuiltInSearch: Boolean
     }
 
 /**
+ * 当前提供商能不能真的发出这个内置工具。
+ *
+ * 界面按它决定模型编辑页列出哪些开关。列出来却发不出去的开关只会把功能弄坏：账号型提供商
+ * 走 Messages 协议，模型上留着 web_search 时请求里没有它，客户端搜索又会以为已经有服务端搜索。
+ */
+fun ProviderSetting.supportsBuiltInTool(tool: BuiltInTools): Boolean = when (tool) {
+    BuiltInTools.Search -> supportsBuiltInSearch
+    // 只有 Gemini 的接口认 urlContext，其余实现里这一项是空转
+    BuiltInTools.UrlContext -> this is ProviderSetting.Google
+    // image_generation 是 Responses 协议的服务端工具
+    BuiltInTools.ImageGeneration ->
+        this is ProviderSetting.ChatGPT || this is ProviderSetting.Grok ||
+            (this is ProviderSetting.OpenAI && useResponseApi)
+}
+
+/**
  * 多 Key 文本框的分隔符：换行、逗号、空白都当作两个 Key 之间。
  *
  * 分组页、故障转移和配置页读的是同一份文本框，拆分规则必须一致，

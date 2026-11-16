@@ -95,6 +95,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.availableKeys
 import me.rerere.ai.provider.filterByKeywords
+import me.rerere.ai.provider.supportsBuiltInTool
 import me.rerere.ai.provider.supportsQuota
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
@@ -814,12 +815,14 @@ private fun ModelList(
     }
 
     var refreshCount by remember { mutableIntStateOf(0) }
-    // 每个 Key 各拉一份：分页各看各的，某一页读不到不影响别的页
+    // 每把 Key、每份登录各拉一份：分页各看各的，某一页读不到不影响别的页
     val remoteModels by produceState(RemoteModelPages(), listKey, refreshCount) {
         value = RemoteModelPages(
             value.pages.mapValues { (_, page) -> page.copy(loading = true, error = null) }
         )
-        value = RemoteModelPages(fetchRemoteModelPages(providerManager, listKey, availableKeys))
+        value = RemoteModelPages(
+            fetchRemoteModelPages(providerManager, listKey, availableKeys, availableAccountIds)
+        )
     }
     val remotePage = remoteModels.of(pageKey)
 
@@ -1041,7 +1044,8 @@ private fun ModelSettingsPagerForm(
                         tools = model.tools,
                         onUpdateTools = { tools ->
                             onModelChange(model.copy(tools = tools))
-                        }
+                        },
+                        parentProvider = parentProvider,
                     )
                 }
             }
@@ -1137,7 +1141,8 @@ private fun ModelSettingsWideForm(
                     tools = model.tools,
                     onUpdateTools = { tools ->
                         onModelChange(model.copy(tools = tools))
-                    }
+                    },
+                    parentProvider = parentProvider,
                 )
             }
         }
@@ -1650,27 +1655,34 @@ private data class RemoteModelPages(
 }
 
 /**
- * 每个 Key 各拉一份远端模型。
+ * 每把 Key、每一份登录各拉一份远端模型。
  *
- * 只有一把 Key 时只需要一份；多把 Key 时同时拉，全部 Key 页用手上这几份去重合并，
+ * 只有一份凭据时只需要一份；多份时同时拉，全部页用手上这几份去重合并，
  * 只有全都失败才算读不到，否则错误会被空列表吃掉。
+ *
+ * 账号型提供商按账号拉：平台给不同账号开的模型可能不一样，合并成一份会让某一页出现
+ * 这个账号根本用不了的模型。
  */
 private suspend fun fetchRemoteModelPages(
     providerManager: ProviderManager,
     setting: ProviderSetting,
     keys: List<String>,
+    accountIds: List<Uuid>,
 ): Map<String?, RemoteModels> = coroutineScope {
-    suspend fun fetch(key: String?): RemoteModels {
+    suspend fun fetch(key: String? = null, accountId: Uuid? = null): RemoteModels {
         val keySetting = if (key != null && setting is ProviderSetting.ApiKey) {
             setting.withApiKey(key)
         } else {
             setting
         }
         return try {
-            RemoteModels(
-                models = providerManager.getProviderByType(keySetting).listModels(keySetting)
-                    .sortedBy { it.modelId }
-            )
+            val provider = providerManager.getProviderByType(keySetting)
+            val models = if (accountId != null) {
+                provider.listModelsForAccount(keySetting, accountId)
+            } else {
+                provider.listModels(keySetting)
+            }
+            RemoteModels(models = models.sortedBy { it.modelId })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -1679,18 +1691,35 @@ private suspend fun fetchRemoteModelPages(
         }
     }
 
-    if (keys.size <= 1) {
-        mapOf(null to fetch(null))
-    } else {
-        val perKey = keys.map { key -> async { key to fetch(key) } }.awaitAll().toMap()
-        val merged = perKey.values.flatMap { it.models }.distinctBy { it.modelId }.sortedBy { it.modelId }
-        val errors = perKey.values.mapNotNull { it.error }
-        mapOf(
-            null to RemoteModels(
-                models = merged,
-                error = if (merged.isEmpty()) errors.firstOrNull() else null,
-            )
-        ) + perKey
+    when {
+        accountIds.size > 1 -> {
+            val perAccount = accountIds
+                .map { id -> async { id.toString() to fetch(accountId = id) } }
+                .awaitAll()
+                .toMap()
+            val merged = perAccount.values.flatMap { it.models }.distinctBy { it.modelId }.sortedBy { it.modelId }
+            val errors = perAccount.values.mapNotNull { it.error }
+            mapOf(
+                null to RemoteModels(
+                    models = merged,
+                    error = if (merged.isEmpty()) errors.firstOrNull() else null,
+                )
+            ) + perAccount
+        }
+
+        keys.size <= 1 -> mapOf(null to fetch(null))
+
+        else -> {
+            val perKey = keys.map { key -> async { key to fetch(key) } }.awaitAll().toMap()
+            val merged = perKey.values.flatMap { it.models }.distinctBy { it.modelId }.sortedBy { it.modelId }
+            val errors = perKey.values.mapNotNull { it.error }
+            mapOf(
+                null to RemoteModels(
+                    models = merged,
+                    error = if (merged.isEmpty()) errors.firstOrNull() else null,
+                )
+            ) + perKey
+        }
     }
 }
 
@@ -2563,7 +2592,8 @@ private fun ModelCard(
 @Composable
 private fun BuiltInToolsSettings(
     tools: Set<BuiltInTools>,
-    onUpdateTools: (Set<BuiltInTools>) -> Unit
+    onUpdateTools: (Set<BuiltInTools>) -> Unit,
+    parentProvider: ProviderSetting?,
 ) {
     Column(
         modifier = Modifier
@@ -2583,7 +2613,7 @@ private fun BuiltInToolsSettings(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        val availableTools = listOf(
+        val allTools = listOf(
             BuiltInTools.Search to Pair(
                 stringResource(R.string.setting_page_built_in_tools_search),
                 stringResource(R.string.setting_page_built_in_tools_search_desc)
@@ -2597,6 +2627,11 @@ private fun BuiltInToolsSettings(
                 stringResource(R.string.setting_page_built_in_tools_image_generation_desc)
             )
         )
+        // 提供商发不出去的工具不列出来：打开之后请求里没有它，还会挡住客户端搜索。
+        // 已经打开过的模型仍然列出来，否则用户找不到地方关掉它
+        val availableTools = allTools.filter { (tool, _) ->
+            parentProvider == null || parentProvider.supportsBuiltInTool(tool) || tool in tools
+        }
 
         // 弹窗底色和 CardGroup 默认的底色太接近，换一个深一档的
         val itemColors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -2604,13 +2639,22 @@ private fun BuiltInToolsSettings(
             availableTools.fastForEach { (tool, info) ->
                 val (title, description) = info
                 val checked = tool in tools
+                val supported = parentProvider == null || parentProvider.supportsBuiltInTool(tool)
                 val toggle = { enabled: Boolean ->
                     onUpdateTools(if (enabled) tools + tool else tools - tool)
                 }
                 item(
                     onClick = { toggle(!checked) },
                     colors = itemColors,
-                    supportingContent = { Text(description) },
+                    supportingContent = {
+                        Text(
+                            if (supported) {
+                                description
+                            } else {
+                                stringResource(R.string.setting_provider_page_built_in_tool_unsupported)
+                            }
+                        )
+                    },
                     trailingContent = { Switch(checked = checked, onCheckedChange = toggle) },
                     headlineContent = { Text(title) },
                 )
