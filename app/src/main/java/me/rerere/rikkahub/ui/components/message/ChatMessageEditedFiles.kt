@@ -4,8 +4,10 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,6 +36,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -40,7 +45,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +79,11 @@ import kotlin.uuid.Uuid
 
 // 一条路径最长显示三行，再长就截断；换行优先于省略号，路径断在段中间也还能读
 private const val EDITED_PATH_MAX_LINES = 3
-private val EDITED_PATH_INDENT = 20.dp
+// 树形缩进：一级占一格，格子里画一条竖向导轨，层级靠缩进和导轨表达，不再每行重复整条路径
+private val EDITED_PATH_INDENT = 14.dp
+private val EDITED_PATH_ICON_SIZE = 14.dp
+// 文件图标坐在主色容器里，方块比目录箭头大一圈，两列的图标仍然对齐在同一条竖线上
+private val EDITED_PATH_ICON_BOX = 20.dp
 // workspace_shell 也列进来：SSH 之类只能用命令改文件的工作区没有写文件工具，
 // 本轮改了什么只能从命令结果里的 editedFiles 读出来
 private val WORKSPACE_FILE_TOOL_NAMES = setOf(
@@ -184,6 +192,15 @@ internal fun EditedFilesList(
     var shownFiles by remember { mutableStateOf(editedFiles) }
     LaunchedEffect(editedFiles) { if (editedFiles.isNotEmpty()) shownFiles = editedFiles }
     val pathTree = remember(shownFiles) { buildEditedPathTree(shownFiles) }
+    // 树里每一行只写相对上一级多出来的那几段，先把工作区根去掉；取不到根时退回整条绝对路径
+    val workspaceRoot by produceState<String?>(null, workspaceId) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { workspaceRepository.layout(workspaceId)?.workspaceDir }
+                .getOrNull()
+                ?.trimEnd('/')
+                ?.takeIf { it.isNotEmpty() && it != "/" }
+        }
+    }
     // 目录逐级折叠：只记折叠过的，默认全部展开，点开后看到的就是完整的路径结构
     val foldedDirs = remember(shownFiles) { mutableStateMapOf<String, Boolean>() }
 
@@ -258,6 +275,7 @@ internal fun EditedFilesList(
                         ) {
                             EditedPathTreeContent(
                                 tree = pathTree,
+                                rootPrefix = workspaceRoot,
                                 folded = { foldedDirs[it] == true },
                                 onToggle = { path -> foldedDirs[path] = foldedDirs[path] != true },
                                 onOpenFile = { path -> selectedPath = path },
@@ -351,6 +369,14 @@ internal fun EditedFilesList(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // 树里只写文件名，完整路径在这里补给人看
+            shownPath?.let { path ->
+                Text(
+                    text = path,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Card(
                 onClick = {
                     val p = selectedPath ?: return@Card
@@ -449,31 +475,33 @@ private fun UIMessagePart.Tool.editedPaths(): List<String> {
     }
 }
 
-/** 本轮改动的路径树：目录可逐级折叠，文件行点开仍是导出 / 分享 */
+/**
+ * 本轮改动的路径树：目录可逐级折叠，文件行点开仍是导出 / 分享。
+ * 每一行只写相对上一级多出来的那几段，整条路径由缩进、导轨和目录行自己拼出来。
+ */
 @Composable
 private fun EditedPathTreeContent(
     tree: EditedPathTree,
+    rootPrefix: String?,
     folded: (String) -> Boolean,
     onToggle: (String) -> Unit,
     onOpenFile: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         tree.files.forEach { file ->
-            EditedPathRow(
-                text = file,
-                icon = HugeIcons.File02,
-                indent = 0.dp,
-                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            EditedPathFileRow(
+                label = editedPathLabel(file, rootPrefix),
+                depth = 0,
                 onClick = { onOpenFile(file) },
             )
         }
         EditedPathNodes(
             nodes = tree.dirs,
+            parentPath = rootPrefix,
             folded = folded,
             onToggle = onToggle,
             onOpenFile = onOpenFile,
-            indent = 0.dp,
+            depth = 0,
         )
     }
 }
@@ -481,20 +509,22 @@ private fun EditedPathTreeContent(
 @Composable
 private fun EditedPathNodes(
     nodes: List<EditedPathNode>,
+    parentPath: String?,
     folded: (String) -> Boolean,
     onToggle: (String) -> Unit,
     onOpenFile: (String) -> Unit,
-    indent: Dp,
+    depth: Int,
 ) {
     nodes.forEach { node ->
         val collapsed = folded(node.path)
         Column {
             EditedPathRow(
-                text = node.path,
+                label = editedPathLabel(node.path, parentPath),
                 icon = if (collapsed) HugeIcons.ArrowRight01 else HugeIcons.ArrowDown01,
-                indent = indent,
+                depth = depth,
                 iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                textColor = MaterialTheme.colorScheme.onSurface,
+                iconContainer = null,
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium,
                 onClick = { onToggle(node.path) },
             )
@@ -504,21 +534,19 @@ private fun EditedPathNodes(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     node.files.forEach { file ->
-                        EditedPathRow(
-                            text = file,
-                            icon = HugeIcons.File02,
-                            indent = indent + EDITED_PATH_INDENT,
-                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        EditedPathFileRow(
+                            label = editedPathLabel(file, node.path),
+                            depth = depth + 1,
                             onClick = { onOpenFile(file) },
                         )
                     }
                     EditedPathNodes(
                         nodes = node.dirs,
+                        parentPath = node.path,
                         folded = folded,
                         onToggle = onToggle,
                         onOpenFile = onOpenFile,
-                        indent = indent + EDITED_PATH_INDENT,
+                        depth = depth + 1,
                     )
                 }
             }
@@ -526,36 +554,93 @@ private fun EditedPathNodes(
     }
 }
 
+/** 变过的文件是这一块的主角：文件名用主色高亮，图标坐在主色容器里；目录只留缩进和箭头 */
+@Composable
+private fun EditedPathFileRow(
+    label: String,
+    depth: Int,
+    onClick: () -> Unit,
+) {
+    EditedPathRow(
+        label = label,
+        icon = HugeIcons.File02,
+        depth = depth,
+        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+        iconContainer = MaterialTheme.colorScheme.primaryContainer,
+        textColor = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Medium,
+        onClick = onClick,
+    )
+}
+
+/**
+ * 一行只写相对上一级多出来的那几段：前缀已经由缩进和导轨表达了，不必每行重复整条路径。
+ * [base] 是上一级的完整路径，顶层传工作区根；路径不在它下面时原样返回。
+ */
+private fun editedPathLabel(path: String, base: String?): String {
+    if (base.isNullOrEmpty()) return path
+    val root = base.trimEnd('/')
+    return when {
+        path == root -> "/"
+        path.startsWith("$root/") -> path.removePrefix("$root/")
+        else -> path
+    }
+}
+
 /** 一行路径：目录行和文件行只差图标、缩进和点击行为，长路径换行到上限再截断 */
 @Composable
 private fun EditedPathRow(
-    text: String,
+    label: String,
     icon: ImageVector,
-    indent: Dp,
+    depth: Int,
     iconTint: Color,
+    iconContainer: Color?,
     textColor: Color,
     onClick: () -> Unit,
     fontWeight: FontWeight? = null,
 ) {
+    val guideColor = MaterialTheme.colorScheme.outlineVariant
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
-            .padding(start = indent, end = 4.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .drawBehind {
+                // 每一级一条竖向导轨，线落在这一格的中线上；行与行之间留了 2dp，
+                // 看起来是虚线，层级仍然连得起来
+                if (depth <= 0) return@drawBehind
+                val step = EDITED_PATH_INDENT.toPx()
+                val stroke = 1.dp.toPx()
+                repeat(depth) { level ->
+                    val x = step * (level + 0.5f)
+                    drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), stroke)
+                }
+            }
+            .padding(start = EDITED_PATH_INDENT * depth, end = 4.dp, top = 3.dp, bottom = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier
-                .padding(top = 2.dp)
-                .size(14.dp),
-            tint = iconTint,
-        )
+        // 目录的箭头和文件图标的方块占同样大的一格，两列的文字才会对齐在同一条竖线上
+        Box(
+            modifier = if (iconContainer != null) {
+                Modifier
+                    .size(EDITED_PATH_ICON_BOX)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(iconContainer)
+            } else {
+                Modifier.size(EDITED_PATH_ICON_BOX)
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(if (iconContainer != null) 12.dp else EDITED_PATH_ICON_SIZE),
+                tint = iconTint,
+            )
+        }
         Text(
-            text = text,
+            text = label,
             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
             fontWeight = fontWeight,
             color = textColor,

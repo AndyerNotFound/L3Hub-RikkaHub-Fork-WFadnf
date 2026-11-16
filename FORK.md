@@ -1486,3 +1486,17 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - 横屏工具详情侧滑（`ToolDetailSidePanel`）的 `tween(160 / 220 / 180)` 换成主题档位，进出场同参
 - 涉及文件：`ui/components/SheetMotion.kt`（新增）、`ui/theme/MotionSpecs.kt`、`ui/theme/Theme.kt`、
   52 处 `ModalBottomSheet` 调用点、`ui/pages/chat/ToolDetailSidePanel.kt`
+
+## 本轮改动：文件变更卡片改成树形导轨（2026-11-16）
+
+「文件变更」卡片展开后原先每行都把整条绝对路径重写一遍，缩进再多也被路径前缀吃掉，层级看不出来。改成真正的树：
+
+- 一行只写相对上一级多出来的那几段：目录行写目录段，文件行只写文件名，整条路径由缩进和目录行自己拼出来。
+  顶层先去掉工作区根（`WorkspaceRepository.layout(id).workspaceDir`），取不到根时退回绝对路径
+- 变过的文件是主角：文件名走 `primary` 高亮，前置图标坐在 `primaryContainer` 圆角方块里、
+  图标用 `onPrimaryContainer`；目录行仍是箭头 + `onSurfaceVariant` 的目录段，层级靠缩进和导轨表达
+- 缩进一格 14dp，`drawBehind` 在每一级的格子里画一条 `outlineVariant` 竖向导轨；行与行之间留 2dp，
+  导轨看起来是虚线，层级仍然连得起来
+- 目录箭头和文件图标的方块都占 20dp 一格，两级文字因此对齐在同一条竖线上
+- 文件行点开的导出 / 分享面板补上完整路径：树里只剩文件名，路径在这里补给人看
+- 涉及文件：`ui/components/message/ChatMessageEditedFiles.kt`
