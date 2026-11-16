@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.data.datastore
 
+import android.util.Log
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.jsonArray
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.utils.JsonInstant
 import kotlin.reflect.KProperty1
@@ -52,6 +55,52 @@ private inline fun <reified T> json(
     set,
     encode = { JsonInstant.encodeToString(it) },
     decode = { JsonInstant.decodeFromString<T>(it) },
+)
+
+internal const val SETTINGS_FIELDS_TAG = "SettingsFields"
+
+/**
+ * 多态列表的宽松解码。
+ *
+ * 提供商、媒体生成、TTS、ASR 都是 sealed 的多态列表：只要有一条子类型不认识
+ * （比如从别的分支写进来的 `deepseek-account`），整个字段就会抛 JsonDecodingException，
+ * 而设置读不出来会让应用直接起不来。这里改成逐条解码，认不出的只丢那一条。
+ */
+internal inline fun <reified T : Any> decodeListLenient(raw: String): List<T> {
+    return try {
+        JsonInstant.decodeFromString<List<T>>(raw)
+    } catch (e: SerializationException) {
+        val elements = runCatching { JsonInstant.parseToJsonElement(raw).jsonArray }.getOrNull()
+        if (elements == null) {
+            Log.e(SETTINGS_FIELDS_TAG, "设置里的列表整段读不出来，已丢弃", e)
+            return emptyList()
+        }
+        Log.w(SETTINGS_FIELDS_TAG, "设置有 ${elements.size} 条，其中有不认识的类型，改为逐条读", e)
+        elements.mapNotNull { element ->
+            runCatching { JsonInstant.decodeFromString<T>(element.toString()) }
+                .onFailure {
+                    Log.w(
+                        SETTINGS_FIELDS_TAG,
+                        "跳过一条读不出来的设置：${element.toString().take(120)}",
+                        it,
+                    )
+                }
+                .getOrNull()
+        }
+    }
+}
+
+/** 多态列表用：单条读不出来不牵连整份设置（见 [decodeListLenient]）。 */
+private inline fun <reified T : Any> jsonListLenient(
+    key: Preferences.Key<String>,
+    property: KProperty1<Settings, List<T>>,
+    noinline set: Settings.(List<T>) -> Settings,
+) = SettingsField(
+    key,
+    property,
+    set,
+    encode = { JsonInstant.encodeToString(it) },
+    decode = { decodeListLenient<T>(it) },
 )
 
 private fun uuid(
@@ -120,7 +169,7 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         plain(OCR_PROMPT, Settings::ocrPrompt) { copy(ocrPrompt = it) },
 
         // 提供商
-        json(PROVIDERS, Settings::providers) { copy(providers = it) },
+        jsonListLenient(PROVIDERS, Settings::providers) { copy(providers = it) },
         json(PROVIDER_GROUPS, Settings::providerGroups) { copy(providerGroups = it) },
         json(PROVIDER_GROUP_ASSIGNMENTS, Settings::providerGroupAssignments) {
             copy(providerGroupAssignments = it)
@@ -162,15 +211,17 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         json(ASSET_STORAGE_TYPE, Settings::assetStorageType) { copy(assetStorageType = it) },
 
         // 媒体生成
-        json(MEDIA_GENERATION_PROVIDERS, Settings::mediaGenerationProviders) { copy(mediaGenerationProviders = it) },
+        jsonListLenient(MEDIA_GENERATION_PROVIDERS, Settings::mediaGenerationProviders) {
+            copy(mediaGenerationProviders = it)
+        },
 
         // TTS
-        json(TTS_PROVIDERS, Settings::ttsProviders) { copy(ttsProviders = it) },
+        jsonListLenient(TTS_PROVIDERS, Settings::ttsProviders) { copy(ttsProviders = it) },
         uuid(SELECTED_TTS_PROVIDER, Settings::selectedTTSProviderId) { copy(selectedTTSProviderId = it) },
         plain(DEFAULT_TTS_PLAYBACK_SPEED, Settings::defaultTTSPlaybackSpeed) { copy(defaultTTSPlaybackSpeed = it) },
 
         // ASR
-        json(ASR_PROVIDERS, Settings::asrProviders) { copy(asrProviders = it) },
+        jsonListLenient(ASR_PROVIDERS, Settings::asrProviders) { copy(asrProviders = it) },
         SettingsField(
             SELECTED_ASR_PROVIDER,
             Settings::selectedASRProviderId,

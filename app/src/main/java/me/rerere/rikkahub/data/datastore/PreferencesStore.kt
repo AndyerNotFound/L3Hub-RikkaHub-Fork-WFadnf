@@ -267,12 +267,16 @@ class SettingsStore internal constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
-                // 读不出设置就不能带着占位值继续运行：界面上是一份默认设置，而任何修改都落不了盘
-                Log.e(TAG, "Failed to load settings", e)
+                // 读不出来不能把应用判死刑：halt 掉以后换回任何包都起不来，只能清数据。
+                // 退回默认设置继续启动，磁盘上的原数据一个字节不动。
+                //
+                // persisted 也设成这份默认值：之后用户的修改只写他改过的字段
+                // （persist 按 persisted 与当前值的差集写盘），不会拿默认值盖掉原设置。
+                // 换成认识这份数据的包（比如当初写它的那个分支）以后，原设置原样回来。
+                Log.e(TAG, "Failed to load settings, starting with defaults", e)
                 StartupTrace.stage("settings-load-failed", e.stackTraceToString())
                 StartupTrace.export(e.stackTraceToString())
-                Runtime.getRuntime().halt(1)
-                throw e
+                Settings.dummy().copy(init = false).also { persisted = it }
             }
         }
     }
