@@ -112,7 +112,9 @@ internal fun SlideOverDrawer(
                     val opening = !open
                     val velocityTracker = VelocityTracker()
                     velocityTracker.addPosition(down.uptimeMillis, down.position)
-                    val startOffset = offset
+                    // 起手位置在「接管的那一刻」才取：按下时上一段收尾动画可能还在跑，
+                    // 用按下瞬间的 offset 会让跟手的第一帧往回跳一下
+                    var startOffset = 0f
                     var horizontal = false
                     while (true) {
                         val event = awaitPointerEvent()
@@ -137,6 +139,7 @@ internal fun SlideOverDrawer(
                             // 拖上了就把正在播放的开/关动画掐掉，位置改由手指说话
                             settleJob?.cancel()
                             settleJob = null
+                            startOffset = offset
                             dragging = true
                             change.consume()
                         }
@@ -179,7 +182,9 @@ internal fun SlideOverDrawer(
 
         // 遮罩一直画，透明度按抽屉滑开的进度来：收起动画期间它跟着一起淡掉，
         // 不会出现内容先亮起来的问题；只有抽屉露面时才挂上拦截指针和语义
-        val blocking = open || animating
+        // 只有抽屉真的摆在那时才拦点击：收起动画期间内容照常可用，
+        // 否则点一下收起之后 300ms 内点什么都没反应，那一下还会被当成又点了一次外侧
+        val blocking = open
         Box(modifier = Modifier.fillMaxSize().then(dragGesture)) {
             content()
 
