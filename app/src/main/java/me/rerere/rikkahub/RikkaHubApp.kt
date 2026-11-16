@@ -47,6 +47,7 @@ import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.rikkahub.utils.DatabaseUtil
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.StartupTrace
 import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.workspace.WorkspaceManager
 import org.koin.android.ext.android.get
@@ -68,13 +69,15 @@ const val HEARTBEAT_NOTIFICATION_CHANNEL_ID = "heartbeat"
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
         super.attachBaseContext(AppLanguage.wrap(base))
-        // 启动自查要最早装：它盯的是「第一帧画出来之前主线程有没有卡住」，
-        // 装晚了就盖不到真正卡住的那一段（见 StartupWatchdog）
+        // 启动埋点 + 自查都最早装：盖住整条启动路径（见 StartupTrace / StartupWatchdog）
+        StartupTrace.init(this)
+        StartupTrace.stage("Application.attachBaseContext")
         StartupWatchdog.start(this)
     }
 
     override fun onCreate() {
         super.onCreate()
+        StartupTrace.stage("Application.onCreate")
         // 请求日志的开关和上限存在本地偏好里，网络层只认 Logging 里的内存值，起任何服务之前先灌进去
         applyRequestLogPreferences()
 
@@ -90,12 +93,14 @@ class RikkaHubApp : Application() {
             Log.e(TAG, "Backup restore rolled back", e)
             Toast.makeText(this, "备份恢复失败，已保留原数据，请重新导入备份。", Toast.LENGTH_LONG).show()
         }
+        StartupTrace.stage("Application.onCreate.restoreDone")
         startKoin {
             androidLogger()
             androidContext(this@RikkaHubApp)
             workManagerFactory()
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
+        StartupTrace.stage("Application.onCreate.koinDone")
         this.createNotificationChannel()
 
         // set cursor window size to 32MB

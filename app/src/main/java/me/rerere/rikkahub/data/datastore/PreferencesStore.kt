@@ -40,6 +40,7 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.utils.StartupTrace
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
@@ -266,6 +267,8 @@ class SettingsStore internal constructor(
             } catch (e: Throwable) {
                 // 读不出设置就不能带着占位值继续运行：界面上是一份默认设置，而任何修改都落不了盘
                 Log.e(TAG, "Failed to load settings", e)
+                StartupTrace.stage("settings-load-failed", e.stackTraceToString())
+                StartupTrace.export(e.stackTraceToString())
                 Runtime.getRuntime().halt(1)
                 throw e
             }

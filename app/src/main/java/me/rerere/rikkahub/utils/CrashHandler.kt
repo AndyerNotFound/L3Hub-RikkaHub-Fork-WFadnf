@@ -50,6 +50,10 @@ object CrashHandler {
     }
 
     private fun markCrashed(context: Context, thread: Thread, throwable: Throwable) {
+        runCatching {
+            StartupTrace.stage("uncaught-exception", "${thread.name}: $throwable")
+            StartupTrace.export(throwable.stackTraceToString())
+        }
         val stackTrace = buildString {
             appendLine("Thread: ${thread.name}")
             appendLine(throwable.stackTraceToString())

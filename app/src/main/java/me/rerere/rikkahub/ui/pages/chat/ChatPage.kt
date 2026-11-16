@@ -203,6 +203,7 @@ import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
+import me.rerere.rikkahub.utils.StartupTrace
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -218,6 +219,7 @@ import kotlin.uuid.Uuid
 
 @Composable
 fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
+    StartupTrace.stage("ChatPage.enter")
     val vm: ChatVM = koinViewModel(
         parameters = {
             parametersOf(id.toString())

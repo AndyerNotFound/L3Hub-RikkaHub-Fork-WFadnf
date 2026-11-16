@@ -73,6 +73,8 @@ object StartupWatchdog {
                     mainLooper.thread.stackTrace.forEach { appendLine("    at $it") }
                 }
                 Log.e(TAG, stack)
+                StartupTrace.stage("startup-stall", "${stalled}ms")
+                StartupTrace.export(stack)
                 CrashHandler.markStartupStall(appContext, stack)
                 Runtime.getRuntime().halt(1)
             }
@@ -95,6 +97,8 @@ object StartupWatchdog {
         observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
                 if (observer.isAlive) observer.removeOnPreDrawListener(this)
+                StartupTrace.stage("first-frame.drawn")
+                StartupTrace.export()
                 disarm()
                 return true
             }
