@@ -47,8 +47,6 @@ import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.rikkahub.utils.DatabaseUtil
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.StartupTrace
-import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.workspace.WorkspaceManager
 import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
@@ -68,22 +66,13 @@ const val HEARTBEAT_NOTIFICATION_CHANNEL_ID = "heartbeat"
 
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
-        // 埋点要在 AppLanguage.wrap 之前就位：wrap 自己也是启动路径上的一段，
-        // 卡在那里的话（它要读语言偏好）反过来什么都看不到
-        StartupTrace.init(base)
-        StartupTrace.stage("Application.attachBaseContext.enter")
         super.attachBaseContext(AppLanguage.wrap(base))
-        StartupTrace.init(this)
-        StartupTrace.stage("Application.attachBaseContext.done")
-        StartupWatchdog.start(this)
     }
 
     override fun onCreate() {
         super.onCreate()
-        StartupTrace.stage("Application.onCreate")
         // 请求日志的开关和上限存在本地偏好里，网络层只认 Logging 里的内存值，起任何服务之前先灌进去
         applyRequestLogPreferences()
-        StartupTrace.stage("Application.onCreate.logPrefsDone")
 
         // Restore files and settings before eager Koin singletons or workers can access them.
         try {
@@ -97,19 +86,16 @@ class RikkaHubApp : Application() {
             Log.e(TAG, "Backup restore rolled back", e)
             Toast.makeText(this, "备份恢复失败，已保留原数据，请重新导入备份。", Toast.LENGTH_LONG).show()
         }
-        StartupTrace.stage("Application.onCreate.restoreDone")
         startKoin {
             androidLogger()
             androidContext(this@RikkaHubApp)
             workManagerFactory()
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
-        StartupTrace.stage("Application.onCreate.koinDone")
         this.createNotificationChannel()
 
         // set cursor window size to 32MB
         DatabaseUtil.setCursorWindowSize(32 * 1024 * 1024)
-        StartupTrace.stage("Application.onCreate.sysDone")
 
         // install crash handler
         CrashHandler.install(this)

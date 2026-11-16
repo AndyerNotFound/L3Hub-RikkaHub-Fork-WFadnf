@@ -35,7 +35,6 @@ import me.rerere.rikkahub.data.datastore.AppLockStateStore
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.AppLanguage
-import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.rikkahub.utils.hasDeviceCredential
 
 /**
@@ -68,8 +67,6 @@ class AppLockActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 锁屏页画出来就算启动完成，启动自查收工（见 StartupWatchdog）
-        StartupWatchdog.disarmOnFirstDraw(window.decorView)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         canVerify = hasDeviceCredential()

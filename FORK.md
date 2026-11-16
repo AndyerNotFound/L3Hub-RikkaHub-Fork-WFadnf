@@ -1486,3 +1486,21 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - 横屏工具详情侧滑（`ToolDetailSidePanel`）的 `tween(160 / 220 / 180)` 换成主题档位，进出场同参
 - 涉及文件：`ui/components/SheetMotion.kt`（新增）、`ui/theme/MotionSpecs.kt`、`ui/theme/Theme.kt`、
   52 处 `ModalBottomSheet` 调用点、`ui/pages/chat/ToolDetailSidePanel.kt`
+
+## 本轮改动：设置里的未知类型不再把应用判死刑（2026-11-17）
+
+装完包打不开、闪一下退回桌面、没有任何提示——根因是设置里存了一条当前代码不认识的提供商。
+
+- 现象：`PROVIDERS` 里有一条 `{"type":"deepseek-account"}`（由 `feat/deepseek-account` 分支写入），
+  master 上没有这个子类，`kotlinx.serialization` 解码整个数组时抛 `JsonDecodingException`；
+  `SettingsStore` 捕获后调用 `Runtime.getRuntime().halt(1)`，静默杀进程，不弹窗、不写崩溃标记，
+  于是「换回任何 master 包都起不来」，只能清数据。
+- `SettingsFields` 新增 `decodeListLenient`：多态列表逐条解码，认不出的子类型跳过并记日志，
+  其余提供商 / 助手 / 模型原样保留。提供商、媒体生成、TTS、ASR 四个列表都改走它。
+- `SettingsStore` 读盘失败不再 `halt`：退回默认设置继续启动，`persisted` 同步设成这份默认值，
+  之后用户改设置只写改过的字段，不会拿默认值盖掉磁盘上的原数据；换成认识这份数据的包以后原样回来。
+- 单测：`SettingsLenientDecodeTest` 覆盖「未知类型被跳过」与「已知提供商在旁边仍然读得出来」。
+- 排查手段（已随定位完成删除）：`StartupTrace` 把启动各阶段逐行写进 `Download/l3hub-startup-trace.txt`，
+  `StartupWatchdog` 盯首帧之前的主线程。这类「起不来又拿不到 logcat」的问题，
+  靠它一次拿到 `settings-load-failed` 的完整栈。埋点本身要防住两件事：
+  单测里 `android.util.Log` / `android.os.SystemClock` 都是空实现会抛，埋点不能因此把业务带崩。

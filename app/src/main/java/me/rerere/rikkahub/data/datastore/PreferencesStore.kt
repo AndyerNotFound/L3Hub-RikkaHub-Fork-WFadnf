@@ -40,7 +40,6 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.utils.StartupTrace
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
@@ -261,9 +260,7 @@ class SettingsStore internal constructor(
         // 整份设置的 JSON 解码很重，不能放在主线程
         scope.launch(Dispatchers.Default) {
             state.value = try {
-                preferencesFlow.first().toSettings().normalized().also {
-                    StartupTrace.stage("settings.loaded", "assistants=${it.assistants.size}")
-                }
+                preferencesFlow.first().toSettings().normalized()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
@@ -274,8 +271,6 @@ class SettingsStore internal constructor(
                 // （persist 按 persisted 与当前值的差集写盘），不会拿默认值盖掉原设置。
                 // 换成认识这份数据的包（比如当初写它的那个分支）以后，原设置原样回来。
                 Log.e(TAG, "Failed to load settings, starting with defaults", e)
-                StartupTrace.stage("settings-load-failed", e.stackTraceToString())
-                StartupTrace.export(e.stackTraceToString())
                 Settings.dummy().copy(init = false).also { persisted = it }
             }
         }
