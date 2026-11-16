@@ -534,6 +534,8 @@ private fun ProviderConfigureAccount(
     val signedInLabel = stringResource(R.string.setting_provider_page_signed_in)
     val signInLabel = stringResource(R.string.setting_provider_page_sign_in_with, serviceName)
     val addAccountLabel = stringResource(R.string.setting_provider_page_add_account)
+    // 只有多账号的提供商才谈得上「添加账号」，单账号类型登录一次就是换人
+    val multiAccount = provider is ProviderSetting.DeepSeekAccount
 
     CardGroup {
         nameItem(provider, onEdit)
@@ -551,11 +553,15 @@ private fun ProviderConfigureAccount(
                 else -> plan
             }
             item(
-                // 点整行停用/启用，退出登录单独一个按钮
-                onClick = {
-                    scope.launch {
-                        accountManager.setAccountDisabled(provider.id, binding.id, !binding.disabled)
+                // 多账号时点整行停用/启用，退出登录单独一个按钮
+                onClick = if (multiAccount) {
+                    {
+                        scope.launch {
+                            accountManager.setAccountDisabled(provider.id, binding.id, !binding.disabled)
+                        }
                     }
+                } else {
+                    null
                 },
                 leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
                 supportingContent = contact?.let { text -> { Text(text) } },
@@ -601,6 +607,8 @@ private fun ProviderConfigureAccount(
             )
 
             else -> item(
+                // 单账号类型已登录时不再显示这一行
+                visible = accounts.isEmpty() || multiAccount,
                 onClick = { accountManager.startLogin(provider.id, context) },
                 leadingContent = { CardGroupIcon(HugeIcons.Login03) },
                 supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
