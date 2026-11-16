@@ -1933,6 +1933,11 @@
   <string name="assistant_page_enable_notification">啟用通知</string>
   <string name="assistant_page_enable_notification_desc">關閉後，該助手不再傳送生成進度與完成通知</string>
   <string name="setting_provider_page_api_key_label">標籤</string>
+  <string name="setting_provider_page_model_key_group">Key 分組</string>
+  <string name="model_key_group_all">全部 Key</string>
+  <string name="model_key_group_missing">Key 不可用</string>
+  <string name="model_key_group_empty">這個分組還沒有模型</string>
+  <string name="model_key_group_empty_desc">從右下角的「可用模型」新增；從這一頁新增的模型只用這個 Key。</string>
   <string name="memory_export">匯出記憶</string>
   <string name="memory_import">匯入記憶</string>
   <string name="memory_export_done">記憶已匯出</string>

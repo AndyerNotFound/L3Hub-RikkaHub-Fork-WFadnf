@@ -19,6 +19,10 @@ data class Model(
     // 这个模型看不了图时用来识别图片的辅助模型；为空时用设置里的全局 OCR 模型
     val ocrModelId: Uuid? = null,
     val providerOverwrite: ProviderSetting? = null,
+    // 这个模型只能用的 Key，存 Key 文本（见 ProviderSetting.ApiKey）。
+    // 空列表表示沿用提供商全部启用的 Key；同一个模型按 Key 分组各存一条时，各自只认自己的 Key，
+    // 请求不会串到别的分组（见 SettingsExt.findProvider）
+    val apiKeys: List<String> = emptyList(),
     // 上下文窗口大小(token)
     val contextLength: Int = 1_000_000,
     // 上下文预警门限(token), null 表示不启用该门限

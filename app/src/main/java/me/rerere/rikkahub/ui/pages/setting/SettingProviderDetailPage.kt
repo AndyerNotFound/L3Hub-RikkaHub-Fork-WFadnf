@@ -81,6 +81,9 @@ import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
@@ -90,6 +93,7 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.availableKeys
 import me.rerere.ai.provider.filterByKeywords
 import me.rerere.ai.provider.supportsQuota
 import me.rerere.ai.registry.ModelRegistry
@@ -117,11 +121,17 @@ import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.data.model.withResolvedContextLength
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
+import me.rerere.rikkahub.ui.components.ai.ModelKeyGroup
+import me.rerere.rikkahub.ui.components.ai.ModelKeyGroupStrip
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
+import me.rerere.rikkahub.ui.components.ai.belongsToKeyGroup
+import me.rerere.rikkahub.ui.components.ai.keyGroupLabel
+import me.rerere.rikkahub.ui.components.ai.keyGroupName
+import me.rerere.rikkahub.ui.components.ai.keyGroups
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -755,95 +765,116 @@ private fun ModelList(
     val providerManager = koinInject<ProviderManager>()
     // 增删、排序已添加的模型不影响远端列表，去掉 models 再作为 key，避免每次编辑都重新请求
     val listKey = remember(providerSetting) { providerSetting.copyProvider(models = emptyList()) }
-    var refreshCount by remember { mutableIntStateOf(0) }
-    val remoteModels by produceState(RemoteModels(loading = true), listKey, refreshCount) {
-        value = value.copy(loading = true, error = null)
-        value = try {
-            val provider = providerManager.getProviderByType(listKey)
-            val apiKeySetting = listKey as? ProviderSetting.ApiKey
-            val enabledKeys = apiKeySetting?.let { setting ->
-                setting.apiKey.split(Regex("[\\n,]"))
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() && it !in setting.disabledApiKeys }
-            }.orEmpty()
-            val models = if (apiKeySetting != null && enabledKeys.size > 1) {
-                // 每个 Key 可能开通了不同的模型，合并去重后再展示；
-                // 只有全都失败才算读不到，否则错误会被空列表吃掉
-                val errors = mutableListOf<Exception>()
-                val merged = enabledKeys.flatMap { key ->
-                    try {
-                        provider.listModels(apiKeySetting.withApiKey(key))
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        errors += e
-                        emptyList()
-                    }
-                }.distinctBy { it.modelId }
-                if (merged.isEmpty() && errors.isNotEmpty()) throw errors.first()
-                merged
-            } else {
-                provider.listModels(listKey)
-            }
-            RemoteModels(models = models.sortedBy { it.modelId })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // 失败时保留上次拿到的列表
-            value.copy(loading = false, error = e)
+    val apiKeySetting = listKey as? ProviderSetting.ApiKey
+    val availableKeys = remember(listKey) { apiKeySetting?.availableKeys.orEmpty() }
+    // 一个启用的 Key 一页，末尾再加一页收没有绑定 Key 的模型；只有一把 Key 时不分组
+    val allKeysName = stringResource(R.string.model_key_group_all)
+    val missingName = stringResource(R.string.model_key_group_missing)
+    val keyGroups = remember(listKey) { apiKeySetting?.keyGroups().orEmpty() }
+    val tabs = remember(keyGroups, allKeysName) {
+        keyGroups + ModelKeyGroup(key = null, name = allKeysName)
+    }
+    // 选中的分组页：换提供商时回到第一页
+    var selectedTab by rememberSaveable(listKey.id) { mutableStateOf(0) }
+    val pageKey = if (keyGroups.isEmpty()) null else tabs.getOrNull(selectedTab)?.key
+    val pageModels = remember(providerSetting.models, keyGroups, pageKey, availableKeys) {
+        if (keyGroups.isEmpty()) {
+            providerSetting.models
+        } else {
+            providerSetting.models.filter { it.belongsToKeyGroup(pageKey, availableKeys) }
         }
     }
+
+    var refreshCount by remember { mutableIntStateOf(0) }
+    // 每个 Key 各拉一份：分页各看各的，某一页读不到不影响别的页
+    val remoteModels by produceState(RemoteModelPages(), listKey, refreshCount) {
+        value = RemoteModelPages(
+            value.pages.mapValues { (_, page) -> page.copy(loading = true, error = null) }
+        )
+        value = RemoteModelPages(fetchRemoteModelPages(providerManager, listKey, availableKeys))
+    }
+    val remotePage = remoteModels.of(pageKey)
+
     val navController = LocalNavController.current
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        onUpdateProvider(providerSetting.moveMove(from.index, to.index))
+        // 列表只显示一页模型，拖动的下标要换回整个模型列表里的位置
+        val moved = pageModels.getOrNull(from.index)
+        val target = pageModels.getOrNull(to.index)
+        if (moved != null && target != null) {
+            val all = providerSetting.models
+            val fromIndex = all.indexOfFirst { it.id == moved.id }
+            val toIndex = all.indexOfFirst { it.id == target.id }
+            if (fromIndex >= 0 && toIndex >= 0) {
+                onUpdateProvider(providerSetting.moveMove(fromIndex, toIndex))
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (providerSetting.models.isEmpty()) {
-            ExtensionEmptyState(
-                message = stringResource(R.string.setting_provider_page_no_models),
-                description = stringResource(R.string.setting_provider_page_add_models_hint),
-                icon = HugeIcons.Package01,
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .floatingToolbarVerticalNestedScroll(
-                        expanded = expanded,
-                        onExpand = { expanded = true },
-                        onCollapse = { expanded = false },
-                    ),
-                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                state = lazyListState
-            ) {
-                items(providerSetting.models, key = { it.id }) { item ->
-                    ReorderableItem(
-                        state = reorderableLazyListState,
-                        key = item.id
-                    ) { isDragging ->
-                        val editorScreen = Screen.ModelEditor(
-                            providerId = providerSetting.id.toString(),
-                            modelId = item.id.toString(),
-                        )
-                        ModelCard(
-                            model = item,
-                            onDelete = {
-                                onUpdateProvider(providerSetting.delModel(item))
-                            },
-                            onOpenEditor = { navController.navigate(editorScreen) },
-                            // 点开时这张卡片展开成整页
-                            modifier = longPressReorder(isDragging).heroSource(editorScreen),
-                        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (keyGroups.isNotEmpty()) {
+                ModelKeyGroupStrip(
+                    groups = tabs,
+                    selectedKey = pageKey,
+                    onSelect = { key -> selectedTab = tabs.indexOfFirst { it.key == key }.coerceAtLeast(0) },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            when {
+                providerSetting.models.isEmpty() -> ExtensionEmptyState(
+                    message = stringResource(R.string.setting_provider_page_no_models),
+                    description = stringResource(R.string.setting_provider_page_add_models_hint),
+                    icon = HugeIcons.Package01,
+                )
+
+                // 整个提供商有模型、这一页没有：说清是分组空着，别让人以为模型被删了
+                pageModels.isEmpty() -> ExtensionEmptyState(
+                    message = stringResource(R.string.model_key_group_empty),
+                    description = stringResource(R.string.model_key_group_empty_desc),
+                    icon = HugeIcons.Package01,
+                )
+
+                else -> LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .floatingToolbarVerticalNestedScroll(
+                            expanded = expanded,
+                            onExpand = { expanded = true },
+                            onCollapse = { expanded = false },
+                        ),
+                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    state = lazyListState
+                ) {
+                    items(pageModels, key = { it.id }) { item ->
+                        ReorderableItem(
+                            state = reorderableLazyListState,
+                            key = item.id
+                        ) { isDragging ->
+                            val editorScreen = Screen.ModelEditor(
+                                providerId = providerSetting.id.toString(),
+                                modelId = item.id.toString(),
+                            )
+                            ModelCard(
+                                model = item,
+                                keyGroupLabel = item.keyGroupLabel(providerSetting, allKeysName, missingName),
+                                onDelete = {
+                                    onUpdateProvider(providerSetting.delModel(item))
+                                },
+                                onOpenEditor = { navController.navigate(editorScreen) },
+                                // 点开时这张卡片展开成整页
+                                modifier = longPressReorder(isDragging).heroSource(editorScreen),
+                            )
+                        }
                     }
                 }
             }
         }
+
         HorizontalFloatingToolbar(
             expanded = expanded,
             colors = CustomColors.floatingToolbarColors,
@@ -852,9 +883,12 @@ private fun ModelList(
                 .offset(y = -ScreenOffset),
         ) {
             AddModelButton(
-                remoteModels = remoteModels,
+                remoteModels = remotePage,
+                groupKey = pageKey,
+                groupName = tabs.firstOrNull { it.key == pageKey }?.name,
                 onRefresh = { refreshCount++ },
-                selectedModels = providerSetting.models,
+                // 只看这一页的模型：同名模型在别的 Key 分组里另有一条，不能混着算
+                selectedModels = pageModels,
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
                 },
@@ -866,7 +900,11 @@ private fun ModelList(
                 onUpdateProvider = onUpdateProvider,
                 onOpenEditor = {
                     navController.navigate(
-                        Screen.ModelEditor(providerId = providerSetting.id.toString())
+                        Screen.ModelEditor(
+                            providerId = providerSetting.id.toString(),
+                            // 新建的模型跟着当前分组，保存后还在这一页
+                            keyIndex = pageKey?.let { key -> availableKeys.indexOf(key).takeIf { it >= 0 } },
+                        )
                     )
                 },
             )
@@ -1248,13 +1286,19 @@ private fun ModelOcrHelperSetting(
     }
 }
 
-/** 高级设置：覆盖配置、自定义请求头和请求体 */
+/** 高级设置：Key 分组、覆盖配置、自定义请求头和请求体 */
 @Composable
 private fun ModelAdvancedOptions(
     model: Model,
     onModelChange: (Model) -> Unit,
     parentProvider: ProviderSetting?,
 ) {
+    ModelKeyGroupSetting(
+        model = model,
+        onModelChange = onModelChange,
+        parentProvider = parentProvider,
+    )
+
     // 覆盖配置是提供商的独立副本，账号凭据不能复制出去，账号型提供商不支持覆盖
     if (parentProvider !is ProviderSetting.Account) {
         ProviderOverrideSettings(
@@ -1279,6 +1323,88 @@ private fun ModelAdvancedOptions(
             onModelChange(model.copy(customBodies = bodies))
         }
     )
+}
+
+/**
+ * Key 分组：这条模型只用哪一把 Key 发请求。
+ *
+ * 只在提供商有多把 Key 时出现。换分组等于换一条模型：同名模型在别的分组里是另一条，
+ * 互不影响。想让一条模型在多把 Key 之间轮询，用下面的覆盖配置。
+ */
+@Composable
+private fun ModelKeyGroupSetting(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    parentProvider: ProviderSetting?,
+) {
+    val apiKeyProvider = parentProvider as? ProviderSetting.ApiKey ?: return
+    val keys = remember(apiKeyProvider) { apiKeyProvider.availableKeys }
+    if (keys.size <= 1) return
+    var showDialog by remember { mutableStateOf(false) }
+    val allKeysName = stringResource(R.string.model_key_group_all)
+    val currentName = remember(model.apiKeys, keys, allKeysName) {
+        model.apiKeys
+            .filter { it in keys }
+            .joinToString(" + ") { key -> apiKeyProvider.keyGroupName(key) }
+            .ifEmpty { allKeysName }
+    }
+
+    CardGroup {
+        item(
+            onClick = { showDialog = true },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_model_key_group)) },
+            supportingContent = { Text(currentName) },
+        )
+    }
+
+    if (showDialog) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.setting_provider_page_model_key_group)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onModelChange(model.copy(apiKeys = emptyList()))
+                                showDialog = false
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = model.apiKeys.isEmpty(), onClick = null)
+                        Text(text = allKeysName)
+                    }
+                    keys.forEach { key ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onModelChange(model.copy(apiKeys = listOf(key)))
+                                    showDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = model.apiKeys == listOf(key), onClick = null)
+                            Text(
+                                text = apiKeyProvider.keyGroupName(key),
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+        )
+    }
 }
 
 /** 其它设置：模型计费。价格单位跟随「以二进制量计数」，十进制按 1M、二进制按 Mi */
@@ -1378,16 +1504,75 @@ private fun CardGroupScope.PricingItem(
     )
 }
 
-/** 提供商远端的可用模型列表，[error] 不为空时 [models] 是上次成功拿到的结果 */
+/** 一页的远端模型列表，[error] 不为空时 [models] 是上次成功拿到的结果 */
 private data class RemoteModels(
     val models: List<Model> = emptyList(),
     val loading: Boolean = false,
     val error: Throwable? = null,
 )
 
+/**
+ * 按 Key 分开的远端模型，键为 null 的那份是全部 Key 的合并结果。
+ *
+ * 每个 Key 开通的模型可能不同，合并之后就分不清某个模型能不能用某把 Key 请求，
+ * 所以拉取和展示都按 Key 分开。
+ */
+private data class RemoteModelPages(
+    val pages: Map<String?, RemoteModels> = emptyMap(),
+) {
+    fun of(key: String?): RemoteModels = pages[key] ?: RemoteModels(loading = pages.isEmpty())
+}
+
+/**
+ * 每个 Key 各拉一份远端模型。
+ *
+ * 只有一把 Key 时只需要一份；多把 Key 时同时拉，全部 Key 页用手上这几份去重合并，
+ * 只有全都失败才算读不到，否则错误会被空列表吃掉。
+ */
+private suspend fun fetchRemoteModelPages(
+    providerManager: ProviderManager,
+    setting: ProviderSetting,
+    keys: List<String>,
+): Map<String?, RemoteModels> = coroutineScope {
+    suspend fun fetch(key: String?): RemoteModels {
+        val keySetting = if (key != null && setting is ProviderSetting.ApiKey) {
+            setting.withApiKey(key)
+        } else {
+            setting
+        }
+        return try {
+            RemoteModels(
+                models = providerManager.getProviderByType(keySetting).listModels(keySetting)
+                    .sortedBy { it.modelId }
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            RemoteModels(error = e)
+        }
+    }
+
+    if (keys.size <= 1) {
+        mapOf(null to fetch(null))
+    } else {
+        val perKey = keys.map { key -> async { key to fetch(key) } }.awaitAll().toMap()
+        val merged = perKey.values.flatMap { it.models }.distinctBy { it.modelId }.sortedBy { it.modelId }
+        val errors = perKey.values.mapNotNull { it.error }
+        mapOf(
+            null to RemoteModels(
+                models = merged,
+                error = if (merged.isEmpty()) errors.firstOrNull() else null,
+            )
+        ) + perKey
+    }
+}
+
 @Composable
 private fun AddModelButton(
     remoteModels: RemoteModels,
+    groupKey: String?,
+    groupName: String?,
     onRefresh: () -> Unit,
     selectedModels: List<Model>,
     expanded: Boolean,
@@ -1397,6 +1582,8 @@ private fun AddModelButton(
     onUpdateProvider: (ProviderSetting) -> Unit,
     onOpenEditor: () -> Unit,
 ) {
+    // 从这一页添加的模型只认这一页的 Key；全部 Key 页不加绑定，沿用提供商的全部 Key
+    val modelKeys = listOfNotNull(groupKey)
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -1404,6 +1591,7 @@ private fun AddModelButton(
     ) {
         ModelPicker(
             remoteModels = remoteModels,
+            groupName = groupName,
             onRefresh = onRefresh,
             selectedModels = selectedModels,
             onModelSelected = { model ->
@@ -1412,6 +1600,7 @@ private fun AddModelButton(
                 val abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
                 onAddModel(
                     model.copy(
+                        apiKeys = modelKeys,
                         inputModalities = inputModalities,
                         outputModalities = outputModalities,
                         abilities = abilities
@@ -1424,23 +1613,31 @@ private fun AddModelButton(
             onAllModelSelected = {
                 onUpdateProvider(
                     parentProvider.copyProvider(
-                        models = parentProvider.models + it.filter { model ->
-                            parentProvider.models.none { existing -> existing.modelId == model.modelId }
-                        }.map { model ->
-                            model.copy(
-                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId),
-                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId),
-                                abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
-                            )
-                        }
+                        models = parentProvider.models + it
+                            .filter { model ->
+                                // 只跳过这一页已经有的，同名但绑了别的 Key 的那条照样能加
+                                selectedModels.none { existing -> existing.modelId == model.modelId }
+                            }
+                            .map { model ->
+                                model.copy(
+                                    apiKeys = modelKeys,
+                                    inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId),
+                                    outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId),
+                                    abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
+                                )
+                            }
                     )
                 )
             },
             onAllModelDeselected = { filteredModels ->
+                // 按 id 删：这一页的模型和别的分组里的同名模型不是同一条
+                val removed = selectedModels.filter { model ->
+                    filteredModels.any { it.modelId == model.modelId }
+                }
                 onUpdateProvider(
                     parentProvider.copyProvider(
-                        models = parentProvider.models.filter { model ->
-                            filteredModels.none { filtered -> filtered.modelId == model.modelId }
+                        models = parentProvider.models.filterNot { model ->
+                            removed.any { it.id == model.id }
                         }
                     )
                 )
@@ -1474,6 +1671,7 @@ private fun AddModelButton(
 @Composable
 private fun ModelPicker(
     remoteModels: RemoteModels,
+    groupName: String?,
     onRefresh: () -> Unit,
     selectedModels: List<Model>,
     onModelSelected: (Model) -> Unit,
@@ -1547,6 +1745,18 @@ private fun ModelPicker(
                         )
                     }
                 }
+            }
+
+            // 从哪个 Key 分组打开的：这一份远端列表只对这把 Key 有效
+            if (groupName != null) {
+                Text(
+                    text = groupName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
             }
 
             // 拉取期间标题下面一直有一条进度条，首次加载时下面还有整块加载态
@@ -2131,6 +2341,8 @@ private const val KIB = 1024
 private fun ModelCard(
     model: Model,
     modifier: Modifier = Modifier,
+    // 这一条模型绑的 Key 分组名，只有一个 Key 的提供商为 null
+    keyGroupLabel: String? = null,
     onDelete: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
@@ -2174,6 +2386,12 @@ private fun ModelCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // 同一个模型按 Key 分组各存一条时名称一模一样，靠这个标签区分
+                    keyGroupLabel?.let { label ->
+                        Tag(type = TagType.DEFAULT) {
+                            Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                     if (model.providerOverwrite != null) {
                         Tag(type = TagType.INFO) {
                             Text(
@@ -2455,6 +2673,8 @@ private fun ProviderSetting?.supportsOcrModels(): Boolean =
 internal fun ModelEditorPage(
     providerId: Uuid,
     modelId: String? = null,
+    // 从某个 Key 分组页进来时带上分组下标，新建的模型默认只绑这一把 Key
+    keyIndex: Int? = null,
     vm: SettingVM = koinViewModel(),
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -2466,7 +2686,13 @@ internal fun ModelEditorPage(
     val existing = remember(provider, modelId) {
         modelId?.let { id -> provider?.models?.find { it.id.toString() == id } }
     }
-    var draft by remember(existing) { mutableStateOf(existing?.copy() ?: Model()) }
+    val groupKey = remember(provider, keyIndex) {
+        keyIndex?.let { index -> (provider as? ProviderSetting.ApiKey)?.availableKeys?.getOrNull(index) }
+    }
+    // 新建时带上分组：保存后回到原来那一页，不会掉进「全部 Key」里看着像没加上
+    var draft by remember(existing, groupKey) {
+        mutableStateOf(existing?.copy() ?: Model(apiKeys = listOfNotNull(groupKey)))
+    }
     val isEdit = existing != null
 
     // 新建这条不幂等：addModel 是 models + model，不去重。转场那 300ms 里按钮还能点，

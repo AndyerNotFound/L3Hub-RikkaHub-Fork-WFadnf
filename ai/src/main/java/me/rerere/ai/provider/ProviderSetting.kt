@@ -56,6 +56,39 @@ val ProviderSetting.supportsBuiltInSearch: Boolean
         -> false
     }
 
+/**
+ * 多 Key 文本框的分隔符：换行、逗号、空白都当作两个 Key 之间。
+ *
+ * 分组页、故障转移和配置页读的是同一份文本框，拆分规则必须一致，
+ * 否则分组页里的 Key 和请求实际用上的 Key 会对不上。
+ */
+private val API_KEY_SEPARATOR = Regex("[\\s,]+")
+
+/** 启用中的 Key，按文本框里的顺序去重；停用的 Key 不参与请求，也不单独分组 */
+val ProviderSetting.ApiKey.availableKeys: List<String>
+    get() {
+        val disabled = disabledApiKeys.toSet()
+        return apiKey.split(API_KEY_SEPARATOR)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it !in disabled }
+            .distinct()
+    }
+
+/** 这个 Key 的备注，没写过备注时返回 null */
+fun ProviderSetting.ApiKey.keyLabel(key: String): String? =
+    apiKeyLabels[key]?.trim()?.takeIf { it.isNotEmpty() }
+
+/**
+ * 掩码后的 Key：没有备注时用它给分组起一个能认人的名字。
+ *
+ * 短 Key 也要留住首尾，否则几把同样短的 Key 会撞出同一个名字。
+ */
+fun maskedKey(key: String): String = when {
+    key.length <= 4 -> "••••"
+    key.length <= 12 -> "${key.take(2)}••${key.takeLast(2)}"
+    else -> "${key.take(4)}••••${key.takeLast(4)}"
+}
+
 @Serializable
 sealed class ProviderSetting {
     abstract val id: Uuid

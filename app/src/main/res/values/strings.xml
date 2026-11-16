@@ -2474,6 +2474,11 @@
   <string name="assistant_page_enable_notification">Enable notifications</string>
   <string name="assistant_page_enable_notification_desc">When off, this assistant no longer sends generation progress and completion notifications</string>
   <string name="setting_provider_page_api_key_label">Label</string>
+  <string name="setting_provider_page_model_key_group">Key group</string>
+  <string name="model_key_group_all">All keys</string>
+  <string name="model_key_group_missing">Key unavailable</string>
+  <string name="model_key_group_empty">No models in this group</string>
+  <string name="model_key_group_empty_desc">Add models from Available models; models added here use only this key.</string>
   <string name="memory_export">Export memory</string>
   <string name="memory_import">Import memory</string>
   <string name="memory_export_done">Memory exported</string>

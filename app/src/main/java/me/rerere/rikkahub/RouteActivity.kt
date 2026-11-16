@@ -725,6 +725,7 @@ class RouteActivity : ComponentActivity() {
                                 ModelEditorPage(
                                     providerId = Uuid.parse(key.providerId),
                                     modelId = key.modelId,
+                                    keyIndex = key.keyIndex,
                                 )
                             }
 
@@ -1184,9 +1185,18 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingModels : Screen
 
-    /** 模型编辑页：modelId 为 null 时是新建 */
+    /**
+     * 模型编辑页：modelId 为 null 时是新建。
+     *
+     * keyIndex 是新建时默认绑定的 Key 分组（提供商可用 Key 里的下标），不传表示不绑定；
+     * 传下标而不是 Key 文本，免得 Key 被写进导航状态里存到磁盘。
+     */
     @Serializable
-    data class ModelEditor(val providerId: String, val modelId: String? = null) : Screen
+    data class ModelEditor(
+        val providerId: String,
+        val modelId: String? = null,
+        val keyIndex: Int? = null,
+    ) : Screen
 
     @Serializable
     data object SettingAbout : Screen

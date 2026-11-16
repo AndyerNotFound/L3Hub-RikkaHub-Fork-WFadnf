@@ -2221,6 +2221,11 @@
   <string name="setting_provider_group_title">المجموعة</string>
   <string name="setting_provider_page_api_key_add">إضافة مفتاح</string>
   <string name="setting_provider_page_api_key_label">التسمية</string>
+  <string name="setting_provider_page_model_key_group">مجموعة المفاتيح</string>
+  <string name="model_key_group_all">كل المفاتيح</string>
+  <string name="model_key_group_missing">المفتاح غير متاح</string>
+  <string name="model_key_group_empty">لا توجد نماذج في هذه المجموعة</string>
+  <string name="model_key_group_empty_desc">أضف النماذج من «النماذج المتاحة»؛ النماذج المضافة هنا تستخدم هذا المفتاح فقط.</string>
   <string name="setting_provider_page_api_key_multi_desc">يمكن إضافة عدة مفاتيح؛ وعند فشل الطلب يُنتقل تلقائيًا إلى المفتاح التالي</string>
   <string name="setting_provider_page_api_key_number">مفتاح API %d</string>
   <string name="setting_provider_page_context_block">منع الإرسال عند MAX</string>

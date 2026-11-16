@@ -2224,6 +2224,11 @@
   <string name="setting_provider_group_title">Gruppe</string>
   <string name="setting_provider_page_api_key_add">Key hinzufügen</string>
   <string name="setting_provider_page_api_key_label">Bezeichnung</string>
+  <string name="setting_provider_page_model_key_group">Schlüsselgruppe</string>
+  <string name="model_key_group_all">Alle Schlüssel</string>
+  <string name="model_key_group_missing">Schlüssel nicht verfügbar</string>
+  <string name="model_key_group_empty">Keine Modelle in dieser Gruppe</string>
+  <string name="model_key_group_empty_desc">Über „Verfügbare Modelle“ hinzufügen; hier hinzugefügte Modelle nutzen nur diesen Schlüssel.</string>
   <string name="setting_provider_page_api_key_multi_desc">Mehrere Keys möglich; bei einem Fehlschlag wird automatisch der nächste verwendet</string>
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_context_block">Bei MAX das Senden blockieren</string>

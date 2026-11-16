@@ -2475,6 +2475,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_enable_notification">启用通知</string>
   <string name="assistant_page_enable_notification_desc">关闭后，该助手不再发送生成进度与完成通知</string>
   <string name="setting_provider_page_api_key_label">标签</string>
+  <string name="setting_provider_page_model_key_group">Key 分组</string>
+  <string name="model_key_group_all">全部 Key</string>
+  <string name="model_key_group_missing">Key 不可用</string>
+  <string name="model_key_group_empty">这个分组还没有模型</string>
+  <string name="model_key_group_empty_desc">从右下角的「可用模型」添加；从这一页添加的模型只用这个 Key。</string>
   <string name="memory_export">导出记忆</string>
   <string name="memory_import">导入记忆</string>
   <string name="memory_export_done">记忆已导出</string>

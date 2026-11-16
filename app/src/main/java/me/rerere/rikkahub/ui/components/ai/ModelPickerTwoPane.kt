@@ -127,7 +127,25 @@ fun ModelPickerTwoPane(
     val query = search.trim()
 
     val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
-    val models = remember(query, showFavorites, selectedProvider, providers, modelTypes, favoriteModels) {
+    // 供应商有多把 Key 时，右栏顶部再给一条分组条：同一个模型可能按 Key 分组各存了一条
+    val allKeysLabel = stringResource(R.string.model_key_group_all)
+    val keyGroups = remember(selectedProvider) {
+        (selectedProvider as? ProviderSetting.ApiKey)?.keyGroups().orEmpty()
+    }
+    var keyFilter by remember(selectedProviderId) { mutableStateOf<String?>(null) }
+    // 搜索和收藏是跨供应商的视图，分组条只管当前供应商的模型
+    val showKeyGroups = keyGroups.isNotEmpty() && query.isBlank() && !showFavorites
+    // remember 委托出来的属性不能智能转换，先取成局部值给下面的过滤用
+    val selectedKey = keyFilter
+    val models = remember(
+        query,
+        showFavorites,
+        selectedProvider,
+        providers,
+        modelTypes,
+        favoriteModels,
+        keyFilter,
+    ) {
         when {
             // 命中供应商时连同它的所有模型一起列出，命中模型名时只列该模型
             query.isNotBlank() -> providers.flatMap { provider ->
@@ -147,6 +165,7 @@ fun ModelPickerTwoPane(
 
             selectedProvider != null -> selectedProvider.models
                 .filter { it.type in modelTypes }
+                .filter { model -> selectedKey == null || selectedKey in model.apiKeys }
                 .map { model -> model to selectedProvider }
 
             else -> emptyList()
@@ -159,8 +178,8 @@ fun ModelPickerTwoPane(
     }
 
     val listState = rememberLazyListState()
-    // 只在切换供应商/切回收藏时定位，收藏切换会重算 models，跟着跳会打断操作
-    LaunchedEffect(selectedProviderId, showFavorites) {
+    // 只在切换供应商、切分组、切回收藏时定位，收藏切换会重算 models，跟着跳会打断操作
+    LaunchedEffect(selectedProviderId, showFavorites, keyFilter) {
         val selectedIndex = models.indexOfFirst { it.first.id == currentModel }
         // 换供应商时列表偏移还留在上一家，没命中就回到顶部
         listState.scrollToItem(if (selectedIndex >= 0) selectedIndex else 0)
@@ -274,6 +293,15 @@ fun ModelPickerTwoPane(
                     )
                 },
             )
+            if (showKeyGroups) {
+                ModelKeyGroupStrip(
+                    groups = listOf(ModelKeyGroup(key = null, name = allKeysLabel)) + keyGroups,
+                    selectedKey = keyFilter,
+                    onSelect = { key -> keyFilter = key },
+                    modifier = Modifier.padding(top = 2.dp),
+                    compact = true,
+                )
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
