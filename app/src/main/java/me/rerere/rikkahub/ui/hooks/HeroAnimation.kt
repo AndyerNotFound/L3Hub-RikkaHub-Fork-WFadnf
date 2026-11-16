@@ -100,7 +100,7 @@ fun HeroPage(
  *
  * `sharedBounds` 没有方向参数：推送和返回共用同一套配对逻辑，只要两边都在组合里就会演。
  * 返回要的是整页下滑，所以离场这一半必须退出共享元素——摘掉修饰符后这一页老老实实跟着
- * display 级的位移走，而不是被 overlay 收进条目里。判定和 [rememberNavInputGuardDecorator]
+ * display 级的位移走，而不是被 overlay 收进条目里。判定和 [rememberNavInteractionDecorator]
  * 一样看 `transition.targetState`：目标状态不是 Visible 就是正在离场。
  */
 @Composable

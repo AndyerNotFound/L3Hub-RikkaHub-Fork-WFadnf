@@ -122,8 +122,7 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
-import me.rerere.rikkahub.ui.hooks.rememberNavInputGuardDecorator
-import me.rerere.rikkahub.ui.hooks.rememberNavTransitionReporter
+import me.rerere.rikkahub.ui.hooks.rememberNavInteractionDecorator
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
@@ -900,11 +899,10 @@ class RouteActivity : ComponentActivity() {
                         entryDecorators = listOf(
                             rememberSaveableStateHolderNavEntryDecorator(),
                             rememberViewModelStoreNavEntryDecorator(),
-                            // 转场期间离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题）。
-                            // 这一层把它的输入吞掉，不会再误触已经离场那一页的按钮
-                            rememberNavInputGuardDecorator<NavKey>(),
-                            // 转场是否还在播回写给 Navigator，返回防抖据此放行
-                            rememberNavTransitionReporter<NavKey>(navController),
+                            // 转场期间的点击拦截与状态回写合在一处（见 NavInputGuard.kt）：
+                            // 离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题），
+                            // 同时把「转场还在不在播」回写给 Navigator，返回据此排队
+                            rememberNavInteractionDecorator<NavKey>(navController),
                         ),
                         modifier = Modifier
                             .width(middleColumnWidth)
@@ -957,8 +955,7 @@ class RouteActivity : ComponentActivity() {
                             entryDecorators = listOf(
                                 rememberSaveableStateHolderNavEntryDecorator(),
                                 rememberViewModelStoreNavEntryDecorator(),
-                                rememberNavInputGuardDecorator<NavKey>(),
-                                rememberNavTransitionReporter<NavKey>(navController),
+                                rememberNavInteractionDecorator<NavKey>(navController),
                             ),
                             modifier = Modifier
                                 .weight(1f)

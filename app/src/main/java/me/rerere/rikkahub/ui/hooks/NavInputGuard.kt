@@ -15,6 +15,22 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import me.rerere.rikkahub.ui.context.Navigator
 
 /**
+ * 转场相关的两个装饰器合成一份，两个 `NavDisplay` 都从这里取，别各挂一套。
+ *
+ * 交互面只暴露两个结论给 [Navigator]：「转场还在不在播」与「是不是手势正倒向下一层」，
+ * 出栈该不该排队由 Navigator 决定，这里不判断，也不改栈。
+ */
+@Composable
+fun <T : Any> rememberNavInteractionDecorator(navigator: Navigator): NavEntryDecorator<T> =
+    remember(navigator) {
+        NavEntryDecorator<T> { entry ->
+            // 两个子组合分开挂：转场状态每变一次只该重组它自己，不能连带整页重新调用一遍
+            NavTransitionReport(navigator, entry)
+            NavPointerGuard(entry)
+        }
+    }
+
+/**
  * 转场期间不让离场的那一页吃掉点击。
  *
  * navigation3 1.2.0 的 NavDisplay 在 exit transition 结束前，会把离场的 entry 留在
@@ -32,61 +48,44 @@ import me.rerere.rikkahub.ui.context.Navigator
  * 被盖住的那一页根本进不了命中链。所以离场期间点到的是空的，不会触发下面那一页的按钮，
  * 也不会触发已经离场那一页的按钮。
  *
- * 代价：带位移的退场会随位移逐步让出可点区域，pop 后期点到底部露出的区域会落到空处。
- *
- * 判定是 per-scene 的：AnimatedContent 的 content 是一个 Scene，同一 scene 里的多个 entry
- * 共用同一个 transition。多窗格布局里，目标 scene 内的每个 entry 都是 Visible，
- * 不会因为「不是栈顶」被误拦；被拦的只有正在离场的那个 scene 整体。
+ * 判定是 per-scene 的：同一 scene 里的多个 entry 共用同一个 transition。多窗格布局里，
+ * 目标 scene 内的每个 entry 都是 Visible，不会因为「不是栈顶」被误拦；被拦的只有离场的那个 scene。
  */
 @Composable
-fun <T : Any> rememberNavInputGuardDecorator(): NavEntryDecorator<T> = remember {
-    NavEntryDecorator<T> { entry ->
-        val leaving = LocalNavAnimatedContentScope.current.transition.targetState !=
-            EnterExitState.Visible
-        // 必须自己撑满：这一层如果按内容包裹，父级给的是 0..max 的约束，
-        // 页面里那些 fillMaxSize 的子节点会跟着缩，转场途中布局会跳一下
-        Box(modifier = Modifier.fillMaxSize()) {
-            entry.Content()
-            if (leaving) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    // 走 Initial：子节点还没拿到事件就吃掉，
-                                    // 否则 clickable 在 Main 阶段照样会响应
-                                    awaitPointerEvent(PointerEventPass.Initial)
-                                        .changes
-                                        .forEach { it.consume() }
-                                }
+private fun <T : Any> NavPointerGuard(entry: NavEntry<T>) {
+    val leaving = LocalNavAnimatedContentScope.current.transition.targetState !=
+        EnterExitState.Visible
+    // 必须自己撑满：这一层如果按内容包裹，父级给的是 0..max 的约束，
+    // 页面里那些 fillMaxSize 的子节点会跟着缩，转场途中布局会跳一下
+    Box(modifier = Modifier.fillMaxSize()) {
+        entry.Content()
+        if (leaving) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                // 走 Initial：子节点还没拿到事件就吃掉，
+                                // 否则 clickable 在 Main 阶段照样会响应
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                    .changes
+                                    .forEach { it.consume() }
                             }
                         }
-                )
-            }
+                    }
+            )
         }
     }
 }
 
 /**
- * 把「转场是否还在播」回写到 [Navigator]，返回防抖靠它判断该不该放行。
+ * 把转场状态回写给 [Navigator]，返回的排队与 seek 收尾靠它判断。
  *
- * 判定和 guard 一样：`transition.currentState != transition.targetState` 就是还在演。
+ * 判定：`transition.currentState != transition.targetState` 就是还在演。
  * 同一段转场里所有 scene 共用同一个 Transition，写进去的值必然一致，不需要引用计数。
  * 只做回写，不碰布局也不碰输入。
  */
-@Composable
-fun <T : Any> rememberNavTransitionReporter(
-    navigator: Navigator,
-): NavEntryDecorator<T> = remember(navigator) {
-    NavEntryDecorator<T> { entry ->
-        // 读转场状态单独占一个重组作用域：和 entry.Content() 放在同一个 lambda 里，
-        // 三次状态切换（PreEnter / Visible / PostExit）会连带整页重新调用一遍
-        NavTransitionReport(navigator, entry)
-        entry.Content()
-    }
-}
-
 @Composable
 private fun <T : Any> NavTransitionReport(
     navigator: Navigator,
@@ -95,8 +94,9 @@ private fun <T : Any> NavTransitionReport(
     val transition = LocalNavAnimatedContentScope.current.transition
     val inFlight = transition.currentState != transition.targetState
     // 只有进场中的 scene（targetState 是 Visible）才有资格写 seekingPop，离场的
-    // scene 不写，免得把进场 scene 写下的值又盖回去。进场 scene 不是当前栈顶
-    // = 转场奔向下层页：预测性返回手势的 seekTo 目标就是下层页的 scene
+    // scene 不写，免得把进场 scene 写下的值又盖回去。
+    // 进场 scene 不是当前栈顶 = 栈还没变、转场正倒向下一层：预测性返回手势的 seek 就是这个形态。
+    // 普通 pop 一发生栈顶就已经换成那一页了，所以不会误判。
     val entering = transition.targetState == EnterExitState.Visible
     // nav3 1.2 起 NavEntry.key 是私有的，公开的只剩 contentKey，而 contentKey 的默认值
     // 是库自己从 key 推出来的（1.2.0 起是 Pair(key.toString(), key::class)）。
