@@ -69,7 +69,8 @@ object StartupTrace {
             }
         }
         synchronized(lock) { buffer.appendLine(line) }
-        Log.i(TAG, line)
+        // 埋点不许把业务带崩：单元测试里 android.util.Log 不是真实实现，会抛
+        runCatching { Log.i(TAG, line) }
         runCatching { writeInternal() }
         runCatching { writePublic() }
     }

@@ -59,6 +59,15 @@ private inline fun <reified T> json(
 
 internal const val SETTINGS_FIELDS_TAG = "SettingsFields"
 
+/** 设置解码里的日志：单测里 android.util.Log 是空实现，会抛，不能让日志把解码带崩。 */
+internal fun logSettingsWarning(message: String, error: Throwable? = null) {
+    runCatching { Log.w(SETTINGS_FIELDS_TAG, message, error) }
+}
+
+internal fun logSettingsError(message: String, error: Throwable? = null) {
+    runCatching { Log.e(SETTINGS_FIELDS_TAG, message, error) }
+}
+
 /**
  * 多态列表的宽松解码。
  *
@@ -72,18 +81,14 @@ internal inline fun <reified T : Any> decodeListLenient(raw: String): List<T> {
     } catch (e: SerializationException) {
         val elements = runCatching { JsonInstant.parseToJsonElement(raw).jsonArray }.getOrNull()
         if (elements == null) {
-            Log.e(SETTINGS_FIELDS_TAG, "设置里的列表整段读不出来，已丢弃", e)
+            logSettingsError("设置里的列表整段读不出来，已丢弃", e)
             return emptyList()
         }
-        Log.w(SETTINGS_FIELDS_TAG, "设置有 ${elements.size} 条，其中有不认识的类型，改为逐条读", e)
+        logSettingsWarning("设置有 ${elements.size} 条，其中有不认识的类型，改为逐条读", e)
         elements.mapNotNull { element ->
             runCatching { JsonInstant.decodeFromString<T>(element.toString()) }
                 .onFailure {
-                    Log.w(
-                        SETTINGS_FIELDS_TAG,
-                        "跳过一条读不出来的设置：${element.toString().take(120)}",
-                        it,
-                    )
+                    logSettingsWarning("跳过一条读不出来的设置：${element.toString().take(120)}", it)
                 }
                 .getOrNull()
         }
