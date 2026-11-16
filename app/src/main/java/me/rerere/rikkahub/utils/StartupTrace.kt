@@ -29,7 +29,10 @@ object StartupTrace {
     private const val INTERNAL_NAME = "startup-trace.txt"
     private const val PUBLIC_NAME = "l3hub-startup-trace.txt"
 
-    private val startedAt = SystemClock.uptimeMillis()
+    /** 单测里 android.os.SystemClock 也是空实现，会抛；埋点自己不能因此把业务带崩。 */
+    private fun now(): Long = runCatching { SystemClock.uptimeMillis() }.getOrDefault(0L)
+
+    private val startedAt = now()
     private val lock = Any()
     private val buffer = StringBuilder()
     private val seen = HashSet<String>()
@@ -58,7 +61,7 @@ object StartupTrace {
         // 同名只记第一次：这些点有的在组合里，重组一次写一次盘会把界面拖垮
         synchronized(lock) { if (!seen.add(name)) return }
         val line = buildString {
-            append(SystemClock.uptimeMillis() - startedAt)
+            append(now() - startedAt)
             append("ms [")
             append(Thread.currentThread().name)
             append("] ")
