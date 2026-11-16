@@ -129,9 +129,16 @@ fun MediaCreationPage(id: String) {
         }
     }
 
-    // 从会话列表点进来时由列表项展开；切换途中带着圆角，到位后变成直角
-    val heroCorner by LocalNavAnimatedContentScope.current.transition.animateDp(label = "heroCorner") { state ->
-        if (state == EnterExitState.Visible) 0.dp else 24.dp
+    // 从会话列表点进来时由列表项展开；切换途中带着圆角，到位后变成直角。
+    // 离场不再收角：返回只走 display 级下滑，别把「圆角长回去」叠成第二套过渡
+    val mediaTransition = LocalNavAnimatedContentScope.current.transition
+    val heroCorner = if (mediaTransition.targetState == EnterExitState.Visible) {
+        val corner by mediaTransition.animateDp(label = "heroCorner") { state ->
+            if (state == EnterExitState.Visible) 0.dp else 24.dp
+        }
+        corner
+    } else {
+        0.dp
     }
 
     Scaffold(

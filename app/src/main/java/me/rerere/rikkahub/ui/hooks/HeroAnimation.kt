@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,14 +24,25 @@ import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 
-/** 源条目侧的圆角。页面到位后收到 0，退场时再长回这个值。 */
+/** 源条目侧的圆角。页面到位后收到 0；返回不再收角，离场直接用直角下滑。 */
 val HeroSourceCorner = 20.dp
+
+/**
+ * 这一页是不是「被弹出离场」。
+ *
+ * 由 `rememberNavInteractionDecorator()` 提供：离场且已经不在返回栈里。被新页盖住的那一页仍是
+ * false —— 它得留着页内共享元素源那一半，否则进场的元素动画没有东西可配。
+ */
+val LocalNavEntryPopped = compositionLocalOf { false }
 
 @Composable
 fun Modifier.heroAnimation(
     key: Any,
     boundsTransform: BoundsTransform = SharedTransitionDefaults.BoundsTransform,
 ): Modifier {
+    // 返回（这一页正在被弹出）不再配对：返回只留 display 级那条整页下滑，
+    // 页内元素再飞一次就成了两套过渡一起演
+    if (LocalNavEntryPopped.current) return Modifier
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     return with(sharedTransitionScope) {
@@ -79,11 +91,19 @@ fun HeroPage(
     val sourceCorner = adaptiveCornerRadius(HeroSourceCorner)
     // 圆角也用同一档速度，关掉动效时它是 snap，不会留一段 300ms 的收角
     val cornerSpec = rememberSpatialSpec<Dp>()
-    val corner by LocalNavAnimatedContentScope.current.transition.animateDp(
-        transitionSpec = { cornerSpec },
-        label = "heroPageCorner",
-    ) { state ->
-        if (state == EnterExitState.Visible) 0.dp else sourceCorner
+    val transition = LocalNavAnimatedContentScope.current.transition
+    // 离场不再收角：返回只由 display 级的下滑演，圆角停在直角。留着这段收角，
+    // 返回就是「整页下滑 + 圆角长大」两套过渡同时在演
+    val corner = if (transition.targetState == EnterExitState.Visible) {
+        val animated by transition.animateDp(
+            transitionSpec = { cornerSpec },
+            label = "heroPageCorner",
+        ) { state ->
+            if (state == EnterExitState.Visible) 0.dp else sourceCorner
+        }
+        animated
+    } else {
+        0.dp
     }
     Box(
         modifier = modifier
