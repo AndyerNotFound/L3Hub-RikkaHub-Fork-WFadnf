@@ -47,6 +47,7 @@ import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.rikkahub.utils.DatabaseUtil
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.workspace.WorkspaceManager
 import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
@@ -67,6 +68,9 @@ const val HEARTBEAT_NOTIFICATION_CHANNEL_ID = "heartbeat"
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
         super.attachBaseContext(AppLanguage.wrap(base))
+        // 启动自查要最早装：它盯的是「第一帧画出来之前主线程有没有卡住」，
+        // 装晚了就盖不到真正卡住的那一段（见 StartupWatchdog）
+        StartupWatchdog.start(this)
     }
 
     override fun onCreate() {

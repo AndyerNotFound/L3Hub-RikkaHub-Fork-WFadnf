@@ -91,6 +91,7 @@ import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.utils.AppLanguage
+import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.ui.toast.Toaster
 import me.rerere.ui.toast.rememberToasterState
@@ -241,6 +242,8 @@ class RouteActivity : ComponentActivity() {
         enableEdgeToEdge()
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)
+        // 这个窗口画出第一帧就算启动成功，启动自查收工（见 StartupWatchdog）
+        StartupWatchdog.disarmOnFirstDraw(window.decorView)
         if (CrashHandler.hasCrashed(this)) {
             startActivity(Intent(this, SafeModeActivity::class.java))
             finish()

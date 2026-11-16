@@ -36,6 +36,19 @@ object CrashHandler {
             .edit { remove(KEY_CRASHED).remove(KEY_STACKTRACE) }
     }
 
+    /**
+     * 启动自查发现主线程卡死时用：只留栈、不带 Throwable。
+     *
+     * 进程紧跟着会被 halt，写盘必须同步（commit = true），否则下次启动读不到。
+     */
+    fun markStartupStall(context: Context, stack: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit(commit = true) {
+                putBoolean(KEY_CRASHED, true)
+                putString(KEY_STACKTRACE, stack.take(MAX_STACKTRACE_LENGTH))
+            }
+    }
+
     private fun markCrashed(context: Context, thread: Thread, throwable: Throwable) {
         val stackTrace = buildString {
             appendLine("Thread: ${thread.name}")

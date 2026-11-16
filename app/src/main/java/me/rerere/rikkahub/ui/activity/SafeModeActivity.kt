@@ -54,6 +54,7 @@ import me.rerere.rikkahub.ui.terminal.OutlinedButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.rikkahub.utils.StartupWatchdog
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.android.ext.android.inject
@@ -67,6 +68,8 @@ class SafeModeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val stackTrace = CrashHandler.getStackTrace(this)
         CrashHandler.clearCrashed(this)
+        // 安全模式这一页画出来就算启动完成，别让自查把它也当成卡死再 halt 一次
+        StartupWatchdog.disarmOnFirstDraw(window.decorView)
         enableEdgeToEdge()
         setContent {
             RikkahubTheme {
