@@ -535,7 +535,8 @@ private fun ProviderConfigureAccount(
     }
 
     CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
-        accounts.forEach { binding ->
+        // for 而不是 forEach：CardGroup 的内容是 @Composable，forEach 的 lambda 不是
+        for (binding in accounts) {
             val credential = binding.credential
             // 账号给得出昵称时以昵称为主、联系方式为辅，否则退回联系方式
             val headline = credential.displayName ?: credential.email
