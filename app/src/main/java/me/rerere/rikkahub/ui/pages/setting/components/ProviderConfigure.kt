@@ -133,6 +133,7 @@ fun ProviderConfigure(
             is ProviderSetting.ChatGPT -> ProviderConfigureAccount(
                 provider = provider,
                 onEdit = onEdit,
+                onCommit = onCommit,
                 serviceName = "ChatGPT",
                 plan = provider.credential?.plan?.let { "ChatGPT ${ChatGPTAuth.planDisplayName(it)}" },
                 disclaimer = stringResource(R.string.setting_provider_page_chatgpt_disclaimer),
@@ -141,6 +142,7 @@ fun ProviderConfigure(
             is ProviderSetting.Grok -> ProviderConfigureAccount(
                 provider = provider,
                 onEdit = onEdit,
+                onCommit = onCommit,
                 serviceName = "Grok",
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_grok_disclaimer),
@@ -149,6 +151,7 @@ fun ProviderConfigure(
             is ProviderSetting.DeepSeekAccount -> ProviderConfigureAccount(
                 provider = provider,
                 onEdit = onEdit,
+                onCommit = onCommit,
                 serviceName = "DeepSeek",
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_deepseek_disclaimer),
@@ -521,6 +524,7 @@ private fun ProviderConfigureOpenAI(
 private fun ProviderConfigureAccount(
     provider: ProviderSetting.Account,
     onEdit: (provider: ProviderSetting) -> Unit,
+    onCommit: (provider: ProviderSetting) -> Unit,
     serviceName: String,
     plan: String?,
     disclaimer: String,
@@ -539,6 +543,11 @@ private fun ProviderConfigureAccount(
     // 只有多账号的提供商才谈得上「添加账号」，单账号类型登录一次就是换人
     val multiAccount = provider is ProviderSetting.DeepSeekAccount
     var pendingLogout by remember { mutableStateOf<AccountBinding?>(null) }
+    // 登录、退出、停用都直接写设置，写之前先把配置页的草稿落盘：
+    // 否则随后的重建会把还没保存的名称和启用开关换成库里的旧值
+    fun commitDraft() {
+        onCommit(provider)
+    }
 
     CardGroup {
         nameItem(provider, onEdit)
@@ -559,6 +568,7 @@ private fun ProviderConfigureAccount(
                 // 多账号时点整行停用/启用，退出登录单独一个按钮
                 onClick = if (multiAccount) {
                     {
+                        commitDraft()
                         scope.launch {
                             accountManager.setAccountDisabled(provider.id, binding.id, !binding.disabled)
                         }
@@ -612,7 +622,10 @@ private fun ProviderConfigureAccount(
             else -> item(
                 // 单账号类型已登录时不再显示这一行
                 visible = accounts.isEmpty() || multiAccount,
-                onClick = { accountManager.startLogin(provider.id, context) },
+                onClick = {
+                    commitDraft()
+                    accountManager.startLogin(provider.id, context)
+                },
                 leadingContent = { CardGroupIcon(HugeIcons.Login03) },
                 supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
                     { Text(failed.message, color = MaterialTheme.colorScheme.error) }
@@ -638,6 +651,7 @@ private fun ProviderConfigureAccount(
                 TextButton(
                     onClick = {
                         pendingLogout = null
+                        commitDraft()
                         scope.launch { accountManager.logout(provider.id, binding.id) }
                     }
                 ) {
