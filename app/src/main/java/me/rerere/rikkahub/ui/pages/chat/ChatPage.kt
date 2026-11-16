@@ -18,6 +18,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -1340,6 +1342,21 @@ private fun ChatPageContent(
                         contentAlpha = if (hasMessages || emptyLayoutReady) 1f else 0f,
                         scrollEnabled = !hasMessages,
                         onHeroPlaced = { bottom -> emptyHeroBottomPx = bottom },
+                    )
+                }
+                // 叠层浮层的外侧点击：展开状态下点空白处收起，和点标题栏的开关等价。
+                // 这一层盖住聊天内容，所以展开期间列表不跟着滚动——浮层是模态的，
+                // 否则一下点按会一半落给浮层、一半落给后面的列表。
+                if ((showDetails && !threePane) || quotaExpanded) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(showDetails, quotaExpanded) {
+                                detectTapGestures {
+                                    if (quotaExpanded) quotaExpanded = false
+                                    if (showDetails && !threePane) showDetails = false
+                                }
+                            }
                     )
                 }
                 // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区。
