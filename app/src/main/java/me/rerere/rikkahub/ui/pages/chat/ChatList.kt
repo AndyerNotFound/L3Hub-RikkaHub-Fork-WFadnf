@@ -141,7 +141,6 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.fullWidthHorizontalInset
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.ListSelectableItem
@@ -464,10 +463,8 @@ private fun ChatListNormal(
     // 同一条节点里切换分支（编辑后重发、重新生成、点分支箭头）时，
     // 旧的正文原地收掉、新的展开，两层都带模糊；流式输出 id 不变，不会走这里
     val foldEnterSize = rememberSpatialSpec<IntSize>()
-    val foldExitSize = rememberFastSpatialSpec<IntSize>()
     val foldSize = rememberSpatialSpec<IntSize>()
     val foldEnterFade = rememberEffectsSpec<Float>()
-    val foldExitFade = rememberEffectsSpec<Float>()
 
     // 跟踪器在 ChatPage 里（空会话时它也在），这里只负责把结果交给每条消息
     // 滚到最底部以后继续上拉：拉满才认。
@@ -743,9 +740,9 @@ private fun ChatListNormal(
                                         expandFrom = Alignment.Top,
                                     ) + fadeIn(foldEnterFade)) togetherWith
                                         (shrinkVertically(
-                                            animationSpec = foldExitSize,
+                                            animationSpec = foldEnterSize,
                                             shrinkTowards = Alignment.Top,
-                                        ) + fadeOut(foldExitFade)) using
+                                        ) + fadeOut(foldEnterFade)) using
                                         SizeTransform(clip = false) { _, _ -> foldSize }
                                 },
                                 contentAlignment = Alignment.TopCenter,
@@ -758,13 +755,7 @@ private fun ChatListNormal(
                                 }
                                 val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
                                 val blurAmount by transition.animateFloat(
-                                    transitionSpec = {
-                                        if (targetState == EnterExitState.Visible) {
-                                            foldEnterFade
-                                        } else {
-                                            foldExitFade
-                                        }
-                                    },
+                                    transitionSpec = { foldEnterFade },
                                     label = "messageFoldBlur",
                                 ) { state ->
                                     if (state == EnterExitState.Visible) 0f else 1f

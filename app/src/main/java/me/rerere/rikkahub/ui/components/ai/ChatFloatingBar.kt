@@ -131,13 +131,13 @@ internal fun ChatFloatingBar(
     val fullWidth = LocalFullWidthComponents.current
     val density = LocalDensity.current
     val slideDistance = with(density) { 18.dp.toPx() }
+    // 显隐共用一组参数：收起不再比展开快一截，高度、位移、透明度走同一条时间线
+    val barTransitionMillis = 320
+    val barEasing = FastOutSlowInEasing
     val transition = updateTransition(targetState = visible, label = "chatFloatingBar")
     val progress by transition.animateFloat(
         transitionSpec = {
-            tween(
-                durationMillis = if (targetState) 320 else 240,
-                easing = FastOutSlowInEasing,
-            )
+            tween(durationMillis = barTransitionMillis, easing = barEasing)
         },
         label = "chatFloatingBarProgress",
     ) { shown -> if (shown) 1f else 0f }
@@ -149,11 +149,11 @@ internal fun ChatFloatingBar(
         visible = visible,
         modifier = modifier,
         enter = expandVertically(
-            animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = barTransitionMillis, easing = barEasing),
             expandFrom = Alignment.Top,
         ),
         exit = shrinkVertically(
-            animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = barTransitionMillis, easing = barEasing),
             shrinkTowards = Alignment.Top,
         ),
     ) {

@@ -1372,8 +1372,8 @@ private fun ChatPageContent(
                     ) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                     exit = shrinkVertically(
                         shrinkTowards = Alignment.Top,
-                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-                    ) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 ) {
                     ConversationDetailsPanel(
                         assistant = assistant,
@@ -2201,7 +2201,6 @@ private fun EmptyChatContent(
     val heroBlur = rememberMotionBlurSteps(maxRadius = 8.dp)
     // 模糊的收放跟随动态模糊设置里的时长，透明度仍走动画速度档位
     val enterBlurSpec = rememberMotionBlurSpec()
-    val exitBlurSpec = rememberMotionBlurSpec(scale = 0.75f)
     val fadeSpec = rememberEffectsSpec<Float>()
     val imeInsets = WindowInsets.ime
     BoxWithConstraints(
@@ -2225,9 +2224,7 @@ private fun EmptyChatContent(
                 exit = fadeOut(fadeSpec),
             ) {
                 val blur by transition.animateFloat(
-                    transitionSpec = {
-                        if (targetState == EnterExitState.Visible) enterBlurSpec else exitBlurSpec
-                    },
+                    transitionSpec = { enterBlurSpec },
                     label = "emptyHeroBlur",
                 ) { state ->
                     if (state == EnterExitState.Visible) 0f else 1f

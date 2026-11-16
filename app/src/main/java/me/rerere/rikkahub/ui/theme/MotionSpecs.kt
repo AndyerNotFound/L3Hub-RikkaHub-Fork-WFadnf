@@ -25,14 +25,14 @@ val LocalMotionBlur = compositionLocalOf { MotionBlurSetting() }
  * 设置页一改，卡片收放、滚动过渡、消息入场的模糊一起变快或变慢。
  * 关了动态模糊时直接 snap，模糊不会拖在收放后面。
  *
- * [scale] 给退出方向用：退场通常比进场收紧一些，传 0.75 左右即可。
+ * 进出共用这一条：退场不再比进场收紧，两端的模糊同时长、同曲线。
  */
 @Composable
-fun rememberMotionBlurSpec(scale: Float = 1f): FiniteAnimationSpec<Float> {
+fun rememberMotionBlurSpec(): FiniteAnimationSpec<Float> {
     val setting = LocalMotionBlur.current
     if (!setting.enabled) return snap()
     return tween(
-        durationMillis = (setting.durationMillis * scale).toInt().coerceAtLeast(1),
+        durationMillis = setting.durationMillis.coerceAtLeast(1),
         easing = FastOutSlowInEasing,
     )
 }
@@ -119,8 +119,9 @@ fun <T> rememberEffectsSpec(): FiniteAnimationSpec<T> {
 }
 
 /**
- * 收起、退出这类"收回去"的位移统一从这里取：比 [rememberSpatialSpec] 更紧，
- * 档位同样跟设置走，用户把动画调快以后退出不会还按默认时长慢慢收。
+ * 比默认更紧的位移动画：吸附、原位复位这类单向补位从这里取。
+ *
+ * 不用于进出场——收放与切换的退场一律与进场同参，两端取不同档位就是硬过渡。
  */
 @Composable
 fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {

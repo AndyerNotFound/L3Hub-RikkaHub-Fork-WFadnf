@@ -123,8 +123,14 @@ fun SubAgentConversationWindow(
             )
             AnimatedVisibility(
                 visible = visible,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(EXIT_ANIMATION_MS)),
+                enter = slideInVertically(
+                    animationSpec = tween(EXIT_ANIMATION_MS),
+                    initialOffsetY = { -it },
+                ),
+                exit = slideOutVertically(
+                    animationSpec = tween(EXIT_ANIMATION_MS),
+                    targetOffsetY = { -it },
+                ),
                 modifier = Modifier.align(Alignment.TopCenter),
             ) {
                 Surface(

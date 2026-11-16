@@ -169,12 +169,13 @@ internal fun FilesPicker(
     AnimatedContent(
         targetState = page,
         transitionSpec = {
+            // 进去从哪来、出来回哪去：退场沿进场那一侧反向运动
             if (targetState > initialState) {
                 slideInHorizontally { it } + fadeIn() togetherWith
-                    slideOutHorizontally { -it } + fadeOut()
+                    slideOutHorizontally { it } + fadeOut()
             } else {
                 slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
+                    slideOutHorizontally { -it } + fadeOut()
             }
         },
         label = "FilesPickerPage"

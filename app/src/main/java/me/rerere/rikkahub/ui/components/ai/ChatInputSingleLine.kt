@@ -76,18 +76,18 @@ internal fun ChatInputModelPill(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = fadeIn(tween(durationMillis = 200, delayMillis = 110)) +
+        // 进出同参：收起不再先快一截，也没有只在进场存在的错峰延迟
+        enter = fadeIn(tween(durationMillis = 200)) +
             slideInHorizontally(
                 animationSpec = tween(
                     durationMillis = 380,
-                    delayMillis = 110,
                     easing = ChatInputExpandEasing,
                 ),
                 initialOffsetX = { -slideDistance },
             ),
-        exit = fadeOut(tween(durationMillis = 120)) +
+        exit = fadeOut(tween(durationMillis = 200)) +
             slideOutHorizontally(
-                animationSpec = tween(durationMillis = 200, easing = ChatInputExpandEasing),
+                animationSpec = tween(durationMillis = 380, easing = ChatInputExpandEasing),
                 targetOffsetX = { -slideDistance },
             ),
     ) {

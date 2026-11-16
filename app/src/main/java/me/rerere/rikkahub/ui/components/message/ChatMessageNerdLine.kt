@@ -89,7 +89,6 @@ import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.formatCost
@@ -159,22 +158,18 @@ fun ChatMessageNerdLine(
     // 数字带模糊渐显、行高从上往下展开；重新生成清掉 usage 时反向收起
     val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
     val enterSize = rememberSpatialSpec<IntSize>()
-    val exitSize = rememberFastSpatialSpec<IntSize>()
     val fadeSpec = rememberEffectsSpec<Float>()
     // 模糊跟着动态模糊设置里的时长走，位移仍按动画速度档位
     val enterBlurSpec = rememberMotionBlurSpec()
-    val exitBlurSpec = rememberMotionBlurSpec(scale = 0.75f)
     AnimatedVisibility(
         visibleState = visibility,
         modifier = modifier,
         enter = expandVertically(animationSpec = enterSize) + fadeIn(fadeSpec),
-        exit = shrinkVertically(animationSpec = exitSize) + fadeOut(fadeSpec),
+        exit = shrinkVertically(animationSpec = enterSize) + fadeOut(fadeSpec),
         label = "nerdLine",
     ) {
         val blur by transition.animateFloat(
-            transitionSpec = {
-                if (targetState == EnterExitState.Visible) enterBlurSpec else exitBlurSpec
-            },
+            transitionSpec = { enterBlurSpec },
             label = "nerdLineBlur",
         ) { state ->
             if (state == EnterExitState.Visible) 0f else 1f

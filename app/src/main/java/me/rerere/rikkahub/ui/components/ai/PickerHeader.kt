@@ -210,8 +210,9 @@ private fun <T : Comparable<T>> PickerValueLabel(
         transitionSpec = {
             // 值变大时向上滚动，变小时向下滚动
             val direction = if (targetState > initialState) 1 else -1
+            // 进去从哪来、出来回哪去：退场沿进场那一侧反向运动
             (slideInVertically(spatialSpec) { it * direction / 2 } + fadeIn(effectsSpec)) togetherWith
-                (slideOutVertically(spatialSpec) { -it * direction / 2 } + fadeOut(effectsSpec)) using
+                (slideOutVertically(spatialSpec) { it * direction / 2 } + fadeOut(effectsSpec)) using
                 SizeTransform(clip = false)
         },
     ) {

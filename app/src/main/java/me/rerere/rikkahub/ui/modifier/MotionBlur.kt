@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.roundToInt
@@ -138,9 +137,9 @@ fun MotionExpandCollapse(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec<Float>()),
     maxBlurRadius: Dp = 6.dp,
-    // 模糊跟各自方向的位移取同一条曲线：展开和收起本来就可以用不同速度，
-    // 共用一条时总有一边拖在位移后面，看起来就是那一侧的硬过渡。
-    // 默认值改由设置里的「过渡时长」决定，用户调一次对所有收放一起生效
+    // 模糊与两个方向的位移共用一条曲线：收起与展开同参同时长，
+    // 任何一侧拖在位移后面都会看成那一边的硬过渡。
+    // 默认值由设置里的「过渡时长」决定，用户调一次对所有收放一起生效
     enterBlurSpec: AnimationSpec<Float> = rememberMotionBlurSpec(),
     exitBlurSpec: AnimationSpec<Float> = enterBlurSpec,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
@@ -292,12 +291,13 @@ private class StretchHeightState {
 }
 
 /**
- * 内容刷新 / 切换时的纵向滚动过渡：旧内容向上滚出，新内容从下方滚入，两层都带动态模糊。
+ * 内容刷新 / 切换时的纵向滚动过渡：新内容从下方滚入，旧内容沿同一条路径向下退出，两层都带动态模糊。
  *
  * 用于同一块位置换了一份数据（统计页换时间范围、重新查询），不是页面进出场：
  * 位移给出「滚过去」的方向感，模糊跟着收放，内容替换不再是一帧硬切。
  *
  * 位移和淡入淡出交给 [AnimatedContent] 自己的进出场，曲线取主题（关掉动效时一起 snap）；
+ * 进出同参同向：行程、曲线、模糊时长取同一组值，退场沿进场那一侧回去。
  * 模糊挂在场景自己的 [AnimatedVisibilityScope.transition] 上，进场 1→0、退场 0→1，
  * 和进出场同一条时间线，退场内容被回收前一定播完。
  * 尺寸变化用 `SizeTransform(clip = false)` 收放，滚入的内容不会被容器边缘提前裁掉。
@@ -307,9 +307,9 @@ fun <S> MotionScrollSwap(
     targetState: S,
     modifier: Modifier = Modifier,
     maxBlurRadius: Dp = 8.dp,
-    // 行程由设置里的「滚动行程」决定：进场走满，退场收紧一些
+    // 行程由设置里的「滚动行程」决定：进出同一条行程，退场不再收紧
     enterTravel: Dp = LocalMotionBlur.current.travel.dp,
-    exitTravel: Dp = (LocalMotionBlur.current.travel * 0.75f).dp,
+    exitTravel: Dp = enterTravel,
     contentAlignment: Alignment = Alignment.TopStart,
     label: String = "MotionScrollSwap",
     content: @Composable AnimatedContentScope.(S) -> Unit,
@@ -317,30 +317,26 @@ fun <S> MotionScrollSwap(
     val density = LocalDensity.current
     val enterDistance = with(density) { enterTravel.roundToPx() }
     val exitDistance = with(density) { exitTravel.roundToPx() }
-    val enterSlide = rememberSpatialSpec<IntOffset>()
-    val exitSlide = rememberFastSpatialSpec<IntOffset>()
-    val enterFade = rememberEffectsSpec<Float>()
-    val exitFade = rememberEffectsSpec<Float>()
+    // 进出共用同一组曲线：位移、透明度、尺寸、模糊走同一条时间线
+    val slideSpec = rememberSpatialSpec<IntOffset>()
+    val fadeSpec = rememberEffectsSpec<Float>()
     val sizeSpec = rememberSpatialSpec<IntSize>()
 
     AnimatedContent(
         targetState = targetState,
         modifier = modifier,
         transitionSpec = {
-            (slideInVertically(enterSlide) { enterDistance } + fadeIn(enterFade)) togetherWith
-                (slideOutVertically(exitSlide) { -exitDistance } + fadeOut(exitFade)) using
+            (slideInVertically(slideSpec) { enterDistance } + fadeIn(fadeSpec)) togetherWith
+                (slideOutVertically(slideSpec) { exitDistance } + fadeOut(fadeSpec)) using
                 SizeTransform(clip = false) { _, _ -> sizeSpec }
         },
         contentAlignment = contentAlignment,
         label = label,
     ) { state ->
         val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
-        val enterBlur = rememberSpatialSpec<Float>()
-        val exitBlur = rememberFastSpatialSpec<Float>()
+        val blurSpec = rememberSpatialSpec<Float>()
         val blurAmount by transition.animateFloat(
-            transitionSpec = {
-                if (targetState == EnterExitState.Visible) enterBlur else exitBlur
-            },
+            transitionSpec = { blurSpec },
             label = "$label blur",
         ) { enterExitState ->
             if (enterExitState == EnterExitState.Visible) 0f else 1f

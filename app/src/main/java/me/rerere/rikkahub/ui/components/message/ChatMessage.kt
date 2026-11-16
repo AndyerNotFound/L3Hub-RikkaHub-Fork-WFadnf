@@ -380,12 +380,13 @@ fun ChatMessage(
                 AnimatedContent(
                     targetState = showTranslationPage && translation != null,
                     transitionSpec = {
+                        // 进去从哪来、出来回哪去：退场沿进场那一侧反向运动
                         if (targetState) {
                             (slideInHorizontally { it } + fadeIn()) togetherWith
-                                (slideOutHorizontally { -it } + fadeOut())
+                                (slideOutHorizontally { it } + fadeOut())
                         } else {
                             (slideInHorizontally { -it } + fadeIn()) togetherWith
-                                (slideOutHorizontally { it } + fadeOut())
+                                (slideOutHorizontally { -it } + fadeOut())
                         }
                     },
                     label = "messageTranslationPage",
@@ -473,8 +474,8 @@ fun ChatMessage(
             visible = showActionRow,
             enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeIn(motionScheme.defaultEffectsSpec()),
-            exit = slideOutVertically(motionScheme.fastSpatialSpec()) { it / 2 } +
-                fadeOut(motionScheme.fastEffectsSpec()),
+            exit = slideOutVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
+                fadeOut(motionScheme.defaultEffectsSpec()),
         ) {
             Column(
                 modifier = Modifier.animateContentSize()

@@ -214,8 +214,9 @@ fun RikkahubTheme(
                     } else {
                         settings.displaySetting.animationSpeed
                     },
+                    // 进出同一档：退场不再取更紧的快档，两端同时长同曲线
                     LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
-                    LocalDialogExitSpec provides rememberFastSpatialSpec<Float>(),
+                    LocalDialogExitSpec provides rememberSpatialSpec<Float>(),
                     // 动态模糊的参数也在这一层下发：滚动、收放、入场都读同一份，
                     // 关掉动效时连同模糊一起停掉，不用每个效果自己判断
                     LocalMotionBlur provides if (settings.displaySetting.disableAnimations) {

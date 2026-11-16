@@ -72,7 +72,6 @@ import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
@@ -400,7 +399,7 @@ fun ChatQuotaStripDashboard(
         ) + fadeIn(animationSpec = rememberEffectsSpec()),
         exit = shrinkVertically(
             shrinkTowards = Alignment.Top,
-            animationSpec = rememberFastSpatialSpec(),
+            animationSpec = rememberSpatialSpec(),
         ) + fadeOut(animationSpec = rememberEffectsSpec()),
     ) {
         QuotaDashboard(

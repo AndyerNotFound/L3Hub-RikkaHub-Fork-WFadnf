@@ -53,7 +53,6 @@ import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedAlertDialog
 
@@ -213,7 +212,6 @@ private fun NoticeActionMenu(
     onDelete: (() -> Unit)?,
 ) {
     val enterSpec = rememberSpatialSpec<Float>()
-    val exitSpec = rememberFastSpatialSpec<Float>()
     val progress = remember { Animatable(0f) }
     var closing by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -239,7 +237,7 @@ private fun NoticeActionMenu(
     }
     LaunchedEffect(closing) {
         if (!closing) return@LaunchedEffect
-        progress.animateTo(0f, exitSpec)
+        progress.animateTo(0f, enterSpec)
         val action = pendingAction
         pendingAction = null
         action?.invoke()

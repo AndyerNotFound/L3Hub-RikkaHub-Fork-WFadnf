@@ -179,7 +179,6 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
                 .fillMaxSize()
                 .padding(padding),
             enterTravel = 24.dp,
-            exitTravel = 8.dp,
             label = "stats_body",
         ) { loading ->
             if (loading) {
@@ -272,7 +271,6 @@ private fun StatsContent(
                 targetState = usage,
                 modifier = Modifier.fillMaxWidth(),
                 enterTravel = 40.dp,
-                exitTravel = 24.dp,
                 label = "stats_usage",
             ) { current ->
                 if (current != null) {

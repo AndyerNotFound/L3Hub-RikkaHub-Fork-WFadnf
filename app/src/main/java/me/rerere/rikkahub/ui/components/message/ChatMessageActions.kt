@@ -76,7 +76,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
@@ -502,7 +501,6 @@ internal fun UserMessageActionsMenu(
     onDismissRequest: () -> Unit,
 ) {
     val enterSpec = rememberSpatialSpec<Float>()
-    val exitSpec = rememberFastSpatialSpec<Float>()
     val density = LocalDensity.current
     val windowSize = LocalWindowInfo.current.containerDpSize
     val marginPx = with(density) { MessageMenuMargin.roundToPx() }
@@ -531,7 +529,7 @@ internal fun UserMessageActionsMenu(
     }
     LaunchedEffect(closing) {
         if (!closing) return@LaunchedEffect
-        progress.animateTo(0f, exitSpec)
+        progress.animateTo(0f, enterSpec)
         val action = pendingAction
         pendingAction = null
         action?.invoke()

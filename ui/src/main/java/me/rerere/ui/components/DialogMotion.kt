@@ -30,6 +30,7 @@ import kotlinx.coroutines.withContext
  * 弹窗进场与退场用的曲线。
  *
  * 默认取 Material 自己的 motion scheme——expressive 下那是一根带阻尼的弹簧，不是线性曲线。
+ * 进出取同一档：退场不再比进场快一截，弹窗收起与展开走同一条时间线。
  * 主题里会按用户的「动画速度」设置覆盖掉：页面转场、列表展开、菜单都走同一套档位，
  * 弹窗不该是唯一还按默认时长慢慢走的那一个。
  * 关掉动效时 motion scheme 本身已经是 snap，这里不用再单独判断。
@@ -64,7 +65,7 @@ private class DialogMotion(
 @Composable
 private fun rememberDialogMotion(onDismissRequest: () -> Unit): DialogMotion {
     val enterSpec = LocalDialogEnterSpec.current ?: MaterialTheme.motionScheme.defaultSpatialSpec()
-    val exitSpec = LocalDialogExitSpec.current ?: MaterialTheme.motionScheme.fastSpatialSpec()
+    val exitSpec = LocalDialogExitSpec.current ?: MaterialTheme.motionScheme.defaultSpatialSpec()
     val progress = remember { Animatable(0f) }
     var closing by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
