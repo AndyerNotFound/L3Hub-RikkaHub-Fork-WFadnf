@@ -3,6 +3,8 @@ package me.rerere.rikkahub.ui.context
 import androidx.navigation3.runtime.NavKey
 import me.rerere.rikkahub.Screen
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -47,7 +49,7 @@ class NavigatorTest {
     fun back_during_enter_transition_is_queued() {
         navigator.navigate(Screen.Setting)
         now += 500
-        navigator.transitionInFlight = true
+        navigator.reportTransition(Screen.Setting, inFlight = true, seekingPop = false)
         navigator.popBackStack()
         assertEquals(2, stack.size)
         assertEquals(1, navigator.pendingPops)
@@ -57,10 +59,27 @@ class NavigatorTest {
     fun back_during_seek_pops_immediately() {
         navigator.navigate(Screen.Setting)
         now += 500
-        navigator.transitionInFlight = true
-        navigator.transitionSeekingPop = true
+        navigator.reportTransition(Screen.Setting, inFlight = true, seekingPop = true)
         navigator.popBackStack()
         assertEquals(1, stack.size)
+    }
+
+    /** 转场里的两页各报各的：一页落定不能把另一页还在播的那条盖掉。 */
+    @Test
+    fun settled_page_does_not_clear_animating_page() {
+        navigator.reportTransition(Screen.Setting, inFlight = true, seekingPop = false)
+        navigator.reportTransition(Screen.History, inFlight = false, seekingPop = false)
+        assertTrue(navigator.transitionInFlight)
+        assertFalse(navigator.transitionSeekingPop)
+    }
+
+    /** 页面销毁时把它的那条摘掉，别让一条 true 永远留着。 */
+    @Test
+    fun forgotten_page_takes_its_flags_with_it() {
+        navigator.reportTransition(Screen.Setting, inFlight = true, seekingPop = true)
+        navigator.forgetTransition(Screen.Setting)
+        assertFalse(navigator.transitionInFlight)
+        assertFalse(navigator.transitionSeekingPop)
     }
 
     @Test

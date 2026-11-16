@@ -3,9 +3,11 @@ package me.rerere.rikkahub.ui.context
 import android.os.SystemClock
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.navigation3.runtime.NavKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -35,6 +37,14 @@ class Navigator(
 
     /** 当前栈顶，转场 reporter 用它区分「进场的是栈顶」与「转场正倒向下一层」。 */
     val topKey: NavKey? get() = backStack.lastOrNull()
+
+    /**
+     * 返回栈的当前内容（只读视图）。
+     *
+     * 转场装饰器用它区分「被弹出」与「被新页盖住」：还在栈里说明只是被盖住，页内的共享元素
+     * 得留着源那一半，否则进场的元素动画没得配；不在栈里才是真的在离场。
+     */
+    val stackKeys: List<NavKey> get() = backStack
 
     fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit = {}) {
         val now = clock()
@@ -80,14 +90,37 @@ class Navigator(
     }
 
     /**
-     * 转场是否还在播，由 `rememberNavInteractionDecorator()` 从 scene 里回写。
+     * 每一页自己的转场状态，键是 `NavEntry.contentKey`，由 `rememberNavInteractionDecorator()` 回报。
      *
-     * 同一段转场里所有 scene 共用同一个 Transition，算出来的值必然一致，
-     * 所以这里不需要引用计数，谁最后写都一样。
-     *
-     * 可观察：排队中的返回要等它落下。
+     * 不能收成一个布尔值：`LocalNavAnimatedContentScope.current.transition` 是**这一页自己的**子转场
+     * （compose 的 `AnimatedContent` 给每个 content 单独 `createChildTransition`），同一段转场里
+     * 「离场那页还在滑」与「露出的那页已经落定」会同时成立。收到一个变量里就是最后写的那页说了算：
+     * pop 时露出页后组合、后写 false，整段转场被当成「没在播」——返回不排队、预测性返回的 seek
+     * 也判不出来；某页在飞行中被销毁时它那条 true 还会留在表里，之后每次返回都要等满
+     * [TRANSITION_SETTLE_TIMEOUT_MS]。按页记、销毁时摘掉，才是「转场还在不在播」。
      */
-    var transitionInFlight: Boolean by mutableStateOf(false)
+    private val inFlightByPage: SnapshotStateMap<Any, Boolean> = mutableStateMapOf()
+
+    /** 同上按页记：只有「进场中且已经不是栈顶」的那一页把自己写成 true。 */
+    private val seekingPopByPage: SnapshotStateMap<Any, Boolean> = mutableStateMapOf()
+
+    /** 转场是否还在播：任意一页还在播就算。可观察，排队中的返回要等它落下。 */
+    val transitionInFlight: Boolean get() = inFlightByPage.containsValue(true)
+
+    /** 预测性返回手势是否正把出场进度倒向下一层。可观察。 */
+    val transitionSeekingPop: Boolean get() = seekingPopByPage.containsValue(true)
+
+    /** 一页回报自己的转场状态，只动自己那一条，不覆盖别人的。 */
+    fun reportTransition(page: Any, inFlight: Boolean, seekingPop: Boolean) {
+        if (inFlightByPage[page] != inFlight) inFlightByPage[page] = inFlight
+        if (seekingPopByPage[page] != seekingPop) seekingPopByPage[page] = seekingPop
+    }
+
+    /** 页面销毁时摘掉它那一条，别把一条 true 永远留在表里。 */
+    fun forgetTransition(page: Any) {
+        inFlightByPage.remove(page)
+        seekingPopByPage.remove(page)
+    }
 
     /**
      * 转场里按下的返回，等这一段转场演完再出栈。
@@ -100,14 +133,6 @@ class Navigator(
      */
     var pendingPops: Int by mutableStateOf(0)
         private set
-
-    /**
-     * 预测性返回手势正把出场进度倒向下一层：这时栈还没变，进场中的 scene 不是当前栈顶。
-     * 由 `rememberNavInteractionDecorator()` 回写，可观察。
-     *
-     * 只有「手势 seek」会命中：普通 pop 一发生栈顶就已经换了人，进场 scene 与栈顶一致。
-     */
-    var transitionSeekingPop: Boolean by mutableStateOf(false)
 
     fun popBackStack() {
         val now = clock()

@@ -4,6 +4,8 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -26,7 +28,7 @@ fun <T : Any> rememberNavInteractionDecorator(navigator: Navigator): NavEntryDec
         NavEntryDecorator<T> { entry ->
             // 两个子组合分开挂：转场状态每变一次只该重组它自己，不能连带整页重新调用一遍
             NavTransitionReport(navigator, entry)
-            NavPointerGuard(entry)
+            NavPointerGuard(navigator, entry)
         }
     }
 
@@ -52,13 +54,18 @@ fun <T : Any> rememberNavInteractionDecorator(navigator: Navigator): NavEntryDec
  * 目标 scene 内的每个 entry 都是 Visible，不会因为「不是栈顶」被误拦；被拦的只有离场的那个 scene。
  */
 @Composable
-private fun <T : Any> NavPointerGuard(entry: NavEntry<T>) {
+private fun <T : Any> NavPointerGuard(navigator: Navigator, entry: NavEntry<T>) {
     val leaving = LocalNavAnimatedContentScope.current.transition.targetState !=
         EnterExitState.Visible
+    // 离场有两种：被新页盖住（还在栈里）与被弹出（已经不在栈里）。页内共享元素只在前一种情况下
+    // 要留着源那一半，返回时摘掉才不会「整页下滑 + 元素飞回」两套过渡一起演
+    val popped = leaving && !isInBackStack(navigator, entry)
     // 必须自己撑满：这一层如果按内容包裹，父级给的是 0..max 的约束，
     // 页面里那些 fillMaxSize 的子节点会跟着缩，转场途中布局会跳一下
     Box(modifier = Modifier.fillMaxSize()) {
-        entry.Content()
+        CompositionLocalProvider(LocalNavEntryPopped provides popped) {
+            entry.Content()
+        }
         if (leaving) {
             Box(
                 modifier = Modifier
@@ -80,11 +87,13 @@ private fun <T : Any> NavPointerGuard(entry: NavEntry<T>) {
 }
 
 /**
- * 把转场状态回写给 [Navigator]，返回的排队与 seek 收尾靠它判断。
+ * 把这一页的转场状态回报给 [Navigator]，返回的排队与 seek 收尾靠它判断。
  *
- * 判定：`transition.currentState != transition.targetState` 就是还在演。
- * 同一段转场里所有 scene 共用同一个 Transition，写进去的值必然一致，不需要引用计数。
- * 只做回写，不碰布局也不碰输入。
+ * 判定：`transition.currentState != transition.targetState` 就是还在演。这里的 `transition` 是
+ * **这一页自己的** EnterExitState 子转场（`AnimatedContent` 给每个 content 单独建
+ * `createChildTransition`），同一段转场里离场页与露出的那页会得出不同的值 —— 所以按页各记一条，
+ * 谁也不能把谁盖掉。页面销毁时还要摘掉自己那条，见下面的 `DisposableEffect`。
+ * 只做回报，不碰布局也不碰输入。
  */
 @Composable
 private fun <T : Any> NavTransitionReport(
@@ -93,8 +102,6 @@ private fun <T : Any> NavTransitionReport(
 ) {
     val transition = LocalNavAnimatedContentScope.current.transition
     val inFlight = transition.currentState != transition.targetState
-    // 只有进场中的 scene（targetState 是 Visible）才有资格写 seekingPop，离场的
-    // scene 不写，免得把进场 scene 写下的值又盖回去。
     // 进场 scene 不是当前栈顶 = 栈还没变、转场正倒向下一层：预测性返回手势的 seek 就是这个形态。
     // 普通 pop 一发生栈顶就已经换成那一页了，所以不会误判。
     val entering = transition.targetState == EnterExitState.Visible
@@ -104,10 +111,29 @@ private fun <T : Any> NavTransitionReport(
     // 「进场 scene 的 key 不是栈顶」逐字等价，不是近似，所以不会把闪回那一版带回来。
     // 按 key 记住，一个栈顶只造一次，不在每帧分配。
     val topContentKey = navigator.topKey?.let { key -> remember(key) { NavEntry(key) {}.contentKey } }
+    val seekingPop = entering && inFlight && entry.contentKey != topContentKey
+    // 按页回报：这一页只写自己那一条，别的页在不在播与它无关
+    val page = entry.contentKey
     SideEffect {
-        navigator.transitionInFlight = inFlight
-        if (entering) {
-            navigator.transitionSeekingPop = inFlight && entry.contentKey != topContentKey
-        }
+        navigator.reportTransition(page, inFlight = inFlight, seekingPop = seekingPop)
     }
+    // 离场那一页演完就销毁，不会再重组一次来写 false；不摘掉它那条 true，
+    // 之后每次返回都要等满 TRANSITION_SETTLE_TIMEOUT_MS 才动
+    DisposableEffect(page) {
+        onDispose { navigator.forgetTransition(page) }
+    }
+}
+
+/**
+ * 这一页现在还在返回栈里吗。
+ *
+ * 离场那一页还在栈里 = 只是被新页盖住；不在栈里 = 被弹出（返回）。
+ */
+@Composable
+private fun isInBackStack(navigator: Navigator, entry: NavEntry<*>): Boolean {
+    val contentKey = entry.contentKey
+    for (key in navigator.stackKeys) {
+        if (remember(key) { NavEntry(key) {}.contentKey } == contentKey) return true
+    }
+    return false
 }
