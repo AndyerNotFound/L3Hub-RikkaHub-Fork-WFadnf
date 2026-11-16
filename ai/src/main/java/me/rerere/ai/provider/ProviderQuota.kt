@@ -17,7 +17,16 @@ sealed interface ProviderQuota {
     data class Balance(
         val value: String,
         val secondary: String? = null,
+        /** 按账号拆开的余额，只有多账号的提供商给；界面在设置的用量卡里展开 */
+        val accounts: List<AccountBalance> = emptyList(),
     ) : ProviderQuota
+
+    /** 单个账号的余额：主值是充值余额，[secondary] 是赠金 */
+    data class AccountBalance(
+        val label: String,
+        val value: String,
+        val secondary: String? = null,
+    )
 
     /** 订阅制的用量限制，按时间窗口统计已用比例 */
     data class UsageLimits(

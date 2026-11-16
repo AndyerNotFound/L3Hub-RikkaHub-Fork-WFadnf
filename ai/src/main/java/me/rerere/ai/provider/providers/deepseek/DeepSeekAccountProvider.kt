@@ -1,6 +1,7 @@
 package me.rerere.ai.provider.providers.deepseek
 
 import kotlinx.coroutines.flow.Flow
+import me.rerere.ai.provider.AccountBinding
 import me.rerere.ai.provider.AccountCredentialProvider
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -22,6 +23,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.util.mergeCustomHeaders
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.math.BigDecimal
 import java.math.RoundingMode
 
 /** 平台没有给出上下文窗口时的兜底值，与官方模型列表一致 */
@@ -71,24 +73,39 @@ class DeepSeekAccountProvider(
             )
         }
 
-    /** 充值余额与赠金余额分两条：主值是充值余额，赠金放在 [ProviderQuota.Balance.secondary] */
-    override suspend fun getQuota(providerSetting: ProviderSetting.DeepSeekAccount): ProviderQuota? =
-        withAccount(providerSetting) { token ->
-            val wallets = DeepSeekAccountPlatform.wallets(client, token)
-            val normal = wallets.normal.map { it.formatted() }
-            // 赠金只显示正额，与平台网页一致
-            val bonus = wallets.bonus
-                .filter { it.balance.toBigDecimalOrNull()?.signum() == 1 }
-                .map { it.formatted() }
-            when {
-                normal.isEmpty() && bonus.isEmpty() -> null
-                normal.isEmpty() -> ProviderQuota.Balance(value = bonus.joinToString(" / "))
-                else -> ProviderQuota.Balance(
-                    value = normal.joinToString(" / "),
-                    secondary = bonus.takeIf { it.isNotEmpty() }?.joinToString(" / "),
-                )
-            }
+    /**
+     * 余额：主值与 [ProviderQuota.Balance.secondary] 是所有账号的合计（其他地方只显示这个），
+     * [ProviderQuota.Balance.accounts] 带上每个账号自己的余额，设置里的用量卡分账号展开。
+     */
+    override suspend fun getQuota(providerSetting: ProviderSetting.DeepSeekAccount): ProviderQuota? {
+        val enabled = providerSetting.accounts.filter { !it.disabled }
+        if (enabled.isEmpty()) return null
+        val rows = enabled.mapNotNull { binding ->
+            // 单个账号读不到就跳过，不让一个失效账号把整张余额卡变成错误
+            val wallets = readWallets(providerSetting, binding) ?: return@mapNotNull null
+            binding to wallets
         }
+        if (rows.isEmpty()) return null
+        return ProviderQuota.Balance(
+            value = formatWallets(rows.flatMap { it.second.normal }),
+            secondary = rows.flatMap { it.second.bonus }
+                .filter { it.isPositive() }
+                .takeIf { it.isNotEmpty() }
+                ?.let(::formatWallets),
+            accounts = rows.map { (binding, wallets) ->
+                ProviderQuota.AccountBalance(
+                    label = binding.credential.displayName
+                        ?: binding.credential.email
+                        ?: providerSetting.name,
+                    value = formatWallets(wallets.normal),
+                    secondary = wallets.bonus
+                        .filter { it.isPositive() }
+                        .takeIf { it.isNotEmpty() }
+                        ?.let(::formatWallets),
+                )
+            },
+        )
+    }
 
     override suspend fun generateText(
         providerSetting: ProviderSetting.DeepSeekAccount,
@@ -191,12 +208,35 @@ class DeepSeekAccountProvider(
         }
     }
 
-    private fun DeepSeekWallet.formatted(): String {
-        val symbol = if (currency.equals("USD", ignoreCase = true)) "$" else "¥"
-        val amount = balance.toBigDecimalOrNull()
-            ?.setScale(2, RoundingMode.DOWN)
-            ?.toPlainString()
-            ?: balance
-        return "$symbol$amount"
+    private fun DeepSeekWallet.isPositive(): Boolean =
+        (balance.toBigDecimalOrNull()?.signum() ?: 0) == 1
+
+    /** 同币种相加，不同币种并列；一位不进、直接截到两位，和平台网页一致 */
+    private fun formatWallets(wallets: List<DeepSeekWallet>): String {
+        if (wallets.isEmpty()) return "—"
+        return wallets.groupBy { it.currency.uppercase() }
+            .map { (currency, group) ->
+                val total = group.fold(BigDecimal.ZERO) { sum, wallet ->
+                    sum + (wallet.balance.toBigDecimalOrNull() ?: BigDecimal.ZERO)
+                }
+                val symbol = if (currency == "USD") "$" else "¥"
+                "$symbol${total.setScale(2, RoundingMode.DOWN).toPlainString()}"
+            }
+            .joinToString(" / ")
+    }
+
+    private suspend fun readWallets(
+        setting: ProviderSetting.DeepSeekAccount,
+        binding: AccountBinding,
+    ): DeepSeekWallets? = try {
+        DeepSeekAccountPlatform.wallets(client, binding.credential.accessToken)
+    } catch (e: DeepSeekAccountUnauthorizedException) {
+        // 顺手把被拒的账号交给账号管理清掉，下一次请求就不会再挑到它
+        runCatching { credentials.getCredential(setting, rejectedAccessToken = binding.credential.accessToken) }
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 }

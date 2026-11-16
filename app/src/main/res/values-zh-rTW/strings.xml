@@ -1768,6 +1768,7 @@
   <string name="setting_provider_page_grok_disclaimer">以 Grok CLI 的方式登入，使用你的 SuperGrok 訂閱。實驗性功能：xAI 可能隨時變更或限制此功能。</string>
   <string name="setting_provider_page_deepseek_disclaimer">以 DeepSeek 平台帳號登入，不需要 API Key。實驗性功能：DeepSeek 可能隨時變更或限制此功能。</string>
   <string name="setting_provider_page_add_account">新增帳號</string>
+  <string name="setting_provider_page_sign_out_confirm">登出後這份登入不再參與路由，之後隨時可以重新登入。</string>
   <string name="setting_provider_page_account_disabled">已停用</string>
   <string name="setting_provider_page_type_account">%s 帳號</string>
   <string name="setting_provider_page_bonus_balance">贈金</string>

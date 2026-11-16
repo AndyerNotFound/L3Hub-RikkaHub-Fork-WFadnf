@@ -40,6 +40,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.provider.AccountBinding
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
@@ -59,6 +60,7 @@ import me.rerere.hugeicons.stroke.UserCircle
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.account.AccountLoginStatus
 import me.rerere.rikkahub.data.ai.account.ChatGPTAuth
@@ -536,6 +538,7 @@ private fun ProviderConfigureAccount(
     val addAccountLabel = stringResource(R.string.setting_provider_page_add_account)
     // 只有多账号的提供商才谈得上「添加账号」，单账号类型登录一次就是换人
     val multiAccount = provider is ProviderSetting.DeepSeekAccount
+    var pendingLogout by remember { mutableStateOf<AccountBinding?>(null) }
 
     CardGroup {
         nameItem(provider, onEdit)
@@ -567,7 +570,7 @@ private fun ProviderConfigureAccount(
                 supportingContent = contact?.let { text -> { Text(text) } },
                 headlineContent = { Text(headline ?: signedInLabel) },
                 trailingContent = {
-                    IconButton(onClick = { scope.launch { accountManager.logout(provider.id, binding.id) } }) {
+                    IconButton(onClick = { pendingLogout = binding }) {
                         Icon(
                             imageVector = HugeIcons.Logout03,
                             contentDescription = stringResource(R.string.setting_provider_page_sign_out),
@@ -620,6 +623,30 @@ private fun ProviderConfigureAccount(
         }
     }
 
+    // 退出一份登录会立刻改变路由，先确认一次
+    pendingLogout?.let { binding ->
+        AnimatedAlertDialog(
+            onDismissRequest = { pendingLogout = null },
+            title = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
+            text = { Text(stringResource(R.string.setting_provider_page_sign_out_confirm)) },
+            dismissButton = {
+                TextButton(onClick = { pendingLogout = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingLogout = null
+                        scope.launch { accountManager.logout(provider.id, binding.id) }
+                    }
+                ) {
+                    Text(stringResource(R.string.setting_provider_page_sign_out))
+                }
+            },
+        )
+    }
+
     if (provider.supportsQuota) {
         AccountUsage(provider)
     }
@@ -637,6 +664,8 @@ private fun ProviderConfigureAccount(
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
     val quota = result?.getOrNull()
+    // CardGroup 的内容不是 @Composable，文案先取好
+    val bonusLabel = stringResource(R.string.setting_provider_page_bonus_balance)
     CardGroup(title = { Text(stringResource(R.string.setting_provider_page_usage)) }) {
         when {
             result == null -> item(
@@ -655,21 +684,23 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_failed)) },
             )
 
-            // 余额：充值余额与赠金各占一行
+            // 余额：先给合计，多账号时再按账号逐条列出
             quota is ProviderQuota.Balance -> {
                 item(
                     leadingContent = { CardGroupIcon(HugeIcons.MoneyBag02) },
+                    supportingContent = quota.secondary?.let { value -> { Text("$bonusLabel $value") } },
                     headlineContent = { Text(stringResource(R.string.chat_quota_bar_balance)) },
                     trailingContent = {
                         Text(quota.value, style = MaterialTheme.typography.titleMediumEmphasized)
                     },
                 )
-                quota.secondary?.let { secondary ->
+                for (account in quota.accounts) {
                     item(
-                        leadingContent = { CardGroupIcon(HugeIcons.MoneyBag02) },
-                        headlineContent = { Text(stringResource(R.string.setting_provider_page_bonus_balance)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
+                        supportingContent = account.secondary?.let { value -> { Text("$bonusLabel $value") } },
+                        headlineContent = { Text(account.label) },
                         trailingContent = {
-                            Text(secondary, style = MaterialTheme.typography.titleMediumEmphasized)
+                            Text(account.value, style = MaterialTheme.typography.titleMediumEmphasized)
                         },
                     )
                 }

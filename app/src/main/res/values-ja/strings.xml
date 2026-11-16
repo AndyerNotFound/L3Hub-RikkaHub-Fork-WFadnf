@@ -1681,6 +1681,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_grok_disclaimer">Grok CLI と同様にサインインすることで、お使いの SuperGrok サブスクリプションを使用します。実験的機能: xAI はいつでもこれを変更または制限する可能性があります。</string>
   <string name="setting_provider_page_deepseek_disclaimer">DeepSeek のプラットフォームアカウントでサインインします。API キーは不要です。実験的機能: DeepSeek はいつでもこれを変更または制限する可能性があります。</string>
   <string name="setting_provider_page_add_account">アカウントを追加</string>
+  <string name="setting_provider_page_sign_out_confirm">サインアウトするとこのアカウントはルーティングから外れます。いつでも再ログインできます。</string>
   <string name="setting_provider_page_account_disabled">無効</string>
   <string name="setting_provider_page_type_account">%s アカウント</string>
   <string name="setting_provider_page_bonus_balance">ボーナス残高</string>

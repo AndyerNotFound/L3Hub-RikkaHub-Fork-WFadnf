@@ -2662,8 +2662,9 @@ private fun String.hostOf(): String? = runCatching { java.net.URI(this).host }
     .getOrNull()
     ?.takeIf { it.isNotBlank() }
 
+// DeepSeek 账号也能用 OCR 工具端点，同样允许建 OCR 模型
 private fun ProviderSetting?.supportsOcrModels(): Boolean =
-    this == null || this is ProviderSetting.OpenAI
+    this == null || this is ProviderSetting.OpenAI || this is ProviderSetting.DeepSeekAccount
 
 /**
  * 模型编辑页：原来是 [ModelCard] 里的一个 ModalBottomSheet，改成独立页面后可以从卡片直接展开。

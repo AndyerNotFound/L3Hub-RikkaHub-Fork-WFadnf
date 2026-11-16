@@ -2144,6 +2144,7 @@
   <string name="setting_provider_page_grok_disclaimer">Uses your SuperGrok subscription by signing in like the Grok CLI. Experimental: xAI may change or restrict this at any time.</string>
   <string name="setting_provider_page_deepseek_disclaimer">Signs in with your DeepSeek platform account instead of an API key. Experimental: DeepSeek may change or restrict this at any time.</string>
   <string name="setting_provider_page_add_account">Add account</string>
+  <string name="setting_provider_page_sign_out_confirm">Signing out removes this account from routing. You can sign in again at any time.</string>
   <string name="setting_provider_page_account_disabled">Disabled</string>
   <string name="setting_provider_page_type_account">%s Account</string>
   <string name="setting_provider_page_bonus_balance">Bonus credit</string>
