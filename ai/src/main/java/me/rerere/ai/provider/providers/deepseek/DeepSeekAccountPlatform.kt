@@ -17,6 +17,7 @@ import me.rerere.common.http.await
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Locale
 import java.util.TimeZone
@@ -39,7 +40,12 @@ data class DeepSeekPlatformUser(
     val avatarUrl: String?,
 )
 
-data class DeepSeekSignInResult(val token: String, val user: DeepSeekPlatformUser?)
+data class DeepSeekSignInResult(
+    val token: String,
+    val user: DeepSeekPlatformUser?,
+    /** 兑换后浏览器应打开的平台完成页，没有时为空 */
+    val authorizedUrl: String?,
+)
 
 data class DeepSeekWallet(val currency: String, val balance: String)
 
@@ -71,8 +77,13 @@ object DeepSeekAccountPlatform {
     /** 账号 token 的请求头；只放这一个头，不附带 `Authorization` */
     const val TOKEN_HEADER = "x-dsh-auth-token"
 
+    /** OCR 工具端点的模型 id，和官方 API Key 路由同名 */
+    const val OCR_MODEL_ID = "deepseek-ocr"
+
     /** 平台按这个版本号决定给出哪些模型 */
     const val CLIENT_VERSION = "0.2.2-rc.1"
+
+    private const val PLATFORM_HOST = "platform.deepseek.com"
 
     private const val USER_AGENT =
         "deepseek-harness/$CLIENT_VERSION (+https://github.com/deepseek-ai/deepseek-harness)"
@@ -120,6 +131,7 @@ object DeepSeekAccountPlatform {
         DeepSeekSignInResult(
             token = data["token"].stringOrNull() ?: error("DeepSeek 没有返回账号 token"),
             user = data["user"]?.let(::parseUser),
+            authorizedUrl = completionUrl(data["authorized_url"].stringOrNull()),
         )
     }
 
@@ -191,6 +203,20 @@ object DeepSeekAccountPlatform {
                 )
             }
         }
+
+    /**
+     * 兑换成功后浏览器要落到平台的完成页。
+     *
+     * 只接受平台来源上的 `/dsh/authorized`，避免把浏览器（以及它带上的查询参数）交给任意地址；
+     * 认不出来时返回 null，由调用方改用自己的页面。
+     */
+    fun completionUrl(authorizedUrl: String?, loginSource: String = "web"): String? {
+        val url = authorizedUrl?.toHttpUrlOrNull() ?: return null
+        if (url.scheme != "https" || url.host != PLATFORM_HOST || url.encodedPath != "/dsh/authorized") {
+            return null
+        }
+        return url.newBuilder().setQueryParameter("login_source", loginSource).build().toString()
+    }
 
     private suspend fun postPlatform(
         client: OkHttpClient,

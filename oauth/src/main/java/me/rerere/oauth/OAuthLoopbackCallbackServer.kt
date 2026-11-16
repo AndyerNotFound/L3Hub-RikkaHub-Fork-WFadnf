@@ -23,6 +23,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
+/** 浏览器最后看到的回应：跳转或一张自带的页面 */
+data class OAuthCallbackResponse(
+    val status: Int,
+    val location: String?,
+    val html: String,
+)
+
 data class OAuthCallback(
     val code: String?,
     val state: String,
@@ -45,7 +52,10 @@ class OAuthLoopbackCallbackServer(
     callbackPath: String = "/oauth/callback",
     private val redirectHost: String = "localhost",
 ) {
-    private class CallbackRegistration {
+    private class CallbackRegistration(
+        // 非空时回调请求挂起，等调用方给出最终回应（跳转或页面）再返回，见 [openSession] 的 deferResponse
+        val completion: CompletableDeferred<OAuthCallbackResponse>? = null,
+    ) {
         val result = CompletableDeferred<OAuthCallback>()
         val claimed = AtomicBoolean(false)
     }
@@ -65,7 +75,7 @@ class OAuthLoopbackCallbackServer(
     }
 
     suspend fun openSession(expectedState: String): OAuthLoopbackCallbackSession {
-        return openSession(expectedState, foregroundServiceContext = null)
+        return openSession(expectedState, foregroundServiceContext = null, deferResponse = false)
     }
 
     /**
@@ -77,15 +87,32 @@ class OAuthLoopbackCallbackServer(
         context: Context,
         expectedState: String,
     ): OAuthLoopbackCallbackSession {
-        return openSession(expectedState, context.applicationContext)
+        return openSession(expectedState, context.applicationContext, deferResponse = false)
+    }
+
+    /**
+     * 由调用方决定浏览器最终去哪里的会话。
+     *
+     * 回调请求会被挂起，直到 [OAuthLoopbackCallbackSession.respondRedirect] 或
+     * [OAuthLoopbackCallbackSession.respondPage] 给出回应；授权服务要求「换完凭证再跳完成页」时用这个，
+     * 浏览器在等待期间保持加载状态。
+     */
+    suspend fun openDeferredSession(
+        context: Context,
+        expectedState: String,
+    ): OAuthLoopbackCallbackSession {
+        return openSession(expectedState, context.applicationContext, deferResponse = true)
     }
 
     private suspend fun openSession(
         expectedState: String,
         foregroundServiceContext: Context?,
+        deferResponse: Boolean,
     ): OAuthLoopbackCallbackSession {
         require(expectedState.isNotBlank()) { "OAuth state 不能为空" }
-        val registration = CallbackRegistration()
+        val registration = CallbackRegistration(
+            completion = if (deferResponse) CompletableDeferred() else null,
+        )
         return lifecycleMutex.withLock {
             foregroundServiceContext?.let { localizedContext = it }
             check(callbacks.putIfAbsent(expectedState, registration) == null) {
@@ -105,6 +132,7 @@ class OAuthLoopbackCallbackServer(
                     redirectUri = uri,
                     expectedState = expectedState,
                     callback = registration.result,
+                    completion = registration.completion,
                     foregroundServiceContext = foregroundServiceContext,
                     owner = this,
                 )
@@ -183,11 +211,24 @@ class OAuthLoopbackCallbackServer(
         }
 
         try {
-            call.respondText(
-                text = responseHtml,
-                contentType = ContentType.Text.Html,
-                status = HttpStatusCode.OK,
-            )
+            val completion = registration.completion
+            if (completion == null) {
+                call.respondText(
+                    text = responseHtml,
+                    contentType = ContentType.Text.Html,
+                    status = HttpStatusCode.OK,
+                )
+            } else {
+                // 调用方还在换凭证：先不回应，浏览器停在加载状态
+                registration.result.complete(result)
+                val response = completion.await()
+                response.location?.let { call.response.header(HttpHeaders.Location, it) }
+                call.respondText(
+                    text = response.html,
+                    contentType = ContentType.Text.Html,
+                    status = HttpStatusCode.fromValue(response.status),
+                )
+            }
         } finally {
             registration.result.complete(result)
         }
@@ -196,12 +237,20 @@ class OAuthLoopbackCallbackServer(
     internal suspend fun closeSession(
         expectedState: String,
         callback: CompletableDeferred<OAuthCallback>,
+        completion: CompletableDeferred<OAuthCallbackResponse>?,
         foregroundServiceContext: Context?,
     ) {
         lifecycleMutex.withLock {
             callbacks[expectedState]
                 ?.takeIf { it.result === callback }
                 ?.let { callbacks.remove(expectedState, it) }
+            completion?.complete(
+                OAuthCallbackResponse(
+                    status = HttpStatusCode.Gone.value,
+                    location = null,
+                    html = "<!doctype html><meta charset=\"utf-8\"><p>Authorization session closed.</p>",
+                ),
+            )
             callback.cancel()
             foregroundServiceContext?.let {
                 OAuthCallbackForegroundService.release(it, expectedState)
@@ -437,6 +486,7 @@ class OAuthLoopbackCallbackSession internal constructor(
     val redirectUri: String,
     private val expectedState: String,
     private val callback: CompletableDeferred<OAuthCallback>,
+    private val completion: CompletableDeferred<OAuthCallbackResponse>?,
     private val foregroundServiceContext: Context?,
     private val owner: OAuthLoopbackCallbackServer,
 ) {
@@ -445,9 +495,19 @@ class OAuthLoopbackCallbackSession internal constructor(
     suspend fun awaitCallback(timeout: Duration): OAuthCallback? =
         withTimeoutOrNull(timeout) { callback.await() }
 
+    /** 让浏览器跳到 [location]；只有 [OAuthLoopbackCallbackServer.openDeferredSession] 的会话可用 */
+    suspend fun respondRedirect(location: String) {
+        completion?.complete(OAuthCallbackResponse(status = 302, location = location, html = ""))
+    }
+
+    /** 让浏览器显示一张自带页面；只有 defer 会话可用 */
+    suspend fun respondPage(html: String, status: Int = 200) {
+        completion?.complete(OAuthCallbackResponse(status = status, location = null, html = html))
+    }
+
     suspend fun close() {
         if (closed.compareAndSet(false, true)) {
-            owner.closeSession(expectedState, callback, foregroundServiceContext)
+            owner.closeSession(expectedState, callback, completion, foregroundServiceContext)
         }
     }
 }

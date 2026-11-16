@@ -189,14 +189,14 @@ class ProviderAccountManager(
     /**
      * DeepSeek 平台账号：PKCE 授权码 + 本机回环回调。
      *
-     * 授权页由平台返回，会话 10 分钟有效；本地取消、超时或失败都会作废远端未兑换的申请。
-     * 账号 token 没有过期时间，也没有刷新流程，退登或 401 之后只能重新登录。
+     * 平台要求「换完凭证再给浏览器结果」：回调请求先挂起，兑换成功后把浏览器跳到平台完成页，
+     * 兑换失败则回一张说明失败原因的页面。授权页与完成页都留在平台的浏览器标签里。
      */
     private suspend fun loginDeepSeek(context: Context): OAuthCredential =
         withContext(Dispatchers.IO) {
             val pkce = oauthClient.generatePkce()
             val state = oauthClient.generateState()
-            val session = deepSeekCallbackServer.openSession(context, state)
+            val session = deepSeekCallbackServer.openDeferredSession(context, state)
             var authorizeId: String? = null
             try {
                 val start = DeepSeekAccountPlatform.startSignIn(
@@ -206,15 +206,26 @@ class ProviderAccountManager(
                     redirectUri = session.redirectUri,
                 )
                 authorizeId = start.authorizeId
+                Log.i(TAG, "DeepSeek sign-in: authorize page requested, expires in ${start.expiresInSeconds}s")
                 withContext(Dispatchers.Main) {
                     CustomTabsOAuthAuthorizationLauncher.launch(context, start.authorizeUrl)
                 }
-                val callback =
-                    session.awaitCallback(AUTHORIZATION_TIMEOUT) ?: error("Authorization timed out")
-                callback.error?.let { code ->
-                    error(listOfNotNull(code, callback.errorDescription).joinToString(": "))
+                val callback = session.awaitCallback(AUTHORIZATION_TIMEOUT)
+                if (callback == null) {
+                    session.respondPage(deepSeekPage(title = "授权超时", message = "请回到 L3Hub 重新登录。"))
+                    error("Authorization timed out")
                 }
-                val code = callback.code ?: error("No authorization code returned")
+                Log.i(TAG, "DeepSeek sign-in: callback received, error=${callback.error}")
+                callback.error?.let { code ->
+                    val failure = listOfNotNull(code, callback.errorDescription).joinToString(": ")
+                    session.respondPage(deepSeekPage(title = "授权失败", message = failure))
+                    error(failure)
+                }
+                val code = callback.code
+                if (code == null) {
+                    session.respondPage(deepSeekPage(title = "授权失败", message = "没有返回授权码。"))
+                    error("No authorization code returned")
+                }
                 val result = DeepSeekAccountPlatform.exchange(
                     client = client,
                     code = code,
@@ -222,6 +233,14 @@ class ProviderAccountManager(
                     redirectUri = session.redirectUri,
                     deviceId = deepSeekDeviceId(context),
                 )
+                Log.i(TAG, "DeepSeek sign-in: token exchanged")
+                // 浏览器落到平台完成页；平台没给完成页时退回自己的成功页
+                val completion = result.authorizedUrl
+                if (completion != null) {
+                    session.respondRedirect(completion)
+                } else {
+                    session.respondPage(deepSeekPage(title = "授权完成", message = "可以关闭此页面回到 L3Hub。"))
+                }
                 // 兑换时平台会带上用户资料，没带就单独查一次
                 val user = result.user ?: runCatching {
                     DeepSeekAccountPlatform.profile(client, result.token)
@@ -238,6 +257,15 @@ class ProviderAccountManager(
                 withContext(NonCancellable) { session.close() }
             }
         }
+
+    private fun deepSeekPage(title: String, message: String): String = """
+        <!doctype html><html lang="zh-CN"><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>$title</title>
+        <body style="font-family:sans-serif;padding:32px;line-height:1.6">
+        <h1 style="font-size:20px">$title</h1><p>$message</p>
+        </body></html>
+    """.trimIndent()
 
     private suspend fun resolveDeepSeekCredential(
         setting: ProviderSetting.DeepSeekAccount,
