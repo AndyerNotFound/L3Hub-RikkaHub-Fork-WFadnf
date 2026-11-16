@@ -528,70 +528,90 @@ private fun ProviderConfigureAccount(
     val accountManager = koinInject<ProviderAccountManager>()
     val loginStatus by accountManager.loginStatus.collectAsStateWithLifecycle()
     val status = loginStatus[provider.id]
-    val credential = provider.credential
-    // 账号给得出昵称时以昵称为主、联系方式为辅，否则退回联系方式
-    val headline = credential?.displayName ?: credential?.email
-    val contact = if (credential?.displayName != null) credential.email ?: plan else plan
+    val accounts = provider.accounts
 
     CardGroup {
         nameItem(provider, onEdit)
     }
 
     CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
-        if (credential != null) {
+        accounts.forEach { binding ->
+            val credential = binding.credential
+            // 账号给得出昵称时以昵称为主、联系方式为辅，否则退回联系方式
+            val headline = credential.displayName ?: credential.email
+            val contact = when {
+                binding.disabled -> stringResource(R.string.setting_provider_page_account_disabled)
+                credential.displayName != null -> credential.email ?: plan
+                else -> plan
+            }
             item(
+                // 点整行停用/启用，退出登录单独一个按钮
+                onClick = {
+                    scope.launch {
+                        accountManager.setAccountDisabled(provider.id, binding.id, !binding.disabled)
+                    }
+                },
                 leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
                 supportingContent = contact?.let { text -> { Text(text) } },
                 headlineContent = {
                     Text(headline ?: stringResource(R.string.setting_provider_page_signed_in))
                 },
-            )
-            item(
-                onClick = { scope.launch { accountManager.logout(provider.id) } },
-                leadingContent = {
-                    CardGroupIcon(
-                        icon = HugeIcons.Logout03,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
-            )
-        } else if (status is AccountLoginStatus.DeviceCode) {
-            item(
-                onClick = { CustomTabsOAuthAuthorizationLauncher.launch(context, status.verificationUrl) },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-                overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
-                headlineContent = {
-                    Text(
-                        text = status.userCode,
-                        style = MaterialTheme.typography.headlineSmallEmphasized,
-                        fontFamily = JetbrainsMono,
-                    )
+                trailingContent = {
+                    IconButton(onClick = { scope.launch { accountManager.logout(provider.id, binding.id) } }) {
+                        Icon(
+                            imageVector = HugeIcons.Logout03,
+                            contentDescription = stringResource(R.string.setting_provider_page_sign_out),
+                        )
+                    }
                 },
             )
-            item(
-                onClick = { accountManager.cancelLogin(provider.id) },
-                leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
-                headlineContent = { Text(stringResource(R.string.cancel)) },
-            )
-        } else if (status == AccountLoginStatus.Authorizing) {
-            item(
+        }
+
+        when {
+            status is AccountLoginStatus.DeviceCode -> {
+                item(
+                    onClick = { CustomTabsOAuthAuthorizationLauncher.launch(context, status.verificationUrl) },
+                    leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+                    overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
+                    supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
+                    headlineContent = {
+                        Text(
+                            text = status.userCode,
+                            style = MaterialTheme.typography.headlineSmallEmphasized,
+                            fontFamily = JetbrainsMono,
+                        )
+                    },
+                )
+                item(
+                    onClick = { accountManager.cancelLogin(provider.id) },
+                    leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
+                    headlineContent = { Text(stringResource(R.string.cancel)) },
+                )
+            }
+
+            status == AccountLoginStatus.Authorizing -> item(
                 onClick = { accountManager.cancelLogin(provider.id) },
                 leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
                 supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
             )
-        } else {
-            item(
+
+            else -> item(
                 onClick = { accountManager.startLogin(provider.id, context) },
                 leadingContent = { CardGroupIcon(HugeIcons.Login03) },
                 supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
                     { Text(failed.message, color = MaterialTheme.colorScheme.error) }
                 },
                 trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
+                headlineContent = {
+                    Text(
+                        if (accounts.isEmpty()) {
+                            stringResource(R.string.setting_provider_page_sign_in_with, serviceName)
+                        } else {
+                            stringResource(R.string.setting_provider_page_add_account)
+                        }
+                    )
+                },
             )
         }
     }

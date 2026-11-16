@@ -1641,6 +1641,8 @@
   <string name="setting_provider_page_sign_in_with">Mit %1$s anmelden</string>
   <string name="setting_provider_page_grok_disclaimer">Verwendet dein SuperGrok-Abo, indem du dich wie bei der Grok CLI anmeldest. Experimentell: xAI kann dies jederzeit ändern oder einschränken.</string>
   <string name="setting_provider_page_deepseek_disclaimer">Meldet dich mit deinem DeepSeek-Plattformkonto an, statt mit einem API-Schlüssel. Experimentell: DeepSeek kann dies jederzeit ändern oder einschränken.</string>
+  <string name="setting_provider_page_add_account">Konto hinzufügen</string>
+  <string name="setting_provider_page_account_disabled">Deaktiviert</string>
   <string name="setting_provider_page_type_account">%s-Konto</string>
   <string name="setting_provider_page_bonus_balance">Bonusguthaben</string>
   <string name="setting_provider_page_device_code_hint">Bestätige diesen Code im Browser</string>

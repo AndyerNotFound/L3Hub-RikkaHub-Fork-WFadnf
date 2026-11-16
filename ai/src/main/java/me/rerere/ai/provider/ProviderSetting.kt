@@ -28,6 +28,15 @@ data class OAuthCredential(
     private fun String.masked(): String = if (length <= 8) "***" else "${take(4)}***${takeLast(4)}"
 }
 
+/** 账号型提供商里的一份登录；多账号时按列表顺序路由 */
+@Serializable
+data class AccountBinding(
+    val id: Uuid = Uuid.random(),
+    val credential: OAuthCredential,
+    // 手动停用的账号不参与路由，凭据仍然保留
+    val disabled: Boolean = false,
+)
+
 @Serializable
 enum class ClaudePromptCacheTtl(val apiValue: String?) {
     @SerialName("5m")
@@ -318,8 +327,16 @@ sealed class ProviderSetting {
      */
     @Serializable
     sealed class Account : ProviderSetting() {
-        /** 未登录时为 null */
+        /** 未登录时为 null；多账号时是当前用于路由的那一个 */
         abstract val credential: OAuthCredential?
+
+        /** 已登录的账号，按路由优先级排序；单账号类型就是 0 或 1 个 */
+        open val accounts: List<AccountBinding>
+            get() = credential?.let { listOf(AccountBinding(id = id, credential = it)) } ?: emptyList()
+
+        /** 写回整份账号列表；单账号类型只保留第一个 */
+        open fun withAccounts(accounts: List<AccountBinding>): Account =
+            withCredential(accounts.firstOrNull()?.credential)
 
         abstract fun withCredential(credential: OAuthCredential?): Account
     }
@@ -427,10 +444,18 @@ sealed class ProviderSetting {
         @Transient override val shortDescription: @Composable (() -> Unit) = {
             Text("账号登录 · 地址固定")
         },
-        override val credential: OAuthCredential? = null,
+        override val accounts: List<AccountBinding> = emptyList(),
         override val guard: ProviderGuard = ProviderGuard(),
     ) : Account() {
-        override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
+        /** 路由用的账号：第一个未停用的 */
+        override val credential: OAuthCredential?
+            get() = accounts.firstOrNull { !it.disabled }?.credential
+
+        override fun withCredential(credential: OAuthCredential?): Account = copy(
+            accounts = credential?.let { listOf(AccountBinding(credential = it)) } ?: emptyList()
+        )
+
+        override fun withAccounts(accounts: List<AccountBinding>): Account = copy(accounts = accounts)
 
         override fun copyProvider(
             id: Uuid,

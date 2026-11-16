@@ -1686,6 +1686,8 @@
   <string name="setting_provider_page_sign_in_with">Войти с помощью %1$s</string>
   <string name="setting_provider_page_grok_disclaimer">Использует вашу подписку SuperGrok, выполняя вход так же, как в Grok CLI. Экспериментально: xAI может в любое время изменить или ограничить эту функцию.</string>
   <string name="setting_provider_page_deepseek_disclaimer">Вход через аккаунт платформы DeepSeek вместо ключа API. Экспериментально: DeepSeek может изменить или ограничить эту функцию в любое время.</string>
+  <string name="setting_provider_page_add_account">Добавить аккаунт</string>
+  <string name="setting_provider_page_account_disabled">Отключён</string>
   <string name="setting_provider_page_type_account">Аккаунт %s</string>
   <string name="setting_provider_page_bonus_balance">Бонусный баланс</string>
   <string name="setting_provider_page_device_code_hint">Подтвердите этот код в браузере</string>

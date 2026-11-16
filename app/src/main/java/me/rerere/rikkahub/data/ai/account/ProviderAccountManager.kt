@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonObject
+import me.rerere.ai.provider.AccountBinding
 import me.rerere.ai.provider.AccountCredentialProvider
 import me.rerere.ai.provider.OAuthCredential
 import me.rerere.ai.provider.ProviderSetting
@@ -40,6 +41,9 @@ private const val TAG = "ProviderAccountManager"
 private const val TOKEN_REFRESH_LEEWAY_MS = 5 * 60_000L
 private val AUTHORIZATION_TIMEOUT = 5.minutes
 private const val DEEPSEEK_DEVICE_ID_KEY = "deepseek_account_device_id"
+
+// 被平台拒绝的账号先冷却这么久，期间路由到下一个账号
+private const val ACCOUNT_COOLDOWN_MS = 5 * 60_000L
 
 sealed interface AccountLoginStatus {
     data object Authorizing : AccountLoginStatus
@@ -70,6 +74,8 @@ class ProviderAccountManager(
 
     // DeepSeek 接受任意端口，用临时端口即可
     private val deepSeekCallbackServer = OAuthLoopbackCallbackServer(port = 0)
+    // 401 之后临时不用的账号：bindingId -> 恢复时间（只在内存里，重启后重新尝试）
+    private val accountCooldowns = ConcurrentHashMap<Uuid, Long>()
     private val loginJobs = ConcurrentHashMap<Uuid, Job>()
     private val refreshLocks = ConcurrentHashMap<Uuid, Mutex>()
 
@@ -87,7 +93,7 @@ class ProviderAccountManager(
                     is ProviderSetting.Grok -> loginGrok(providerId, context.applicationContext)
                     is ProviderSetting.DeepSeekAccount -> loginDeepSeek(context.applicationContext)
                 }
-                persistCredential(providerId, credential)
+                persistLogin(providerId, credential)
                 setStatus(providerId, null)
             } catch (e: CancellationException) {
                 throw e
@@ -108,13 +114,24 @@ class ProviderAccountManager(
         setStatus(providerId, null)
     }
 
-    suspend fun logout(providerId: Uuid) {
+    /**
+     * 退出登录。[bindingId] 为空时退掉该提供商的全部账号。
+     */
+    suspend fun logout(providerId: Uuid, bindingId: Uuid? = null) {
         cancelLogin(providerId)
-        val account = findAccount(providerId)
-        val token = account?.credential?.accessToken
+        val account = findAccount(providerId) ?: return
+        if (account !is ProviderSetting.DeepSeekAccount) {
+            persistCredential(providerId, null)
+            return
+        }
+        val removed = account.accounts.filter { bindingId == null || it.id == bindingId }
+        removed.forEach { accountCooldowns.remove(it.id) }
         // 本地先退，再用捕获的 token 结束平台会话：远端失败不回滚本地状态
-        persistCredential(providerId, null)
-        if (account is ProviderSetting.DeepSeekAccount && token != null) {
+        updateAccounts(providerId) { accounts ->
+            accounts.filterNot { bindingId == null || it.id == bindingId }
+        }
+        removed.forEach { binding ->
+            val token = binding.credential.accessToken
             withContext(Dispatchers.IO) { runCatching { DeepSeekAccountPlatform.logout(client, token) } }
         }
     }
@@ -267,18 +284,32 @@ class ProviderAccountManager(
         </body></html>
     """.trimIndent()
 
+    /**
+     * 按列表顺序挑一个可用账号：被拒或冷却中的账号先跳过。
+     *
+     * 只有一个账号又被拒时清掉它，界面回到未登录；否则换下一个账号，
+     * OkHttp 的 401 重试会带着新凭据再发一次。
+     */
     private suspend fun resolveDeepSeekCredential(
         setting: ProviderSetting.DeepSeekAccount,
         rejectedAccessToken: String?,
     ): OAuthCredential {
-        val credential = findAccount(setting.id)?.credential
-            ?: error("${setting.name}: not signed in")
-        if (rejectedAccessToken == null || rejectedAccessToken != credential.accessToken) {
-            return credential
+        val latest = (findAccount(setting.id) as? ProviderSetting.DeepSeekAccount) ?: setting
+        val enabled = latest.accounts.filter { !it.disabled }
+        if (enabled.isEmpty()) error("${latest.name}: not signed in")
+
+        val now = System.currentTimeMillis()
+        if (rejectedAccessToken != null) {
+            enabled.firstOrNull { it.credential.accessToken == rejectedAccessToken }?.let { rejected ->
+                accountCooldowns[rejected.id] = now + ACCOUNT_COOLDOWN_MS
+                if (enabled.size == 1) {
+                    updateAccounts(latest.id) { accounts -> accounts.filterNot { it.id == rejected.id } }
+                    accountCooldowns.remove(rejected.id)
+                    error("${latest.name}: sign-in expired, please sign in again")
+                }
+            }
         }
-        // 平台拒绝了这个 token：清掉本地凭据，界面回到未登录
-        persistCredential(setting.id, null)
-        error("${setting.name}: sign-in expired, please sign in again")
+        return (enabled.firstOrNull { (accountCooldowns[it.id] ?: 0L) <= now } ?: enabled.first()).credential
     }
 
     private fun deepSeekCredential(token: String, user: DeepSeekPlatformUser?): OAuthCredential =
@@ -370,6 +401,53 @@ class ProviderAccountManager(
         }
     }.onFailure { Log.w(TAG, "Failed to fetch Grok userinfo", it) }.getOrNull()
 
+    /** 登录成功后写回：多账号的提供商追加一份，单账号的提供商替换 */
+    private suspend fun persistLogin(providerId: Uuid, credential: OAuthCredential) {
+        settingsStore.update { old ->
+            old.copy(
+                providers = old.providers.map { provider ->
+                    when {
+                        provider.id != providerId -> provider
+                        provider is ProviderSetting.DeepSeekAccount -> provider.copy(
+                            // 同一账号重复登录就替换原来那份，避免攒重复条目
+                            accounts = provider.accounts.filterNot { existing ->
+                                credential.accountId != null && existing.credential.accountId == credential.accountId
+                            } + AccountBinding(credential = credential)
+                        )
+
+                        provider is ProviderSetting.Account -> provider.withCredential(credential)
+                        else -> provider
+                    }
+                }
+            )
+        }
+    }
+
+    /** 停用/启用某一份登录：停用后不参与路由，凭据保留 */
+    suspend fun setAccountDisabled(providerId: Uuid, bindingId: Uuid, disabled: Boolean) {
+        updateAccounts(providerId) { accounts ->
+            accounts.map { binding -> if (binding.id == bindingId) binding.copy(disabled = disabled) else binding }
+        }
+        if (!disabled) accountCooldowns.remove(bindingId)
+    }
+
+    private suspend fun updateAccounts(
+        providerId: Uuid,
+        transform: (List<AccountBinding>) -> List<AccountBinding>,
+    ) {
+        settingsStore.update { old ->
+            old.copy(
+                providers = old.providers.map { provider ->
+                    if (provider.id == providerId && provider is ProviderSetting.DeepSeekAccount) {
+                        provider.copy(accounts = transform(provider.accounts))
+                    } else {
+                        provider
+                    }
+                }
+            )
+        }
+    }
+
     private suspend fun persistCredential(providerId: Uuid, credential: OAuthCredential?) {
         settingsStore.update { old ->
             old.copy(
@@ -427,7 +505,7 @@ class ProviderAccountManager(
  */
 fun ProviderSetting.preserveCredential(latest: ProviderSetting): ProviderSetting =
     if (this is ProviderSetting.Account && latest is ProviderSetting.Account) {
-        withCredential(latest.credential)
+        withAccounts(latest.accounts)
     } else {
         this
     }
