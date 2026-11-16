@@ -12,19 +12,17 @@ import androidx.annotation.RequiresApi
 import java.io.File
 
 /**
- * 启动埋点：把启动走到哪一步、主线程卡在哪一行，落到一个**不用 adb 也能取到**的文件里。
+ * 启动埋点：把「启动走到哪一步 / 主线程卡在哪一行」落到一个**不用 adb 也能取到**的文件里。
  *
- * 起因是「装完新包卡在启动图标」这种问题在拿不到 logcat 的机器上无法定位：应用起不来，
- * logcat 读不到，崩溃对话框也没有（要么主线程死循环，要么进程被 halt）。
+ * 场景是「装完新包打不开」：应用起不来就读不到 logcat，主线程死循环时也弹不出任何东西，
+ * 只能靠状态自己说话。
  *
- * 做法：
- * - 启动路径上几个关键点各记一行（Application / Activity / 组合开始 / 第一帧），写进应用自己的
- *   filesDir，同步追加，代价只有几毫秒；
- * - 出事时（主线程卡死、未捕获异常、设置读盘失败）把整份记录捎上栈**导出到手机 Download 目录**，
- *   走 MediaStore，不需要任何存储权限，文件管理器就能看到；
- * - 正常画出第一帧也导出一次，这样「没有文件」本身就是一个结论（说明包根本没跑起来）。
+ * - 启动路径上几个关键点各记一行，同名只记第一次（这些点有的在组合里，重组不能每帧写盘）；
+ * - 每记一行就重写一遍手机 Download 目录里那份（MediaStore，不需要存储权限）：
+ *   进程不管是卡死、被 halt 还是被系统杀掉，文件里都停在最后走到的那一步；
+ * - 有栈的时候（主线程卡死、未捕获异常、设置读盘失败）把栈一起写进去。
  *
- * 只用在这里，定位完就该删掉。
+ * 定位完就该连同 StartupWatchdog 一起删掉。
  */
 object StartupTrace {
     private const val TAG = "StartupTrace"
@@ -34,21 +32,30 @@ object StartupTrace {
     private val startedAt = SystemClock.uptimeMillis()
     private val lock = Any()
     private val buffer = StringBuilder()
-    // 同名阶段只记第一次：这些埋点有的在组合里，重组一次写一次盘会把界面拖垮
     private val seen = HashSet<String>()
 
     @Volatile
     private var appContext: Context? = null
 
     @Volatile
-    private var exported = false
+    private var publicUri: Uri? = null
 
+    /**
+     * 越早越好：`attachBaseContext` 里先拿 base context 顶上，之后拿到 Application 再换过来。
+     * base context 在 super.attachBaseContext 之前就已经能写应用私有目录了。
+     */
     fun init(context: Context) {
-        if (appContext == null) appContext = context.applicationContext ?: context
+        val application = context.applicationContext
+        if (application != null) {
+            appContext = application
+        } else if (appContext == null) {
+            appContext = context
+        }
     }
 
     /** 记一个启动阶段。任何异常都不许往外抛：埋点不能把应用搞挂。 */
     fun stage(name: String, detail: String? = null) {
+        // 同名只记第一次：这些点有的在组合里，重组一次写一次盘会把界面拖垮
         synchronized(lock) { if (!seen.add(name)) return }
         val line = buildString {
             append(SystemClock.uptimeMillis() - startedAt)
@@ -63,41 +70,54 @@ object StartupTrace {
         }
         synchronized(lock) { buffer.appendLine(line) }
         Log.i(TAG, line)
-        runCatching { appendInternal() }
+        runCatching { writeInternal() }
+        runCatching { writePublic() }
     }
 
-    /** 把整份记录（加上 [extra]）导出到 Download，方便直接用文件管理器取走。只导出一次。 */
+    /** 把栈之类的附加信息挂到记录末尾，再落一次盘。 */
     fun export(extra: String? = null) {
-        val context = appContext ?: return
-        if (exported) return
-        exported = true
-        val text = buildString {
-            synchronized(lock) { append(buffer) }
-            if (!extra.isNullOrBlank()) {
-                appendLine()
-                appendLine("---- 附加信息 ----")
-                appendLine(extra)
+        if (!extra.isNullOrBlank()) {
+            synchronized(lock) {
+                buffer.appendLine()
+                buffer.appendLine("---- 附加信息 ----")
+                buffer.appendLine(extra)
             }
         }
-        Log.e(TAG, text)
+        runCatching { writeInternal() }
+        runCatching { writePublic() }
+    }
+
+    private fun writeInternal() {
+        val context = appContext ?: return
+        val text = synchronized(lock) { buffer.toString() }
+        context.openFileOutput(INTERNAL_NAME, Context.MODE_PRIVATE).use { stream ->
+            stream.write(text.toByteArray())
+        }
+    }
+
+    private fun writePublic() {
+        val context = appContext ?: return
+        val text = synchronized(lock) { buffer.toString() }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching { exportToDownloads(context, text) }
-                .onFailure { Log.e(TAG, "exportToDownloads failed", it) }
+            val uri = publicUri ?: insertPublic(context)?.also { publicUri = it }
+            if (uri != null) {
+                val stream = context.contentResolver.openOutputStream(uri, "wt")
+                    ?: context.contentResolver.openOutputStream(uri)
+                stream?.use { it.write(text.toByteArray()) }
+                return
+            }
         }
         // MediaStore 走不通时还有这一份：应用专属外部目录，部分文件管理器能看到
-        runCatching {
-            val dir = context.getExternalFilesDir(null) ?: return@runCatching
-            File(dir, PUBLIC_NAME).writeText(text)
-        }.onFailure { Log.e(TAG, "write external files failed", it) }
+        val dir = context.getExternalFilesDir(null) ?: return
+        File(dir, PUBLIC_NAME).writeText(text)
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun exportToDownloads(context: Context, text: String) {
-        val collection: Uri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+    private fun insertPublic(context: Context): Uri? {
         // 同名旧文件先删掉，免得每启动一次就多一个 "(1)"
         runCatching {
             context.contentResolver.delete(
-                collection,
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 "${MediaStore.MediaColumns.DISPLAY_NAME}=?",
                 arrayOf(PUBLIC_NAME),
             )
@@ -107,17 +127,6 @@ object StartupTrace {
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
         }
-        val uri = context.contentResolver.insert(collection, values) ?: return
-        context.contentResolver.openOutputStream(uri)?.use { stream ->
-            stream.write(text.toByteArray())
-        }
-    }
-
-    private fun appendInternal() {
-        val context = appContext ?: return
-        val text = synchronized(lock) { buffer.toString() }
-        context.openFileOutput(INTERNAL_NAME, Context.MODE_PRIVATE).use { stream ->
-            stream.write(text.toByteArray())
-        }
+        return context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
     }
 }

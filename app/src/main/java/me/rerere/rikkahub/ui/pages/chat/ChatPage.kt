@@ -225,6 +225,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             parametersOf(id.toString())
         }
     )
+    StartupTrace.stage("ChatPage.vmReady")
     val filesManager: FilesManager = koinInject()
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
@@ -542,6 +543,7 @@ private fun ChatPageContent(
     // 背景层的 Haze 源：抽屉和浮层共用，见 ChatPage 里的注释
     backgroundHazeState: HazeState,
 ) {
+    StartupTrace.stage("ChatPageContent.enter")
     val scope = rememberCoroutineScope()
     val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
     // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
@@ -2200,6 +2202,7 @@ private fun EmptyChatContent(
     // 英雄卡底边的窗口坐标：输入框的抬升量按它算，不靠屏幕高度和若干 dp 猜
     onHeroPlaced: (Float) -> Unit,
 ) {
+    StartupTrace.stage("EmptyChatContent.enter")
     val heroBlur = rememberMotionBlurSteps(maxRadius = 8.dp)
     // 模糊的收放跟随动态模糊设置里的时长，透明度仍走动画速度档位
     val enterBlurSpec = rememberMotionBlurSpec()

@@ -68,10 +68,13 @@ const val HEARTBEAT_NOTIFICATION_CHANNEL_ID = "heartbeat"
 
 class RikkaHubApp : Application() {
     override fun attachBaseContext(base: android.content.Context) {
+        // 埋点要在 AppLanguage.wrap 之前就位：wrap 自己也是启动路径上的一段，
+        // 卡在那里的话（它要读语言偏好）反过来什么都看不到
+        StartupTrace.init(base)
+        StartupTrace.stage("Application.attachBaseContext.enter")
         super.attachBaseContext(AppLanguage.wrap(base))
-        // 启动埋点 + 自查都最早装：盖住整条启动路径（见 StartupTrace / StartupWatchdog）
         StartupTrace.init(this)
-        StartupTrace.stage("Application.attachBaseContext")
+        StartupTrace.stage("Application.attachBaseContext.done")
         StartupWatchdog.start(this)
     }
 
@@ -80,6 +83,7 @@ class RikkaHubApp : Application() {
         StartupTrace.stage("Application.onCreate")
         // 请求日志的开关和上限存在本地偏好里，网络层只认 Logging 里的内存值，起任何服务之前先灌进去
         applyRequestLogPreferences()
+        StartupTrace.stage("Application.onCreate.logPrefsDone")
 
         // Restore files and settings before eager Koin singletons or workers can access them.
         try {
@@ -105,6 +109,7 @@ class RikkaHubApp : Application() {
 
         // set cursor window size to 32MB
         DatabaseUtil.setCursorWindowSize(32 * 1024 * 1024)
+        StartupTrace.stage("Application.onCreate.sysDone")
 
         // install crash handler
         CrashHandler.install(this)

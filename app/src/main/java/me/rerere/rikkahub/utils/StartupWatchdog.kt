@@ -64,7 +64,12 @@ object StartupWatchdog {
             while (running.get()) {
                 Thread.sleep(1_000L)
                 val now = SystemClock.uptimeMillis()
-                if (now - startedAt > MAX_WATCH_MS) break
+                if (now - startedAt > MAX_WATCH_MS) {
+                    // 主线程一直活着却始终没画帧：不是卡死，但也起不来。收工时把记录交出去
+                    StartupTrace.stage("watchdog.gave-up-without-frame")
+                    StartupTrace.export()
+                    break
+                }
                 val stalled = now - lastBeat
                 if (stalled < STALL_THRESHOLD_MS) continue
                 val stack = buildString {

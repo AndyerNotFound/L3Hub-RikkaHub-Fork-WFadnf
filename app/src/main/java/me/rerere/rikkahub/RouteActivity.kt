@@ -240,6 +240,7 @@ class RouteActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        StartupTrace.stage("RouteActivity.enter")
         enableEdgeToEdge()
         disableNavigationBarContrast()
         super.onCreate(savedInstanceState)

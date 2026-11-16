@@ -261,7 +261,9 @@ class SettingsStore internal constructor(
         // 整份设置的 JSON 解码很重，不能放在主线程
         scope.launch(Dispatchers.Default) {
             state.value = try {
-                preferencesFlow.first().toSettings().normalized()
+                preferencesFlow.first().toSettings().normalized().also {
+                    StartupTrace.stage("settings.loaded", "assistants=${it.assistants.size}")
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
