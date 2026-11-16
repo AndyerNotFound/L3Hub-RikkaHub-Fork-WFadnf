@@ -275,23 +275,28 @@ fun ChatMessage(
             onUpdate = onUpdate,
         )
     }
-    // 菜单作为气泡的子节点渲染，锚点就是气泡本身
+    // 菜单作为气泡的子节点渲染，锚点就是气泡本身。
+    // 这里必须是「显示时才组合」，不能像底部弹窗那样改成常驻组合 + visible 参数：
+    // UserMessageActionsMenu 一进组合就建 Popup（focusable）并起入场动画，常驻会让
+    // 每条用户消息都挂一个窗口，触摸与返回键全被这些窗口吃掉。
     val userMessageMenu: (@Composable () -> Unit)? = if (inPlaceMenu) {
         {
-            UserMessageActionsMenu(
-                message = message,
-                model = model,
-                onEdit = onEdit,
-                onDelete = onDelete,
-                onShare = onShare,
-                onFork = onFork,
-                onSelectAndCopy = onSelectAndCopy,
-                isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite,
-                onWebViewPreview = onWebViewPreview,
-                quickActions = userMenuQuickActions,
-                onDismissRequest = { showActionsSheet = false },
-            )
+            if (showActionsSheet) {
+                UserMessageActionsMenu(
+                    message = message,
+                    model = model,
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onShare = onShare,
+                    onFork = onFork,
+                    onSelectAndCopy = onSelectAndCopy,
+                    isFavorite = isFavorite,
+                    onToggleFavorite = onToggleFavorite,
+                    onWebViewPreview = onWebViewPreview,
+                    quickActions = userMenuQuickActions,
+                    onDismissRequest = { showActionsSheet = false },
+                )
+            }
         }
     } else {
         null
