@@ -143,10 +143,11 @@ class ProviderAccountManager(
     override suspend fun getCredential(
         setting: ProviderSetting.Account,
         rejectedAccessToken: String?,
+        preferredAccountId: Uuid?,
     ): OAuthCredential {
         // DeepSeek 账号的 token 没有过期时间和刷新流程，被拒就清凭据
         if (setting is ProviderSetting.DeepSeekAccount) {
-            return resolveDeepSeekCredential(setting, rejectedAccessToken)
+            return resolveDeepSeekCredential(setting, rejectedAccessToken, preferredAccountId)
         }
         // 绝大多数请求的 token 都还有效，直接返回，不用切线程排队拿锁
         findAccount(setting.id)?.credential
@@ -293,15 +294,25 @@ class ProviderAccountManager(
     private suspend fun resolveDeepSeekCredential(
         setting: ProviderSetting.DeepSeekAccount,
         rejectedAccessToken: String?,
+        preferredAccountId: Uuid? = null,
     ): OAuthCredential {
         val latest = (findAccount(setting.id) as? ProviderSetting.DeepSeekAccount) ?: setting
         val enabled = latest.accounts.filter { !it.disabled }
         if (enabled.isEmpty()) error("${latest.name}: not signed in")
 
+        // 绑定了账号的模型只走那一个账号：被拒就冷却并报错，不偷偷换成别的账号，
+        // 否则同一条模型会在几个账号之间来回计费，用户看不出实际用的是谁
+        val bound = preferredAccountId?.let { id -> enabled.firstOrNull { it.id == id } }
         val now = System.currentTimeMillis()
         if (rejectedAccessToken != null) {
             enabled.firstOrNull { it.credential.accessToken == rejectedAccessToken }?.let { rejected ->
                 accountCooldowns[rejected.id] = now + ACCOUNT_COOLDOWN_MS
+                if (bound != null) {
+                    error(
+                        "${latest.name}: ${rejected.label()} was rejected by the platform, " +
+                            "retry later or bind this model to another account"
+                    )
+                }
                 if (enabled.size == 1) {
                     updateAccounts(latest.id) { accounts -> accounts.filterNot { it.id == rejected.id } }
                     accountCooldowns.remove(rejected.id)
@@ -309,8 +320,13 @@ class ProviderAccountManager(
                 }
             }
         }
+        if (bound != null) return bound.credential
         return (enabled.firstOrNull { (accountCooldowns[it.id] ?: 0L) <= now } ?: enabled.first()).credential
     }
+
+    /** 界面上认人的名字：昵称优先，其次联系方式 */
+    private fun AccountBinding.label(): String =
+        credential.displayName ?: credential.email ?: id.toString().take(8)
 
     private fun deepSeekCredential(token: String, user: DeepSeekPlatformUser?): OAuthCredential =
         OAuthCredential(

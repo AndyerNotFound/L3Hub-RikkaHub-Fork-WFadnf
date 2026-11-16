@@ -2227,6 +2227,9 @@
   <string name="setting_provider_page_model_key_group">مجموعة المفاتيح</string>
   <string name="model_key_group_all">كل المفاتيح</string>
   <string name="model_key_group_missing">المفتاح غير متاح</string>
+  <string name="setting_provider_page_model_account_group">مجموعة الحسابات</string>
+  <string name="model_account_group_all">كل الحسابات</string>
+  <string name="model_account_group_missing">الحساب غير متاح</string>
   <string name="model_key_group_empty">لا توجد نماذج في هذه المجموعة</string>
   <string name="model_key_group_empty_desc">أضف النماذج من «النماذج المتاحة»؛ النماذج المضافة هنا تستخدم هذا المفتاح فقط.</string>
   <string name="setting_provider_page_api_key_multi_desc">يمكن إضافة عدة مفاتيح؛ وعند فشل الطلب يُنتقل تلقائيًا إلى المفتاح التالي</string>

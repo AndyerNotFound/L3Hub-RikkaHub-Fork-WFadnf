@@ -2229,6 +2229,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_model_key_group">Key グループ</string>
   <string name="model_key_group_all">すべての Key</string>
   <string name="model_key_group_missing">Key は利用不可</string>
+  <string name="setting_provider_page_model_account_group">アカウントグループ</string>
+  <string name="model_account_group_all">すべてのアカウント</string>
+  <string name="model_account_group_missing">アカウントは利用不可</string>
   <string name="model_key_group_empty">このグループにはモデルがありません</string>
   <string name="model_key_group_empty_desc">右下の「利用可能なモデル」から追加してください。ここで追加したモデルはこの Key のみを使います。</string>
   <string name="setting_provider_page_api_key_multi_desc">複数の Key を追加でき、リクエストが失敗すると自動で次の Key に切り替わります</string>

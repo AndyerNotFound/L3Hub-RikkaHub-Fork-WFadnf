@@ -25,6 +25,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.math.BigDecimal
 import java.math.RoundingMode
+import kotlin.uuid.Uuid
 
 /** 平台没有给出上下文窗口时的兜底值，与官方模型列表一致 */
 private const val DEFAULT_CONTEXT_LENGTH = 1_048_576
@@ -112,7 +113,8 @@ class DeepSeekAccountProvider(
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): TextGenerationResult {
-        val token = credentials.getCredential(providerSetting, rejectedAccessToken = null).accessToken
+        val preferred = params.model.preferredAccount()
+        val token = credentialToken(providerSetting, preferred)
         if (params.model.type == ModelType.OCR) {
             return ocrAPI.generateText(
                 baseUrl = DeepSeekAccountPlatform.INFERENCE_ORIGIN,
@@ -120,14 +122,14 @@ class DeepSeekAccountProvider(
                 sessionId = params.sessionId,
                 model = params.model,
                 messages = messages,
-                auth = { writeTokenAuth(providerSetting, token) },
+                auth = { writeTokenAuth(providerSetting, token, preferred) },
             )
         }
         return this.messages.generateText(
             providerSetting = providerSetting.asMessages(),
             messages = messages,
             params = params,
-            auth = providerSetting.authOf(token),
+            auth = providerSetting.authOf(token, preferred),
         )
     }
 
@@ -136,7 +138,8 @@ class DeepSeekAccountProvider(
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): Flow<StreamChunk> {
-        val token = credentials.getCredential(providerSetting, rejectedAccessToken = null).accessToken
+        val preferred = params.model.preferredAccount()
+        val token = credentialToken(providerSetting, preferred)
         if (params.model.type == ModelType.OCR) {
             return ocrAPI.streamText(
                 baseUrl = DeepSeekAccountPlatform.INFERENCE_ORIGIN,
@@ -144,14 +147,14 @@ class DeepSeekAccountProvider(
                 sessionId = params.sessionId,
                 model = params.model,
                 messages = messages,
-                auth = { writeTokenAuth(providerSetting, token) },
+                auth = { writeTokenAuth(providerSetting, token, preferred) },
             )
         }
         return this.messages.streamText(
             providerSetting = providerSetting.asMessages(),
             messages = messages,
             params = params,
-            auth = providerSetting.authOf(token),
+            auth = providerSetting.authOf(token, preferred),
         )
     }
 
@@ -170,26 +173,52 @@ class DeepSeekAccountProvider(
             promptCaching = false,
         )
 
-    private fun ProviderSetting.DeepSeekAccount.authOf(token: String): MessagesAuth = MessagesAuth(
+    private fun ProviderSetting.DeepSeekAccount.authOf(
+        token: String,
+        preferredAccountId: Uuid? = null,
+    ): MessagesAuth = MessagesAuth(
         headerName = DeepSeekAccountPlatform.TOKEN_HEADER,
         token = token,
-        tag = requestTag(),
+        tag = requestTag(preferredAccountId),
     )
 
-    /** 账号请求的 tag：401 时按这个头取被拒的 token，换一份凭据重试 */
-    private fun ProviderSetting.DeepSeekAccount.requestTag(): AccountRequestTag = AccountRequestTag(
+    /**
+     * 账号请求的 tag：401 时按这个头取被拒的 token，换一份凭据重试。
+     *
+     * [preferredAccountId] 是模型绑定的账号，重试也只找它。
+     */
+    private fun ProviderSetting.DeepSeekAccount.requestTag(
+        preferredAccountId: Uuid? = null,
+    ): AccountRequestTag = AccountRequestTag(
         setting = this,
         applyHeaders = { credential ->
             header(DeepSeekAccountPlatform.TOKEN_HEADER, credential.accessToken)
         },
         authHeader = AccountAuthHeader.DeepSeekToken,
+        preferredAccountId = preferredAccountId,
     )
 
     /** OCR 等其他请求也要带同一个鉴权头与 tag */
-    private fun Request.Builder.writeTokenAuth(setting: ProviderSetting.DeepSeekAccount, token: String) {
+    private fun Request.Builder.writeTokenAuth(
+        setting: ProviderSetting.DeepSeekAccount,
+        token: String,
+        preferredAccountId: Uuid? = null,
+    ) {
         header(DeepSeekAccountPlatform.TOKEN_HEADER, token)
-        tag(AccountRequestTag::class.java, setting.requestTag())
+        tag(AccountRequestTag::class.java, setting.requestTag(preferredAccountId))
     }
+
+    /** 模型绑定的账号：按账号分组存下的第一条就是它的归属 */
+    private fun Model.preferredAccount(): Uuid? = accountIds.firstOrNull()
+
+    private suspend fun credentialToken(
+        setting: ProviderSetting.DeepSeekAccount,
+        preferredAccountId: Uuid?,
+    ): String = credentials.getCredential(
+        setting = setting,
+        rejectedAccessToken = null,
+        preferredAccountId = preferredAccountId,
+    ).accessToken
 
     /**
      * 取账号 token 执行一次账号查询；平台拒绝时按「这个 token 被拒」交给账号管理清凭据，
@@ -197,13 +226,18 @@ class DeepSeekAccountProvider(
      */
     private suspend fun <T> withAccount(
         setting: ProviderSetting.DeepSeekAccount,
+        preferredAccountId: Uuid? = null,
         block: suspend (token: String) -> T,
     ): T {
-        val token = credentials.getCredential(setting, rejectedAccessToken = null).accessToken
+        val token = credentialToken(setting, preferredAccountId)
         return try {
             block(token)
         } catch (e: DeepSeekAccountUnauthorizedException) {
-            credentials.getCredential(setting, rejectedAccessToken = token)
+            credentials.getCredential(
+                setting = setting,
+                rejectedAccessToken = token,
+                preferredAccountId = preferredAccountId,
+            )
             throw e
         }
     }
@@ -232,7 +266,13 @@ class DeepSeekAccountProvider(
         DeepSeekAccountPlatform.wallets(client, binding.credential.accessToken)
     } catch (e: DeepSeekAccountUnauthorizedException) {
         // 顺手把被拒的账号交给账号管理清掉，下一次请求就不会再挑到它
-        runCatching { credentials.getCredential(setting, rejectedAccessToken = binding.credential.accessToken) }
+        runCatching {
+            credentials.getCredential(
+                setting = setting,
+                rejectedAccessToken = binding.credential.accessToken,
+                preferredAccountId = binding.id,
+            )
+        }
         null
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e

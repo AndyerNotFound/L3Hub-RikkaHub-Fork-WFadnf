@@ -2235,6 +2235,9 @@
   <string name="setting_provider_page_model_key_group">Группа ключей</string>
   <string name="model_key_group_all">Все ключи</string>
   <string name="model_key_group_missing">Ключ недоступен</string>
+  <string name="setting_provider_page_model_account_group">Группа аккаунтов</string>
+  <string name="model_account_group_all">Все аккаунты</string>
+  <string name="model_account_group_missing">Аккаунт недоступен</string>
   <string name="model_key_group_empty">В этой группе нет моделей</string>
   <string name="model_key_group_empty_desc">Добавьте модели из «Доступные модели»: добавленные здесь используют только этот ключ.</string>
   <string name="setting_provider_page_api_key_multi_desc">Можно добавить несколько ключей; при ошибке запроса автоматически используется следующий</string>

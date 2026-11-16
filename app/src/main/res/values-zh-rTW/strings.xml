@@ -1939,6 +1939,9 @@
   <string name="setting_provider_page_model_key_group">Key 分組</string>
   <string name="model_key_group_all">全部 Key</string>
   <string name="model_key_group_missing">Key 不可用</string>
+  <string name="setting_provider_page_model_account_group">帳號分組</string>
+  <string name="model_account_group_all">全部帳號</string>
+  <string name="model_account_group_missing">帳號不可用</string>
   <string name="model_key_group_empty">這個分組還沒有模型</string>
   <string name="model_key_group_empty_desc">從右下角的「可用模型」新增；從這一頁新增的模型只用這個 Key。</string>
   <string name="memory_export">匯出記憶</string>

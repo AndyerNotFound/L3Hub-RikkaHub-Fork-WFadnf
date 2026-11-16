@@ -1,5 +1,7 @@
 package me.rerere.ai.provider
 
+import kotlin.uuid.Uuid
+
 /**
  * 为 [ProviderSetting.Account] 提供可用的凭据。
  *
@@ -12,10 +14,14 @@ fun interface AccountCredentialProvider {
      * [rejectedAccessToken] 是刚被服务端以 401 拒绝的 token：存着的还是它就强制刷新，
      * 已经被并发的请求刷新过了就直接返回新的，避免重复使用同一个 refresh token。
      *
+     * [preferredAccountId] 是这条请求绑定的账号（模型按账号分组时给出）：给定时只走这个账号，
+     * 它被拒绝就报错，不换成别的账号。
+     *
      * 未登录或刷新失败时抛出异常。
      */
     suspend fun getCredential(
         setting: ProviderSetting.Account,
         rejectedAccessToken: String?,
+        preferredAccountId: Uuid?,
     ): OAuthCredential
 }

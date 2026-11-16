@@ -128,7 +128,12 @@ import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
+import me.rerere.rikkahub.ui.components.ai.accountGroupLabel
+import me.rerere.rikkahub.ui.components.ai.accountGroups
+import me.rerere.rikkahub.ui.components.ai.availableAccountIds
+import me.rerere.rikkahub.ui.components.ai.belongsToAccountGroup
 import me.rerere.rikkahub.ui.components.ai.belongsToKeyGroup
+import me.rerere.rikkahub.ui.components.ai.groupName
 import me.rerere.rikkahub.ui.components.ai.keyGroupLabel
 import me.rerere.rikkahub.ui.components.ai.keyGroupName
 import me.rerere.rikkahub.ui.components.ai.keyGroups
@@ -767,21 +772,44 @@ private fun ModelList(
     val listKey = remember(providerSetting) { providerSetting.copyProvider(models = emptyList()) }
     val apiKeySetting = listKey as? ProviderSetting.ApiKey
     val availableKeys = remember(listKey) { apiKeySetting?.availableKeys.orEmpty() }
+    // 一份登录账号一页，与多 Key 同一套分组条；只有一份登录时不分组
+    val accountSetting = listKey as? ProviderSetting.DeepSeekAccount
+    val accountGroups = remember(listKey) { accountSetting?.accountGroups().orEmpty() }
+    val availableAccountIds = remember(listKey) { accountSetting?.availableAccountIds().orEmpty() }
+    val allAccountsName = stringResource(R.string.model_account_group_all)
+    val missingAccountName = stringResource(R.string.model_account_group_missing)
+    val accountNames = remember(accountGroups) {
+        accountGroups
+            .mapNotNull { group -> group.key?.let { runCatching { Uuid.parse(it) }.getOrNull() }?.let { it to group.name } }
+            .toMap()
+    }
     // 一个启用的 Key 一页，末尾再加一页收没有绑定 Key 的模型；只有一把 Key 时不分组
     val allKeysName = stringResource(R.string.model_key_group_all)
     val missingName = stringResource(R.string.model_key_group_missing)
     val keyGroups = remember(listKey) { apiKeySetting?.keyGroups().orEmpty() }
-    val tabs = remember(keyGroups, allKeysName) {
-        keyGroups + ModelKeyGroup(key = null, name = allKeysName)
+    // 多 Key 与多账号不会同时成立（账号类提供商没有 Key），谁有分组就按谁分
+    val groups = if (keyGroups.isNotEmpty()) keyGroups else accountGroups
+    val allGroupName = if (keyGroups.isNotEmpty()) allKeysName else allAccountsName
+    val tabs = remember(groups, allGroupName) {
+        groups + ModelKeyGroup(key = null, name = allGroupName)
     }
     // 选中的分组页：换提供商时回到第一页
     var selectedTab by rememberSaveable(listKey.id) { mutableStateOf(0) }
-    val pageKey = if (keyGroups.isEmpty()) null else tabs.getOrNull(selectedTab)?.key
-    val pageModels = remember(providerSetting.models, keyGroups, pageKey, availableKeys) {
-        if (keyGroups.isEmpty()) {
-            providerSetting.models
-        } else {
-            providerSetting.models.filter { it.belongsToKeyGroup(pageKey, availableKeys) }
+    val pageKey = if (groups.isEmpty()) null else tabs.getOrNull(selectedTab)?.key
+    // 从这一页新建的模型默认绑这一页的账号
+    val pageAccountId = groups.firstOrNull { it.key == pageKey }?.key
+        ?.let { key -> runCatching { Uuid.parse(key) }.getOrNull() }
+    val pageModels = remember(
+        providerSetting.models,
+        groups,
+        pageKey,
+        availableKeys,
+        availableAccountIds,
+    ) {
+        when {
+            groups.isEmpty() -> providerSetting.models
+            keyGroups.isNotEmpty() -> providerSetting.models.filter { it.belongsToKeyGroup(pageKey, availableKeys) }
+            else -> providerSetting.models.filter { it.belongsToAccountGroup(pageKey, availableAccountIds) }
         }
     }
 
@@ -814,7 +842,7 @@ private fun ModelList(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (keyGroups.isNotEmpty()) {
+            if (groups.isNotEmpty()) {
                 ModelKeyGroupStrip(
                     groups = tabs,
                     selectedKey = pageKey,
@@ -861,7 +889,14 @@ private fun ModelList(
                             )
                             ModelCard(
                                 model = item,
-                                keyGroupLabel = item.keyGroupLabel(providerSetting, allKeysName, missingName),
+                                keyGroupLabel = item.keyGroupLabel(providerSetting, allKeysName, missingName)
+                                    ?: item.accountGroupLabel(
+                                        provider = providerSetting,
+                                        availableAccountIds = availableAccountIds,
+                                        groupNames = accountNames,
+                                        allAccountsName = allAccountsName,
+                                        missingName = missingAccountName,
+                                    ),
                                 onDelete = {
                                     onUpdateProvider(providerSetting.delModel(item))
                                 },
@@ -885,12 +920,14 @@ private fun ModelList(
             AddModelButton(
                 remoteModels = remotePage,
                 groupKey = pageKey,
+                groupAccountId = pageAccountId,
                 groupName = tabs.firstOrNull { it.key == pageKey }?.name,
                 onRefresh = { refreshCount++ },
-                // 只看这一页的模型：同名模型在别的 Key 分组里另有一条，不能混着算
+                // 只看这一页的模型：同名模型在别的分组里另有一条，不能混着算
                 selectedModels = pageModels,
+                // 同一分组重复勾选不新增，别的分组已有同一个模型时沿用它的价目
                 onAddModel = {
-                    onUpdateProvider(providerSetting.addModel(it))
+                    onUpdateProvider(providerSetting.addCatalogModel(it))
                 },
                 onRemoveModel = {
                     onUpdateProvider(providerSetting.delModel(it))
@@ -904,6 +941,7 @@ private fun ModelList(
                             providerId = providerSetting.id.toString(),
                             // 新建的模型跟着当前分组，保存后还在这一页
                             keyIndex = pageKey?.let { key -> availableKeys.indexOf(key).takeIf { it >= 0 } },
+                            accountId = pageAccountId?.toString(),
                         )
                     )
                 },
@@ -1299,6 +1337,12 @@ private fun ModelAdvancedOptions(
         parentProvider = parentProvider,
     )
 
+    ModelAccountGroupSetting(
+        model = model,
+        onModelChange = onModelChange,
+        parentProvider = parentProvider,
+    )
+
     // 覆盖配置是提供商的独立副本，账号凭据不能复制出去，账号型提供商不支持覆盖
     if (parentProvider !is ProviderSetting.Account) {
         ProviderOverrideSettings(
@@ -1390,6 +1434,88 @@ private fun ModelKeyGroupSetting(
                             RadioButton(selected = model.apiKeys == listOf(key), onClick = null)
                             Text(
                                 text = apiKeyProvider.keyGroupName(key),
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+        )
+    }
+}
+
+/**
+ * 账号分组：这条模型只用哪个登录账号发请求。
+ *
+ * 只在提供商有多份登录时出现。绑定后那个账号被平台拒绝就冷却报错，不会偷偷换成别的账号，
+ * 免得同一条模型在几份登录之间来回计费、用户看不出实际用的是谁。
+ */
+@Composable
+private fun ModelAccountGroupSetting(
+    model: Model,
+    onModelChange: (Model) -> Unit,
+    parentProvider: ProviderSetting?,
+) {
+    val accountProvider = parentProvider as? ProviderSetting.DeepSeekAccount ?: return
+    val accounts = remember(accountProvider) { accountProvider.accounts.filter { !it.disabled } }
+    if (accounts.size <= 1) return
+    var showDialog by remember { mutableStateOf(false) }
+    val allAccountsName = stringResource(R.string.model_account_group_all)
+    val currentName = remember(model.accountIds, accounts, allAccountsName) {
+        accounts
+            .filter { it.id in model.accountIds }
+            .joinToString(" + ") { binding -> binding.groupName(accountProvider.name) }
+            .ifEmpty { allAccountsName }
+    }
+
+    CardGroup {
+        item(
+            onClick = { showDialog = true },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_model_account_group)) },
+            supportingContent = { Text(currentName) },
+        )
+    }
+
+    if (showDialog) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.setting_provider_page_model_account_group)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onModelChange(model.copy(accountIds = emptyList()))
+                                showDialog = false
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = model.accountIds.isEmpty(), onClick = null)
+                        Text(text = allAccountsName)
+                    }
+                    accounts.forEach { binding ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onModelChange(model.copy(accountIds = listOf(binding.id)))
+                                    showDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = model.accountIds == listOf(binding.id), onClick = null)
+                            Text(
+                                text = binding.groupName(accountProvider.name),
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -1572,6 +1698,7 @@ private suspend fun fetchRemoteModelPages(
 private fun AddModelButton(
     remoteModels: RemoteModels,
     groupKey: String?,
+    groupAccountId: Uuid?,
     groupName: String?,
     onRefresh: () -> Unit,
     selectedModels: List<Model>,
@@ -1582,8 +1709,9 @@ private fun AddModelButton(
     onUpdateProvider: (ProviderSetting) -> Unit,
     onOpenEditor: () -> Unit,
 ) {
-    // 从这一页添加的模型只认这一页的 Key；全部 Key 页不加绑定，沿用提供商的全部 Key
+    // 从这一页添加的模型只认这一页的 Key / 账号；全部页不加绑定，沿用提供商的顺序路由
     val modelKeys = listOfNotNull(groupKey)
+    val modelAccountIds = listOfNotNull(groupAccountId)
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -1601,6 +1729,7 @@ private fun AddModelButton(
                 onAddModel(
                     model.copy(
                         apiKeys = modelKeys,
+                        accountIds = modelAccountIds,
                         inputModalities = inputModalities,
                         outputModalities = outputModalities,
                         abilities = abilities
@@ -1611,22 +1740,19 @@ private fun AddModelButton(
                 onRemoveModel(model)
             },
             onAllModelSelected = {
+                // 逐个走 addCatalogModel：页内已有的跳过，别的分组已有的沿用它的价目
                 onUpdateProvider(
-                    parentProvider.copyProvider(
-                        models = parentProvider.models + it
-                            .filter { model ->
-                                // 只跳过这一页已经有的，同名但绑了别的 Key 的那条照样能加
-                                selectedModels.none { existing -> existing.modelId == model.modelId }
-                            }
-                            .map { model ->
-                                model.copy(
-                                    apiKeys = modelKeys,
-                                    inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId),
-                                    outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId),
-                                    abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId)
-                                )
-                            }
-                    )
+                    it.fold(parentProvider) { provider, model ->
+                        provider.addCatalogModel(
+                            model.copy(
+                                apiKeys = modelKeys,
+                                accountIds = modelAccountIds,
+                                inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId),
+                                outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId),
+                                abilities = ModelRegistry.MODEL_ABILITIES.getData(model.modelId),
+                            )
+                        )
+                    }
                 )
             },
             onAllModelDeselected = { filteredModels ->
@@ -2676,6 +2802,8 @@ internal fun ModelEditorPage(
     modelId: String? = null,
     // 从某个 Key 分组页进来时带上分组下标，新建的模型默认只绑这一把 Key
     keyIndex: Int? = null,
+    // 从某个账号分组页进来时带上账号 id，新建的模型默认绑这个账号
+    accountId: String? = null,
     vm: SettingVM = koinViewModel(),
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -2690,9 +2818,19 @@ internal fun ModelEditorPage(
     val groupKey = remember(provider, keyIndex) {
         keyIndex?.let { index -> (provider as? ProviderSetting.ApiKey)?.availableKeys?.getOrNull(index) }
     }
-    // 新建时带上分组：保存后回到原来那一页，不会掉进「全部 Key」里看着像没加上
-    var draft by remember(existing, groupKey) {
-        mutableStateOf(existing?.copy() ?: Model(apiKeys = listOfNotNull(groupKey)))
+    val groupAccountId = remember(accountId) {
+        accountId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+    }
+    // 新建时带上分组：保存后回到原来那一页，不会掉进「全部」里看着像没加上。
+    // 草稿只按模型 id 重建：编辑期间别处写过这条模型（切内置联网搜索、WebUI 改工具、门限归一化）
+    // 不该把正在敲的价目换回旧值，否则按「确定」写进去的是被换掉的那一份
+    var draft by remember(existing?.id, groupKey, groupAccountId) {
+        mutableStateOf(
+            existing?.copy() ?: Model(
+                apiKeys = listOfNotNull(groupKey),
+                accountIds = listOfNotNull(groupAccountId),
+            )
+        )
     }
     val isEdit = existing != null
 

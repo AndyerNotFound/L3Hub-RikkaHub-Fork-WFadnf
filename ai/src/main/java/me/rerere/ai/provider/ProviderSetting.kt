@@ -124,6 +124,29 @@ sealed class ProviderSetting {
 
     fun addModel(model: Model): ProviderSetting = copyProvider(models = models + model)
 
+    /**
+     * 从远端目录添加一条模型。
+     *
+     * 同一个分组（同一把 Key、同一个账号）里已经有这条就什么都不做：分页里点错一次不该多出
+     * 第二条空价目的副本。别的分组里有同一个模型时沿用那一条的价目与变价规则——用户填过的价格
+     * 不该因为重加一次就归零。
+     */
+    fun addCatalogModel(model: Model): ProviderSetting {
+        val sameGroup = models.any { existing ->
+            existing.modelId == model.modelId &&
+                existing.apiKeys == model.apiKeys &&
+                existing.accountIds == model.accountIds
+        }
+        if (sameGroup) return this
+        val priced = models.firstOrNull { it.modelId == model.modelId && it.pricing.isConfigured }
+        val entry = if (priced != null && !model.pricing.isConfigured) {
+            model.copy(pricing = priced.pricing)
+        } else {
+            model
+        }
+        return copyProvider(models = models + entry)
+    }
+
     fun editModel(model: Model): ProviderSetting =
         copyProvider(models = models.map { if (it.id == model.id) model.copy() else it })
 

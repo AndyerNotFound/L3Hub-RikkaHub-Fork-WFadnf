@@ -2229,6 +2229,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_page_model_key_group">Key 그룹</string>
   <string name="model_key_group_all">모든 Key</string>
   <string name="model_key_group_missing">Key 사용 불가</string>
+  <string name="setting_provider_page_model_account_group">계정 그룹</string>
+  <string name="model_account_group_all">모든 계정</string>
+  <string name="model_account_group_missing">계정 사용 불가</string>
   <string name="model_key_group_empty">이 그룹에는 모델이 없습니다</string>
   <string name="model_key_group_empty_desc">오른쪽 아래의 "사용 가능한 모델"에서 추가하세요. 여기서 추가한 모델은 이 Key만 사용합니다.</string>
   <string name="setting_provider_page_api_key_multi_desc">여러 Key를 추가할 수 있으며, 요청이 실패하면 자동으로 다음 Key로 전환합니다</string>

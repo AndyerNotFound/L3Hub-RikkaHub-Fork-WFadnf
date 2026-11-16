@@ -2480,6 +2480,9 @@
   <string name="setting_provider_page_model_key_group">Key group</string>
   <string name="model_key_group_all">All keys</string>
   <string name="model_key_group_missing">Key unavailable</string>
+  <string name="setting_provider_page_model_account_group">Account group</string>
+  <string name="model_account_group_all">All accounts</string>
+  <string name="model_account_group_missing">Account unavailable</string>
   <string name="model_key_group_empty">No models in this group</string>
   <string name="model_key_group_empty_desc">Add models from Available models; models added here use only this key.</string>
   <string name="memory_export">Export memory</string>

@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import kotlin.uuid.Uuid
 
 /** 账号类请求在鉴权头之外要带的头，401 重试时用新凭据重新写一遍 */
 internal typealias AccountHeaders = Request.Builder.(OAuthCredential) -> Unit
@@ -47,6 +48,8 @@ internal class AccountRequestTag(
     val setting: ProviderSetting.Account,
     val applyHeaders: AccountHeaders,
     val authHeader: AccountAuthHeader = AccountAuthHeader.Bearer,
+    // 模型按账号分组时绑定的账号：401 重试也只用这一个
+    val preferredAccountId: Uuid? = null,
 )
 
 /** 账号类提供商的 client：请求被 401 拒绝时刷新一次 token 再重试 */
@@ -62,12 +65,20 @@ internal suspend fun Request.Builder.configureAccountAuth(
     setting: ProviderSetting.Account,
     customHeaders: List<CustomHeader>,
     authHeader: AccountAuthHeader = AccountAuthHeader.Bearer,
+    preferredAccountId: Uuid? = null,
     applyHeaders: AccountHeaders,
 ) {
-    val credential = credentials.getCredential(setting, rejectedAccessToken = null)
+    val credential = credentials.getCredential(
+        setting = setting,
+        rejectedAccessToken = null,
+        preferredAccountId = preferredAccountId,
+    )
     headers(setting.mergeCustomHeaders(customHeaders))
     applyCredential(credential, applyHeaders, authHeader)
-    tag(AccountRequestTag::class.java, AccountRequestTag(setting, applyHeaders, authHeader))
+    tag(
+        AccountRequestTag::class.java,
+        AccountRequestTag(setting, applyHeaders, authHeader, preferredAccountId),
+    )
 }
 
 private fun Request.Builder.applyCredential(
@@ -90,7 +101,13 @@ private class AccountTokenAuthenticator(
         val rejected = tag.authHeader.read(response.request)
         // OkHttp 在自己的线程上同步调用 Authenticator
         val credential = runCatching {
-            runBlocking { credentials.getCredential(tag.setting, rejectedAccessToken = rejected) }
+            runBlocking {
+                credentials.getCredential(
+                    setting = tag.setting,
+                    rejectedAccessToken = rejected,
+                    preferredAccountId = tag.preferredAccountId,
+                )
+            }
         }.getOrNull() ?: return null
         if (credential.accessToken == rejected) return null
         return response.request.newBuilder()

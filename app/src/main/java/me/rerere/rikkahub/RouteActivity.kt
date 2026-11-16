@@ -726,6 +726,7 @@ class RouteActivity : ComponentActivity() {
                                     providerId = Uuid.parse(key.providerId),
                                     modelId = key.modelId,
                                     keyIndex = key.keyIndex,
+                                    accountId = key.accountId,
                                 )
                             }
 
@@ -1196,6 +1197,8 @@ sealed interface Screen : NavKey {
         val providerId: String,
         val modelId: String? = null,
         val keyIndex: Int? = null,
+        // 从账号分组页新建时默认绑定的账号 id
+        val accountId: String? = null,
     ) : Screen
 
     @Serializable
