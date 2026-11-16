@@ -178,6 +178,43 @@ fun MotionExpandCollapse(
 }
 
 /**
+ * 贴着上一块内容向下长出来的「滑出」收放：高度、内容位移、透明度与模糊走同一条时间线。
+ *
+ * 只做高度收放时，内容是被一点点裁开露出来的，观感更接近「揭开」而不是「滑出」；
+ * 这里让内容自己从上方滑进来，收起时沿进场那一侧原路滑回去——进出同参同向、曲线与时长一致，
+ * 两端都不会一帧硬切。适用于挂上去就会顶动下方组件的收纳条（如消息下面的「本轮改动」）。
+ *
+ * [maxBlurRadius] 与 [MotionExpandCollapse] 同义，按相对强度换算成设置里的基准半径。
+ */
+@Composable
+fun MotionSlideReveal(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    maxBlurRadius: Dp = 6.dp,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
+) {
+    val motionScheme = MaterialTheme.motionScheme
+    // 高度与位移各取一份同档位的空间曲线：两条时间线一致，展开/收起都不会一边先到
+    val sizeSpec = motionScheme.defaultSpatialSpec<IntSize>()
+    val offsetSpec = motionScheme.defaultSpatialSpec<IntOffset>()
+    val effectsSpec = motionScheme.defaultEffectsSpec<Float>()
+    MotionExpandCollapse(
+        visible = visible,
+        modifier = modifier,
+        // 收放从顶边起、往顶边收（expandVertically / shrinkVertically 的默认对齐），
+        // 内容再沿同一条上下路径滑出滑回
+        enter = expandVertically(animationSpec = sizeSpec) +
+            slideInVertically(offsetSpec) { -it / 2 } +
+            fadeIn(effectsSpec),
+        exit = shrinkVertically(animationSpec = sizeSpec) +
+            slideOutVertically(offsetSpec) { -it / 2 } +
+            fadeOut(effectsSpec),
+        maxBlurRadius = maxBlurRadius,
+        content = content,
+    )
+}
+
+/**
  * [MotionExpandCollapse] 的横向版本：宽度收放，用于按钮文字、侧栏一类从左往右挤出的内容。
  */
 @Composable

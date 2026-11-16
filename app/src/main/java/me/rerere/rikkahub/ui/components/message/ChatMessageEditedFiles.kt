@@ -65,7 +65,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.MotionSlideReveal
 import me.rerere.rikkahub.ui.terminal.Card
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -109,7 +109,10 @@ internal fun EditedFilesList(
 ) {
     val workspaceId = assistant?.primaryWorkspaceId?.toString() ?: return
     val editedFiles = remember(parts) { editedFilesIn(parts) }
-    if (editedFiles.isEmpty()) return
+    // 这一条回复底下要不要挂这条栏。文件是在一轮里陆续写出来的，栏自己也从下方滑出；
+    // 清空时不能直接 return：整个 composable 一离场，退场动画就没处演，
+    // 下面的统计行会一帧弹回去。真正省事的做法是把查询都关在 hasFiles 后面
+    val hasFiles = editedFiles.isNotEmpty()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -118,8 +121,9 @@ internal fun EditedFilesList(
 
     // 工具结果里带着本轮快照 key，界面据此提供撤销
     val snapshotTurn = remember(parts) {
+        // 没有改动的回复不必把每条工具结果都解析一遍
         parts.filterIsInstance<UIMessagePart.Tool>()
-            .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
+            .filter { hasFiles && it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
             .mapNotNull { tool ->
                 val text = (tool.output.firstOrNull() as? UIMessagePart.Text)?.text
                     ?: return@mapNotNull null
@@ -144,6 +148,13 @@ internal fun EditedFilesList(
         conversationId,
         isLastMessage,
     ) {
+        // 没有改动就没有可撤销的东西，不必去翻快照目录。
+        // 这里不再加 hasFiles 这一把 key：文件是在同一条回复里陆续写出来的，
+        // 真出现新文件时 snapshotTurn（按 parts 重算）本身就会变，key 已经换了
+        if (!hasFiles) {
+            value = null
+            return@produceState
+        }
         // fork 出来的会话会原样带走工具输出里的 key，跨会话的快照不认
         val fromPayload = snapshotTurn
             ?.takeIf { conversationId == null || it.first == conversationId.toString() }
@@ -168,9 +179,13 @@ internal fun EditedFilesList(
     var selectedPath by remember { mutableStateOf<String?>(null) }
     // 默认折叠，点开才铺开路径；展开状态跟着消息保存，滑走再回来不用重点一次
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
-    val pathTree = remember(editedFiles) { buildEditedPathTree(editedFiles) }
+    // 收放演的是「上一份内容」：parts 里的文件已经清空时仍按最后一份非空清单排版，
+    // 否则栏会先变成空壳再滑出去
+    var shownFiles by remember { mutableStateOf(editedFiles) }
+    LaunchedEffect(editedFiles) { if (editedFiles.isNotEmpty()) shownFiles = editedFiles }
+    val pathTree = remember(shownFiles) { buildEditedPathTree(shownFiles) }
     // 目录逐级折叠：只记折叠过的，默认全部展开，点开后看到的就是完整的路径结构
-    val foldedDirs = remember(editedFiles) { mutableStateMapOf<String, Boolean>() }
+    val foldedDirs = remember(shownFiles) { mutableStateMapOf<String, Boolean>() }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*"),
@@ -188,89 +203,99 @@ internal fun EditedFilesList(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+    val revertKey = revertTarget
+    // 整条栏（卡片 + 撤销 + 审阅入口）一起滑出：文件出现的那一刻挂上来会把
+    // 下面的统计行一帧顶下去，收放由这一层统一负责
+    MotionSlideReveal(visible = hasFiles) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
             ) {
-                Icon(
-                    imageVector = HugeIcons.File02,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.chat_message_edited_files_title),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.chat_message_edited_files_count, editedFiles.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Icon(
-                    imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expanded = !expanded }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.File02,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.chat_message_edited_files_title),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = stringResource(R.string.chat_message_edited_files_count, shownFiles.size),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Icon(
+                            imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // 展开时列表从标题下面滑出来，收起时沿原路滑回去。只做高度收放的话，
+                    // 内容是被一点点裁开露出来的，看着像「揭开」而不是「滑出」
+                    MotionSlideReveal(visible = expanded, maxBlurRadius = 4.dp) {
+                        Column(
+                            modifier = Modifier
+                                .padding(start = 8.dp, end = 8.dp)
+                                .padding(bottom = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            EditedPathTreeContent(
+                                tree = pathTree,
+                                folded = { foldedDirs[it] == true },
+                                onToggle = { path -> foldedDirs[path] = foldedDirs[path] != true },
+                                onOpenFile = { path -> selectedPath = path },
+                            )
+                        }
+                    }
+                }
             }
-            // 收放与目录折叠都用公共的带模糊收放，和消息里其他折叠块同一条动效
-            MotionExpandCollapse(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .padding(start = 8.dp, end = 8.dp)
-                        .padding(bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+
+            // 撤销按钮要等快照查询回来才出现：晚到的那一下同样滑进来，不把下面的行直接顶走
+            MotionSlideReveal(visible = revertKey != null, maxBlurRadius = 3.dp) {
+                TextButton(
+                    onClick = { showRevertDialog = true },
+                    modifier = Modifier.padding(top = 4.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                 ) {
-                    EditedPathTreeContent(
-                        tree = pathTree,
-                        folded = { foldedDirs[it] == true },
-                        onToggle = { path -> foldedDirs[path] = foldedDirs[path] != true },
-                        onOpenFile = { path -> selectedPath = path },
+                    Icon(
+                        imageVector = HugeIcons.Refresh01,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        text = stringResource(R.string.workspace_revert_turn),
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
-        }
-    }
 
-    val revertKey = revertTarget
-    if (revertKey != null) {
-        TextButton(
-            onClick = { showRevertDialog = true },
-            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-        ) {
-            Icon(
-                imageVector = HugeIcons.Refresh01,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(
-                text = stringResource(R.string.workspace_revert_turn),
-                style = MaterialTheme.typography.labelMedium,
+            // SSH 工作区也走这里：文件列表来自工具结果里的 editedFiles（含 workspace_shell 的扫描结果），
+            // 和内置工作区一致；撤销按钮只依赖快照，SSH 没有快照就不会出现
+            TurnDiffActions(
+                workspaceId = workspaceId,
+                files = shownFiles,
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
-
-    // SSH 工作区也走这里：文件列表来自工具结果里的 editedFiles（含 workspace_shell 的扫描结果），
-    // 和内置工作区一致；撤销按钮只依赖快照，SSH 没有快照就不会出现
-    TurnDiffActions(
-        workspaceId = workspaceId,
-        files = editedFiles,
-    )
 
     if (showRevertDialog && revertKey != null) {
         RikkaConfirmDialog(
@@ -473,7 +498,7 @@ private fun EditedPathNodes(
                 fontWeight = FontWeight.Medium,
                 onClick = { onToggle(node.path) },
             )
-            MotionExpandCollapse(visible = !collapsed, maxBlurRadius = 4.dp) {
+            MotionSlideReveal(visible = !collapsed, maxBlurRadius = 4.dp) {
                 Column(
                     modifier = Modifier.padding(top = 1.dp, bottom = 1.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
