@@ -529,6 +529,11 @@ private fun ProviderConfigureAccount(
     val loginStatus by accountManager.loginStatus.collectAsStateWithLifecycle()
     val status = loginStatus[provider.id]
     val accounts = provider.accounts
+    // CardGroup 的内容不是 @Composable，文案先在函数里取好
+    val disabledLabel = stringResource(R.string.setting_provider_page_account_disabled)
+    val signedInLabel = stringResource(R.string.setting_provider_page_signed_in)
+    val signInLabel = stringResource(R.string.setting_provider_page_sign_in_with, serviceName)
+    val addAccountLabel = stringResource(R.string.setting_provider_page_add_account)
 
     CardGroup {
         nameItem(provider, onEdit)
@@ -541,7 +546,7 @@ private fun ProviderConfigureAccount(
             // 账号给得出昵称时以昵称为主、联系方式为辅，否则退回联系方式
             val headline = credential.displayName ?: credential.email
             val contact = when {
-                binding.disabled -> stringResource(R.string.setting_provider_page_account_disabled)
+                binding.disabled -> disabledLabel
                 credential.displayName != null -> credential.email ?: plan
                 else -> plan
             }
@@ -554,9 +559,7 @@ private fun ProviderConfigureAccount(
                 },
                 leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
                 supportingContent = contact?.let { text -> { Text(text) } },
-                headlineContent = {
-                    Text(headline ?: stringResource(R.string.setting_provider_page_signed_in))
-                },
+                headlineContent = { Text(headline ?: signedInLabel) },
                 trailingContent = {
                     IconButton(onClick = { scope.launch { accountManager.logout(provider.id, binding.id) } }) {
                         Icon(
@@ -604,15 +607,7 @@ private fun ProviderConfigureAccount(
                     { Text(failed.message, color = MaterialTheme.colorScheme.error) }
                 },
                 trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                headlineContent = {
-                    Text(
-                        if (accounts.isEmpty()) {
-                            stringResource(R.string.setting_provider_page_sign_in_with, serviceName)
-                        } else {
-                            stringResource(R.string.setting_provider_page_add_account)
-                        }
-                    )
-                },
+                headlineContent = { Text(if (accounts.isEmpty()) signInLabel else addAccountLabel) },
             )
         }
     }
