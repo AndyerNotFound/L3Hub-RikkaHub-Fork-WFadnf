@@ -1679,6 +1679,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_quota_variables">変数: %1$s。APIキーは上記のヘッダーとともにこのURLに送信されます。</string>
   <string name="setting_provider_page_sign_in_with">%1$s でサインイン</string>
   <string name="setting_provider_page_grok_disclaimer">Grok CLI と同様にサインインすることで、お使いの SuperGrok サブスクリプションを使用します。実験的機能: xAI はいつでもこれを変更または制限する可能性があります。</string>
+  <string name="setting_provider_page_deepseek_disclaimer">DeepSeek のプラットフォームアカウントでサインインします。API キーは不要です。実験的機能: DeepSeek はいつでもこれを変更または制限する可能性があります。</string>
+  <string name="setting_provider_page_type_account">%s アカウント</string>
+  <string name="setting_provider_page_bonus_balance">ボーナス残高</string>
   <string name="setting_provider_page_device_code_hint">ブラウザでこのコードを確認してください</string>
   <string name="setting_provider_page_device_code_reopen">タップしてページを再度開きます</string>
   <string name="setting_provider_page_type_subscription">%s サブスクリプション</string>

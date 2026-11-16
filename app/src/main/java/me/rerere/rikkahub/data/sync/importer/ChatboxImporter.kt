@@ -683,6 +683,7 @@ object ChatboxImporter {
         is ProviderSetting.Claude -> "claude"
         is ProviderSetting.ChatGPT -> "chatgpt"
         is ProviderSetting.Grok -> "grok"
+        is ProviderSetting.DeepSeekAccount -> "deepseek-account"
         is ProviderSetting.LiteRT -> "litert"
         is ProviderSetting.GGUF -> "gguf"
         is ProviderSetting.ONNX -> "onnx"

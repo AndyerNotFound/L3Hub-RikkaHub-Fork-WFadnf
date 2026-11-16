@@ -18,11 +18,12 @@ data class OAuthCredential(
     val accountId: String? = null,
     // 以下仅用于界面展示
     val email: String? = null,
+    val displayName: String? = null,
     val plan: String? = null,
 ) {
     override fun toString(): String =
         "OAuthCredential(accessToken=${accessToken.masked()}, refreshToken=${refreshToken?.masked()}, " +
-            "expiresAt=$expiresAt, accountId=$accountId, email=$email, plan=$plan)"
+            "expiresAt=$expiresAt, accountId=$accountId, email=$email, displayName=$displayName, plan=$plan)"
 
     private fun String.masked(): String = if (length <= 8) "***" else "${take(4)}***${takeLast(4)}"
 }
@@ -46,7 +47,9 @@ val ProviderSetting.supportsBuiltInSearch: Boolean
         is ProviderSetting.OpenAI -> useResponseApi
         is ProviderSetting.Google -> true
         is ProviderSetting.Claude -> true
-        is ProviderSetting.Account -> true
+        is ProviderSetting.ChatGPT, is ProviderSetting.Grok -> true
+        // DeepSeek 账号走 Messages 协议，联网搜索是客户端工具，不是服务端内置工具
+        is ProviderSetting.DeepSeekAccount -> false
         // 本地模型没有厂商侧的联网搜索
         is ProviderSetting.LiteRT,
         is ProviderSetting.LocalServer,
@@ -340,6 +343,57 @@ sealed class ProviderSetting {
         @Transient override val builtIn: Boolean = false,
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
+        override val credential: OAuthCredential? = null,
+        override val guard: ProviderGuard = ProviderGuard(),
+    ) : Account() {
+        override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
+
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            customHeaders: List<CustomHeader>,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                customHeaders = customHeaders,
+                builtIn = builtIn,
+                description = description,
+                shortDescription = shortDescription,
+                guard = guard,
+            )
+        }
+    }
+
+    /**
+     * DeepSeek 平台账号（浏览器登录）。
+     *
+     * 没有 baseUrl 和 apiKey：推理走 api.deepseek.com 的 Messages 端点，只带 `x-dsh-auth-token`；
+     * 模型目录、充值余额与赠金都由账号读取，地址不可改，凭据也不会被发往第三方。
+     */
+    @Serializable
+    @SerialName("deepseek-account")
+    data class DeepSeekAccount(
+        override val id: Uuid = Uuid.random(),
+        override val enabled: Boolean = true,
+        override val name: String = "DeepSeek",
+        override val models: List<Model> = emptyList(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {
+            Text("用 DeepSeek 平台账号登录，不需要 API Key。模型目录、充值余额与赠金都由账号读取，接口地址固定。")
+        },
+        @Transient override val shortDescription: @Composable (() -> Unit) = {
+            Text("账号登录 · 地址固定")
+        },
         override val credential: OAuthCredential? = null,
         override val guard: ProviderGuard = ProviderGuard(),
     ) : Account() {

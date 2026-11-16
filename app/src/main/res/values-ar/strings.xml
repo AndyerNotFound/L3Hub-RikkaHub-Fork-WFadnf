@@ -1677,6 +1677,9 @@
   <string name="setting_provider_page_quota_variables">المتغيرات: %1$s. يُرسَل مفتاح API إلى عنوان URL هذا مع الترويسات أعلاه.</string>
   <string name="setting_provider_page_sign_in_with">تسجيل الدخول باستخدام %1$s</string>
   <string name="setting_provider_page_grok_disclaimer">يستخدم اشتراك SuperGrok الخاص بك عبر تسجيل الدخول كما في Grok CLI. ميزة تجريبية: قد تغيّر xAI هذا أو تقيّده في أي وقت.</string>
+  <string name="setting_provider_page_deepseek_disclaimer">يسجّل الدخول بحساب منصة DeepSeek بدل مفتاح API. ميزة تجريبية: قد تغيّر DeepSeek هذا أو تقيّده في أي وقت.</string>
+  <string name="setting_provider_page_type_account">حساب %s</string>
+  <string name="setting_provider_page_bonus_balance">الرصيد الإضافي</string>
   <string name="setting_provider_page_device_code_hint">أكّد هذا الرمز في المتصفح</string>
   <string name="setting_provider_page_device_code_reopen">اضغط لفتح الصفحة مرة أخرى</string>
   <string name="setting_provider_page_type_subscription">اشتراك %s</string>

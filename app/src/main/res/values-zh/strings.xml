@@ -2143,6 +2143,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_quota_variables">变量：%1$s。API 密钥将随上述请求头发送到此 URL。</string>
   <string name="setting_provider_page_sign_in_with">使用 %1$s 登录</string>
   <string name="setting_provider_page_grok_disclaimer">以 Grok CLI 的方式登录，使用你的 SuperGrok 订阅。实验性功能：xAI 可能随时更改或限制此功能。</string>
+  <string name="setting_provider_page_deepseek_disclaimer">用 DeepSeek 平台账号登录，不需要 API Key。实验性功能：DeepSeek 可能随时更改或限制此功能。</string>
+  <string name="setting_provider_page_type_account">%s 账号</string>
+  <string name="setting_provider_page_bonus_balance">赠金</string>
   <string name="setting_provider_page_device_code_hint">请在浏览器中确认此验证码</string>
   <string name="setting_provider_page_device_code_reopen">点击重新打开页面</string>
   <string name="setting_provider_page_type_subscription">%s 订阅</string>

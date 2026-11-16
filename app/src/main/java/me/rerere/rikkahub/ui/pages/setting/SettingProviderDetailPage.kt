@@ -2436,6 +2436,7 @@ private fun ProviderSetting.proxyHost(): String? = when (this) {
     is ProviderSetting.Claude -> baseUrl.hostOf()
     is ProviderSetting.ChatGPT -> "chatgpt.com"
     is ProviderSetting.Grok -> "api.x.ai"
+    is ProviderSetting.DeepSeekAccount -> "api.deepseek.com"
     else -> null
 }
 

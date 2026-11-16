@@ -53,6 +53,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Login03
 import me.rerere.hugeicons.stroke.Logout03
+import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.UserCircle
 import me.rerere.hugeicons.stroke.View
@@ -141,6 +142,14 @@ fun ProviderConfigure(
                 serviceName = "Grok",
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_grok_disclaimer),
+            )
+
+            is ProviderSetting.DeepSeekAccount -> ProviderConfigureAccount(
+                provider = provider,
+                onEdit = onEdit,
+                serviceName = "DeepSeek",
+                plan = null,
+                disclaimer = stringResource(R.string.setting_provider_page_deepseek_disclaimer),
             )
 
             is ProviderSetting.LiteRT -> ProviderConfigureLiteRT(provider, onEdit, onCommit)
@@ -520,6 +529,9 @@ private fun ProviderConfigureAccount(
     val loginStatus by accountManager.loginStatus.collectAsStateWithLifecycle()
     val status = loginStatus[provider.id]
     val credential = provider.credential
+    // 账号给得出昵称时以昵称为主、联系方式为辅，否则退回联系方式
+    val headline = credential?.displayName ?: credential?.email
+    val contact = if (credential?.displayName != null) credential.email ?: plan else plan
 
     CardGroup {
         nameItem(provider, onEdit)
@@ -529,8 +541,10 @@ private fun ProviderConfigureAccount(
         if (credential != null) {
             item(
                 leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
-                supportingContent = plan?.let { { Text(it) } },
-                headlineContent = { Text(credential.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
+                supportingContent = contact?.let { text -> { Text(text) } },
+                headlineContent = {
+                    Text(headline ?: stringResource(R.string.setting_provider_page_signed_in))
+                },
             )
             item(
                 onClick = { scope.launch { accountManager.logout(provider.id) } },
@@ -598,7 +612,7 @@ private fun ProviderConfigureAccount(
 @Composable
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
-    val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
+    val quota = result?.getOrNull()
     CardGroup(title = { Text(stringResource(R.string.setting_provider_page_usage)) }) {
         when {
             result == null -> item(
@@ -606,7 +620,7 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_loading)) },
             )
 
-            limits == null -> item(
+            quota == null -> item(
                 leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
                 supportingContent = {
                     Text(
@@ -617,13 +631,33 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_failed)) },
             )
 
-            limits.windows.isEmpty() -> item(
+            // 余额：充值余额与赠金各占一行
+            quota is ProviderQuota.Balance -> {
+                item(
+                    leadingContent = { CardGroupIcon(HugeIcons.MoneyBag02) },
+                    headlineContent = { Text(stringResource(R.string.chat_quota_bar_balance)) },
+                    trailingContent = {
+                        Text(quota.value, style = MaterialTheme.typography.titleMediumEmphasized)
+                    },
+                )
+                quota.secondary?.let { secondary ->
+                    item(
+                        leadingContent = { CardGroupIcon(HugeIcons.MoneyBag02) },
+                        headlineContent = { Text(stringResource(R.string.setting_provider_page_bonus_balance)) },
+                        trailingContent = {
+                            Text(secondary, style = MaterialTheme.typography.titleMediumEmphasized)
+                        },
+                    )
+                }
+            }
+
+            quota is ProviderQuota.UsageLimits && quota.windows.isEmpty() -> item(
                 leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_none)) },
             )
 
-            else -> limits.windows.forEach { window ->
-                val reached = limits.limitReached || window.usedPercent >= 100
+            quota is ProviderQuota.UsageLimits -> quota.windows.forEach { window ->
+                val reached = quota.limitReached || window.usedPercent >= 100
                 formItem(
                     headlineContent = { Text(window.longLabel()) },
                     supportingContent = window.resetsAt?.let { resetsAt ->

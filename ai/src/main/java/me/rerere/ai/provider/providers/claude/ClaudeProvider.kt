@@ -45,6 +45,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.provider.applyRequestOverride
+import me.rerere.ai.provider.providers.AccountRequestTag
 import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.runQuotaQuery
@@ -86,6 +87,23 @@ private const val TAG = "ClaudeProvider"
 private const val ANTHROPIC_VERSION = "2023-06-01"
 private const val CLAUDE_PAUSE_TURN = "pause_turn"
 private const val MAX_PAUSE_TURN_CONTINUATIONS = 5
+
+/**
+ * 一次 Messages 请求的鉴权：API Key 写 `x-api-key`，账号登录写平台 token 头。
+ *
+ * [tag] 让 OkHttp 的 401 重试认得出账号类请求；API Key 请求没有 tag。
+ */
+internal class MessagesAuth(
+    val headerName: String,
+    val token: String,
+    val tag: AccountRequestTag? = null,
+)
+
+/** 把鉴权写到请求上，自定义头已经先写过，这里后写不会被覆盖 */
+internal fun Request.Builder.writeAuth(auth: MessagesAuth): Request.Builder = apply {
+    header(auth.headerName, auth.token)
+    auth.tag?.let { tag(AccountRequestTag::class.java, it) }
+}
 
 internal suspend fun generateClaudeWithPauseTurn(
     messages: List<UIMessage>,
@@ -237,17 +255,27 @@ private fun ServerToolMetadata.maxIndex(): Int? = listOfNotNull(callIndex, resul
 class ClaudeProvider(private val client: OkHttpClient, context: Context? = null) : Provider<ProviderSetting.Claude> {
     private val keyRoulette = if (context != null) KeyRoulette.lru(context) else KeyRoulette.default()
 
+    private fun apiKeyAuth(providerSetting: ProviderSetting.Claude): MessagesAuth =
+        MessagesAuth("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
+
     override suspend fun getQuota(providerSetting: ProviderSetting.Claude): ProviderQuota? =
         client.runQuotaQuery(providerSetting) {
             keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         }
 
     override suspend fun listModels(providerSetting: ProviderSetting.Claude): List<Model> =
+        listModels(providerSetting, apiKeyAuth(providerSetting))
+
+    /** DeepSeek 账号路由复用同一份 Messages 实现，只是鉴权与地址不同 */
+    internal suspend fun listModels(
+        providerSetting: ProviderSetting.Claude,
+        auth: MessagesAuth,
+    ): List<Model> =
         withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url("${providerSetting.baseUrl}/models")
                 .headers(providerSetting.mergeCustomHeaders())
-                .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
+                .writeAuth(auth)
                 .addHeader("anthropic-version", ANTHROPIC_VERSION)
                 .get()
                 .build()
@@ -284,9 +312,17 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams
+    ): TextGenerationResult = generateText(providerSetting, messages, params, apiKeyAuth(providerSetting))
+
+    /** 账号登录的 Messages 请求：与非流式 API Key 走同一套实现，只换鉴权与地址 */
+    internal suspend fun generateText(
+        providerSetting: ProviderSetting.Claude,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
+        auth: MessagesAuth,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
         generateClaudeWithPauseTurn(messages, params.model) { requestMessages ->
-            generateTextOnce(providerSetting, requestMessages, params)
+            generateTextOnce(providerSetting, requestMessages, params, auth)
         }
     }
 
@@ -294,14 +330,15 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams,
+        auth: MessagesAuth,
     ): TextGenerationResult {
         val requestBody = buildMessageRequest(providerSetting, messages, params)
-        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
+        val apiKey = auth.token
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-api-key", apiKey)
+            .writeAuth(auth)
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .configureReferHeaders(providerSetting.baseUrl)
             .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
@@ -345,22 +382,31 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams
+    ): Flow<StreamChunk> = streamText(providerSetting, messages, params, apiKeyAuth(providerSetting))
+
+    /** 账号登录的流式 Messages 请求 */
+    internal suspend fun streamText(
+        providerSetting: ProviderSetting.Claude,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
+        auth: MessagesAuth,
     ): Flow<StreamChunk> = streamClaudeWithPauseTurn(messages, params.model) { requestMessages ->
-        streamTextOnce(providerSetting, requestMessages, params)
+        streamTextOnce(providerSetting, requestMessages, params, auth)
     }
 
     private fun streamTextOnce(
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams,
+        auth: MessagesAuth,
     ): Flow<StreamChunk> = callbackFlow {
         val requestBody = buildMessageRequest(providerSetting, messages, params, stream = true)
-        val apiKey = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
+        val apiKey = auth.token
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-api-key", apiKey)
+            .writeAuth(auth)
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .addHeader("Content-Type", "application/json")
             .configureReferHeaders(providerSetting.baseUrl)

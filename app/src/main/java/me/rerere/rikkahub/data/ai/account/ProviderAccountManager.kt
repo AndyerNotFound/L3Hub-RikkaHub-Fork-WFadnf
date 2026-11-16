@@ -19,6 +19,8 @@ import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.provider.AccountCredentialProvider
 import me.rerere.ai.provider.OAuthCredential
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.providers.deepseek.DeepSeekAccountPlatform
+import me.rerere.ai.provider.providers.deepseek.DeepSeekPlatformUser
 import me.rerere.common.http.await
 import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
 import me.rerere.oauth.OAuthHttpClient
@@ -37,6 +39,7 @@ private const val TAG = "ProviderAccountManager"
 // 与 Codex CLI 一致：access token 过期前 5 分钟内就刷新
 private const val TOKEN_REFRESH_LEEWAY_MS = 5 * 60_000L
 private val AUTHORIZATION_TIMEOUT = 5.minutes
+private const val DEEPSEEK_DEVICE_ID_KEY = "deepseek_account_device_id"
 
 sealed interface AccountLoginStatus {
     data object Authorizing : AccountLoginStatus
@@ -64,6 +67,9 @@ class ProviderAccountManager(
         callbackPath = ChatGPTAuth.CALLBACK_PATH,
         redirectHost = ChatGPTAuth.CALLBACK_HOST,
     )
+
+    // DeepSeek 接受任意端口，用临时端口即可
+    private val deepSeekCallbackServer = OAuthLoopbackCallbackServer(port = 0)
     private val loginJobs = ConcurrentHashMap<Uuid, Job>()
     private val refreshLocks = ConcurrentHashMap<Uuid, Mutex>()
 
@@ -79,6 +85,7 @@ class ProviderAccountManager(
                 val credential = when (provider) {
                     is ProviderSetting.ChatGPT -> loginChatGPT(context.applicationContext)
                     is ProviderSetting.Grok -> loginGrok(providerId, context.applicationContext)
+                    is ProviderSetting.DeepSeekAccount -> loginDeepSeek(context.applicationContext)
                 }
                 persistCredential(providerId, credential)
                 setStatus(providerId, null)
@@ -103,7 +110,13 @@ class ProviderAccountManager(
 
     suspend fun logout(providerId: Uuid) {
         cancelLogin(providerId)
+        val account = findAccount(providerId)
+        val token = account?.credential?.accessToken
+        // 本地先退，再用捕获的 token 结束平台会话：远端失败不回滚本地状态
         persistCredential(providerId, null)
+        if (account is ProviderSetting.DeepSeekAccount && token != null) {
+            withContext(Dispatchers.IO) { runCatching { DeepSeekAccountPlatform.logout(client, token) } }
+        }
     }
 
     /**
@@ -114,6 +127,10 @@ class ProviderAccountManager(
         setting: ProviderSetting.Account,
         rejectedAccessToken: String?,
     ): OAuthCredential {
+        // DeepSeek 账号的 token 没有过期时间和刷新流程，被拒就清凭据
+        if (setting is ProviderSetting.DeepSeekAccount) {
+            return resolveDeepSeekCredential(setting, rejectedAccessToken)
+        }
         // 绝大多数请求的 token 都还有效，直接返回，不用切线程排队拿锁
         findAccount(setting.id)?.credential
             ?.takeUnless { it.needsRefresh(rejectedAccessToken) }
@@ -149,6 +166,9 @@ class ProviderAccountManager(
                         token = oauthClient.refreshToken(GrokAuth.refreshRequest(refreshToken)),
                         previous = credential,
                     )
+
+                    is ProviderSetting.DeepSeekAccount ->
+                        error("${latest.name}: DeepSeek account tokens cannot be refreshed")
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -164,6 +184,92 @@ class ProviderAccountManager(
             }
             refreshed
         }
+    }
+
+    /**
+     * DeepSeek 平台账号：PKCE 授权码 + 本机回环回调。
+     *
+     * 授权页由平台返回，会话 10 分钟有效；本地取消、超时或失败都会作废远端未兑换的申请。
+     * 账号 token 没有过期时间，也没有刷新流程，退登或 401 之后只能重新登录。
+     */
+    private suspend fun loginDeepSeek(context: Context): OAuthCredential =
+        withContext(Dispatchers.IO) {
+            val pkce = oauthClient.generatePkce()
+            val state = oauthClient.generateState()
+            val session = deepSeekCallbackServer.openSession(context, state)
+            var authorizeId: String? = null
+            try {
+                val start = DeepSeekAccountPlatform.startSignIn(
+                    client = client,
+                    codeChallenge = pkce.challenge,
+                    state = state,
+                    redirectUri = session.redirectUri,
+                )
+                authorizeId = start.authorizeId
+                withContext(Dispatchers.Main) {
+                    CustomTabsOAuthAuthorizationLauncher.launch(context, start.authorizeUrl)
+                }
+                val callback =
+                    session.awaitCallback(AUTHORIZATION_TIMEOUT) ?: error("Authorization timed out")
+                callback.error?.let { code ->
+                    error(listOfNotNull(code, callback.errorDescription).joinToString(": "))
+                }
+                val code = callback.code ?: error("No authorization code returned")
+                val result = DeepSeekAccountPlatform.exchange(
+                    client = client,
+                    code = code,
+                    codeVerifier = pkce.verifier,
+                    redirectUri = session.redirectUri,
+                    deviceId = deepSeekDeviceId(context),
+                )
+                // 兑换时平台会带上用户资料，没带就单独查一次
+                val user = result.user ?: runCatching {
+                    DeepSeekAccountPlatform.profile(client, result.token)
+                }.getOrNull()
+                deepSeekCredential(result.token, user)
+            } catch (e: Exception) {
+                authorizeId?.let { id ->
+                    withContext(NonCancellable) {
+                        runCatching { DeepSeekAccountPlatform.cancel(client, id, pkce.verifier) }
+                    }
+                }
+                throw e
+            } finally {
+                withContext(NonCancellable) { session.close() }
+            }
+        }
+
+    private suspend fun resolveDeepSeekCredential(
+        setting: ProviderSetting.DeepSeekAccount,
+        rejectedAccessToken: String?,
+    ): OAuthCredential {
+        val credential = findAccount(setting.id)?.credential
+            ?: error("${setting.name}: not signed in")
+        if (rejectedAccessToken == null || rejectedAccessToken != credential.accessToken) {
+            return credential
+        }
+        // 平台拒绝了这个 token：清掉本地凭据，界面回到未登录
+        persistCredential(setting.id, null)
+        error("${setting.name}: sign-in expired, please sign in again")
+    }
+
+    private fun deepSeekCredential(token: String, user: DeepSeekPlatformUser?): OAuthCredential =
+        OAuthCredential(
+            accessToken = token,
+            // 没有刷新流程，也不带过期时间
+            expiresAt = 0L,
+            accountId = user?.id,
+            email = user?.contact,
+            displayName = user?.name,
+        )
+
+    /** 设备标识只用于兑换请求；首次登录生成后留在本地 */
+    private fun deepSeekDeviceId(context: Context): String {
+        val prefs = context.getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE)
+        prefs.getString(DEEPSEEK_DEVICE_ID_KEY, null)?.let { return it }
+        val id = Uuid.random().toString()
+        prefs.edit().putString(DEEPSEEK_DEVICE_ID_KEY, id).apply()
+        return id
     }
 
     private suspend fun loginChatGPT(context: Context): OAuthCredential =

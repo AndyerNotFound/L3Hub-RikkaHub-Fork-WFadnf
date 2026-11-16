@@ -3,6 +3,7 @@ package me.rerere.ai.provider
 import android.content.Context
 import me.rerere.ai.provider.providers.chatgpt.ChatGPTProvider
 import me.rerere.ai.provider.providers.claude.ClaudeProvider
+import me.rerere.ai.provider.providers.deepseek.DeepSeekAccountProvider
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.provider.providers.grok.GrokProvider
 import me.rerere.ai.provider.providers.litert.LiteRTProvider
@@ -31,6 +32,7 @@ class ProviderManager(
         registerProvider("claude", KeyFailoverProvider(ClaudeProvider(client, context)))
         registerProvider("chatgpt", ChatGPTProvider(client, accountCredentials))
         registerProvider("grok", GrokProvider(client, accountCredentials))
+        registerProvider("deepseek-account", DeepSeekAccountProvider(client, accountCredentials))
         registerProvider("litert", LiteRTProvider(context))
         registerProvider("gguf", LocalServerProvider(OpenAIProvider(client, context)))
         registerProvider("onnx", LocalServerProvider(OpenAIProvider(client, context)))
@@ -70,6 +72,7 @@ class ProviderManager(
             is ProviderSetting.Claude -> getProvider("claude")
             is ProviderSetting.ChatGPT -> getProvider("chatgpt")
             is ProviderSetting.Grok -> getProvider("grok")
+            is ProviderSetting.DeepSeekAccount -> getProvider("deepseek-account")
             is ProviderSetting.LiteRT -> getProvider("litert")
             is ProviderSetting.GGUF -> getProvider("gguf")
             is ProviderSetting.ONNX -> getProvider("onnx")

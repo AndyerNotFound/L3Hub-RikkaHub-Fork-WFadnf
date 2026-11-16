@@ -642,6 +642,7 @@ private fun AddButton(
             add(ProviderSetting.Claude())
             add(ProviderSetting.ChatGPT())
             add(ProviderSetting.Grok())
+            add(ProviderSetting.DeepSeekAccount())
             // 精简版不打包 LiteRT 运行时，新建列表里不出现这个类型
             if (BuildConfig.HAS_LITERT) add(ProviderSetting.LiteRT())
             add(
@@ -765,6 +766,7 @@ private fun ProviderSetting.typeName(): String = when (this) {
     is ProviderSetting.Claude -> "Claude"
     is ProviderSetting.ChatGPT -> stringResource(R.string.setting_provider_page_type_subscription, "ChatGPT")
     is ProviderSetting.Grok -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
+    is ProviderSetting.DeepSeekAccount -> stringResource(R.string.setting_provider_page_type_account, "DeepSeek")
     is ProviderSetting.LiteRT -> stringResource(R.string.setting_provider_page_type_litert)
     is ProviderSetting.GGUF -> stringResource(R.string.setting_provider_page_type_gguf)
     is ProviderSetting.ONNX -> stringResource(R.string.setting_provider_page_type_onnx)
