@@ -50,8 +50,9 @@ class DeepSeekAccountProvider(
                         listOf(Modality.TEXT)
                     },
                     outputModalities = listOf(Modality.TEXT),
-                    // 账号目录里的模型都走 Messages 工具与推理档位
-                    abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+                    // 不声明推理档位：Claude 适配层发的是 Anthropic 的 adaptive + output_config，
+                    // DeepSeek 的 Messages 只认 thinking.type 的 enabled/disabled，交给服务端默认值
+                    abilities = listOf(ModelAbility.TOOL),
                     contextLength = listed.contextWindow ?: DEFAULT_CONTEXT_LENGTH,
                 )
             }
