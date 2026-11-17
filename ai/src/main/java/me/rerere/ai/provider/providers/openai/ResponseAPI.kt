@@ -57,6 +57,7 @@ import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logRequestBody
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
@@ -156,7 +157,7 @@ class ResponseAPI(
                 } ?: request
             }
 
-        Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+        logRequestBody(TAG, "generateText") { json.encodeToString(requestBody) }
 
         // await() waits for the response headers; reading the body can still block.
         client.newCall(request).await().use { response ->
@@ -199,7 +200,8 @@ class ResponseAPI(
                     )
                 } ?: request
             }
-        Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+
+        logRequestBody(TAG, "streamText") { json.encodeToString(requestBody) }
 
         val decoder = ResponseApiStreamDecoder()
 

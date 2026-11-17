@@ -1504,3 +1504,32 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
   `StartupWatchdog` 盯首帧之前的主线程。这类「起不来又拿不到 logcat」的问题，
   靠它一次拿到 `settings-load-failed` 的完整栈。埋点本身要防住两件事：
   单测里 `android.util.Log` / `android.os.SystemClock` 都是空实现会抛，埋点不能因此把业务带崩。
+
+## 同步上游 3.3.0（2026-11-17）
+
+上游 18 个提交，`64452581d..bfac2440c`，合并进 `sync/upstream-20261117`，39 处冲突。
+
+上游这一轮带来的功能：
+
+- 助手回复按段落拆成多个气泡（`MarkdownParagraphs.kt`、`DisplaySetting.splitAssistantBubbleByParagraph`）
+- 本地工作区把设备共享存储的目录挂进 Rootfs（`WorkspaceStorageMount`、`WorkspaceStorageMountCard`）
+- 从 DeepSeek 导出的 ZIP 导入每个会话的当前分支（`DeepSeekImporter`）
+- DeepSeek 语音合成与识别
+- Gemini 单独下发的 `thoughtSignature` part、Vertex 服务账号走 Interactions API
+- 安全模式支持清除超大的设置数据
+- Phone Use 后台生成期间由悬浮窗保持亮屏
+- 后台任务详情长命令可滚动、测试连接弹窗点模型搜索框不再自动关闭
+- `message_node` 复合索引、请求体日志只在调试构建打印
+
+取舍与实现差异：
+
+- **DeepSeek 语音**：Fork 早前已自行实现，保留 Fork 版本（`baseUrl` 带不带 `/v1` 都能拼出 tool 端点、中文段拼接不加空格、TTS 可选 `wav` / `pcm` 与 Markdown 过滤），只把上游两处更强的实现搬过来：`stop()` 先等录音协程退出再取缓冲区（否则最后一块 PCM 被截掉）、TTS 的流加 `flowOn(Dispatchers.IO)`。`pcm16ToWav` 改用上游抽出的 `speech/.../Wav.kt`，删掉 Fork 那份私有拷贝，单测直接覆盖共用实现。
+- **数据库**：上游把 `message_node` 索引换成 `(conversation_id, node_index)`（32→33）、`workspaces` 加 `storage_mounts`（33→34）。Fork 的版本号已经走到 37，33–35 的 schema 与上游同名但内容不同，不能照搬，改为 `Migration_37_38` 一次性补齐这两项，版本升到 38；上游的 `Migration_32_33` 与其 androidTest 未采用，`AutoMigration(32, 33)` 保留，Fork 的 32→37 老链路继续可用。
+- **自动压缩**：上游在偏好设置里重新加了全局开关与触发比例（默认开启），Fork 仍按助手配置（见上一节），所以 `Settings` 里不加这三个字段，`SettingPreferencesUIPage` 也不加对应条目。`DefaultProvidersTest` 上游以「默认提供商全部开启后它一直失败」删掉，Fork 侧那版断言本来就是 `enabled = true`，保留。
+- **测试连接弹窗**：采用上游的「只有 dialog、开关由调用方持有」结构（入口按钮在键盘弹出时会移出 composition，dialog 挂在它下面会被一起销毁），外层仍用 Fork 的 `AnimatedAlertDialog` / `AnimatedModalBottomSheet`，报错抽屉保留「用最后一份报错把退场演完」。
+- **段落拆泡**：保留 Fork 气泡的 `LocalUiSlots` 配色、`hazeState`、`stretchHeight`；拆段后只有首段沿用 `joinedToPrevious`、末段沿用 `joinedToNext`，中间各段自成一只气泡。
+- **DeepSeek 导入**：与 Fork 的「恢复方式 / 恢复内容」选项并存——本地备份仍先弹 `RestoreOptionsDialog` 再选文件，DeepSeek 导入成功后弹自己的结果框，且不触发重启提示。
+- **DeepSeek 语音配置项**：`ASRProviderConfigure` / `TTSProviderConfigure` 两边都加了 `deepSeekASRItems` / `deepSeekTTSItems`，合并后同一文件里出现两份同名函数。保留 Fork 的本地化版本（走 `stringResource`、TTS 多出格式与 Markdown 过滤两项），删掉上游那份，顺带给输入框补 `singleLine`。
+- **文案**：8 种语言的 `strings.xml` 先取 Fork 版本，再把上游新增的 31 个键补进去。在用的 25 个已按各语言补齐翻译；`deep_thinking_seconds`、`chat_page_folder_add`、`setting_display_page_auto_compress_*` 这 6 个当前没有引用，留英文原文。
+- **版本号**：本次只合代码，`versionCode` / `versionName`（352 / `L.3.2.30.174`）未动，出包时再统一决定。
+- **验证**：本机不编译，行为验证走 CI 单测（push 即触发）；真机观感未实测。

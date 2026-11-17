@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import me.rerere.tts.model.AudioChunk
 import me.rerere.tts.model.TTSRequest
+import me.rerere.tts.provider.providers.DeepSeekTTSProvider
 import me.rerere.tts.provider.providers.ElevenLabsTTSProvider
 import me.rerere.tts.provider.providers.DeepSeekTTSProvider
 import me.rerere.tts.provider.providers.FishAudioTTSProvider

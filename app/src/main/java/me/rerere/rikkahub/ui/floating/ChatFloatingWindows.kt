@@ -10,12 +10,14 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -422,6 +424,14 @@ class ChatFloatingWindows(
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
             minActiveState = Lifecycle.State.RESUMED,
         )
+        // 悬浮窗只在应用退到后台时显示，这时 Activity 上的常亮标志已经失效，Phone Use 操作别的应用时屏幕会按时熄灭。
+        // 生成期间改由显示着的悬浮窗保持亮屏。隐藏的窗口是 GONE，它的标志不起作用；手动按电源键锁屏不受影响
+        val view = LocalView.current
+        val generating = state?.generating == true
+        DisposableEffect(view, generating) {
+            view.keepScreenOn = generating
+            onDispose { view.keepScreenOn = false }
+        }
         // wrapContent：内容不许铺满父容器。铺满时 wrap_content 的系统窗口会被撑到整块屏幕，
         // 窗口就是触摸区，窗口外的滑动和点击全被浮窗接走（“滑哪都在拖悬浮球”就是这么来的）
         RikkahubTheme(wrapContent = true) {

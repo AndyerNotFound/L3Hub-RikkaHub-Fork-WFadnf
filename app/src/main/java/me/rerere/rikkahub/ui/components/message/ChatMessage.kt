@@ -843,21 +843,37 @@ private fun MessagePartsBlock(
                                 }
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
-                                    ChatMessageBubble(
-                                        role = role,
-                                        color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                        hazeState = hazeState,
-                                        joinedToPrevious = joinedToPrevious,
-                                        joinedToNext = joinedToNext,
-                                        // 高度改由气泡内部的弹性伸缩带动：伸缩时整只气泡带动态模糊，
-                                        // 外面的 animateContentSize 只在报告高度，气泡底边会先一步到位
-                                        stretchHeight = true,
-                                    ) {
-                                        MarkdownBlock(
-                                            content = renderedText,
-                                            streaming = streamingText,
-                                            onClickCitation = handleClickCitation,
-                                        )
+                                    val splitByParagraph = settings.displaySetting.splitAssistantBubbleByParagraph
+                                    // 拆成多个气泡只影响显示，消息本身还是一条
+                                    val paragraphs = remember(renderedText, splitByParagraph) {
+                                        if (splitByParagraph) {
+                                            splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
+                                        } else {
+                                            listOf(renderedText)
+                                        }
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        paragraphs.fastForEachIndexed { index, paragraph ->
+                                            key(index) {
+                                                ChatMessageBubble(
+                                                    role = role,
+                                                    color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                                    hazeState = hazeState,
+                                                    // 拆段后首尾仍与相邻消息相连，中间各段自成一只气泡
+                                                    joinedToPrevious = joinedToPrevious && index == 0,
+                                                    joinedToNext = joinedToNext && index == paragraphs.lastIndex,
+                                                    // 高度改由气泡内部的弹性伸缩带动：伸缩时整只气泡带动态模糊，
+                                                    // 外面的 animateContentSize 只在报告高度，气泡底边会先一步到位
+                                                    stretchHeight = true,
+                                                ) {
+                                                    MarkdownBlock(
+                                                        content = paragraph,
+                                                        streaming = streamingText && index == paragraphs.lastIndex,
+                                                        onClickCitation = handleClickCitation,
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 } else {
                                     MarkdownBlock(

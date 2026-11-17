@@ -772,10 +772,13 @@ private fun ProviderConfigureGoogle(
             headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
         )
         switchItem(
-            visible = !provider.vertexAI,
+            visible = !provider.vertexAI || useServiceAccount,
             checked = provider.useInteractionsApi,
             onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
             headlineContent = { Text("Interactions API (Beta)") },
+            supportingContent = if (useServiceAccount) {
+                { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
+            } else null,
         )
     }
 

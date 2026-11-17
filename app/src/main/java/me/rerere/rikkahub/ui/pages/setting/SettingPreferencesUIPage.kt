@@ -222,6 +222,15 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                 )
+                switchItem(
+                    visible = displaySetting.showAssistantBubble,
+                    checked = displaySetting.splitAssistantBubbleByParagraph,
+                    onCheckedChange = {
+                        updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
+                    },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_title)) },
+                )
                 formItem(
                     headlineContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_title)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_desc)) },

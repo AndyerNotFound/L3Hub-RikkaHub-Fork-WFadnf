@@ -79,6 +79,7 @@ fun TTSProviderConfigure(
                             TTSProviderSetting.Volcengine::class -> stringResource(R.string.setting_tts_page_provider_volcengine)
                             TTSProviderSetting.DeepSeek::class -> "DeepSeek"
                             TTSProviderSetting.Step::class -> "Step"
+                            TTSProviderSetting.DeepSeek::class -> "DeepSeek"
                             else -> providerClass.simpleName ?: "Unknown"
                         }
                     },
@@ -272,6 +273,7 @@ private fun CardGroupScope.deepSeekTTSItems(
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("sk-...") },
+            singleLine = true,
         )
     }
 
@@ -283,7 +285,8 @@ private fun CardGroupScope.deepSeekTTSItems(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("https://api.deepseek.com/v1") }
+            placeholder = { Text("https://api.deepseek.com/v1") },
+            singleLine = true,
         )
     }
 

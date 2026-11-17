@@ -10,11 +10,13 @@ import android.media.MediaRecorder
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,15 +30,16 @@ import me.rerere.asr.ASRState
 import me.rerere.asr.ASRStatus
 import me.rerere.asr.appendAmplitude
 import me.rerere.asr.calculateRmsAmplitude
+import me.rerere.asr.pcm16ToWav
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.Collections
+import java.io.ByteArrayOutputStream
 
 private const val TAG = "DeepSeekASR"
 
@@ -107,12 +110,15 @@ class DeepSeekASRController(
     }
 
     override fun stop() {
-        recorderJob?.cancel()
-        releaseRecorder()
+        if (_state.value.status != ASRStatus.Listening) return
+        val recorder = recorderJob
         _state.update { it.copy(status = ASRStatus.Stopping) }
 
         // 把剩余 PCM 做最后一次 flush, 完成后切回 Idle
         scope.launch(Dispatchers.IO) {
+            // 等录音循环真正退出再取缓冲区, 否则最后一块 PCM 可能还没写进去就被截掉
+            recorder?.cancelAndJoin()
+            releaseRecorder()
             try {
                 flushJob?.join()
                 flushSegment()
@@ -180,6 +186,7 @@ class DeepSeekASRController(
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Audio recording failed", e)
                 setError(e.message ?: "Audio recording failed")
             } finally {
@@ -269,52 +276,6 @@ class DeepSeekASRController(
         runCatching { audioRecord?.stop() }
         runCatching { audioRecord?.release() }
         audioRecord = null
-    }
-
-    companion object {
-        /**
-         * 把 raw PCM16 little-endian 数据封装成最小 WAV (RIFF/WAVE/fmt/data)。
-         * DeepSeek 只接受 WAV / Ogg Opus, AudioRecord 输出的是 PCM, 必须自己包 WAV 头。
-         */
-        private fun pcm16ToWav(
-            pcm: ByteArray,
-            sampleRate: Int,
-            channels: Int,
-            bitsPerSample: Int
-        ): ByteArray {
-            val byteRate = sampleRate * channels * bitsPerSample / 8
-            val blockAlign = channels * bitsPerSample / 8
-            val dataSize = pcm.size
-            val out = ByteArrayOutputStream(44 + dataSize)
-
-            out.write("RIFF".toByteArray(Charsets.US_ASCII))
-            writeIntLE(out, 36 + dataSize)
-            out.write("WAVE".toByteArray(Charsets.US_ASCII))
-            out.write("fmt ".toByteArray(Charsets.US_ASCII))
-            writeIntLE(out, 16)
-            writeShortLE(out, 1)
-            writeShortLE(out, channels)
-            writeIntLE(out, sampleRate)
-            writeIntLE(out, byteRate)
-            writeShortLE(out, blockAlign)
-            writeShortLE(out, bitsPerSample)
-            out.write("data".toByteArray(Charsets.US_ASCII))
-            writeIntLE(out, dataSize)
-            out.write(pcm)
-            return out.toByteArray()
-        }
-
-        private fun writeIntLE(out: ByteArrayOutputStream, value: Int) {
-            out.write(value and 0xFF)
-            out.write((value shr 8) and 0xFF)
-            out.write((value shr 16) and 0xFF)
-            out.write((value shr 24) and 0xFF)
-        }
-
-        private fun writeShortLE(out: ByteArrayOutputStream, value: Int) {
-            out.write(value and 0xFF)
-            out.write((value shr 8) and 0xFF)
-        }
     }
 }
 

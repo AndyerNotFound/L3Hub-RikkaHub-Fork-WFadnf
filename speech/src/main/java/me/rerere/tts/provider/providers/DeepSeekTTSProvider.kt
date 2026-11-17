@@ -2,8 +2,10 @@ package me.rerere.tts.provider.providers
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.tts.model.AudioChunk
@@ -86,7 +88,7 @@ class DeepSeekTTSProvider : TTSProvider<TTSProviderSetting.DeepSeek> {
                 )
             )
         )
-    }
+    }.flowOn(Dispatchers.IO)
 }
 
 /** baseUrl 一般已经带 /v1；用户把它改成裸域名时补上，避免请求打到 /tools/tts */
