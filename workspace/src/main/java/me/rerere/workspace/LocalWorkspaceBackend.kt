@@ -97,7 +97,7 @@ class LocalWorkspaceBackend(
      * 用户显式批准写到根外的行为不受影响; 映射不出来时按原样放行。
      */
     private fun requireInsideWritableRoot(path: String) {
-        val root = manager.layout.writableRoots
+        val root = layout.writableRoots
             .filter { path == it || path.startsWith("$it/") }
             .maxByOrNull { it.length } ?: return
         // 可写根本身映射不出来时说明这条路径不归我们管，跳过校验
