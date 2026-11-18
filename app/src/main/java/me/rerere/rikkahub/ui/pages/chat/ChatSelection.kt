@@ -18,10 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.Tooltip
 import kotlin.uuid.Uuid
 
@@ -74,9 +76,11 @@ internal fun ChatSelectionToolbar(
         visible = state.selecting,
         modifier = modifier,
         enter = slideInVertically(
+            animationSpec = rememberSpatialSpec<IntOffset>(),
             initialOffsetY = { it * 2 },
         ),
         exit = slideOutVertically(
+            animationSpec = rememberSpatialSpec<IntOffset>(),
             targetOffsetY = { it * 2 },
         ),
     ) {

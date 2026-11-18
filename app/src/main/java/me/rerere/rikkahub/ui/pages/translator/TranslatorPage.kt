@@ -9,7 +9,10 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -420,7 +423,18 @@ private fun TranslateToolbar(
                     }
                 },
             ) {
-                AnimatedContent(translating) { isTranslating ->
+                AnimatedContent(
+                    targetState = translating,
+                    // 图标按住的那一下同理：进出取同一档，关了动效直接换图
+                    transitionSpec = {
+                        (fadeIn(rememberEffectsSpec<Float>()) +
+                            scaleIn(animationSpec = rememberSpatialSpec<Float>()))
+                            .togetherWith(
+                                fadeOut(rememberEffectsSpec<Float>()) +
+                                    scaleOut(animationSpec = rememberSpatialSpec<Float>())
+                            )
+                    },
+                ) { isTranslating ->
                     if (isTranslating) {
                         Icon(HugeIcons.Stop, contentDescription = stringResource(R.string.translator_page_cancel))
                     } else {

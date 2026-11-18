@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +40,7 @@ import me.rerere.hugeicons.stroke.ArrowUpDouble
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
 // 消息列表上的浮动按钮：开了背景特效走玻璃底，关掉保持原来的半透明实色。
 // 下限 0.6 是因为底下压着消息正文，再透就认不出按钮边界了。
@@ -113,9 +115,11 @@ internal fun BoxScope.MessageJumper(
         visible = show,
         modifier = Modifier.align(if (onLeft) Alignment.CenterStart else Alignment.CenterEnd),
         enter = slideInHorizontally(
+            animationSpec = rememberSpatialSpec<IntOffset>(),
             initialOffsetX = { if (onLeft) -it * 2 else it * 2 },
         ),
         exit = slideOutHorizontally(
+            animationSpec = rememberSpatialSpec<IntOffset>(),
             targetOffsetX = { if (onLeft) -it * 2 else it * 2 },
         )
     ) {
