@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
-import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
@@ -78,6 +77,7 @@ import me.rerere.ui.components.ToggleSurface
 import me.rerere.ui.icons.ReasoningHigh
 import me.rerere.ui.icons.ReasoningLow
 import me.rerere.ui.icons.ReasoningMedium
+import kotlin.math.roundToInt
 
 private val levels = ReasoningLevel.entries
 private val levelCount = levels.size
@@ -200,7 +200,7 @@ fun ReasoningPicker(
         // 从思考强度面板切到模型列表时不关 sheet，直接换内容
         // 两页要叠在同一块区域上，所以套了 Box；Box 里是 BoxScope，直接写 AnimatedVisibility
         // 会落到 sheet 内容的 ColumnScope 那个重载上、被布局的 DSL marker 挡掉，这里显式指回去
-        Box(modifier = Modifier.animateContentSize().clipToBounds()) {
+        Box(modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()).clipToBounds()) {
             this@sheet.AnimatedVisibility(
                 visible = !showModelList,
                 enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeIn(rememberEffectsSpec<Float>()),

@@ -478,7 +478,7 @@ fun ChatMessage(
                 fadeOut(motionScheme.defaultEffectsSpec()),
         ) {
             Column(
-                modifier = Modifier.animateContentSize()
+                modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
             ) {
                 ChatMessageActionButtons(
                     message = message,

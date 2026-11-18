@@ -54,9 +54,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
-import java.time.LocalDate
-import java.time.ZoneId
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.flow.collect
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -82,6 +79,9 @@ import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.ui.components.AnimatedAlertDialog
+import java.time.LocalDate
+import java.time.ZoneId
+import kotlin.uuid.Uuid
 
 /**
  * Represents different types of items in the conversation list

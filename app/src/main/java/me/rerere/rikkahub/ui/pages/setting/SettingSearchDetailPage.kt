@@ -133,7 +133,7 @@ fun SettingSearchDetailPage(
                 ) {
                     Column(
                         modifier = Modifier
-                            .animateContentSize()
+                            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
                             .fillMaxWidth()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -250,7 +250,7 @@ private fun SearchTestSection(
     ) {
         Column(
             modifier = Modifier
-                .animateContentSize()
+                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)

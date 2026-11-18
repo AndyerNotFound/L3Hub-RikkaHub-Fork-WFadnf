@@ -54,9 +54,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import me.rerere.bettertext.highlight.CodeHighlighter
 import me.rerere.bettertext.highlight.HighlightTextColorPalette
 import me.rerere.bettertext.highlight.buildHighlightText
-import me.rerere.bettertext.highlight.CodeHighlighter
 import me.rerere.bettertext.highlight.rememberHighlightedCode
 import me.rerere.bettertext.text.BetterText
 import me.rerere.hugeicons.HugeIcons
@@ -341,7 +341,7 @@ private fun CodeBlockDefault(
         SelectableContent {
             BetterText(
                 text = rememberHighlightedCode(displayCode, language, colorPalette),
-                modifier = Modifier.animateContentSize(),
+                modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
                 style = codeTextStyle(textStyle),
             )
         }

@@ -43,10 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.asr.ASRState
-import me.rerere.rikkahub.R
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Voice
+import me.rerere.rikkahub.R
 
 private enum class AsrDisplayState {
     Idle, Connecting, Active
@@ -94,7 +94,7 @@ internal fun AsrButton(
         modifier = Modifier
             .height(36.dp)
             .widthIn(min = 36.dp)
-            .animateContentSize(animationSpec = MotionScheme.expressive().defaultSpatialSpec()),
+            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
         shape = CircleShape,
         tonalElevation = if (isIdle) 0.dp else 2.dp,
         color = containerColor,

@@ -72,7 +72,6 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
@@ -146,6 +145,7 @@ import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.io.File
 
 private enum class WorkspaceDetailTab(
     override val icon: ImageVector,

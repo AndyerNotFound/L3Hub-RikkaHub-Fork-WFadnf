@@ -90,7 +90,7 @@ fun ChatMessageSubAgentNotice(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(),
+            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box {

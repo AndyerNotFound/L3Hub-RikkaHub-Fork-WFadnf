@@ -31,12 +31,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
-import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
+import kotlin.math.abs
 
 // 松手时甩动速度达到这个值，直接按甩动方向收/开；否则看位移是否过半
 private val IntentSwipeVelocity = 350.dp

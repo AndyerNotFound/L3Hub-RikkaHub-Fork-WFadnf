@@ -97,8 +97,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
-import kotlin.math.abs
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -164,6 +162,8 @@ import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.components.AnimatedBasicAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
+import kotlin.math.abs
+import kotlin.uuid.Uuid
 
 @Composable
 fun ChatInput(
@@ -493,7 +493,7 @@ fun ChatInput(
                     if (pinContentToTop) {
                         Modifier
                     } else {
-                        Modifier.animateContentSize(alignment = Alignment.BottomStart)
+                        Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), alignment = Alignment.BottomStart)
                     },
                 )
                 // 进入/退出编辑时带上模糊：提示条收放和输入区变高变矮是一段动画，

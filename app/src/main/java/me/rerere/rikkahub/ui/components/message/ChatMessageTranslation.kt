@@ -252,7 +252,7 @@ fun CollapsibleTranslationText(
                         onClickCitation = onClickCitation,
                         modifier = Modifier
                             .padding(12.dp)
-                            .animateContentSize()
+                            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
                     )
                 }
             }
