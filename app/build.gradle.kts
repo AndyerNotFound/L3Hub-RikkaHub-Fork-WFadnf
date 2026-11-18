@@ -374,6 +374,8 @@ dependencies {
     implementation(project(":workspace"))
     implementation(project(":terminal"))
     implementation(project(":oauth"))
+    implementation(project(":extension-api"))
+    implementation(project(":feature-local-providers"))
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     // Leak Canary

@@ -6,73 +6,81 @@ import me.rerere.ai.provider.providers.claude.ClaudeProvider
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.provider.providers.grok.GrokProvider
 import me.rerere.ai.provider.providers.litert.LiteRTProvider
-import me.rerere.ai.provider.providers.local.LocalServerProvider
 import me.rerere.ai.provider.providers.openai.OpenAIProvider
 import me.rerere.ai.util.ImageEncodeCache
 import okhttp3.OkHttpClient
 
-/**
- * Provider管理器，负责注册和获取Provider实例
- */
-class ProviderManager(
-    client: OkHttpClient,
-    context: Context,
-    accountCredentials: AccountCredentialProvider,
+/** Resolves built-in and AAR-contributed providers. */
+class ProviderManager private constructor(
+    private val providers: ProviderRegistry,
 ) {
-    // 存储已注册的Provider实例
-    private val providers = mutableMapOf<String, Provider<*>>()
+    /** Creates a manager from preassembled contributions for JVM tests. */
+    internal constructor(providerContributions: Map<String, Provider<*>>) : this(ProviderRegistry()) {
+        providerContributions.forEach { (name, provider) ->
+            registerProvider(name, provider)
+        }
+    }
 
-    init {
+    constructor(
+        client: OkHttpClient,
+        context: Context,
+        accountCredentials: AccountCredentialProvider,
+        extensionProviders: Map<String, Provider<*>> = emptyMap(),
+    ) : this(ProviderRegistry()) {
         ImageEncodeCache.init(context.cacheDir)
 
-        // 注册默认Provider
-        registerProvider("openai", KeyFailoverProvider(OpenAIProvider(client, context)))
-        registerProvider("google", KeyFailoverProvider(GoogleProvider(client, context)))
-        registerProvider("claude", KeyFailoverProvider(ClaudeProvider(client, context)))
-        registerProvider("chatgpt", ChatGPTProvider(client, accountCredentials))
-        registerProvider("grok", GrokProvider(client, accountCredentials))
-        registerProvider("litert", LiteRTProvider(context))
-        registerProvider("gguf", LocalServerProvider(OpenAIProvider(client, context)))
-        registerProvider("onnx", LocalServerProvider(OpenAIProvider(client, context)))
+        registerProvider(OPENAI, KeyFailoverProvider(OpenAIProvider(client, context)))
+        registerProvider(GOOGLE, KeyFailoverProvider(GoogleProvider(client, context)))
+        registerProvider(CLAUDE, KeyFailoverProvider(ClaudeProvider(client, context)))
+        registerProvider(CHATGPT, ChatGPTProvider(client, accountCredentials))
+        registerProvider(GROK, GrokProvider(client, accountCredentials))
+        registerProvider(LITERT, LiteRTProvider(context))
+
+        extensionProviders.forEach { (name, provider) ->
+            registerProvider(name, provider)
+        }
     }
 
-    /**
-     * 注册Provider实例
-     *
-     * @param name Provider名称
-     * @param provider Provider实例
-     */
+    /** Registers a provider without silently replacing an existing registration. */
     fun registerProvider(name: String, provider: Provider<*>) {
-        providers[name] = provider
+        providers.register(name, provider)
     }
 
-    /**
-     * 获取Provider实例
-     *
-     * @param name Provider名称
-     * @return Provider实例，如果不存在则返回null
-     */
-    fun getProvider(name: String): Provider<*> {
-        return providers[name] ?: throw IllegalArgumentException("Provider not found: $name")
-    }
+    /** Returns a provider or throws [IllegalArgumentException] when its name is unknown. */
+    fun getProvider(name: String): Provider<*> = providers.get(name)
 
-    /**
-     * 根据ProviderSetting获取对应的Provider实例
-     *
-     * @param setting Provider设置
-     * @return Provider实例，如果不存在则返回null
-     */
+    /** Resolves the provider type used by the existing persisted settings. */
     fun <T : ProviderSetting> getProviderByType(setting: T): Provider<T> {
         @Suppress("UNCHECKED_CAST")
         return when (setting) {
-            is ProviderSetting.OpenAI -> getProvider("openai")
-            is ProviderSetting.Google -> getProvider("google")
-            is ProviderSetting.Claude -> getProvider("claude")
-            is ProviderSetting.ChatGPT -> getProvider("chatgpt")
-            is ProviderSetting.Grok -> getProvider("grok")
-            is ProviderSetting.LiteRT -> getProvider("litert")
-            is ProviderSetting.GGUF -> getProvider("gguf")
-            is ProviderSetting.ONNX -> getProvider("onnx")
+            is ProviderSetting.OpenAI -> getProvider(OPENAI)
+            is ProviderSetting.Google -> getProvider(GOOGLE)
+            is ProviderSetting.Claude -> getProvider(CLAUDE)
+            is ProviderSetting.ChatGPT -> getProvider(CHATGPT)
+            is ProviderSetting.Grok -> getProvider(GROK)
+            is ProviderSetting.LiteRT -> getProvider(LITERT)
+            is ProviderSetting.GGUF -> getProvider(GGUF)
+            is ProviderSetting.ONNX -> getProvider(ONNX)
         } as Provider<T>
+    }
+
+    companion object {
+        private const val OPENAI = "openai"
+        private const val GOOGLE = "google"
+        private const val CLAUDE = "claude"
+        private const val CHATGPT = "chatgpt"
+        private const val GROK = "grok"
+        private const val LITERT = "litert"
+        private const val GGUF = "gguf"
+        private const val ONNX = "onnx"
+
+        val BUILT_IN_PROVIDER_TYPES: Set<String> = setOf(
+            OPENAI,
+            GOOGLE,
+            CLAUDE,
+            CHATGPT,
+            GROK,
+            LITERT,
+        )
     }
 }
