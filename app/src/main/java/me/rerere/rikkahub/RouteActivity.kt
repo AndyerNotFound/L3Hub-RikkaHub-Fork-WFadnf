@@ -24,19 +24,19 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,21 +44,21 @@ import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -89,11 +89,7 @@ import coil3.network.cachecontrol.CacheControlCacheStrategy
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
-import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
-import me.rerere.rikkahub.utils.AppLanguage
-import me.rerere.rikkahub.utils.getActivity
-import me.rerere.ui.toast.Toaster
-import me.rerere.ui.toast.rememberToasterState
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AppLockStateStore
@@ -108,6 +104,7 @@ import me.rerere.rikkahub.ui.activity.AppLockActivity
 import me.rerere.rikkahub.ui.activity.AppLockScreen
 import me.rerere.rikkahub.ui.activity.SafeModeActivity
 import me.rerere.rikkahub.ui.activity.activityOrientation
+import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.TTSController
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -127,9 +124,9 @@ import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantExtensionsPage
+import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantHeartbeatPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantHeartbeatPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
@@ -140,62 +137,66 @@ import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailPage
-import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceFileEditorPage
+import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
-import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationPage
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsPage
+import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
+import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesThemePage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPalettePage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesUIPage
-import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
-import me.rerere.rikkahub.ui.pages.setting.SettingToolOverridePage
-import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
-import me.rerere.rikkahub.ui.pages.setting.SettingRail
-import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
-import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPage
-import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
-import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMediaPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMediaProviderDetailPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPalettePage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesThemePage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesUIPage
+import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
+import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
+import me.rerere.rikkahub.ui.pages.setting.SettingRail
+import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
+import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
+import me.rerere.rikkahub.ui.pages.setting.SettingToolOverridePage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
+import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
+import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.openUsageAccessSettings
+import me.rerere.ui.toast.Toaster
+import me.rerere.ui.toast.rememberToasterState
+import me.rerere.workspace.WorkspaceStorageArea
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
-import kotlin.uuid.Uuid
 
 private const val TAG = "RouteActivity"
 private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
@@ -986,8 +987,8 @@ class RouteActivity : ComponentActivity() {
                     }
                     AnimatedVisibility(
                         visible = migrationState is MigrationState.Migrating,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
+                        enter = fadeIn(rememberEffectsSpec<Float>()),
+                        exit = fadeOut(rememberEffectsSpec<Float>()),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         val state = migrationState as? MigrationState.Migrating

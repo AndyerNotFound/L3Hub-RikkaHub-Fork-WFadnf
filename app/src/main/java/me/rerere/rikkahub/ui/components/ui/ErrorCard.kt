@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -45,7 +46,7 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatErrorSolution
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.terminal.IconButton
-import kotlin.uuid.Uuid
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 
 @Composable
 fun ErrorCardsDisplay(
@@ -57,8 +58,8 @@ fun ErrorCardsDisplay(
     AnimatedVisibility(
         visible = errors.isNotEmpty(),
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(rememberEffectsSpec<Float>()),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(rememberEffectsSpec<Float>()),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -19,6 +19,14 @@ val LocalAnimationSpeed = compositionLocalOf { AnimationSpeed.SYSTEM }
 val LocalMotionBlur = compositionLocalOf { MotionBlurSetting() }
 
 /**
+ * 动效是否开启，由主题层写入。
+ *
+ * [LocalAnimationSpeed] 把「关闭」压成了 SYSTEM，读档位的人分不出「跟随 Material」和「用户关了动效」，
+ * 手写的 spec 于是照常播完——侧边栏滑了 300ms 才停下。开关单独放一个 local，手写动画先读它。
+ */
+val LocalAnimationsEnabled = compositionLocalOf { true }
+
+/**
  * 模糊自己的收放曲线：时长跟设置里的「过渡时长」走，和位移动画各用各的档位。
  *
  * 各处带模糊的过渡原先各拿各的 spec，用户调不了节奏；统一到这里以后，
@@ -134,7 +142,7 @@ fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
  */
 @Composable
 fun <T> rememberSlideSpec(animated: Boolean = true): FiniteAnimationSpec<T> {
-    if (!animated) return snap()
+    if (!animated || !LocalAnimationsEnabled.current) return snap()
     return when (LocalAnimationSpeed.current) {
         AnimationSpeed.SYSTEM -> tween(durationMillis = 300, easing = FastOutSlowInEasing)
         AnimationSpeed.FAST -> tween(durationMillis = 180, easing = FastOutSlowInEasing)

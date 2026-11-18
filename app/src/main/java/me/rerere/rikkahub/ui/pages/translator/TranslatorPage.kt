@@ -56,10 +56,12 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import java.util.Locale
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
@@ -87,10 +89,11 @@ import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.getText
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
-import java.util.Locale
 
 @Composable
 fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
@@ -297,8 +300,8 @@ private fun InputCard(
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(
                     visible = text.isNotEmpty(),
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+                    enter = fadeIn(rememberEffectsSpec<Float>()),
+                    exit = fadeOut(rememberEffectsSpec<Float>()),
                 ) {
                     IconButton(onClick = { onTextChange("") }) {
                         Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.translator_page_clear_input))
@@ -343,7 +346,11 @@ private fun ResultCard(
                 color = MaterialTheme.colorScheme.primary,
             )
 
-            AnimatedVisibility(translating) {
+            AnimatedVisibility(
+                visible = translating,
+                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
+                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
+            ) {
                 LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 

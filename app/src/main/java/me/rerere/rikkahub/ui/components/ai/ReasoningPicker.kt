@@ -1,20 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -22,6 +7,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,35 +23,47 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.drop
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
@@ -69,12 +71,13 @@ import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.ToggleSurface
 import me.rerere.ui.icons.ReasoningHigh
 import me.rerere.ui.icons.ReasoningLow
 import me.rerere.ui.icons.ReasoningMedium
-import kotlin.math.roundToInt
 
 private val levels = ReasoningLevel.entries
 private val levelCount = levels.size
@@ -200,8 +203,8 @@ fun ReasoningPicker(
         Box(modifier = Modifier.animateContentSize().clipToBounds()) {
             this@sheet.AnimatedVisibility(
                 visible = !showModelList,
-                enter = slideInHorizontally { -it } + fadeIn(),
-                exit = slideOutHorizontally { -it } + fadeOut(),
+                enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeIn(rememberEffectsSpec<Float>()),
+                exit = slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeOut(rememberEffectsSpec<Float>()),
             ) {
                 Column(
                     modifier = Modifier
@@ -315,8 +318,8 @@ fun ReasoningPicker(
             if (modelContent != null) {
                 this@sheet.AnimatedVisibility(
                     visible = showModelList,
-                    enter = slideInHorizontally { it } + fadeIn(),
-                    exit = slideOutHorizontally { it } + fadeOut(),
+                    enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { it } + fadeIn(rememberEffectsSpec<Float>()),
+                    exit = slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { it } + fadeOut(rememberEffectsSpec<Float>()),
                 ) {
                     modelContent { onDismissRequest() }
                 }

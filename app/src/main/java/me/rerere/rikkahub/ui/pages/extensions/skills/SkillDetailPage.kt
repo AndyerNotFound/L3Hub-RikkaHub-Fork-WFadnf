@@ -65,6 +65,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.terminal.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -108,8 +110,8 @@ fun SkillDetailPage(skillName: String) {
         floatingActionButton = {
             AnimatedVisibility(
                 visible = fabVisible && !readOnly,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut(),
+                enter = fadeIn(rememberEffectsSpec<Float>()) + scaleIn(animationSpec = rememberSpatialSpec<Float>()),
+                exit = fadeOut(rememberEffectsSpec<Float>()) + scaleOut(animationSpec = rememberSpatialSpec<Float>()),
             ) {
                 FloatingActionButton(onClick = { showAddDialog = true }) {
                     Icon(HugeIcons.Add01, contentDescription = null)

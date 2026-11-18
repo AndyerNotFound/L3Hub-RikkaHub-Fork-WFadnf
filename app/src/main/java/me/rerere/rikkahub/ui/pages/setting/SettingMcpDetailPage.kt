@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.uuid.Uuid
 import me.rerere.ai.core.InputSchema
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -91,6 +92,7 @@ import me.rerere.rikkahub.ui.terminal.HorizontalDivider
 import me.rerere.rikkahub.ui.terminal.IconButton
 import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.Switch
@@ -98,7 +100,6 @@ import me.rerere.ui.components.SwitchSize
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import kotlin.uuid.Uuid
 
 private enum class McpDetailTab(
     override val icon: ImageVector,
@@ -267,8 +268,8 @@ private fun McpBasicSettingsTab(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset(y = -ScreenOffset),
-            enter = fadeIn() + scaleIn(initialScale = 0.8f),
-            exit = fadeOut() + scaleOut(targetScale = 0.8f),
+            enter = fadeIn(rememberEffectsSpec<Float>()) + scaleIn(initialScale = 0.8f),
+            exit = fadeOut(rememberEffectsSpec<Float>()) + scaleOut(targetScale = 0.8f),
         ) {
             HorizontalFloatingToolbar(
                 expanded = expanded,

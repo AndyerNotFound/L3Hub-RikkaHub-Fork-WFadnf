@@ -224,6 +224,9 @@ fun RikkahubTheme(
                     } else {
                         settings.displaySetting.motionBlur
                     },
+                    // 手写的位移动画（侧边栏、菜单这类不走 MotionScheme 的）在关闭动效时也要停，
+                    // 单独下发开关：档位那个 local 把关闭压成了 SYSTEM，读不出区别
+                    LocalAnimationsEnabled provides !settings.displaySetting.disableAnimations,
                 ) {
                     val body: @Composable () -> Unit = {
                         if (wrapContent) {

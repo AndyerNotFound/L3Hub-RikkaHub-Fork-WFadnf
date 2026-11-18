@@ -1,9 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -35,11 +33,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-
-private val DefaultSlideSpec = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
 
 // 松手时甩动速度达到这个值，直接按甩动方向收/开；否则看位移是否过半
 private val IntentSwipeVelocity = 350.dp
@@ -64,7 +61,8 @@ internal fun SlideOverDrawer(
     modifier: Modifier = Modifier,
     gesturesEnabled: Boolean = true,
     scrimColor: Color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f),
-    animationSpec: AnimationSpec<Float> = DefaultSlideSpec,
+    // 跟随设置里的「动画速度」档位；关闭动效时 rememberSlideSpec 直接给 snap
+    animationSpec: AnimationSpec<Float> = rememberSlideSpec(),
     sheet: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {

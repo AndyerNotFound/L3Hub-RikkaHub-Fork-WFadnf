@@ -92,11 +92,13 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
+import kotlin.math.abs
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -156,12 +158,12 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.components.AnimatedBasicAlertDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
-import kotlin.math.abs
-import kotlin.uuid.Uuid
 
 @Composable
 fun ChatInput(
@@ -725,8 +727,8 @@ fun ChatInput(
                                     }
                                     AnimatedVisibility(
                                         visible = !asrState.isRecording,
-                                        enter = fadeIn() + scaleIn(),
-                                        exit = fadeOut() + scaleOut(),
+                                        enter = fadeIn(rememberEffectsSpec<Float>()) + scaleIn(animationSpec = rememberSpatialSpec<Float>()),
+                                        exit = fadeOut(rememberEffectsSpec<Float>()) + scaleOut(animationSpec = rememberSpatialSpec<Float>()),
                                     ) {
                                         SendButton(
                                             loading = loading,
