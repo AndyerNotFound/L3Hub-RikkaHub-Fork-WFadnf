@@ -60,6 +60,8 @@ jobs:
           ./gradlew \
             :app:testGithubDebugUnitTest \
             :ai:testDebugUnitTest \
+            :extension-api:testDebugUnitTest \
+            :feature-local-providers:testDebugUnitTest \
             :search:testDebugUnitTest \
             :workspace:testDebugUnitTest \
             :document:testDebugUnitTest \
