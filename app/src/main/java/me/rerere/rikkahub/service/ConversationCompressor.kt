@@ -5,6 +5,7 @@ import android.util.Log
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -22,6 +23,7 @@ import me.rerere.rikkahub.data.model.autoCompressTriggerTokens
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.insertContextCheckpoint
+import me.rerere.rikkahub.data.model.lastContextTokens
 
 private const val TAG = "ConversationCompressor"
 
