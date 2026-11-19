@@ -1332,12 +1332,7 @@ private fun UserMessageContent(
 ) {
     val settings = LocalSettings.current.displaySetting
     val attachments = remember(parts) {
-        parts.filter {
-            it is UIMessagePart.Image ||
-                it is UIMessagePart.Document ||
-                it is UIMessagePart.Video ||
-                it is UIMessagePart.Audio
-        }
+        parts.filter { it.isAttachmentPart() }
     }
     val texts = remember(parts) {
         parts.filterIsInstance<UIMessagePart.Text>().filter { it.text.isNotBlank() }
@@ -1463,6 +1458,31 @@ private fun UserMessageOcrResults(parts: List<UIMessagePart>) {
     }
 }
 
+/** 附件部件的来源地址（图片/文档/视频/音频），其它部件返回 null */
+private fun UIMessagePart.attachmentUrl(): String? = when (this) {
+    is UIMessagePart.Image -> url
+    is UIMessagePart.Document -> url
+    is UIMessagePart.Video -> url
+    is UIMessagePart.Audio -> url
+    else -> null
+}
+
+/** 是否为用户附件部件 */
+private fun UIMessagePart.isAttachmentPart(): Boolean = attachmentUrl() != null
+
+/** 附件卡片的标题：文档取文件名，其余取路径末段，再退化为类型名 */
+private fun UIMessagePart.attachmentTitle(url: String): String = when (this) {
+    is UIMessagePart.Document -> fileName.ifBlank { url.substringAfterLast('/') }
+    else -> url.substringAfterLast('/').ifBlank {
+        when (this) {
+            is UIMessagePart.Image -> "image"
+            is UIMessagePart.Video -> "video"
+            is UIMessagePart.Audio -> "audio"
+            else -> "file"
+        }
+    }
+}
+
 @Composable
 private fun UserAttachmentTiles(
     attachments: List<UIMessagePart>,
@@ -1481,13 +1501,7 @@ private fun UserAttachmentTiles(
                 part = part,
                 moreCount = more,
                 onClick = {
-                    val url = when (part) {
-                        is UIMessagePart.Image -> part.url
-                        is UIMessagePart.Document -> part.url
-                        is UIMessagePart.Video -> part.url
-                        is UIMessagePart.Audio -> part.url
-                        else -> null
-                    }
+                    val url = part.attachmentUrl()
                     if (!url.isNullOrBlank()) context.openLocalFile(url)
                 },
                 onLongClick = onLongClick,
@@ -1504,24 +1518,8 @@ private fun UserAttachmentTile(
     onLongClick: (() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val partUrl = when (part) {
-        is UIMessagePart.Image -> part.url
-        is UIMessagePart.Document -> part.url
-        is UIMessagePart.Video -> part.url
-        is UIMessagePart.Audio -> part.url
-        else -> ""
-    }
-    val title = when (part) {
-        is UIMessagePart.Document -> part.fileName.ifBlank { partUrl.substringAfterLast('/') }
-        else -> partUrl.substringAfterLast('/').ifBlank {
-            when (part) {
-                is UIMessagePart.Image -> "image"
-                is UIMessagePart.Video -> "video"
-                is UIMessagePart.Audio -> "audio"
-                else -> "file"
-            }
-        }
-    }
+    val partUrl = part.attachmentUrl().orEmpty()
+    val title = part.attachmentTitle(partUrl)
     Surface(
         // 用带 onClick 的 Surface 时它自带 48dp 最小触控尺寸，换成分开挂手势后要自己补回来
         modifier = Modifier
