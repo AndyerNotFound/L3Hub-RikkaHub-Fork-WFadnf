@@ -27,8 +27,8 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus

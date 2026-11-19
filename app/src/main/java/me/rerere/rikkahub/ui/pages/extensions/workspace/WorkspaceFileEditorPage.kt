@@ -32,8 +32,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.ui.toast.ToastType

@@ -28,8 +28,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AlertCircle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.ui.components.AnimatedDialog
 
 /**

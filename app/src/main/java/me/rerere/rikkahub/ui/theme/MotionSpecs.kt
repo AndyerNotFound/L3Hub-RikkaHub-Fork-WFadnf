@@ -12,7 +12,7 @@ import androidx.compose.runtime.compositionLocalOf
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.MotionBlurSetting
 
-/** 当前这一帧该用哪一档动画速度，由设置页写入、RouteActivity 提供。 */
+/** 当前这一帧该用哪一档动画速度，由主题层（RikkahubTheme）写入；没有主题包着时按 SYSTEM 走。 */
 val LocalAnimationSpeed = compositionLocalOf { AnimationSpeed.SYSTEM }
 
 /** 当前生效的动态模糊参数，由主题层写入；没有主题包着时按默认值走。 */
@@ -46,21 +46,13 @@ fun rememberMotionBlurSpec(): FiniteAnimationSpec<Float> {
 }
 
 /**
- * 页面转场、列表展开这类"位移"动画统一从这里取曲线。
- *
- * SYSTEM 直接用 Material 的 expressive 空间曲线；另外两档换成固定弹簧，
- * 差别只体现在松紧：FAST 收得快，GENTLE 拖得久。
- * 关了动效时上层会把 [LocalAnimationSpeed] 固定成 SYSTEM，
- * 而那时的 motionScheme 已经是 snap，所以这里不用再单独判断。
- */
-/**
  * 档位到 MotionScheme 的映射：material3 自己的动效（底部抽屉的收放、菜单、对话框遮罩、
  * 拖拽吸附）只读 [MaterialTheme.motionScheme]，不走下面这几个自定义 helper。
  *
  * 只挂 [androidx.compose.material3.MotionScheme.expressive] 的话，「动画速度」调成快 / 缓
  * 只影响我们手写的位移动画，弹窗还按原来的时长慢慢滑——所以三档在这里各给一套。
  * 数值与 [rememberSpatialSpec] / [rememberFastSpatialSpec] / [rememberEffectsSpec] 同源，
- * 那两个 helper 现在直接读当前 scheme，改这里等于一起改。
+ * 这几个 helper 现在直接读当前 scheme，改这里等于一起改。
  */
 private object FastMotionScheme : MotionScheme {
     override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =

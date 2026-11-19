@@ -36,7 +36,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable

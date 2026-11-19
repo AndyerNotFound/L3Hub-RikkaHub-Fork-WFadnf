@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.terminal
+package me.rerere.rikkahub.ui.style
 
 import androidx.compose.ui.state.ToggleableState
 import me.rerere.rikkahub.data.datastore.UiStyle

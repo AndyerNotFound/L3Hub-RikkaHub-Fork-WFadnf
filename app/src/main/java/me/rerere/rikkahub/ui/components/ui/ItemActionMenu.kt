@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 
 /**
  * 列表 item 的次要操作（复制、导出、重命名、删除等）。

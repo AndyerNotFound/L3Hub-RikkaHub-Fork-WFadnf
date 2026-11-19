@@ -114,9 +114,9 @@ import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.OutlinedButton
+import me.rerere.rikkahub.ui.style.TextButton
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.uuid.Uuid

@@ -92,9 +92,9 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.memory.resultText
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.RadioButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.RadioButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog

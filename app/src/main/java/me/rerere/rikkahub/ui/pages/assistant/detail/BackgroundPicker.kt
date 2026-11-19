@@ -38,7 +38,7 @@ import me.rerere.rikkahub.ui.components.ui.CroppedImage
 import me.rerere.rikkahub.ui.components.ui.VideoThumbnail
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.crop.NormalizedCrop
 import kotlinx.coroutines.Dispatchers

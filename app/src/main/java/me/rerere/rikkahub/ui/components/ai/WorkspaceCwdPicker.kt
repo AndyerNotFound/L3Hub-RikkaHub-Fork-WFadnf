@@ -40,9 +40,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.WorkspaceCwd
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.terminal.HorizontalDivider
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.HorizontalDivider
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea

@@ -295,14 +295,14 @@ fun ChatExportSheet(
                 ) {
                     Text(stringResource(R.string.chat_page_export_include_reasoning))
                 }
-                if (format == ChatExportFormat.Image) {
-                    switchItem(
-                        checked = exportOptions.expandReasoning,
-                        enabled = exportOptions.includeReasoning,
-                        onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
-                    ) {
-                        Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
-                    }
+                switchItem(
+                    checked = exportOptions.expandReasoning,
+                    enabled = exportOptions.includeReasoning,
+                    onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
+                    // 只有导出图片时用得上：始终注册，靠 visible 收放
+                    visible = format == ChatExportFormat.Image,
+                ) {
+                    Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
                 }
             }
 

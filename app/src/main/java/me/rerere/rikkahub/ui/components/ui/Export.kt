@@ -17,8 +17,8 @@ import me.rerere.hugeicons.stroke.File01
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.ExporterState
-import me.rerere.rikkahub.ui.terminal.OutlinedCard
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.OutlinedCard
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
 
 @Composable

@@ -19,8 +19,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +58,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -73,13 +70,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
@@ -90,7 +84,6 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AppLockStateStore
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
@@ -118,7 +111,8 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
-import me.rerere.rikkahub.ui.hooks.rememberNavInteractionDecorator
+import me.rerere.rikkahub.ui.navigation.rememberAppNavEntryDecorators
+import me.rerere.rikkahub.ui.navigation.rememberNavTransitionSpecs
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
@@ -185,7 +179,6 @@ import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.rikkahub.utils.getActivity
@@ -510,9 +503,9 @@ class RouteActivity : ComponentActivity() {
                         .semantics { testTagsAsResourceId = true }
                         .background(MaterialTheme.colorScheme.background)
                 ) {
-                    // 页面滑入/滑出用 expressive 的空间曲线（有加速有减速），
-                    // 默认那个弹簧偏匀速，看起来像线性
-                    val pageSlideSpec = rememberSpatialSpec<IntOffset>()
+                    // 中列与右列共用同一份转场规格：进场按 enterFromTop 决定从哪一侧落下，
+                    // 普通返回与预测性返回是同一个 lambda（见 ui/navigation/NavTransitions.kt）
+                    val navTransitionSpecs = rememberNavTransitionSpecs()
                     val navController = LocalNavController.current
                     // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
                     // 栏本身不参与转场，NavDisplay 一直待在同一个槽位里，进出设置不会重建。
@@ -571,273 +564,9 @@ class RouteActivity : ComponentActivity() {
                     }
                     val shownRightStack = if (rightStack.isNotEmpty()) rightStack else lastRightStack
 
-                    // 导航条目只构造一份，中列和右列的两个 NavDisplay 共用
-                    val navEntries = entryProvider {
-                            // 转场交给 display 级的 transitionSpec：抽屉点进来的会话要按 enterFromTop
-                            // 从对应一侧落下，entry 级 metadata 会把整套 spec 盖掉
-                            entry<Screen.Chat> { key ->
-                                ChatPage(
-                                    id = Uuid.parse(key.id),
-                                    text = key.text,
-                                    files = key.files.map { it.toUri() },
-                                    nodeId = key.nodeId?.let { Uuid.parse(it) }
-                                )
-                            }
-
-                            heroEntry<Screen.ShareHandler> { key ->
-                                ShareHandlerPage(
-                                    text = key.text,
-                                    image = key.streamUri
-                                )
-                            }
-
-                            heroEntry<Screen.History> {
-                                HistoryPage()
-                            }
-
-                            heroEntry<Screen.Favorite> {
-                                FavoritePage()
-                            }
-
-                            heroEntry<Screen.Assistant> {
-                                AssistantPage()
-                            }
-
-                            heroEntry<Screen.AssistantDetail> { key ->
-                                AssistantDetailPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantBasic> { key ->
-                                AssistantBasicPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantPrompt> { key ->
-                                AssistantPromptPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantMemory> { key ->
-                                AssistantMemoryPage(key.id)
-                            }
-
-                            heroEntry<Screen.MemoryFile> { key ->
-                                MemoryFilePage(memoryId = key.memoryId, path = key.path)
-                            }
-
-                            heroEntry<Screen.AssistantRequest> { key ->
-                                AssistantRequestPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantHeartbeat> { key ->
-                                AssistantHeartbeatPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantMcp> { key ->
-                                AssistantMcpPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantLocalTool> { key ->
-                                AssistantLocalToolPage(key.id)
-                            }
-
-                            heroEntry<Screen.AssistantInjections> { key ->
-                                AssistantExtensionsPage(key.id)
-                            }
-
-                            heroEntry<Screen.Translator> {
-                                TranslatorPage()
-                            }
-
-                            // 切换配色时会 popUpTo 原地重进，同一个 heroKey 新旧两页同时在组合里，这页不套容器变换
-                            entry<Screen.Setting> {
-                                SettingPage()
-                            }
-
-                            heroEntry<Screen.Backup> {
-                                BackupPage()
-                            }
-
-                            heroEntry<Screen.ImageGen> {
-                                ImageGenPage()
-                            }
-
-                            heroEntry<Screen.MediaCreationSessions> {
-                                MediaCreationSessionsPage()
-                            }
-
-                            // 从会话列表展开（容器变换）：位移交给页面内部的 sharedBounds 演，
-                            // display 级不叠转场；返回不单独覆盖，跟其它页一样走 display 级的下滑
-                            entry<Screen.MediaCreation>(
-                                metadata = NavDisplay.transitionSpec {
-                                    EnterTransition.None togetherWith ExitTransition.None
-                                }
-                            ) { key ->
-                                MediaCreationPage(key.id)
-                            }
-
-                            heroEntry<Screen.WebView> { key ->
-                                WebViewPage(key.url, key.contentId)
-                            }
-
-                            heroEntry<Screen.SettingTheme> {
-                                SettingThemePage()
-                            }
-
-                            heroEntry<Screen.SettingPalette> {
-                                SettingPalettePage()
-                            }
-
-                            heroEntry<Screen.SettingPreferences> {
-                                SettingPreferencesPage()
-                            }
-
-                            heroEntry<Screen.SettingPreferencesTheme> {
-                                SettingPreferencesThemePage()
-                            }
-
-                            heroEntry<Screen.SettingPreferencesNotification> {
-                                SettingPreferencesNotificationPage()
-                            }
-
-                            heroEntry<Screen.SettingPreferencesGeneral> {
-                                SettingPreferencesGeneralPage()
-                            }
-
-                            heroEntry<Screen.SettingPreferencesUI> {
-                                SettingPreferencesUIPage()
-                            }
-
-                            heroEntry<Screen.SettingPreferencesNetwork> {
-                                SettingPreferencesNetworkPage()
-                            }
-
-                            heroEntry<Screen.SettingProvider> {
-                                SettingProviderPage()
-                            }
-
-                            heroEntry<Screen.SettingProviderDetail> { key ->
-                                SettingProviderDetailPage(id = Uuid.parse(key.providerId))
-                            }
-
-                            heroEntry<Screen.SettingModels> {
-                                SettingModelPage()
-                            }
-
-                            heroEntry<Screen.ModelEditor> { key ->
-                                ModelEditorPage(
-                                    providerId = Uuid.parse(key.providerId),
-                                    modelId = key.modelId,
-                                )
-                            }
-
-                            heroEntry<Screen.SettingAbout> {
-                                SettingAboutPage()
-                            }
-
-                            heroEntry<Screen.SettingSearch> {
-                                SettingSearchPage()
-                            }
-
-                            heroEntry<Screen.SettingSearchDetail> { key ->
-                                val id = Uuid.parse(key.serviceId)
-                                SettingSearchDetailPage(id)
-                            }
-
-                            heroEntry<Screen.SettingSpeech> {
-                                SettingSpeechPage()
-                            }
-
-                            heroEntry<Screen.SettingMedia> {
-                                SettingMediaPage()
-                            }
-
-                            heroEntry<Screen.SettingMediaProviderDetail> { key ->
-                                SettingMediaProviderDetailPage(id = Uuid.parse(key.providerId))
-                            }
-
-                            heroEntry<Screen.SettingMcp> {
-                                SettingMcpPage()
-                            }
-
-                            heroEntry<Screen.ToolOverrides> {
-                                SettingToolOverridePage()
-                            }
-
-                            heroEntry<Screen.SettingMcpDetail> { key ->
-                                SettingMcpDetailPage(id = Uuid.parse(key.serverId))
-                            }
-
-                            heroEntry<Screen.SettingDonate> {
-                                SettingDonatePage()
-                            }
-
-                            heroEntry<Screen.SettingFiles> {
-                                SettingFilesPage()
-                            }
-
-                            heroEntry<Screen.SettingWeb> {
-                                SettingWebPage()
-                            }
-
-                            heroEntry<Screen.Debug> {
-                                DebugPage()
-                            }
-
-                            heroEntry<Screen.Log> {
-                                LogPage()
-                            }
-
-                            heroEntry<Screen.Extensions> {
-                                ExtensionsPage()
-                            }
-
-                            heroEntry<Screen.QuickMessages> {
-                                QuickMessagesPage()
-                            }
-
-                            heroEntry<Screen.Prompts> {
-                                PromptPage()
-                            }
-
-                            heroEntry<Screen.Skills> {
-                                SkillsPage()
-                            }
-
-                            heroEntry<Screen.Workspaces> {
-                                WorkspacePage()
-                            }
-
-                            heroEntry<Screen.WorkspaceDetail> { key ->
-                                WorkspaceDetailPage(key.id)
-                            }
-
-                            heroEntry<Screen.WorkspaceTerminal> { key ->
-                                WorkspaceTerminalPage(key.id)
-                            }
-
-                            heroEntry<Screen.WorkspaceSshEditor> { key ->
-                                WorkspaceSshEditorPage(key.id)
-                            }
-
-                            heroEntry<Screen.WorkspaceFileEditor> { key ->
-                                WorkspaceFileEditorPage(
-                                    id = key.id,
-                                    area = WorkspaceStorageArea.valueOf(key.area),
-                                    path = key.path,
-                                )
-                            }
-
-                            heroEntry<Screen.SkillDetail> { key ->
-                                SkillDetailPage(skillName = key.skillName)
-                            }
-
-                            heroEntry<Screen.MessageSearch> {
-                                SearchPage()
-                            }
-
-                            heroEntry<Screen.Stats> {
-                                StatsPage()
-                            }
-                    }
+                    // 导航条目只构造一份，中列和右列的两个 NavDisplay 共用；
+                    // 里面只读 key、不读组合状态，所以记得住，不必每次重组重建
+                    val navEntries = remember { appNavEntries() }
 
                     Row(
                         modifier = Modifier
@@ -854,126 +583,99 @@ class RouteActivity : ComponentActivity() {
                                 },
                             ),
                     ) {
-                    if (settingRailWidth > 0.dp) {
-                        Box(
-                            modifier = Modifier
-                                .width(settingRailWidth)
-                                .fillMaxHeight()
-                                .clipToBounds(),
-                        ) {
-                            SettingRail(
-                                current = currentScreen,
-                                // 换分区时把上一分区的详情页收掉，返回只回到设置首页
-                                onNavigate = { target ->
-                                    navController.navigate(target) {
-                                        popUpTo(Screen.Setting)
-                                        launchSingleTop = true
-                                    }
-                                },
-                            )
+                        if (settingRailWidth > 0.dp) {
+                            Box(
+                                modifier = Modifier
+                                    .width(settingRailWidth)
+                                    .fillMaxHeight()
+                                    .clipToBounds(),
+                            ) {
+                                SettingRail(
+                                    current = currentScreen,
+                                    // 换分区时把上一分区的详情页收掉，返回只回到设置首页
+                                    onNavigate = { target ->
+                                        navController.navigate(target) {
+                                            popUpTo(Screen.Setting)
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                )
+                            }
                         }
-                    }
-                    // 设置中列不再随右列变宽被压缩：宽度固定成「右列最窄时」的宽度，
-                    // 右列更宽时从右边盖上来，列表不会跟着来回重排
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                    ) {
-                        val contentWidth = maxWidth
-                        val minRightFraction = 0.34f
-                        val middleTargetWidth = if (splitSettingColumns) {
-                            contentWidth * (1f - minRightFraction)
-                        } else {
-                            contentWidth
-                        }
-                        val middleColumnWidth by animateDpAsState(
-                            targetValue = middleTargetWidth,
-                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                            label = "settingMiddleWidth",
-                        )
-                        val rightColumnWidth = (contentWidth * rightColumnFraction)
-                            .coerceIn(1.dp, contentWidth)
-
-                    NavDisplay(
-                        backStack = middleStack,
-                        entryDecorators = listOf(
-                            rememberSaveableStateHolderNavEntryDecorator(),
-                            rememberViewModelStoreNavEntryDecorator(),
-                            // 转场期间的点击拦截与状态回写合在一处（见 NavInputGuard.kt）：
-                            // 离场页仍然组合着、也仍然吃点击（nav3 1.2.0 的已知问题），
-                            // 同时把「转场还在不在播」回写给 Navigator，返回据此排队
-                            rememberNavInteractionDecorator<NavKey>(navController),
-                        ),
-                        modifier = Modifier
-                            .width(middleColumnWidth)
-                            .fillMaxHeight(),
-                        // 走 Navigator 而不是直接改 backStack：系统返回键也走同一套判断。
-                        // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
-                        // 等这一段演完再出栈，不吃掉也不重定向
-                        onBack = { navController.popBackStack() },
-                        // 进场统一从下方滑入，被盖住的页面原地不动；返回统一走 popTransitionSpec 的下滑。
-                        // nav3 1.2 起 target 包在 Scene 里，页面 key 在 Scene.key——
-                        // 直接 `targetState as? Screen` 永远是 null，enterFromTop 会整个失效
-                        transitionSpec = {
-                            val target = (targetState as? Scene<*>)?.key as? Screen
-                            val enterFromTop = (target as? Screen.Chat)?.enterFromTop
-                            // 侧边栏点进来的会话：抽屉先收回去，会话页从点击项那一侧落下来
-                            slideInVertically(animationSpec = pageSlideSpec) {
-                                if (enterFromTop == true) -it else it
-                            } togetherWith ExitTransition.None
-                        },
-                        // 返回只有一种：整页向下滑出，底下的页面原地露出，不淡入也不淡出
-                        popTransitionSpec = {
-                            EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
-                        },
-                        // 手势返回跟手后收尾也走同一条下滑
-                        predictivePopTransitionSpec = {
-                            EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
-                        },
-                        entryProvider = navEntries,
-                    )
-
-                    // 右列：只放设置页里的下钻页，进场从下方滑入、返回跟中列一样向下滑出；
-                    // 宽度超出中列留出的那部分时，从右边盖住中列，而不是把中列压窄
-                    if (rightColumnFraction > 0.001f) {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .width(rightColumnWidth)
-                                .fillMaxHeight(),
-                        ) {
-                        ColumnResizeHandle(
-                            onDrag = { delta ->
-                                settingSplit = (settingSplit + delta.value / settingContentWidth.value)
-                                    .coerceIn(0.28f, 0.66f)
-                            },
-                            onDragStart = { rightColumnResizing = true },
-                            onDragEnd = { rightColumnResizing = false },
-                        )
-                        NavDisplay(
-                            backStack = shownRightStack,
-                            entryDecorators = listOf(
-                                rememberSaveableStateHolderNavEntryDecorator(),
-                                rememberViewModelStoreNavEntryDecorator(),
-                                rememberNavInteractionDecorator<NavKey>(navController),
-                            ),
+                        // 设置中列不再随右列变宽被压缩：宽度固定成「右列最窄时」的宽度，
+                        // 右列更宽时从右边盖上来，列表不会跟着来回重排
+                        BoxWithConstraints(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
-                            onBack = { navController.popBackStack() },
-                            transitionSpec = { slideInVertically(animationSpec = pageSlideSpec) { it } togetherWith ExitTransition.None },
-                            popTransitionSpec = {
-                                EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
-                            },
-                            predictivePopTransitionSpec = {
-                                EnterTransition.None togetherWith slideOutVertically(animationSpec = pageSlideSpec) { it }
-                            },
-                            entryProvider = navEntries,
-                        )
+                        ) {
+                            val contentWidth = maxWidth
+                            val minRightFraction = 0.34f
+                            val middleTargetWidth = if (splitSettingColumns) {
+                                contentWidth * (1f - minRightFraction)
+                            } else {
+                                contentWidth
+                            }
+                            val middleColumnWidth by animateDpAsState(
+                                targetValue = middleTargetWidth,
+                                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                                label = "settingMiddleWidth",
+                            )
+                            val rightColumnWidth = (contentWidth * rightColumnFraction)
+                                .coerceIn(1.dp, contentWidth)
+
+                            NavDisplay(
+                                backStack = middleStack,
+                                // 装饰器清单只有一处实现，但两个 display 各装配一份（见 NavTransitions.kt）
+                                entryDecorators = rememberAppNavEntryDecorators(navController),
+                                modifier = Modifier
+                                    .width(middleColumnWidth)
+                                    .fillMaxHeight(),
+                                // 走 Navigator 而不是直接改 backStack：系统返回键也走同一套判断。
+                                // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
+                                // 等这一段演完再出栈，不吃掉也不重定向
+                                onBack = { navController.popBackStack() },
+                                // 规格与右列同源：进场按 enterFromTop 上下、返回整页下滑、预测性返回同参
+                                transitionSpec = navTransitionSpecs.enter,
+                                popTransitionSpec = navTransitionSpecs.pop,
+                                predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
+                                entryProvider = navEntries,
+                            )
+
+                            // 右列：只放设置页里的下钻页，转场规格与中列同源（见 NavTransitions.kt）；
+                            // 宽度超出中列留出的那部分时，从右边盖住中列，而不是把中列压窄
+                            if (rightColumnFraction > 0.001f) {
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .width(rightColumnWidth)
+                                        .fillMaxHeight(),
+                                ) {
+                                    ColumnResizeHandle(
+                                        onDrag = { delta ->
+                                            settingSplit = (settingSplit + delta.value / settingContentWidth.value)
+                                                .coerceIn(0.28f, 0.66f)
+                                        },
+                                        onDragStart = { rightColumnResizing = true },
+                                        onDragEnd = { rightColumnResizing = false },
+                                    )
+                                    NavDisplay(
+                                        backStack = shownRightStack,
+                                        entryDecorators = rememberAppNavEntryDecorators(navController),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight(),
+                                        onBack = { navController.popBackStack() },
+                                        // 与中列同一份规格。右列只装设置里的下钻页，都不带 enterFromTop，
+                                        // 落地仍然是从下方滑入；返回同样整页下滑
+                                        transitionSpec = navTransitionSpecs.enter,
+                                        popTransitionSpec = navTransitionSpecs.pop,
+                                        predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
+                                        entryProvider = navEntries,
+                                    )
+                                }
+                            }
                         }
-                    }
-                    }
                     }
                     if (BuildConfig.DEBUG) {
                         Text(
@@ -1076,195 +778,276 @@ private fun HideStatusBarInLandscape(landscape: Boolean) {
     }
 }
 
-sealed interface Screen : NavKey {
-    @Serializable
-    data class Chat(
-        val id: String,
-        val text: String? = null,
-        val files: List<String> = emptyList(),
-        val nodeId: String? = null,
-        // 从侧边栏点进来时记下点击项在列表的上半还是下半，转场据此决定从上方还是下方落进来；
-        // 其它入口（新会话、收藏、搜索）留 null，走默认转场
-        val enterFromTop: Boolean? = null,
-    ) : Screen
+/**
+ * 全部导航目的地的 entry 清单，中列与右列两个 `NavDisplay` 共用这一份。
+ *
+ * 放在顶层是为了能被 `remember` 住（见 `AppRoutes`）：每个 entry 只读 key、不读组合状态，
+ * 记住它不会拿着过期状态，反而省掉每次重组重建一遍的分配。
+ *
+ * 转场交给 display 级的 transitionSpec（见 `ui/navigation/NavTransitions.kt`）：抽屉点进来的
+ * 会话要按 `enterFromTop` 从对应一侧落下，entry 级 metadata 会把整套 spec 盖掉。
+ */
+private fun appNavEntries() = entryProvider<NavKey> {
+    entry<Screen.Chat> { key ->
+        ChatPage(
+            id = Uuid.parse(key.id),
+            text = key.text,
+            files = key.files.map { it.toUri() },
+            nodeId = key.nodeId?.let { Uuid.parse(it) }
+        )
+    }
 
-    @Serializable
-    data class ShareHandler(val text: String, val streamUri: String? = null) : Screen
+    heroEntry<Screen.ShareHandler> { key ->
+        ShareHandlerPage(
+            text = key.text,
+            image = key.streamUri
+        )
+    }
 
-    @Serializable
-    data object History : Screen
+    heroEntry<Screen.History> {
+        HistoryPage()
+    }
 
-    @Serializable
-    data object Favorite : Screen
+    heroEntry<Screen.Favorite> {
+        FavoritePage()
+    }
 
-    @Serializable
-    data object Assistant : Screen
+    heroEntry<Screen.Assistant> {
+        AssistantPage()
+    }
 
-    @Serializable
-    data class AssistantDetail(val id: String) : Screen
+    heroEntry<Screen.AssistantDetail> { key ->
+        AssistantDetailPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantBasic(val id: String) : Screen
+    heroEntry<Screen.AssistantBasic> { key ->
+        AssistantBasicPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantPrompt(val id: String) : Screen
+    heroEntry<Screen.AssistantPrompt> { key ->
+        AssistantPromptPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantMemory(val id: String) : Screen
+    heroEntry<Screen.AssistantMemory> { key ->
+        AssistantMemoryPage(key.id)
+    }
 
-    /** 记忆库 [memoryId] 里的一个文件，[path] 为 null 时新建 */
-    @Serializable
-    data class MemoryFile(val memoryId: String, val path: String? = null) : Screen
+    heroEntry<Screen.MemoryFile> { key ->
+        MemoryFilePage(memoryId = key.memoryId, path = key.path)
+    }
 
-    @Serializable
-    data class AssistantRequest(val id: String) : Screen
+    heroEntry<Screen.AssistantRequest> { key ->
+        AssistantRequestPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantHeartbeat(val id: String) : Screen
+    heroEntry<Screen.AssistantHeartbeat> { key ->
+        AssistantHeartbeatPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantMcp(val id: String) : Screen
+    heroEntry<Screen.AssistantMcp> { key ->
+        AssistantMcpPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantLocalTool(val id: String) : Screen
+    heroEntry<Screen.AssistantLocalTool> { key ->
+        AssistantLocalToolPage(key.id)
+    }
 
-    @Serializable
-    data class AssistantInjections(val id: String) : Screen
+    heroEntry<Screen.AssistantInjections> { key ->
+        AssistantExtensionsPage(key.id)
+    }
 
-    @Serializable
-    data object Translator : Screen
+    heroEntry<Screen.Translator> {
+        TranslatorPage()
+    }
 
-    @Serializable
-    data object Setting : Screen
+    // 切换配色时会 popUpTo 原地重进，同一个 heroKey 新旧两页同时在组合里，这页不套容器变换
+    entry<Screen.Setting> {
+        SettingPage()
+    }
 
-    @Serializable
-    data object Backup : Screen
+    heroEntry<Screen.Backup> {
+        BackupPage()
+    }
 
-    @Serializable
-    data object ImageGen : Screen
+    heroEntry<Screen.ImageGen> {
+        ImageGenPage()
+    }
 
-    @Serializable
-    data object MediaCreationSessions : Screen
+    heroEntry<Screen.MediaCreationSessions> {
+        MediaCreationSessionsPage()
+    }
 
-    @Serializable
-    data class MediaCreation(val id: String) : Screen
+    // 从会话列表展开（容器变换）：位移交给页面内部的 sharedBounds 演，
+    // display 级不叠转场；返回不单独覆盖，跟其它页一样走 display 级的下滑
+    entry<Screen.MediaCreation>(
+        metadata = NavDisplay.transitionSpec {
+            EnterTransition.None togetherWith ExitTransition.None
+        }
+    ) { key ->
+        MediaCreationPage(key.id)
+    }
 
-    @Serializable
-    data class WebView(val url: String = "", val contentId: String = "") : Screen
+    heroEntry<Screen.WebView> { key ->
+        WebViewPage(key.url, key.contentId)
+    }
 
-    @Serializable
-    data object SettingTheme : Screen
+    heroEntry<Screen.SettingTheme> {
+        SettingThemePage()
+    }
 
-    @Serializable
-    data object SettingPalette : Screen
+    heroEntry<Screen.SettingPalette> {
+        SettingPalettePage()
+    }
 
-    @Serializable
-    data object SettingPreferences : Screen
+    heroEntry<Screen.SettingPreferences> {
+        SettingPreferencesPage()
+    }
 
-    @Serializable
-    data object SettingPreferencesTheme : Screen
+    heroEntry<Screen.SettingPreferencesTheme> {
+        SettingPreferencesThemePage()
+    }
 
-    @Serializable
-    data object SettingPreferencesNotification : Screen
+    heroEntry<Screen.SettingPreferencesNotification> {
+        SettingPreferencesNotificationPage()
+    }
 
-    @Serializable
-    data object SettingPreferencesGeneral : Screen
+    heroEntry<Screen.SettingPreferencesGeneral> {
+        SettingPreferencesGeneralPage()
+    }
 
-    @Serializable
-    data object SettingPreferencesUI : Screen
+    heroEntry<Screen.SettingPreferencesUI> {
+        SettingPreferencesUIPage()
+    }
 
-    @Serializable
-    data object SettingPreferencesNetwork : Screen
+    heroEntry<Screen.SettingPreferencesNetwork> {
+        SettingPreferencesNetworkPage()
+    }
 
-    @Serializable
-    data object SettingProvider : Screen
+    heroEntry<Screen.SettingProvider> {
+        SettingProviderPage()
+    }
 
-    @Serializable
-    data class SettingProviderDetail(val providerId: String) : Screen
+    heroEntry<Screen.SettingProviderDetail> { key ->
+        SettingProviderDetailPage(id = Uuid.parse(key.providerId))
+    }
 
-    @Serializable
-    data object SettingModels : Screen
+    heroEntry<Screen.SettingModels> {
+        SettingModelPage()
+    }
 
-    /** 模型编辑页：modelId 为 null 时是新建 */
-    @Serializable
-    data class ModelEditor(val providerId: String, val modelId: String? = null) : Screen
+    heroEntry<Screen.ModelEditor> { key ->
+        ModelEditorPage(
+            providerId = Uuid.parse(key.providerId),
+            modelId = key.modelId,
+        )
+    }
 
-    @Serializable
-    data object SettingAbout : Screen
+    heroEntry<Screen.SettingAbout> {
+        SettingAboutPage()
+    }
 
-    @Serializable
-    data object SettingSearch : Screen
+    heroEntry<Screen.SettingSearch> {
+        SettingSearchPage()
+    }
 
-    @Serializable
-    data class SettingSearchDetail(val serviceId: String) : Screen
+    heroEntry<Screen.SettingSearchDetail> { key ->
+        val id = Uuid.parse(key.serviceId)
+        SettingSearchDetailPage(id)
+    }
 
-    @Serializable
-    data object SettingSpeech : Screen
+    heroEntry<Screen.SettingSpeech> {
+        SettingSpeechPage()
+    }
 
-    @Serializable
-    data object SettingMedia : Screen
+    heroEntry<Screen.SettingMedia> {
+        SettingMediaPage()
+    }
 
-    @Serializable
-    data class SettingMediaProviderDetail(val providerId: String) : Screen
+    heroEntry<Screen.SettingMediaProviderDetail> { key ->
+        SettingMediaProviderDetailPage(id = Uuid.parse(key.providerId))
+    }
 
-    @Serializable
-    data object SettingMcp : Screen
+    heroEntry<Screen.SettingMcp> {
+        SettingMcpPage()
+    }
 
-    @Serializable
-    data object ToolOverrides : Screen
+    heroEntry<Screen.ToolOverrides> {
+        SettingToolOverridePage()
+    }
 
-    @Serializable
-    data class SettingMcpDetail(val serverId: String) : Screen
+    heroEntry<Screen.SettingMcpDetail> { key ->
+        SettingMcpDetailPage(id = Uuid.parse(key.serverId))
+    }
 
-    @Serializable
-    data object SettingDonate : Screen
+    heroEntry<Screen.SettingDonate> {
+        SettingDonatePage()
+    }
 
-    @Serializable
-    data object SettingFiles : Screen
+    heroEntry<Screen.SettingFiles> {
+        SettingFilesPage()
+    }
 
-    @Serializable
-    data object SettingWeb : Screen
+    heroEntry<Screen.SettingWeb> {
+        SettingWebPage()
+    }
 
-    @Serializable
-    data object Debug : Screen
+    heroEntry<Screen.Debug> {
+        DebugPage()
+    }
 
-    @Serializable
-    data object Log : Screen
+    heroEntry<Screen.Log> {
+        LogPage()
+    }
 
-    @Serializable
-    data object Extensions : Screen
+    heroEntry<Screen.Extensions> {
+        ExtensionsPage()
+    }
 
-    @Serializable
-    data object QuickMessages : Screen
+    heroEntry<Screen.QuickMessages> {
+        QuickMessagesPage()
+    }
 
-    @Serializable
-    data object Prompts : Screen
+    heroEntry<Screen.Prompts> {
+        PromptPage()
+    }
 
-    @Serializable
-    data object Skills : Screen
+    heroEntry<Screen.Skills> {
+        SkillsPage()
+    }
 
-    @Serializable
-    data object Workspaces : Screen
+    heroEntry<Screen.Workspaces> {
+        WorkspacePage()
+    }
 
-    @Serializable
-    data class WorkspaceDetail(val id: String) : Screen
+    heroEntry<Screen.WorkspaceDetail> { key ->
+        WorkspaceDetailPage(key.id)
+    }
 
-    @Serializable
-    data class WorkspaceTerminal(val id: String) : Screen
+    heroEntry<Screen.WorkspaceTerminal> { key ->
+        WorkspaceTerminalPage(key.id)
+    }
 
-    /** [id] 为 null 时新建 */
-    @Serializable
-    data class WorkspaceSshEditor(val id: String? = null) : Screen
+    heroEntry<Screen.WorkspaceSshEditor> { key ->
+        WorkspaceSshEditorPage(key.id)
+    }
 
-    @Serializable
-    data class WorkspaceFileEditor(val id: String, val area: String, val path: String) : Screen
+    heroEntry<Screen.WorkspaceFileEditor> { key ->
+        WorkspaceFileEditorPage(
+            id = key.id,
+            area = WorkspaceStorageArea.valueOf(key.area),
+            path = key.path,
+        )
+    }
 
-    @Serializable
-    data class SkillDetail(val skillName: String) : Screen
+    heroEntry<Screen.SkillDetail> { key ->
+        SkillDetailPage(skillName = key.skillName)
+    }
 
-    @Serializable
-    data object MessageSearch : Screen
+    heroEntry<Screen.MessageSearch> {
+        SearchPage()
+    }
 
-    @Serializable
-    data object Stats : Screen
+    heroEntry<Screen.Stats> {
+        StatsPage()
+    }
 }

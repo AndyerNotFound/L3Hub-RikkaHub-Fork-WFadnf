@@ -135,7 +135,7 @@ import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.modifier.scrollMotionBlur
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
@@ -410,7 +410,6 @@ private fun ChatListNormal(
         val inputBarHeight = with(density) { innerPadding.calculateBottomPadding().toPx() }
         val lastPos = lastItem.offset + lastItem.size
         val inputPos = (state.layoutInfo.viewportEndOffset - inputBarHeight.roundToInt())
-        // println("lastPos = $lastPos, inputPos = $inputPos  | ${lastPos <= inputPos - 8}")
         return lastPos <= inputPos - 8
     }
 
@@ -655,16 +654,11 @@ private fun ChatListNormal(
             }
         }
 
-        // 判断最近是否滚动
+        // 判断最近是否滚动：滚动中就标记；键一变（开始或停止滚动）就重来，1500ms 后撤掉
         LaunchedEffect(state.isScrollInProgress) {
-            if (state.isScrollInProgress) {
-                isRecentScroll = true
-                delay(1500)
-                isRecentScroll = false
-            } else {
-                delay(1500)
-                isRecentScroll = false
-            }
+            if (state.isScrollInProgress) isRecentScroll = true
+            delay(1500)
+            isRecentScroll = false
         }
 
         ChatFontProvider(displaySetting = settings.displaySetting) {
@@ -929,7 +923,8 @@ private fun ChatListNormal(
                 state = selectionState,
                 allIds = conversation.messageNodes.map { it.id },
                 onConfirm = {
-                    selectionState.selecting = false
+                    // 退出多选但保留选中项：导出表照着这份列表挑消息
+                    selectionState.confirm()
                     if (conversation.messageNodes.any { it.id in selectedItems }) {
                         showExportSheet = true
                     }
@@ -944,7 +939,8 @@ private fun ChatListNormal(
                 visible = showExportSheet,
                 onDismissRequest = {
                     showExportSheet = false
-                    selectedItems.clear()
+                    // 导出表收掉，这次多选就结束了
+                    selectionState.cancel()
                 },
                 conversation = conversation,
                 selectedMessages = conversation.messageNodes.filter { it.id in selectedItems }

@@ -35,8 +35,8 @@ import me.rerere.rikkahub.ui.components.ui.GlassSheetShape
 import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.ui.components.AnimatedModalBottomSheet
 

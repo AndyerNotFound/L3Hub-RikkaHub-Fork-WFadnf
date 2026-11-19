@@ -50,7 +50,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.ui.sketch.SketchDialog
 import org.koin.compose.koinInject
 

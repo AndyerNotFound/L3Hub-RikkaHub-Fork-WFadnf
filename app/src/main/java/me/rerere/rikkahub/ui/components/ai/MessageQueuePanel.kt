@@ -36,7 +36,7 @@ import me.rerere.rikkahub.service.InboxState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.service.QueuedNotice
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import kotlin.uuid.Uuid
 import me.rerere.ui.components.AnimatedAlertDialog
 

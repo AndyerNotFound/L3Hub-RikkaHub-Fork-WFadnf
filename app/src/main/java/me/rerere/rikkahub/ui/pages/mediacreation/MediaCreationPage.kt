@@ -81,9 +81,9 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.heroPageContainer
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.toast.ToastType

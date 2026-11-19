@@ -29,9 +29,9 @@ import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
-import me.rerere.rikkahub.ui.terminal.Checkbox
-import me.rerere.rikkahub.ui.terminal.HorizontalDivider
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.Checkbox
+import me.rerere.rikkahub.ui.style.HorizontalDivider
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedModalBottomSheet
 
 @Composable

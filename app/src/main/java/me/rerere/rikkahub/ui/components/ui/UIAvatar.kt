@@ -59,7 +59,7 @@ import me.rerere.rikkahub.data.model.ImageCrop
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.crop.NormalizedCrop

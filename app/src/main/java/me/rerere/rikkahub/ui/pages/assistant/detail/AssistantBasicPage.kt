@@ -61,8 +61,8 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
-import me.rerere.rikkahub.ui.terminal.Switch
+import me.rerere.rikkahub.ui.style.OutlinedButton
+import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toFixed
 import org.koin.androidx.compose.koinViewModel

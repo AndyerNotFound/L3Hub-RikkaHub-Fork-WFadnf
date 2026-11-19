@@ -23,7 +23,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
 import me.rerere.rikkahub.ui.components.ai.translationLanguageName
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 import java.util.Locale

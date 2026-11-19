@@ -65,10 +65,10 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.Button
-import me.rerere.rikkahub.ui.terminal.Switch
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.Button
+import me.rerere.rikkahub.ui.style.Switch
+import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstant

@@ -56,8 +56,8 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.toLocalDateTime
@@ -288,33 +288,29 @@ private fun MemoryFileDetail(
                 overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
                 headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
             )
-            if (file.description.isNotEmpty()) {
-                item(
-                    overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
-                    headlineContent = { Text(file.description) },
-                )
-            }
-            if (file.aliases.isNotEmpty()) {
-                item(
-                    overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
-                    headlineContent = { Text(file.aliases.joinToString(", ")) },
-                )
-            }
-            if (file.body.isNotBlank()) {
-                formItem {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // 和上面几项的 overline 保持一致
-                        Text(
-                            text = stringResource(R.string.memory_file_page_details),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            item(
+                overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
+                headlineContent = { Text(file.description) },
+                visible = file.description.isNotEmpty(),
+            )
+            item(
+                overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
+                headlineContent = { Text(file.aliases.joinToString(", ")) },
+                visible = file.aliases.isNotEmpty(),
+            )
+            formItem(visible = file.body.isNotBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // 和上面几项的 overline 保持一致
+                    Text(
+                        text = stringResource(R.string.memory_file_page_details),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SelectableContent {
+                        MarkdownBlock(
+                            content = file.displayBody,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        SelectableContent {
-                            MarkdownBlock(
-                                content = file.displayBody,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
                     }
                 }
             }
@@ -367,19 +363,20 @@ private fun MemoryFileEditor(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         CardGroup {
-            if (path != null) {
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.memory_file_page_path)) },
-                ) {
-                    OutlinedTextField(
-                        value = path,
-                        onValueChange = onPathChange,
-                        placeholder = { Text("/topics/food.md") },
-                        isError = path.isNotEmpty() && !pathValid,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+            // 只有编辑已有文件时才有路径：始终注册，靠 visible 收放
+            val editingPath = path
+            formItem(
+                visible = editingPath != null,
+                headlineContent = { Text(stringResource(R.string.memory_file_page_path)) },
+            ) {
+                OutlinedTextField(
+                    value = editingPath.orEmpty(),
+                    onValueChange = onPathChange,
+                    placeholder = { Text("/topics/food.md") },
+                    isError = !editingPath.isNullOrEmpty() && !pathValid,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             formItem(
                 headlineContent = { Text(stringResource(R.string.memory_file_page_title)) },

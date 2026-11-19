@@ -99,11 +99,11 @@ import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.Checkbox
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.Checkbox
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.AnimatedModalBottomSheet

@@ -73,9 +73,9 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.Switch
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.Switch
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.ui.toast.ToastType
@@ -105,12 +105,13 @@ fun ProviderConfigure(
 
         CardGroup {
             // 账号类提供商的接口由登录方式决定，换成自填地址的类型会丢掉凭据
-            if (allowTypeSwitch && provider is ProviderSetting.ApiKey) {
-                formItem {
+            val typeSwitchable = if (allowTypeSwitch) provider as? ProviderSetting.ApiKey else null
+            formItem(visible = typeSwitchable != null) {
+                typeSwitchable?.let { current ->
                     ConnectedChoiceButtons(
                         options = ProviderSetting.Types,
-                        selected = provider::class,
-                        onSelect = { onEdit(provider.convertTo(it)) },
+                        selected = current::class,
+                        onSelect = { onEdit(current.convertTo(it)) },
                     ) { type, selected ->
                         ConnectedChoiceLabel(text = type.simpleName ?: "", selected = selected)
                     }
@@ -505,6 +506,14 @@ private fun ProviderConfigureOpenAI(
     }
 }
 
+// 账号卡片这一刻该露出哪一组：四组互斥，条目都常驻，靠 visible 收放
+private enum class AccountCardState {
+    SignedIn,
+    DeviceCode,
+    Authorizing,
+    SignedOut,
+}
+
 // 账号类提供商：登录状态、用量和说明
 @Composable
 private fun ProviderConfigureAccount(
@@ -525,61 +534,76 @@ private fun ProviderConfigureAccount(
         nameItem(provider, onEdit)
     }
 
+    // 登录态之间互斥，但每一组条目都始终注册、只靠 visible 收放：
+    // 状态切换时条目是展开/收起，而不是在收集阶段被删掉、整块瞬移
+    val accountState = when {
+        credential != null -> AccountCardState.SignedIn
+        status is AccountLoginStatus.DeviceCode -> AccountCardState.DeviceCode
+        status == AccountLoginStatus.Authorizing -> AccountCardState.Authorizing
+        else -> AccountCardState.SignedOut
+    }
+    val deviceCode = status as? AccountLoginStatus.DeviceCode
+
     CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
-        if (credential != null) {
-            item(
-                leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
-                supportingContent = plan?.let { { Text(it) } },
-                headlineContent = { Text(credential.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
-            )
-            item(
-                onClick = { scope.launch { accountManager.logout(provider.id) } },
-                leadingContent = {
-                    CardGroupIcon(
-                        icon = HugeIcons.Logout03,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
-            )
-        } else if (status is AccountLoginStatus.DeviceCode) {
-            item(
-                onClick = { CustomTabsOAuthAuthorizationLauncher.launch(context, status.verificationUrl) },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-                overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
-                headlineContent = {
-                    Text(
-                        text = status.userCode,
-                        style = MaterialTheme.typography.headlineSmallEmphasized,
-                        fontFamily = JetbrainsMono,
-                    )
-                },
-            )
-            item(
-                onClick = { accountManager.cancelLogin(provider.id) },
-                leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
-                headlineContent = { Text(stringResource(R.string.cancel)) },
-            )
-        } else if (status == AccountLoginStatus.Authorizing) {
-            item(
-                onClick = { accountManager.cancelLogin(provider.id) },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
-            )
-        } else {
-            item(
-                onClick = { accountManager.startLogin(provider.id, context) },
-                leadingContent = { CardGroupIcon(HugeIcons.Login03) },
-                supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
-                    { Text(failed.message, color = MaterialTheme.colorScheme.error) }
-                },
-                trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
-            )
-        }
+        item(
+            visible = accountState == AccountCardState.SignedIn,
+            leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
+            supportingContent = plan?.let { { Text(it) } },
+            headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
+        )
+        item(
+            visible = accountState == AccountCardState.SignedIn,
+            onClick = { scope.launch { accountManager.logout(provider.id) } },
+            leadingContent = {
+                CardGroupIcon(
+                    icon = HugeIcons.Logout03,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
+        )
+        item(
+            visible = accountState == AccountCardState.DeviceCode,
+            onClick = {
+                deviceCode?.let { code ->
+                    CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
+                }
+            },
+            leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+            overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
+            headlineContent = {
+                Text(
+                    text = deviceCode?.userCode.orEmpty(),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
+                    fontFamily = JetbrainsMono,
+                )
+            },
+        )
+        item(
+            visible = accountState == AccountCardState.DeviceCode,
+            onClick = { accountManager.cancelLogin(provider.id) },
+            leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
+            headlineContent = { Text(stringResource(R.string.cancel)) },
+        )
+        item(
+            visible = accountState == AccountCardState.Authorizing,
+            onClick = { accountManager.cancelLogin(provider.id) },
+            leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
+        )
+        item(
+            visible = accountState == AccountCardState.SignedOut,
+            onClick = { accountManager.startLogin(provider.id, context) },
+            leadingContent = { CardGroupIcon(HugeIcons.Login03) },
+            supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
+                { Text(failed.message, color = MaterialTheme.colorScheme.error) }
+            },
+            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
+        )
     }
 
     if (provider.supportsQuota) {

@@ -41,7 +41,7 @@ import me.rerere.rikkahub.ui.components.ui.EmojiPicker
 import me.rerere.rikkahub.ui.floating.BubbleIconContent
 import me.rerere.rikkahub.ui.floating.BubblePresets
 import me.rerere.rikkahub.ui.floating.bubblePresetIcon
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
+import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
 

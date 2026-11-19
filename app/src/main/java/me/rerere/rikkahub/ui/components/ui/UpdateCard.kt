@@ -34,9 +34,9 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useThrottle
 import me.rerere.rikkahub.ui.pages.chat.ChatVM
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.OutlinedCard
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.OutlinedCard
 import me.rerere.rikkahub.utils.UpdateDownload
 import me.rerere.rikkahub.utils.Version
 import me.rerere.rikkahub.utils.onError

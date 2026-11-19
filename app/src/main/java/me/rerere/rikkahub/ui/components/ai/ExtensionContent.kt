@@ -41,7 +41,7 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.skills.SkillMetadata
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.terminal.Switch
+import me.rerere.rikkahub.ui.style.Switch
 import kotlin.uuid.Uuid
 
 @Composable

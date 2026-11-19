@@ -48,8 +48,8 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionAddButton
 import me.rerere.rikkahub.ui.pages.assistant.detail.SectionHeader
-import me.rerere.rikkahub.ui.terminal.HorizontalDivider
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.HorizontalDivider
+import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import java.util.Locale
 

@@ -27,7 +27,7 @@ import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.ui.components.AnimatedDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject

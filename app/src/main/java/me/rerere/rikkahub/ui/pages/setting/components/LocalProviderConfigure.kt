@@ -55,9 +55,9 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.RadioButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.RadioButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
@@ -199,24 +199,21 @@ internal fun ProviderConfigureLiteRT(
                 headlineContent = { Text(stringResource(R.string.setting_provider_litert_import)) },
                 supportingContent = { Text(stringResource(R.string.setting_provider_litert_import_desc)) },
             )
-            if (importing) {
-                formItem {
-                    LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text(
-                        text = stringResource(
-                            R.string.setting_provider_litert_importing,
-                            (progress * 100).roundToInt(),
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            if (models.isEmpty() && !importing) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.setting_provider_litert_empty)) },
+            formItem(visible = importing) {
+                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = stringResource(
+                        R.string.setting_provider_litert_importing,
+                        (progress * 100).roundToInt(),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            item(
+                visible = models.isEmpty() && !importing,
+                headlineContent = { Text(stringResource(R.string.setting_provider_litert_empty)) },
+            )
             models.forEach { model ->
                 val selected = provider.isSelected(model)
                 item(

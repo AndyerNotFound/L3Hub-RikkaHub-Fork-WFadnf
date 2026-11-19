@@ -23,8 +23,8 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.DatabaseRestore
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.IconButton
 
 @Composable
 fun BackupReminderCard(

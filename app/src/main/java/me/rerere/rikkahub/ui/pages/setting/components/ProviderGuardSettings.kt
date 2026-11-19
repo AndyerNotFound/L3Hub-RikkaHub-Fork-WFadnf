@@ -75,8 +75,8 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.terminal.Switch
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.Switch
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
@@ -507,17 +507,16 @@ private fun ProviderLockCard(
                 )
             },
         )
-        if (guard.locks.isEmpty()) {
-            item(
-                headlineContent = {
-                    Text(
-                        text = stringResource(R.string.setting_provider_guard_lock_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-            )
-        }
+        item(
+            visible = guard.locks.isEmpty(),
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.setting_provider_guard_lock_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        )
         guard.locks.forEach { lock ->
             item(
                 onClick = { onEditLock(lock) },

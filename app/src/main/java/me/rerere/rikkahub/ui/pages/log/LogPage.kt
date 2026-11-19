@@ -53,10 +53,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.LogPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.JsonTree
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.HorizontalDivider
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.Switch
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.HorizontalDivider
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstantPretty

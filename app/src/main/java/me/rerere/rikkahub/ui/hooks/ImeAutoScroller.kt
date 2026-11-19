@@ -19,18 +19,15 @@ fun ImeLazyListAutoScroller(
 ) {
     val ime = WindowInsets.ime
     val localDensity = LocalDensity.current
-    var imeHeigh by remember { mutableIntStateOf(0) }
+    var imeHeight by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         snapshotFlow {
             ime.getBottom(localDensity)
         }.collect { keyboardHeight ->
             if (keyboardHeight > 0) {
-                if (imeHeigh < keyboardHeight) {
-                    lazyListState.scrollBy((keyboardHeight - imeHeigh).toFloat())
-                } else {
-                    lazyListState.scrollBy((keyboardHeight - imeHeigh).toFloat())
-                }
-                imeHeigh = keyboardHeight
+                // 键盘升高和降低都按差值跟随：差值为负时 scrollBy 往回滚
+                lazyListState.scrollBy((keyboardHeight - imeHeight).toFloat())
+                imeHeight = keyboardHeight
             }
         }
     }

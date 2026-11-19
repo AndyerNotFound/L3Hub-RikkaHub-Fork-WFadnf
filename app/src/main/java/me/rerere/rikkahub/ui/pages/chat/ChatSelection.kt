@@ -32,7 +32,10 @@ import kotlin.uuid.Uuid
  */
 @Stable
 class ChatSelectionState {
+    // 外面只读：进出多选只有 start() / cancel() / confirm() 三条路，
+    // 免得某处只改了一半，留下「没在多选、集合里却还压着一批 id」的状态
     var selecting by mutableStateOf(false)
+        private set
     val selectedItems = mutableStateListOf<Uuid>()
 
     fun start(ids: List<Uuid>) {
@@ -41,9 +44,15 @@ class ChatSelectionState {
         selecting = true
     }
 
+    /** 取消多选：退出并清空选中项 */
     fun cancel() {
         selecting = false
         selectedItems.clear()
+    }
+
+    /** 确认这批选中项（导出）：退出多选，集合留着给调用方读 */
+    fun confirm() {
+        selecting = false
     }
 
     fun isAllSelected(ids: List<Uuid>): Boolean =

@@ -11,17 +11,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -33,13 +29,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,9 +45,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.paging.compose.LazyPagingItems
-import androidx.paging.compose.itemKey
-import kotlinx.coroutines.flow.collect
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
@@ -72,15 +62,13 @@ import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.mirrorForRtl
-import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.ui.components.AnimatedAlertDialog
 import java.time.LocalDate
-import java.time.ZoneId
 import kotlin.uuid.Uuid
 
 /**
@@ -101,278 +89,6 @@ sealed class ConversationListItem {
     data class Item(
         val conversation: Conversation
     ) : ConversationListItem()
-}
-
-@Composable
-fun ColumnScope.ConversationList(
-    currentConversationId: Uuid,
-    conversations: LazyPagingItems<ConversationListItem>,
-    conversationJobs: Collection<Uuid>,
-    listState: LazyListState,
-    collapsedDates: Set<LocalDate> = emptySet(),
-    onToggleDate: (LocalDate) -> Unit = {},
-    // 换助手/换文件夹时列表其实是另一份数据，多选等列表内状态要跟着重置
-    scopeKey: Any? = null,
-    modifier: Modifier = Modifier,
-    header: (@Composable () -> Unit)? = null,
-    onClick: (Conversation) -> Unit = {},
-    onDelete: (Conversation) -> Unit = {},
-    onRegenerateTitle: (Conversation) -> Unit = {},
-    onPin: (Conversation) -> Unit = {},
-    onMoveToAssistant: (Conversation) -> Unit = {},
-    onMoveToFolder: (Conversation) -> Unit = {},
-    onRename: (Conversation, String) -> Unit = { _, _ -> },
-    onDeleteSelected: (List<Conversation>) -> Unit = {},
-    onPinSelected: (List<Conversation>) -> Unit = {},
-) {
-    var hasScrolledToCurrent by remember(currentConversationId) { mutableStateOf(false) }
-    // 列表滚过（用户拖动/滚轮/旋钮，或本页程序化回顶）以后就不再自动把视口拽到当前会话
-    var userScrolled by remember(currentConversationId) { mutableStateOf(false) }
-    // 多选：长按菜单里进入，点条目切换选中
-    var selectionMode by remember { mutableStateOf(false) }
-    val selectedIds = remember { mutableStateListOf<Uuid>() }
-    fun selectedConversations(): List<Conversation> = conversations.itemSnapshotList.items
-        .filterIsInstance<ConversationListItem.Item>()
-        .map { it.conversation }
-        .filter { it.id in selectedIds }
-    // 列表顶部若放了 header，会话项在 LazyColumn 中的位置要往后挪一位
-    val headerCount = if (header != null) 1 else 0
-
-    // 换助手/换文件夹时旧的多选结果已经不在列表里，留着会让计数和实际删除数量对不上；
-    // 同时放弃「滚到当前会话」，否则分页数据异步到达后会把父级的回顶又推翻。
-    // 该放弃是 sticky 的（只在本列表实例内、currentConversationId 不变时有效），切会话会随 remember 复位
-    var lastScopeKey by remember { mutableStateOf(scopeKey) }
-    LaunchedEffect(scopeKey) {
-        if (lastScopeKey == scopeKey) return@LaunchedEffect
-        lastScopeKey = scopeKey
-        selectionMode = false
-        selectedIds.clear()
-        hasScrolledToCurrent = true
-    }
-
-    // 每个下标属于哪一周，一趟算好；之前是每个可见项各自往回扫，长列表下接近 O(n²)
-    val sectionDates: List<LocalDate?> = remember(
-        conversations.itemCount,
-        conversations.itemSnapshotList,
-    ) {
-        var sectionDate: LocalDate? = null
-        conversations.itemSnapshotList.items.map { item ->
-            when (item) {
-                is ConversationListItem.DateHeader -> {
-                    sectionDate = item.date
-                    null
-                }
-
-                is ConversationListItem.PinnedHeader -> {
-                    sectionDate = null
-                    null
-                }
-
-                is ConversationListItem.FolderHeader -> {
-                    sectionDate = null
-                    null
-                }
-
-                else -> sectionDate
-            }
-        }
-    }
-
-    // 列表一动过就不再自动拽到当前会话：拖动、滚轮、旋钮都算，避免用户浏览时被抢走视口。
-    // 换助手/文件夹/排序时的程序化回顶也会命中，这正好符合「换列表就停在顶部」的预期。
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
-            if (scrolling) userScrolled = true
-        }
-    }
-
-    // 折叠后看不见的会话不应该还留在选中集合里
-    LaunchedEffect(collapsedDates) {
-        if (selectedIds.isEmpty()) return@LaunchedEffect
-        val hiddenIds = conversations.itemSnapshotList.items.mapIndexedNotNull { index, item ->
-            val conversation = (item as? ConversationListItem.Item)?.conversation
-                ?: return@mapIndexedNotNull null
-            val hidden = sectionDates.getOrNull(index)?.let { it in collapsedDates } == true
-            if (hidden) conversation.id else null
-        }
-        if (hiddenIds.isNotEmpty()) {
-            selectedIds.removeAll(hiddenIds.toSet())
-        }
-    }
-
-    LaunchedEffect(
-        currentConversationId,
-        conversations.itemCount,
-        sectionDates,
-        collapsedDates,
-        hasScrolledToCurrent,
-    ) {
-        if (hasScrolledToCurrent || userScrolled) return@LaunchedEffect
-        val itemIndex = conversations.itemSnapshotList.items.indexOfFirst {
-            (it as? ConversationListItem.Item)?.conversation?.id == currentConversationId
-        }
-        if (itemIndex < 0) return@LaunchedEffect
-
-        // 当前会话所在的周被收起时保持收起：那是用户自己收的，刷新、切会话都不替他拉开；
-        // 也不往 0 高度的条目上滚，免得视口落到看不见的东西上
-        val sectionDate = sectionDates.getOrNull(itemIndex)
-        if (sectionDate != null && sectionDate in collapsedDates) {
-            hasScrolledToCurrent = true
-            return@LaunchedEffect
-        }
-
-        val currentIndex = itemIndex + headerCount
-        val isVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == currentIndex }
-        if (!isVisible) {
-            listState.scrollToItem(currentIndex)
-        }
-        hasScrolledToCurrent = true
-    }
-
-    Column(modifier = modifier) {
-    MotionExpandCollapse(visible = selectionMode) {
-        SelectionBar(
-            count = selectedIds.size,
-            onPin = {
-                onPinSelected(selectedConversations())
-                selectedIds.clear()
-                selectionMode = false
-            },
-            onDelete = {
-                onDeleteSelected(selectedConversations())
-                selectedIds.clear()
-                selectionMode = false
-            },
-            onClear = {
-                selectedIds.clear()
-                selectionMode = false
-            },
-        )
-    }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f),
-        verticalArrangement = Arrangement.Top,
-    ) {
-        if (header != null) {
-            item(key = "header", contentType = "header") {
-                Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                    header()
-                }
-            }
-        }
-
-        if (conversations.itemCount == 0) {
-            item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.chat_page_no_conversations),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-        }
-
-        items(
-            count = conversations.itemCount,
-            key = conversations.itemKey { item ->
-                when (item) {
-                    // key 带上排序方式，避免切换排序后列表锚定到另一种排序下的同日期分组而发生跳动
-                    is ConversationListItem.DateHeader -> "date_${item.sortOrder}_${item.date}"
-                    is ConversationListItem.PinnedHeader -> "pinned_header"
-                    is ConversationListItem.FolderHeader -> "folder_${item.folderId ?: "unfiled"}"
-                    is ConversationListItem.Item -> item.conversation.id.toString()
-                }
-            }
-        ) { index ->
-            val item = conversations[index]
-            // 收起的日期分组只剩标题：条目留在列表里交给高度动画收放，直接从数据里删掉就没有过渡了
-            val sectionDate = sectionDates.getOrNull(index)
-            val visible = item !is ConversationListItem.Item ||
-                sectionDate == null ||
-                sectionDate !in collapsedDates
-
-            CollapsibleSectionItem(visible = visible) {
-                Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                    when (item) {
-                        is ConversationListItem.DateHeader -> {
-                            DateHeaderItem(
-                                label = item.label,
-                                collapsed = item.date in collapsedDates,
-                                onToggle = { onToggleDate(item.date) },
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-
-                        is ConversationListItem.PinnedHeader -> {
-                            PinnedHeader(
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-
-                        is ConversationListItem.FolderHeader -> Unit
-
-                        is ConversationListItem.Item -> {
-                            ConversationItem(
-                                conversation = item.conversation,
-                                selected = item.conversation.id == currentConversationId,
-                                loading = item.conversation.id in conversationJobs,
-                                selectionMode = selectionMode,
-                                checked = item.conversation.id in selectedIds,
-                                onToggleSelection = {
-                                    if (item.conversation.id in selectedIds) {
-                                        selectedIds.remove(item.conversation.id)
-                                    } else {
-                                        selectedIds.add(item.conversation.id)
-                                    }
-                                },
-                                onEnterSelection = {
-                                    selectionMode = true
-                                    if (item.conversation.id !in selectedIds) {
-                                        selectedIds.add(item.conversation.id)
-                                    }
-                                },
-                                onClick = if (selectionMode) {
-                                    { conversation ->
-                                        if (conversation.id in selectedIds) {
-                                            selectedIds.remove(conversation.id)
-                                        } else {
-                                            selectedIds.add(conversation.id)
-                                        }
-                                        Unit
-                                    }
-                                } else {
-                                    onClick
-                                },
-                                onDelete = onDelete,
-                                onRegenerateTitle = onRegenerateTitle,
-                                onPin = onPin,
-                                onMoveToAssistant = onMoveToAssistant,
-                                onMoveToFolder = onMoveToFolder,
-                                onRename = onRename,
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-
-                        null -> {
-                            // Placeholder for loading state
-                        }
-                    }
-                }
-            }
-        }
-    }
-    }
 }
 
 // 分组收起的时长：短到跟手，长到看得见高度在收

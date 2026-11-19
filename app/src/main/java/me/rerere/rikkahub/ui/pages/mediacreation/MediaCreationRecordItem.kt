@@ -87,7 +87,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
-import me.rerere.rikkahub.ui.terminal.Card
+import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.rikkahub.utils.writeClipboardText

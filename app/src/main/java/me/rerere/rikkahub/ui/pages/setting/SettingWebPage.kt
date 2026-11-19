@@ -61,8 +61,8 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.Switch
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.web.WebServerManager
@@ -343,33 +343,29 @@ fun SettingWebPage() {
                             )
                         },
                     )
-                    if (serverState.isRunning) {
-                        val port = serverState.port
-                        if (!serverState.localhostOnly) {
-                            val lanUrl = "http://${serverState.address ?: "localhost"}:$port"
-                            item(
-                                onClick = { copyUrl(lanUrl) },
-                                headlineContent = { Text(stringResource(R.string.setting_page_web_server_lan_address)) },
-                                supportingContent = { Text(lanUrl) },
-                            )
-
-                            if (serverState.hostname != null) {
-                                val mdnsUrl = "http://${serverState.hostname}:$port"
-                                item(
-                                    onClick = { copyUrl(mdnsUrl) },
-                                    headlineContent = { Text(stringResource(R.string.setting_page_web_server_mdns_address)) },
-                                    supportingContent = { Text(mdnsUrl) },
-                                )
-                            }
-                        }
-
-                        val localUrl = "http://localhost:$port"
-                        item(
-                            onClick = { copyUrl(localUrl) },
-                            headlineContent = { Text(stringResource(R.string.setting_page_web_server_local_address)) },
-                            supportingContent = { Text(localUrl) },
-                        )
-                    }
+                    // 三个地址项始终注册，靠 visible 收放；端口和地址先算好，条件里不再取值
+                    val port = serverState.port
+                    val lanUrl = "http://${serverState.address ?: "localhost"}:$port"
+                    val mdnsUrl = serverState.hostname?.let { "http://$it:$port" }
+                    val localUrl = "http://localhost:$port"
+                    item(
+                        visible = serverState.isRunning && !serverState.localhostOnly,
+                        onClick = { copyUrl(lanUrl) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_lan_address)) },
+                        supportingContent = { Text(lanUrl) },
+                    )
+                    item(
+                        visible = serverState.isRunning && !serverState.localhostOnly && mdnsUrl != null,
+                        onClick = mdnsUrl?.let { url -> { copyUrl(url) } },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_mdns_address)) },
+                        supportingContent = mdnsUrl?.let { url -> { Text(url) } },
+                    )
+                    item(
+                        visible = serverState.isRunning,
+                        onClick = { copyUrl(localUrl) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_local_address)) },
+                        supportingContent = { Text(localUrl) },
+                    )
                     item(
                         headlineContent = {
                             Text(
@@ -386,22 +382,21 @@ fun SettingWebPage() {
                             )
                         },
                     )
-                    if (serverState.error != null) {
-                        item(
-                            headlineContent = {
-                                Text(
-                                    text = stringResource(R.string.setting_page_web_server_error),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = serverState.error ?: "",
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                        )
-                    }
+                    item(
+                        visible = serverState.error != null,
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_web_server_error),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = serverState.error ?: "",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                    )
                 }
             }
 
@@ -543,22 +538,21 @@ fun SettingWebPage() {
                             )
                         },
                     )
-                    if (sshError != null) {
-                        item(
-                            headlineContent = {
-                                Text(
-                                    text = stringResource(R.string.setting_page_web_server_error),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = sshError ?: "",
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                        )
-                    }
+                    item(
+                        visible = sshError != null,
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_web_server_error),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = sshError ?: "",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                    )
                 }
             }
         }

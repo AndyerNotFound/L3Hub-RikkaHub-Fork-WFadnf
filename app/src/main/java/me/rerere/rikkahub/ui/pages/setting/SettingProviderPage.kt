@@ -94,10 +94,10 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceString
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.OutlinedButton
+import me.rerere.rikkahub.ui.style.TextButton
 import kotlin.time.Clock
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding

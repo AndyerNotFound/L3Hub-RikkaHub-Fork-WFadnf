@@ -491,74 +491,54 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 默认关闭，打开后仍然保留的内边距（有意为之）：气泡内部文字 10dp、输入框内部的 `inputPadding`、
 `CardGroup` 每项内部的 16dp、对话框按钮区。这些是内容离组件边缘的距离，不是组件边缘离屏幕的距离。
 
-## 页面容器变换（fork 新增）
+## 页面转场与容器变换（fork）
 
-页面切换不再整页横移，改成「容器变换」：点的那一行（设置里的分组卡片、助手卡片、列表项）自己展开成整页。
-位移交给 `SharedTransitionLayout` 里的 hero 容器演，`NavDisplay` 的 `transitionSpec` 只留淡入淡出，
-两层动画不再打架。只有进场参与共享元素：返回统一整页向下滑出（`popTransitionSpec` /
-`predictivePopTransitionSpec` 都是 `EnterTransition.None togetherWith slideOutVertically`），
-离场那一侧会先摘掉共享元素，页面不会一边下滑一边被 overlay 收进条目里。
+页面级转场统一由 `ui/navigation/NavTransitions.kt` 提供，中列与设置右列使用同一份规格：
 
-- 目标页：`RouteActivity.kt` 里绝大多数 `entry<T>` 换成 `heroEntry<T>`，把页面包进
-  `HeroPage(key.heroKey())`；页面到位后圆角从 20dp 收到直角，退场时再长回去。
-  页面**自己不要再包一层 `HeroPage`**——`heroEntry` 已经包了，叠两层同一个 key 的共享容器会打架
-- 没有源条目的页面（抽屉、聊天流里的入口、模型编辑页的「新建」）由 `Screen.usesHeroTransition()`
-  判定为 false，转场改成从下方滑入 / 向下滑出，比纯淡出更有方向感；新增 `heroSource` 入口时
-  要在这个 `when` 里补一条，漏了会和容器变换叠成两层位移
-- 源条目：`Modifier.heroSource(screen, shape)`，圆角默认取 `HeroSourceCorner`（20dp）；
-  全宽组件模式下两边一起归零（都走 `adaptiveCornerRadius`），否则展开的第一帧会对不上
-- 两边的 key 都由 `Screen.heroKey()` 算：`Screen` 是 sealed 接口，新增条目时 `when` 少一条编译不过，
-  正好挡住「两个页面共用一个 key、容器变换串台」
-- `Screen.Setting` 没套容器变换：切配色时会 `popUpTo` 原地重进，新旧两页会同时在组合里
-- 助手列表头像原来的 `heroAnimation` 去掉了，整卡已经是容器变换，两层叠加互相打架
-- `Screen.MediaCreation` 复用 `mediaCreationHeroKey()`，和会话列表那侧同一个 key
+- 进场默认从下方滑入，`Screen.Chat.enterFromTop` 可改为从上方进入；被盖住的页面使用
+  `ExitTransition.None`，原地不动。
+- 普通返回与预测性返回共用同一个 `NavTransitionSpecs.pop`：整页向下滑出，下层页面原地露出，不叠淡入淡出。
+- `Screen.MediaCreation` 保留 entry 级 `None` 转场，容器变换只由页面内部的 sharedBounds 演出，避免双层位移。
+- 路由身份在同包的 `Screen.kt`，入口清单是 `RouteActivity.kt` 顶层的 `appNavEntries()`；两个 `NavDisplay`
+  共用 remembered entry provider，但各自持有 SaveableState / ViewModelStore / 输入守卫装饰器实例。
 
-转场期间离场的那一页还会吃点击：navigation3 1.2.0 的 `NavDisplay` 在 exit 动画结束前把离场的 entry
-留在 `AnimatedContent` 里继续组合，却不拦它的指针输入。pop 时它 zIndex 更高（淡出早完了、位移还没收尾），
-看起来是空的，点下去算点它。`ui/hooks/NavInputGuard.kt` 的 `rememberNavInputGuardDecorator()` 给
-「目标状态不是 Visible」的 entry 盖一层 `Box`，在 `PointerEventPass.Initial` 把指针事件消费掉；
-正在进场的那一页不拦，它自己的位移是 `graphicsLayer` 做的，命中区域跟着视觉位置走。
-代价是转场开头那一小段整屏不可点：pop 改成整页下滑以后命中区域随位移让出，空窗从「整屏整段」
-缩到「首帧到滑走」；纯 fade 的退场（`Screen.Setting` 切配色那一路 `popUpTo` 原地重进）仍然整段都空。
-「点一下让转场提前结束」做不到：Compose 的同级命中测试命中第一个节点就停，这层一撤，
-被盖住的那一页马上重新吃点击，正是当初要修的问题。
+`heroEntry<T>` 仍负责可配对页面的容器变换：只有进场配对共享元素，返回时通过 `LocalNavEntryPopped`
+摘掉共享元素，避免「整页下滑 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
+`HeroPage`；`Screen.Setting` 与 `Screen.MediaCreation` 的既有例外保持不变。
 
-转场期间的返回由 `ui/context/NavContext.kt` 判定：同一帧里的重复回调吃掉（否则一次返回会弹掉两层）；
-`Navigator.transitionInFlight` 为真时不直接出栈，而是记一笔 `pendingPops`，由 `RouteActivity` 里一条常驻的
-`LaunchedEffect(navigator) { navigator.drainPendingPops() }` 在这一段转场落下后逐层出栈（每一层都等自己的
-退场真正起来、落下之后再继续）。排队不等于防抖吞掉，按下一定生效，只是生效点推后。
+转场期间离场页仍会留在 `AnimatedContent` 里。`ui/hooks/NavInputGuard.kt` 给目标状态不是 Visible 的
+entry 盖一层指针守卫，在 Initial 阶段消费输入，防止看不见或正在离开的页面继续响应点击。该层是吞掉事件，
+不是把事件透给下一页。
 
-早期做法是转场中直接出栈、交给 nav3 重定向，观感会算到上一页头上：nav3 把这次 pop 当成「打断正在播的进场」，
-重定向到同一个 `Transition`；而 Compose 的 `AnimatedContent` 给每个 content 缓存的进场参数（`specOnEnter`，
-连带 `targetContentZIndex`）只在目标变化时重算，重定向后拿到的还是上一段进场的参数 —— 上一页会重播一遍进场，
-且 zIndex 与离场页打平、又排在绘制顺序末尾，于是盖在正在下滑的那一页上面。
-代价是「按下返回到开始退场」最多多等一个进场动画的剩余时长（SYSTEM 档约 300–500ms，快档更短）。
-`navigate` / `clearAndNavigate` 会清掉排队，免得那一下把刚打开的页面弹掉。
-转场状态由 `rememberNavTransitionReporter()` 从 scene 里回写
-（同一段转场里所有 scene 共用一个 `Transition`，值必然一致，不需要引用计数）。
+返回仍由 `ui/context/NavContext.kt` 统一判定：同帧重复 pop 去重；进场中按返回进入 `pendingPops`，
+由 `RouteActivity` 的常驻 `drainPendingPops()` 在转场落定后逐层出栈；预测性 seek 正倒向下一层时则立即出栈，
+让手势顺势收尾。`navigate` / `clearAndNavigate` 清空排队，避免旧返回弹掉新页面。
 
-淡入淡出统一取 `ui/theme/MotionSpecs.kt` 的 `rememberEffectsSpec()`（`RouteActivity` 里的 `pageFadeSpec`），
-和位移一起跟设置里的动画档位走；原先吃 `fadeIn()` / `fadeOut()` 的默认弹簧，调快档位后位移收住了、淡入还在按原时长走。
+转场状态按 `NavEntry.contentKey` 分页记录：`NavTransitionReport` 读取的是各 entry 自己的子转场，
+同一段动画里离场页与露出页可以处于不同状态，不能共用一个布尔值互相覆盖。entry 销毁时删除自己的记录；
+150ms / 1200ms 两处等待上限仅作兜底，防止关闭动效或状态缺失时永久卡住返回。
 
-`CardGroup` 跟着加了两样：
+动画曲线继续取 `ui/theme/MotionSpecs.kt` 与当前 MD3 motionScheme。不要为「统一」把页面弹簧改成另一套
+ tween；关闭动效时仍由主题统一切到 snap。带模糊的滚动交换使用 `rememberMotionBlurSpec()`，跟随偏好设置里的
+过渡时长。
 
-- `item(heroScreen = ...)`：这一行点击后展开成对应页面，形状由条目自己算（中间项是 4dp 不是 20dp）
-- `item(visible = ...)` / `formItem(visible = ...)` / `switchItem(visible = ...)`：条件项不再写成
-  `if (cond) { switchItem(...) }`，而是挂在条目上，收起/展开走 `expandVertically` + `shrinkVertically`
-  （弹簧过冲后回弹），后面的条目连同圆角一起挪过去；关掉动效时用 `snap` 直接到位
+`CardGroup` 的条件项必须始终注册，通过 `item(visible = ...)` / `formItem(visible = ...)` /
+`switchItem(visible = ...)` 或 `optionGroup(visible = ...)` 收放。不得在外层写 `if`，否则条目在收集阶段
+就被删掉，无法进入 `MotionExpandCollapse`，相邻项的圆角与高度也会落在两条时间线上。
 
-| 文件 | 说明 |
+`CardGroup` 的 `content` 参数不能标 `@Composable`：标了之后它成为独立重组作用域，外部状态变化只重建
+items，下面的 Column 不一定跟着重组。调用点里的 `item(...)` / `formItem(...)` 本身不是 composable 调用，
+composable 内容作为参数传入即可。
+
+| 文件 | 职责 |
 |---|---|
-| `ui/hooks/HeroAnimation.kt` | 新增 `HeroPage`、`heroSource`、`Screen.heroKey()`、`HeroSourceCorner` |
-| `RouteActivity.kt` | `heroEntry` 扩展；`transitionSpec` 只留淡入淡出；pop 一律下滑、淡入淡出取 `rememberEffectsSpec()` |
-| `ui/hooks/NavInputGuard.kt` | `rememberNavInputGuardDecorator()` 吞离场页指针输入；`rememberNavTransitionReporter()` 回写转场状态 |
-| `ui/components/ui/CardGroup.kt` | `heroScreen` / `visible` 参数、展开收起动画 |
-
-`CardGroup` 的 `content` 参数**不能**标 `@Composable`：标了之后它变成一个独立的重组作用域，
-外部状态（比如某个开关的 `remember` 值）变了只会把 `items` 重新填一遍，下面读 `items` 的
-`Column` 不会重组，表现是「点了开关没反应，动一下别的才刷新」。调用点里的 `item(...)` /
-`formItem(...)` 都不是 composable 调用，把 composable 块作为参数传进去，去掉标注照样编译。
-| 各 `*Page.kt` | 入口条目补 `heroScreen`、列表项补 `heroSource`；原来的条件项改用 `visible` |
+| `Screen.kt` | 路由身份与序列化声明 |
+| `RouteActivity.kt` | 入口清单、三列装配、常驻排队返回消费端 |
+| `ui/navigation/NavTransitions.kt` | 两列共用的进场、返回、预测性返回规格与装饰器入口 |
+| `ui/hooks/HeroAnimation.kt` | 进场共享元素与返回摘除 |
+| `ui/hooks/NavInputGuard.kt` | 离场页输入拦截、按 entry 回报转场状态 |
+| `ui/context/NavContext.kt` | 栈操作、返回排队与超时兜底 |
+| `ui/components/ui/CardGroup.kt` | 条件项注册、统一收放与原生/Miuix 条目布局 |
 
 ## 模型编辑页（fork 新增）
 

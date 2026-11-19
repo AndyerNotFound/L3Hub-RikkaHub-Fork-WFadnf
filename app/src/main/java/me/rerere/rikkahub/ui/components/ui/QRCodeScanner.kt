@@ -56,7 +56,7 @@ import kotlinx.coroutines.awaitCancellation
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import me.rerere.ui.components.AnimatedDialog

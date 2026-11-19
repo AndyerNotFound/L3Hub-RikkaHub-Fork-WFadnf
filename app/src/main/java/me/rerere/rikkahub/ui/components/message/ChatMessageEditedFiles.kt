@@ -66,7 +66,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.ui.modifier.MotionSlideReveal
-import me.rerere.rikkahub.ui.terminal.Card
+import me.rerere.rikkahub.ui.style.Card
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.compose.koinInject

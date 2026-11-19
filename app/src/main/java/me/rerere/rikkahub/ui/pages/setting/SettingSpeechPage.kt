@@ -71,9 +71,9 @@ import me.rerere.rikkahub.ui.pages.setting.components.ProviderEditSheet
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderTypeSheet
 import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
-import me.rerere.rikkahub.ui.terminal.Card
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.RadioButton
+import me.rerere.rikkahub.ui.style.Card
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.tts.provider.TTSProviderSetting
 import me.rerere.ui.components.RikkaConfirmDialog

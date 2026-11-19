@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
@@ -55,8 +56,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.ui.terminal.Switch
-import me.rerere.rikkahub.ui.terminal.TopAppBar
 import me.rerere.rikkahub.data.datastore.UiStyle
 import me.rerere.rikkahub.ui.theme.LocalMiuixCornerRadius
 import me.rerere.rikkahub.ui.theme.LocalUiStyle
@@ -287,6 +286,45 @@ fun CardGroupValue(
     }
 }
 
+// 原生表单项和 Miuix 卡片的内部是同一套布局：标题行 + 表单内容，两边共用
+@Composable
+private fun CardGroupItemLayout(
+    item: CardGroupItem,
+    formContent: (@Composable ColumnScope.() -> Unit)?,
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
+            Row(
+                // 和 ListItem 一致：带说明文字时，两侧内容靠上对齐
+                verticalAlignment = if (item.supportingContent != null) Alignment.Top else Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item.leadingContent?.invoke()
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    item.headlineContent?.let { headline ->
+                        ProvideTextStyle(MaterialTheme.typography.bodyLarge, headline)
+                    }
+                    item.supportingContent?.let { supporting ->
+                        CompositionLocalProvider(
+                            LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+                        ) {
+                            ProvideTextStyle(MaterialTheme.typography.bodyMedium, supporting)
+                        }
+                    }
+                }
+                item.trailingContent?.invoke()
+            }
+        }
+        formContent?.invoke(this)
+    }
+}
+
 @Composable
 private fun CardGroupFormItem(
     item: CardGroupItem,
@@ -323,37 +361,7 @@ private fun CardGroupFormItem(
         shape = shape,
         color = if (glass) Color.Transparent else CustomColors.listItemColors.containerColor,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
-                Row(
-                    // 和 ListItem 一致：带说明文字时，两侧内容靠上对齐
-                    verticalAlignment = if (item.supportingContent != null) Alignment.Top else Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    item.leadingContent?.invoke()
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        item.headlineContent?.let { headline ->
-                            ProvideTextStyle(MaterialTheme.typography.bodyLarge, headline)
-                        }
-                        item.supportingContent?.let { supporting ->
-                            CompositionLocalProvider(
-                                LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
-                            ) {
-                                ProvideTextStyle(MaterialTheme.typography.bodyMedium, supporting)
-                            }
-                        }
-                    }
-                    item.trailingContent?.invoke()
-                }
-            }
-            formContent()
-        }
+        CardGroupItemLayout(item = item, formContent = formContent)
     }
 }
 
@@ -420,6 +428,25 @@ private fun CardGroupListItem(
     )
 }
 
+// 原生与 Miuix 两个分支的收放参数完全一样，收在这里，改一处两边一起变
+private data class CardGroupCollapseSpecs(
+    val expand: FiniteAnimationSpec<IntSize>,
+    val blur: FiniteAnimationSpec<Float>,
+    val fade: FiniteAnimationSpec<Float>,
+)
+
+@Composable
+private fun cardGroupCollapseSpecs(): CardGroupCollapseSpecs {
+    // 关闭动效时直接跳到位，别让显式 spring 绕开这个开关
+    val disabled = LocalSettings.current.displaySetting.disableAnimations
+    return CardGroupCollapseSpecs(
+        expand = if (disabled) snap<IntSize>() else rememberSpatialSpec<IntSize>(),
+        // 模糊跟展开用同一条速度档位，用户把动画调快/调慢时两边一起变
+        blur = if (disabled) snap<Float>() else rememberSpatialSpec<Float>(),
+        fade = MaterialTheme.motionScheme.fastEffectsSpec<Float>(),
+    )
+}
+
 @Composable
 fun CardGroup(
     modifier: Modifier = Modifier,
@@ -446,19 +473,7 @@ fun CardGroup(
                 }
             }
         }
-        // 关闭动效时直接跳到位，别让显式 spring 绕开这个开关
-        val expandSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
-            snap<IntSize>()
-        } else {
-            rememberSpatialSpec<IntSize>()
-        }
-        // 模糊跟展开用同一条速度档位，用户把动画调快/调慢时两边一起变
-        val expandBlurSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
-            snap<Float>()
-        } else {
-            rememberSpatialSpec<Float>()
-        }
-        val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val specs = cardGroupCollapseSpecs()
         val count = scope.items.count { it.visible }
         // 收起的条目不占位置，后面的往前挪一格；圆角靠条目自己的 animateDp 平滑跟过去
         var visibleIndex = 0
@@ -467,10 +482,10 @@ fun CardGroup(
             MotionExpandCollapse(
                 visible = item.visible,
                 // 从上一项下面拉出来，到位后回弹一下
-                enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
-                exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),
-                enterBlurSpec = expandBlurSpec,
-                exitBlurSpec = expandBlurSpec,
+                enter = expandVertically(specs.expand) + fadeIn(specs.fade),
+                exit = shrinkVertically(specs.expand) + fadeOut(specs.fade),
+                enterBlurSpec = specs.blur,
+                exitBlurSpec = specs.blur,
             ) {
                 Column {
                     val formContent = item.formContent
@@ -558,25 +573,14 @@ private fun MiuixCardGroup(
                 }
             }
         }
-        val expandSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
-            snap<IntSize>()
-        } else {
-            rememberSpatialSpec<IntSize>()
-        }
-        // 模糊跟展开用同一条速度档位，用户把动画调快/调慢时两边一起变
-        val expandBlurSpec = if (LocalSettings.current.displaySetting.disableAnimations) {
-            snap<Float>()
-        } else {
-            rememberSpatialSpec<Float>()
-        }
-        val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val specs = cardGroupCollapseSpecs()
         scope.items.fastForEachIndexed { _, item ->
             MotionExpandCollapse(
                 visible = item.visible,
-                enter = expandVertically(expandSpec) + fadeIn(fadeSpec),
-                exit = shrinkVertically(expandSpec) + fadeOut(fadeSpec),
-                enterBlurSpec = expandBlurSpec,
-                exitBlurSpec = expandBlurSpec,
+                enter = expandVertically(specs.expand) + fadeIn(specs.fade),
+                exit = shrinkVertically(specs.expand) + fadeOut(specs.fade),
+                enterBlurSpec = specs.blur,
+                exitBlurSpec = specs.blur,
             ) {
                 Column {
                     MiuixCardGroupItem(item = item)
@@ -602,36 +606,6 @@ private fun MiuixCardGroupItem(item: CardGroupItem) {
         pressFeedbackType = miuixPressFeedbackType(),
         onClick = item.onClick,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
-                Row(
-                    // 和原生一致：带说明文字时两侧内容靠上对齐
-                    verticalAlignment = if (item.supportingContent != null) Alignment.Top else Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    item.leadingContent?.invoke()
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        item.headlineContent?.let { headline ->
-                            ProvideTextStyle(MaterialTheme.typography.bodyLarge, headline)
-                        }
-                        item.supportingContent?.let { supporting ->
-                            CompositionLocalProvider(
-                                LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
-                            ) {
-                                ProvideTextStyle(MaterialTheme.typography.bodyMedium, supporting)
-                            }
-                        }
-                    }
-                    item.trailingContent?.invoke()
-                }
-            }
-            item.formContent?.invoke(this)
-        }
+        CardGroupItemLayout(item = item, formContent = item.formContent)
     }
 }

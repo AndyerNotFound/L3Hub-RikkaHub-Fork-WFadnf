@@ -51,7 +51,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.MediaCreationFiles
 import me.rerere.rikkahub.data.model.MediaCreationParams
 import me.rerere.rikkahub.data.model.MediaCreationStatus
-import me.rerere.rikkahub.ui.terminal.TextButton
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.getActivity
 import java.io.File
 import me.rerere.ui.components.AnimatedAlertDialog

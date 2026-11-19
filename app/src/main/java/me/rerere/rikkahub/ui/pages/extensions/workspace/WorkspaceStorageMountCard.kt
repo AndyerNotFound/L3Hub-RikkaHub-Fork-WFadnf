@@ -87,16 +87,15 @@ internal fun WorkspaceStorageMountCard(
             }
         },
     ) {
-        if (!hasPermission) {
-            item(
-                onClick = { context.openAllFilesAccessSettings() },
-                leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
-                headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
-                supportingContent = {
-                    Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc))
-                },
-            )
-        }
+        item(
+            visible = !hasPermission,
+            onClick = { context.openAllFilesAccessSettings() },
+            leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
+            supportingContent = {
+                Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc))
+            },
+        )
         mounts.forEachIndexed { index, mount ->
             item(
                 onClick = { editingIndex = index },

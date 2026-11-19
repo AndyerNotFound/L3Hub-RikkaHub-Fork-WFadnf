@@ -58,10 +58,10 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.OutlinedButton
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
+import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.OutlinedButton
+import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.workspace.ssh.SshAuthType
@@ -175,13 +175,14 @@ fun WorkspaceSshEditorPage(id: String?) {
 
             item {
                 CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_auth)) }) {
-                    if (state.savedCredentialsLost) {
-                        item(
-                            leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
-                            headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost)) },
-                            supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc)) },
-                        )
-                    }
+                    item(
+                        visible = state.savedCredentialsLost,
+                        leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
+                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost)) },
+                        supportingContent = {
+                            Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc))
+                        },
+                    )
                     formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_auth_method)) }) {
                         val options = listOf(
                             SshAuthType.PASSWORD to stringResource(R.string.workspace_ssh_editor_password),

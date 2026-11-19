@@ -16,6 +16,12 @@ Material 3 look (cards with dividers, plain forms).
   and motion from `androidx.compose.material3` over hand-rolled equivalents.
 - Settings-style and form pages use segmented groups via `CardGroup` (
   app/src/main/java/me/rerere/rikkahub/ui/components/ui/CardGroup.kt) instead of a card with dividers.
+- Shared MD3/Miuix component routing lives in `ui/style/StyledComponents.kt`; do not put application-wide visual
+  components in the terminal package.
+- Display-level page transitions have one source in `ui/navigation/NavTransitions.kt`. Ordinary and predictive back
+  must share the same specification; do not fork another transition table for a second navigation pane.
+- The ownership and behavior contract for navigation, chat, motion, and editor drafts is documented in
+  `docs/ui-consolidation.md`.
 - Favor larger corner radii, filled/tonal containers, and whole-row click targets.
 - Conditional options inside a `CardGroup` stay registered and hide themselves through the `visible` flag; a block of
   options shares one condition through `optionGroup(visible = ...) { }`. Never wrap `item` / `switchItem` /

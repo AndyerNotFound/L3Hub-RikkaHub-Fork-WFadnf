@@ -334,7 +334,8 @@ private class StretchHeightState {
  * 位移给出「滚过去」的方向感，模糊跟着收放，内容替换不再是一帧硬切。
  *
  * 位移和淡入淡出交给 [AnimatedContent] 自己的进出场，曲线取主题（关掉动效时一起 snap）；
- * 进出同参同向：行程、曲线、模糊时长取同一组值，退场沿进场那一侧回去。
+ * 模糊的收放单独走 [rememberMotionBlurSpec]：「过渡时长」这一档由用户调，别跟位移动画绑死。
+ * 进出同参同向：行程、曲线、模糊时长两端一致，退场沿进场那一侧回去。
  * 模糊挂在场景自己的 [AnimatedVisibilityScope.transition] 上，进场 1→0、退场 0→1，
  * 和进出场同一条时间线，退场内容被回收前一定播完。
  * 尺寸变化用 `SizeTransform(clip = false)` 收放，滚入的内容不会被容器边缘提前裁掉。
@@ -371,7 +372,8 @@ fun <S> MotionScrollSwap(
         label = label,
     ) { state ->
         val blur = rememberMotionBlurSteps(maxRadius = maxBlurRadius)
-        val blurSpec = rememberSpatialSpec<Float>()
+        // 模糊自己的收放曲线：时长跟设置里的「过渡时长」走，关掉动态模糊时直接 snap
+        val blurSpec = rememberMotionBlurSpec()
         val blurAmount by transition.animateFloat(
             transitionSpec = { blurSpec },
             label = "$label blur",

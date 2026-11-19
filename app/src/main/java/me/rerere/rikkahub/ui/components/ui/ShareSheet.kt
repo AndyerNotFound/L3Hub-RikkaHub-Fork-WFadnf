@@ -27,7 +27,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.migration.migrateProviderQuotaQuery
-import me.rerere.rikkahub.ui.terminal.IconButton
+import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import kotlin.io.encoding.Base64

@@ -28,7 +28,12 @@ import me.rerere.rikkahub.Screen
  */
 class Navigator(
     private val backStack: MutableList<NavKey>,
-    // 时间源可注入：往返窗口是纯时间逻辑，单测里不该碰 android.os.SystemClock
+    // 两段等待的上限可注入：单测要把「超时兜底」这一段跑到，不能真等满 1200ms。
+    // 不传时就是文件末尾那两个常量的现值，线上行为不变。
+    private val transitionStartTimeoutMs: Long = TRANSITION_START_TIMEOUT_MS,
+    private val transitionSettleTimeoutMs: Long = TRANSITION_SETTLE_TIMEOUT_MS,
+    // 时间源可注入：往返窗口是纯时间逻辑，单测里不该碰 android.os.SystemClock。
+    // 留在最后一位，`Navigator(stack) { now }` 这种尾随 lambda 写法才还成立
     private val clock: () -> Long = SystemClock::uptimeMillis,
 ) {
     private var lastPushScreen: Screen? = null
@@ -177,7 +182,7 @@ class Navigator(
             pendingPops--
             popTop(clock())
             // 等这一层的退场真的起来，再回到循环顶部等它落下；关掉动效时它不会起来，超时即可
-            withTimeoutOrNull(TRANSITION_START_TIMEOUT_MS) {
+            withTimeoutOrNull(transitionStartTimeoutMs) {
                 snapshotFlow { transitionInFlight }.first { it }
             }
         }
@@ -186,7 +191,7 @@ class Navigator(
     /** 等转场落下。状态万一卡在 true（回写那一层没了），不能把返回一直扣着。 */
     private suspend fun awaitTransitionSettled() {
         if (!transitionInFlight) return
-        withTimeoutOrNull(TRANSITION_SETTLE_TIMEOUT_MS) {
+        withTimeoutOrNull(transitionSettleTimeoutMs) {
             snapshotFlow { transitionInFlight }.first { !it }
         }
     }

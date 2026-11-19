@@ -2,62 +2,36 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -75,13 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -90,8 +60,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -102,12 +70,9 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
@@ -115,34 +80,18 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
-import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.Flowchart01
-import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.FolderAdd
-import me.rerere.hugeicons.stroke.Layers01
-import me.rerere.hugeicons.stroke.LeftToRightListBullet
-import me.rerere.hugeicons.stroke.Menu03
-import me.rerere.hugeicons.stroke.MoreVertical
-import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.hugeicons.stroke.Share04
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.FloatingBarItem
-import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.effectiveContextWindow
@@ -152,56 +101,38 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.SessionActivity
-import me.rerere.rikkahub.ui.components.ai.BackgroundTasksContent
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStripDashboard
 import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
-import me.rerere.rikkahub.ui.components.ai.ChatCapsule
-import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
-import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.SearchMode
-import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
-import me.rerere.rikkahub.ui.components.message.EditedFilesList
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
 import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
-import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.hooks.EditStateContent
-import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
-import me.rerere.rikkahub.ui.terminal.IconButton
-import me.rerere.rikkahub.ui.terminal.TextButton
-import me.rerere.rikkahub.ui.terminal.TopAppBar
-import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
+import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
-import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
-import me.rerere.rikkahub.ui.theme.appButtonShadow
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -213,7 +144,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
 @Composable
@@ -437,6 +367,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         processingStatus = processingStatus,
                         setting = setting,
                         conversationState = conversationState,
+                        conversationId = conversationId,
+                        folderId = conversationFolderId,
+                        messageCount = conversationMessageCount,
                         folderWorkspaceName = folderWorkspaceName,
                         navController = navController,
                         vm = vm,
@@ -487,6 +420,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     processingStatus = processingStatus,
                     setting = setting,
                     conversationState = conversationState,
+                    conversationId = conversationId,
+                    folderId = conversationFolderId,
+                    messageCount = conversationMessageCount,
                     folderWorkspaceName = folderWorkspaceName,
                     navController = navController,
                     vm = vm,
@@ -519,6 +455,13 @@ private fun ChatPageContent(
     // 会话用 State 传进来：流式输出每个 token 都换一份 Conversation，
     // 这里只读派生值，逐 token 的部分留给 ChatList。
     conversationState: State<Conversation>,
+    // 下面三个派生值在 ChatPage 里已经算过（抽屉、文件夹名、首屏滚动都在用），
+    // 传进来是为了不在两层各挂一份 derivedStateOf
+    conversationId: Uuid,
+    // 会话所属文件夹：顶栏的文件夹胶囊读它
+    folderId: Uuid?,
+    // 消息节点数：详情面板和请求快照的刷新键
+    messageCount: Int,
     // 文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定（见 ChatPage 顶部）
     folderWorkspaceName: String?,
     // 横屏三栏：中间是聊天区，右栏是标签页式的看板（见 ChatSidePanel.kt）
@@ -550,14 +493,9 @@ private fun ChatPageContent(
     // 页面这一层不直接读整份会话：流式输出每个 token 都会换一份 Conversation，
     // 直接读会让输入框、顶栏、背景、抽屉整页跟着重组。下面只派生页面真正关心的字段，
     // 结果没变就不会让页面重组；逐 token 的正文留给 ChatList 自己读 State。
-    val conversationId by remember(conversationState) {
-        derivedStateOf { conversationState.value.id }
-    }
+    // conversationId / folderId / messageCount 由 ChatPage 算一次传进来，不在这里再挂一份。
     // 本轮生成速度：消息列表下方的加载图标与输入区上方的表盘共用这一份采样
     val generationSpeed = rememberGenerationSpeed(conversationState, loadingJob != null)
-    val messageCount by remember(conversationState) {
-        derivedStateOf { conversationState.value.messageNodes.size }
-    }
     val hasMessages by remember(conversationState) {
         derivedStateOf { conversationState.value.messageNodes.isNotEmpty() }
     }
@@ -573,9 +511,6 @@ private fun ChatPageContent(
     }
     val newConversation by remember(conversationState) {
         derivedStateOf { conversationState.value.newConversation }
-    }
-    val folderId by remember(conversationState) {
-        derivedStateOf { conversationState.value.folderId }
     }
     val contextTokens by remember(conversationState) {
         derivedStateOf { conversationState.value.lastContextTokens() }
@@ -732,24 +667,13 @@ private fun ChatPageContent(
 
     // 上下文已经爆了且开了自动压缩：点发送先确认，确认后由 ChatService 先压缩再发送
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
-    val submitInput: () -> Unit = {
-        if (inputState.isEditing()) {
-            vm.handleMessageEdit(
-                parts = inputState.getContents(),
-                messageId = inputState.editingMessage!!,
-            )
-            inputState.clearInput()
-        } else if (vm.handleMessageSend(inputState.getContents())) {
-            inputState.clearInput()
-            scope.launch {
-                delay(100.milliseconds)
-                chatListState.animateScrollToItem(
-                    index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                )
-            }
-        }
-        // 没被受理（关闭队列后正在压缩上下文、或队列暂停还压着旧消息）则保留输入框内容
-    }
+    // 四条发送路径共用的收尾动作（清空 + 100ms 后滚到底），见 ChatSendActions
+    val sendActions = ChatSendActions(
+        inputState = inputState,
+        vm = vm,
+        scope = scope,
+        chatListState = chatListState,
+    )
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val previewListState = rememberLazyListState()
@@ -768,24 +692,16 @@ private fun ChatPageContent(
         providers = setting.providers,
         type = ModelType.CHAT,
     )
-    // 横屏三栏的右栏：一个看板一个标签页，顺序就是标签条上的顺序
-    var openPaneNames by rememberSaveable { mutableStateOf(listOf(ChatSidePane.Details.name)) }
-    var selectedPaneName by rememberSaveable { mutableStateOf<String?>(ChatSidePane.Details.name) }
+    // 横屏三栏的右栏：一个看板一个标签页，顺序就是标签条上的顺序（状态见 ChatPaneTabs）
+    val paneTabs = rememberChatPaneTabs()
     // 后台任务弹层从输入框里提到这一层：横屏要能把它放进右侧栏
     var showBackgroundTasks by remember { mutableStateOf(false) }
     val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
     val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
 
-    val openPanes = remember(openPaneNames) {
-        openPaneNames.mapNotNull { name -> ChatSidePane.entries.firstOrNull { it.name == name } }
-    }
-    val selectedPane = remember(selectedPaneName, openPanes) {
-        selectedPaneName?.let { name -> openPanes.firstOrNull { it.name == name } }
-    }
-
     // 会话详情展开时才解析一次请求快照：工具、系统提示词和本轮注入都按当前配置重新算
     val detailsPanelVisible =
-        (showDetails && !threePane) || (threePane && selectedPane == ChatSidePane.Details)
+        (showDetails && !threePane) || (threePane && paneTabs.selected == ChatSidePane.Details)
     val requestPreviewState by produceState<RequestPreviewUiState>(
         RequestPreviewUiState.Idle,
         detailsPanelVisible,
@@ -813,26 +729,10 @@ private fun ChatPageContent(
         }
     }
 
-    // 对标签的操作一律直接读状态，不读这一帧的 openPanes：连点两下时后者还是旧值
-    fun openTab(pane: ChatSidePane) {
-        if (openPaneNames.none { it == pane.name }) {
-            openPaneNames = openPaneNames + pane.name
-        }
-        selectedPaneName = pane.name
-    }
-
-    fun closeTab(pane: ChatSidePane) {
-        val remaining = openPaneNames.filterNot { it == pane.name }
-        openPaneNames = remaining
-        if (selectedPaneName == pane.name || selectedPaneName !in remaining) {
-            selectedPaneName = remaining.lastOrNull()
-        }
-    }
-
     // 打开某个覆盖层：横屏进右栏的标签页，竖屏还是原来的弹层 / 对话框
     fun openPane(pane: ChatSidePane) {
         if (threePane) {
-            openTab(pane)
+            paneTabs.open(pane)
             return
         }
         when (pane) {
@@ -855,18 +755,16 @@ private fun ChatPageContent(
     // 收掉右栏当前的标签页
     fun closePane() {
         if (!threePane) return
-        val name = selectedPaneName?.takeIf { it in openPaneNames } ?: openPaneNames.firstOrNull()
-        name?.let { target -> ChatSidePane.entries.firstOrNull { it.name == target } }
-            ?.let { closeTab(it) }
+        paneTabs.closeSelected()
     }
 
     // 顶栏「详情」：横屏是右栏的标签页，竖屏还是顶栏底下那块的展开
     fun toggleDetailsPane() {
         if (threePane) {
-            if (selectedPaneName == ChatSidePane.Details.name) {
-                closeTab(ChatSidePane.Details)
+            if (paneTabs.selectedName == ChatSidePane.Details.name) {
+                paneTabs.close(ChatSidePane.Details)
             } else {
-                openTab(ChatSidePane.Details)
+                paneTabs.open(ChatSidePane.Details)
             }
         } else {
             showDetails = !showDetails
@@ -875,7 +773,7 @@ private fun ChatPageContent(
 
     fun dismissFiles() {
         if (threePane) {
-            if (openPaneNames.contains(ChatSidePane.Files.name)) closeTab(ChatSidePane.Files)
+            if (paneTabs.openNames.contains(ChatSidePane.Files.name)) paneTabs.close(ChatSidePane.Files)
         } else {
             showFilesSheet = false
         }
@@ -889,18 +787,14 @@ private fun ChatPageContent(
         // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
         if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
         lastAutoOpenedTurn = turnId
-        if (openPaneNames.none { it == ChatSidePane.Changes.name }) {
-            openPaneNames = openPaneNames + ChatSidePane.Changes.name
-        }
+        paneTabs.ensureOpen(ChatSidePane.Changes)
     }
 
     // 清单与引导：横屏收进右栏，出现时把标签页开出来，不抢当前看板
     val hasStatusContent = todos.isNotEmpty() || messageQueue.guidances.isNotEmpty()
     LaunchedEffect(threePane, hasStatusContent) {
         if (!threePane || !hasStatusContent) return@LaunchedEffect
-        if (openPaneNames.none { it == ChatSidePane.Status.name }) {
-            openPaneNames = openPaneNames + ChatSidePane.Status.name
-        }
+        paneTabs.ensureOpen(ChatSidePane.Status)
     }
 
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
@@ -911,32 +805,32 @@ private fun ChatPageContent(
     val allowAudioVideoAttachments =
         currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
 
-    // 发送入口：模型、上下文门限检查都走这里
+    // 发送入口：模型、上下文门限检查都走这里，分支见 chatSendGate
     val sendInput: () -> Unit = {
-        if (currentChatModel == null) {
-            toaster.show(context.getString(R.string.media_creation_page_select_model_first), type = ToastType.Error)
-        } else if (contextLimitBlocksSend && assistant.autoCompress) {
-            showCompressAndSendDialog = true
-        } else if (contextLimitReached) {
-            toaster.show(contextLimitMessage, type = ToastType.Error)
-            if (contextLimitBlocksSend) Unit else submitInput()
-        } else {
-            submitInput()
-        }
-    }
+        when (
+            chatSendGate(
+                hasModel = currentChatModel != null,
+                contextLimitReached = contextLimitReached,
+                contextLimitBlocksSend = contextLimitBlocksSend,
+                autoCompress = assistant.autoCompress,
+            )
+        ) {
+            ChatSendGate.SelectModel -> toaster.show(
+                context.getString(R.string.media_creation_page_select_model_first),
+                type = ToastType.Error,
+            )
 
-    val sendInterject: () -> Unit = interject@{
-        if (contextLimitReached) {
-            toaster.show(contextLimitMessage, type = ToastType.Error)
-            if (contextLimitBlocksSend) return@interject
-        }
-        if (vm.handleMessageSend(inputState.getContents(), interject = true)) {
-            inputState.clearInput()
-            scope.launch {
-                delay(100.milliseconds)
-                chatListState.animateScrollToItem(
-                    index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                )
+            // 到顶且开着自动压缩：先确认，确认后由 ChatService 压缩再发送
+            ChatSendGate.ConfirmCompress -> showCompressAndSendDialog = true
+
+            // 到顶、模型开了强制拦截：提示一次，不发送
+            ChatSendGate.BlockedByContextLimit ->
+                toaster.show(contextLimitMessage, type = ToastType.Error)
+
+            // 到顶但模型关了强制拦截：也提示一次，然后照常发送
+            ChatSendGate.Allow -> {
+                if (contextLimitReached) toaster.show(contextLimitMessage, type = ToastType.Error)
+                sendActions.submit()
             }
         }
     }
@@ -1038,39 +932,22 @@ private fun ChatPageContent(
             onInterjectClick = {
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
-                    if (contextLimitBlocksSend) return@ChatInput
-                }
-                if (vm.handleMessageSend(inputState.getContents(), interject = true)) {
-                    inputState.clearInput()
-                    scope.launch {
-                        delay(100.milliseconds)
-                        chatListState.animateScrollToItem(
-                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                        )
+                    if (!contextAllowsSend(contextLimitReached, contextLimitBlocksSend)) {
+                        return@ChatInput
                     }
                 }
+                sendActions.send(interject = true)
             },
             onLongSendClick = {
                 if (!hasMessages) inputExitRunning = true
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
-                    if (contextLimitBlocksSend) return@ChatInput
-                }
-                if (inputState.isEditing()) {
-                    vm.handleMessageEdit(
-                        parts = inputState.getContents(),
-                        messageId = inputState.editingMessage!!,
-                    )
-                    inputState.clearInput()
-                } else if (vm.handleMessageSend(content = inputState.getContents(), answer = false)) {
-                    inputState.clearInput()
-                    scope.launch {
-                        delay(100.milliseconds)
-                        chatListState.animateScrollToItem(
-                            index = (chatListState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0),
-                        )
+                    if (!contextAllowsSend(contextLimitReached, contextLimitBlocksSend)) {
+                        return@ChatInput
                     }
                 }
+                // 编辑态写回那条消息；否则发出去但不触发回复
+                if (!sendActions.submitEdit()) sendActions.send(answer = false)
             },
             onUpdateChatModel = vm::setChatModel,
             onUpdateAssistant = vm::updateAssistant,
@@ -1094,7 +971,7 @@ private fun ChatPageContent(
                         floatingBarTerminalWorkspaces.isEmpty() ->
                             navController.navigate(Screen.Workspaces)
 
-                        threePane -> openTab(ChatSidePane.Terminal)
+                        threePane -> paneTabs.open(ChatSidePane.Terminal)
 
                         floatingBarTerminalWorkspaces.size == 1 ->
                             navController.navigate(
@@ -1167,7 +1044,7 @@ private fun ChatPageContent(
                         onSelectFolder = vm::updateFolder,
                         onCreateFolder = { showCreateFolderDialog = true },
                         onShowOverview = {
-                            selectionState.selecting = false
+                            selectionState.cancel()
                             previewMode = true
                         },
                         onExport = {
@@ -1411,13 +1288,18 @@ private fun ChatPageContent(
         }
         // 横屏三栏：右栏是标签页式的看板，聊天区不再被弹层盖住
         if (threePane) {
-            ColumnResizeHandle(onDrag = onChatResize)
-            ChatSidePanelColumn(
-                panes = openPanes,
-                selected = selectedPane,
-                onSelect = { selectedPaneName = it.name },
-                onOpen = { openTab(it) },
-                onClose = { closeTab(it) },
+            ChatSidePanes(
+                panes = paneTabs.openPanes,
+                selected = paneTabs.selected,
+                onSelect = { paneTabs.select(it) },
+                onOpen = { paneTabs.open(it) },
+                onClose = { paneTabs.close(it) },
+                onClosePane = { closePane() },
+                onOpenConversation = { id ->
+                    closePane()
+                    navigateToChatPage(navController, chatId = id)
+                },
+                onResize = onChatResize,
                 // 右栏吃掉剩余宽度：左栏收起时中列左移，空出来的位置全给它
                 modifier = Modifier
                     .weight(1f)
@@ -1425,113 +1307,28 @@ private fun ChatPageContent(
                     .padding(start = 4.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                 // 右栏背后是页面背景，取背景那份 Haze 源；聊天内容的源只覆盖左边
                 hazeState = backgroundHazeState,
-            ) { pane ->
-                when (pane) {
-                    ChatSidePane.Details -> ConversationDetailsPanel(
-                        assistant = assistant,
-                        model = currentChatModel,
-                        settings = setting,
-                        workspaces = workspaces,
-                        folderWorkspaceName = folderWorkspaceName,
-                        contextTokens = contextTokens,
-                        messageCount = messageCount,
-                        previewState = requestPreviewState,
-                        hazeState = backgroundHazeState,
-                        onCollapse = { closePane() },
-                        embedded = true,
-                        // 标签条已经有标题，内容里不再重复一行
-                        showHeader = false,
-                    )
-
-                    ChatSidePane.TaskTree -> SubAgentTaskTree(
-                        conversationId = conversationId,
-                        onOpenConversation = { id ->
-                            closePane()
-                            navigateToChatPage(navController, chatId = id)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        showTitle = false,
-                    )
-
-                    ChatSidePane.Status -> ConversationStatusPane(
-                        todos = todos,
-                        guidances = messageQueue.guidances,
-                        assistant = assistant,
-                        hideCompletedTodos = setting.displaySetting.hideCompletedTodoCard,
-                        onTodosChange = vm::updateTodos,
-                        onUpdateAssistant = vm::updateAssistant,
-                        onGuidanceToggleMode = vm::toggleGuidanceMode,
-                        onGuidanceRemove = vm::removeGuidance,
-                        running = loadingJob != null,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.Changes -> TurnChangesPane(
-                        parts = conversationState.value.currentMessages
-                            .lastOrNull { it.role == MessageRole.ASSISTANT }?.parts.orEmpty(),
-                        assistant = assistant,
-                        conversationId = conversationId,
-                        hasChanges = turnEditedFiles.isNotEmpty(),
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.Usage -> Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp)
-                            .padding(top = 4.dp, bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        ConversationUsageDetails(
-                            messages = conversationState.value.currentMessages,
-                            contextLength = currentChatModel?.effectiveContextWindow,
-                        )
-                    }
-
-                    ChatSidePane.Files -> ChatFilesPickerContent(
-                        inputState = inputState,
-                        setting = setting,
-                        conversationState = conversationState,
-                        folderWorkspaceName = folderWorkspaceName,
-                        assistant = assistant,
-                        chatModel = currentChatModel,
-                        vm = vm,
-                        attachmentPickerActions = attachmentPickerActions,
-                        onStartVoiceMode = onStartVoiceMode,
-                        onDismiss = { closePane() },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.Workspace -> WorkspaceFilesPane(
-                        workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
-                        workspaces = workspaces,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.Terminal -> WorkspaceTerminalPane(
-                        workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
-                        workspaces = workspaces,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.ModelPicker -> ModelListContent(
-                        state = chatModelListState,
-                        onSelect = { model -> vm.setChatModel(model) },
-                        onDismiss = { closePane() },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-
-                    ChatSidePane.BackgroundTasks -> BackgroundTasksContent(
-                        tasks = backgroundTasks,
-                        onStop = vm::stopBackgroundTask,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 16.dp),
-                    )
-                }
-            }
+                conversationState = conversationState,
+                conversationId = conversationId,
+                assistant = assistant,
+                chatModel = currentChatModel,
+                setting = setting,
+                workspaces = workspaces,
+                folderWorkspaceName = folderWorkspaceName,
+                contextTokens = contextTokens,
+                messageCount = messageCount,
+                requestPreviewState = requestPreviewState,
+                turnHasChanges = turnEditedFiles.isNotEmpty(),
+                todos = todos,
+                guidances = messageQueue.guidances,
+                hideCompletedTodoCard = setting.displaySetting.hideCompletedTodoCard,
+                running = loadingJob != null,
+                inputState = inputState,
+                attachmentPickerActions = attachmentPickerActions,
+                onStartVoiceMode = onStartVoiceMode,
+                chatModelListState = chatModelListState,
+                backgroundTasks = backgroundTasks,
+                vm = vm,
+            )
         }
         }
         }
@@ -1553,7 +1350,7 @@ private fun ChatPageContent(
                     TextButton(
                         onClick = {
                             showCompressAndSendDialog = false
-                            submitInput()
+                            sendActions.submit()
                         }
                     ) {
                         Text(stringResource(R.string.chat_page_compress_and_send))
@@ -1718,7 +1515,7 @@ private fun ChatFilesPickerSheet(
 
 /** 附件、工作区、搜索、扩展这些入口的本体：不含外层弹层，横屏时整块放进右侧栏 */
 @Composable
-private fun ChatFilesPickerContent(
+internal fun ChatFilesPickerContent(
     inputState: ChatInputState,
     setting: Settings,
     conversationState: State<Conversation>,
@@ -1806,587 +1603,6 @@ private const val LANDSCAPE_UI_SCALE = 0.75f
 
 // 横屏三栏左栏的宽度（缩放后的 dp）
 private val LANDSCAPE_SIDEBAR_WIDTH = 300.dp
-
-/** 右栏的「本轮改动」标签页：和消息下面那一行同源，只是换了个位置 */
-@Composable
-private fun TurnChangesPane(
-    parts: List<UIMessagePart>,
-    assistant: Assistant,
-    conversationId: Uuid,
-    hasChanges: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    if (!hasChanges) {
-        Box(
-            modifier = modifier.padding(24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(R.string.chat_page_turn_changes_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        return
-    }
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 4.dp, bottom = 16.dp),
-    ) {
-        EditedFilesList(
-            parts = parts,
-            assistant = assistant,
-            conversationId = conversationId,
-            isLastMessage = true,
-            initiallyExpanded = true,
-        )
-    }
-}
-
-// 顶栏按钮统一尺寸：45dp 的按钮配 22.5dp 的图标（原来是 40dp/20dp，等比放大 12.5%），
-// 按钮和图标保持 2:1，圆角、间距关系都不变。
-private val TopBarButtonSize = 45.dp
-private val TopBarButtonIconSize = 22.5.dp
-
-@Composable
-private fun TopBar(
-    hazeState: HazeState,
-    settings: Settings,
-    assistant: Assistant,
-    chatModel: Model?,
-    folderId: Uuid?,
-    folders: List<Folder>,
-    hasMessages: Boolean,
-    threePane: Boolean,
-    sidebarOpen: Boolean,
-    onOpenSidebar: () -> Unit,
-    showCapsuleBackground: Boolean,
-    onNewChat: () -> Unit,
-    onShowTaskTree: () -> Unit,
-    onShowModelPicker: () -> Unit,
-    onSelectFolder: (Uuid?) -> Unit,
-    onCreateFolder: () -> Unit,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
-    detailsExpanded: Boolean,
-    onToggleDetails: () -> Unit,
-) {
-    val effect = settings.displaySetting.effectiveBackgroundEffect
-    // 着色交给 chatInputHaze，按当前档位读滑杆；按钮自己只在关闭特效时铺实色
-    fun effectColor(base: Color): Color =
-        if (effect == BackgroundEffectType.OFF) base else Color.Transparent
-    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    } else {
-        null
-    }
-
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        title = {
-            // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里。
-            // 胶囊放在标题位：这里只拿到菜单与右侧按钮之间的剩余宽度，文件夹名超长时按这份宽度截断，
-            // 放在导航位则会顶到右边的按钮上
-            if (!threePane && chatModel != null) {
-                ChatModelFolderPill(
-                    settings = settings,
-                    model = chatModel,
-                    folderId = folderId,
-                    folders = folders,
-                    onSelectFolder = onSelectFolder,
-                    onCreateFolder = onCreateFolder,
-                    onShowModelPicker = onShowModelPicker,
-                    hazeState = hazeState,
-                    modifier = Modifier.padding(start = 2.dp),
-                )
-            }
-        },
-        navigationIcon = {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                Row(
-                    // 全宽模式下顶栏两侧不再留白，仍然保留状态栏与刘海的 inset
-                    modifier = Modifier.padding(start = adaptiveHorizontalPaddingValue(12.dp)),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val navShape = when {
-                        LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
-                        else -> CircleShape
-                    }
-                    val navColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    // 横屏三栏里这是左栏的开合，竖屏还是把抽屉拉出来
-                    Surface(
-                        onClick = onOpenSidebar,
-                        modifier = Modifier
-                            .size(TopBarButtonSize)
-                            .appButtonShadow(navShape, 2.dp)
-                            .clip(navShape)
-                            .background(effectColor(navColor))
-                            .chatInputHaze(
-                                hazeState = hazeState,
-                                displaySetting = settings.displaySetting,
-                                containerColor = navColor,
-                                shape = navShape,
-                            )
-                            // 描边画在模糊层之后，否则会被糊掉
-                            .then(
-                                if (effectBorder != null) {
-                                    Modifier.border(effectBorder, navShape)
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        shape = navShape,
-                        color = Color.Transparent,
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(
-                                HugeIcons.Menu03,
-                                "Messages",
-                                modifier = Modifier.size(TopBarButtonIconSize),
-                                // 左栏展开时按钮提亮，和详情按钮同一套反馈
-                                tint = if (threePane && sidebarOpen) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    LocalContentColor.current
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        actions = {
-            Row(
-                modifier = Modifier.padding(end = adaptiveHorizontalPaddingValue(8.dp)),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 和左侧的会话胶囊共用同一个容器，入口之间同样用一条细线隔开，
-                // 顶栏两头的胶囊才是同一套东西
-                ChatCapsule(
-                    displaySetting = settings.displaySetting,
-                    hazeState = hazeState,
-                    modifier = Modifier.height(TopBarButtonSize),
-                ) {
-                    // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
-                    if (!threePane) {
-                        IconButton(onClick = onToggleDetails, modifier = Modifier.size(TopBarButtonSize)) {
-                            Icon(
-                                HugeIcons.Layers01,
-                                stringResource(R.string.chat_page_details_button),
-                                modifier = Modifier.size(TopBarButtonIconSize),
-                                // 展开时按钮跟着提亮，顶栏一眼能看出详情面板是开着的
-                                tint = if (detailsExpanded) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    LocalContentColor.current
-                                },
-                            )
-                        }
-
-                        ChatCapsuleDivider()
-
-                        IconButton(onClick = onShowTaskTree, modifier = Modifier.size(TopBarButtonSize)) {
-                            Icon(
-                                HugeIcons.Flowchart01,
-                                stringResource(R.string.chat_task_tree_button),
-                                modifier = Modifier.size(TopBarButtonIconSize),
-                            )
-                        }
-
-                        ChatCapsuleDivider()
-                    }
-
-                    IconButton(onClick = { onNewChat() }, modifier = Modifier.size(TopBarButtonSize)) {
-                        Icon(HugeIcons.PencilEdit01, "New Message", modifier = Modifier.size(TopBarButtonIconSize))
-                    }
-
-                    ChatCapsuleDivider()
-
-                    ChatPageMenu(
-                        enabled = hasMessages,
-                        onShowOverview = onShowOverview,
-                        onExport = onExport,
-                        onDelete = onDelete,
-                    )
-                }
-            }
-        },
-    )
-}
-
-/**
- * 顶栏的会话胶囊：左半边是会话文件夹，右边是当前模型。
- *
- * 两部分各点各的：文件夹打开选单，模型打开模型选择面板。整块放在 AppBar 的标题位，
- * 标题位只拿到菜单按钮与右侧按钮之间的剩余宽度，文件夹名过长时按这份宽度截断。
- * 供应商图标让位给文件名：标题位在手机上一共一百多 dp，两个图标加名字放不下，
- * 供应商在模型选择面板里仍然看得到。
- */
-@Composable
-private fun ChatModelFolderPill(
-    settings: Settings,
-    model: Model,
-    folderId: Uuid?,
-    folders: List<Folder>,
-    onSelectFolder: (Uuid?) -> Unit,
-    onCreateFolder: () -> Unit,
-    onShowModelPicker: () -> Unit,
-    hazeState: HazeState,
-    modifier: Modifier = Modifier,
-) {
-    val folder = folders.firstOrNull { it.id == folderId }
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    ChatCapsule(
-        displaySetting = settings.displaySetting,
-        hazeState = hazeState,
-        modifier = modifier.height(TopBarButtonSize),
-    ) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .height(TopBarButtonSize)
-                    .clickable { menuExpanded = true }
-                    .padding(start = 8.dp, end = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    HugeIcons.Folder01,
-                    stringResource(R.string.chat_page_folder_pill),
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = folder?.name ?: stringResource(R.string.chat_page_folder_unfiled),
-                    modifier = Modifier.weight(1f, fill = false),
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            ChatFolderMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                folders = folders,
-                selectedFolderId = folderId,
-                onSelect = { selected ->
-                    menuExpanded = false
-                    onSelectFolder(selected)
-                },
-                onCreateFolder = {
-                    menuExpanded = false
-                    onCreateFolder()
-                },
-            )
-        }
-
-        ChatCapsuleDivider()
-
-        Row(
-            modifier = Modifier
-                .height(TopBarButtonSize)
-                .clickable(onClick = onShowModelPicker)
-                .padding(start = 6.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AutoAIIcon(name = model.modelId, color = Color.Transparent)
-        }
-    }
-}
-
-// 胶囊里的文件夹选单：未归类排在最上面，当前归属打勾
-@Composable
-private fun ChatFolderMenu(
-    expanded: Boolean,
-    onDismissRequest: () -> Unit,
-    folders: List<Folder>,
-    selectedFolderId: Uuid?,
-    onSelect: (Uuid?) -> Unit,
-    onCreateFolder: () -> Unit,
-) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismissRequest,
-    ) {
-        Text(
-            text = stringResource(R.string.chat_page_folder_pill),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        FolderMenuItem(
-            label = stringResource(R.string.chat_page_folder_unfiled),
-            selected = selectedFolderId == null,
-            onClick = { onSelect(null) },
-        )
-        folders.forEach { folder ->
-            FolderMenuItem(
-                label = folder.name,
-                selected = folder.id == selectedFolderId,
-                onClick = { onSelect(folder.id) },
-            )
-        }
-        if (folders.isEmpty()) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_page_folder_empty)) },
-                onClick = {},
-                enabled = false,
-            )
-        }
-        HorizontalDivider()
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.chat_page_create_folder)) },
-            leadingIcon = { Icon(HugeIcons.FolderAdd, contentDescription = null) },
-            onClick = onCreateFolder,
-        )
-    }
-}
-
-@Composable
-private fun FolderMenuItem(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val trailingIcon: (@Composable () -> Unit)? = if (selected) {
-        {
-            Icon(
-                HugeIcons.Tick01,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    } else {
-        null
-    }
-    DropdownMenuItem(
-        text = {
-            Text(
-                text = label,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        onClick = onClick,
-        leadingIcon = {
-            Icon(
-                HugeIcons.Folder01,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-        },
-        trailingIcon = trailingIcon,
-    )
-}
-
-
-@Composable
-private fun EmptyChatContent(
-    innerPadding: PaddingValues,
-    assistant: Assistant,
-    slogan: String,
-    hazeState: HazeState,
-    visibleState: MutableTransitionState<Boolean>,
-    contentAlpha: Float,
-    scrollEnabled: Boolean,
-    // 英雄卡底边的窗口坐标：输入框的抬升量按它算，不靠屏幕高度和若干 dp 猜
-    onHeroPlaced: (Float) -> Unit,
-) {
-    val heroBlur = rememberMotionBlurSteps(maxRadius = 8.dp)
-    // 模糊的收放跟随动态模糊设置里的时长，透明度仍走动画速度档位
-    val enterBlurSpec = rememberMotionBlurSpec()
-    val fadeSpec = rememberEffectsSpec<Float>()
-    val imeInsets = WindowInsets.ime
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState(), enabled = scrollEnabled)
-                .heightIn(min = maxHeight)
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            // 首条消息进来时英雄卡不跟着硬切：淡出并糊掉，列表和输入框各自就位
-            AnimatedVisibility(
-                visibleState = visibleState,
-                enter = fadeIn(fadeSpec),
-                exit = fadeOut(fadeSpec),
-            ) {
-                val blur by transition.animateFloat(
-                    transitionSpec = { enterBlurSpec },
-                    label = "emptyHeroBlur",
-                ) { state ->
-                    if (state == EnterExitState.Visible) 0f else 1f
-                }
-                Box(
-                    modifier = Modifier
-                        .onGloballyPositioned { onHeroPlaced(it.boundsInRoot().bottom) }
-                        .graphicsLayer {
-                            // 键盘单独走绘制期位移：英雄卡和整页布局不跟着键盘每帧重排，
-                            // 输入区在下面读同一个 inset 一起上移，两者不会差一帧
-                            translationY = -(imeInsets.getBottom(this) / 2f)
-                                .roundToInt().toFloat()
-                            alpha = contentAlpha
-                            renderEffect = heroBlur.at(blur)
-                        },
-                ) {
-                    EmptyChatHero(
-                        assistant = assistant,
-                        slogan = slogan,
-                        hazeState = hazeState,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyChatHero(
-    assistant: Assistant,
-    slogan: String,
-    hazeState: HazeState,
-) {
-    val settings = LocalSettings.current
-    val effect = settings.displaySetting.effectiveBackgroundEffect
-    val shape = RoundedCornerShape(28.dp)
-    val baseColor = MaterialTheme.colorScheme.surfaceContainerLow
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 40.dp)
-            .clip(shape)
-            .then(
-                if (effect != BackgroundEffectType.OFF) {
-                    Modifier.chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = settings.displaySetting,
-                        containerColor = baseColor,
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            // 描边画在模糊层之后，否则会被糊掉
-            .then(
-                if (effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        shape,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .padding(horizontal = 28.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        UIAvatar(
-            name = assistant.name,
-            value = assistant.avatar,
-            avatarSize = 88.dp,
-            shape = CircleShape,
-        )
-        Text(
-            text = slogan.ifBlank { stringResource(R.string.chat_empty_default_slogan) },
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-// 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰
-@Composable
-private fun ChatPageMenu(
-    enabled: Boolean,
-    onShowOverview: () -> Unit,
-    onExport: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    @Composable
-    fun MenuItem(
-        text: String,
-        icon: ImageVector,
-        index: Int,
-        count: Int,
-        destructive: Boolean = false,
-        onClick: () -> Unit,
-    ) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-                expanded = false
-                onClick()
-            },
-            shape = MenuDefaults.itemShape(index = index, count = count).shape,
-            leadingIcon = { Icon(icon, contentDescription = null) },
-            enabled = enabled,
-            colors = if (destructive) {
-                val errorColor = MaterialTheme.colorScheme.error
-                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-            } else {
-                MenuDefaults.itemColors()
-            },
-        )
-    }
-
-    Box {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(TopBarButtonSize)) {
-            Icon(
-                HugeIcons.MoreVertical,
-                stringResource(R.string.more_options),
-                modifier = Modifier.size(TopBarButtonIconSize),
-            )
-        }
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.chat_page_conversation_map),
-                    icon = HugeIcons.LeftToRightListBullet,
-                    index = 0,
-                    count = 2,
-                    onClick = onShowOverview,
-                )
-                MenuItem(
-                    text = stringResource(R.string.export_title),
-                    icon = HugeIcons.Share04,
-                    index = 1,
-                    count = 2,
-                    onClick = onExport,
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 1)) {
-                MenuItem(
-                    text = stringResource(R.string.delete),
-                    icon = HugeIcons.Delete01,
-                    index = 0,
-                    count = 1,
-                    destructive = true,
-                    onClick = onDelete,
-                )
-            }
-        }
-    }
-}
 
 /** 悬浮栏「终端」槽位：绑定了多个工作区时，先让用户挑一个再进终端。 */
 @Composable
