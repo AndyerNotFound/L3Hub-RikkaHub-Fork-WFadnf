@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.getStoredAssistantOf
+import me.rerere.rikkahub.data.model.isAwaitingToolApproval
 import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -229,7 +230,7 @@ internal class SubAgentGateway(
     }
 
     /** 待投递的子代理结果没有接收方了 */
-    internal fun clearPendingResults(conversationId: Uuid) {
+    internal suspend fun clearPendingResults(conversationId: Uuid) {
         subAgentResultStore.clear(conversationId)
     }
 
@@ -270,10 +271,11 @@ internal class SubAgentGateway(
             }
             if (!canDeliver) return
             // 系统通知：走 USER 角色进请求，界面和导出都按系统消息展示
+            // 参数依次为：父会话 id、结果正文、notice（走 USER 角色进请求，界面按系统消息展示）
             val accepted = sendMessage(
-                conversationId = conversationId,
-                content = listOf(UIMessagePart.Text(formatSubAgentResults(pending.texts))),
-                notice = true,
+                conversationId,
+                listOf(UIMessagePart.Text(formatSubAgentResults(pending.texts))),
+                true,
             )
             // 没被收下（判定和入队之间上下文刚好越过 MAX）：结果留在队首，等下次再送
             if (!accepted) return
