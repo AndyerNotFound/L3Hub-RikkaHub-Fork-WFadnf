@@ -298,6 +298,33 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
 
     // 横屏的工具调用详情：挂在页面最外层，从右侧滑入，不另开窗口
     val toolDetailHost = remember { ToolDetailHostState() }
+    // 页面层的只读上下文与动作收成两个对象：下面两个布局分支只 copy 自己不同的字段，
+    // 不再把二十多个实参各写一遍。
+    val pageState = ChatPageUiState(
+        inputState = inputState,
+        loadingJob = loadingJob,
+        processingStatus = processingStatus,
+        setting = setting,
+        conversationState = conversationState,
+        conversationId = conversationId,
+        folderId = conversationFolderId,
+        messageCount = conversationMessageCount,
+        folderWorkspaceName = folderWorkspaceName,
+        navController = navController,
+        vm = vm,
+        chatListState = chatListState,
+        assistant = assistant,
+        currentChatModel = currentChatModel,
+        errors = errors,
+        backgroundHazeState = backgroundHazeState,
+    )
+    val pageActions = ChatPageActions(
+        onStartVoiceMode = startVoiceMode,
+        onCreateNewChat = startNewChat,
+        onDismissError = { vm.dismissError(it) },
+        onClearAllErrors = { vm.clearAllErrors() },
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalToolDetailHost provides toolDetailHost) {
         if (threePaneLayout) {
@@ -360,37 +387,21 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         )
                     }
                     ChatPageContent(
-                        onStartVoiceMode = startVoiceMode,
-                        onCreateNewChat = startNewChat,
-                        inputState = inputState,
-                        loadingJob = loadingJob,
-                        processingStatus = processingStatus,
-                        setting = setting,
-                        conversationState = conversationState,
-                        conversationId = conversationId,
-                        folderId = conversationFolderId,
-                        messageCount = conversationMessageCount,
-                        folderWorkspaceName = folderWorkspaceName,
-                        navController = navController,
-                        vm = vm,
-                        chatListState = chatListState,
-                        assistant = assistant,
-                        currentChatModel = currentChatModel,
-                        threePane = true,
-                        sidebarOpen = sidebarOpen,
-                        onOpenSidebar = { sidebarOpen = !sidebarOpen },
-                        chatWidth = chatWidth,
-                        onChatResize = { delta ->
-                            val maxChat = (totalWidth - (if (sidebarOpen) sidebarWidthDp else 0f).dp - 260.dp)
-                                .coerceAtLeast(320.dp)
-                            // 读状态本身，不读这一帧的 chatWidth：一次手势里可能连来好几个事件
-                            val current = if (chatWidthDp > 0f) chatWidthDp.dp else (totalWidth * 0.4f)
-                            chatWidthDp = (current + delta).coerceIn(320.dp, maxChat).value
-                        },
-                        backgroundHazeState = backgroundHazeState,
-                        errors = errors,
-                        onDismissError = { vm.dismissError(it) },
-                        onClearAllErrors = { vm.clearAllErrors() },
+                        state = pageState.copy(
+                            threePane = true,
+                            sidebarOpen = sidebarOpen,
+                            chatWidth = chatWidth,
+                        ),
+                        actions = pageActions.copy(
+                            onOpenSidebar = { sidebarOpen = !sidebarOpen },
+                            onChatResize = { delta ->
+                                val maxChat = (totalWidth - (if (sidebarOpen) sidebarWidthDp else 0f).dp - 260.dp)
+                                    .coerceAtLeast(320.dp)
+                                // 读状态本身，不读这一帧的 chatWidth：一次手势里可能连来好几个事件
+                                val current = if (chatWidthDp > 0f) chatWidthDp.dp else (totalWidth * 0.4f)
+                                chatWidthDp = (current + delta).coerceIn(320.dp, maxChat).value
+                            },
+                        ),
                     )
                 }
             }
@@ -413,29 +424,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 },
             ) {
                 ChatPageContent(
-                    onStartVoiceMode = startVoiceMode,
-                    onCreateNewChat = startNewChat,
-                    inputState = inputState,
-                    loadingJob = loadingJob,
-                    processingStatus = processingStatus,
-                    setting = setting,
-                    conversationState = conversationState,
-                    conversationId = conversationId,
-                    folderId = conversationFolderId,
-                    messageCount = conversationMessageCount,
-                    folderWorkspaceName = folderWorkspaceName,
-                    navController = navController,
-                    vm = vm,
-                    chatListState = chatListState,
-                    assistant = assistant,
-                    currentChatModel = currentChatModel,
-                    threePane = false,
-                    sidebarOpen = drawerOpen,
-                    onOpenSidebar = { drawerOpen = true },
-                    backgroundHazeState = backgroundHazeState,
-                    errors = errors,
-                    onDismissError = { vm.dismissError(it) },
-                    onClearAllErrors = { vm.clearAllErrors() },
+                    state = pageState.copy(sidebarOpen = drawerOpen),
+                    actions = pageActions.copy(onOpenSidebar = { drawerOpen = true }),
                 )
             }
         }
@@ -444,49 +434,54 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 }
 
+/**
+ * 聊天页装配所需的只读上下文。
+ *
+ * 页面层负责算派生值，这里只做承载：加一个字段不用再改函数签名和两个布局分支的调用点。
+ * 会话正文仍按 [conversationState] 传入，页面只读派生出来的字段，逐 token 的重组留给消息列表。
+ */
+private data class ChatPageUiState(
+    val inputState: ChatInputState,
+    val loadingJob: Job?,
+    val processingStatus: String?,
+    val setting: Settings,
+    val conversationState: State<Conversation>,
+    val conversationId: Uuid,
+    val folderId: Uuid?,
+    val messageCount: Int,
+    val folderWorkspaceName: String?,
+    val navController: Navigator,
+    val vm: ChatVM,
+    val chatListState: LazyListState,
+    val assistant: Assistant,
+    val currentChatModel: Model?,
+    val errors: List<ChatError>,
+    val backgroundHazeState: HazeState,
+    // 布局：两个布局分支的差异只落在这三个字段上
+    val threePane: Boolean = false,
+    val sidebarOpen: Boolean = false,
+    val chatWidth: Dp? = null,
+)
+
+/** 聊天页向上的动作。两个布局分支只覆盖自己需要的槽位。 */
+private data class ChatPageActions(
+    val onStartVoiceMode: () -> Unit,
+    val onCreateNewChat: () -> Unit,
+    val onDismissError: (Uuid) -> Unit,
+    val onClearAllErrors: () -> Unit,
+    val onOpenSidebar: () -> Unit = {},
+    val onChatResize: (Dp) -> Unit = {},
+)
+
 @Composable
 private fun ChatPageContent(
-    onStartVoiceMode: () -> Unit,
-    onCreateNewChat: () -> Unit,
-    inputState: ChatInputState,
-    loadingJob: Job?,
-    processingStatus: String? = null,
-    setting: Settings,
-    // 会话用 State 传进来：流式输出每个 token 都换一份 Conversation，
-    // 这里只读派生值，逐 token 的部分留给 ChatList。
-    conversationState: State<Conversation>,
-    // 下面三个派生值在 ChatPage 里已经算过（抽屉、文件夹名、首屏滚动都在用），
-    // 传进来是为了不在两层各挂一份 derivedStateOf
-    conversationId: Uuid,
-    // 会话所属文件夹：顶栏的文件夹胶囊读它
-    folderId: Uuid?,
-    // 消息节点数：详情面板和请求快照的刷新键
-    messageCount: Int,
-    // 文件夹绑了工作区时传文件夹名：工作区入口只展示这份绑定（见 ChatPage 顶部）
-    folderWorkspaceName: String?,
-    // 横屏三栏：中间是聊天区，右栏是标签页式的看板（见 ChatSidePanel.kt）
-    threePane: Boolean,
-    sidebarOpen: Boolean,
-    onOpenSidebar: () -> Unit,
-    // 中列宽度：横屏三栏时定宽，收起左栏时中列左移、右栏变宽；null 表示没有右栏，中列吃满全宽
-    chatWidth: Dp? = null,
-    // 拖动中列与右栏之间的分隔条
-    onChatResize: (Dp) -> Unit = {},
-    navController: Navigator,
-    vm: ChatVM,
-    chatListState: LazyListState,
-    assistant: Assistant,
-    currentChatModel: Model?,
-    errors: List<ChatError>,
-    onDismissError: (Uuid) -> Unit,
-    onClearAllErrors: () -> Unit,
-    // 背景层的 Haze 源：抽屉和浮层共用，见 ChatPage 里的注释
-    backgroundHazeState: HazeState,
+    state: ChatPageUiState,
+    actions: ChatPageActions,
 ) {
     val scope = rememberCoroutineScope()
-    val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
+    val sessionActivity by state.vm.sessionActivity.collectAsStateWithLifecycle()
     // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
-    val conversationFolders by vm.folders.collectAsStateWithLifecycle()
+    val conversationFolders by state.vm.folders.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
@@ -495,37 +490,37 @@ private fun ChatPageContent(
     // 结果没变就不会让页面重组；逐 token 的正文留给 ChatList 自己读 State。
     // conversationId / folderId / messageCount 由 ChatPage 算一次传进来，不在这里再挂一份。
     // 本轮生成速度：消息列表下方的加载图标与输入区上方的表盘共用这一份采样
-    val generationSpeed = rememberGenerationSpeed(conversationState, loadingJob != null)
-    val hasMessages by remember(conversationState) {
-        derivedStateOf { conversationState.value.messageNodes.isNotEmpty() }
+    val generationSpeed = rememberGenerationSpeed(state.conversationState, state.loadingJob != null)
+    val hasMessages by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.messageNodes.isNotEmpty() }
     }
-    val messageIds by remember(conversationState) {
-        derivedStateOf { conversationState.value.messageNodes.map { it.id } }
+    val messageIds by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.messageNodes.map { it.id } }
     }
-    val todos by remember(conversationState) { derivedStateOf { conversationState.value.todos } }
-    val workspaceCwds by remember(conversationState) {
-        derivedStateOf { conversationState.value.workspaceCwds }
+    val todos by remember(state.conversationState) { derivedStateOf { state.conversationState.value.todos } }
+    val workspaceCwds by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.workspaceCwds }
     }
-    val customSystemPrompt by remember(conversationState) {
-        derivedStateOf { conversationState.value.customSystemPrompt }
+    val customSystemPrompt by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.customSystemPrompt }
     }
-    val newConversation by remember(conversationState) {
-        derivedStateOf { conversationState.value.newConversation }
+    val newConversation by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.newConversation }
     }
-    val contextTokens by remember(conversationState) {
-        derivedStateOf { conversationState.value.lastContextTokens() }
+    val contextTokens by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.lastContextTokens() }
     }
-    val lastUsageMessage by remember(conversationState) {
-        derivedStateOf { conversationState.value.currentMessages.lastOrNull { it.usage != null } }
+    val lastUsageMessage by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.currentMessages.lastOrNull { it.usage != null } }
     }
-    val lastAssistantMessageId by remember(conversationState) {
+    val lastAssistantMessageId by remember(state.conversationState) {
         derivedStateOf {
-            conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }?.id
+            state.conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }?.id
         }
     }
-    val turnEditedFiles by remember(conversationState) {
+    val turnEditedFiles by remember(state.conversationState) {
         derivedStateOf {
-            conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
+            state.conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
                 ?.let { editedFilesIn(it.parts) }
                 .orEmpty()
         }
@@ -533,7 +528,7 @@ private fun ChatPageContent(
 
     // 新消息入场的跟踪器放在这一层：空会话时 ChatList 还没挂载，
     // 放在列表里的话首条消息会被当成「打开会话时已经存在」而跳过动画。
-    val messageEnterTracker = remember(conversationId) { MessageEnterTracker() }
+    val messageEnterTracker = remember(state.conversationId) { MessageEnterTracker() }
     // 打开已有会话时首帧也是空列表，紧接着到位的那一批是历史加载，不是新追加；
     // 只吞掉这一批的入场，之后真正追加的消息照常滑进来
     var emptyWasHistoryLoad by remember { mutableStateOf(false) }
@@ -576,7 +571,7 @@ private fun ChatPageContent(
     val density = LocalDensity.current
     // 底栏绘制期读同一个键盘 inset，和英雄卡的平移对齐
     val imeInsets = WindowInsets.ime
-    val inputLiftSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
+    val inputLiftSpec = rememberSlideSpec<Float>(animated = !state.setting.displaySetting.disableAnimations)
     val emptyAnchorGapPx = with(density) { 16.dp.toPx() }
     val animateInputToBottom = hasMessages && animateEmptyExit
     // 首条消息发出后从空态位置滑到底部：空态落点每帧都是现算的，
@@ -603,7 +598,7 @@ private fun ChatPageContent(
             inputExitRunning = true
             try {
                 // 空态那一层滑动的模糊；本来就是带消息打开的不用糊
-                if (!setting.displaySetting.disableAnimations && emptyLayoutReady) {
+                if (!state.setting.displaySetting.disableAnimations && emptyLayoutReady) {
                     inputBlur.snapTo(1f)
                     launch { inputBlur.animateTo(0f, inputLiftSpec) }
                 }
@@ -618,17 +613,17 @@ private fun ChatPageContent(
     }
 
     // 上下文占用取最近一次回复的真实用量, 到达模型的 MAX 门限后禁止再发送
-    val contextLimitReached = isContextLimitReached(contextTokens, currentChatModel?.maxContextTokens)
+    val contextLimitReached = isContextLimitReached(contextTokens, state.currentChatModel?.maxContextTokens)
     // 模型可以关掉强制拦截，此时只在发送时提醒一次
-    val contextLimitBlocksSend = contextLimitReached && currentChatModel?.enforceMaxContext != false
+    val contextLimitBlocksSend = contextLimitReached && state.currentChatModel?.enforceMaxContext != false
     val contextLimitMessage = stringResource(R.string.chat_page_context_limit_reached)
     // 顶栏限额条看的是当前模型所在的渠道，切换模型后跟着换
-    val currentProvider = remember(currentChatModel, setting.providers) {
-        currentChatModel?.findProvider(setting.providers)
+    val currentProvider = remember(state.currentChatModel, state.setting.providers) {
+        state.currentChatModel?.findProvider(state.setting.providers)
     }
     // 限额看板：折叠条留在顶栏，展开的看板叠在内容层上，展开时不改顶栏的布局高度。
     // 轮询只跑一份，折叠条的摘要和看板读同一份数据
-    val quotaProvider = currentProvider.takeIf { setting.displaySetting.showQuotaBar }
+    val quotaProvider = currentProvider.takeIf { state.setting.displaySetting.showQuotaBar }
     val quotaData = quotaProvider?.let { rememberChatQuotaStripData(it) }
     var quotaExpanded by rememberSaveable(currentProvider?.id?.toString()) { mutableStateOf(false) }
 
@@ -639,19 +634,19 @@ private fun ChatPageContent(
     // 派发到 Default 的工作全成了白跑。注入数只在下一轮请求前有意义，条数变化再算就够。
     val lorebookInjectionCount by produceState(
         0,
-        conversationId,
-        messageCount,
-        assistant.lorebookIds,
-        setting.lorebooks,
+        state.conversationId,
+        state.messageCount,
+        state.assistant.lorebookIds,
+        state.setting.lorebooks,
     ) {
-        value = if (assistant.lorebookIds.isEmpty()) {
+        value = if (state.assistant.lorebookIds.isEmpty()) {
             0
         } else {
             withContext(Dispatchers.Default) {
                 collectLorebookInjections(
-                    conversationState.value.currentMessages,
-                    assistant,
-                    setting.lorebooks,
+                    state.conversationState.value.currentMessages,
+                    state.assistant,
+                    state.setting.lorebooks,
                 ).size
             }
         }
@@ -660,8 +655,8 @@ private fun ChatPageContent(
     val workspaces by remember(workspaceRepository) { workspaceRepository.listFlow() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     // 悬浮栏「终端」槽位只列当前会话真正绑定、且允许命令行的本地工作区
-    val floatingBarTerminalWorkspaces = remember(assistant.allWorkspaceIds, workspaces) {
-        val boundIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
+    val floatingBarTerminalWorkspaces = remember(state.assistant.allWorkspaceIds, workspaces) {
+        val boundIds = state.assistant.allWorkspaceIds.map { it.toString() }.toSet()
         workspaces.filter { it.id in boundIds && it.supportsTerminal() }
     }
 
@@ -669,10 +664,10 @@ private fun ChatPageContent(
     var showCompressAndSendDialog by remember { mutableStateOf(false) }
     // 四条发送路径共用的收尾动作（清空 + 100ms 后滚到底），见 ChatSendActions
     val sendActions = ChatSendActions(
-        inputState = inputState,
-        vm = vm,
+        inputState = state.inputState,
+        vm = state.vm,
         scope = scope,
-        chatListState = chatListState,
+        chatListState = state.chatListState,
     )
 
     var previewMode by rememberSaveable { mutableStateOf(false) }
@@ -688,32 +683,32 @@ private fun ChatPageContent(
     var showTaskTree by remember { mutableStateOf(false) }
     var showUsageSheet by remember { mutableStateOf(false) }
     val chatModelListState = rememberModelListState(
-        modelId = assistant.chatModelId,
-        providers = setting.providers,
+        modelId = state.assistant.chatModelId,
+        providers = state.setting.providers,
         type = ModelType.CHAT,
     )
     // 横屏三栏的右栏：一个看板一个标签页，顺序就是标签条上的顺序（状态见 ChatPaneTabs）
     val paneTabs = rememberChatPaneTabs()
     // 后台任务弹层从输入框里提到这一层：横屏要能把它放进右侧栏
     var showBackgroundTasks by remember { mutableStateOf(false) }
-    val backgroundTasks by vm.backgroundTasks.collectAsStateWithLifecycle()
-    val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
+    val backgroundTasks by state.vm.backgroundTasks.collectAsStateWithLifecycle()
+    val messageQueue by state.vm.messageQueue.collectAsStateWithLifecycle()
 
     // 会话详情展开时才解析一次请求快照：工具、系统提示词和本轮注入都按当前配置重新算
     val detailsPanelVisible =
-        (showDetails && !threePane) || (threePane && paneTabs.selected == ChatSidePane.Details)
+        (showDetails && !state.threePane) || (state.threePane && paneTabs.selected == ChatSidePane.Details)
     val requestPreviewState by produceState<RequestPreviewUiState>(
         RequestPreviewUiState.Idle,
         detailsPanelVisible,
-        assistant,
-        currentChatModel,
+        state.assistant,
+        state.currentChatModel,
         customSystemPrompt,
-        messageCount,
+        state.messageCount,
         workspaceCwds,
-        setting.modeInjections,
-        setting.lorebooks,
-        setting.mcpServers,
-        setting.assistants,
+        state.setting.modeInjections,
+        state.setting.lorebooks,
+        state.setting.mcpServers,
+        state.setting.assistants,
     ) {
         if (!detailsPanelVisible) {
             value = RequestPreviewUiState.Idle
@@ -721,7 +716,7 @@ private fun ChatPageContent(
         }
         value = RequestPreviewUiState.Loading
         value = try {
-            RequestPreviewUiState.Ready(vm.buildRequestPreview())
+            RequestPreviewUiState.Ready(state.vm.buildRequestPreview())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -731,7 +726,7 @@ private fun ChatPageContent(
 
     // 打开某个覆盖层：横屏进右栏的标签页，竖屏还是原来的弹层 / 对话框
     fun openPane(pane: ChatSidePane) {
-        if (threePane) {
+        if (state.threePane) {
             paneTabs.open(pane)
             return
         }
@@ -754,13 +749,13 @@ private fun ChatPageContent(
 
     // 收掉右栏当前的标签页
     fun closePane() {
-        if (!threePane) return
+        if (!state.threePane) return
         paneTabs.closeSelected()
     }
 
     // 顶栏「详情」：横屏是右栏的标签页，竖屏还是顶栏底下那块的展开
     fun toggleDetailsPane() {
-        if (threePane) {
+        if (state.threePane) {
             if (paneTabs.selectedName == ChatSidePane.Details.name) {
                 paneTabs.close(ChatSidePane.Details)
             } else {
@@ -772,7 +767,7 @@ private fun ChatPageContent(
     }
 
     fun dismissFiles() {
-        if (threePane) {
+        if (state.threePane) {
             if (paneTabs.openNames.contains(ChatSidePane.Files.name)) paneTabs.close(ChatSidePane.Files)
         } else {
             showFilesSheet = false
@@ -781,8 +776,8 @@ private fun ChatPageContent(
 
     // 本轮改动：横屏收进右栏。一轮里第一次改文件时把标签页开出来，但不抢当前看板
     var lastAutoOpenedTurn by remember { mutableStateOf<Uuid?>(null) }
-    LaunchedEffect(threePane, lastAssistantMessageId, turnEditedFiles) {
-        if (!threePane || turnEditedFiles.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(state.threePane, lastAssistantMessageId, turnEditedFiles) {
+        if (!state.threePane || turnEditedFiles.isEmpty()) return@LaunchedEffect
         val turnId = lastAssistantMessageId ?: return@LaunchedEffect
         // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
         if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
@@ -792,27 +787,27 @@ private fun ChatPageContent(
 
     // 清单与引导：横屏收进右栏，出现时把标签页开出来，不抢当前看板
     val hasStatusContent = todos.isNotEmpty() || messageQueue.guidances.isNotEmpty()
-    LaunchedEffect(threePane, hasStatusContent) {
-        if (!threePane || !hasStatusContent) return@LaunchedEffect
+    LaunchedEffect(state.threePane, hasStatusContent) {
+        if (!state.threePane || !hasStatusContent) return@LaunchedEffect
         paneTabs.ensureOpen(ChatSidePane.Status)
     }
 
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
-        inputState = inputState,
-        setting = setting,
+        inputState = state.inputState,
+        setting = state.setting,
         onAttachmentAdded = { dismissFiles() },
     )
     val allowAudioVideoAttachments =
-        currentChatModel?.findProvider(setting.providers) is ProviderSetting.Google
+        state.currentChatModel?.findProvider(state.setting.providers) is ProviderSetting.Google
 
     // 发送入口：模型、上下文门限检查都走这里，分支见 chatSendGate
     val sendInput: () -> Unit = {
         when (
             chatSendGate(
-                hasModel = currentChatModel != null,
+                hasModel = state.currentChatModel != null,
                 contextLimitReached = contextLimitReached,
                 contextLimitBlocksSend = contextLimitBlocksSend,
-                autoCompress = assistant.autoCompress,
+                autoCompress = state.assistant.autoCompress,
             )
         ) {
             ChatSendGate.SelectModel -> toaster.show(
@@ -837,14 +832,14 @@ private fun ChatPageContent(
 
     // 消息滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
     // 概览页有自己的列表，切过去后跟着它判断
-    val listScrolledUnderTopBar by remember(chatListState, previewListState) {
+    val listScrolledUnderTopBar by remember(state.chatListState, previewListState) {
         derivedStateOf {
-            if (previewMode) previewListState.canScrollBackward else chatListState.canScrollBackward
+            if (previewMode) previewListState.canScrollBackward else state.chatListState.canScrollBackward
         }
     }
 
-    val completionProviders = remember(assistant.allWorkspaceIds, workspaceCwds, workspaceRepository) {
-        assistant.allWorkspaceIds.map { workspaceId ->
+    val completionProviders = remember(state.assistant.allWorkspaceIds, workspaceCwds, workspaceRepository) {
+        state.assistant.allWorkspaceIds.map { workspaceId ->
             WorkspaceCompletionProvider(
                 workspaceId = workspaceId.toString(),
                 repository = workspaceRepository,
@@ -853,7 +848,7 @@ private fun ChatPageContent(
         }
     }
 
-    TTSAutoPlay(vm = vm, setting = setting)
+    TTSAutoPlay(vm = state.vm, setting = state.setting)
 
     // 概览页按返回键先回聊天页，不再直接退出会话
     BackHandler(previewMode) {
@@ -872,57 +867,57 @@ private fun ChatPageContent(
         // 免得跟着滑下来之前先在卡片周围显出一条底色带
         scrimAlpha: () -> Float = { 1f },
     ) {
-        val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
+        val voiceState by state.vm.voiceSession.state.collectAsStateWithLifecycle()
         ChatInput(
-            onStartVoiceMode = onStartVoiceMode,
+            onStartVoiceMode = actions.onStartVoiceMode,
             voiceState = voiceState,
-            onStopVoiceMode = vm.voiceSession::stop,
+            onStopVoiceMode = state.vm.voiceSession::stop,
             // 空会话里输入区顶边钉在英雄卡下面，高度变化从顶部往下长；
             // 贴底之后再换回底部对齐
             pinContentToTop = !hasMessages,
-            state = inputState,
+            state = state.inputState,
             messageQueue = messageQueue,
-            onRemoveQueuedMessage = vm::removeQueuedMessage,
-            onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
-            onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
-            onResumeMessageQueue = vm::resumeMessageQueue,
-            guideMessages = setting.guideMessages,
+            onRemoveQueuedMessage = state.vm::removeQueuedMessage,
+            onBeginEditQueuedMessage = state.vm::beginEditQueuedMessage,
+            onFinishEditQueuedMessage = state.vm::finishEditQueuedMessage,
+            onResumeMessageQueue = state.vm::resumeMessageQueue,
+            guideMessages = state.setting.guideMessages,
             // 预设是长期约束，默认多轮；手输的一次性提醒默认单轮，卡片上点一下就能换
             onAddGuidance = { preset ->
-                vm.addGuidance(preset.title, preset.content, GuidanceMode.REPEAT)
+                state.vm.addGuidance(preset.title, preset.content, GuidanceMode.REPEAT)
             },
             onSendAsGuidance = {
-                val text = inputState.textContent.text.toString().trim()
+                val text = state.inputState.textContent.text.toString().trim()
                 if (text.isNotEmpty()) {
-                    vm.addGuidance(title = "", content = text, mode = GuidanceMode.SINGLE)
-                    inputState.clearText()
+                    state.vm.addGuidance(title = "", content = text, mode = GuidanceMode.SINGLE)
+                    state.inputState.clearText()
                     toaster.show(context.getString(R.string.guidance_added), type = ToastType.Info)
                 }
             },
-            onGuidanceToggleMode = vm::toggleGuidanceMode,
-            onGuidanceRemove = vm::removeGuidance,
+            onGuidanceToggleMode = state.vm::toggleGuidanceMode,
+            onGuidanceRemove = state.vm::removeGuidance,
             runningBackgroundTasks = backgroundTasks.count { it.status == BackgroundShellStatus.RUNNING },
             onShowBackgroundTasks = { openPane(ChatSidePane.BackgroundTasks) },
-            loading = loadingJob != null,
-            settings = setting,
-            assistant = assistant,
-            chatModel = currentChatModel,
+            loading = state.loadingJob != null,
+            settings = state.setting,
+            assistant = state.assistant,
+            chatModel = state.currentChatModel,
             todos = todos,
-            onTodosChange = vm::updateTodos,
+            onTodosChange = state.vm::updateTodos,
             contextTokens = contextTokens,
             usageTokenSpeed = usageTokenSpeed,
             generationSpeed = generationSpeed,
             onUpdateContextMeterStyle = { style ->
-                vm.updateSettings { latest ->
+                state.vm.updateSettings { latest ->
                     latest.copy(displaySetting = latest.displaySetting.copy(contextMeterStyle = style))
                 }
             },
             injectedLorebookCount = lorebookInjectionCount,
             onShowUsage = { openPane(ChatSidePane.Usage) },
-            hazeState = backgroundHazeState,
+            hazeState = state.backgroundHazeState,
             completionProviders = completionProviders,
             onCancelClick = {
-                vm.stopGeneration()
+                state.vm.stopGeneration()
             },
             onSendClick = {
                 // 首条消息的滑落要先锁住底栏的键盘 inset 布局，滑完再交回
@@ -949,39 +944,39 @@ private fun ChatPageContent(
                 // 编辑态写回那条消息；否则发出去但不触发回复
                 if (!sendActions.submitEdit()) sendActions.send(answer = false)
             },
-            onUpdateChatModel = vm::setChatModel,
-            onUpdateAssistant = vm::updateAssistant,
+            onUpdateChatModel = state.vm::setChatModel,
+            onUpdateAssistant = state.vm::updateAssistant,
             onMoreClick = {
                 openPane(ChatSidePane.Files)
             },
-            floatingBarItems = setting.displaySetting.floatingBarItems,
+            floatingBarItems = state.setting.displaySetting.floatingBarItems,
             onFloatingBarItemClick = { item ->
                 when (item) {
                     // 聊天槽位只负责把会话列表拉出来；已经展开时不再点一下关掉
-                    FloatingBarItem.CHAT -> if (!sidebarOpen) onOpenSidebar()
-                    FloatingBarItem.MEDIA_CREATION -> navController.navigate(Screen.MediaCreationSessions)
-                    FloatingBarItem.TRANSLATOR -> navController.navigate(Screen.Translator)
-                    FloatingBarItem.ASSISTANT -> navController.navigate(Screen.Assistant)
-                    FloatingBarItem.FAVORITE -> navController.navigate(Screen.Favorite)
-                    FloatingBarItem.HISTORY -> navController.navigate(Screen.History)
-                    FloatingBarItem.STATS -> navController.navigate(Screen.Stats)
-                    FloatingBarItem.IMAGE_GEN -> navController.navigate(Screen.ImageGen)
-                    FloatingBarItem.WORKSPACES -> navController.navigate(Screen.Workspaces)
+                    FloatingBarItem.CHAT -> if (!state.sidebarOpen) actions.onOpenSidebar()
+                    FloatingBarItem.MEDIA_CREATION -> state.navController.navigate(Screen.MediaCreationSessions)
+                    FloatingBarItem.TRANSLATOR -> state.navController.navigate(Screen.Translator)
+                    FloatingBarItem.ASSISTANT -> state.navController.navigate(Screen.Assistant)
+                    FloatingBarItem.FAVORITE -> state.navController.navigate(Screen.Favorite)
+                    FloatingBarItem.HISTORY -> state.navController.navigate(Screen.History)
+                    FloatingBarItem.STATS -> state.navController.navigate(Screen.Stats)
+                    FloatingBarItem.IMAGE_GEN -> state.navController.navigate(Screen.ImageGen)
+                    FloatingBarItem.WORKSPACES -> state.navController.navigate(Screen.Workspaces)
                     FloatingBarItem.TERMINAL -> when {
                         floatingBarTerminalWorkspaces.isEmpty() ->
-                            navController.navigate(Screen.Workspaces)
+                            state.navController.navigate(Screen.Workspaces)
 
-                        threePane -> paneTabs.open(ChatSidePane.Terminal)
+                        state.threePane -> paneTabs.open(ChatSidePane.Terminal)
 
                         floatingBarTerminalWorkspaces.size == 1 ->
-                            navController.navigate(
+                            state.navController.navigate(
                                 Screen.WorkspaceTerminal(floatingBarTerminalWorkspaces.first().id)
                             )
 
                         else -> showTerminalPicker = true
                     }
-                    FloatingBarItem.SEARCH -> navController.navigate(Screen.MessageSearch)
-                    FloatingBarItem.SETTINGS -> navController.navigate(Screen.Setting)
+                    FloatingBarItem.SEARCH -> state.navController.navigate(Screen.MessageSearch)
+                    FloatingBarItem.SETTINGS -> state.navController.navigate(Screen.Setting)
                 }
             },
             modifier = modifier,
@@ -989,7 +984,7 @@ private fun ChatPageContent(
             applyWindowInsets = applyWindowInsets,
             deferImeInset = deferImeInset,
             // 横屏三栏去掉输入区上方的渐变遮罩
-            showScrim = !threePane,
+            showScrim = !state.threePane,
             // 绘制阶段才读，滑动时只重画遮罩，不带着整页重组
             scrimAlpha = scrimAlpha,
         )
@@ -1000,23 +995,23 @@ private fun ChatPageContent(
         modifier = Modifier.fillMaxSize()
     ) {
         AssistantBackground(
-            setting = setting,
+            setting = state.setting,
             modifier = Modifier
-                .hazeSource(backgroundHazeState),
+                .hazeSource(state.backgroundHazeState),
             // 横屏三栏不再盖渐变遮罩，背景图原样透出来
-            scrim = !threePane,
+            scrim = !state.threePane,
         )
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
         CompositionLocalProvider(
-            LocalTurnChangesInSidePanel provides threePane,
+            LocalTurnChangesInSidePanel provides state.threePane,
             // 横屏时清单与引导收进右栏，输入区不再重复渲染
-            LocalConversationStatusInSidePanel provides threePane,
+            LocalConversationStatusInSidePanel provides state.threePane,
         ) {
         Row(modifier = Modifier.fillMaxSize()) {
         // 横屏中列按定宽排，余量留给右栏；竖屏没有右栏，中列必须吃满整宽
         Box(
-            modifier = if (chatWidth != null) {
-                Modifier.width(chatWidth).fillMaxHeight()
+            modifier = if (state.chatWidth != null) {
+                Modifier.width(state.chatWidth).fillMaxHeight()
             } else {
                 Modifier.fillMaxSize()
             },
@@ -1026,22 +1021,22 @@ private fun ChatPageContent(
             topBar = {
                 Column {
                     TopBar(
-                        hazeState = backgroundHazeState,
-                        settings = setting,
-                        assistant = assistant,
-                        chatModel = currentChatModel,
-                        folderId = folderId,
+                        hazeState = state.backgroundHazeState,
+                        settings = state.setting,
+                        assistant = state.assistant,
+                        chatModel = state.currentChatModel,
+                        folderId = state.folderId,
                         folders = conversationFolders,
                         hasMessages = hasMessages,
-                        threePane = threePane,
-                        sidebarOpen = sidebarOpen,
-                        onOpenSidebar = onOpenSidebar,
+                        threePane = state.threePane,
+                        sidebarOpen = state.sidebarOpen,
+                        onOpenSidebar = actions.onOpenSidebar,
                         onNewChat = {
-                            navigateToChatPage(navController)
+                            navigateToChatPage(state.navController)
                         },
                         onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
                         onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
-                        onSelectFolder = vm::updateFolder,
+                        onSelectFolder = state.vm::updateFolder,
                         onCreateFolder = { showCreateFolderDialog = true },
                         onShowOverview = {
                             selectionState.cancel()
@@ -1050,7 +1045,7 @@ private fun ChatPageContent(
                         onExport = {
                             // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
                             previewMode = false
-                            selectionState.start(conversationState.value.messageNodes.map { it.id })
+                            selectionState.start(state.conversationState.value.messageNodes.map { it.id })
                         },
                         onDelete = { showDeleteConfirm = true },
                         showCapsuleBackground = listScrolledUnderTopBar,
@@ -1065,8 +1060,8 @@ private fun ChatPageContent(
                             data = quotaData,
                             expanded = quotaExpanded,
                             onToggle = { quotaExpanded = !quotaExpanded },
-                            displaySetting = setting.displaySetting,
-                            hazeState = backgroundHazeState,
+                            displaySetting = state.setting.displaySetting,
+                            hazeState = state.backgroundHazeState,
                         )
                     }
                 }
@@ -1122,85 +1117,85 @@ private fun ChatPageContent(
                 if (hasMessages) {
                     // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
                     val deleteMessage: (UIMessage) -> Unit = { message ->
-                        if (loadingJob != null) {
-                            vm.showDeleteBlockedWhileGeneratingError()
+                        if (state.loadingJob != null) {
+                            state.vm.showDeleteBlockedWhileGeneratingError()
                         } else {
-                            vm.deleteMessage(message)
+                            state.vm.deleteMessage(message)
                         }
                     }
                     ChatList(
                         innerPadding = innerPadding,
-                        conversationState = conversationState,
-                        state = chatListState,
+                        conversationState = state.conversationState,
+                        state = state.chatListState,
                         previewListState = previewListState,
                         selectionState = selectionState,
-                        loading = loadingJob != null,
+                        loading = state.loadingJob != null,
                         generationSpeed = generationSpeed,
                         compressing = sessionActivity == SessionActivity.Compressing,
-                        onCreateNewChat = onCreateNewChat,
-                        processingStatus = processingStatus,
+                        onCreateNewChat = actions.onCreateNewChat,
+                        processingStatus = state.processingStatus,
                         previewMode = previewMode,
                         onPreviewModeChange = { previewMode = it },
-                        settings = setting,
-                        bubbleHazeState = backgroundHazeState,
-                        contentSource = backgroundHazeState,
-                        errors = errors,
-                        onDismissError = onDismissError,
-                        onClearAllErrors = onClearAllErrors,
+                        settings = state.setting,
+                        bubbleHazeState = state.backgroundHazeState,
+                        contentSource = state.backgroundHazeState,
+                        errors = state.errors,
+                        onDismissError = actions.onDismissError,
+                        onClearAllErrors = actions.onClearAllErrors,
                         onRegenerate = {
-                            vm.regenerateAtMessage(it)
+                            state.vm.regenerateAtMessage(it)
                         },
                         onEdit = {
-                            inputState.editingMessage = it.id
-                            inputState.setContents(it.parts)
+                            state.inputState.editingMessage = it.id
+                            state.inputState.setContents(it.parts)
                         },
                         onEditSubAgentNotice = { message, text ->
                             // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
-                            vm.handleMessageEdit(
+                            state.vm.handleMessageEdit(
                                 parts = listOf(UIMessagePart.Text(text)),
                                 messageId = message.id,
                             )
                         },
                         onForkMessage = {
                             scope.launch {
-                                val fork = vm.forkMessage(message = it)
-                                navigateToChatPage(navController, chatId = fork.id)
+                                val fork = state.vm.forkMessage(message = it)
+                                navigateToChatPage(state.navController, chatId = fork.id)
                             }
                         },
                         onDelete = deleteMessage,
                         onDeleteSubAgentNotice = deleteMessage,
                         onUpdateMessage = { newNode ->
-                            vm.selectMessageNode(newNode.id, newNode.selectIndex)
+                            state.vm.selectMessageNode(newNode.id, newNode.selectIndex)
                         },
                         onClickSuggestion = { suggestion ->
-                            inputState.editingMessage = null
-                            inputState.setMessageText(suggestion)
+                            state.inputState.editingMessage = null
+                            state.inputState.setMessageText(suggestion)
                         },
                         onTranslate = { message, locale ->
-                            vm.translateMessage(message, locale)
+                            state.vm.translateMessage(message, locale)
                         },
                         onClearTranslation = { message ->
-                            vm.clearTranslationField(message.id)
+                            state.vm.clearTranslationField(message.id)
                         },
                         onJumpToMessage = { index ->
                             previewMode = false
                             scope.launch {
                                 // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
                                 // 现在算距离用的是预览页那份还没挂上的布局
-                                chatListState.requestScrollToItem(index)
+                                state.chatListState.requestScrollToItem(index)
                             }
                         },
                         onToolApproval = { toolCallId, approved, reason ->
-                            vm.handleToolApproval(toolCallId, approved, reason)
+                            state.vm.handleToolApproval(toolCallId, approved, reason)
                         },
                         onToolAnswer = { toolCallId, answer ->
-                            vm.handleToolAnswer(toolCallId, answer)
+                            state.vm.handleToolAnswer(toolCallId, answer)
                         },
                         onToggleFavorite = { node ->
-                            vm.toggleMessageFavorite(node)
+                            state.vm.toggleMessageFavorite(node)
                         },
                         onConversationSystemPromptChange = { newPrompt ->
-                            vm.updateConversationSystemPrompt(newPrompt)
+                            state.vm.updateConversationSystemPrompt(newPrompt)
                         },
                         emptyHero = null,
                         enteringMessageIds = enteringMessageIds,
@@ -1212,9 +1207,9 @@ private fun ChatPageContent(
                 if (keepEmptyLayout) {
                     EmptyChatContent(
                         innerPadding = innerPadding,
-                        assistant = assistant,
-                        slogan = setting.displaySetting.emptyChatSlogan,
-                        hazeState = backgroundHazeState,
+                        assistant = state.assistant,
+                        slogan = state.setting.displaySetting.emptyChatSlogan,
+                        hazeState = state.backgroundHazeState,
                         visibleState = emptyHeroTransition,
                         contentAlpha = if (hasMessages || emptyLayoutReady) 1f else 0f,
                         scrollEnabled = !hasMessages,
@@ -1224,21 +1219,21 @@ private fun ChatPageContent(
                 // 叠层浮层的外侧点击：展开状态下点空白处收起，和点标题栏的开关等价。
                 // 这一层盖住聊天内容，所以展开期间列表不跟着滚动——浮层是模态的，
                 // 否则一下点按会一半落给浮层、一半落给后面的列表。
-                if ((showDetails && !threePane) || quotaExpanded) {
+                if ((showDetails && !state.threePane) || quotaExpanded) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(showDetails, quotaExpanded) {
                                 detectTapGestures {
                                     if (quotaExpanded) quotaExpanded = false
-                                    if (showDetails && !threePane) showDetails = false
+                                    if (showDetails && !state.threePane) showDetails = false
                                 }
                             }
                     )
                 }
                 // 详情浮层盖在聊天内容上方：不占 Scaffold 的布局，展开和收起都不会推挤聊天区。
                 MotionExpandCollapse(
-                    visible = showDetails && !threePane,
+                    visible = showDetails && !state.threePane,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = innerPadding.calculateTopPadding())
@@ -1253,15 +1248,15 @@ private fun ChatPageContent(
                     ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 ) {
                     ConversationDetailsPanel(
-                        assistant = assistant,
-                        model = currentChatModel,
-                        settings = setting,
+                        assistant = state.assistant,
+                        model = state.currentChatModel,
+                        settings = state.setting,
                         workspaces = workspaces,
-                        folderWorkspaceName = folderWorkspaceName,
+                        folderWorkspaceName = state.folderWorkspaceName,
                         contextTokens = contextTokens,
-                        messageCount = messageCount,
+                        messageCount = state.messageCount,
                         previewState = requestPreviewState,
-                        hazeState = backgroundHazeState,
+                        hazeState = state.backgroundHazeState,
                         onCollapse = { showDetails = false },
                         modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                     )
@@ -1274,9 +1269,9 @@ private fun ChatPageContent(
                         provider = quotaProvider,
                         data = quotaData,
                         expanded = quotaExpanded,
-                        running = loadingJob != null,
-                        displaySetting = setting.displaySetting,
-                        hazeState = backgroundHazeState,
+                        running = state.loadingJob != null,
+                        displaySetting = state.setting.displaySetting,
+                        hazeState = state.backgroundHazeState,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = innerPadding.calculateTopPadding()),
@@ -1287,7 +1282,7 @@ private fun ChatPageContent(
 
         }
         // 横屏三栏：右栏是标签页式的看板，聊天区不再被弹层盖住
-        if (threePane) {
+        if (state.threePane) {
             ChatSidePanes(
                 panes = paneTabs.openPanes,
                 selected = paneTabs.selected,
@@ -1297,37 +1292,37 @@ private fun ChatPageContent(
                 onClosePane = { closePane() },
                 onOpenConversation = { id ->
                     closePane()
-                    navigateToChatPage(navController, chatId = id)
+                    navigateToChatPage(state.navController, chatId = id)
                 },
-                onResize = onChatResize,
+                onResize = actions.onChatResize,
                 // 右栏吃掉剩余宽度：左栏收起时中列左移，空出来的位置全给它
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .padding(start = 4.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                 // 右栏背后是页面背景，取背景那份 Haze 源；聊天内容的源只覆盖左边
-                hazeState = backgroundHazeState,
-                conversationState = conversationState,
-                conversationId = conversationId,
-                assistant = assistant,
-                chatModel = currentChatModel,
-                setting = setting,
+                hazeState = state.backgroundHazeState,
+                conversationState = state.conversationState,
+                conversationId = state.conversationId,
+                assistant = state.assistant,
+                chatModel = state.currentChatModel,
+                setting = state.setting,
                 workspaces = workspaces,
-                folderWorkspaceName = folderWorkspaceName,
+                folderWorkspaceName = state.folderWorkspaceName,
                 contextTokens = contextTokens,
-                messageCount = messageCount,
+                messageCount = state.messageCount,
                 requestPreviewState = requestPreviewState,
                 turnHasChanges = turnEditedFiles.isNotEmpty(),
                 todos = todos,
                 guidances = messageQueue.guidances,
-                hideCompletedTodoCard = setting.displaySetting.hideCompletedTodoCard,
-                running = loadingJob != null,
-                inputState = inputState,
+                hideCompletedTodoCard = state.setting.displaySetting.hideCompletedTodoCard,
+                running = state.loadingJob != null,
+                inputState = state.inputState,
                 attachmentPickerActions = attachmentPickerActions,
-                onStartVoiceMode = onStartVoiceMode,
+                onStartVoiceMode = actions.onStartVoiceMode,
                 chatModelListState = chatModelListState,
                 backgroundTasks = backgroundTasks,
-                vm = vm,
+                vm = state.vm,
             )
         }
         }
@@ -1335,9 +1330,9 @@ private fun ChatPageContent(
 
         // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
         BackgroundTasksSheet(
-            visible = showBackgroundTasks && !threePane,
+            visible = showBackgroundTasks && !state.threePane,
             tasks = backgroundTasks,
-            onStop = vm::stopBackgroundTask,
+            onStop = state.vm::stopBackgroundTask,
             onDismiss = { showBackgroundTasks = false },
         )
 
@@ -1365,7 +1360,7 @@ private fun ChatPageContent(
         }
 
         AnimatedModalBottomSheet(
-            visible = showUsageSheet && !threePane,
+            visible = showUsageSheet && !state.threePane,
             onDismissRequest = { showUsageSheet = false },
         ) {
             Column(
@@ -1380,20 +1375,20 @@ private fun ChatPageContent(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 ConversationUsageDetails(
-                    messages = conversationState.value.currentMessages,
-                    contextLength = currentChatModel?.effectiveContextWindow,
+                    messages = state.conversationState.value.currentMessages,
+                    contextLength = state.currentChatModel?.effectiveContextWindow,
                 )
             }
         }
 
         SubAgentTaskSheet(
-            visible = showTaskTree && !threePane,
-            conversationId = conversationId,
-            hazeState = backgroundHazeState,
+            visible = showTaskTree && !state.threePane,
+            conversationId = state.conversationId,
+            hazeState = state.backgroundHazeState,
             onDismiss = { showTaskTree = false },
             onOpenConversation = { id ->
                 showTaskTree = false
-                navigateToChatPage(navController, chatId = id)
+                navigateToChatPage(state.navController, chatId = id)
             },
         )
 
@@ -1414,7 +1409,7 @@ private fun ChatPageContent(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            vm.createFolder(folderName)
+                            state.vm.createFolder(folderName)
                             showCreateFolderDialog = false
                         },
                         enabled = folderName.isNotBlank(),
@@ -1438,8 +1433,8 @@ private fun ChatPageContent(
             onConfirm = {
                 showDeleteConfirm = false
                 scope.launch {
-                    vm.deleteConversation(conversationState.value).join()
-                    navigateToChatPage(navController)
+                    state.vm.deleteConversation(state.conversationState.value).join()
+                    navigateToChatPage(state.navController)
                 }
             },
             onDismiss = { showDeleteConfirm = false },
@@ -1447,33 +1442,33 @@ private fun ChatPageContent(
         )
 
         ChatFilesPickerSheet(
-            visible = showFilesSheet && !threePane,
-            inputState = inputState,
-            setting = setting,
-            conversationState = conversationState,
-            folderWorkspaceName = folderWorkspaceName,
-            assistant = assistant,
-            chatModel = currentChatModel,
-            vm = vm,
+            visible = showFilesSheet && !state.threePane,
+            inputState = state.inputState,
+            setting = state.setting,
+            conversationState = state.conversationState,
+            folderWorkspaceName = state.folderWorkspaceName,
+            assistant = state.assistant,
+            chatModel = state.currentChatModel,
+            vm = state.vm,
             attachmentPickerActions = attachmentPickerActions,
-            onStartVoiceMode = onStartVoiceMode,
+            onStartVoiceMode = actions.onStartVoiceMode,
             onDismiss = { showFilesSheet = false },
         )
 
         TerminalWorkspacePickerSheet(
-            visible = showTerminalPicker && !threePane,
+            visible = showTerminalPicker && !state.threePane,
             workspaces = floatingBarTerminalWorkspaces,
             onSelect = { workspaceId ->
                 showTerminalPicker = false
-                navController.navigate(Screen.WorkspaceTerminal(workspaceId))
+                state.navController.navigate(Screen.WorkspaceTerminal(workspaceId))
             },
             onDismiss = { showTerminalPicker = false },
         )
 
         // 横屏用右侧栏里的那份，这里只在竖屏组合
-        if (!threePane) {
+        if (!state.threePane) {
             ModelListSheet(state = chatModelListState) { model ->
-                vm.setChatModel(model)
+                state.vm.setChatModel(model)
             }
         }
     }
