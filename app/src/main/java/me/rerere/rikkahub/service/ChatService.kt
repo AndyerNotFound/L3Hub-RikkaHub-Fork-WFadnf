@@ -14,14 +14,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.ai.agent.AgentEvent
@@ -58,10 +55,7 @@ import me.rerere.rikkahub.data.ai.tools.TODO_UPDATE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.withOcrResults
-import me.rerere.rikkahub.data.chat.DraftRestore
 import me.rerere.rikkahub.data.chat.DraftStore
-import me.rerere.rikkahub.data.chat.applyDraftRestore
-import me.rerere.rikkahub.data.chat.decideDraftRestore
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -75,7 +69,6 @@ import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.bindConfig
 import me.rerere.rikkahub.data.model.cancelInterruptedTools
-import me.rerere.rikkahub.data.model.closeInterruptedReasoning
 import me.rerere.rikkahub.data.model.deleteMessage
 import me.rerere.rikkahub.data.model.hasActiveTodo
 import me.rerere.rikkahub.data.model.editMessage
@@ -105,7 +98,6 @@ import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
@@ -241,6 +233,14 @@ class ChatService(
         onSessionRemoved = memoryConsolidationScheduler::onConversationLeft,
     )
 
+    private val lifecycle = ConversationLifecycle(
+        sessionManager = sessionManager,
+        settingsStore = settingsStore,
+        conversationRepo = conversationRepo,
+        draftStore = draftStore,
+        onFlushed = { conversationId -> dispatchInbox(conversationId) },
+    )
+
     private val compressor = ConversationCompressor(
         context = context,
         settingsStore = settingsStore,
@@ -266,29 +266,20 @@ class ChatService(
         },
     )
 
-    // 错误状态
-    private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
-    val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
+    // 错误状态：写入口在 ChatErrorSink，这几个名字留给聊天页、悬浮窗与 Web 路由
+    private val errorSink = ChatErrorSink(context)
+    val errors: StateFlow<List<ChatError>> = errorSink.state
 
     fun addError(
         error: Throwable,
         conversationId: Uuid? = null,
         title: String? = null,
         solution: ChatErrorSolution? = null,
-    ) {
-        if (error is CancellationException) return
-        _errors.update {
-            it + ChatError(title = title, error = error, conversationId = conversationId, solution = solution)
-        }
-    }
+    ) = errorSink.report(error, conversationId, title, solution)
 
-    fun dismissError(id: Uuid) {
-        _errors.update { list -> list.filter { it.id != id } }
-    }
+    fun dismissError(id: Uuid) = errorSink.dismiss(id)
 
-    fun clearAllErrors() {
-        _errors.value = emptyList()
-    }
+    fun clearAllErrors() = errorSink.clearAll()
 
     // 生成完成流
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
@@ -420,107 +411,21 @@ class ChatService(
             // 子代理会话按普通会话列在历史里，打开时侧边栏跟着切到它自己的助手
             settingsStore.selectAssistant(session.state.value.assistantId)
             // 上一轮被进程杀掉时留下的草稿和没来得及收尾的思考，进页面时补一次
-            recoverInterruptedTurn(session)
+            lifecycle.recoverInterruptedTurn(session)
         }
         // 上一轮还在忙的时候攒下的子代理结果，等用户打开这个会话再投递
         gateway.flushSubAgentResults(conversationId)
     }
 
-    private suspend fun ensureInitialized(session: ConversationSession) {
-        session.initialize(
-            load = { loadConversation(session.id) },
-            create = { newConversation(session.id) },
-        )
-        recoverInterruptedTurn(session)
-    }
+    private suspend fun ensureInitialized(session: ConversationSession) =
+        lifecycle.ensureInitialized(session)
 
-    /**
-     * 上一轮被进程杀掉留下的两样东西：写了一半的内容在草稿里，思考段的收尾时刻根本没人写。
-     * 进页面、发消息等所有入口都在会话加载完后走这一遍，每个会话每个进程一次。
-     */
-    private suspend fun recoverInterruptedTurn(session: ConversationSession) {
-        restoreDraft(session)
-        sealInterruptedReasoning(session)
-    }
-
-    /**
-     * 上一轮没来得及收尾的思考段还挂着 `finishedAt = null`，界面会当成「此刻正在写」、
-     * 耗时跟着现在的时间一直涨。草稿只能补内容、补不回收尾时刻，所以这里统一收一次尾再让它显示。
-     */
-    private suspend fun sealInterruptedReasoning(session: ConversationSession) {
-        // 正在生成的那一轮自己会收尾，不能把此刻真正在写的那一段封掉
-        if (session.isGenerating) return
-        if (session.tryUpdate { it.closeInterruptedReasoning() } == null) return
-        runCatching { session.flush() }
-    }
-
-    // 每个会话在进程里只恢复一次草稿：之后进页面、重连都不再拿旧草稿盖库里的内容
-    private val draftRestored = ConcurrentHashMap.newKeySet<Uuid>()
-
-    /**
-     * 上一轮生成写到一半进程就被杀掉的话，那份内容从来没落过库，这里用草稿补回来：
-     * 节点还在就补这一条消息的 parts，节点不在了就把它作为助手消息接在会话末尾。
-     * 补完把草稿删掉，下次打开不再恢复一遍。这件事发生在整轮生成之外，和流式循环无关。
-     */
-    private suspend fun restoreDraft(session: ConversationSession) {
-        if (!session.isInitialized) return
-        // 正在生成的那一轮自己在写草稿，不能把它当成上次崩掉留下的内容恢复出来
-        if (session.isGenerating) return
-        if (!draftRestored.add(session.id)) return
-        val draft = draftStore.load(session.id) ?: return
-        val restore = decideDraftRestore(draft, session.state.value)
-        if (restore !is DraftRestore.Discard) {
-            session.update { it.applyDraftRestore(restore) }
-            // 先把恢复出来的内容落库，再删草稿：这中间被杀也不会丢
-            runCatching { session.flush() }
-        }
-        draftStore.clear(session.id)
-    }
-
-    /** 持有会话引用并确保已加载后执行 [block]；[createIfMissing] 为 false 时数据库里没有就抛 NotFoundException */
+    /** 持有会话引用并确保已加载后执行 [block]；语义见 [ConversationLifecycle.withLoaded] */
     private suspend fun <T> withLoadedSession(
         conversationId: Uuid,
         createIfMissing: Boolean = true,
         block: suspend (ConversationSession) -> T,
-    ): T = sessionManager.withSession(conversationId) { session ->
-        session.initialize(
-            load = { loadConversation(conversationId) },
-            create = {
-                if (!createIfMissing) throw NotFoundException("Conversation not found")
-                newConversation(conversationId)
-            },
-        )
-        block(session)
-    }
-
-    // 新建对话, 并添加预设消息
-    private suspend fun newConversation(conversationId: Uuid): Conversation {
-        val assistant = settingsStore.awaitLoaded().getCurrentAssistant()
-        return Conversation.ofId(
-            id = conversationId,
-            assistantId = assistant.id,
-            newConversation = true
-        ).updateCurrentMessages(assistant.presetMessages)
-    }
-
-    // 引入会话配置之前创建的会话没有固定配置，加载时按助手当前的值补上，之后不再随助手变化。
-    private suspend fun loadConversation(conversationId: Uuid): Conversation? {
-        val conversation = conversationRepo.getConversationById(conversationId) ?: return null
-        // settingsFlow 在启动初期还是占位值，固定配置必须基于真实设置
-        val bound = conversation.bindConfig(settingsStore.awaitLoaded())
-        if (bound !== conversation) conversationRepo.updateConversationConfig(bound)
-        return bound
-    }
-
-    /**
-     * 加载会话后在最新状态上修改并落库。
-     * 删除消息或切换分支也可能解除工具审批阻塞，落库后重新检查队列。
-     */
-    private suspend fun mutate(conversationId: Uuid, transform: (Conversation) -> Conversation): Conversation =
-        withLoadedSession(conversationId) { session ->
-            session.update(transform)
-            session.flush().also { dispatchInbox(conversationId) }
-        }
+    ): T = lifecycle.withLoaded(conversationId, createIfMissing, block)
 
     // 只删上次落库时引用、这次落库不再引用的文件；只在内存里出现过的文件宁可漏删也不误删
     private fun deleteUnreferencedFiles(previous: Conversation, current: Conversation) {
@@ -606,14 +511,6 @@ class ChatService(
         }
     }
 
-    private fun reportContextLimit(conversationId: Uuid) {
-        addError(
-            error = IllegalStateException(context.getString(R.string.chat_page_context_limit_reached)),
-            conversationId = conversationId,
-            title = context.getString(R.string.error_title_operation),
-        )
-    }
-
     /**
      * @param interject 强制插话：不等当前回复结束，直接打断并把这条消息插到队首（只在消息队列开启时有意义，
      * 关闭后每条消息本来就按插话处理）
@@ -632,7 +529,7 @@ class ChatService(
         val session = sessionManager.getOrCreate(conversationId)
         return synchronized(session) {
             if (session.maxContextReached(settingsStore) && !autoCompressEnabled(settingsStore, session.state.value)) {
-                reportContextLimit(conversationId)
+                errorSink.reportContextLimit(conversationId)
                 return@synchronized false
             }
             // 关掉消息队列后，用户消息一条都不进队列：能发就当场发，发不了就拒绝，
@@ -678,7 +575,7 @@ class ChatService(
         // 队列暂停又还压着旧消息时新消息根本派发不出去（takeNext 直接返回 null）：
         // 拒绝并把内容留在输入框里，不能假装受理
         if (!notice && inbox.paused && inbox.messages.isNotEmpty()) {
-            reportUnqueueableSend(conversationId, R.string.chat_page_voice_resume_queue)
+            errorSink.reportRejected(conversationId, R.string.chat_page_voice_resume_queue)
             return false
         }
         return when (decideUnqueuedSend(
@@ -714,15 +611,6 @@ class ChatService(
                 true
             }
         }
-    }
-
-    /** 关闭消息队列后，发送被当前状态挡住：说明原因，内容留给调用方。 */
-    private fun reportUnqueueableSend(conversationId: Uuid, @StringRes message: Int) {
-        addError(
-            error = IllegalStateException(context.getString(message)),
-            conversationId = conversationId,
-            title = context.getString(R.string.error_title_operation),
-        )
     }
 
     /** 子代理结束时更新任务树状态；会话可能已经被回收，因此从数据库重新加载。 */
@@ -919,7 +807,7 @@ class ChatService(
                 !autoCompressEnabled(settingsStore, session.state.value)
             ) {
                 session.inbox.pause()
-                reportContextLimit(conversationId)
+                errorSink.reportContextLimit(conversationId)
                 return null
             }
             return when (val next = session.inbox.takeNext() ?: return null) {
@@ -1008,7 +896,7 @@ class ChatService(
             try {
                 // 通知来自已经开始过的会话；会话刚被删除时不能重新创建
                 session.initialize(
-                    load = { loadConversation(conversationId) },
+                    load = { lifecycle.loadConversation(conversationId) },
                     create = { throw NotFoundException("Conversation not found") },
                 )
                 // 加载前不知道是否在等审批；审批后执行完工具，这一轮会自己取走通知
@@ -1733,7 +1621,7 @@ class ChatService(
             conversationId,
             "Sub-agent conversation $conversationId was deleted before it produced a result. Do not wait for it again.",
         )
-        session.replace(newConversation(conversationId), existsInDatabase = false) { previous ->
+        session.replace(lifecycle.newConversation(conversationId), existsInDatabase = false) { previous ->
             conversationRepo.getConversationById(conversationId)?.let { conversationRepo.deleteConversation(it) }
             // 数据库那份不知道只在内存里出现过的附件
             previous?.let { filesManager.deleteChatFiles(it.files) }
@@ -1742,7 +1630,7 @@ class ChatService(
         draftStore.clear(conversationId)
         // 待投递的子代理结果没有接收方了
         gateway.clearPendingResults(conversationId)
-        draftRestored.remove(conversationId)
+        lifecycle.forgetDraftRestore(conversationId)
         sessionManager.removeIfIdle(session)
         // 后台命令随会话一起终止, 撤销删除也不会恢复; 终止要等宽限期, 不阻塞删除
         appScope.launch { backgroundShellManager.killConversation(conversationId) }
@@ -1808,7 +1696,7 @@ class ChatService(
     }
 
     suspend fun clearTranslationField(conversationId: Uuid, messageId: Uuid) {
-        mutate(conversationId) { it.withTranslation(messageId, null) }
+        lifecycle.mutate(conversationId) { it.withTranslation(messageId, null) }
     }
 
     // ---- 消息操作 ----
@@ -1821,7 +1709,7 @@ class ChatService(
         if (parts.isEmptyInputMessage()) return
         val settings = settingsStore.awaitLoaded()
 
-        mutate(conversationId) { conversation ->
+        lifecycle.mutate(conversationId) { conversation ->
             conversation.editMessage(messageId, parts.replaceUserRegexes(settings.getStoredAssistantOf(conversation)))
         }
     }
@@ -1849,7 +1737,7 @@ class ChatService(
         nodeId: Uuid,
         selectIndex: Int
     ) {
-        mutate(conversationId) { conversation ->
+        lifecycle.mutate(conversationId) { conversation ->
             val targetNode = conversation.messageNodes.firstOrNull { it.id == nodeId }
                 ?: throw NotFoundException("Message node not found")
             if (selectIndex !in targetNode.messages.indices) {
@@ -1872,7 +1760,7 @@ class ChatService(
         failIfMissing: Boolean = true,
     ) {
         var todosCleared = false
-        mutate(conversationId) { conversation ->
+        lifecycle.mutate(conversationId) { conversation ->
             val nodeId = conversation.getMessageNodeByMessageId(messageId)?.id
             val updated = conversation.deleteMessage(messageId)
                 ?: if (failIfMissing) throw NotFoundException("Message not found") else conversation
