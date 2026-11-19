@@ -409,6 +409,10 @@ private fun TranslateToolbar(
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    // transitionSpec 是普通 lambda，不能在里面调用 @Composable 的 remember*Spec；
+    // 先在组合期取好，转场开始时直接读这两个值。
+    val iconFadeSpec = rememberEffectsSpec<Float>()
+    val iconScaleSpec = rememberSpatialSpec<Float>()
 
     HorizontalFloatingToolbar(
         expanded = true,
@@ -427,11 +431,9 @@ private fun TranslateToolbar(
                     targetState = translating,
                     // 图标按住的那一下同理：进出取同一档，关了动效直接换图
                     transitionSpec = {
-                        (fadeIn(rememberEffectsSpec<Float>()) +
-                            scaleIn(animationSpec = rememberSpatialSpec<Float>()))
+                        (fadeIn(iconFadeSpec) + scaleIn(animationSpec = iconScaleSpec))
                             .togetherWith(
-                                fadeOut(rememberEffectsSpec<Float>()) +
-                                    scaleOut(animationSpec = rememberSpatialSpec<Float>())
+                                fadeOut(iconFadeSpec) + scaleOut(animationSpec = iconScaleSpec)
                             )
                     },
                 ) { isTranslating ->
