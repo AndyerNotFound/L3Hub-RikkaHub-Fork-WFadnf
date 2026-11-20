@@ -3077,13 +3077,13 @@
   <string name="backup_page_version_sync_absent_desc">Release and preview builds use different package names and can be installed together. Install the other build to sync between them.</string>
   <string name="backup_page_version_sync_release">Release build</string>
   <string name="backup_page_version_sync_preview">Preview build</string>
-  <string name="backup_page_version_sync_unsupported">That build predates version sync; update both builds</string>
+  <string name="backup_page_version_sync_unsupported">That build did not answer: it may predate version sync or have been force-stopped. Update both builds, then open that app once.</string>
   <string name="backup_page_version_sync_peer_pending">A restore is pending there; restart that app first</string>
   <string name="backup_page_version_sync_peer_detail">%1$s · database v%2$d</string>
   <string name="backup_page_version_sync_pull">Import from the other version</string>
-  <string name="backup_page_version_sync_pull_desc">Copy that version's data here, then restart this app</string>
+  <string name="backup_page_version_sync_pull_desc">Copy that version\'s data here, then restart this app</string>
   <string name="backup_page_version_sync_push">Send to the other version</string>
-  <string name="backup_page_version_sync_push_desc">Hand this version's data over; it applies when that app restarts</string>
+  <string name="backup_page_version_sync_push_desc">Hand this version\'s data over; it applies when that app restarts</string>
   <string name="backup_page_version_sync_packing">Packing…</string>
   <string name="backup_page_version_sync_copying">Copying %1$s / %2$s</string>
   <string name="backup_page_version_sync_importing">Importing…</string>

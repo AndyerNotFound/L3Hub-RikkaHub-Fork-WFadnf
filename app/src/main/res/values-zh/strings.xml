@@ -3074,7 +3074,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="backup_page_version_sync_absent_desc">正式版与测试版的包名不同，可以同时安装。装好另一版本后即可在此互传数据。</string>
   <string name="backup_page_version_sync_release">正式版</string>
   <string name="backup_page_version_sync_preview">测试版</string>
-  <string name="backup_page_version_sync_unsupported">该版本还没有版本同步，两端都需升级</string>
+  <string name="backup_page_version_sync_unsupported">对方没有响应版本同步：可能是旧版本还没有这个功能，或被系统停止。请把两端都升级，并先打开一次对方应用。</string>
   <string name="backup_page_version_sync_peer_pending">对方有一份恢复在等重启，请先重启对方应用</string>
   <string name="backup_page_version_sync_peer_detail">%1$s · 数据库 v%2$d</string>
   <string name="backup_page_version_sync_pull">从另一版本导入</string>
