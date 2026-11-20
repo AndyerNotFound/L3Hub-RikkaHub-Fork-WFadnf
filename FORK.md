@@ -852,7 +852,7 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
 
 | 通道 | tag | 变体 | 包名 | Release |
 |---|---|---|---|---|
-| 正式版 | `v3.2.31` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | 正式 Release（非 prerelease，自动成为 latest） |
+| 正式版 | `v3.2.31`、`v3.3.0.2` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | 正式 Release（非 prerelease，自动成为 latest） |
 | Canary | `Canary-Build` | `githubRelease` + `-PappIdSuffix=.canary` | `com.rikkahub.l3hub.wfadnf.canary` | Pre-release |
 | Nightly | `Nightly-Build` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release，每夜自动更新 |
 | 旧预览 | `v3.2.31-preview.102` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release |
@@ -886,8 +886,9 @@ Canary 与正式版用 Secrets 里的 release key，Nightly 与旧预览用仓�
    `tools/build-apk.sh`（按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，
    跳过 lint vital）→ 重命名产物 → 建 Release
 
-版本号核对只对正式版严格：`versionName` 必须以 `L.<tag 去掉 v>.` 开头，`versionCode`
-必须大于上一个正式版 tag 的值，否则覆盖安装时系统会当成没更新。测试通道都是独立包名，
+正式版 tag 允许两种形态：三段 `vX.Y.Z` 与四段 `vX.Y.Z.W`（同一条线上再补一版，前三段不动）。
+版本号核对只对正式版严格：三段 tag 的 `versionName` 必须形如 `L.<tag 去掉 v>.NNN`，四段 tag 则直接用
+`L.<tag 去掉 v>` 与 tag 对齐；`versionCode` 必须大于上一个正式版 tag 的值，否则覆盖安装时系统会当成没更新。测试通道都是独立包名，
 versionCode 与正式版撞车不影响谁覆盖谁，只核对 `versionName`；固定 tag 的 Canary / Nightly
 不带版本号，连前缀也不核对。tag 解析不到（没推上去、浅克隆没拿到）会直接红。
 

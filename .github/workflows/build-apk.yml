@@ -2,6 +2,7 @@ name: Build APK
 
 # 四条通道共用一套流程，按 tag 形态与事件区分：
 #   v3.1.1              → 正式版：githubRelease 变体，包名不带后缀，正式 Release
+#   v3.3.0.2            → 正式版（四段）：同一条线上再补一版，versionName 与 tag 完全一致
 #   Canary-Build        → Canary：githubRelease 变体 + .canary 包名，Pre-release
 #   Nightly-Build       → 每夜构建：githubDebug 变体 + .debug 包名，Pre-release
 #   v3.1.1-preview.102  → 旧预览通道：githubDebug 变体 + .debug 包名，Pre-release
@@ -218,12 +219,13 @@ jobs:
             echo "tag ${TAG} 解析不到，无法核对版本号" >&2
             exit 1
           fi
-          # 少打一段（v3.1）会跟 L.3.1.6.107 前缀匹配上，先卡形态
+          # 少打一段（v3.1）会跟 L.3.1.6.107 前缀匹配上，先卡形态。
+          # 四段 vX.Y.Z.W 表示同一条线上再补一版（前三段不动），同样算正式版
           case "$TAG" in
             *-*) ;;
             *)
-              if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                echo "正式版 tag ${TAG} 不是 vX.Y.Z 形式" >&2
+              if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+                echo "正式版 tag ${TAG} 不是 vX.Y.Z 或 vX.Y.Z.W 形式" >&2
                 exit 1
               fi ;;
           esac
@@ -233,10 +235,11 @@ jobs:
           if [ "${ROLLING}" != "true" ]; then
             base=${TAG#v}
             base=${base%%-*}
+            # 三段 tag 走 L.<base>.NNN，末段是构建序号；四段 tag 直接用 L.<base> 与 tag 对齐
             case "$name" in
-              "L.${base}."*) ;;
+              "L.${base}"|"L.${base}."*) ;;
               *)
-                echo "versionName「${name}」和 tag ${TAG} 对不上，应形如 L.${base}.NNN" >&2
+                echo "versionName「${name}」和 tag ${TAG} 对不上，应形如 L.${base} 或 L.${base}.NNN" >&2
                 exit 1 ;;
             esac
           else
