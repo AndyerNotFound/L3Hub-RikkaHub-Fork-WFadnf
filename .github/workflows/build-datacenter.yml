@@ -2,8 +2,8 @@ name: Build Data Center
 
 # 数据中心是独立的应用（com.l3hub.database.wfadnf），与 L3Hub 共用同一把 release 签名钥匙，
 # 因此能覆盖安装、也能被 L3Hub 的 provider 认作可信调用方。
-# 出包通道只有一条：tag 形如 DB-v1.0.0 → 正式 Release，产物是不分 ABI 的单个 APK
-# （内置 arm64-v8a 与 x86_64 两份 libsimple，FTS5 的 simple 分词器要用）。
+# 出包通道只有一条：tag 形如 DB-v1.0.0 → 正式 Release，产物是 arm64-v8a 的单个 APK
+# （内含 libsimple，FTS5 的 simple 分词器要用；requery 的 SQLite 只裁到 arm64，包体才不至于翻倍）。
 on:
   push:
     tags: ['DB-v*.*.*']

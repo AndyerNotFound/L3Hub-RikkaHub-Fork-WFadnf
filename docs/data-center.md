@@ -89,7 +89,7 @@ files/hub/
 ```
 
 CI：`.github/workflows/build-datacenter.yml`，tag 形如 `DB-v1.0.0`，产物 `L3Hub-DataCenter-DB-v1.0.0.apk`
-（不分 ABI，内含 arm64-v8a 与 x86_64 的 `libsimple.so`），签名与 L3Hub 正式版同一把 release key。
+（arm64-v8a，内含应用同款的 `libsimple.so` 分词扩展），签名与 L3Hub 正式版同一把 release key。
 
 版本号只改 `datacenter/build.gradle.kts` 的 `versionCode` / `versionName`，CI 会核对 tag 与
 `versionName` 一致。

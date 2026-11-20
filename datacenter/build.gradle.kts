@@ -15,8 +15,13 @@ android {
         applicationId = "com.l3hub.database.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
+
+        // 只出真机用的 ABI：requery 的 SQLite 会把四套 .so 一起带进来，不裁的话包体大半是别的架构
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     signingConfigs {
@@ -52,10 +57,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            // 数据中心没有需要收缩的热点，关掉 R8：少一轮编译，也免得序列化类被裁掉
             optimization {
-                enable = false
+                enable = true
             }
+            proguardFiles("proguard-rules.pro")
         }
         debug {
             signingConfig = signingConfigs.getByName("devDebug")
