@@ -135,33 +135,33 @@ object BundleFormat {
         )
     }
 
-    fun isBundle(file: File): Boolean {
-        if (!file.isFile || file.length() < FILE_MAGIC.length) return false
-        val head = ByteArray(FILE_MAGIC.length)
-        FileInputStream(file).use { input ->
-            var read = 0
-            while (read < head.size) {
-                val count = input.read(head, read, head.size - read)
-                if (count < 0) return false
-                read += count
-            }
-        }
-        return head.contentEquals(FILE_MAGIC.toByteArray(Charsets.US_ASCII))
-    }
+    fun isBundle(file: File): Boolean = readMagic(file)
 
     /**
      * 读出文件里所有完整记录。
      *
      * [allowMissingMagic] 用于单独的一层对象（`xxx.l3b.d001`）：它只有记录，没有文件头。
      */
+    private fun readMagic(file: File): Boolean {
+        if (!file.isFile || file.length() < FILE_MAGIC.length) return false
+        val head = ByteArray(FILE_MAGIC.length)
+        FileInputStream(file).use { input ->
+            if (!readFully(input, head)) return false
+        }
+        return head.contentEquals(FILE_MAGIC.toByteArray(Charsets.US_ASCII))
+    }
+
     fun readIndex(file: File, allowMissingMagic: Boolean = false): Index {
         if (!file.isFile || file.length() == 0L) return Index(emptyList(), 0L, false)
         val refs = mutableListOf<Ref>()
+        // 文件头单独探一次：单独的层对象没有文件头，从第一个字节起就是记录
+        val hasMagic = readMagic(file)
+        if (!hasMagic && !allowMissingMagic) return Index(emptyList(), 0L, false)
         FileInputStream(file).use { raw ->
             val input = BufferedInputStream(raw, 64 * 1024)
-            val magic = ByteArray(FILE_MAGIC.length)
-            val hasMagic = readFully(input, magic) && magic.contentEquals(FILE_MAGIC.toByteArray(Charsets.US_ASCII))
-            if (!hasMagic && !allowMissingMagic) return Index(emptyList(), 0L, false)
+            if (hasMagic && !skipFully(input, FILE_MAGIC.length.toLong())) {
+                return Index(emptyList(), 0L, hasMagic)
+            }
             var position = if (hasMagic) FILE_MAGIC.length.toLong() else 0L
             while (true) {
                 val start = position
