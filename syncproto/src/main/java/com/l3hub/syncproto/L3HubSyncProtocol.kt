@@ -27,6 +27,9 @@ object L3HubSyncProtocol {
     /** 增量协议版本。对端 ping 返回值低于它时退回整份归档 */
     const val PROTOCOL_VERSION = 2
 
+    /** 分层备份包协议版本：`exportBundle` 与接受 `.l3b` 的 `importDelta` 从这个版本开始 */
+    const val BUNDLE_PROTOCOL = 3
+
     // 方法
     const val METHOD_PING = "ping"
     const val METHOD_EXPORT = "export"
@@ -39,6 +42,9 @@ object L3HubSyncProtocol {
 
     /** 协议 2 之后新增：导出当前库的结构与统计，供数据中心做跨版本换算 */
     const val METHOD_SCHEMA = "schema"
+
+    /** 协议 3：导出一层 `.l3b`（base 或 delta）；接收侧仍走 `importDelta`，按文件头识别格式 */
+    const val METHOD_EXPORT_BUNDLE = "exportBundle"
 
     // 参数与返回值的键
     const val KEY_TOKEN = "token"
@@ -58,6 +64,7 @@ object L3HubSyncProtocol {
     const val KEY_PATHS = "paths"
     const val KEY_ARCHIVE = "archive"
     const val KEY_ITEMS = "items"
+    const val KEY_BASE = "base"
     const val KEY_MODE = "mode"
     const val KEY_STAGED = "staged"
     const val KEY_SKIPPED = "skipped"

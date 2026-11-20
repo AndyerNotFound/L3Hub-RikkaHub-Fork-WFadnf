@@ -147,6 +147,38 @@ class PeerClient(private val context: Context) {
         runJob(packageName, L3HubSyncProtocol.METHOD_EXPORT_DELTA, extras, destination, onLog)
     }
 
+    /** 请求一层 `.l3b`；[base] 为整份，否则是按 [since] 水位切出的增量层 */
+    suspend fun exportBundle(
+        packageName: String,
+        base: Boolean,
+        since: Long,
+        includeDatabase: Boolean,
+        includeSettings: Boolean,
+        includeFiles: Boolean,
+        paths: List<String>?,
+        destination: File,
+        onLog: (String) -> Unit,
+    ) {
+        val extras = Bundle().apply {
+            putBoolean(L3HubSyncProtocol.KEY_BASE, base)
+            putLong(L3HubSyncProtocol.KEY_SINCE, since)
+            putBoolean(L3HubSyncProtocol.KEY_INCLUDE_DATABASE, includeDatabase)
+            putBoolean(L3HubSyncProtocol.KEY_INCLUDE_SETTINGS, includeSettings)
+            putBoolean(L3HubSyncProtocol.KEY_INCLUDE_FILES, includeFiles)
+            if (paths != null) putStringArrayList(L3HubSyncProtocol.KEY_PATHS, ArrayList(paths))
+        }
+        runJob(packageName, L3HubSyncProtocol.METHOD_EXPORT_BUNDLE, extras, destination, onLog)
+    }
+
+    /** 投递一份 `.l3b`；接收侧按文件头识别，在下次启动时安装 */
+    suspend fun importBundle(packageName: String, archive: File, items: List<String>): List<String> {
+        val extras = Bundle().apply {
+            putStringArrayList(L3HubSyncProtocol.KEY_ITEMS, ArrayList(items))
+            putString(L3HubSyncProtocol.KEY_MODE, L3HubSyncProtocol.MODE_MERGE)
+        }
+        return callWithArchive(packageName, L3HubSyncProtocol.METHOD_IMPORT_DELTA, archive, extras)
+    }
+
     /** 投递备份归档；返回对端已暂存的类别 */
     suspend fun importArchive(
         packageName: String,

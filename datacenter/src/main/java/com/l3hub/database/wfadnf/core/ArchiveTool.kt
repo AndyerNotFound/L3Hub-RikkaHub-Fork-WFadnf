@@ -1,5 +1,6 @@
 package com.l3hub.database.wfadnf.core
 
+import com.l3hub.syncproto.BundleFormat
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.Deflater
@@ -39,6 +40,16 @@ object ArchiveTool {
                 file.inputStream().use { it.copyTo(zip) }
                 zip.closeEntry()
             }
+        }
+    }
+
+    /** `.l3b` 的增量层 payload：只装一份增量库 */
+    fun buildDeltaArchive(delta: File, destination: File) {
+        destination.parentFile?.mkdirs()
+        archiveStream(destination).use { zip ->
+            zip.putNextEntry(ZipEntry(BundleFormat.ENTRY_DELTA))
+            delta.inputStream().use { it.copyTo(zip) }
+            zip.closeEntry()
         }
     }
 

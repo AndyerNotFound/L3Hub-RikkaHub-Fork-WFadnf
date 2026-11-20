@@ -161,6 +161,11 @@
   <string name="avatar_url_dialog_title">Input Image URL</string>
   <string name="avatar_url_hint">Enter image URL</string>
   <string name="back">Back</string>
+    <string name="backup_page_format">Backup format</string>
+    <string name="backup_page_format_incremental">Incremental (.l3b)</string>
+    <string name="backup_page_format_incremental_desc">Packs everything once, then appends only what changed; restorable on another device</string>
+    <string name="backup_page_format_full">Full archive (.zip, legacy)</string>
+    <string name="backup_page_format_full_desc">Repacks the whole database every time; readable by older L3Hub builds</string>
   <string name="backup_page_backing_up">Backing up...</string>
   <string name="backup_page_backup_items">Backup Items</string>
   <string name="backup_page_backup_now">Backup Now</string>

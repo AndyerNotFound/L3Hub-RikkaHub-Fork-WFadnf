@@ -155,6 +155,11 @@
   <string name="avatar_url_dialog_title">画像URLを入力</string>
   <string name="avatar_url_hint">画像URLを入力してください</string>
   <string name="back">戻る</string>
+    <string name="backup_page_format">バックアップ形式</string>
+    <string name="backup_page_format_incremental">差分（.l3b）</string>
+    <string name="backup_page_format_incremental_desc">最初に全体を保存し、以降は変更分だけを追加します。別の端末でも復元できます</string>
+    <string name="backup_page_format_full">全体（.zip、互換）</string>
+    <string name="backup_page_format_full_desc">毎回データベース全体を再作成します。旧バージョンの L3Hub でも読み込めます</string>
   <string name="backup_page_backing_up">バックアップ中...</string>
   <string name="backup_page_backup_items">バックアップ項目</string>
   <string name="backup_page_backup_now">今すぐバックアップ</string>

@@ -155,6 +155,11 @@
   <string name="avatar_url_dialog_title">Введите URL изображения</string>
   <string name="avatar_url_hint">Введите URL изображения</string>
   <string name="back">Назад</string>
+    <string name="backup_page_format">Формат резервной копии</string>
+    <string name="backup_page_format_incremental">Инкрементный (.l3b)</string>
+    <string name="backup_page_format_incremental_desc">Сначала полная копия, затем только изменения; восстановление на другом устройстве</string>
+    <string name="backup_page_format_full">Полный (.zip, совместимость)</string>
+    <string name="backup_page_format_full_desc">Каждый раз заново упаковывает всю базу; читается старыми версиями L3Hub</string>
   <string name="backup_page_backing_up">Идёт резервное копирование…</string>
   <string name="backup_page_backup_items">Элементы резервной копии</string>
   <string name="backup_page_backup_now">Создать резервную копию</string>

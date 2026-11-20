@@ -17,7 +17,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.db.AppDatabase
+import com.l3hub.syncproto.BundleFormat
 import me.rerere.rikkahub.data.sync.BackupManager
+import me.rerere.rikkahub.data.sync.BundleRequest
 import me.rerere.rikkahub.data.sync.PendingDelta
 import me.rerere.rikkahub.data.sync.PendingRestore
 import me.rerere.rikkahub.data.sync.RestoreOptions
@@ -89,6 +91,7 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
             SyncBridge.METHOD_EXPORT_DELTA -> startDeltaExport(extras)
             SyncBridge.METHOD_IMPORT_DELTA -> importDelta(extras)
             SyncBridge.METHOD_SCHEMA -> describeSchema()
+            SyncBridge.METHOD_EXPORT_BUNDLE -> startBundleExport(extras)
             else -> throw IllegalArgumentException("Unknown method: $method")
         }
     }
@@ -267,6 +270,43 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
         }
     }
 
+    /**
+     * 导出一层 `.l3b`。
+     *
+     * [SyncBridge.KEY_BASE] 为 true 时是整份（整库 + 全部附件 + 设置），否则是按
+     * [SyncBridge.KEY_SINCE] 水位切出的增量层；附件由调用方按清单比对后点名给出。
+     * 同设备中转，payload 不压缩。
+     */
+    private fun startBundleExport(extras: Bundle?): Bundle {
+        val base = extras?.getBoolean(SyncBridge.KEY_BASE) ?: false
+        val since = extras?.getLong(SyncBridge.KEY_SINCE, 0L) ?: 0L
+        val includeDatabase = extras?.getBoolean(SyncBridge.KEY_INCLUDE_DATABASE) ?: true
+        val includeSettings = extras?.getBoolean(SyncBridge.KEY_INCLUDE_SETTINGS) ?: false
+        val includeFiles = extras?.getBoolean(SyncBridge.KEY_INCLUDE_FILES) ?: false
+        val paths = extras?.getStringArrayList(SyncBridge.KEY_PATHS)
+        return startJob {
+            check(cacheDir.isDirectory || cacheDir.mkdirs()) { "Cannot create sync directory" }
+            val prepared = backupManager.prepareBundleLayer(
+                BundleRequest(
+                    includeDatabase = includeDatabase,
+                    includeFiles = includeFiles,
+                    base = base,
+                    includeSettings = includeSettings,
+                    since = since,
+                    paths = paths?.toList(),
+                    compress = false,
+                )
+            )
+            val target = File(cacheDir, "bundle-${UUID.randomUUID()}.${BundleFormat.SUFFIX}")
+            try {
+                backupManager.appendBundle(target, prepared)
+            } finally {
+                prepared.payload.delete()
+            }
+            target
+        }
+    }
+
     private fun exportState(token: String?): Bundle {
         val export = token?.let(exports::get) ?: throw IllegalArgumentException("Unknown export token")
         return Bundle().apply {
@@ -340,9 +380,13 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
             ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
                 archive.outputStream().use { output -> input.copyTo(output) }
             }
-            // 同一个包里既有增量库也有附件，两次解压各取所需
+            // 同一个包里既有增量库也有附件，两次解压各取所需；`.l3b` 走分层备份包的恢复路径
             val result = runBlocking(Dispatchers.IO) {
-                PendingDelta.stage(caller, archive, archive, options)
+                if (BundleFormat.isBundle(archive)) {
+                    backupManager.stageRestore(archive = archive, options = options, verify = false)
+                } else {
+                    PendingDelta.stage(caller, archive, archive, options)
+                }
             }
             Bundle().apply {
                 putStringArrayList(SyncBridge.KEY_STAGED, ArrayList(result.staged.map { it.name }))

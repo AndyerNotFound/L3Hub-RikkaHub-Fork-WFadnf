@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.sync
 
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.l3hub.syncproto.DeltaSync
 
 /**
  * 删除墓碑：增量同步只传「变更了什么」，没有墓碑就无法表达「对方删掉了什么」，删掉的会话会在下一次
@@ -11,15 +12,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 备份合并（DatabaseMerge）会把它当普通表按主键补，墓碑因此也能随备份走。
  */
 object SyncTombstones {
-    const val TABLE = "sync_tombstone"
+    // 常量由协议库给出：数据中心按同一组名字读墓碑
+    const val TABLE = DeltaSync.TABLE_TOMBSTONE
 
-    const val KIND_CONVERSATION = "conversation"
-    const val KIND_FOLDER = "folder"
-    const val KIND_MEMORY = "memory"
-    const val KIND_WORKSPACE = "workspace"
+    const val KIND_CONVERSATION = DeltaSync.KIND_CONVERSATION
+    const val KIND_FOLDER = DeltaSync.KIND_FOLDER
+    const val KIND_MEMORY = DeltaSync.KIND_MEMORY
+    const val KIND_WORKSPACE = DeltaSync.KIND_WORKSPACE
 
     /** 记忆表的复合主键在墓碑里拼成一个字符串，路径本身不会出现换行 */
-    const val MEMORY_SEPARATOR = "\n"
+    const val MEMORY_SEPARATOR = DeltaSync.MEMORY_SEPARATOR
 
     /** 墓碑只用于增量同步，留半年足够覆盖任何一次正常的跨版本同步 */
     private const val RETENTION_MS = 180L * 24 * 60 * 60 * 1000

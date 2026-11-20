@@ -201,6 +201,7 @@ class SettingsStore internal constructor(
 
         // 备份提醒
         val BACKUP_REMINDER_CONFIG = stringPreferencesKey("backup_reminder_config")
+        val BACKUP_FORMAT = stringPreferencesKey("backup_format")
 
         // 统计
         val LAUNCH_COUNT = intPreferencesKey("launch_count")

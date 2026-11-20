@@ -153,6 +153,36 @@ class HubStore(private val context: Context) {
         return record
     }
 
+    /** 最近一份快照；跨版本时不参与增量链，调用方传 schemaVersion 过滤 */
+    fun latestSnapshot(packageName: String, schemaVersion: Int? = null): SnapshotRecord? =
+        state.value.packages[packageName]?.snapshots
+            ?.filter { schemaVersion == null || it.schemaVersion == schemaVersion }
+            ?.maxByOrNull { it.createdAt }
+
+    fun pullWatermark(packageName: String): Long =
+        state.value.packages[packageName]?.pullWatermark ?: 0L
+
+    fun pushWatermark(packageName: String): Long =
+        state.value.packages[packageName]?.pushWatermark ?: 0L
+
+    suspend fun recordPull(packageName: String, startedAt: Long) = mutex.withLock {
+        update { index ->
+            val previous = index.packages[packageName] ?: return@update index
+            index.copy(
+                packages = index.packages + (packageName to previous.copy(pullWatermark = startedAt)),
+            )
+        }
+    }
+
+    suspend fun recordPush(packageName: String, startedAt: Long) = mutex.withLock {
+        update { index ->
+            val previous = index.packages[packageName] ?: return@update index
+            index.copy(
+                packages = index.packages + (packageName to previous.copy(pushWatermark = startedAt)),
+            )
+        }
+    }
+
     suspend fun markFilesIncluded(packageName: String, id: String) = mutex.withLock {
         update { index ->
             val previous = index.packages[packageName] ?: return@update index

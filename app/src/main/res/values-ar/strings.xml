@@ -177,6 +177,11 @@
   <string name="avatar_url_dialog_title">إدخال رابط الصورة</string>
   <string name="avatar_url_hint">أدخل رابط الصورة</string>
   <string name="back">رجوع</string>
+    <string name="backup_page_format">صيغة النسخ الاحتياطي</string>
+    <string name="backup_page_format_incremental">تزايدي (.l3b)</string>
+    <string name="backup_page_format_incremental_desc">نسخة كاملة أول مرة ثم التغييرات فقط، ويمكن الاستعادة على جهاز آخر</string>
+    <string name="backup_page_format_full">كامل (.zip، توافق)</string>
+    <string name="backup_page_format_full_desc">يعيد حزم قاعدة البيانات كاملة في كل مرة، وتقرأه إصدارات L3Hub الأقدم</string>
   <string name="backup_page_backing_up">جارٍ النسخ الاحتياطي...</string>
   <string name="backup_page_backup_items">عناصر النسخ الاحتياطي</string>
   <string name="backup_page_backup_now">النسخ الاحتياطي الآن</string>

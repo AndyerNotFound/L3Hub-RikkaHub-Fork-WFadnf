@@ -155,6 +155,11 @@
   <string name="avatar_url_dialog_title">輸入圖片連結</string>
   <string name="avatar_url_hint">請輸入圖片連結</string>
   <string name="back">返回</string>
+    <string name="backup_page_format">備份格式</string>
+    <string name="backup_page_format_incremental">增量備份（.l3b）</string>
+    <string name="backup_page_format_incremental_desc">首次整份，之後只追加變化；可在其他裝置上還原</string>
+    <string name="backup_page_format_full">全量備份（.zip，相容）</string>
+    <string name="backup_page_format_full_desc">每次都重新打包整個資料庫；舊版 L3Hub 也能讀取</string>
   <string name="backup_page_backing_up">備份中...</string>
   <string name="backup_page_backup_items">備份項目</string>
   <string name="backup_page_backup_now">立即備份</string>

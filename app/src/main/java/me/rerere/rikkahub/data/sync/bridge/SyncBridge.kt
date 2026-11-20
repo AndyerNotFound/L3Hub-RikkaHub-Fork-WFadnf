@@ -42,6 +42,7 @@ object SyncBridge {
     const val METHOD_EXPORT_DELTA = L3HubSyncProtocol.METHOD_EXPORT_DELTA
     const val METHOD_IMPORT_DELTA = L3HubSyncProtocol.METHOD_IMPORT_DELTA
     const val METHOD_SCHEMA = L3HubSyncProtocol.METHOD_SCHEMA
+    const val METHOD_EXPORT_BUNDLE = L3HubSyncProtocol.METHOD_EXPORT_BUNDLE
 
     // 参数与返回值的键
     const val KEY_TOKEN = L3HubSyncProtocol.KEY_TOKEN
@@ -65,6 +66,10 @@ object SyncBridge {
     const val KEY_STAGED = L3HubSyncProtocol.KEY_STAGED
     const val KEY_SKIPPED = L3HubSyncProtocol.KEY_SKIPPED
     const val KEY_SCHEMA = L3HubSyncProtocol.KEY_SCHEMA
+    const val KEY_BASE = L3HubSyncProtocol.KEY_BASE
+
+    /** 分层备份包从这个协议版本开始支持 */
+    const val BUNDLE_PROTOCOL = L3HubSyncProtocol.BUNDLE_PROTOCOL
 
     // 打包任务的状态
     const val STATE_RUNNING = L3HubSyncProtocol.STATE_RUNNING

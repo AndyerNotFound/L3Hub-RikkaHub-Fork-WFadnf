@@ -100,6 +100,11 @@
   <string name="assistant_extensions_page_empty_lorebooks">Keine Lorebooks verfügbar, erstelle eines unter Prompts</string>
   <string name="assistant_extensions_page_empty_mode_injections">Keine Modus-Injektionen verfügbar, erstelle eine unter Prompts</string>
   <string name="assistant_extensions_page_empty_quick_messages">Keine Schnellnachrichten verfügbar, erstelle eine unter Extensions</string>
+    <string name="backup_page_format">Sicherungsformat</string>
+    <string name="backup_page_format_incremental">Inkrementell (.l3b)</string>
+    <string name="backup_page_format_incremental_desc">Einmal alles sichern, danach nur Änderungen anhängen; auf anderen Geräten wiederherstellbar</string>
+    <string name="backup_page_format_full">Vollständig (.zip, Kompatibilität)</string>
+    <string name="backup_page_format_full_desc">Packt jedes Mal die ganze Datenbank neu; auch von älteren L3Hub-Versionen lesbar</string>
   <string name="backup_page_connection_failed">Verbindung fehlgeschlagen: %s</string>
   <string name="backup_page_connection_success">Verbindung erfolgreich</string>
   <string name="backup_page_delete">Löschen</string>

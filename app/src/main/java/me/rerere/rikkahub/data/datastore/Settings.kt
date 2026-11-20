@@ -120,6 +120,8 @@ data class Settings(
     val sshServerPort: Int = 2222,
     val sshServerAllowLan: Boolean = false,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
+    // 备份格式：INCREMENTAL 为分层的 .l3b，FULL 为旧的整份 zip
+    val backupFormat: String = "INCREMENTAL",
     val sponsorAlertDismissedAt: Int = 0,
 ) {
     companion object {

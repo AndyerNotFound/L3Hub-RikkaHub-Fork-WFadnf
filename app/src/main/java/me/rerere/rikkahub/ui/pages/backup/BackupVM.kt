@@ -93,7 +93,7 @@ class BackupVM(
     }
 
     suspend fun backup() {
-        webDavSync.backup(settings.value.webDavConfig)
+        webDavSync.backup(settings.value.webDavConfig, incremental = incrementalBackup())
         recordBackupTime()
     }
 
@@ -106,11 +106,15 @@ class BackupVM(
 
     suspend fun exportToFile(): File {
         val file = webDavSync.prepareBackupFile(
-            settings.value.webDavConfig.copy(items = localBackupItems.value)
+            config = settings.value.webDavConfig.copy(items = localBackupItems.value),
+            incremental = incrementalBackup(),
         )
         recordBackupTime()
         return file
     }
+
+    /** 默认走增量（.l3b）；用户在数据备份页切到「全量」时仍按旧 zip 打包 */
+    fun incrementalBackup(): Boolean = settings.value.backupFormat != BACKUP_FORMAT_FULL
 
     suspend fun restoreFromLocalFile(file: File, options: RestoreOptions): RestoreStageResult =
         webDavSync.restoreFromLocalFile(file, options)
@@ -280,7 +284,7 @@ class BackupVM(
     }
 
     suspend fun backupToS3() {
-        s3Sync.backupToS3(settings.value.s3Config)
+        s3Sync.backupToS3(settings.value.s3Config, incremental = incrementalBackup())
         recordBackupTime()
     }
 
@@ -301,6 +305,9 @@ class BackupVM(
         }
     }
 }
+
+/** 备份格式在设置里以字符串存，避免为一个开关新增枚举的序列化兼容问题 */
+const val BACKUP_FORMAT_FULL = "FULL"
 
 data class ChatboxRestoreResult(
     val importedProviders: Int,

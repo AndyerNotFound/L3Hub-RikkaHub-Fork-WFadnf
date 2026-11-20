@@ -33,6 +33,7 @@ import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.sync.importer.DeepSeekImportResult
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.pages.backup.BACKUP_FORMAT_FULL
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
@@ -56,6 +57,9 @@ fun ImportExportTab(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val selectedBackupItems by vm.localBackupItems.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    // 增量（.l3b）是默认格式；切到全量仍按旧的整份 zip 打包
+    val incremental = settings.backupFormat != BACKUP_FORMAT_FULL
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
     var showRestoreOptions by remember { mutableStateOf(false) }
@@ -68,7 +72,9 @@ fun ImportExportTab(
 
     // 创建文件保存的launcher
     val createDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
+        contract = ActivityResultContracts.CreateDocument(
+            if (settings.backupFormat != BACKUP_FORMAT_FULL) "application/octet-stream" else "application/zip"
+        )
     ) { uri ->
         uri?.let { targetUri ->
             scope.launch {
@@ -286,7 +292,8 @@ fun ImportExportTab(
                     {
                         val timestamp = LocalDateTime.now()
                             .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-                        createDocumentLauncher.launch("rikkahub_backup_$timestamp.zip")
+                        val extension = if (incremental) "l3b" else "zip"
+                        createDocumentLauncher.launch("rikkahub_backup_$timestamp.$extension")
                     }
                 } else null,
                 headlineContent = { Text(stringResource(R.string.backup_page_local_backup_export)) },
@@ -321,6 +328,37 @@ fun ImportExportTab(
                 leadingContent = {
                     BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "local")
                 },
+            )
+        }
+
+        CardGroup(
+            title = { Text(stringResource(R.string.backup_page_format)) },
+        ) {
+            item(
+                onClick = {
+                    vm.updateSettings {
+                        it.copy(
+                            backupFormat = if (incremental) BACKUP_FORMAT_FULL else "INCREMENTAL",
+                        )
+                    }
+                },
+                headlineContent = {
+                    Text(
+                        stringResource(
+                            if (incremental) R.string.backup_page_format_incremental
+                            else R.string.backup_page_format_full
+                        )
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (incremental) R.string.backup_page_format_incremental_desc
+                            else R.string.backup_page_format_full_desc
+                        )
+                    )
+                },
+                leadingContent = { BackupActionIcon(HugeIcons.FileExport) },
             )
         }
 
@@ -431,7 +469,7 @@ fun ImportExportTab(
                 showRestoreOptions = false
                 pendingRestoreOptions = options
                 importType = "local"
-                openDocumentLauncher.launch(arrayOf("application/zip"))
+                openDocumentLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
             },
         )
     }

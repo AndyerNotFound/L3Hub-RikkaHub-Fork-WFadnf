@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.sync
 
 import android.content.Context
 import android.util.Log
+import com.l3hub.syncproto.BundleFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -83,19 +84,82 @@ object PendingDelta {
                     accepted
                 }
             }
-            val staged = buildSet {
-                if (hasDatabase && RestoreItem.CHAT_RECORDS in options.items) add(RestoreItem.CHAT_RECORDS)
-                if (hasSettings && RestoreItem.SETTINGS in options.items) add(RestoreItem.SETTINGS)
-                if (hasFiles && RestoreItem.FILES in options.items) add(RestoreItem.FILES)
+            publish(root, staging, hasDatabase, hasSettings, hasFiles, options)
+        } finally {
+            staging.deleteRecursively()
+        }
+    }
+
+    /** 按实际收到的内容决定暂存类别，写好选项后原子改名为 pending */
+    private fun publish(
+        root: File,
+        staging: File,
+        hasDatabase: Boolean,
+        hasSettings: Boolean,
+        hasFiles: Boolean,
+        options: RestoreOptions,
+    ): RestoreStageResult {
+        val staged = buildSet {
+            if (hasDatabase && RestoreItem.CHAT_RECORDS in options.items) add(RestoreItem.CHAT_RECORDS)
+            if (hasSettings && RestoreItem.SETTINGS in options.items) add(RestoreItem.SETTINGS)
+            if (hasFiles && RestoreItem.FILES in options.items) add(RestoreItem.FILES)
+        }
+        require(staged.isNotEmpty()) { "The other build had nothing new to send" }
+        PendingRestore.writeDurably(
+            File(staging, OPTIONS_FILE),
+            Json.encodeToString(RestoreOptions(items = staged, mode = options.mode)),
+        )
+        val pending = File(root, "pending")
+        Files.move(staging.toPath(), pending.toPath(), ATOMIC_MOVE)
+        return RestoreStageResult(staged = staged, skipped = options.items - staged)
+    }
+
+    /**
+     * 收下一份 `.l3b` 纯增量包（没有 base 层的链）。
+     *
+     * 它与整份恢复的区别只有打包方式：内容仍是「增量库 + 变化的附件 + 设置」，落到同一个待安装目录，
+     * 启动时由 [applyPending] 合并进现有库。含 base 层的链不从这里走——那是整份恢复。
+     */
+    suspend fun stageBundle(
+        context: Context,
+        bundleFile: File,
+        options: RestoreOptions,
+    ): RestoreStageResult = withContext(Dispatchers.IO) {
+        val layers = BundleFormat.readIndex(bundleFile).refs
+        require(layers.isNotEmpty()) { "Backup bundle has no layers" }
+        require(layers.none { it.layer.isBase }) {
+            "A bundle with a base layer must be restored as a whole backup"
+        }
+        require(layers.size == 1) { "A delta bundle must carry exactly one layer" }
+        val root = rootOf(context)
+        check(root.isDirectory || root.mkdirs()) { "Cannot create the delta staging directory" }
+        check(!File(root, "pending").exists()) {
+            "A sync is already pending. Restart the app first."
+        }
+        val staging = Files.createTempDirectory(root.toPath(), "preparing-").toFile()
+        try {
+            val layer = File(staging, "layer.zip")
+            BundleFormat.extractPayload(bundleFile, layers.single(), layer)
+            var hasDatabase = false
+            var hasSettings = false
+            extract(layer, staging) { name ->
+                when (name) {
+                    DELTA_ENTRY -> hasDatabase = true
+                    SETTINGS_ENTRY -> hasSettings = true
+                }
+                name == DELTA_ENTRY || name == SETTINGS_ENTRY
             }
-            require(staged.isNotEmpty()) { "The other build had nothing new to send" }
-            PendingRestore.writeDurably(
-                File(staging, OPTIONS_FILE),
-                Json.encodeToString(RestoreOptions(items = staged, mode = options.mode)),
-            )
-            val pending = File(root, "pending")
-            Files.move(staging.toPath(), pending.toPath(), ATOMIC_MOVE)
-            RestoreStageResult(staged = staged, skipped = options.items - staged)
+            var hasFiles = false
+            extract(layer, File(staging, "files")) { name ->
+                val accepted = isSyncablePath(name)
+                if (accepted) hasFiles = true
+                accepted
+            }
+            layer.delete()
+            if (hasDatabase) {
+                check(File(staging, DELTA_ENTRY).length() > 0L) { "Delta database is empty" }
+            }
+            publish(root, staging, hasDatabase, hasSettings, hasFiles, options)
         } finally {
             staging.deleteRecursively()
         }

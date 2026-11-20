@@ -26,6 +26,10 @@ data class PackageRecord(
     val snapshots: List<SnapshotRecord> = emptyList(),
     val mirrorFiles: Int = 0,
     val mirrorBytes: Long = 0,
+    /** 上次从这个包拉取成功的时刻：下次只要这之后的增量层 */
+    val pullWatermark: Long = 0,
+    /** 上次向这个包投递成功的时刻：源快照按它导出增量层 */
+    val pushWatermark: Long = 0,
 ) {
     fun withSnapshot(record: SnapshotRecord): PackageRecord {
         val others = snapshots.filterNot { it.id == record.id }

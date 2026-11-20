@@ -2,6 +2,7 @@ package com.l3hub.database.wfadnf.core
 
 import android.content.Context
 import android.os.SystemClock
+import com.l3hub.syncproto.BundleFormat
 import com.l3hub.syncproto.L3HubSyncProtocol
 import com.l3hub.syncproto.PeerSchema
 import java.io.File
@@ -51,6 +52,10 @@ class SyncEngine(
         onLog: (String) -> Unit,
     ): PullReport {
         val packageName = build.info.packageName
+        // 协议 3 起拉取改走分层：第一次整份，之后只下增量层
+        if (build.protocol >= L3HubSyncProtocol.BUNDLE_PROTOCOL) {
+            return pullLayers(build, includeFiles, kind, note, onLog)
+        }
         val stamp = System.currentTimeMillis()
         val archive = store.newTempFile("export-$stamp.zip")
         val database = store.newTempFile("export-$stamp.db")
@@ -100,6 +105,164 @@ class SyncEngine(
         }
     }
 
+    /**
+     * 分层拉取。
+     *
+     * 第一次取 base 层（整份库），之后每次只要水位之后的增量层，套在上一份快照的副本上；附件仍按
+     * 清单与大小的差异单独取。快照依旧是一整份库——浏览、导出、回滚都依赖它。
+     */
+    private suspend fun pullLayers(
+        build: PeerClient.Build.Ready,
+        includeFiles: Boolean,
+        kind: SnapshotKind,
+        note: String,
+        onLog: (String) -> Unit,
+    ): PullReport {
+        val packageName = build.info.packageName
+        val stamp = System.currentTimeMillis()
+        val startedAt = System.currentTimeMillis()
+        val bundle = store.newTempFile("export-$stamp.l3b")
+        val payload = store.newTempFile("export-$stamp.zip")
+        val database = store.newTempFile("export-$stamp.db")
+        try {
+            val schema = build.schema ?: runCatching { peers.readSchema(packageName) }.getOrNull()
+            val previous = store.latestSnapshot(packageName, schema?.schemaVersion)
+            val base = previous == null || store.pullWatermark(packageName) == 0L
+            onLog(if (base) "请求 ${build.info.label} 打包整份" else "请求 ${build.info.label} 打包增量层")
+            val exportStarted = SystemClock.elapsedRealtime()
+            peers.exportBundle(
+                packageName = packageName,
+                base = base,
+                since = if (base) 0L else store.pullWatermark(packageName),
+                includeDatabase = true,
+                includeSettings = false,
+                includeFiles = false,
+                paths = null,
+                destination = bundle,
+                onLog = onLog,
+            )
+            onLog("已取回备份层 ${formatBytes(bundle.length())}（${elapsed(exportStarted)}）")
+            val ref = HubDelta.extractLayer(bundle, payload)
+            if (ref.layer.isBase) {
+                HubDelta.extractEntry(payload, BundleFormat.ENTRY_DATABASE, database)
+            } else {
+                val source = checkNotNull(previous) { "增量层没有可套用的上一份快照" }
+                check(ref.layer.schemaVersion == source.schemaVersion) {
+                    "增量层结构 v${ref.layer.schemaVersion} 与快照 v${source.schemaVersion} 不一致"
+                }
+                store.databaseFile(packageName, source.id).copyTo(database, overwrite = true)
+                val delta = store.newTempFile("delta-$stamp.db")
+                try {
+                    HubDelta.extractEntry(payload, BundleFormat.ENTRY_DELTA, delta)
+                    HubDelta.apply(context, database, delta)
+                } finally {
+                    delta.delete()
+                }
+            }
+            val stats = SnapshotReader.read(context, database)
+            onLog(
+                "数据库 v${stats.schemaVersion}，会话 ${stats.counts["ConversationEntity"] ?: 0}，" +
+                    "消息 ${stats.counts["message_node"] ?: 0}",
+            )
+            val record = store.saveSnapshot(
+                packageName = packageName,
+                source = database,
+                stats = stats,
+                schema = schema,
+                kind = kind,
+                note = note,
+                filesIncluded = false,
+            )
+            store.recordBuild(
+                packageName = packageName,
+                label = build.info.label,
+                versionName = build.info.versionName,
+                versionCode = build.info.versionCode,
+                stats = stats,
+                schema = schema,
+            )
+            store.recordPull(packageName, startedAt)
+            var files = 0
+            if (includeFiles) {
+                files = pullFiles(packageName, onLog)
+                if (files >= 0) store.markFilesIncluded(packageName, record.id)
+            }
+            store.prune(packageName)
+            return PullReport(
+                snapshot = record.copy(filesIncluded = includeFiles),
+                files = files.coerceAtLeast(0),
+                filesIncluded = includeFiles,
+            )
+        } finally {
+            bundle.delete()
+            payload.delete()
+            database.delete()
+        }
+    }
+
+    /**
+     * 增量投递：从源快照按上次投递的水位导出一层，目标在下次启动时合并进现有库。
+     *
+     * 第一次投递（没有水位）仍走整库那条路，成功后记下时刻；之后每次只传这一段时间的变化。
+     */
+    private suspend fun pushIncremental(
+        snapshot: SnapshotRef,
+        target: PeerClient.Build.Ready,
+        includeFiles: Boolean,
+        since: Long,
+        onLog: (String) -> Unit,
+    ): PushReport {
+        val targetPackage = target.info.packageName
+        val stamp = System.currentTimeMillis()
+        val delta = store.newTempFile("push-$stamp.db")
+        val payload = store.newTempFile("push-$stamp.zip")
+        val bundle = store.newTempFile("push-$stamp.l3b")
+        try {
+            onLog("从快照导出增量层")
+            val summary = HubDelta.export(context, snapshot.database, delta, since)
+            ArchiveTool.buildDeltaArchive(delta, payload)
+            val layer = BundleFormat.Layer(
+                id = "push-$stamp",
+                kind = BundleFormat.KIND_DELTA,
+                createdAt = stamp,
+                since = since,
+                schemaVersion = snapshot.record.schemaVersion,
+                deviceId = "datacenter",
+                hasDatabase = true,
+                counts = mapOf(
+                    "ConversationEntity" to summary.conversations.toLong(),
+                    "message_node" to summary.nodes.toLong(),
+                ),
+            )
+            BundleFormat.append(bundle, layer, payload)
+            var files = 0
+            if (includeFiles) files = pushFiles(snapshot.packageName, targetPackage, onLog)
+            onLog("投递增量层 ${formatBytes(bundle.length())}")
+            val importStarted = SystemClock.elapsedRealtime()
+            val staged = peers.importBundle(
+                packageName = targetPackage,
+                archive = bundle,
+                items = listOf(L3HubSyncProtocol.ITEM_CHAT_RECORDS),
+            )
+            onLog("对端已暂存（${elapsed(importStarted)}），重启目标应用后生效")
+            store.recordPush(targetPackage, stamp)
+            return PushReport(
+                staged = staged,
+                translation = null,
+                merge = HubMerge.MergeSummary(
+                    restoredConversations = summary.conversations,
+                    nodes = summary.nodes,
+                ),
+                pushedBytes = bundle.length(),
+                files = files,
+            )
+        } finally {
+            delta.delete()
+            payload.delete()
+            bundle.delete()
+        }
+    }
+
     suspend fun push(
         snapshot: SnapshotRef,
         target: PeerClient.Build.Ready,
@@ -122,6 +285,12 @@ class SyncEngine(
                 )
         if (!sameStructure && targetSchema == null) {
             throw PeerException("${target.info.label} 不支持结构导出，无法接收 v${sourceStats.schemaVersion} 的数据")
+        }
+        if (mode == SyncMode.MERGE && sameStructure && target.protocol >= L3HubSyncProtocol.BUNDLE_PROTOCOL) {
+            val watermark = store.pushWatermark(targetPackage)
+            if (watermark > 0) {
+                return pushIncremental(snapshot, target, includeFiles, watermark, onLog)
+            }
         }
 
         val stamp = System.currentTimeMillis()
@@ -200,6 +369,8 @@ class SyncEngine(
                 versionCode = target.info.versionCode,
                 schema = targetSchema,
             )
+            // 目标现在与源一致，之后的变化按这一刻切增量
+            store.recordPush(targetPackage, System.currentTimeMillis())
             return PushReport(
                 staged = staged,
                 translation = translation,
