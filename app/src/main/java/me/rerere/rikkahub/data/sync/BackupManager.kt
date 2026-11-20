@@ -31,6 +31,7 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -59,13 +60,24 @@ class BackupManager(
         )
     }
 
-    suspend fun createBackup(includeDatabase: Boolean, includeFiles: Boolean): File = withContext(Dispatchers.IO) {
+    /**
+     * 打包一份备份归档。
+     *
+     * [compress] 只对同设备内的 IPC 同步关闭：deflate 在这类机器上只有十几 MB/s，1.2 GB 的库压一次
+     * 要一分钟，而整份复制只要一秒——压缩在中转场景是纯亏本。上传 WebDAV / S3 与手动备份保持压缩。
+     */
+    suspend fun createBackup(
+        includeDatabase: Boolean,
+        includeFiles: Boolean,
+        compress: Boolean = true,
+    ): File = withContext(Dispatchers.IO) {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val archive = File.createTempFile("backup_${timestamp}_", ".zip", context.cacheDir)
         val staging = Files.createTempDirectory(context.cacheDir.toPath(), "backup-").toFile()
         try {
             val settings = settingsStore.awaitLoaded()
             ZipOutputStream(FileOutputStream(archive)).use { zip ->
+                if (!compress) zip.setLevel(Deflater.NO_COMPRESSION)
                 zip.putNextEntry(ZipEntry("settings.json"))
                 val settingsJson = json.encodeSettings(
                     settings = settings,
@@ -111,7 +123,17 @@ class BackupManager(
         }
     }
 
-    suspend fun stageRestore(archive: File, options: RestoreOptions): RestoreStageResult =
+    /**
+     * 把一份归档落成待安装目录。
+     *
+     * [verify] 为 false 时跳过整库 `integrity_check`：IPC 同步自带的归档在解包时已由 zip 的 CRC
+     * 校验过字节，而整库扫一遍 1.2 GB 的库要几十秒。手动恢复、WebDAV / S3 恢复仍然校验。
+     */
+    suspend fun stageRestore(
+        archive: File,
+        options: RestoreOptions,
+        verify: Boolean = true,
+    ): RestoreStageResult =
         withContext(Dispatchers.IO) {
             restoreMutex.withLock {
                 val restore = pendingRestore(context)
@@ -168,7 +190,7 @@ class BackupManager(
                     require(stagedItems.isNotEmpty()) { "No selected data found in the backup" }
                     require(!stagedWal.exists() || stagedDatabase.exists()) { "Backup WAL has no matching database" }
                     if (stagedDatabase.exists()) {
-                        DatabaseBackup.normalize(context, stagedDatabase)
+                        DatabaseBackup.normalize(context, stagedDatabase, verify = verify)
                         // Reject unsupported schemas before publishing; run supported old migrations on the copy.
                         val room = AppDatabaseFactory.create(context, stagedDatabase.absolutePath)
                         try {

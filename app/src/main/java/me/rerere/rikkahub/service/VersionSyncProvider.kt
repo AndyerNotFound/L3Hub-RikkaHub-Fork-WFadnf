@@ -35,6 +35,7 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -193,7 +194,9 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
         val includeDatabase = extras?.getBoolean(SyncBridge.KEY_INCLUDE_DATABASE) ?: true
         val includeFiles = extras?.getBoolean(SyncBridge.KEY_INCLUDE_FILES) ?: true
         return startJob {
-            val archive = backupManager.createBackup(includeDatabase, includeFiles)
+            // 同设备内的中转，归档不压缩：这台机器上 deflate 只有十几 MB/s，整库压一次要一分钟，
+            // 而整份复制不到一秒。
+            val archive = backupManager.createBackup(includeDatabase, includeFiles, compress = false)
             // createBackup 把归档放在 cacheDir 根下，挪进自己的目录，清理时不会连累别人的临时文件
             check(cacheDir.isDirectory || cacheDir.mkdirs()) { "Cannot create sync directory" }
             val target = File(cacheDir, archive.name)
@@ -237,6 +240,7 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
             try {
                 val archive = File(cacheDir, "delta-${UUID.randomUUID()}.zip")
                 ZipOutputStream(FileOutputStream(archive)).use { zip ->
+                    zip.setLevel(Deflater.NO_COMPRESSION)
                     if (includeDatabase) {
                         val delta = File(staging, PendingDelta.DELTA_ENTRY)
                         SyncDelta.export(database.openHelper.writableDatabase, delta, since)
@@ -299,7 +303,9 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
                 archive.outputStream().use { output -> input.copyTo(output) }
             }
             val result = runBlocking(Dispatchers.IO) {
-                backupManager.stageRestore(archive = archive, options = options)
+                // 归档在解包时已由 zip 的 CRC 校验过字节，整库 integrity_check 只是让 1.2 GB 的库
+                // 再整读一遍；坏库仍会在 Room 打开时报出来。
+                backupManager.stageRestore(archive = archive, options = options, verify = false)
             }
             Bundle().apply {
                 putStringArrayList(SyncBridge.KEY_STAGED, ArrayList(result.staged.map { it.name }))

@@ -2,6 +2,7 @@ package com.l3hub.database.wfadnf.core
 
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -28,7 +29,7 @@ object ArchiveTool {
     /** 只带数据库的投递包；[files] 是相对路径到本地文件的映射，覆盖模式下一并带走附件 */
     fun buildDatabaseArchive(database: File, destination: File, files: Map<String, File> = emptyMap()) {
         destination.parentFile?.mkdirs()
-        ZipOutputStream(FileOutputStream(destination)).use { zip ->
+        archiveStream(destination).use { zip ->
             zip.putNextEntry(ZipEntry(DATABASE_ENTRY))
             database.inputStream().use { it.copyTo(zip) }
             zip.closeEntry()
@@ -43,7 +44,7 @@ object ArchiveTool {
 
     fun buildFilesArchive(mirrorDir: File, paths: List<String>, destination: File) {
         destination.parentFile?.mkdirs()
-        ZipOutputStream(FileOutputStream(destination)).use { zip ->
+        archiveStream(destination).use { zip ->
             for (path in paths) {
                 if (!isSafeRelative(path)) continue
                 val file = File(mirrorDir, path)
@@ -68,6 +69,16 @@ object ArchiveTool {
             }
         }
     }
+
+    /**
+     * 同设备内中转用的归档：不压缩。
+     *
+     * 实测这台机器 deflate 只有 17 MB/s，1.2 GB 的库压一次要 70 s，而整份复制只要 0.7 s；
+     * 省下的那点传输量不值这个 CPU，附件里的图片与视频本来也压不动。压缩方法写在归档头里，
+     * 读取侧照常按条目声明解，老构建收到不压缩的包也能读。
+     */
+    private fun archiveStream(file: File) =
+        ZipOutputStream(FileOutputStream(file)).apply { setLevel(Deflater.NO_COMPRESSION) }
 
     fun countFiles(directory: File): Pair<Int, Long> {
         if (!directory.isDirectory) return 0 to 0L

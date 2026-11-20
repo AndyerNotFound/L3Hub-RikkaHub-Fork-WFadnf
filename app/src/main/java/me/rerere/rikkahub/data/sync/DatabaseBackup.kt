@@ -18,8 +18,13 @@ internal object DatabaseBackup {
         database.execSQL("VACUUM main INTO ?", arrayOf(destination.absolutePath))
     }
 
-    /** Only opens the staged copy. The caller must place its matching WAL beside it first. */
-    fun normalize(context: Context, databaseFile: File) {
+    /**
+     * Only opens the staged copy. The caller must place its matching WAL beside it first.
+     *
+     * [verify] 关闭时不做整库 `integrity_check`：IPC 同步的归档在解包时由 zip 的 CRC 校验过字节，
+     * 而把 1.2 GB 的库整读一遍要几十秒；坏库仍然会在 Room 打开时报出来。
+     */
+    fun normalize(context: Context, databaseFile: File, verify: Boolean = true) {
         require(databaseFile.isFile && databaseFile.length() > 0) { "Backup database is missing or empty" }
         val configuration = SQLiteConfiguration.configure(
             context,
@@ -29,9 +34,11 @@ internal object DatabaseBackup {
             error("Backup database is corrupt")
         }.use { database ->
             checkpoint(database)
-            database.query("PRAGMA integrity_check").use { cursor ->
-                check(cursor.moveToFirst() && cursor.getString(0) == "ok" && !cursor.moveToNext()) {
-                    "Backup database failed its integrity check"
+            if (verify) {
+                database.query("PRAGMA integrity_check").use { cursor ->
+                    check(cursor.moveToFirst() && cursor.getString(0) == "ok" && !cursor.moveToNext()) {
+                        "Backup database failed its integrity check"
+                    }
                 }
             }
         }

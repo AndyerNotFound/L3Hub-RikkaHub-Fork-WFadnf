@@ -88,7 +88,12 @@ class HubStore(private val context: Context) {
         }
     }
 
-    /** 把一份数据库落成快照；[source] 会被复制进仓库，调用方自行清理临时文件 */
+    /**
+     * 把一份数据库落成快照。
+     *
+     * [source] 是同一个文件系统上的中转文件，直接改名进仓库：整库少复制一遍（1.2 GB 的库省下
+     * 一次读写），调用方事后再删原路径是个空操作。
+     */
     suspend fun saveSnapshot(
         packageName: String,
         source: File,
@@ -102,7 +107,7 @@ class HubStore(private val context: Context) {
         val directory = snapshotDir(packageName, id)
         check(directory.isDirectory || directory.mkdirs()) { "无法创建快照目录" }
         val target = File(directory, ArchiveTool.DATABASE_ENTRY)
-        Files.copy(
+        Files.move(
             source.toPath(),
             target.toPath(),
             StandardCopyOption.REPLACE_EXISTING,
@@ -161,8 +166,12 @@ class HubStore(private val context: Context) {
         Unit
     }
 
-    /** 每包只留最近 [keep] 份，但最近的同步前备份始终保留，回滚点不能被挤掉 */
-    suspend fun prune(packageName: String, keep: Int = 8) = mutex.withLock {
+    /**
+     * 每包只留最近 [keep] 份，但最近的同步前备份始终保留，回滚点不能被挤掉。
+     *
+     * 每份快照都是一整份库，1.2 GB 的库按 8 份留就是 9.6 GB；留 3 份够回滚，也够比出上一版。
+     */
+    suspend fun prune(packageName: String, keep: Int = 3) = mutex.withLock {
         val previous = state.value.packages[packageName] ?: return@withLock
         val sorted = previous.snapshots.sortedByDescending { it.createdAt }
         val preSync = sorted.firstOrNull { it.kind == SnapshotKind.PRE_SYNC }

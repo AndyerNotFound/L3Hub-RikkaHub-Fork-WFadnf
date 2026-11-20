@@ -1,6 +1,7 @@
 package com.l3hub.database.wfadnf.core
 
 import android.content.Context
+import android.os.SystemClock
 import com.l3hub.syncproto.L3HubSyncProtocol
 import com.l3hub.syncproto.PeerSchema
 import java.io.File
@@ -55,8 +56,9 @@ class SyncEngine(
         val database = store.newTempFile("export-$stamp.db")
         try {
             onLog("请求 ${build.info.label} 打包")
+            val exportStarted = SystemClock.elapsedRealtime()
             peers.exportDatabase(packageName, archive, onLog)
-            onLog("已取回归档 ${formatBytes(archive.length())}")
+            onLog("已取回归档 ${formatBytes(archive.length())}（${elapsed(exportStarted)}）")
             ArchiveTool.extractDatabase(archive, database)
             val stats = SnapshotReader.read(context, database)
             val schema = build.schema ?: runCatching { peers.readSchema(packageName) }.getOrNull()
@@ -129,33 +131,38 @@ class SyncEngine(
             var translation: TranslationReport? = null
             if (sameStructure) {
                 onLog("两边结构一致（v${sourceStats.schemaVersion}），直接搬运")
-                incoming = store.newTempFile("incoming-$stamp.db").also {
-                    snapshot.database.copyTo(it, overwrite = true)
-                    temporary += it
-                }
+                // 快照只读使用，直接当投递包，不再复制一份同样大小的库
+                incoming = snapshot.database
             } else {
                 checkNotNull(targetSchema)
                 onLog("结构不同：源 v${sourceStats.schemaVersion} → 目标 v${targetSchema.schemaVersion}，开始换算")
                 incoming = store.newTempFile("incoming-$stamp.db").also { temporary += it }
+                val translateStarted = SystemClock.elapsedRealtime()
                 translation = SchemaTranslation.translate(context, snapshot.database, targetSchema, incoming)
                 val rows = translation.copied.values.sum()
-                onLog("换算完成：抄入 $rows 行，丢弃 ${translation.droppedColumns.size} 列")
+                onLog("换算完成：抄入 $rows 行，丢弃 ${translation.droppedColumns.size} 列（${elapsed(translateStarted)}）")
                 translation.skippedTables.forEach { onLog("跳过表 $it（结构无法补齐）") }
                 translation.warnings.take(6).forEach { onLog("提示：$it") }
             }
 
             var mergeSummary: HubMerge.MergeSummary? = null
             val payload: File
-            if (mode == SyncMode.MERGE) {
+            if (mode == SyncMode.MERGE && isEmptyTarget(targetSchema)) {
+                // 目标里没有会成为合并依据的任何一行：没有可保留的东西，整库投递与合并等价。
+                // 省掉一次目标整库导出，也省掉把 4 万条消息重新分词进 FTS 的全量合并。
+                onLog("目标是空的，直接整库投递，不拉回滚点也不合并")
+                payload = incoming
+            } else if (mode == SyncMode.MERGE) {
                 onLog("先把目标现状拉一份，作为回滚点")
                 val preSync = pull(target, includeFiles = false, kind = SnapshotKind.PRE_SYNC, note = "同步前备份", onLog = onLog)
                 val merged = store.newTempFile("merged-$stamp.db").also { temporary += it }
                 store.databaseFile(targetPackage, preSync.snapshot.id).copyTo(merged, overwrite = true)
+                val mergeStarted = SystemClock.elapsedRealtime()
                 val summary = HubMerge.merge(context, merged, incoming)
                 mergeSummary = summary
                 onLog(
                     "合并完成：新增 ${summary.restoredConversations} 条会话，" +
-                        "更新 ${summary.refreshedConversations} 条",
+                        "更新 ${summary.refreshedConversations} 条（${elapsed(mergeStarted)}）",
                 )
                 payload = merged
             } else {
@@ -178,12 +185,14 @@ class SyncEngine(
                 if (attachments.isNotEmpty()) add(L3HubSyncProtocol.ITEM_FILES)
             }
             onLog("投递 ${formatBytes(archive.length())}")
+            val importStarted = SystemClock.elapsedRealtime()
             val staged = peers.importArchive(
                 packageName = targetPackage,
                 archive = archive,
                 items = items,
                 mode = L3HubSyncProtocol.MODE_OVERWRITE,
             )
+            onLog("对端已暂存（${elapsed(importStarted)}），重启目标应用后生效")
             store.recordBuild(
                 packageName = targetPackage,
                 label = target.info.label,
@@ -275,6 +284,13 @@ class SyncEngine(
             manifestFile.delete()
         }
     }
+
+    /** 目标库里没有任何会成为合并依据的行时，合并没有可保留的内容，整库投递与它等价 */
+    private fun isEmptyTarget(schema: PeerSchema?): Boolean =
+        schema != null && schema.counts.isNotEmpty() && schema.counts.values.all { it == 0L }
+
+    private fun elapsed(startedAt: Long): String =
+        String.format("%.1f s", (SystemClock.elapsedRealtime() - startedAt) / 1000.0)
 
     companion object {
         private const val FILE_BATCH = 400

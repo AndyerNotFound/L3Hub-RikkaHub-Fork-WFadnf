@@ -296,7 +296,8 @@ class VersionSyncClient(
             onProgress(Progress.Copying(0, size))
             copyArchive(peer, token, archive, size, onProgress)
             onProgress(Progress.Importing)
-            backupManager.stageRestore(archive = archive, options = options)
+            // 同设备 IPC：归档不压缩、也不整库 integrity_check
+            backupManager.stageRestore(archive = archive, options = options, verify = false)
         } finally {
             runCatching { call(peer, SyncBridge.METHOD_CLEANUP, arg = token) }
             archive.delete()
@@ -312,6 +313,7 @@ class VersionSyncClient(
         val archive = backupManager.createBackup(
             includeDatabase = RestoreItem.CHAT_RECORDS in options.items,
             includeFiles = RestoreItem.FILES in options.items,
+            compress = false,
         )
         try {
             onProgress(Progress.Copying(0, archive.length()))

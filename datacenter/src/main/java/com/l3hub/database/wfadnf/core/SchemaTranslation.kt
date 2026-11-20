@@ -4,8 +4,6 @@ import android.content.Context
 import com.l3hub.syncproto.PeerSchema
 import io.requery.android.database.sqlite.SQLiteDatabase
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /** 一次跨结构换算的结果；界面只挑关键几项展示，完整内容进日志 */
 data class TranslationReport(
@@ -56,17 +54,15 @@ object SchemaTranslation {
             HubSqlite.openReadOnly(context, source).use { SnapshotReader.pragma(it, "user_version").toInt() }
         }.getOrDefault(0)
         val work = File(workDirectory, "translate-${System.nanoTime()}.db")
-        val sourceCopy = File(workDirectory, "translate-source-${System.nanoTime()}.db")
         work.delete()
         destination.delete()
-        Files.copy(source.toPath(), sourceCopy.toPath(), StandardCopyOption.REPLACE_EXISTING)
         try {
-            val report = build(context, work, sourceCopy, target, sourceVersion)
+            // 快照只读使用：直接 ATTACH，不再先复制一份同样大小的源库（1.2 GB 的库要白写一遍）
+            val report = build(context, work, source, target, sourceVersion)
             vacuum(context, work, destination, target.schemaVersion)
             return report
         } finally {
             work.delete()
-            sourceCopy.delete()
         }
     }
 
