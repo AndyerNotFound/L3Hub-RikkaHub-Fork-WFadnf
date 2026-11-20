@@ -107,6 +107,7 @@
   <string name="backup_page_delete_success">Erfolgreich gelöscht</string>
   <string name="backup_page_export_desc">App-Daten in eine Datei exportieren</string>
   <string name="backup_page_exporting">Exportieren...</string>
+  <string name="backup_page_export_failed">Export fehlgeschlagen: %s</string>
   <string name="backup_page_files">Dateien</string>
   <string name="backup_page_import_chatbox_desc">ChatBox-Anbieterkonfigurationen und vollständigen Chatverlauf importieren</string>
   <string name="backup_page_import_cherry_studio_desc">Cherry Studio-Anbieterkonfigurationen importieren</string>

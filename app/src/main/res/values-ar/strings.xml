@@ -189,6 +189,7 @@
   <string name="backup_page_delete_success">تم الحذف بنجاح</string>
   <string name="backup_page_export_desc">تصدير بيانات التطبيق إلى ملف</string>
   <string name="backup_page_exporting">جارٍ التصدير...</string>
+  <string name="backup_page_export_failed">فشل التصدير: %s</string>
   <string name="backup_page_files">الملفات</string>
   <string name="backup_page_import_chatbox_desc">استيراد إعدادات مزوّدي ChatBox وسجل المحادثة الكامل</string>
   <string name="backup_page_import_cherry_studio_desc">استيراد إعدادات مزوّدي Cherry Studio</string>

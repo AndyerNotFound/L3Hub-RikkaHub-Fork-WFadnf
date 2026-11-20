@@ -167,6 +167,7 @@
   <string name="backup_page_delete_success">Удаление выполнено успешно</string>
   <string name="backup_page_export_desc">Экспортировать данные приложения в файл</string>
   <string name="backup_page_exporting">Экспорт…</string>
+  <string name="backup_page_export_failed">Ошибка экспорта: %s</string>
   <string name="backup_page_files">Файлы</string>
   <string name="backup_page_import_chatbox_desc">Импортировать конфигурации поставщика ChatBox и полную историю чатов</string>
   <string name="backup_page_import_cherry_studio_desc">Импортировать конфигурации поставщика Cherry Studio</string>

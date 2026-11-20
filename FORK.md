@@ -202,6 +202,10 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 `files/workspaces/` 不参与备份：工作区文件可能很大，且更换设备后 proot 路径会变，按需自行导出。
 
+备份与覆盖式恢复只走真实文件：软链一律跳过，不下探也不打包。软链可能指向目录之外（恢复端也写不回原位置），
+也可能成环；早期实现遇到前者直接抛错，整份导出作废，而失败提示还错用了「恢复失败」。现在这类条目跳过并记警告日志
+（`BackupManager.backupFiles`、`PendingRestore.targetFileOrNull`），导出失败另有「导出失败」文案。
+
 ## 自动压缩（设置随助手，行为走上游）
 
 助手 → 记忆 → 「自动压缩」：开关、触发比例（`Assistant.autoCompressRatio`，50%–95%，按 5% 取整）与预警线

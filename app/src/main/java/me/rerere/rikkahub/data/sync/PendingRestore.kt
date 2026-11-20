@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.sync
 
 import android.content.Context
+import android.util.Log
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.files.FileFolders
@@ -118,17 +119,23 @@ internal class PendingRestore(
         // 合并模式下只有当前还没有数据库时才整份装入，否则交给 DatabaseMerge 增量补齐
         val installDatabase = options.mode == RestoreMode.OVERWRITE ||
             (options.mode == RestoreMode.MERGE && databaseFile.length() == 0L)
-        val entries = paths.map { path ->
+        val entries = paths.mapNotNull { path ->
+            // 目标要经软链才落得到、或根本解析不出：写过去就改到别处了，按「不安装」处理
+            val target = targetFileOrNull(path)
+            if (target == null) {
+                warn("buildEntries: skip $path, it resolves outside the target directory")
+                return@mapNotNull null
+            }
             val install = when {
                 path.startsWith("database/") -> installDatabase
                 options.mode == RestoreMode.OVERWRITE -> true
                 // 合并只补缺少的文件；空文件多半是上次写入中断留下的，也当作缺
-                else -> !targetFile(path).exists() || targetFile(path).length() == 0L
+                else -> !target.exists() || target.length() == 0L
             }
             RestoreEntry(
                 path = path,
                 install = install,
-                hadOriginal = install && targetFile(path).exists(),
+                hadOriginal = install && target.exists(),
             )
         }.toMutableList()
         if (installDatabase && paths.contains("database/${databaseFile.name}")) {
@@ -153,13 +160,8 @@ internal class PendingRestore(
         for (folder in BackupManager.ATTACHMENT_FOLDERS) {
             val directory = File(filesDir, folder)
             if (!directory.isDirectory) continue
-            val files = if (folder in BackupManager.NESTED_ATTACHMENT_FOLDERS) {
-                directory.walkTopDown()
-            } else {
-                directory.listFiles().orEmpty().asSequence()
-            }
-            for (file in files) {
-                if (!file.isFile) continue
+            val nested = folder in BackupManager.NESTED_ATTACHMENT_FOLDERS
+            for (file in BackupManager.backupFiles(directory, nested)) {
                 if (folder == FileFolders.MEDIA_CREATION &&
                     file.name.endsWith(MediaCreationFiles.PARTIAL_SUFFIX)
                 ) {
@@ -168,6 +170,8 @@ internal class PendingRestore(
                 val relative = file.relativeTo(directory).invariantSeparatorsPath
                 val path = "files/$folder/$relative"
                 if (path in payloadPaths) continue
+                // 软链接在中途时这个路径落不到目录内，挪不动也就别记进日志
+                if (resolveInsideOrNull(filesDir, path.removePrefix("files/")) == null) continue
                 entries += RestoreEntry(path, install = false, hadOriginal = true)
             }
         }
@@ -191,6 +195,11 @@ internal class PendingRestore(
             .getOrDefault(RestoreOptions())
     }
 
+    /** 单测里没有 Android 运行时（[context] 为空），此时 Log 会抛 not mocked，只记有 context 的那种 */
+    private fun warn(message: String) {
+        if (context != null) Log.w(TAG, message)
+    }
+
     private fun targetFile(path: String): File {
         return when {
             path.startsWith("database/") -> {
@@ -208,10 +217,23 @@ internal class PendingRestore(
         }
     }
 
+    /**
+     * [targetFile] 的可跳过版本：附件目标要经软链才落得到（写过去会改到别处）或解析不出时返回 null，
+     * 调用方按「不安装」处理。数据库条目不做这个放宽，格式非法仍然报错。
+     */
+    private fun targetFileOrNull(path: String): File? {
+        if (!path.startsWith("files/")) return targetFile(path)
+        val relative = path.removePrefix("files/")
+        val target = resolveInsideOrNull(filesDir, relative) ?: return null
+        // 解析后的相对路径必须与字面路径一致，中间任何一级是软链都不认
+        return target.takeIf { HostPaths.relativeTo(filesDir, it) == relative }
+    }
+
     @Serializable
     private data class RestoreEntry(val path: String, val install: Boolean, val hadOriginal: Boolean)
 
     companion object {
+        private const val TAG = "PendingRestore"
         private const val OPTIONS_FILE = "options.json"
 
         /** 待恢复目录，位于 noBackupFilesDir 下，不参与系统备份 */
@@ -221,6 +243,10 @@ internal class PendingRestore(
 
         /** 是否已经有一份恢复在等下次启动安装；正在打包或导入的归档不能再追加 */
         fun hasPending(context: Context): Boolean = File(rootOf(context), "pending").isDirectory
+
+        /** [resolveInside] 的可跳过版本：解析不出（软链指向目录之外）时返回 null，调用方按条目跳过 */
+        fun resolveInsideOrNull(root: File, relativePath: String): File? =
+            runCatching { resolveInside(root, relativePath) }.getOrNull()
 
         fun resolveInside(root: File, relativePath: String): File {
             require(relativePath.isNotBlank() && !relativePath.startsWith('/') &&

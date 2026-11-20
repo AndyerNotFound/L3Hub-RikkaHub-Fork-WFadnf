@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.sync
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -81,12 +82,8 @@ class BackupManager(
                 if (includeFiles) {
                     for (folder in ATTACHMENT_FOLDERS) {
                         val directory = File(context.filesDir, folder)
-                        val files = if (folder in NESTED_ATTACHMENT_FOLDERS) {
-                            directory.walkTopDown().asSequence()
-                        } else {
-                            directory.listFiles().orEmpty().asSequence()
-                        }
-                        for (file in files.filter { it.isFile }) {
+                        val files = backupFiles(directory, nested = folder in NESTED_ATTACHMENT_FOLDERS)
+                        for (file in files) {
                             currentCoroutineContext().ensureActive()
                             // A media result still being downloaded is incomplete and gets renamed when it finishes.
                             if (folder == FileFolders.MEDIA_CREATION &&
@@ -95,7 +92,11 @@ class BackupManager(
                                 continue
                             }
                             val relative = file.relativeTo(directory).invariantSeparatorsPath
-                            PendingRestore.resolveInside(directory, relative)
+                            // 软链指到目录之外的条目恢复端也写不回去，跳过这一条，不让整份备份作废
+                            if (PendingRestore.resolveInsideOrNull(directory, relative) == null) {
+                                Log.w(TAG, "createBackup: skip $folder/$relative, it resolves outside the folder")
+                                continue
+                            }
                             addFile(zip, file, "$folder/$relative")
                         }
                     }
@@ -237,6 +238,29 @@ class BackupManager(
 
         /** Backed up with their subdirectories; the other folders only contain top-level files. */
         internal val NESTED_ATTACHMENT_FOLDERS = setOf(FileFolders.SKILLS, FileFolders.MEDIA_CREATION)
+
+        private const val TAG = "BackupManager"
+
+        /** 软链一律不跟：它可能指向目录之外，也可能成环把遍历拖死 */
+        private fun isSymbolicLink(file: File): Boolean =
+            runCatching { Files.isSymbolicLink(file.toPath()) }.getOrDefault(false)
+
+        /**
+         * 备份与覆盖式恢复要走的文件。[nested] 为 true 时逐层下探子目录，否则只取顶层文件。
+         *
+         * 只收真实文件：软链既写不回原始位置（恢复端按常规文件落盘），也可能把目录外的内容整片带进来，
+         * 所以逐个跳过；层级按名称排定，同一份数据每次走出来的顺序一致。
+         */
+        internal fun backupFiles(directory: File, nested: Boolean): Sequence<File> = sequence {
+            for (child in directory.listFiles().orEmpty().sortedBy { it.name }) {
+                if (isSymbolicLink(child)) continue
+                if (child.isDirectory) {
+                    if (nested) yieldAll(backupFiles(child, nested = true))
+                } else if (child.isFile) {
+                    yield(child)
+                }
+            }
+        }
 
         // 启动次数不在 Settings 里，备份文件里仍放在 settings.json 的这个字段，和旧备份保持一致
         private const val LAUNCH_COUNT_KEY = "launchCount"

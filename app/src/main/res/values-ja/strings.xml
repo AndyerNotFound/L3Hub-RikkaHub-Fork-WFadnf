@@ -167,6 +167,7 @@
   <string name="backup_page_delete_success">削除成功</string>
   <string name="backup_page_export_desc">アプリデータをファイルにエクスポート</string>
   <string name="backup_page_exporting">エクスポート中...</string>
+  <string name="backup_page_export_failed">エクスポート失敗: %s</string>
   <string name="backup_page_files">ファイル</string>
   <string name="backup_page_import_chatbox_desc">ChatBoxプロバイダー設定と完全なチャット履歴をインポート</string>
   <string name="backup_page_import_cherry_studio_desc">Cherry Studioプロバイダー設定をインポート</string>
