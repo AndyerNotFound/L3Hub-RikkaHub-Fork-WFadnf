@@ -5,10 +5,10 @@ import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.RestoreMode
 
 /**
- * 正式版（com.rikkahub.l3hub.wfadnf）与预览版（com.rikkahub.l3hub.wfadnf.debug）之间的进程间协议。
+ * 正式版（com.rikkahub.l3hub.wfadnf）、Canary（.canary）与 Nightly（.debug）之间的进程间协议。
  *
- * 两版包名相同是做不到同装的，能装在一起的就是这两个包名；但它们的签名密钥不同（正式版用 Secrets
- * 里的 l3hub-release.jks，预览版用仓库里的 l3hub-debug.jks），所以 signature 级权限恰好会把要同步的
+ * 这几个包名可以同时装在一台设备上；但它们的签名密钥不同（正式版与 Canary 用 Secrets 里的
+ * l3hub-release.jks，Nightly 用仓库里的 l3hub-debug.jks），所以 signature 级权限恰好会把要同步的
  * 那一方挡在外面，sharedUserId 同样受签名约束。剩下的办法是按 UID 反查包名：包名全设备唯一，
  * 同 UID 的包还必须全部落在 [PACKAGES] 里，才允许调用。
  *
@@ -21,7 +21,7 @@ object SyncBridge {
     const val BASE_PACKAGE = "com.rikkahub.l3hub.wfadnf"
 
     /** 允许互相同步的包名；同步的前提是两版装在同一台设备上 */
-    val PACKAGES = listOf(BASE_PACKAGE, "$BASE_PACKAGE.debug")
+    val PACKAGES = listOf(BASE_PACKAGE, "$BASE_PACKAGE.canary", "$BASE_PACKAGE.debug")
 
     /** 增量协议版本。对端 ping 返回值低于它时退回整份归档 */
     const val PROTOCOL_VERSION = 2

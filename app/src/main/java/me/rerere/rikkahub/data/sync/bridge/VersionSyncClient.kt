@@ -417,7 +417,8 @@ class VersionSyncClient(
     }
 
     private fun probe(packageName: String): Peer {
-        val isPreview = packageName.endsWith(".debug")
+        // 测试通道（Canary / Nightly）在 UI 上都按预览版标注
+        val isPreview = packageName.endsWith(".canary") || packageName.endsWith(".debug")
         val info = runCatching { context.packageManager.getPackageInfo(packageName, 0) }.getOrNull()
             ?: return Peer(packageName = packageName, isPreview = isPreview, installed = false)
         val versionName = info.versionName.orEmpty()

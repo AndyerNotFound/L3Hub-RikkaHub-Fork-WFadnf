@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 变体由 VARIANT 决定：release 出正式版包（包名不带 .debug），debug 出预览包（默认）。
+# 变体由 VARIANT 决定：release 出正式版 / Canary 包，debug 出 Nightly / 预览包（默认）。
+# 测试通道的包名后缀与桌面名由调用方用 -PappIdSuffix / -PappLabel 传进来，本脚本原样透传。
 # 两个变体都开了 R8，这里跳过 lint vital：本机整跑 580 秒都没过，且它只是发布前的静态检查，不影响 APK。
 set -euo pipefail
 cd "$(dirname "$0")/.."

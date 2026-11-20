@@ -16,6 +16,13 @@ plugins {
 // 变体名不变（仍是 githubRelease），只有依赖、源码目录和这一个 BuildConfig 字段不同。
 val noLitert = providers.gradleProperty("noLitert").map(String::toBoolean).getOrElse(false)
 
+// 同一个变体出独立包名的构建：Canary 用 -PappIdSuffix=.canary。
+// 只改 applicationId（Manifest 里的 applicationId 占位符会跟着变），变体名与产物目录都不动，
+// 因此 CI 仍是 assembleGithubRelease。
+val appIdSuffix = providers.gradleProperty("appIdSuffix").orNull?.takeIf { it.isNotBlank() }
+// 桌面上要能分清测试通道：-PappLabel="L3Hub Canary"。默认仍走 @string/app_name。
+val appLabel = providers.gradleProperty("appLabel").orNull?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk {
@@ -25,7 +32,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.rikkahub.l3hub.wfadnf"
+        applicationId = "com.rikkahub.l3hub.wfadnf" + appIdSuffix.orEmpty()
+        // 默认沿用各语言的 @string/app_name；测试通道由 CI 传字面量覆盖
+        manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
         versionCode = 353

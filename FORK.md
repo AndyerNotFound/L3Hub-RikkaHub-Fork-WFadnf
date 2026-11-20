@@ -844,37 +844,48 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
 ## 发版：交给 GitHub Actions
 
 本机不跑 Gradle（Termux 上编译会把机器拖死），出包和发版都放在 runner 上。
-三条线共用 `build-apk.yml`，按 tag 形态分流：
+四条通道共用 `build-apk.yml`，按 tag 形态与事件分流：
 
-| tag | 变体 | 包名 | Release |
-|---|---|---|---|
-| `v3.1.1` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | 正式版（非 prerelease，自动成为 latest） |
-| `v3.1.1-canary.1` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | Pre-release（不占 latest） |
-| `v3.1.1-preview.102` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release |
+| 通道 | tag | 变体 | 包名 | Release |
+|---|---|---|---|---|
+| 正式版 | `v3.2.31` | `githubRelease` | `com.rikkahub.l3hub.wfadnf` | 正式 Release（非 prerelease，自动成为 latest） |
+| Canary | `Canary-Build` | `githubRelease` + `-PappIdSuffix=.canary` | `com.rikkahub.l3hub.wfadnf.canary` | Pre-release |
+| Nightly | `Nightly-Build` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release，每夜自动更新 |
+| 旧预览 | `v3.2.31-preview.102` | `githubDebug` | `com.rikkahub.l3hub.wfadnf.debug` | Pre-release |
 
-正式版与 Canary 是同一个应用（同包名、同签名），Canary 直接覆盖安装正式版并沿用数据；
-预览版是独立应用（包名 `.debug`，桌面名 L3Hub Preview），可与正式版同装，数据互不影响。
+日常只需要前三条；带版本号的 `-canary.N` / `-preview.N` 形态保留作历史兼容，不再主动使用。
+三个包名互相独立，正式版、Canary、Nightly 可以同装在一台手机上，数据互不影响。
+Canary 与正式版用 Secrets 里的 release key，Nightly 与旧预览用仓库里的 `keystore/l3hub-debug.jks`。
+桌面名分别显示 `L3Hub`、`L3Hub Canary`、`L3Hub Nightly`，由 `-PappLabel` 注入。
 
 步骤：
 
-1. 改 `app/build.gradle.kts` 的 `versionCode` / `versionName`（每次各 +1，例如 283 / `L.3.1.4.105`），连同改动一起提交
-2. 打 tag 推上去：`git tag v3.1.1 && git push origin v3.1.1`（Canary 是 `v3.1.1-canary.1`，
-   预览版是 `v3.1.1-preview.102`）。
-   手动触发时如果填了 tag，checkout 用的就是这个 tag 的提交，不会拿分支 HEAD 出的包挂到 tag 上；
-   `gh release create` 带 `--verify-tag`，tag 不存在直接报错，不会现造一个
-   tag 和版本号由 `Check version against tag` 这一步互相对账：`versionName` 必须以
-   `L.<tag 去掉 v 与 -canary.N / -preview.NN>.` 开头；正式版与 Canary 的 `versionCode`
-   必须大于上一个正式版 tag 的值（Canary 与正式版同包名，不涨就装不上已装的正式版），
-   预览版是独立包名，只核对 `versionName`。
-   忘了改版本号、或者 tag 打错一位，都在出包前就红，不会发出去一个 versionCode 没涨、
-   装上等于没更新的包。tag 本身解析不到（没推上去、浅克隆没拿到）也直接红；
-   只有三种早期历史会跳过递增校验：根本没有上一个正式版 tag、上一个 tag 上还没有
-   `app/build.gradle.kts`、上一个 tag 里读不到 `versionCode`（跳过时会在 Actions 里
-   留一条 warning）。正式版的 tag 必须写成 `vX.Y.Z` 三段，少打一段直接红；
-   Canary 的 tag 必须写成 `vX.Y.Z-canary.N`，写成别的形态直接红；滚动 tag `Canary-Build`
-   不带版本号，不做形态校验
-3. `build-apk.yml` 自动跑：checkout（含子模块）→ 核对 tag 与版本号 → pnpm 装 web-ui → `tools/build-apk.sh`
-   （按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，跳过 lint vital）→ 重命名产物 → 建 Release
+1. 改 `app/build.gradle.kts` 的 `versionCode` / `versionName`（每次各 +1，例如 354 / `L.3.2.31.176`），
+   连同改动一起提交
+2. 推 tag：
+
+   ```bash
+   # 正式版
+   git tag v3.2.31 && git push origin v3.2.31
+   # Canary：把滚动 tag 挪到要发的提交
+   git tag -f Canary-Build && git push -f origin Canary-Build
+   ```
+
+   Nightly 不需要手动推：`schedule` 每天 19:00 UTC（北京时间次日 03:00）自动构建，
+   构建成功后把 `Nightly-Build` 强推到当夜提交。要立刻出一版，也可以手动执行上面
+   `Canary-Build` 的写法，把 tag 换成 `Nightly-Build`。
+
+   手动 `workflow_dispatch` 时如果填了 tag，checkout 用的就是这个 tag 的提交，不会拿分支
+   HEAD 出的包挂到 tag 上；`gh release create` 带 `--verify-tag`，tag 不存在直接报错，
+   不会现造一个。
+3. `build-apk.yml` 自动跑：checkout（含子模块）→ 核对 tag 与版本号 → pnpm 装 web-ui →
+   `tools/build-apk.sh`（按 `VARIANT` 选 `:app:assembleGithubRelease` / `:app:assembleGithubDebug`，
+   跳过 lint vital）→ 重命名产物 → 建 Release
+
+版本号核对只对正式版严格：`versionName` 必须以 `L.<tag 去掉 v>.` 开头，`versionCode`
+必须大于上一个正式版 tag 的值，否则覆盖安装时系统会当成没更新。测试通道都是独立包名，
+versionCode 与正式版撞车不影响谁覆盖谁，只核对 `versionName`；固定 tag 的 Canary / Nightly
+不带版本号，连前缀也不核对。tag 解析不到（没推上去、浅克隆没拿到）会直接红。
 
 正式版出两个包，各附一份 `.sha256`，arm64-v8a，R8 已开：
 
@@ -883,28 +894,25 @@ debug 里 dex 有 38 个、release 压缩后只剩 2 个，差的就是 R8。上
   也一并隐藏；其余功能与完整版相同
 
 两个包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装，应用数据保留。
-精简版由 Gradle 属性 `noLitert` 控制，`:ai` / `:app` 的 `build.gradle.kts` 都读它：`:ai` 不引入
-`litertlm-android`，并把 `LiteRTProvider` 的实现从 `src/withLitert` 换成 `src/noLitert` 下的占位版；
-`:app` 用它生成 `BuildConfig.HAS_LITERT`，决定新建提供商时要不要列「LiteRT」。
-变体名仍是 `githubRelease`，工作流只是把同一个变体编两遍（第二遍带 `-PnoLitert=true`）。
-Release notes 由流程按「上一个正式版 tag..本 tag」的提交自己生成——本仓库不走 PR，
-GitHub 自带的 `--generate-notes` 只会给一行 Full Changelog。正式版取区间时用
-`git describe --tags --exclude='*-*'`，Canary 与预览版 tag（`v3.1.1-canary.1`、
-`v3.1.1-preview.102`）不参与，否则两次正式版之间的改动会被预发布 tag 切在区间外、
+测试通道（Canary / Nightly / 旧预览）只出精简版。精简版由 Gradle 属性 `noLitert` 控制，
+`:ai` / `:app` 的 `build.gradle.kts` 都读它：`:ai` 不引入 `litertlm-android`，并把
+`LiteRTProvider` 的实现从 `src/withLitert` 换成 `src/noLitert` 下的占位版；`:app` 用它生成
+`BuildConfig.HAS_LITERT`，决定新建提供商时要不要列「LiteRT」。变体名仍是 `githubRelease` /
+`githubDebug`，工作流只是把同一个变体编一遍或两遍。
+
+Release notes 由流程按「上一个 tag..本 tag」的提交自己生成——本仓库不走 PR，GitHub 自带的
+`--generate-notes` 只会给一行 Full Changelog。正式版取区间时用 `git describe --tags
+--exclude='*-*'`，测试通道 tag 不参与，否则两次正式版之间的改动会被预发布 tag 切在区间外、
 整段消失；预发布反过来不排除，区间留在预发布 tag 之间，免得把已经随正式版发过的改动
-再列一遍。
-`ci:` / `test:` / `build:` 开头、或作用域是这三个（`ci(xxx):`、`fix(ci):`）的提交一律不进 notes，
+再列一遍。`ci:` / `test:` / `build:` 开头、或作用域是这三个的提交一律不进 notes，
 读的人只关心功能变化。
 
-### 滚动 Canary：固定 tag `Canary-Build`
+### Canary：固定 tag `Canary-Build`
 
-除上面这些带版本号的 tag，还有一条不随版本号走的通道：固定 tag `Canary-Build` 始终指向最新一次
-Canary 构建，Release 也固定是同一个，重复推送只覆盖资产、刷新说明。它用 `githubRelease` 变体，
-包名与签名同正式版，发成 Pre-release，装上直接覆盖已装的正式版并沿用数据。
-
-版本号不动：tag 里没有版本号可对，流程跳过 `versionName` 前缀核对；`versionCode` 仍须大于
-上一个正式版 tag 的值，否则装不上已装的正式版。要在两次滚动构建之间保持同一个 `versionCode`，
-两个包就互为覆盖，回退直接装旧的即可。
+不随版本号走的测试通道：固定 tag `Canary-Build` 始终指向最新一次 Canary 构建，Release 也
+固定是同一个，重复推送只覆盖资产、刷新说明。它用 `githubRelease` 变体，并通过
+`-PappIdSuffix=.canary` 把包名改成 `com.rikkahub.l3hub.wfadnf.canary`，与正式版是独立应用，
+可同装，数据互不影响。
 
 出包只需把 tag 挪到要发的提交：
 
@@ -912,12 +920,26 @@ Canary 构建，Release 也固定是同一个，重复推送只覆盖资产、�
 git tag -f Canary-Build && git push -f origin Canary-Build
 ```
 
-滚动 Canary 只出精简版（不含 LiteRT）：产物固定叫 `L3Hub-Canary-Build-arm64-v8a-nolitert.apk`（附 `.sha256`），
+Canary 只出精简版，产物固定叫 `L3Hub-Canary-Build-arm64-v8a-nolitert.apk`（附 `.sha256`），
 每次构建还会删掉 release 上这次没产出的旧资产，下载列表里不会留着上一版的包。
-Release 说明的改动区间从上一版说明
-末尾 `<!-- canary:from=… head=… -->` 记下的那次构建算起，两次滚动构建之间只列真正新增的提交；
-同一提交重跑时沿用那次算出的起点，说明不会退化成空。升级前的老说明没有这行记录，才退回按
-`Canary-Build` 之前最近的一个 tag（通常是 `vX.Y.Z-canary.N`）取区间。
+Release 说明的改动区间从上一版说明末尾 `<!-- canary:from=… head=… -->` 记下的那次构建算起，
+两次滚动构建之间只列真正新增的提交；同一提交重跑时沿用那次算出的起点，说明不会退化成空。
+升级前的老说明没有这行记录，才退回按 `Canary-Build` 之前最近的一个 tag 取区间。
+
+### Nightly：固定 tag `Nightly-Build`
+
+Nightly 用 `githubDebug` 变体，包名由 debug buildType 的 `applicationIdSuffix` 定为
+`com.rikkahub.l3hub.wfadnf.debug`，签名用仓库里公开的调试证书。它与正式版是独立应用，
+可以同装；也与本地日常构建的 debug 包同包名同签名，CI 出的夜包能直接覆盖安装。
+
+- 触发：`schedule` 每天 19:00 UTC（北京时间次日 03:00）；也可以手动推 `Nightly-Build` tag
+- 出包：只出精简版，资产固定叫 `L3Hub-Nightly-Build-arm64-v8a-nolitert.apk`（附 `.sha256`），
+  每夜覆盖同名资产
+- tag：构建成功后流程把远端 `Nightly-Build` 强推到当夜提交（`GITHUB_TOKEN` 推的 tag 不会
+  再触发一轮 workflow），release 页面的源码快照与下一夜的改动区间都靠它
+- 说明：改动区间从 `<!-- nightly:from=… head=… -->` 记下的上一夜构建算起；同 versionCode
+  的构建可以直接互相覆盖安装
+- 限制：GitHub 对 60 天没有 push 的仓库会停用 scheduled workflow；夜包本身不重置这个计时
 
 ### 正式版的签名
 
@@ -934,12 +956,12 @@ Release 说明的改动区间从上一版说明
 写进 `local.properties`——`app/build.gradle.kts` 的 release 签名只认这个文件。
 证书 SHA-256 指纹是 `0E:D1:33:05:52:46:D7:23:18:88:E7:21:97:F2:9F:A6:16:A6:53:67:DE:87:50:42:10:8F:9D:41:7B:58:35:42`，
 每次发版都会写进 Release notes，装之前可以核对。这个值也写死在 `build-apk.yml` 的 Verify APK 步骤里：
-正式版签名证书对不上就红，免得 secret 被换成别的 key 之后一路绿灯发出去。换密钥要同步改这一行。
+release 变体的签名证书对不上就红，免得 secret 被换成别的 key 之后一路绿灯发出去。换密钥要同步改这一行。
 
 密钥丢了就再也发不出能覆盖安装的更新：本机备份在 `~/keystore-backup/`（jks + 口令），务必另外存一份。
-Canary 走的也是这套：与正式版同包名，签名必须一致，否则覆盖安装直接 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`。
-预览版不走这套：它用仓库里公开的 `keystore/l3hub-debug.jks`，泄露了也无所谓，
-所以 `build-apk.yml` 的还原密钥那步对预览版是直接跳过的（早先那个 `ANDROID_DEBUG_KEYSTORE`
+Canary 走的是同一把 release key，包名不同，装上去是独立应用；Verify APK 仍核对指纹。
+Nightly 与旧预览不走这套：它们用仓库里公开的 `keystore/l3hub-debug.jks`，泄露了也无所谓，
+所以 `build-apk.yml` 的还原密钥那步对 debug 变体是直接跳过的（早先那个 `ANDROID_DEBUG_KEYSTORE`
 secret 没人读，已经从流程里去掉，仓库设置里可以一并删掉）。
 
 几点：

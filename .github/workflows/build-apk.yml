@@ -1,17 +1,20 @@
 name: Build APK
 
-# 三条线共用一套流程，按 tag 形态区分：
-#   v3.1.1              → 正式版：githubRelease 变体（包名不带 .debug），正式 Release
-#   v3.1.1-canary.1     → Canary 版：githubRelease 变体，包名与签名同正式版，Pre-release
-#   v3.1.1-preview.102  → 预览版：githubDebug 变体（包名 .debug），Pre-release
+# 四条通道共用一套流程，按 tag 形态与事件区分：
+#   v3.1.1              → 正式版：githubRelease 变体，包名不带后缀，正式 Release
+#   Canary-Build        → Canary：githubRelease 变体 + .canary 包名，Pre-release
+#   Nightly-Build       → 每夜构建：githubDebug 变体 + .debug 包名，Pre-release
+#   v3.1.1-preview.102  → 旧预览通道：githubDebug 变体 + .debug 包名，Pre-release
 # 正式版出两个 APK：完整版（含 LiteRT-LM 运行时）与精简版（文件名带 -nolitert，不含），
-# 同包名、同版本号、同签名；Canary 只出精简版，预览版只出完整版。
-# 正式版签名密钥放在仓库 Secrets，见 FORK.md「发版」一节。
+# 同包名、同版本号、同签名；测试通道只出精简版。
+# Nightly 另有 schedule：每天把 Nightly-Build 挪到默认分支 HEAD 并覆盖资产。
+# 正式版与 Canary 用 Secrets 里的 release key，Nightly / 预览用仓库里的 debug key，
+# 见 FORK.md「发版」一节。
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布 tag（留空只出 artifact 不发版；不带 - 为正式版，-canary.N 为同包名同签名的 Canary 预发布，其余带 - 的为独立包名的预览版）'
+        description: '发布 tag（留空只出 artifact 不发版；不带 - 为正式版，Canary-Build 为 .canary 测试通道，Nightly-Build 为 .debug 每夜构建，其余带 - 的为旧预览通道）'
         required: false
         default: ''
       variant:
@@ -24,7 +27,10 @@ on:
           - release
           - debug
   push:
-    tags: ['v*', 'Canary-Build']
+    tags: ['v*', 'Canary-Build', 'Nightly-Build']
+  schedule:
+    # 每天 19:00 UTC，即北京时间次日 03:00。GitHub 高峰期可能推迟十几分钟。
+    - cron: '0 19 * * *'
 
 concurrency:
   group: build-apk-${{ github.ref }}-${{ inputs.tag }}-${{ inputs.variant }}
@@ -60,7 +66,10 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            # 每夜构建没有 tag 可读，固定落到 Nightly-Build 这个滚动 tag 上
+            tag=Nightly-Build
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
             tag="$REF_NAME"
           else
             tag="${INPUT_TAG:-}"
@@ -73,88 +82,122 @@ jobs:
               echo "非法 tag：[${tag}]" >&2
               exit 1 ;;
           esac
-          # tag 带 -（canary / preview / rc）算预发布，不带 - 算正式版
+
+          # 渠道决定包名、签名与出几个包：
+          #   stable  v3.1.1               正式版，release 变体，包名不带后缀，完整版 + 精简版
+          #   canary  Canary-Build         测试通道，release 变体 + .canary 包名，只出精简版
+          #   nightly Nightly-Build        每夜构建，debug 变体 + .debug 包名（buildType 自带），只出精简版
+          #   preview v3.1.1-preview.102   旧的独立包名预览通道，debug 变体，只出精简版
+          #   manual  （空 tag）            只出 artifact、不发版，变体由输入决定
+          channel=preview
+          rolling=false
           case "$tag" in
-            *-*) is_pre=true ;;
-            *) is_pre=false ;;
+            '') channel=manual ;;
+            Nightly-Build) channel=nightly; rolling=true ;;
+            Canary-Build) channel=canary; rolling=true ;;
+            *-canary*) channel=canary ;;
+            *-*) channel=preview ;;
+            *) channel=stable ;;
           esac
-          # canary 是预发布，但沿用正式版包名与签名：装上去就是覆盖正式版，数据沿用。
-          # 其余带 - 的 tag 仍是独立包名的预览版（.debug + 仓库里的 debug key）。
+          case "$channel" in
+            stable|manual) is_pre=false ;;
+            *) is_pre=true ;;
+          esac
           is_canary=false
-          # 滚动 Canary（固定 tag Canary-Build）不带版本号，永远指向最新构建，语义同 canary：
-          # release 变体、正式包名与签名、Prerelease，可覆盖安装正式版。
-          rolling_canary=false
-          if [ "$tag" = "Canary-Build" ]; then
-            rolling_canary=true
+          is_nightly=false
+          if [ "$channel" = "canary" ]; then is_canary=true; fi
+          if [ "$channel" = "nightly" ]; then is_nightly=true; fi
+
+          # 滚动通道不带版本号，永远指向最新构建；带版本号的 Canary 仍要卡形态，
+          # 否则版本号核对会把它当成别的 base 前缀匹配
+          if [ "$channel" = "canary" ] && [ "$rolling" != "true" ] \
+             && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
+            echo "canary tag ${tag} 应形如 vX.Y.Z-canary.N" >&2
+            exit 1
           fi
-          if [ "$is_pre" = "true" ]; then
-            case "$tag" in
-              *-canary*|Canary-Build)
-                is_canary=true
-                # 形态不对会被下面的版本号核对当成别的 base 前缀匹配，先卡死写法；
-                # 滚动 Canary 不带版本号，不做形态校验
-                if [ "$rolling_canary" != "true" ] && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
-                  echo "canary tag ${tag} 应形如 vX.Y.Z-canary.N" >&2
-                  exit 1
-                fi ;;
-            esac
-          fi
+
           variant="${INPUT_VARIANT:-auto}"
           if [ "$variant" = "auto" ]; then
-            if [ "$is_canary" = "true" ]; then
-              variant=release
-            else
-              case "$tag" in
-                ''|*-*) variant=debug ;;
-                *) variant=release ;;
-              esac
-            fi
+            case "$channel" in
+              stable|canary) variant=release ;;
+              *) variant=debug ;;
+            esac
           fi
-          # 正式版包套上预览 tag 会发成正式 Release，包名/签名和 tag 对不上，事后只能重发
-          if [ "$variant" = "debug" ] && [ "$is_pre" = "false" ] && [ -n "$tag" ]; then
-            echo "tag ${tag} 不带 -，是正式版，必须用 release 变体；只要预览包请用带 - 的 tag" >&2
-            exit 1
-          fi
-          # canary 的卖点就是覆盖安装正式版；出成 debug 包等于换了个应用，更新落在别的包名上
-          if [ "$is_canary" = "true" ] && [ "$variant" != "release" ]; then
-            echo "canary tag ${tag} 必须用 release 变体，包名与签名才和正式版一致" >&2
-            exit 1
-          fi
-          # 出几个包：正式版完整版 + 精简版各一个；Canary 只出精简版（测试通道用不着本机推理，
-          # 少编一遍也少等十分钟）；预览版是独立包名的调试通道，只出完整版。
+          # 包名与签名必须和 tag 语义对得上：正式版出成 debug 包会换掉应用身份（老用户
+          # 再也覆盖安装不了），Canary 出成 debug 会丢掉 .canary 的约定，Nightly 出成
+          # release 会丢掉 .debug 包名、与正式版撞身份
+          case "$channel" in
+            stable)
+              if [ "$variant" != "release" ]; then
+                echo "正式版 tag ${tag} 必须用 release 变体" >&2
+                exit 1
+              fi ;;
+            canary)
+              if [ "$variant" != "release" ]; then
+                echo "canary tag ${tag} 必须用 release 变体" >&2
+                exit 1
+              fi ;;
+            nightly)
+              if [ "$variant" != "debug" ]; then
+                echo "Nightly 必须用 debug 变体，包名才带 .debug" >&2
+                exit 1
+              fi ;;
+            preview)
+              if [ "$variant" != "debug" ]; then
+                echo "预览版 tag ${tag} 必须用 debug 变体" >&2
+                exit 1
+              fi ;;
+          esac
+
+          # 包名后缀与桌面名由 gradle 属性注入，变体名与产物目录都不变
+          app_id_suffix=""
+          app_label=""
+          case "$channel" in
+            canary) app_id_suffix=".canary"; app_label="L3Hub Canary" ;;
+            nightly) app_label="L3Hub Nightly" ;;
+            preview) app_label="L3Hub Preview" ;;
+          esac
+
+          # 正式版出完整版 + 精简版各一个；测试通道只出精简版，
+          # 本机推理用不着，少编一遍也少等十分钟。
+          # 空 tag 的手动触发不是发布通道，保持原来的行为：release 出两个包，
+          # debug 只出完整包，方便单独验证 LiteRT。
           build_full=true
           build_nolitert=true
-          # 滚动 Canary 额外出一个 .debug 包名的精简包：和正式包同装一台手机，
-          # 才能验证两版之间的增量同步
-          build_debug_nolitert=false
-          if [ "$is_canary" = "true" ]; then
-            build_full=false
-          elif [ "$variant" = "debug" ]; then
-            build_nolitert=false
-          fi
-          if [ "$rolling_canary" = "true" ]; then
-            build_debug_nolitert=true
-          fi
+          case "$channel" in
+            canary|nightly|preview) build_full=false ;;
+            manual)
+              if [ "$variant" = "debug" ]; then build_nolitert=false; fi ;;
+          esac
+
           {
+            echo "CHANNEL=$channel"
             echo "VARIANT=$variant"
             echo "TAG=$tag"
             echo "IS_PRERELEASE=$is_pre"
             echo "IS_CANARY=$is_canary"
-            echo "ROLLING_CANARY=$rolling_canary"
+            echo "IS_NIGHTLY=$is_nightly"
+            echo "ROLLING=$rolling"
+            echo "APP_ID_SUFFIX=$app_id_suffix"
+            echo "APP_LABEL=$app_label"
             echo "BUILD_FULL=$build_full"
             echo "BUILD_NOLITERT=$build_nolitert"
-            echo "BUILD_DEBUG_NOLITERT=$build_debug_nolitert"
           } >> "$GITHUB_ENV"
           artifact="L3Hub-${variant}"
           if [ -n "$tag" ]; then artifact="${artifact}-${tag}"; fi
           echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"
-          echo "变体=$variant tag=${tag:-（无，只出 artifact）} prerelease=$is_pre 完整版=$build_full 精简版=$build_nolitert 调试精简版=$build_debug_nolitert"
+          echo "渠道=$channel 变体=$variant tag=${tag:-（无，只出 artifact）} prerelease=$is_pre 完整版=$build_full 精简版=$build_nolitert"
 
       # 版本号没有第二处校验：versionName 只被读出来当文案，tag 打错或忘了改版本号
       # 都能绿着发出去，装到手机上却是同一个 versionCode。这里把两者对一次。
       - name: Check version against tag
         run: |
           set -euo pipefail
+          # Nightly 由 schedule 触发，远端 tag 还没挪过来；先建成本地 tag，
+          # 后面的 tag 解析与 head 计算才有一致的对象（推送在 Publish 前单独做）
+          if [ "$IS_NIGHTLY" = "true" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            git tag -f "$TAG" HEAD
+          fi
           if [ -z "${TAG:-}" ]; then
             echo "没有 tag（只出 artifact），跳过版本号校验"
             exit 0
@@ -185,9 +228,9 @@ jobs:
               fi ;;
           esac
           # v3.1.6 → 3.1.6；v3.1.1-preview.102 → 3.1.1
-          # 滚动 Canary 的 tag 不带版本号，versionName 只读 build.gradle.kts，不与 tag 前缀核对；
-          # 下面的 versionCode 递增校验照常，保证能覆盖已装的正式版。
-          if [ "${ROLLING_CANARY}" != "true" ]; then
+          # 滚动通道（Canary-Build / Nightly-Build）的 tag 不带版本号，versionName 只读
+          # build.gradle.kts，不与 tag 前缀核对。
+          if [ "${ROLLING}" != "true" ]; then
             base=${TAG#v}
             base=${base%%-*}
             case "$name" in
@@ -197,13 +240,13 @@ jobs:
                 exit 1 ;;
             esac
           else
-            echo "滚动 Canary，跳过 versionName 前缀核对：versionName=${name}"
+            echo "滚动通道 ${CHANNEL}，跳过 versionName 前缀核对：versionName=${name}"
           fi
-          # 预览版是独立包名（.debug），versionCode 和正式版撞车不影响谁覆盖谁，
-          # 只核对 versionName，别为了打个预览包还得先 bump 版本号。
-          # canary 用的是正式版包名，versionCode 不涨就装不上已装的正式版，下面照常核对。
-          if [ "$VARIANT" = "debug" ]; then
-            echo "预览版 tag，只核对 versionName：${name}"
+          # 测试通道都是独立包名，versionCode 和正式版撞车不影响谁覆盖谁，
+          # 只核对 versionName，别为了打个测试包还得先 bump 版本号。
+          # 只有正式版需要保证 versionCode 递增。
+          if [ "$CHANNEL" != "stable" ]; then
+            echo "非正式版通道（${CHANNEL}），只核对 versionName：${name}"
             exit 0
           fi
           # 正式版 versionCode 不涨，覆盖安装只是重装同一个版本，用户会以为没更新成功
@@ -241,7 +284,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$VARIANT" != "release" ]; then
-            echo "预览版签的是仓库里的 keystore/l3hub-debug.jks，不用还原密钥"
+            echo "debug 变体（Nightly / 预览版）签的是仓库里的 keystore/l3hub-debug.jks，不用还原密钥"
             exit 0
           fi
           # 四个都必须是真值：build.gradle.kts 只判 null，而 Properties.load 把「storePassword=」
@@ -350,19 +393,21 @@ jobs:
             rm -rf "$dir"
           }
 
+          # 包名后缀与桌面名只由测试通道注入；正式版这两个参数为空，产物与历史一致
+          app_args=()
+          if [ -n "${APP_ID_SUFFIX:-}" ]; then
+            app_args+=("-PappIdSuffix=${APP_ID_SUFFIX}")
+          fi
+          if [ -n "${APP_LABEL:-}" ]; then
+            app_args+=("-PappLabel=${APP_LABEL}")
+          fi
+
           # 精简版 = 不打包 LiteRT-LM 运行时，见 :ai / :app 的 build.gradle.kts
           if [ "$BUILD_FULL" = "true" ]; then
-            build_apk release ""
+            build_apk "$VARIANT" "" "${app_args[@]}"
           fi
           if [ "$BUILD_NOLITERT" = "true" ]; then
-            build_apk release "-nolitert" -PnoLitert=true
-          fi
-          if [ "$BUILD_DEBUG_NOLITERT" = "true" ]; then
-            # 同一台 runner 上再编一遍，前一次的 daemon 还占着堆；debug 变体没有 R8 收方法体，
-            # Kotlin 后端更容易撞 OOM，先停掉旧 daemon 再单独给它 4g
-            ./gradlew --stop || true
-            pkill -f org.jetbrains.kotlin.daemon.KotlinCompileDaemon || true
-            build_apk debug "-nolitert-debug" -PnoLitert=true -Pkotlin.daemon.jvmargs=-Xmx4g
+            build_apk "$VARIANT" "-nolitert" -PnoLitert=true "${app_args[@]}"
           fi
 
           ls -l dist
@@ -387,10 +432,12 @@ jobs:
             apk_name=$(basename "$apk")
             echo "== ${apk_name}（$(du -h "$apk" | cut -f1)）=="
             "${build_tools}apksigner" verify --print-certs "$apk"
-            # 同一个 tag 可能同时出正式包与 .debug 调试包，按文件名分组核对
-            case "$apk_name" in
-              *-debug.apk) group=debug; want=com.rikkahub.l3hub.wfadnf.debug ;;
-              *) group=release; want=com.rikkahub.l3hub.wfadnf ;;
+            # 一次运行只出一种通道，包名与签名都按渠道核对
+            if [ "$VARIANT" = "release" ]; then group=release; else group=debug; fi
+            case "$CHANNEL" in
+              canary) want=com.rikkahub.l3hub.wfadnf.canary ;;
+              nightly|preview) want=com.rikkahub.l3hub.wfadnf.debug ;;
+              *) want=com.rikkahub.l3hub.wfadnf ;;
             esac
             pkg=$("${build_tools}aapt2" dump packagename "$apk" | tail -1)
             if [ "$pkg" != "$want" ]; then
@@ -453,8 +500,19 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+      # Nightly 的 tag 每次都要指向当夜的提交：release 页面的源码快照、下次构建计算
+      # 改动区间都靠它。schedule 没有 tag 可推，这里补上；GITHUB_TOKEN 推的 tag 不会
+      # 触发新的 workflow，不会自己再跑一轮。
+      - name: Move rolling tag
+        if: github.event_name == 'schedule'
+        run: |
+          set -euo pipefail
+          git tag -f "$TAG" "$(git rev-parse HEAD)"
+          git push --force origin "refs/tags/$TAG"
+          echo "已把 $TAG 挪到 $(git rev-parse --short HEAD)"
+
       - name: Publish release
-        if: github.event_name == 'push' || inputs.tag != ''
+        if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -474,12 +532,14 @@ jobs:
           # 只看 tag 会把上一个版本 tag 以来的改动整段重列一遍。上一版发的是哪个提交、
           # 从哪算起，都记在上一版说明的 HTML 注释里，下次生成时读回来。
           # head 与本次相同说明是同一个提交重跑，沿用那次算出的起点，说明才不会退化成空。
-          if [ "$ROLLING_CANARY" = "true" ]; then
+          if [ "$ROLLING" = "true" ]; then
+            key=canary
+            if [ "$IS_NIGHTLY" = "true" ]; then key=nightly; fi
             note=$(gh release view "$TAG" --json body --jq .body 2>/dev/null || true)
             last=$(printf '%s\n' "$note" \
-              | sed -n 's/.*canary:from=[0-9a-f]* head=\([0-9a-f]\{7,40\}\) -->.*/\1/p' | head -1)
+              | sed -n "s/.*${key}:from=[0-9a-f]* head=\([0-9a-f]\{7,40\}\) -->.*/\1/p" | head -1)
             base=$(printf '%s\n' "$note" \
-              | sed -n 's/.*canary:from=\([0-9a-f]\{7,40\}\) head=.*/\1/p' | head -1)
+              | sed -n "s/.*${key}:from=\([0-9a-f]\{7,40\}\) head=.*/\1/p" | head -1)
             if [ "$last" = "$head" ]; then
               prev=$base
             else
@@ -493,12 +553,16 @@ jobs:
             if [ -z "$prev" ]; then
               prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
             fi
-            echo "滚动 Canary 的改动起点：${prev:-（无，首个版本）}"
+            echo "滚动通道 ${CHANNEL} 的改动起点：${prev:-（无，首个版本）}"
             # 记进说明的一律是提交 sha：起点可能是 tag 名，下次读回来要能直接喂给 git log
             prev_sha=""
             if [ -n "$prev" ]; then prev_sha=$(git rev-parse "${prev}^{commit}"); fi
           fi
-          pkg=com.rikkahub.l3hub.wfadnf
+          case "$CHANNEL" in
+            canary) pkg=com.rikkahub.l3hub.wfadnf.canary ;;
+            nightly|preview) pkg=com.rikkahub.l3hub.wfadnf.debug ;;
+            *) pkg=com.rikkahub.l3hub.wfadnf ;;
+          esac
           version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
           {
             echo "## 本版改动"
@@ -529,40 +593,38 @@ jobs:
               echo '`L3Hub-'"${TAG}"'-arm64-v8a-nolitert.apk` — 精简版，不含 LiteRT-LM 运行时，体积更小；其余功能与完整版一致，只是本地模型入口不显示。'
               echo
             fi
-            if [ "${BUILD_DEBUG_NOLITERT:-false}" = "true" ]; then
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a-nolitert-debug.apk` — 调试包，包名 `'"${pkg}"'.debug`，与正式包是独立应用，可同装在一台手机上，用于验证两版之间的增量同步；签名用仓库里的调试证书。'
-              echo
-            fi
             if [ "$BUILD_FULL" = "true" ] && [ "$BUILD_NOLITERT" = "true" ]; then
               echo '两个正式包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装即可，应用数据保留。'
               echo
             fi
-            if [ "${BUILD_DEBUG_NOLITERT:-false}" = "true" ]; then
-              echo '正式包包名 `'"${pkg}"'`，调试包包名 `'"${pkg}"'.debug`，版本 `'"${version}"'`，arm64-v8a。'
-            else
-              echo '包名 `'"${pkg}"'`，版本 `'"${version}"'`，arm64-v8a。'
-            fi
+            echo '包名 `'"${pkg}"'`，版本 `'"${version}"'`，arm64-v8a。'
             echo
-            if [ "$IS_CANARY" = "true" ]; then
-              echo '这是预发布：功能比正式版新，稳定性不作保证。它和正式版是同一个应用，装上会直接覆盖已装的正式版并沿用其数据。'
-              echo
-              if [ "$ROLLING_CANARY" = "true" ]; then
-                echo '滚动 Canary 的 versionCode 不随构建递增：同一 versionCode 的包可以互相覆盖，要回退到上一次构建，装它的 APK 即可；回退到 versionCode 更低的正式版仍需先卸载（会清除应用数据，建议先导出备份）。'
-              else
-                echo 'versionCode 只增不减：装过这一版之后，要回到更早的正式版只能先卸载（会清除应用数据，建议先导出备份）。'
-              fi
-              echo
-              if [ "${BUILD_DEBUG_NOLITERT:-false}" = "true" ]; then
-                echo '调试包是另一个应用（`.debug` 包名），装它不会覆盖正式版，也不共享数据；验证完删掉即可。'
+            case "$CHANNEL" in
+              stable)
+                echo 'Canary 的包名是 `'"${pkg}"'.canary`，Nightly 的是 `'"${pkg}"'.debug`，都与正式版是独立应用，可同装在一台手机上，互不覆盖数据。'
                 echo
-              fi
-            elif [ "$VARIANT" = "release" ]; then
-              echo '和预览版（包名 `'"${pkg}"'.debug`）是两个独立的应用，可以同装在一台手机上，互不覆盖数据。'
-              echo
-              echo '从预览版迁过来：在预览版里导出备份，装正式版后导入即可；备份里的附件、字体路径会按新包名自动改写。'
-            else
-              echo '预览版，包名 `'"${pkg}"'.debug`，覆盖安装即可。'
-            fi
+                echo '从测试通道迁过来：在那边导出备份，装正式版后导入即可；备份里的附件、字体路径会按新包名自动改写。'
+                ;;
+              canary)
+                echo '这是 Canary 预发布：功能比正式版新，稳定性不作保证。'
+                echo
+                echo '包名带 `.canary` 后缀，与正式版 `com.rikkahub.l3hub.wfadnf` 是两个独立应用，可同装，数据互不影响；测试通道只出精简版。'
+                echo
+                echo 'Canary 的 versionCode 不随构建递增：同一 versionCode 的包可以互相覆盖；需要把数据带回正式版时，用备份导出与导入。'
+                ;;
+              nightly)
+                echo '这是 Nightly 预发布：每夜自动构建，功能比正式版新，稳定性不作保证。'
+                echo
+                echo '包名带 `.debug` 后缀，与正式版是两个独立应用，可同装；测试通道只出精简版。'
+                echo
+                echo '资产每夜被下一版同名覆盖，同一 versionCode 的构建可直接覆盖安装；回退到更早的构建，装上一版的 APK 即可。'
+                echo
+                echo '构建提交 `'"$(git rev-parse --short HEAD)"'`，构建时间 `'"$(date -u '+%Y-%m-%d %H:%M UTC')"'`。'
+                ;;
+              preview)
+                echo '这是旧预览通道的构建：包名带 `.debug` 后缀，与正式版是独立应用，可同装；只出精简版。'
+                ;;
+            esac
             echo
             for apk in dist/*.apk; do
               printf '校验：`sha256sum -c %s.sha256`\n' "$(basename "$apk")"
@@ -572,18 +634,18 @@ jobs:
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
             fi
             # 下一次滚动构建从这一行读起点，别把注释删掉
-            if [ "$ROLLING_CANARY" = "true" ]; then
+            if [ "$ROLLING" = "true" ]; then
               echo
-              echo "<!-- canary:from=${prev_sha} head=${head} -->"
+              echo "<!-- ${key}:from=${prev_sha} head=${head} -->"
             fi
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
-          # 幂等：release 已存在（重跑、或手动发过）就覆盖资产并刷新说明，不要整个 job 失败
+          # 幂等：release 已存在（重跑、或夜间覆盖）就覆盖资产并刷新说明，不要整个 job 失败
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG 已存在，覆盖资产并刷新说明"
-            # 产物名可能和上一版不一样（Canary 从完整版换成精简版就是），只 clobber 同名的
-            # 会把旧包一直留在下载列表里，先删掉这次没有的
+            # 产物名可能和上一版不一样，只 clobber 同名的会把旧包一直留在下载列表里，
+            # 先删掉这次没有的
             for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               if [ ! -f "dist/$name" ]; then
                 echo "删除过期资产：$name"

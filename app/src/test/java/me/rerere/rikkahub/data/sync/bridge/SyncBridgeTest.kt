@@ -35,9 +35,13 @@ class SyncBridgeTest {
     }
 
     @Test
-    fun `peer packages are the release and preview builds`() {
+    fun `peer packages are the release, canary and nightly builds`() {
         assertEquals(
-            listOf("com.rikkahub.l3hub.wfadnf", "com.rikkahub.l3hub.wfadnf.debug"),
+            listOf(
+                "com.rikkahub.l3hub.wfadnf",
+                "com.rikkahub.l3hub.wfadnf.canary",
+                "com.rikkahub.l3hub.wfadnf.debug",
+            ),
             SyncBridge.PACKAGES,
         )
     }
