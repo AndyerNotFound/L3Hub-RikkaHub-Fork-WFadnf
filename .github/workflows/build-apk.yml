@@ -573,7 +573,14 @@ jobs:
               changes=$(git log --no-merges --pretty='- %s' "${prev}..${TAG}" \
                 | grep -vE '^- (ci|test|build)(\(|:)|^- [[:alnum:]_-]+\((ci|test|build)\):|^- chore: bump version' || true)
               if [ -n "$changes" ]; then
-                echo "$changes"
+                # 两个正式版之间可能隔着两百个提交，整段贴上去没人读得完；
+                # 前 60 条足够看出主线，剩下的让读者顺着完整对比看
+                total=$(printf '%s\n' "$changes" | wc -l | tr -d ' ')
+                printf '%s\n' "$changes" | sed -n '1,60p'
+                if [ "$total" -gt 60 ]; then
+                  echo
+                  echo "（只列前 60 条，其余 $((total - 60)) 条见下方完整对比）"
+                fi
               else
                 echo "- 只有内部改动（CI / 构建 / 版本号），没有影响使用的变化"
               fi
