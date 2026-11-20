@@ -37,8 +37,8 @@ android {
         manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
-        versionCode = 356
-        versionName = "L.3.3.0.2"
+        versionCode = 357
+        versionName = "L.3.3.0.3"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
         // 精简版没有 LiteRT 运行时，设置里的本地模型入口按这个字段隐藏
         buildConfigField("boolean", "HAS_LITERT", if (noLitert) "false" else "true")
