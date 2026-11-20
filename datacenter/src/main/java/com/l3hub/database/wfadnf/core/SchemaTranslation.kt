@@ -62,7 +62,7 @@ object SchemaTranslation {
         Files.copy(source.toPath(), sourceCopy.toPath(), StandardCopyOption.REPLACE_EXISTING)
         try {
             val report = build(context, work, sourceCopy, target, sourceVersion)
-            vacuum(context, work, destination)
+            vacuum(context, work, destination, target.schemaVersion)
             return report
         } finally {
             work.delete()
@@ -261,9 +261,13 @@ object SchemaTranslation {
             columns
         }
 
-    private fun vacuum(context: Context, work: File, destination: File) {
+    private fun vacuum(context: Context, work: File, destination: File, schemaVersion: Int) {
         HubSqlite.openReadWrite(context, work).use { database ->
             database.execSQL("VACUUM main INTO ?", arrayOf(destination.absolutePath))
+        }
+        // 不指望 VACUUM 一定带上 user_version：Room 看到 0 会去找 0→N 的迁移，直接判定失败
+        HubSqlite.openReadWrite(context, destination).use { database ->
+            database.execSQL("PRAGMA user_version = $schemaVersion")
         }
     }
 
