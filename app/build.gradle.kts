@@ -37,8 +37,8 @@ android {
         manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
-        versionCode = 353
-        versionName = "L.3.2.31.175"
+        versionCode = 354
+        versionName = "L.3.2.32.176"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
         // 精简版没有 LiteRT 运行时，设置里的本地模型入口按这个字段隐藏
         buildConfigField("boolean", "HAS_LITERT", if (noLitert) "false" else "true")
@@ -383,6 +383,7 @@ dependencies {
     implementation(project(":workspace"))
     implementation(project(":terminal"))
     implementation(project(":oauth"))
+    implementation(project(":syncproto"))
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     // Leak Canary

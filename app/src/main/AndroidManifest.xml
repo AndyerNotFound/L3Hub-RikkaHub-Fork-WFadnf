@@ -35,6 +35,8 @@
     <package android:name="com.rikkahub.l3hub.wfadnf" />
     <package android:name="com.rikkahub.l3hub.wfadnf.canary" />
     <package android:name="com.rikkahub.l3hub.wfadnf.debug" />
+    <!-- 数据中心：读快照、投递转换后的库与附件 -->
+    <package android:name="com.l3hub.database.wfadnf" />
     <intent>
       <action android:name="android.intent.action.TTS_SERVICE" />
     </intent>
@@ -168,8 +170,9 @@
     </service>
 
     <!--
-      正式版、Canary 与 Nightly 互传数据。调用方由 provider 按 UID 反查包名校验：几个通道的
-      签名密钥不同，signature 级权限恰好会把要同步的那一方挡在外面，详见 SyncBridge。
+      正式版、Canary 与 Nightly 互传数据，数据中心也经这里读结构、拉快照、投递转换后的库。
+      调用方由 provider 按 UID 反查包名校验：几个通道的签名密钥不同，signature 级权限恰好会把
+      要同步的那一方挡在外面，详见 SyncBridge。
     -->
     <provider
       android:name=".service.VersionSyncProvider"

@@ -72,6 +72,8 @@ jobs:
             :common:testDebugUnitTest \
             :oauth:testDebugUnitTest \
             :mediagen:testDebugUnitTest \
+            :syncproto:testDebugUnitTest \
+            :datacenter:testDebugUnitTest \
             -Pkotlin.daemon.jvmargs=-Xmx3g \
             -x :web:buildWebUi \
             --console=plain --stacktrace

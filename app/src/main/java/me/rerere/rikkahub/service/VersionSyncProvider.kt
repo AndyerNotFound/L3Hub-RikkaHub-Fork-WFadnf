@@ -25,6 +25,7 @@ import me.rerere.rikkahub.data.sync.SyncDelta
 import me.rerere.rikkahub.data.sync.bridge.SyncBridge
 import me.rerere.rikkahub.data.sync.buildSyncManifest
 import me.rerere.rikkahub.data.sync.collectSyncableFiles
+import me.rerere.rikkahub.data.sync.readDeviceSchema
 import me.rerere.rikkahub.data.sync.isSyncablePath
 import me.rerere.rikkahub.utils.JsonInstant
 import org.koin.core.component.KoinComponent
@@ -86,6 +87,7 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
             SyncBridge.METHOD_MANIFEST -> startManifest(extras)
             SyncBridge.METHOD_EXPORT_DELTA -> startDeltaExport(extras)
             SyncBridge.METHOD_IMPORT_DELTA -> importDelta(extras)
+            SyncBridge.METHOD_SCHEMA -> describeSchema()
             else -> throw IllegalArgumentException("Unknown method: $method")
         }
     }
@@ -127,7 +129,7 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
         val caller = requireNotNull(context)
         val packages = caller.packageManager.getPackagesForUid(uid)?.toList().orEmpty()
         // 同 UID 的包必须全部在允许列表里：包名全设备唯一，伪造只能靠改包名，那会撞掉安装
-        if (packages.isEmpty() || packages.any { it !in SyncBridge.PACKAGES }) {
+        if (packages.isEmpty() || packages.any { it !in SyncBridge.TRUSTED_CALLERS }) {
             throw SecurityException("Version sync is limited to L3Hub builds")
         }
     }
@@ -146,6 +148,19 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
                 PendingRestore.hasPending(caller) || PendingDelta.hasPending(caller),
             )
             putInt(SyncBridge.KEY_PROTOCOL, SyncBridge.PROTOCOL_VERSION)
+        }
+    }
+
+    /**
+     * 当前库的结构与统计，交给数据中心做跨版本换算。
+     *
+     * 走 Bundle 而不是中转文件：一段 DDL 加几行计数只有几 KB，远不到 Binder 事务上限。
+     * 老构建没有这个方法，调用方收到 IllegalArgumentException，据此降到「只读快照」。
+     */
+    private fun describeSchema(): Bundle {
+        val schema = readDeviceSchema(database.openHelper.readableDatabase)
+        return Bundle().apply {
+            putString(SyncBridge.KEY_SCHEMA, JsonInstant.encodeToString(schema))
         }
     }
 

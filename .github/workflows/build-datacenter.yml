@@ -1,0 +1,231 @@
+name: Build Data Center
+
+# 数据中心是独立的应用（com.l3hub.database.wfadnf），与 L3Hub 共用同一把 release 签名钥匙，
+# 因此能覆盖安装、也能被 L3Hub 的 provider 认作可信调用方。
+# 出包通道只有一条：tag 形如 DB-v1.0.0 → 正式 Release，产物是不分 ABI 的单个 APK
+# （内置 arm64-v8a 与 x86_64 两份 libsimple，FTS5 的 simple 分词器要用）。
+on:
+  push:
+    tags: ['DB-v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（形如 DB-v1.0.0；留空只出 artifact 不发版）'
+        required: false
+        default: ''
+
+concurrency:
+  group: build-datacenter-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 手动触发填了 tag 时编那个提交；否则编当前分支
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Resolve tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            tag="$REF_NAME"
+          else
+            tag="${INPUT_TAG:-}"
+          fi
+          if [ -n "$tag" ] && ! [[ "$tag" =~ ^DB-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag 必须形如 DB-vX.Y.Z：[${tag}]" >&2
+            exit 1
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "tag=${tag:-（无，只出 artifact）}"
+
+      # 版本号没有第二处校验：tag 打错也照样能发出去，这里把两者对一次。
+      - name: Check version against tag
+        run: |
+          set -euo pipefail
+          if [ -z "${TAG:-}" ]; then
+            echo "没有 tag，跳过版本核对"
+            exit 0
+          fi
+          if [ ! -f datacenter/build.gradle.kts ]; then
+            echo "当前提交里没有 datacenter/build.gradle.kts，tag ${TAG} 指错地方了？" >&2
+            exit 1
+          fi
+          name=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' datacenter/build.gradle.kts | head -1)
+          code=$(sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' datacenter/build.gradle.kts | head -1)
+          if [ -z "$name" ] || [ -z "$code" ]; then
+            echo "没读到 versionCode / versionName，datacenter/build.gradle.kts 的格式变了？" >&2
+            exit 1
+          fi
+          base=${TAG#DB-v}
+          if [ "$name" != "$base" ]; then
+            echo "versionName「${name}」与 tag ${TAG} 对不上，应为 ${base}" >&2
+            exit 1
+          fi
+          echo "versionName=${name} versionCode=${code}"
+
+      - name: Restore signing keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE: ${{ secrets.ANDROID_RELEASE_KEYSTORE }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_RELEASE_KEYSTORE ANDROID_RELEASE_STORE_PASSWORD \
+                      ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "缺少 secret：${name}" >&2
+              exit 1
+            fi
+          done
+          ks="$RUNNER_TEMP/l3hub-release.jks"
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE" | tr -d ' \t\r\n' | base64 -d > "$ks"
+          chmod 600 "$ks"
+          if ! keytool -list -keystore "$ks" -storepass "$ANDROID_RELEASE_STORE_PASSWORD" \
+               -alias "$ANDROID_RELEASE_KEY_ALIAS" >/dev/null 2>&1; then
+            echo "keystore 解不开：口令或 alias 和 secret 对不上" >&2
+            exit 1
+          fi
+          {
+            echo "storeFile=$ks"
+            echo "storePassword=$ANDROID_RELEASE_STORE_PASSWORD"
+            echo "keyAlias=$ANDROID_RELEASE_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_RELEASE_KEY_PASSWORD"
+          } >> local.properties
+          echo "release keystore 已还原到 $ks"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Unit tests
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          ./gradlew \
+            :syncproto:testDebugUnitTest \
+            :datacenter:testDebugUnitTest \
+            -Pkotlin.daemon.jvmargs=-Xmx3g \
+            --console=plain --stacktrace
+
+      - name: Build release APK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          ./gradlew :datacenter:assembleRelease \
+            -Pkotlin.daemon.jvmargs=-Xmx3g \
+            --console=plain --stacktrace
+
+      - name: Collect artifacts
+        id: collect
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          apk=$(find datacenter/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$apk" ]; then
+            echo "没有找到 release APK" >&2
+            exit 1
+          fi
+          asset="L3Hub-DataCenter-${TAG:-dev}.apk"
+          cp "$apk" "dist/$asset"
+          (cd dist && sha256sum "$asset" > "$asset.sha256")
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          ls -l dist
+
+      # 签名指纹必须和 L3Hub 正式版一致，否则目标端的 UID 校验还在，但用户装不上同一个身份的新包
+      - name: Verify APK
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          build_tools=$(ls -d "$sdk"/build-tools/* 2>/dev/null | sort -V | tail -1)
+          apksigner="$build_tools/apksigner"
+          apk="dist/${{ steps.collect.outputs.asset }}"
+          "$apksigner" verify --print-certs "$apk" | tee certs.txt
+          cert=$(grep -m1 'certificate SHA-256 digest' certs.txt | sed 's/.*digest: //')
+          echo "签名证书 SHA-256：${cert}"
+          echo "CERT_SHA256=${cert}" >> "$GITHUB_ENV"
+
+      - name: Write release notes
+        if: env.TAG != ''
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' datacenter/build.gradle.kts | head -1)
+          {
+            echo "## L3Hub 数据中心 ${version}"
+            echo
+            echo '用于在本机各 L3Hub 构建之间搬运数据：列出已安装的正式版、Canary、Nightly 与改过包名的分支，'
+            echo '经 ContentProvider 读取它们的数据库结构与快照，按目标的结构换算后再投递。'
+            echo
+            echo '### 这一版'
+            echo
+            git log --no-merges --pretty='- %s' -n 20 "${TAG}" \
+              | grep -vE '^- (ci|test|build)(\(|:)' || echo '- 首个版本'
+            echo
+            echo '### 安装'
+            echo
+            echo '包名 `com.l3hub.database.wfadnf`，与 L3Hub 各构建是独立应用，可同装。'
+            echo '签名与 L3Hub 正式版相同；装过更早的测试包可直接覆盖安装。'
+            echo
+            echo '### 使用前提'
+            echo
+            echo '要同步的 L3Hub 需更新到包含数据中心授权的版本（同步 provider 允许 `com.l3hub.database.wfadnf` 调用）。'
+            echo '投递完成后需重启目标应用，数据在它下次启动、数据库打开之前安装。'
+            echo
+            echo '校验：`sha256sum -c '"${{ steps.collect.outputs.asset }}"'.sha256`'
+            echo
+            echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Publish release
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG 已存在，覆盖资产并刷新说明"
+            for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              if [ ! -f "dist/$name" ]; then
+                echo "删除过期资产：$name"
+                gh release delete-asset "$TAG" "$name" --yes
+              fi
+            done
+            gh release upload "$TAG" dist/*.apk dist/*.sha256 --clobber
+            gh release edit "$TAG" --notes-file RELEASE_NOTES.md --draft=false
+          else
+            gh release create "$TAG" dist/*.apk dist/*.sha256 \
+              --title "数据中心 $TAG" --notes-file RELEASE_NOTES.md --verify-tag
+          fi
+
+      - name: Upload artifact
+        if: env.TAG == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: datacenter-apk
+          path: dist/**
+          if-no-files-found: error
+
+      - name: Clear secrets
+        if: always()
+        run: |
+          rm -f local.properties RELEASE_NOTES.md certs.txt
+          if [ -n "${RUNNER_TEMP:-}" ]; then rm -f "$RUNNER_TEMP/l3hub-release.jks"; fi

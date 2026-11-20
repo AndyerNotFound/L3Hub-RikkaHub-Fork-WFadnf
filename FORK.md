@@ -1002,6 +1002,15 @@ git rebase upstream/master
 
 改动尽量放在独立文件里；上面列的文件是冲突热点，能不加就别加。
 
+## 数据中心（独立应用）
+
+`com.l3hub.database.wfadnf`，在 `:datacenter` 模块里，与 L3Hub 一并构建。作用是列出本机各构建
+（正式版 / Canary / Nightly / 改过包名的分支），经 ContentProvider 读它们的库结构与整库快照，
+跨数据库版本时按目标结构换算后再投递。协议常量在 `:syncproto`，两边共用；provider 的可信调用方
+名单加上了数据中心。设计与边界见 `docs/data-center.md`。
+
+出包走单独的工作流，tag 形如 `DB-v1.0.0`，版本号在 `datacenter/build.gradle.kts`。
+
 ## 许可证
 
 AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整源码。
