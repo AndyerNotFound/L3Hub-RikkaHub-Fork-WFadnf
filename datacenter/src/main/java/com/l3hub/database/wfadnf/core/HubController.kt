@@ -1,6 +1,8 @@
 package com.l3hub.database.wfadnf.core
 
 import android.content.Context
+import android.net.Uri
+import com.l3hub.syncproto.PeerSchema
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -9,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class BuildUi(
@@ -29,6 +32,8 @@ data class BuildUi(
     val mirrorBytes: Long,
     val snapshots: List<SnapshotRecord>,
     val lastSeenAt: Long,
+    /** 运行中的库报上来的结构；「数据库」页在没拉快照时也能看表与计数 */
+    val schema: PeerSchema? = null,
 )
 
 data class HubUiState(
@@ -168,6 +173,53 @@ class HubController private constructor(private val context: Context) {
         scope.launch { store.deleteSnapshot(packageName, snapshotId) }
     }
 
+    /**
+     * 导出一份快照的库。
+     *
+     * 走 SAF 的目标 URI 复制，不经过中转目录：快照本身就是一份独立、完整的库，直接交给用户选的
+     * 位置即可，导出不改变仓库里的任何东西。
+     */
+    fun exportSnapshot(packageName: String, snapshotId: String, uri: Uri) = run("导出数据库") {
+        val file = store.databaseFile(packageName, snapshotId)
+        if (!file.isFile) throw PeerException("快照文件缺失")
+        val bytes = copyToUri(file, uri)
+        "已导出 ${file.name}（${SyncEngine.formatBytes(bytes)}）"
+    }
+
+    /** 导出运行中的库：先按普通拉取落一份快照，再把这份快照交给用户选的位置 */
+    fun exportLive(packageName: String, uri: Uri) = run("导出数据库") {
+        val build = readyBuild(packageName)
+        val report = engine.pull(
+            build = build,
+            includeFiles = false,
+            kind = SnapshotKind.MANUAL,
+            note = "导出数据库",
+            onLog = ::log,
+        )
+        val file = store.databaseFile(packageName, report.snapshot.id)
+        val bytes = copyToUri(file, uri)
+        "已导出 ${build.info.label} 的数据库（${SyncEngine.formatBytes(bytes)}）"
+    }
+
+    fun snapshotDatabase(packageName: String, snapshotId: String): File =
+        store.databaseFile(packageName, snapshotId)
+
+    fun snapshotSchema(packageName: String, snapshotId: String): PeerSchema? =
+        store.readSchema(packageName, snapshotId)
+
+    fun mirrorFolders(packageName: String): List<MirrorFolder> =
+        HubMirror.folders(store.mirrorDir(packageName))
+
+    fun mirrorFiles(packageName: String, folder: String): List<Pair<String, Long>> =
+        HubMirror.files(store.mirrorDir(packageName), folder)
+
+    private fun copyToUri(source: File, uri: Uri): Long {
+        val output = context.contentResolver.openOutputStream(uri)
+            ?: throw PeerException("无法写入所选位置")
+        output.use { sink -> source.inputStream().use { input -> input.copyTo(sink) } }
+        return source.length()
+    }
+
     fun clearMirror(packageName: String) {
         scope.launch {
             store.clearMirror(packageName)
@@ -237,6 +289,7 @@ class HubController private constructor(private val context: Context) {
                 mirrorBytes = record?.mirrorBytes ?: 0,
                 snapshots = record?.snapshots.orEmpty(),
                 lastSeenAt = record?.lastSeenAt ?: 0,
+                schema = ready?.schema,
             )
         }
         val storage = builds.sumOf { build ->

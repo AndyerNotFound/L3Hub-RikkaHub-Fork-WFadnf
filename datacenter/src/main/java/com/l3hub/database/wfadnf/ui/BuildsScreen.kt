@@ -1,135 +1,129 @@
 package com.l3hub.database.wfadnf.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.l3hub.database.wfadnf.core.BuildUi
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.core.HubUiState
 import com.l3hub.database.wfadnf.core.SyncEngine
+import com.l3hub.database.wfadnf.ui.components.HubActionIcon
+import com.l3hub.database.wfadnf.ui.components.HubCardGroup
+import com.l3hub.database.wfadnf.ui.components.HubCardIcon
+import com.l3hub.database.wfadnf.ui.components.HubNote
+import com.l3hub.database.wfadnf.ui.components.HubStatusPill
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Download04
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.FileExport
+import me.rerere.hugeicons.stroke.SmartPhone01
 
 @Composable
-fun BuildsScreen(state: HubUiState, controller: HubController) {
+fun BuildsScreen(
+    state: HubUiState,
+    controller: HubController,
+    onExport: (DbExportRequest) -> Unit,
+    onOpenDatabase: (DbSelection) -> Unit,
+) {
     var includeFiles by rememberSaveable { mutableStateOf(false) }
+    val busy = state.busyLabel != null
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { SummaryCard(state) }
         item {
-            OptionsCard(includeFiles = includeFiles, onIncludeFiles = { includeFiles = it })
+            HubCardGroup(title = "本机") {
+                formItem {
+                    Text(
+                        "${state.builds.count { it.installed }} 个已安装 · 仓库占用 " +
+                            SyncEngine.formatBytes(state.storageBytes),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    HubNote(
+                        if (state.scanning) {
+                            "正在扫描本机安装的 L3Hub 构建…"
+                        } else {
+                            "扫描会找正式版、Canary、Nightly，以及沿用同一套同步协议、改过包名的分支。"
+                        },
+                    )
+                }
+            }
         }
-        if (state.loading) {
-            item { Text("正在扫描本机…", style = MaterialTheme.typography.bodyMedium) }
+        item {
+            HubCardGroup(title = "拉取选项") {
+                switchItem(
+                    checked = includeFiles,
+                    onCheckedChange = { includeFiles = it },
+                    headlineContent = { Text("同时镜像附件") },
+                    supportingContent = {
+                        Text("按清单与大小差异只取变化的部分；关掉只存数据库。")
+                    },
+                    leadingContent = { HubCardIcon(HugeIcons.Download04) },
+                )
+            }
         }
         items(state.builds, key = { it.packageName }) { build ->
-            BuildCard(
+            BuildGroup(
                 build = build,
-                busy = state.busyLabel != null,
+                busy = busy,
                 includeFiles = includeFiles,
                 onPull = { controller.pull(build.packageName, includeFiles) },
+                onExport = onExport,
+                onOpenDatabase = onOpenDatabase,
                 onClearMirror = { controller.clearMirror(build.packageName) },
             )
         }
         if (!state.loading && state.builds.isEmpty()) {
-            item { EmptyHint("没有找到 L3Hub。装一个再回来。") }
+            item { HubNote("本机没有找到 L3Hub。装一个再回来，或点右上角重新扫描。") }
         }
-        item { Spacer(Modifier.height(16.dp)) }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
 @Composable
-private fun SummaryCard(state: HubUiState) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("本机的 L3Hub 构建", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "${state.builds.count { it.installed }} 个已安装 · 仓库占用 ${SyncEngine.formatBytes(state.storageBytes)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun OptionsCard(includeFiles: Boolean, onIncludeFiles: (Boolean) -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("拉取时同时镜像附件", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "附件按清单与大小差异增量拉取；关掉只存数据库。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = includeFiles, onCheckedChange = onIncludeFiles)
-        }
-    }
-}
-
-@Composable
-private fun BuildCard(
+private fun BuildGroup(
     build: BuildUi,
     busy: Boolean,
     includeFiles: Boolean,
     onPull: () -> Unit,
+    onExport: (DbExportRequest) -> Unit,
+    onOpenDatabase: (DbSelection) -> Unit,
     onClearMirror: () -> Unit,
 ) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        build.label,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        build.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                StatusBadge(build)
-            }
+    val status = statusOf(build)
+    val enabled = build.supported && !busy
+    val latestSnapshot = build.snapshots.maxByOrNull { it.createdAt }
+    HubCardGroup(title = build.label) {
+        item(
+            headlineContent = {
+                Text(
+                    "${build.versionName.ifBlank { "—" }}（${build.versionCode}）",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            supportingContent = { Text(build.packageName) },
+            leadingContent = { HubCardIcon(HugeIcons.SmartPhone01) },
+            trailingContent = { HubStatusPill(status.text, status.container, status.content) },
+        )
+        formItem {
             Text(
-                "版本 ${build.versionName.ifBlank { "—" }}（${build.versionCode}）· 库 v${build.schemaVersion}",
+                "库 v${build.schemaVersion} · 数据库 ${SyncEngine.formatBytes(build.databaseBytes)}",
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (build.counts.isNotEmpty()) {
@@ -137,15 +131,12 @@ private fun BuildCard(
                     "会话 ${build.counts["ConversationEntity"] ?: 0} · " +
                         "消息 ${build.counts["message_node"] ?: 0} · " +
                         "工作区 ${build.counts["workspaces"] ?: 0}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Text(
-                "数据库 ${SyncEngine.formatBytes(build.databaseBytes)} · 快照 ${build.snapshots.size} 份 · " +
-                    "附件 ${build.mirrorFiles} 个（${SyncEngine.formatBytes(build.mirrorBytes)}）",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            HubNote(
+                "快照 ${build.snapshots.size} 份 · 附件 ${build.mirrorFiles} 个" +
+                    "（${SyncEngine.formatBytes(build.mirrorBytes)}）",
             )
             build.reason?.let { reason ->
                 Text(
@@ -154,57 +145,62 @@ private fun BuildCard(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onPull, enabled = build.supported && !busy) {
-                    Text(if (includeFiles) "拉取快照与附件" else "拉取快照")
-                }
-                if (build.mirrorFiles > 0) {
-                    TextButton(onClick = onClearMirror, enabled = !busy) { Text("清空附件镜像") }
-                }
-            }
         }
-    }
-}
-
-@Composable
-private fun StatusBadge(build: BuildUi) {
-    val text: String
-    val color: androidx.compose.ui.graphics.Color
-    when {
-        !build.installed -> {
-            text = "未安装"
-            color = MaterialTheme.colorScheme.surfaceVariant
-        }
-        !build.supported -> {
-            text = "不可用"
-            color = MaterialTheme.colorScheme.errorContainer
-        }
-        build.pendingRestore -> {
-            text = "待重启"
-            color = MaterialTheme.colorScheme.tertiaryContainer
-        }
-        else -> {
-            text = "可同步"
-            color = MaterialTheme.colorScheme.secondaryContainer
-        }
-    }
-    Surface(color = color, shape = RoundedCornerShape(50)) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelMedium,
+        item(
+            onClick = if (enabled) onPull else null,
+            headlineContent = { Text(if (includeFiles) "拉取快照与附件" else "拉取快照") },
+            supportingContent = { Text("把整份数据库落到数据中心的仓库，作为回滚点与同步源。") },
+            leadingContent = { HubActionIcon(HugeIcons.Download04) },
+        )
+        item(
+            onClick = if (build.installed) {
+                { onExport(DbExportRequest(build.packageName, null, build.label)) }
+            } else {
+                null
+            },
+            headlineContent = { Text("导出数据库") },
+            supportingContent = { Text("整库导出为 .db；运行中的库会先拉一份快照再交给所选位置。") },
+            leadingContent = { HubActionIcon(HugeIcons.FileExport) },
+        )
+        item(
+            onClick = if (build.schema != null || latestSnapshot != null) {
+                { onOpenDatabase(DbSelection(build.packageName, latestSnapshot?.id)) }
+            } else {
+                null
+            },
+            headlineContent = { Text("查看数据库") },
+            supportingContent = {
+                Text(
+                    if (latestSnapshot != null) {
+                        "表结构、会话与附件；默认打开最近一份快照。"
+                    } else {
+                        "表结构与行数；拉一份快照后才能看会话与附件。"
+                    }
+                )
+            },
+            leadingContent = { HubCardIcon(HugeIcons.File02) },
+        )
+        item(
+            onClick = if (busy || build.mirrorFiles == 0) null else onClearMirror,
+            visible = build.mirrorFiles > 0,
+            headlineContent = { Text("清空附件镜像") },
+            supportingContent = {
+                Text("${SyncEngine.formatBytes(build.mirrorBytes)}，删掉后下次拉取会重新下载。")
+            },
+            leadingContent = { HubCardIcon(HugeIcons.Delete01) },
         )
     }
 }
 
+private data class StatusStyle(val text: String, val container: Color, val content: Color)
+
 @Composable
-fun EmptyHint(text: String) {
-    Text(
-        text,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun statusOf(build: BuildUi): StatusStyle {
+    val scheme = MaterialTheme.colorScheme
+    return when {
+        !build.installed -> StatusStyle("未安装", scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
+        !build.supported -> StatusStyle("不可用", scheme.errorContainer, scheme.onErrorContainer)
+        build.pendingRestore -> StatusStyle("待重启", scheme.tertiaryContainer, scheme.onTertiaryContainer)
+        else -> StatusStyle("可同步", scheme.secondaryContainer, scheme.onSecondaryContainer)
+    }
 }

@@ -15,8 +15,8 @@ android {
         applicationId = "com.l3hub.database.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         // 只出真机用的 ABI：requery 的 SQLite 会把四套 .so 一起带进来，不裁的话包体大半是别的架构
         ndk {
@@ -103,6 +103,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    // 和 L3Hub 同一套图标：备份页每个操作行都是 hugeicons 的线性图标
+    implementation(libs.huge.icons)
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)

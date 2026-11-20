@@ -24,6 +24,10 @@ class PeerException(message: String, cause: Throwable? = null) : Exception(messa
  * 发现走两条线索：包名在已知列表里，或者该包导出了 `<包名>.sync` 这个 provider。后者让任意改过包名
  * 的分支也能被找到，只要它沿用同一套同步协议。找到之后用 `ping` 确认协议版本，再用 `schema`
  * 取库结构；老构建没有 `schema`，这时仍可拉快照，但跨版本投递会被拒绝。
+ *
+ * 「导出同名 provider」这条线索不能单独当证据：ColorOS 的 `com.oplus.remotecontrol` 就恰好导出了
+ * 一个 `<包名>.sync`。未知包必须真的答上 `ping`，并且自报的包名与查询的包名一致，才算一个构建；
+ * 已知包名即便没装也照旧列出，界面才能显示「装一个再回来」。
  */
 class PeerClient(private val context: Context) {
     data class BuildInfo(
@@ -46,6 +50,8 @@ class PeerClient(private val context: Context) {
             val schemaVersion: Int,
             val pendingRestore: Boolean,
             val schema: PeerSchema?,
+            /** 对端 `ping` 自报的包名；用来确认拨的确实是 L3Hub，而不是恰好同后缀的 provider */
+            val reportedPackage: String = info.packageName,
         ) : Build
 
         data class Unavailable(
@@ -59,17 +65,24 @@ class PeerClient(private val context: Context) {
             @Suppress("DEPRECATION")
             context.packageManager.getInstalledPackages(PackageManager.GET_PROVIDERS)
         }.getOrDefault(emptyList())
+        val known = L3HubSyncProtocol.BUILD_PACKAGES
         val candidates = packages.asSequence()
             .filter { it.packageName != context.packageName }
             .filter { info ->
-                info.packageName in L3HubSyncProtocol.BUILD_PACKAGES ||
+                info.packageName in known ||
                     info.providers.orEmpty().any { it.authority == L3HubSyncProtocol.authority(info.packageName) }
             }
             .map { it.packageName }
             .distinct()
             .sorted()
             .toList()
-        candidates.map { probe(it) }
+        candidates.mapNotNull { packageName ->
+            val build = probe(packageName)
+            if (packageName in known) return@mapNotNull build
+            // 未知包可能是别的应用恰好导出了同名后缀的 provider：只有答上 ping 且自报包名对得上才算数
+            val ready = build as? Build.Ready ?: return@mapNotNull null
+            build.takeIf { ready.reportedPackage == packageName && ready.protocol > 0 }
+        }
     }
 
     suspend fun probe(packageName: String): Build = withContext(Dispatchers.IO) {
@@ -87,6 +100,7 @@ class PeerClient(private val context: Context) {
             schemaVersion = ping.getInt(L3HubSyncProtocol.KEY_SCHEMA_VERSION),
             pendingRestore = ping.getBoolean(L3HubSyncProtocol.KEY_PENDING_RESTORE),
             schema = schema,
+            reportedPackage = ping.getString(L3HubSyncProtocol.KEY_PACKAGE).orEmpty(),
         )
     }
 

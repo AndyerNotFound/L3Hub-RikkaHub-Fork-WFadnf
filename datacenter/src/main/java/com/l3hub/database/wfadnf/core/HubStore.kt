@@ -1,6 +1,7 @@
 package com.l3hub.database.wfadnf.core
 
 import android.content.Context
+import com.l3hub.syncproto.L3HubSyncProtocol
 import com.l3hub.syncproto.PeerSchema
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,9 +36,27 @@ class HubStore(private val context: Context) {
     private val indexPath: File get() = File(root, "index.json")
 
     suspend fun load() = mutex.withLock {
-        runCatching {
+        val loaded = runCatching {
             if (indexPath.isFile) HubJson.decodeFromString<HubIndex>(indexPath.readText()) else HubIndex()
-        }.getOrDefault(HubIndex()).also { state.value = it }
+        }.getOrDefault(HubIndex())
+        val index = sanitize(loaded)
+        state.value = index
+        if (index != loaded) persist(index)
+    }
+
+    /**
+     * 清掉误认进来的包名。
+     *
+     * 早期版本只看「导出了 `<包名>.sync`」就把一个包记成 L3Hub 构建，ColorOS 的
+     * `com.oplus.remotecontrol` 因此进过索引。没有快照的记录没有任何价值（下次扫描会重新登记），
+     * 直接丢掉；带快照的记录留着，那是用户的数据。
+     */
+    private fun sanitize(index: HubIndex): HubIndex {
+        val known = L3HubSyncProtocol.BUILD_PACKAGES.toSet()
+        val kept = index.packages.filter { (packageName, record) ->
+            packageName in known || record.snapshots.isNotEmpty()
+        }
+        return if (kept.size == index.packages.size) index else index.copy(packages = kept)
     }
 
     fun newTempFile(name: String): File {
@@ -212,10 +231,14 @@ class HubStore(private val context: Context) {
     private fun update(transform: (HubIndex) -> HubIndex) {
         val next = transform(state.value)
         state.value = next
+        persist(next)
+    }
+
+    private fun persist(index: HubIndex) {
         runCatching {
             check(root.isDirectory || root.mkdirs()) { "无法创建数据中心目录" }
             val temporary = File(root, "index.json.tmp")
-            temporary.writeText(HubJson.encodeToString(next))
+            temporary.writeText(HubJson.encodeToString(index))
             Files.move(
                 temporary.toPath(),
                 indexPath.toPath(),

@@ -1,228 +1,208 @@
 package com.l3hub.database.wfadnf.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.l3hub.database.wfadnf.core.BuildUi
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.core.HubUiState
 import com.l3hub.database.wfadnf.core.SnapshotRecord
+import com.l3hub.database.wfadnf.core.SyncEngine
 import com.l3hub.database.wfadnf.core.SyncMode
 import com.l3hub.database.wfadnf.core.formatTime
+import com.l3hub.database.wfadnf.ui.components.HubActionIcon
+import com.l3hub.database.wfadnf.ui.components.HubCardGroup
+import com.l3hub.database.wfadnf.ui.components.HubCardIcon
+import com.l3hub.database.wfadnf.ui.components.HubNote
+import com.l3hub.database.wfadnf.ui.components.HubStatusPill
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock01
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.SmartPhone01
 
-private data class SourceOption(val build: BuildUi, val snapshot: SnapshotRecord) {
+private data class SyncSource(val build: BuildUi, val snapshot: SnapshotRecord) {
     val key: String get() = "${build.packageName}/${snapshot.id}"
-    val label: String get() = "${build.label} · ${snapshot.createdAt.formatTime()} · v${snapshot.schemaVersion}"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(state: HubUiState, controller: HubController) {
-    val sources = state.builds.flatMap { build -> build.snapshots.map { SourceOption(build, it) } }
-    val targets = state.builds.filter { it.installed && it.supported }
-    var sourceKey by rememberSaveable { mutableStateOf("") }
-    var targetPackage by rememberSaveable { mutableStateOf("") }
+    val sources = state.builds.flatMap { build -> build.snapshots.map { SyncSource(build, it) } }
+        .sortedByDescending { it.snapshot.createdAt }
+    val targets = state.builds.filter { it.installed }
+    var sourceKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var targetPackage by rememberSaveable { mutableStateOf<String?>(null) }
     var modeName by rememberSaveable { mutableStateOf(SyncMode.MERGE.name) }
     var includeFiles by rememberSaveable { mutableStateOf(true) }
+    val busy = state.busyLabel != null
 
-    LaunchedEffect(sources.size, targets.size) {
-        if (sources.none { it.key == sourceKey }) sourceKey = sources.firstOrNull()?.key.orEmpty()
-        if (targets.none { it.packageName == targetPackage }) targetPackage = targets.firstOrNull()?.packageName.orEmpty()
+    val source = sources.firstOrNull { it.key == sourceKey } ?: sources.firstOrNull()
+    val target = targets.firstOrNull { it.packageName == targetPackage }
+        ?: targets.firstOrNull { it.supported && it.packageName != source?.build?.packageName }
+        ?: targets.firstOrNull { it.supported }
+    val mode = runCatching { SyncMode.valueOf(modeName) }.getOrDefault(SyncMode.MERGE)
+    val chosenSource = source
+    val chosenTarget = target
+    val hint = if (chosenSource == null) {
+        "先选一份源快照。"
+    } else if (chosenTarget == null) {
+        "先选目标构建。"
+    } else if (!chosenTarget.supported) {
+        "目标不支持结构导出，无法接收这份数据。"
+    } else if (chosenTarget.pendingRestore) {
+        "目标有一份数据等着安装，先打开它完成安装。"
+    } else {
+        "把 ${chosenSource.snapshot.createdAt.formatTime()} 的快照投递给 ${chosenTarget.label}。"
     }
 
-    val source = sources.firstOrNull { it.key == sourceKey }
-    val target = targets.firstOrNull { it.packageName == targetPackage }
-    val mode = SyncMode.entries.firstOrNull { it.name == modeName } ?: SyncMode.MERGE
-    val structural = source != null && target != null && source.snapshot.schemaVersion != target.schemaVersion
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("把一份快照投递到另一个构建", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "同结构直接搬运；结构不同先按目标的结构重建，再按合并或替换落到目标。" +
-                "投递后需要重启目标应用才会安装。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        PickerField(
-            label = "源快照",
-            value = source?.label ?: "没有可用快照",
-            options = sources.map { it.key to it.label },
-            onSelect = { sourceKey = it },
-        )
-        PickerField(
-            label = "目标构建",
-            value = target?.let { "${it.label} · v${it.schemaVersion}" } ?: "没有可投递的构建",
-            options = targets.map { it.packageName to "${it.label} · v${it.schemaVersion}" },
-            onSelect = { targetPackage = it },
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = mode == SyncMode.MERGE,
-                onClick = { modeName = SyncMode.MERGE.name },
-                label = { Text("合并") },
-            )
-            FilterChip(
-                selected = mode == SyncMode.OVERWRITE,
-                onClick = { modeName = SyncMode.OVERWRITE.name },
-                label = { Text("替换") },
+        item {
+            HubNote(
+                "同步在两边的副本上做：先把源快照换算成目标库的结构，再按合并或替换落到目标。" +
+                    "目标会在下次启动、数据库打开之前安装，完成后需要重启那个应用。",
             )
         }
-        Text(
-            when (mode) {
-                SyncMode.MERGE -> "合并：先拉一份目标现状作回滚点，对端较新的会话整条替换，本地缺的补进来，删除墓碑照常生效。"
-                SyncMode.OVERWRITE -> "替换：目标整库换成这份快照；附件一并投递时，目标里多出来的附件也会清掉。"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("同时同步附件", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "附件从数据中心的镜像里补；合并模式只补缺，替换模式以镜像为准。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        item {
+            HubCardGroup(title = "源快照") {
+                formItem(visible = sources.isEmpty()) { HubNote("还没有快照。到「构建」页拉一份。") }
+                sources.forEach { item ->
+                    item(
+                        onClick = { sourceKey = item.key },
+                        headlineContent = {
+                            Text(
+                                "${item.build.label} · ${item.snapshot.createdAt.formatTime()}",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                "库 v${item.snapshot.schemaVersion} · 会话 ${item.snapshot.conversations} · " +
+                                    "${SyncEngine.formatBytes(item.snapshot.databaseBytes)}",
+                            )
+                        },
+                        leadingContent = { HubCardIcon(HugeIcons.Clock01) },
+                        trailingContent = {
+                            if (source?.key == item.key) HubStatusPill("已选") else null
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            HubCardGroup(title = "目标构建") {
+                formItem(visible = targets.isEmpty()) { HubNote("本机没有可接收的构建。") }
+                targets.forEach { build ->
+                    item(
+                        onClick = if (build.supported) {
+                            { targetPackage = build.packageName }
+                        } else {
+                            null
+                        },
+                        headlineContent = { Text(build.label) },
+                        supportingContent = {
+                            Text(
+                                build.packageName + " · 库 v" + build.schemaVersion +
+                                    if (build.pendingRestore) " · 有一份数据等着安装" else "",
+                            )
+                        },
+                        leadingContent = { HubCardIcon(HugeIcons.SmartPhone01) },
+                        trailingContent = {
+                            when {
+                                target?.packageName == build.packageName -> HubStatusPill("已选")
+                                !build.supported -> HubStatusPill("不可用")
+                                build.pendingRestore -> HubStatusPill("待重启")
+                                else -> null
+                            }
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            HubCardGroup(title = "方式") {
+                item(
+                    onClick = { modeName = SyncMode.MERGE.name },
+                    headlineContent = { Text("合并") },
+                    supportingContent = { Text("保留目标现有数据，按主键补缺、对端较新的整条替换。") },
+                    leadingContent = { HubCardIcon(HugeIcons.File02) },
+                    trailingContent = {
+                        if (mode == SyncMode.MERGE) HubStatusPill("已选") else null
+                    },
+                )
+                item(
+                    onClick = { modeName = SyncMode.OVERWRITE.name },
+                    headlineContent = { Text("替换") },
+                    supportingContent = { Text("目标整库换成这份快照；附件以镜像为准。") },
+                    leadingContent = { HubCardIcon(HugeIcons.Refresh01) },
+                    trailingContent = {
+                        if (mode == SyncMode.OVERWRITE) HubStatusPill("已选") else null
+                    },
+                )
+                switchItem(
+                    checked = includeFiles,
+                    onCheckedChange = { includeFiles = it },
+                    headlineContent = { Text("一并投递附件") },
+                    supportingContent = { Text("只补目标缺的文件；替换模式以镜像为准。") },
+                    leadingContent = { HubCardIcon(HugeIcons.File02) },
                 )
             }
-            Switch(checked = includeFiles, onCheckedChange = { includeFiles = it })
         }
-
-        if (source != null && target != null) {
-            PreviewCard(source, target, structural)
-        }
-
-        Button(
-            onClick = {
-                val current = source ?: return@Button
-                controller.push(
-                    sourcePackage = current.build.packageName,
-                    snapshotId = current.snapshot.id,
-                    targetPackage = targetPackage,
-                    mode = mode,
-                    includeFiles = includeFiles,
+        item {
+            HubCardGroup(title = "执行") {
+                item(
+                    onClick = chosenSource?.let { src ->
+                        chosenTarget?.takeIf { it.supported && !it.pendingRestore && !busy }?.let { tgt ->
+                            {
+                                controller.push(
+                                    sourcePackage = src.build.packageName,
+                                    snapshotId = src.snapshot.id,
+                                    targetPackage = tgt.packageName,
+                                    mode = mode,
+                                    includeFiles = includeFiles,
+                                )
+                            }
+                        }
+                    },
+                    headlineContent = { Text("开始同步") },
+                    supportingContent = { Text(hint) },
+                    leadingContent = { HubActionIcon(HugeIcons.Refresh01, loading = busy) },
                 )
-            },
-            enabled = source != null && target != null && state.busyLabel == null,
-        ) {
-            Text(if (state.busyLabel == null) "开始同步" else state.busyLabel.orEmpty())
-        }
-
-        if (state.log.isNotEmpty()) {
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("过程", style = MaterialTheme.typography.titleSmall)
-                    HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                    state.log.takeLast(10).forEach { line ->
-                        Text(
-                            line,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                formItem(visible = state.log.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        state.log.forEach { line ->
+                            Text(
+                                line,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun PreviewCard(source: SourceOption, target: BuildUi, structural: Boolean) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("将要投递", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "会话 ${source.snapshot.conversations} · 消息 ${source.snapshot.messages} · " +
-                    "库 ${source.snapshot.schemaVersion}",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "目标现有会话 ${target.counts["ConversationEntity"] ?: 0} · " +
-                    "消息 ${target.counts["message_node"] ?: 0}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                if (structural) {
-                    "结构不同：v${source.snapshot.schemaVersion} → v${target.schemaVersion}，会先换算再投递。"
-                } else {
-                    "两边结构一致，直接搬运。"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (structural) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    onSelect: (String) -> Unit,
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    Box {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = options.isNotEmpty(),
-        ) {
-            Text(
-                "$label：$value",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (key, text) ->
-                DropdownMenuItem(
-                    text = { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    onClick = {
-                        expanded = false
-                        onSelect(key)
-                    },
-                )
-            }
-        }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }
