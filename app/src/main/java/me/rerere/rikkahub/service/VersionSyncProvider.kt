@@ -14,7 +14,6 @@ import androidx.core.os.BundleCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -60,12 +59,6 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
     override fun onCreate(): Boolean {
         runCatching { cacheDir.deleteRecursively() }
         return true
-    }
-
-    override fun onShutdown() {
-        scope.cancel()
-        runCatching { cacheDir.deleteRecursively() }
-        super.onShutdown()
     }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
