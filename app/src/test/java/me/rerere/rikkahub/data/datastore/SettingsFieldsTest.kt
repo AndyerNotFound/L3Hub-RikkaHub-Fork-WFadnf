@@ -214,6 +214,7 @@ private val SAMPLE = Settings(
     sshServerPort = 2223,
     sshServerAllowLan = true,
     backupReminderConfig = BackupReminderConfig(enabled = true),
+    backupFormat = "FULL",
     sponsorAlertDismissedAt = 7,
 )
 
@@ -286,5 +287,6 @@ private val STORED_KEYS = setOf(
     "quick_messages",
     "guide_messages",
     "backup_reminder_config",
+    "backup_format",
     "sponsor_alert_dismissed_at",
 )
