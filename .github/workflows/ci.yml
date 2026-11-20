@@ -22,6 +22,10 @@ jobs:
         with:
           submodules: recursive
 
+      # 大文件只许变短：名单见 tools/file-budget.txt，超一行就红，别等拆完才发现又长回去了
+      - name: File budget
+        run: tools/check-file-budget.sh
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

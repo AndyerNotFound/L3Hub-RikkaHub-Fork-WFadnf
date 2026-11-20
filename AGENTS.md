@@ -28,6 +28,9 @@ Material 3 look (cards with dividers, plain forms).
   `formItem` in `if`: a conditionally registered item never reaches `items`, so it never goes through
   `MotionExpandCollapse` and pops in or out in a single frame while the neighbours' corner radii are still
   animating.
+- A page file is assembly only. Chat-page behavior belongs in its region file (composer, overlays, pickers, list);
+  `tools/file-budget.txt` records the current ceiling of every file above 800 lines and CI fails when one grows.
+  Split first, then add.
 
 ## Build, Test, and Development Commands
 
