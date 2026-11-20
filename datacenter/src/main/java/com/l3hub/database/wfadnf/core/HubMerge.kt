@@ -44,7 +44,7 @@ object HubMerge {
                     try {
                         applyTombstones(database)
                         val restored = collectConversationIds(database)
-                        val refreshed = count(database, "temp", "refreshed_conversations")
+                        val refreshed = count(database, "temp", "refreshed_conversations").toInt()
                         dropRefreshedConversations(database)
                         database.execSQL(
                             "INSERT OR IGNORE INTO main.`ConversationEntity` " +
@@ -64,7 +64,7 @@ object HubMerge {
                         mergeUsageRecords(database)
                         mergeTombstones(database)
                         database.setTransactionSuccessful()
-                        val nodes = count(database, "delta", "message_node")
+                        val nodes = count(database, "delta", "message_node").toInt()
                         return MergeSummary(restored, refreshed, nodes)
                     } finally {
                         database.endTransaction()
