@@ -1,80 +1,34 @@
 package me.rerere.rikkahub.ui.components.ai.completion
 
+import me.rerere.rikkahub.data.workspace.GitIgnoreMatcher
+import me.rerere.rikkahub.data.workspace.GitIgnoreRule
+
+/**
+ * 补全索引用的 .gitignore 匹配器。
+ *
+ * 规则解析与匹配语义复用检索工具同一套实现 [GitIgnoreMatcher]，这里只负责：
+ * 把补全场景的「相对路径」规则逐目录累积成一份规则列表，并补上默认忽略集。
+ * 补全的 directory 与候选 entry.path 都是相对工作区文件区的路径，基准一致，
+ * 可以直接交给 GitIgnoreMatcher 按同一基准求值。
+ */
 internal class WorkspaceIgnoreMatcher private constructor(
-    private val rules: List<Rule> = DEFAULT_RULES,
+    private val rules: List<GitIgnoreRule> = DEFAULT_RULES,
 ) {
     constructor() : this(DEFAULT_RULES)
 
     fun withGitignore(directory: String, content: String): WorkspaceIgnoreMatcher {
         val basePath = directory.normalizeWorkspacePath()
-        val parsed = content
-            .lineSequence()
-            .mapNotNull { line -> Rule.parse(basePath, line) }
-            .toList()
+        val parsed = GitIgnoreMatcher.parse(basePath, content)
         return if (parsed.isEmpty()) this else WorkspaceIgnoreMatcher(rules + parsed)
     }
 
     fun isIgnored(path: String, isDirectory: Boolean): Boolean {
         val normalized = path.normalizeWorkspacePath()
-        var ignored = false
-        rules.forEach { rule ->
-            if (rule.matches(normalized, isDirectory)) {
-                ignored = !rule.negated
-            }
-        }
-        return ignored
-    }
-
-    private data class Rule(
-        val basePath: String,
-        val pattern: String,
-        val regex: Regex,
-        val negated: Boolean,
-        val directoryOnly: Boolean,
-        val anchored: Boolean,
-        val hasSlash: Boolean,
-    ) {
-        fun matches(path: String, isDirectory: Boolean): Boolean {
-            if (directoryOnly && !isDirectory) return false
-            val relative = path.relativeToBaseOrNull(basePath) ?: return false
-            if (relative.isBlank()) return false
-            val target = if (anchored || hasSlash) relative else relative.substringAfterLast('/')
-            return regex.matches(target)
-        }
-
-        companion object {
-            fun parse(basePath: String, rawLine: String): Rule? {
-                var line = rawLine.trim()
-                if (line.isEmpty() || line.startsWith("#")) return null
-                if (line.startsWith("\\#") || line.startsWith("\\!")) {
-                    line = line.drop(1)
-                }
-
-                val negated = line.startsWith("!")
-                if (negated) line = line.drop(1).trim()
-                if (line.isBlank()) return null
-
-                val directoryOnly = line.endsWith("/")
-                val anchored = line.startsWith("/")
-                val pattern = line
-                    .trim('/')
-                    .takeIf { it.isNotBlank() }
-                    ?: return null
-                val hasSlash = pattern.contains('/')
-                return Rule(
-                    basePath = basePath,
-                    pattern = pattern,
-                    regex = pattern.toGitignoreRegex(),
-                    negated = negated,
-                    directoryOnly = directoryOnly,
-                    anchored = anchored,
-                    hasSlash = hasSlash,
-                )
-            }
-        }
+        return GitIgnoreMatcher.isIgnored(rules, normalized, isDirectory)
     }
 
     companion object {
+        // 与补全场景一致的基准：规则挂在空基目录上，匹配任意相对路径
         private val DEFAULT_RULES = listOf(
             "build/",
             ".gradle/",
@@ -82,56 +36,9 @@ internal class WorkspaceIgnoreMatcher private constructor(
             "node_modules/",
             "dist/",
             "out/",
-        ).mapNotNull { Rule.parse(basePath = "", rawLine = it) }
+        ).let { content -> GitIgnoreMatcher.parse("", content.joinToString("\n")) }
     }
 }
 
 private fun String.normalizeWorkspacePath(): String =
     replace('\\', '/').trim().trim('/')
-
-private fun String.relativeToBaseOrNull(basePath: String): String? {
-    if (basePath.isBlank()) return this
-    if (this == basePath) return ""
-    val prefix = "$basePath/"
-    return if (startsWith(prefix)) removePrefix(prefix) else null
-}
-
-private fun String.toGitignoreRegex(): Regex {
-    val result = StringBuilder()
-    var index = 0
-    while (index < length) {
-        val char = this[index]
-        when (char) {
-            '*' -> {
-                val nextIsStar = getOrNull(index + 1) == '*'
-                if (nextIsStar) {
-                    val followedBySlash = getOrNull(index + 2) == '/'
-                    if (followedBySlash) {
-                        result.append("(?:.*/)?")
-                        index += 3
-                    } else {
-                        result.append(".*")
-                        index += 2
-                    }
-                } else {
-                    result.append("[^/]*")
-                    index++
-                }
-            }
-
-            '?' -> {
-                result.append("[^/]")
-                index++
-            }
-
-            else -> {
-                if (char in REGEX_SPECIAL_CHARS) result.append('\\')
-                result.append(char)
-                index++
-            }
-        }
-    }
-    return Regex("^$result$")
-}
-
-private const val REGEX_SPECIAL_CHARS = "\\.[]{}()+-^$|"

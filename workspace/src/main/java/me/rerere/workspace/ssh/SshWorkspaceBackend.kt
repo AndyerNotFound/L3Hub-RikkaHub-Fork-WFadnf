@@ -8,6 +8,7 @@ import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceConfig
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
+import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.shellQuote
 import java.io.ByteArrayInputStream
