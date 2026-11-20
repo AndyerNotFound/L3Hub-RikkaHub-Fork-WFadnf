@@ -66,6 +66,10 @@ class HubController private constructor(private val context: Context) {
 
     val state: StateFlow<HubUiState> = _state.asStateFlow()
 
+    /** 正在等系统文件选择器返回的导出请求；界面被重建后靠它接上下一次回调 */
+    @Volatile
+    var pendingExport: ExportRequest? = null
+
     init {
         scope.launch {
             store.index.collect { publish() }
@@ -203,9 +207,6 @@ class HubController private constructor(private val context: Context) {
 
     fun snapshotDatabase(packageName: String, snapshotId: String): File =
         store.databaseFile(packageName, snapshotId)
-
-    fun snapshotSchema(packageName: String, snapshotId: String): PeerSchema? =
-        store.readSchema(packageName, snapshotId)
 
     fun mirrorFolders(packageName: String): List<MirrorFolder> =
         HubMirror.folders(store.mirrorDir(packageName))

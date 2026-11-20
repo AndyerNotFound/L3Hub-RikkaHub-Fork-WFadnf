@@ -85,25 +85,25 @@ fun SyncScreen(state: HubUiState, controller: HubController) {
         item {
             HubCardGroup(title = "源快照") {
                 formItem(visible = sources.isEmpty()) { HubNote("还没有快照。到「构建」页拉一份。") }
-                sources.forEach { item ->
+                sources.forEach { entry ->
                     item(
-                        onClick = { sourceKey = item.key },
+                        onClick = { sourceKey = entry.key },
                         headlineContent = {
                             Text(
-                                "${item.build.label} · ${item.snapshot.createdAt.formatTime()}",
+                                "${entry.build.label} · ${entry.snapshot.createdAt.formatTime()}",
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         },
                         supportingContent = {
                             Text(
-                                "库 v${item.snapshot.schemaVersion} · 会话 ${item.snapshot.conversations} · " +
-                                    "${SyncEngine.formatBytes(item.snapshot.databaseBytes)}",
+                                "库 v${entry.snapshot.schemaVersion} · 会话 ${entry.snapshot.conversations} · " +
+                                    "${SyncEngine.formatBytes(entry.snapshot.databaseBytes)}",
                             )
                         },
                         leadingContent = { HubCardIcon(HugeIcons.Clock01) },
                         trailingContent = {
-                            if (source?.key == item.key) HubStatusPill("已选") else null
+                            if (source?.key == entry.key) HubStatusPill("已选") else null
                         },
                     )
                 }

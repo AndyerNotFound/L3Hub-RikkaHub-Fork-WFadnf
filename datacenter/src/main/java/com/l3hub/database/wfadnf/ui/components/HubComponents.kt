@@ -2,6 +2,8 @@ package com.l3hub.database.wfadnf.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,9 +75,9 @@ fun HubCardGroup(
 ) {
     val scope = HubCardGroupScopeImpl()
     scope.content()
-    val items = scope.items.filter { it.visible }
     Column(modifier = modifier) {
-        if (title != null && items.isNotEmpty()) {
+        val count = scope.items.count { it.visible }
+        if (title != null && count > 0) {
             ProvideTextStyle(MaterialTheme.typography.titleSmall) {
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
                     Box(Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)) {
@@ -84,9 +86,24 @@ fun HubCardGroup(
                 }
             }
         }
-        items.forEachIndexed { index, item ->
-            HubCardGroupItem(item = item, count = items.size, index = index)
-            if (index != items.lastIndex) Spacer(Modifier.height(GroupItemSpacing))
+        // 收起的条目仍然参与排版，交给 AnimatedVisibility 收放；直接过滤掉会让相邻条目的
+        // 圆角在一帧里跳到位，也会让 remember 出来的按压状态错位到下一行
+        var visibleIndex = 0
+        scope.items.forEach { item ->
+            val index = if (item.visible) visibleIndex++ else (count - 1).coerceAtLeast(0)
+            AnimatedVisibility(
+                visible = item.visible,
+                enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                    fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                    fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                Column {
+                    HubCardGroupItem(item = item, count = count, index = index)
+                    // 间距放在动画里面，跟着条目一起缩
+                    if (index != count - 1) Spacer(Modifier.height(GroupItemSpacing))
+                }
+            }
         }
     }
 }

@@ -2,6 +2,8 @@ package com.l3hub.database.wfadnf.core
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /** 数据中心自己的索引；库文件都在 files/hub 下，索引只记元数据 */
 @Serializable
@@ -76,6 +78,28 @@ data class DbStats(
     val identityHash: String?,
     val lastUpdateAt: Long,
 )
+
+/**
+ * 一次「导出数据库」的请求。
+ *
+ * 放在核心层而不是界面里：选位置要经过系统文件选择器，界面可能在那期间被重建，
+ * 请求记在 [HubController] 上才不会丢。
+ */
+data class ExportRequest(
+    val packageName: String,
+    val snapshotId: String?,
+    val label: String,
+) {
+    fun fileName(): String {
+        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val base = label.replace(NON_FILE_CHARS, "-").trim('-').ifBlank { "l3hub" }
+        return "${base}_rikka_hub_$stamp.db"
+    }
+
+    private companion object {
+        val NON_FILE_CHARS = Regex("[^A-Za-z0-9._-]+")
+    }
+}
 
 internal val HubJson = Json {
     encodeDefaults = true

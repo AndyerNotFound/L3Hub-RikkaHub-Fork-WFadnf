@@ -81,7 +81,9 @@ class PeerClient(private val context: Context) {
             if (packageName in known) return@mapNotNull build
             // 未知包可能是别的应用恰好导出了同名后缀的 provider：只有答上 ping 且自报包名对得上才算数
             val ready = build as? Build.Ready ?: return@mapNotNull null
-            build.takeIf { ready.reportedPackage == packageName && ready.protocol > 0 }
+            // 老构建可能不在 ping 里报包名：留空放过，报了却对不上就不认
+            val nameMatches = ready.reportedPackage.isBlank() || ready.reportedPackage == packageName
+            build.takeIf { nameMatches && ready.protocol > 0 }
         }
     }
 

@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import com.l3hub.database.wfadnf.core.ExportRequest
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.ui.components.HubNote
 import com.l3hub.database.wfadnf.ui.components.HubPillTabs
@@ -45,28 +46,9 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Repeat
 import me.rerere.hugeicons.stroke.SmartPhone01
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /** 「数据库」页的当前数据源；[snapshotId] 为空表示看运行中的库（只有结构，没有内容） */
 data class DbSelection(val packageName: String, val snapshotId: String? = null)
-
-/** 一次导出请求：快照直接复制，运行中的库先拉一份快照再复制 */
-data class DbExportRequest(
-    val packageName: String,
-    val snapshotId: String?,
-    val label: String,
-) {
-    fun fileName(): String {
-        val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-        val base = label.replace(NON_FILE_CHARS, "-").trim('-').ifBlank { "l3hub" }
-        return "${base}_rikka_hub_$stamp.db"
-    }
-
-    private companion object {
-        val NON_FILE_CHARS = Regex("[^A-Za-z0-9._-]+")
-    }
-}
 
 private val hubTabs = listOf(
     HubTabSpec("构建", HugeIcons.SmartPhone01),
@@ -83,14 +65,14 @@ fun HubApp(controller: HubController) {
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState { hubTabs.size }
     var database by remember { mutableStateOf<DbSelection?>(null) }
-    var pendingExport by remember { mutableStateOf<DbExportRequest?>(null) }
 
     // 选完位置才真正开始导出：文件名先按构建与时间生成，回调里只认那一次请求
     val createDocument = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
     ) { uri ->
-        val request = pendingExport
-        pendingExport = null
+        // 请求记在控制器上：选位置期间界面被重建，回调仍然接得上
+        val request = controller.pendingExport
+        controller.pendingExport = null
         if (uri != null && request != null) {
             if (request.snapshotId != null) {
                 controller.exportSnapshot(request.packageName, request.snapshotId, uri)
@@ -99,8 +81,8 @@ fun HubApp(controller: HubController) {
             }
         }
     }
-    val requestExport: (DbExportRequest) -> Unit = { request ->
-        pendingExport = request
+    val requestExport: (ExportRequest) -> Unit = { request ->
+        controller.pendingExport = request
         createDocument.launch(request.fileName())
     }
     val openDatabase: (DbSelection) -> Unit = { selection ->

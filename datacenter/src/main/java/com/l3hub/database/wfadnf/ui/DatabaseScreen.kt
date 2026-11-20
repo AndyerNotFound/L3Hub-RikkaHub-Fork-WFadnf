@@ -30,8 +30,10 @@ import com.l3hub.database.wfadnf.core.BuildUi
 import com.l3hub.database.wfadnf.core.DbAttachment
 import com.l3hub.database.wfadnf.core.DbConversation
 import com.l3hub.database.wfadnf.core.DbInspector
+import com.l3hub.database.wfadnf.core.DbObjectInfo
 import com.l3hub.database.wfadnf.core.DbSummary
 import com.l3hub.database.wfadnf.core.DbTableInfo
+import com.l3hub.database.wfadnf.core.ExportRequest
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.core.HubUiState
 import com.l3hub.database.wfadnf.core.MirrorFolder
@@ -55,6 +57,7 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Tools
 
 private const val DB_LIST_LIMIT = 300
+private const val ATTACHMENT_LIST_LIMIT = 500
 
 /**
  * 「数据库」页：先选数据源（运行中的库或某一份快照），再看结构、会话、附件。
@@ -68,7 +71,7 @@ fun DatabaseScreen(
     controller: HubController,
     selection: DbSelection?,
     onSelect: (DbSelection) -> Unit,
-    onExport: (DbExportRequest) -> Unit,
+    onExport: (ExportRequest) -> Unit,
 ) {
     val context = LocalContext.current
     val build = state.builds.firstOrNull { it.packageName == selection?.packageName }
@@ -98,16 +101,23 @@ fun DatabaseScreen(
         }
         loading = true
         val file = sel.snapshotId?.let { id -> controller.snapshotDatabase(sel.packageName, id) }
-        withContext(Dispatchers.IO) {
-            mirror = runCatching { controller.mirrorFolders(sel.packageName) }.getOrDefault(emptyList())
-            if (file == null || !file.isFile) return@withContext
-            runCatching { DbInspector.summary(context, file) }
-                .onSuccess { summary = it }
-                .onFailure { failure = it.message ?: it.javaClass.simpleName }
-            runCatching { DbInspector.conversations(context, file) }.onSuccess { conversations = it }
-            runCatching { DbInspector.attachments(context, file) }.onSuccess { attachments = it }
+        try {
+            withContext(Dispatchers.IO) {
+                mirror = runCatching { controller.mirrorFolders(sel.packageName) }.getOrDefault(emptyList())
+                if (file == null || !file.isFile) {
+                    if (sel.snapshotId != null) failure = "快照文件缺失，可能已被清理"
+                    return@withContext
+                }
+                runCatching { DbInspector.summary(context, file) }
+                    .onSuccess { summary = it }
+                    .onFailure { failure = it.message ?: it.javaClass.simpleName }
+                runCatching { DbInspector.conversations(context, file) }.onSuccess { conversations = it }
+                runCatching { DbInspector.attachments(context, file, ATTACHMENT_LIST_LIMIT) }
+                    .onSuccess { attachments = it }
+            }
+        } finally {
+            loading = false
         }
-        loading = false
     }
 
     val liveSchema = if (selection != null && snapshot == null) build?.schema else null
@@ -121,7 +131,9 @@ fun DatabaseScreen(
                 sql = objectInfo.sql,
             )
         }
-    val others = summary?.others ?: liveSchema?.objects.orEmpty().filter { it.type != "table" }
+    val others: List<DbObjectInfo> = summary?.others ?: liveSchema?.objects.orEmpty()
+        .filter { it.type != "table" }
+        .map { objectInfo -> DbObjectInfo(objectInfo.type, objectInfo.name, objectInfo.sql) }
     val schemaVersion = summary?.schemaVersion ?: liveSchema?.schemaVersion ?: 0
     val pageSize = summary?.pageSize ?: liveSchema?.pageSize ?: 0
     val databaseBytes = summary?.bytes ?: liveSchema?.databaseBytes ?: 0L
@@ -172,7 +184,7 @@ fun DatabaseScreen(
                     onClick = selection?.let { current ->
                         {
                             onExport(
-                                DbExportRequest(
+                                ExportRequest(
                                     packageName = current.packageName,
                                     snapshotId = current.snapshotId,
                                     label = build?.label ?: current.packageName,
@@ -289,7 +301,7 @@ fun DatabaseScreen(
                     formItem(visible = attachments.isEmpty() && mirror.isEmpty()) {
                         HubNote("这份快照没有登记附件，镜像里也没有文件。")
                     }
-                    attachments.take(DB_LIST_LIMIT).forEach { attachment ->
+                    attachments.forEach { attachment ->
                         item(
                             headlineContent = {
                                 Text(
@@ -304,8 +316,8 @@ fun DatabaseScreen(
                             leadingContent = { HubCardIcon(HugeIcons.Image02) },
                         )
                     }
-                    formItem(visible = attachments.size >= DB_LIST_LIMIT) {
-                        HubNote("只列最近 $DB_LIST_LIMIT 条附件登记。")
+                    formItem(visible = attachments.size >= ATTACHMENT_LIST_LIMIT) {
+                        HubNote("只列最近 $ATTACHMENT_LIST_LIMIT 条附件登记。")
                     }
                     mirror.forEach { folder ->
                         item(

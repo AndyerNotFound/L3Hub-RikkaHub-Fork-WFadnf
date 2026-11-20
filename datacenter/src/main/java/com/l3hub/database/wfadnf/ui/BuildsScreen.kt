@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.l3hub.database.wfadnf.core.BuildUi
+import com.l3hub.database.wfadnf.core.ExportRequest
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.core.HubUiState
 import com.l3hub.database.wfadnf.core.SyncEngine
@@ -37,7 +38,7 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 fun BuildsScreen(
     state: HubUiState,
     controller: HubController,
-    onExport: (DbExportRequest) -> Unit,
+    onExport: (ExportRequest) -> Unit,
     onOpenDatabase: (DbSelection) -> Unit,
 ) {
     var includeFiles by rememberSaveable { mutableStateOf(false) }
@@ -102,7 +103,7 @@ private fun BuildGroup(
     busy: Boolean,
     includeFiles: Boolean,
     onPull: () -> Unit,
-    onExport: (DbExportRequest) -> Unit,
+    onExport: (ExportRequest) -> Unit,
     onOpenDatabase: (DbSelection) -> Unit,
     onClearMirror: () -> Unit,
 ) {
@@ -154,7 +155,7 @@ private fun BuildGroup(
         )
         item(
             onClick = if (build.installed) {
-                { onExport(DbExportRequest(build.packageName, null, build.label)) }
+                { onExport(ExportRequest(build.packageName, null, build.label)) }
             } else {
                 null
             },

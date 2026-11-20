@@ -54,7 +54,7 @@ class HubStore(private val context: Context) {
     private fun sanitize(index: HubIndex): HubIndex {
         val known = L3HubSyncProtocol.BUILD_PACKAGES.toSet()
         val kept = index.packages.filter { (packageName, record) ->
-            packageName in known || record.snapshots.isNotEmpty()
+            packageName in known || record.snapshots.isNotEmpty() || record.mirrorFiles > 0
         }
         return if (kept.size == index.packages.size) index else index.copy(packages = kept)
     }

@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.l3hub.database.wfadnf.core.BuildUi
+import com.l3hub.database.wfadnf.core.ExportRequest
 import com.l3hub.database.wfadnf.core.HubController
 import com.l3hub.database.wfadnf.core.HubUiState
 import com.l3hub.database.wfadnf.core.SnapshotKind
@@ -45,7 +46,7 @@ private data class SnapshotTarget(val build: BuildUi, val snapshot: SnapshotReco
 fun SnapshotsScreen(
     state: HubUiState,
     controller: HubController,
-    onExport: (DbExportRequest) -> Unit,
+    onExport: (ExportRequest) -> Unit,
     onOpenDatabase: (DbSelection) -> Unit,
 ) {
     var sheet by remember { mutableStateOf<SnapshotTarget?>(null) }
@@ -101,7 +102,7 @@ fun SnapshotsScreen(
             onDismiss = { sheet = null },
             onExport = {
                 sheet = null
-                onExport(DbExportRequest(target.build.packageName, target.snapshot.id, target.build.label))
+                onExport(ExportRequest(target.build.packageName, target.snapshot.id, target.build.label))
             },
             onOpenDatabase = {
                 sheet = null
