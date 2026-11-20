@@ -82,7 +82,7 @@ data class WorkspaceLayout(
             WorkspaceStorageArea.FILES -> workspaceDir
             WorkspaceStorageArea.LINUX -> "/"
         }
-        return WorkspacePaths.join(root, path) ?: error("Path escapes the workspace root: $path")
+        return WorkspacePaths.join(root, path) ?: throw IllegalArgumentException("Path escapes the workspace root: $path")
     }
 
     /** 文件区内的绝对路径转成相对文件区的路径, 不在文件区内时原样返回 */

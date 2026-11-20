@@ -241,14 +241,14 @@ class SshWorkspaceBackend(
 
     private fun resolve(area: WorkspaceStorageArea, path: String): String {
         val root = areaRoot(area)
-        return WorkspacePaths.join(root, path) ?: error("Path escapes workspace root: $path")
+        return WorkspacePaths.join(root, path) ?: throw IllegalArgumentException("Path escapes workspace root: $path")
     }
 
     private fun relativePath(area: WorkspaceStorageArea, path: String): String =
         WorkspacePaths.relativeTo(areaRoot(area), path) ?: path
 
     private fun requireAbsolute(path: String): String =
-        WorkspacePaths.normalize(path) ?: error("Path must be an absolute path: $path")
+        WorkspacePaths.normalize(path) ?: throw IllegalArgumentException("Path must be an absolute path: $path")
 
     companion object {
         private const val SCAN_TIMEOUT_MS = 10_000L
@@ -256,7 +256,7 @@ class SshWorkspaceBackend(
         /** 不需要连接即可得到的目录约定, 供界面展示路径使用 */
         fun layoutOf(remoteDir: String): WorkspaceLayout {
             val workspaceDir = WorkspacePaths.normalize(remoteDir)
-                ?: error("Remote directory must be an absolute path: $remoteDir")
+                ?: throw IllegalArgumentException("Remote directory must be an absolute path: $remoteDir")
             return WorkspaceLayout(
                 workspaceDir = workspaceDir,
                 writableRoots = listOf(workspaceDir, "/tmp"),

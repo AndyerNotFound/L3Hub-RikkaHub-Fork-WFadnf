@@ -174,7 +174,7 @@ class WorkspaceFileSystem(
     private fun resolvePath(root: File, path: String): File {
         root.mkdirs()
         require(!path.contains('\u0000')) { "Path contains invalid character" }
-        return HostPaths.resolve(root, path) ?: error("Path escapes workspace root: $path")
+        return HostPaths.resolve(root, path) ?: throw IllegalArgumentException("Path escapes workspace root: $path")
     }
 
     fun resolve(root: File, path: String): File = resolvePath(root, path)
