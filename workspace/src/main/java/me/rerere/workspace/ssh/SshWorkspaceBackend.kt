@@ -10,6 +10,8 @@ import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.fileTooLargeCause
+import me.rerere.workspace.readBoundedWorkspaceFile
 import me.rerere.workspace.shellQuote
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -36,7 +38,7 @@ class SshWorkspaceBackend(
     override fun shell(): String = pool.use(id, config, retry = true) { it.shell }
 
     override fun listFiles(area: WorkspaceStorageArea, path: String): List<WorkspaceFileEntry> {
-        val dir = resolve(area, path)
+        val dir = layout.absolutePath(area, path)
         // ls 内部会先 stat 目标目录, 这里不再多 stat 一次
         val entries = try {
             withSftp(area, retry = true) { sftp ->
@@ -85,7 +87,7 @@ class SshWorkspaceBackend(
     }
 
     override fun readText(path: String): String {
-        val file = resolve(WorkspaceStorageArea.FILES, path)
+        val file = layout.absolutePath(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = true) { sftp ->
             val size = sftp.requireFile(file, path).size
             require(size <= workspaceConfig.maxReadBytes) { "File is too large to read: $size bytes" }
@@ -99,7 +101,7 @@ class SshWorkspaceBackend(
         require(bytes.size <= workspaceConfig.maxWriteBytes) {
             "Content is too large to write: ${bytes.size} bytes"
         }
-        val file = resolve(WorkspaceStorageArea.FILES, path)
+        val file = layout.absolutePath(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = false) { sftp ->
             sftp.writeBytes(file, bytes, overwrite, path)
                 .toEntry(relativePath(WorkspaceStorageArea.FILES, file), file.fileName())
@@ -113,7 +115,7 @@ class SshWorkspaceBackend(
         inputStream: InputStream,
     ): WorkspaceFileEntry {
         val targetPath = if (destinationPath.isBlank()) fileName else "$destinationPath/$fileName"
-        val file = resolve(area, targetPath)
+        val file = layout.absolutePath(area, targetPath)
         return inputStream.use { input ->
             withSftp(area, retry = false) { sftp ->
                 sftp.mkdirs(file.parentPath())
@@ -125,19 +127,19 @@ class SshWorkspaceBackend(
     }
 
     override fun fileSize(area: WorkspaceStorageArea, path: String): Long {
-        val file = resolve(area, path)
+        val file = layout.absolutePath(area, path)
         return withSftp(area, retry = true) { it.requireFile(file, path).size }
     }
 
     override fun exportFile(area: WorkspaceStorageArea, path: String, outputStream: OutputStream) {
-        val file = resolve(area, path)
+        val file = layout.absolutePath(area, path)
         withSftp(area, retry = false) { sftp -> sftp.export(file, path, outputStream) }
     }
 
     override fun deleteFile(area: WorkspaceStorageArea, path: String, recursive: Boolean): Boolean {
         require(path.isNotBlank() && path != ".") { "Refusing to delete workspace root" }
-        val target = resolve(area, path)
-        require(target != areaRoot(area)) { "Refusing to delete workspace root" }
+        val target = layout.absolutePath(area, path)
+        require(target != layout.rootOf(area)) { "Refusing to delete workspace root" }
         return withSftp(area, retry = false) { sftp ->
             // 用 lstat: 删除指向目录的软链时只删链接本身
             val attrs = try {
@@ -156,17 +158,36 @@ class SshWorkspaceBackend(
         }
     }
 
-    override fun absoluteFileSize(path: String): Long {
-        val file = requireAbsolute(path)
-        return pool.use(id, config, retry = true) { connection ->
-            connection.sftp { it.requireFile(file, path).size }
-        }
-    }
+    override fun absoluteFileSize(path: String): Long =
+        withAbsoluteFile(path, retry = true) { _, _, _, attrs -> attrs.size }
 
-    override fun exportAbsoluteFile(path: String, outputStream: OutputStream) {
+    override fun exportAbsoluteFile(path: String, outputStream: OutputStream) =
+        withAbsoluteFile(path, retry = false) { _, sftp, file, _ ->
+            outputStream.use { sftp.get(file.sftpQuote(), it) }
+        }
+
+    override fun readAbsoluteFile(path: String, maxBytes: Int): ByteArray =
+        withAbsoluteFile(path, retry = false) { connection, sftp, file, attrs ->
+            readBoundedWorkspaceFile(path, attrs.size, maxBytes) { output ->
+                try {
+                    sftp.get(file.sftpQuote(), output)
+                } catch (e: Exception) {
+                    // The transfer stopped mid-stream, so the channel must not be reused.
+                    val limitError = e.fileTooLargeCause() ?: throw e
+                    connection.invalidateSftp()
+                    throw limitError
+                }
+            }
+        }
+
+    private fun <T> withAbsoluteFile(
+        path: String,
+        retry: Boolean,
+        block: (SshConnection, ChannelSftp, String, SftpATTRS) -> T,
+    ): T {
         val file = requireAbsolute(path)
-        pool.use(id, config, retry = false) { connection ->
-            connection.sftp { it.export(file, path, outputStream) }
+        return pool.use(id, config, retry) { connection ->
+            connection.sftp { sftp -> block(connection, sftp, file, sftp.requireFile(file, path)) }
         }
     }
 
@@ -234,18 +255,8 @@ class SshWorkspaceBackend(
             connection.sftp(block)
         }
 
-    private fun areaRoot(area: WorkspaceStorageArea): String = when (area) {
-        WorkspaceStorageArea.FILES -> workspaceDir
-        WorkspaceStorageArea.LINUX -> "/"
-    }
-
-    private fun resolve(area: WorkspaceStorageArea, path: String): String {
-        val root = areaRoot(area)
-        return WorkspacePaths.join(root, path) ?: throw IllegalArgumentException("Path escapes workspace root: $path")
-    }
-
     private fun relativePath(area: WorkspaceStorageArea, path: String): String =
-        WorkspacePaths.relativeTo(areaRoot(area), path) ?: path
+        WorkspacePaths.relativeTo(layout.rootOf(area), path) ?: path
 
     private fun requireAbsolute(path: String): String =
         WorkspacePaths.normalize(path) ?: throw IllegalArgumentException("Path must be an absolute path: $path")

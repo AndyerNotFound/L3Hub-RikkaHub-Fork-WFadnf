@@ -278,14 +278,15 @@ class WorkspaceRepository(
     }
 
     /** 工作区在执行环境内的目录约定, 工作区不存在时返回 null */
-    suspend fun layout(id: String): WorkspaceLayout? = dao.getById(id)?.let { workspace ->
-        // 只需要目录约定, 不解密凭据也不建立连接
+    suspend fun layout(id: String): WorkspaceLayout? = dao.getById(id)?.let { layout(it) }
+
+    /** Derive the layout from an already loaded record without building the backend. */
+    internal fun layout(workspace: WorkspaceEntity): WorkspaceLayout? =
         if (workspace.isSsh()) {
             workspace.sshSettings()?.let { SshWorkspaceBackend.layoutOf(it.remoteDir) }
         } else {
             manager.layout(workspace.extraBindMounts())
         }
-    }
 
     suspend fun listFiles(
         id: String,
@@ -372,8 +373,14 @@ class WorkspaceRepository(
             ?.takeIf { it.isFile }
     }
 
-    /** 执行命令实际使用的 shell 路径 */
-    suspend fun shell(id: String): String = readFromBackend(id) { it.shell() }
+    internal suspend fun shell(workspace: WorkspaceEntity): String =
+        withBackend(workspace, interruptible = true) { it.shell() }
+
+    internal suspend fun readAbsoluteFile(id: String, path: String, maxBytes: Int): ByteArray =
+        readFromBackend(id) { it.readAbsoluteFile(path, maxBytes) }
+
+    internal suspend fun readAbsoluteFile(workspace: WorkspaceEntity, path: String, maxBytes: Int): ByteArray =
+        withBackend(workspace, interruptible = true) { it.readAbsoluteFile(path, maxBytes) }
 
     /** 按环境内绝对路径写入文本; 本地工作区在 Rootfs 内执行 shell 写入, 因此和命令一样支持取消 */
     suspend fun writeAbsoluteText(
@@ -568,17 +575,23 @@ class WorkspaceRepository(
         block: (WorkspaceBackend) -> T,
     ): T {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return if (interruptible) {
-            try {
-                runInterruptible(Dispatchers.IO) { block(backendOf(workspace)) }
-            } catch (e: Exception) {
-                // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
-                currentCoroutineContext().ensureActive()
-                throw e
-            }
-        } else {
-            withContext(Dispatchers.IO) { block(backendOf(workspace)) }
+        return withBackend(workspace, interruptible, block)
+    }
+
+    private suspend fun <T> withBackend(
+        workspace: WorkspaceEntity,
+        interruptible: Boolean,
+        block: (WorkspaceBackend) -> T,
+    ): T = if (interruptible) {
+        try {
+            runInterruptible(Dispatchers.IO) { block(backendOf(workspace)) }
+        } catch (e: Exception) {
+            // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
+            currentCoroutineContext().ensureActive()
+            throw e
         }
+    } else {
+        withContext(Dispatchers.IO) { block(backendOf(workspace)) }
     }
 
     private suspend fun <T> readFromBackend(id: String, block: (WorkspaceBackend) -> T): T =

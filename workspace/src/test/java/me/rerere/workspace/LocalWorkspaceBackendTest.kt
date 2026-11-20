@@ -2,6 +2,7 @@ package me.rerere.workspace
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -77,6 +78,19 @@ class LocalWorkspaceBackendTest {
             File(manager.filesDir(root), "notes/a.txt").canonicalFile,
             backend.localFile(WorkspaceStorageArea.FILES, "notes/a.txt"),
         )
+    }
+
+    @Test
+    fun boundedAbsoluteReadUsesByteLimitForMountedFiles() {
+        val (manager, skillsDir) = createManager()
+        val backend = manager.backend(root)
+        val path = "/skills/demo.md"
+        File(skillsDir, "demo.md").writeText("é好")
+
+        assertEquals("é好", backend.readAbsoluteFile(path, maxBytes = 5).toString(Charsets.UTF_8))
+        assertThrows(WorkspaceFileTooLargeException::class.java) {
+            backend.readAbsoluteFile(path, maxBytes = 4)
+        }
     }
 
     @Test

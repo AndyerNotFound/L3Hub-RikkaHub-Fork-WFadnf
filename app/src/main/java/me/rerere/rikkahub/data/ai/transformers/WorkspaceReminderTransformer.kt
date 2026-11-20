@@ -10,9 +10,8 @@ import me.rerere.rikkahub.data.model.WorkspaceCwd
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceShellStatus
-import java.io.ByteArrayOutputStream
-import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -46,18 +45,20 @@ class WorkspaceReminderTransformer(
                     add(workspace to buildNotReadyPrompt(workspace))
                     return@forEach
                 }
-                val layout = workspaceRepository.layout(workspaceId) ?: return@forEach
-                // 会话里存的是相对路径（旧数据可能是绝对路径）：提示词用绝对路径，AGENTS.md 用相对路径
+                val layout = workspaceRepository.layout(workspace) ?: return@forEach
+                // Resolve the stored directory once for the prompt and instruction lookup.
                 val cwd = WorkspaceCwd.normalize(layout.workspaceDir, ctx.workspaceCwds[workspaceId])
                 // 没设置时提示词里不提工作目录；设置了才拼成执行环境里的绝对路径
                 val cwdPath = cwd?.let { WorkspaceCwd.absolute(layout.workspaceDir, it) }
 
-                val prompt = if (workspace.isSsh()) {
+                val prompt: String
+                val home: String?
+                if (workspace.isSsh()) {
                     val environmentResult = remoteEnvironments.get(workspaceId, workspace.sshConfig) {
                         // shell 探测需要连接, 失败时不再读发行版, 以免再等一次超时
                         RemoteEnvironment(
-                            shell = workspaceRepository.shell(workspaceId),
-                            distro = readDistroName(workspaceId),
+                            shell = workspaceRepository.shell(workspace),
+                            distro = readDistroName(workspace),
                             home = runCatching {
                                 workspaceRepository.executeCommand(
                                     id = workspaceId,
@@ -75,25 +76,25 @@ class WorkspaceReminderTransformer(
                         return@forEach
                     }
                     val environment = environmentResult.getOrThrow()
-                    buildSshWorkspacePrompt(
+                    home = environment.home
+                    prompt = buildSshWorkspacePrompt(
                         workspace = workspace,
                         layout = layout,
                         shell = environment.shell,
                         distro = environment.distro,
                         cwd = cwdPath,
-                    ) + buildAgentsPrompt(
-                        workspaceId,
-                        remoteAgentsPaths(layout, cwd, environment.home),
                     )
                 } else {
-                    buildWorkspacePrompt(
+                    home = WorkspaceManager.ROOTFS_HOME_DIR
+                    prompt = buildWorkspacePrompt(
                         workspace = workspace,
-                        shell = workspaceRepository.shell(workspaceId),
-                        distro = readDistroName(workspaceId),
+                        shell = workspaceRepository.shell(workspace),
+                        distro = readDistroName(workspace),
                         cwd = cwdPath,
-                    ) + buildAgentsPrompt(workspaceId, localAgentsPaths(cwd))
+                    )
                 }
-                add(workspace to prompt)
+                val instructions = buildAgentsPrompt(workspace, workspaceAgentsPaths(layout.workspaceDir, cwdPath, home))
+                add(workspace to (prompt + instructions))
             }
         }
         if (prompts.isEmpty()) return messages
@@ -133,34 +134,9 @@ class WorkspaceReminderTransformer(
         }
     }
 
-    /** 本地 Rootfs：用户级、工作区根、会话当前目录 */
-    private fun localAgentsPaths(cwd: String?): List<String> {
-        // ProotShellRunner 将 HOME 固定为 /root；相对 PWD 按 /workspace 解析。
-        val workingDirectory = Paths.get(WorkspaceManager.ROOTFS_WORKSPACE_DIR)
-            .resolve(cwd?.takeIf { it.isNotBlank() } ?: ".")
-            .normalize()
-        return listOf(
-            "${WorkspaceManager.ROOTFS_HOME_DIR}/.agents/AGENTS.md",
-            "${WorkspaceManager.ROOTFS_WORKSPACE_DIR}/AGENTS.md",
-            workingDirectory.resolve("AGENTS.md").toString(),
-        )
-    }
-
-    /** 远程工作区：远程 home 下的用户级、工作区根、会话当前目录；读不到就是没有 */
-    private fun remoteAgentsPaths(layout: WorkspaceLayout, cwd: String?, home: String?): List<String> {
-        val base = layout.workspaceDir.trimEnd('/').ifBlank { "/" }
-        // cwd 已经是相对工作区的路径，这里只负责拼回执行环境里的绝对路径
-        val workingDirectory = cwd?.let { WorkspaceCwd.absolute(layout.workspaceDir, it) }
-        return listOfNotNull(
-            home?.let { "$it/.agents/AGENTS.md" },
-            "$base/AGENTS.md",
-            workingDirectory?.let { "$it/AGENTS.md" },
-        ).distinct()
-    }
-
-    private suspend fun buildAgentsPrompt(workspaceId: String, paths: Collection<String>): String {
+    private suspend fun buildAgentsPrompt(workspace: WorkspaceEntity, paths: List<String>): String {
         val instructions = paths.mapNotNull { path ->
-            readRootfsText(workspaceId, path, MAX_AGENTS_BYTES)?.let { path to it }
+            readRootfsText(workspace, path, MAX_AGENTS_BYTES)?.let { path to it }
         }
         if (instructions.isEmpty()) return ""
         return buildString {
@@ -177,21 +153,17 @@ class WorkspaceReminderTransformer(
         }
     }
 
-    private suspend fun readDistroName(workspaceId: String): String? =
+    private suspend fun readDistroName(workspace: WorkspaceEntity): String? =
         OS_RELEASE_PATHS.firstNotNullOfOrNull { path ->
-            readRootfsText(workspaceId, path, MAX_OS_RELEASE_BYTES)?.let(::parseOsReleaseName)
+            readRootfsText(workspace, path, MAX_OS_RELEASE_BYTES)?.let(::parseOsReleaseName)
         }
 
-    // 文件不存在、过大或不可读时返回 null, 不影响提示词的其余部分
-    private suspend fun readRootfsText(workspaceId: String, path: String, maxBytes: Long): String? =
+    // Missing, oversized, or unreadable files should not prevent prompt generation.
+    private suspend fun readRootfsText(workspace: WorkspaceEntity, path: String, maxBytes: Int): String? =
         try {
-            val size = workspaceRepository.absoluteFileSize(workspaceId, path)
-            require(size <= maxBytes) { "$path exceeds $maxBytes bytes" }
-            val content = ByteArrayOutputStream().use { output ->
-                workspaceRepository.exportAbsoluteFile(workspaceId, path, output)
-                output.toString(Charsets.UTF_8.name())
-            }
-            content.takeIf { it.isNotBlank() }
+            workspaceRepository.readAbsoluteFile(workspace, path, maxBytes)
+                .toString(Charsets.UTF_8)
+                .takeIf { it.isNotBlank() }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -200,11 +172,19 @@ class WorkspaceReminderTransformer(
         }
 
     private companion object {
-        const val MAX_AGENTS_BYTES = 64L * 1024
-        const val MAX_OS_RELEASE_BYTES = 16L * 1024
+        const val MAX_AGENTS_BYTES = 64 * 1024
+        const val MAX_OS_RELEASE_BYTES = 16 * 1024
         val OS_RELEASE_PATHS = listOf("/etc/os-release", "/usr/lib/os-release")
     }
 }
+
+/** List instruction files from user scope to the current directory. */
+internal fun workspaceAgentsPaths(workspaceDir: String, absoluteCwd: String?, home: String?): List<String> =
+    listOfNotNull(
+        home?.let { WorkspacePaths.join(it, ".agents/AGENTS.md") },
+        WorkspacePaths.join(workspaceDir, "AGENTS.md"),
+        absoluteCwd?.let { WorkspacePaths.join(it, "AGENTS.md") },
+    ).distinct()
 
 /** 远程工作区提示词里描述的执行环境 */
 internal data class RemoteEnvironment(val shell: String, val distro: String?, val home: String? = null)

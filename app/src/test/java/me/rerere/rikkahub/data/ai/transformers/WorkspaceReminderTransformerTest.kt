@@ -10,6 +10,20 @@ import java.io.IOException
 class WorkspaceReminderTransformerTest {
 
     @Test
+    fun `instruction files are ordered from user scope to working directory`() {
+        assertEquals(
+            listOf("/home/user/.agents/AGENTS.md", "/workspace/AGENTS.md", "/workspace/src/AGENTS.md"),
+            workspaceAgentsPaths("/workspace/", "/workspace/src/.", "/home/user/"),
+        )
+    }
+
+    @Test
+    fun `the same instruction file is included once`() {
+        assertEquals(listOf("/AGENTS.md"), workspaceAgentsPaths("/", "//./", home = null))
+        assertEquals(listOf("/workspace/AGENTS.md"), workspaceAgentsPaths("/workspace", null, null))
+    }
+
+    @Test
     fun `os-release should prefer pretty name`() {
         val content = """
             NAME="Alpine Linux"

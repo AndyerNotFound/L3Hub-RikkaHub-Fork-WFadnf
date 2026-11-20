@@ -1,47 +1,110 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import me.rerere.ai.core.InputSchema
+import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceFileTooLargeException
 import org.koin.java.KoinJavaComponent.getKoin
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 
-/**
- * 按环境内绝对路径读文件。路径映射交给工作区后端, 本地工作区由它统一处理
- * /workspace、bind mount 与 Rootfs 内部路径。
- *
- * 与 WorkspaceTools 同包拆开, 只为让工具文件守住行数闸门。
- */
+private const val MAX_READ_FILE_BYTES = 8 * 1024 * 1024
+private const val DEFAULT_READ_LINES = 2000
+private const val MAX_READ_LINES = 5000
 
-private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
-private const val READ_BUFFER_INITIAL_BYTES = 64 * 1024
+private val IMAGE_EXTENSIONS = setOf(
+    "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "heic", "heif", "avif", "ico",
+)
 
-internal suspend fun WorkspaceRepository.readTextInRootfs(
-    workspaceId: String,
-    path: String,
-): String = readRootfsBuffer(workspaceId, path).toString(Charsets.UTF_8.name())
+private fun String.isImagePath(): Boolean =
+    substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS
 
-internal suspend fun WorkspaceRepository.readRootfsBuffer(
-    workspaceId: String,
-    path: String,
-    knownSize: Long? = null,
-): ByteArrayOutputStream {
-    // 目录列表已经给过大小就按它先挡一次; 没给也不再单独 stat, 读的时候按上限截断。
-    // SSH 工作区上每次 stat 都是一趟独立往返, 而拷贝本来就会把字节数带回来。
-    if (knownSize != null) requireReadableSize(path, knownSize)
-    val buffer = SizeLimitedOutputStream(path)
-    exportAbsoluteFile(workspaceId, path, buffer)
-    return buffer
-}
+internal fun createReadFileTool(
+    targets: List<WorkspaceTarget>,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_read_file",
+    description = """
+        Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
+        Use ${targets.first().layout.workspaceDir} for the workspace files area.
+        Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
+        Returns at most `limit` lines starting at `offset` (1-based); check totalLines to page through large files.
+        ${targets.workspaceNote()}
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putWorkspaceProperty(targets)
+                putPathProperty(targets.first().layout, required = true)
+                put("offset", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "1-based line number to start reading from. Defaults to 1.")
+                })
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum number of lines to read. Defaults to $DEFAULT_READ_LINES, max $MAX_READ_LINES.")
+                })
+            },
+            required = listOf("path"),
+        )
+    },
+    needsApproval = { params ->
+        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_read_file") ?: true
+    },
+    isReadOnly = true,
+    execute = {
+        val params = it.jsonObject
+        val target = params.resolveWorkspace(targets)
+        val path = params.absolutePath("path")
+        if (path.isImagePath()) {
+            workspaceRepository.readImageInRootfs(target.id, path)
+        } else {
+            val text = workspaceRepository.readTextInRootfs(target.id, path)
+            val page = pageText(
+                text = text,
+                offset = params.int("offset") ?: 1,
+                limit = params.int("limit") ?: DEFAULT_READ_LINES,
+            )
+            listOf(
+                UIMessagePart.Text(
+                    buildJsonObject {
+                        put("path", path)
+                        put("text", page.text)
+                        put("startLine", page.startLine)
+                        put("endLine", page.endLine)
+                        put("totalLines", page.totalLines)
+                        if (page.truncated) put("truncated", true)
+                        put("workspace", target.name)
+                    }.toString()
+                )
+            )
+        }
+    },
+)
 
-internal suspend fun WorkspaceRepository.readImageInRootfs(
+internal suspend fun WorkspaceRepository.readTextInRootfs(workspaceId: String, path: String): String =
+    readFileForTool(workspaceId, path).toString(Charsets.UTF_8)
+
+private suspend fun WorkspaceRepository.readFileForTool(workspaceId: String, path: String): ByteArray =
+    try {
+        readAbsoluteFile(workspaceId, path, MAX_READ_FILE_BYTES)
+    } catch (e: WorkspaceFileTooLargeException) {
+        throw IOException(
+            "File is too large to read: $path (max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). " +
+                "Use shell commands like head, tail, or grep to read parts of it.",
+            e,
+        )
+    }
+
+private suspend fun WorkspaceRepository.readImageInRootfs(
     workspaceId: String,
     path: String,
 ): List<UIMessagePart> {
-    val bytes = readRootfsBuffer(workspaceId, path).toByteArray()
+    val bytes = readFileForTool(workspaceId, path)
 
     val filesManager = getKoin().get<FilesManager>()
     val uris = filesManager.createChatFilesByByteArrays(listOf(bytes))
@@ -56,35 +119,34 @@ internal suspend fun WorkspaceRepository.readImageInRootfs(
     )
 }
 
-private fun requireReadableSize(path: String, size: Long) {
-    require(size <= MAX_READ_FILE_BYTES) {
-        "File is too large to read: $path (${size / 1024 / 1024}MB, max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). Use shell commands like head, tail, or grep to read parts of it."
-    }
-}
+internal data class PagedText(
+    val text: String,
+    val startLine: Int,
+    val endLine: Int,
+    val totalLines: Int,
+    val truncated: Boolean,
+)
 
-/** 读到上限就中止: 大文件不必整份拉进内存, 也不必为了判断大小先 stat 一次 */
-private class SizeLimitedOutputStream(
-    private val path: String,
-) : ByteArrayOutputStream(READ_BUFFER_INITIAL_BYTES) {
-    private var total = 0
-
-    override fun write(b: Int) {
-        track(1)
-        super.write(b)
+/** 按 1-based 行号切片；offset 超出总行数时返回空文本，不报错 */
+internal fun pageText(text: String, offset: Int, limit: Int): PagedText {
+    val lines = if (text.isEmpty()) {
+        emptyList()
+    } else {
+        text.split('\n').let { parts -> if (parts.last().isEmpty()) parts.dropLast(1) else parts }
     }
+    if (lines.isEmpty()) return PagedText(text = "", startLine = 1, endLine = 0, totalLines = 0, truncated = false)
 
-    override fun write(b: ByteArray, off: Int, len: Int) {
-        track(len)
-        super.write(b, off, len)
+    val start = offset.coerceAtLeast(1)
+    val count = limit.coerceIn(1, MAX_READ_LINES)
+    if (start > lines.size) {
+        return PagedText(text = "", startLine = start, endLine = start - 1, totalLines = lines.size, truncated = false)
     }
-
-    private fun track(len: Int) {
-        total += len
-        if (total > MAX_READ_FILE_BYTES) {
-            throw IOException(
-                "File is too large to read: $path (max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). " +
-                    "Use shell commands like head, tail, or grep to read parts of it."
-            )
-        }
-    }
+    val end = (start + count - 1).coerceAtMost(lines.size)
+    return PagedText(
+        text = lines.subList(start - 1, end).joinToString("\n"),
+        startLine = start,
+        endLine = end,
+        totalLines = lines.size,
+        truncated = end < lines.size,
+    )
 }

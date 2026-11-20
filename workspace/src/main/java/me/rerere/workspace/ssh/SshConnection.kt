@@ -70,6 +70,21 @@ internal class SshConnection private constructor(
         }
     }
 
+    /**
+     * Close the SFTP channel and forget it. An aborted transfer can leave unread replies on the
+     * channel, so the next operation must start from a fresh one. Safe to call while [sftp] holds
+     * the lock on the same thread.
+     */
+    internal fun invalidateSftp() {
+        sftpLock.lock()
+        try {
+            sftpChannel?.let { runCatching { it.disconnect() } }
+            sftpChannel = null
+        } finally {
+            sftpLock.unlock()
+        }
+    }
+
     private fun openSftpChannel(): ChannelSftp {
         val channel = openChannel { session.openChannel("sftp") as ChannelSftp }
         connectChannel(step = { openChannel { channel.connect(channelTimeoutMillis) } }, onAbandoned = channel::disconnect)

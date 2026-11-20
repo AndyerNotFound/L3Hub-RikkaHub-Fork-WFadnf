@@ -60,6 +60,14 @@ class LocalWorkspaceBackend(
         manager.exportRootfsFile(root, path, outputStream, extraMounts)
     }
 
+    override fun readAbsoluteFile(path: String, maxBytes: Int): ByteArray {
+        manager.ensureWorkspace(root)
+        val file = manager.requireReadableRootfsFile(root, path, extraMounts)
+        return readBoundedWorkspaceFile(path, file.length(), maxBytes) { output ->
+            file.inputStream().use { it.copyTo(output) }
+        }
+    }
+
     // 在 Rootfs 内用 shell 写入: Rootfs 里的绝对路径软链只有 PRoot 内才能正确解析
     override fun writeAbsoluteText(path: String, text: String, overwrite: Boolean): WorkspaceFileEntry {
         requireInsideWritableRoot(path)

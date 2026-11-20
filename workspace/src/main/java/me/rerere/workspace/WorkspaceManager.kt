@@ -116,23 +116,13 @@ class WorkspaceManager(
         root: String,
         path: String,
         area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
-    ): Long {
-        val file = fileSystem.resolve(areaDir(root, area), path)
-        require(file.exists()) { "File does not exist: $path" }
-        require(file.isFile) { "Path is not a file: $path" }
-        return file.length()
-    }
+    ): Long = resolveFile(root, path, area).length()
 
     fun resolveFile(
         root: String,
         path: String,
         area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
-    ): File {
-        val file = fileSystem.resolve(areaDir(root, area), path)
-        require(file.exists()) { "File does not exist: $path" }
-        require(file.isFile) { "Path is not a file: $path" }
-        return file
-    }
+    ): File = fileSystem.resolve(areaDir(root, area), path).also { it.requireReadableFile(path) }
 
     fun exportFile(
         root: String,
@@ -140,9 +130,7 @@ class WorkspaceManager(
         area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
         outputStream: OutputStream,
     ) {
-        val file = fileSystem.resolve(areaDir(root, area), path)
-        require(file.exists()) { "File does not exist: $path" }
-        require(file.isFile) { "Path is not a file: $path" }
+        val file = resolveFile(root, path, area)
         outputStream.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
 
@@ -186,7 +174,10 @@ class WorkspaceManager(
     }
 
     fun rootfsFileSize(root: String, path: String, extraMounts: List<WorkspaceBindMount> = emptyList()): Long =
-        resolveRootfsFile(root, path, extraMounts).also { it.requireReadableFile(path) }.length()
+        requireReadableRootfsFile(root, path, extraMounts).length()
+
+    internal fun requireReadableRootfsFile(root: String, path: String, extraMounts: List<WorkspaceBindMount>): File =
+        resolveRootfsFile(root, path, extraMounts).also { it.requireReadableFile(path) }
 
     fun exportRootfsFile(
         root: String,
@@ -194,8 +185,7 @@ class WorkspaceManager(
         outputStream: OutputStream,
         extraMounts: List<WorkspaceBindMount> = emptyList(),
     ) {
-        val file = resolveRootfsFile(root, path, extraMounts)
-        file.requireReadableFile(path)
+        val file = requireReadableRootfsFile(root, path, extraMounts)
         outputStream.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
 

@@ -2,6 +2,7 @@ package me.rerere.workspace.ssh
 
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
+import me.rerere.workspace.WorkspaceFileTooLargeException
 import me.rerere.workspace.WorkspaceStorageArea
 import org.apache.sshd.server.SshServer
 import org.apache.sshd.server.auth.password.PasswordAuthenticator
@@ -260,6 +261,17 @@ class SshWorkspaceBackendTest {
         val systemPath = path.removePrefix("/")
         assertEquals(3L, backend.fileSize(WorkspaceStorageArea.LINUX, systemPath))
         assertEquals(null, backend.localAbsoluteFile(path))
+    }
+
+    @Test
+    fun boundedAbsoluteReadRejectsOversizedFilesAndKeepsConnectionUsable() {
+        val backend = backend()
+        val file = File(remoteDir, "notes.txt").apply { writeText("é好") }
+
+        assertThrows(WorkspaceFileTooLargeException::class.java) {
+            backend.readAbsoluteFile(file.path, maxBytes = 4)
+        }
+        assertEquals("é好", backend.readAbsoluteFile(file.path, maxBytes = 5).toString(Charsets.UTF_8))
     }
 
     @Test

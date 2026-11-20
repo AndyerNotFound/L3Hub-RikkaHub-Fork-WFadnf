@@ -393,7 +393,7 @@ class WorkspaceDetailVM(
     private fun loadWorkspace() {
         viewModelScope.launch {
             val workspace = repository.getById(id)
-            val layout = repository.layout(id)
+            val layout = workspace?.let { repository.layout(it) }
             _state.update { it.copy(workspace = workspace, layout = layout) }
         }
     }

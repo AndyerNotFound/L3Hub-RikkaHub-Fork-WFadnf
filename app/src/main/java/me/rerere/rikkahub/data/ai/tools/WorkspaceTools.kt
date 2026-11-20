@@ -6,12 +6,9 @@ import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
@@ -24,9 +21,6 @@ import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlin.uuid.Uuid
-
-internal const val DEFAULT_READ_LINES = 2000
-internal const val MAX_READ_LINES = 5000
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
@@ -85,14 +79,15 @@ suspend fun createWorkspaceTools(
                 Log.d(TAG, "skip workspace tools: workspace=$id, status=${workspace.shellStatus}")
                 return@mapNotNull null
             }
-            val layout = workspaceRepository.layout(id) ?: return@mapNotNull null
+            val layout = workspaceRepository.layout(workspace) ?: return@mapNotNull null
+            val capabilities = workspace.capabilities()
             WorkspaceTarget(
                 id = id,
                 name = workspace.name,
                 layout = layout,
                 approvalOverrides = workspace.toolApprovalOverrides(),
-                supportsFileWrite = workspace.capabilities().fileWriteTools,
-                supportsBackgroundShell = workspace.capabilities().backgroundShell,
+                supportsFileWrite = capabilities.fileWriteTools,
+                supportsBackgroundShell = capabilities.backgroundShell,
                 executionPermission = executionPermission,
             )
         }
@@ -289,84 +284,13 @@ internal fun editedFileJson(path: String, created: Boolean? = null): JsonObject 
     if (created != null) put("created", created)
 }
 
-private val IMAGE_EXTENSIONS = setOf(
-    "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "heic", "heif", "avif", "ico",
-)
-
-private fun String.isImagePath(): Boolean =
-    substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS
-
-private fun createReadFileTool(
-    targets: List<WorkspaceTarget>,
-    workspaceRepository: WorkspaceRepository,
-) = Tool(
-    name = "workspace_read_file",
-    description = """
-        Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use ${targets.first().layout.workspaceDir} for the workspace files area.
-        Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
-        Returns at most `limit` lines starting at `offset` (1-based); check totalLines to page through large files.
-        ${targets.workspaceNote()}
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = true)
-                put("offset", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "1-based line number to start reading from. Defaults to 1.")
-                })
-                put("limit", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "Maximum number of lines to read. Defaults to $DEFAULT_READ_LINES, max $MAX_READ_LINES.")
-                })
-            },
-            required = listOf("path"),
-        )
-    },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_read_file") ?: true
-    },
-    isReadOnly = true,
-    execute = {
-        val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
-        val path = params.absolutePath("path")
-        if (path.isImagePath()) {
-            workspaceRepository.readImageInRootfs(target.id, path)
-        } else {
-            val text = workspaceRepository.readTextInRootfs(target.id, path)
-            val page = pageText(
-                text = text,
-                offset = params.int("offset") ?: 1,
-                limit = params.int("limit") ?: DEFAULT_READ_LINES,
-            )
-            listOf(
-                UIMessagePart.Text(
-                    buildJsonObject {
-                        put("path", path)
-                        put("text", page.text)
-                        put("startLine", page.startLine)
-                        put("endLine", page.endLine)
-                        put("totalLines", page.totalLines)
-                        if (page.truncated) put("truncated", true)
-                        put("workspace", target.name)
-                    }.toString()
-                )
-            )
-        }
-    },
-)
-
 internal fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull
 
 internal fun kotlinx.serialization.json.JsonObject.absolutePathOrNull(name: String): String? {
     val raw = string(name) ?: return null
-    val path = raw.replace('\\', '/').trim()
-    require(path.isNotBlank()) { "$name is required" }
-    return WorkspacePaths.normalize(path)
+    require(raw.isNotBlank()) { "$name is required" }
+    return WorkspacePaths.normalize(raw)
         ?: error("$name must be an absolute path inside Rootfs: $raw")
 }
 

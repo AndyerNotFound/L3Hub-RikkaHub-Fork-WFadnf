@@ -45,6 +45,9 @@ interface WorkspaceBackend {
 
     fun exportAbsoluteFile(path: String, outputStream: OutputStream)
 
+    /** Read an absolute-path file with a byte limit, including files that grow during the read. */
+    fun readAbsoluteFile(path: String, maxBytes: Int): ByteArray
+
     /** 按环境内绝对路径写入 UTF-8 文本, 父目录不存在时自动创建; 返回的条目 path 为绝对路径 */
     fun writeAbsoluteText(path: String, text: String, overwrite: Boolean): WorkspaceFileEntry
 
@@ -77,12 +80,13 @@ data class WorkspaceLayout(
     val approvalRoots: List<String> = emptyList(),
 ) {
     /** 存储区内的相对路径转成环境内的绝对路径 */
-    fun absolutePath(area: WorkspaceStorageArea, path: String): String {
-        val root = when (area) {
-            WorkspaceStorageArea.FILES -> workspaceDir
-            WorkspaceStorageArea.LINUX -> "/"
-        }
-        return WorkspacePaths.join(root, path) ?: throw IllegalArgumentException("Path escapes the workspace root: $path")
+    fun absolutePath(area: WorkspaceStorageArea, path: String): String =
+        WorkspacePaths.join(rootOf(area), path)
+            ?: throw IllegalArgumentException("Path escapes the workspace root: $path")
+
+    internal fun rootOf(area: WorkspaceStorageArea): String = when (area) {
+        WorkspaceStorageArea.FILES -> workspaceDir
+        WorkspaceStorageArea.LINUX -> "/"
     }
 
     /** 文件区内的绝对路径转成相对文件区的路径, 不在文件区内时原样返回 */

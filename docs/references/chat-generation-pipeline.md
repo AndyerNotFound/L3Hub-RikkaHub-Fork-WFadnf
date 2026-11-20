@@ -151,7 +151,7 @@ onSuccess
   - `AskUser`：向用户提问（需审批）
   - `ScreenTime`：获取屏幕使用时间
 3. **Conversation Tools**（`createConversationTools`）— `enableRecentChatsReference = true` 时，查询历史对话
-4. **Workspace Tools**（`createWorkspaceToolsIfReady`）— Workspace Shell 就绪时注入，含 `workspace_shell`
+4. **Workspace Tools**（`createWorkspaceTools`）— Workspace Shell 就绪时注入，含 `workspace_shell`
 5. **Skill Tools**（`createSkillTools`）— 助手启用的 Skill 列表
 6. **MCP Tools** — 所有已连接 MCP 服务器的工具，命名格式 `mcp__{serverName}__{toolName}`
 7. **Memory Tools**（`buildMemoryTools`，由 `ChatToolFactory` 组装）— `enableMemory = true` 时注册；`enableMemoryWrite = false` 时只注册 `memory_read` / `memory_list`，记忆只读
@@ -232,6 +232,12 @@ app/src/main/java/me/rerere/rikkahub/
         ├── SearchTools.kt
         ├── ConversationTools.kt
         ├── WorkspaceTools.kt
+        ├── WorkspaceFileReads.kt
+        ├── WorkspaceFileWriteTools.kt
+        ├── WorkspaceSearchTools.kt
+        ├── WorkspaceShellTools.kt
+        ├── WorkspaceGitTools.kt
+        ├── WorkspaceTestTools.kt
         ├── SkillsTools.kt
         ├── MemoryTools.kt
         └── local/

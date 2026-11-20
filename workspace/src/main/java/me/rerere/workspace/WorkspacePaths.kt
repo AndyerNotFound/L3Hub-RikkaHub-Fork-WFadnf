@@ -36,7 +36,7 @@ object WorkspacePaths {
         val relative = path.replace('\\', '/').trim().trim('/')
         if (relative.isEmpty()) return base
         val combined = if (base == "/") "/$relative" else "$base/$relative"
-        return normalize(combined)?.takeIf { contains(base, it) }
+        return normalize(combined)?.takeIf { containsNormalized(base, it) }
     }
 
     /**
@@ -51,7 +51,15 @@ object WorkspacePaths {
     }
 
     /** [path] 是否等于 [root] 或落在 [root] 之下; 按目录边界判断, `/a` 不包含 `/ab` */
-    fun contains(root: String, path: String): Boolean = relativeTo(root, path) != null
+    fun contains(root: String, path: String): Boolean {
+        val base = normalize(root) ?: return false
+        val target = normalize(path) ?: return false
+        return containsNormalized(base, target)
+    }
+
+    /** Both paths must already be normalized absolute paths. */
+    private fun containsNormalized(root: String, path: String): Boolean =
+        root == "/" || path == root || (path.startsWith(root) && path.getOrNull(root.length) == '/')
 
     /**
      * [path] 相对 [root] 的路径: 同一个目录返回空串, 不在其中或两者不合法时返回 null。
@@ -59,11 +67,8 @@ object WorkspacePaths {
     fun relativeTo(root: String, path: String): String? {
         val base = normalize(root) ?: return null
         val target = normalize(path) ?: return null
-        return when {
-            target == base -> ""
-            base == "/" -> target.trimStart('/')
-            target.startsWith("$base/") -> target.removePrefix("$base/")
-            else -> null
-        }
+        if (!containsNormalized(base, target)) return null
+        if (target == base) return ""
+        return target.substring(if (base == "/") 1 else base.length + 1)
     }
 }

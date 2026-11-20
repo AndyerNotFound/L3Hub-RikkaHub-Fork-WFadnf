@@ -65,7 +65,7 @@ class WorkspaceCompletionProvider(
     private suspend fun loadWorkspace(id: String): Boolean {
         if (workspaceDir != null) return true
         val workspace = repository.getById(id) ?: return false
-        workspaceDir = repository.layout(id)?.workspaceDir ?: return false
+        workspaceDir = repository.layout(workspace)?.workspaceDir ?: return false
         remote = !workspace.capabilities().localFiles
         relativeCwd = currentCwd.toWorkspaceRelativePath()
         return true

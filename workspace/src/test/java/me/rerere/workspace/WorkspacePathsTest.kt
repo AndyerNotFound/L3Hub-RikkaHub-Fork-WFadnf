@@ -48,6 +48,8 @@ class WorkspacePathsTest {
         assertNull(WorkspacePaths.relativeTo("/workspace", "/workspace-other/a.kt"))
         assertNull(WorkspacePaths.relativeTo("/workspace", "src/a.kt"))
         assertEquals("etc/hostname", WorkspacePaths.relativeTo("/", "/etc/hostname"))
+        assertEquals("", WorkspacePaths.relativeTo("/", "/"))
+        assertEquals("src/a.kt", WorkspacePaths.relativeTo("/workspace/.", "/workspace/src//a.kt"))
     }
 
     @Test

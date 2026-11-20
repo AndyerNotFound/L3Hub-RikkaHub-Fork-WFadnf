@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -25,7 +26,7 @@ private const val MAX_GLOB_RESULTS = 500
 private const val MAX_GREP_RESULTS = 200
 private const val MAX_SEARCH_ENTRIES = 4000
 private const val MAX_SEARCH_DEPTH = 12
-private const val MAX_GREP_FILE_BYTES = 512L * 1024
+private const val MAX_GREP_FILE_BYTES = 512 * 1024
 private const val MAX_GREP_SCANNED_FILES = 800
 private const val MAX_GREP_LINE_CHARS = 400
 
@@ -54,38 +55,6 @@ private const val DEFAULT_PATH_HINT = "the session's current working directory f
 // ---------------------------------------------------------------------------
 
 private data class SearchMatch(val path: String, val line: Int, val text: String)
-
-internal data class PagedText(
-    val text: String,
-    val startLine: Int,
-    val endLine: Int,
-    val totalLines: Int,
-    val truncated: Boolean,
-)
-
-/** 按 1-based 行号切片；offset 超出总行数时返回空文本，不报错 */
-internal fun pageText(text: String, offset: Int, limit: Int): PagedText {
-    val lines = if (text.isEmpty()) {
-        emptyList()
-    } else {
-        text.split('\n').let { parts -> if (parts.last().isEmpty()) parts.dropLast(1) else parts }
-    }
-    if (lines.isEmpty()) return PagedText(text = "", startLine = 1, endLine = 0, totalLines = 0, truncated = false)
-
-    val start = offset.coerceAtLeast(1)
-    val count = limit.coerceIn(1, MAX_READ_LINES)
-    if (start > lines.size) {
-        return PagedText(text = "", startLine = start, endLine = start - 1, totalLines = lines.size, truncated = false)
-    }
-    val end = (start + count - 1).coerceAtMost(lines.size)
-    return PagedText(
-        text = lines.subList(start - 1, end).joinToString("\n"),
-        startLine = start,
-        endLine = end,
-        totalLines = lines.size,
-        truncated = end < lines.size,
-    )
-}
 
 /** 环境内绝对路径落在文件区还是 Rootfs 区；返回值可直接交给 backend.listFiles */
 internal fun resolveStorageArea(layout: WorkspaceLayout, path: String): Pair<WorkspaceStorageArea, String> {
@@ -177,11 +146,15 @@ private suspend fun WorkspaceRepository.readTextForSearch(
     sizeBytes: Long,
 ): String? {
     if (sizeBytes > MAX_GREP_FILE_BYTES) return null
-    val bytes = runCatching { readRootfsBuffer(workspaceId, path, knownSize = sizeBytes) }
-        .getOrNull() ?: return null
-    val array = bytes.toByteArray()
-    if (array.take(4096).any { it == 0.toByte() }) return null
-    return array.toString(Charsets.UTF_8)
+    val bytes = try {
+        readAbsoluteFile(workspaceId, path, MAX_GREP_FILE_BYTES)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        return null
+    }
+    if ((0 until minOf(bytes.size, 4096)).any { bytes[it] == 0.toByte() }) return null
+    return bytes.toString(Charsets.UTF_8)
 }
 
 /** 仓库地图：文件树 + 顶层符号，省掉逐个 read 的往返 */
