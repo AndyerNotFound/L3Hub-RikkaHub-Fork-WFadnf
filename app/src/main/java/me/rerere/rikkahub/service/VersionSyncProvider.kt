@@ -151,7 +151,7 @@ class VersionSyncProvider : ContentProvider(), KoinComponent {
                 SyncBridge.KEY_PENDING_RESTORE,
                 PendingRestore.hasPending(caller) || PendingDelta.hasPending(caller),
             )
-            putInt(SyncBridge.KEY_PROTOCOL, SyncBridge.PROTOCOL_VERSION)
+            putInt(SyncBridge.KEY_PROTOCOL, SyncBridge.ADVERTISED_PROTOCOL)
         }
     }
 
