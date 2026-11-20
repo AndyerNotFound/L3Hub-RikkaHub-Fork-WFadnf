@@ -291,7 +291,7 @@ class VersionSyncClient(
             ?: throw Failure.Remote("The other build did not start an export")
 
         val archive = File.createTempFile("version-sync-", ".zip", context.cacheDir)
-        try {
+        return try {
             val size = awaitExport(peer, token)
             onProgress(Progress.Copying(0, size))
             copyArchive(peer, token, archive, size, onProgress)

@@ -56,7 +56,7 @@ object SyncTombstones {
         if (!tableExists(database)) return
         database.execSQL(
             "INSERT OR REPLACE INTO `$TABLE`(`kind`, `target_id`, `deleted_at`) VALUES (?, ?, ?)",
-            arrayOf(kind, targetId, deletedAt),
+            arrayOf<Any?>(kind, targetId, deletedAt),
         )
     }
 
@@ -70,7 +70,7 @@ object SyncTombstones {
         targetIds.forEach { targetId ->
             database.execSQL(
                 "INSERT OR REPLACE INTO `$TABLE`(`kind`, `target_id`, `deleted_at`) VALUES (?, ?, ?)",
-                arrayOf(kind, targetId, deletedAt),
+                arrayOf<Any?>(kind, targetId, deletedAt),
             )
         }
     }
