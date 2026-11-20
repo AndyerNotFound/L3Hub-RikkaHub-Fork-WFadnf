@@ -176,7 +176,10 @@ jobs:
             echo
             echo '### 这一版'
             echo
-            git log --no-merges --pretty='- %s' -n 20 "${TAG}" -- datacenter syncproto docs/data-center.md \
+            # 只取上一个数据中心 tag 到本 tag 的提交，否则会把历次版本的改动全列一遍
+            prev=$(git describe --tags --abbrev=0 --exclude="${TAG}" --match 'DB-v*' "${TAG}^" 2>/dev/null || true)
+            if [ -n "$prev" ]; then range="${prev}..${TAG}"; else range="${TAG}"; fi
+            git log --no-merges --pretty='- %s' "$range" -- datacenter syncproto docs/data-center.md \
               | grep -vE '^- (ci|test|build)(\(|:)' || echo '- 首个版本'
             echo
             echo '### 安装'
