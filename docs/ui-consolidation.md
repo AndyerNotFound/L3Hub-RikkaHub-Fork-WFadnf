@@ -20,6 +20,7 @@ architecture contract, not a verification report. Build and test results belong 
 | Chat pane state | `ui/pages/chat/ChatPaneHost.kt` | Pane opening, selection, and closing have one owner. |
 | Chat input fields | `ui/components/ai/ChatInputFields.kt` | Full-screen editing remains shared; completion and ordinary input keep their existing behavior. |
 | Model editor | `ui/pages/setting/SettingModelEditorPage.kt` | Model identity, pricing, thresholds, and overrides are not maintained inside the provider page. |
+| Chat page regions | `ui/pages/chat/ChatPage.kt` | The page file assembles regions only; composer, overlays, and pickers live in their own files. |
 | Session loading and draft recovery | `service/ConversationLifecycle.kt` | Loading, creation, and interrupted-turn recovery have one owner; callers do not re-implement `session.initialize`. |
 | Error reporting | `service/ChatErrorSink.kt` | Cancellation is not an error. Pages and the web event stream read the single error flow. |
 | Numeric drafts | `ui/components/ui/NumberSlider.kt` | Local text, committed values, and genuine external updates remain distinct. |

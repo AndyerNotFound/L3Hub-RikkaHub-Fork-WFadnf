@@ -67,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlin.math.roundToInt
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,15 +81,11 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
-import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
-import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -102,18 +100,15 @@ import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
-import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStripDashboard
-import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
-import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
-import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
-import me.rerere.rikkahub.ui.components.ai.rememberModelListState
+import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
 import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
@@ -121,8 +116,6 @@ import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -143,8 +136,6 @@ import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
-import kotlin.math.roundToInt
-import kotlin.uuid.Uuid
 
 @Composable
 fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
@@ -1474,165 +1465,8 @@ private fun ChatPageContent(
     }
 }
 
-@Composable
-private fun ChatFilesPickerSheet(
-    visible: Boolean,
-    inputState: ChatInputState,
-    setting: Settings,
-    conversationState: State<Conversation>,
-    folderWorkspaceName: String?,
-    assistant: Assistant,
-    chatModel: Model?,
-    vm: ChatVM,
-    attachmentPickerActions: ChatAttachmentPickerActions,
-    onStartVoiceMode: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AnimatedModalBottomSheet(
-        visible = visible,
-        onDismissRequest = onDismiss,
-    ) {
-        ChatFilesPickerContent(
-            inputState = inputState,
-            setting = setting,
-            conversationState = conversationState,
-            folderWorkspaceName = folderWorkspaceName,
-            assistant = assistant,
-            chatModel = chatModel,
-            vm = vm,
-            attachmentPickerActions = attachmentPickerActions,
-            onStartVoiceMode = onStartVoiceMode,
-            onDismiss = onDismiss,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-/** 附件、工作区、搜索、扩展这些入口的本体：不含外层弹层，横屏时整块放进右侧栏 */
-@Composable
-internal fun ChatFilesPickerContent(
-    inputState: ChatInputState,
-    setting: Settings,
-    conversationState: State<Conversation>,
-    folderWorkspaceName: String?,
-    assistant: Assistant,
-    chatModel: Model?,
-    vm: ChatVM,
-    attachmentPickerActions: ChatAttachmentPickerActions,
-    onStartVoiceMode: () -> Unit,
-    onDismiss: () -> Unit,
-    // 弹层里保持 wrap：sheet 的高度跟着内容走，别被撑成整屏；侧栏里传 fillMaxSize
-    modifier: Modifier = Modifier,
-) {
-    val conversation = conversationState.value
-    val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-    var showCompressDialog by remember { mutableStateOf(false) }
-
-    fun dismissAll() {
-        showCompressDialog = false
-        onDismiss()
-    }
-
-    Box(modifier = modifier) {
-        FilesPicker(
-            conversation = conversation,
-            folderWorkspaceName = folderWorkspaceName,
-            state = inputState,
-            assistant = assistant,
-            chatModel = chatModel,
-            mcpManager = vm.mcpManager,
-            onCompressContext = vm::handleCompressContext,
-            onUpdateAssistant = vm::updateAssistant,
-            onUpdateWorkspaceCwd = vm::updateWorkspaceCwd,
-            onUpdateSearchMode = { mode ->
-                vm.updateSearch(
-                    enableWebSearch = mode == SearchMode.LOCAL,
-                    builtInSearch = mode == SearchMode.BUILT_IN,
-                )
-            },
-            onToggleSearchService = { id ->
-                vm.updateSettings { latest ->
-                    val defaultId = latest.searchServices
-                        .getOrNull(latest.searchServiceSelected)
-                        ?.id
-                        ?.toString()
-                    val current = latest.enabledSearchServiceIds.ifEmpty {
-                        if (defaultId != null) setOf(defaultId) else emptySet()
-                    }
-                    val next = when {
-                        id !in current -> current + id
-                        current.size > 1 -> current - id
-                        else -> current
-                    }
-                    latest.copy(enabledSearchServiceIds = next)
-                }
-            },
-            showCompressDialog = showCompressDialog,
-            onShowCompressDialogChange = { showCompressDialog = it },
-            onDismiss = { dismissAll() },
-            onTakePic = attachmentPickerActions.onTakePicture,
-            onPickImage = attachmentPickerActions.onPickImage,
-            onPickVideo = attachmentPickerActions.onPickVideo,
-            onPickAudio = attachmentPickerActions.onPickAudio,
-            onPickFile = attachmentPickerActions.onPickFile,
-            onSketch = attachmentPickerActions.onSketch,
-            onStartVoiceMode = if (
-                setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true &&
-                voiceState.phase == VoicePhase.Off
-            ) {
-                {
-                    dismissAll()
-                    focusManager.clearFocus(force = true)
-                    keyboardController?.hide()
-                    onStartVoiceMode()
-                }
-            } else null,
-        )
-    }
-}
-
 // 横屏三栏的整体缩放：0.75 就是整体缩小 25%
 private const val LANDSCAPE_UI_SCALE = 0.75f
 
 // 横屏三栏左栏的宽度（缩放后的 dp）
 private val LANDSCAPE_SIDEBAR_WIDTH = 300.dp
-
-/** 悬浮栏「终端」槽位：绑定了多个工作区时，先让用户挑一个再进终端。 */
-@Composable
-private fun TerminalWorkspacePickerSheet(
-    visible: Boolean,
-    workspaces: List<WorkspaceEntity>,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AnimatedModalBottomSheet(
-        visible = visible,
-        onDismissRequest = onDismiss,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.floating_bar_item_terminal),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
-            CardGroup {
-                workspaces.forEach { workspace ->
-                    item(
-                        onClick = { onSelect(workspace.id) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
-                        supportingContent = { Text(workspace.workspaceDir()) },
-                        headlineContent = { Text(workspace.name) },
-                    )
-                }
-            }
-        }
-    }
-}
