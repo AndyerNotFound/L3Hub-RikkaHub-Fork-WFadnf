@@ -358,7 +358,11 @@ jobs:
             build_apk release "-nolitert" -PnoLitert=true
           fi
           if [ "$BUILD_DEBUG_NOLITERT" = "true" ]; then
-            build_apk debug "-nolitert-debug" -PnoLitert=true
+            # 同一台 runner 上再编一遍，前一次的 daemon 还占着堆；debug 变体没有 R8 收方法体，
+            # Kotlin 后端更容易撞 OOM，先停掉旧 daemon 再单独给它 4g
+            ./gradlew --stop || true
+            pkill -f org.jetbrains.kotlin.daemon.KotlinCompileDaemon || true
+            build_apk debug "-nolitert-debug" -PnoLitert=true -Pkotlin.daemon.jvmargs=-Xmx4g
           fi
 
           ls -l dist
