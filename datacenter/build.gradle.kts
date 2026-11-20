@@ -15,8 +15,8 @@ android {
         applicationId = "com.l3hub.database.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
 
         // 只出真机用的 ABI：requery 的 SQLite 会把四套 .so 一起带进来，不裁的话包体大半是别的架构
         ndk {
@@ -82,6 +82,11 @@ android {
     }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
+        // SQLite 的自定义分词器是按绝对路径 dlopen 的，不走 System.loadLibrary；
+        // 默认的 extractNativeLibs=false 不会把 .so 解到 nativeLibraryDir，运行时必然找不到。
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
