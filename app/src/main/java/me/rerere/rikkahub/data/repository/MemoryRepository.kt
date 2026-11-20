@@ -1,13 +1,17 @@
 package me.rerere.rikkahub.data.repository
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.entity.MemoryFileEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.MemoryFile
+import me.rerere.rikkahub.data.sync.SyncTombstones
 
 sealed interface MemoryWriteResult {
     /** [file] 为 null 表示文件已被删除 */
@@ -25,7 +29,10 @@ sealed interface MemoryWriteResult {
  * 写操作都带 ifVersion 做乐观锁：传 [NEW_FILE_VERSION] 表示新建，传版本号表示基于该版本修改，
  * 传 null 则不校验（用户在界面里直接编辑）。
  */
-class MemoryRepository(private val memoryDAO: MemoryDAO) {
+class MemoryRepository(
+    private val memoryDAO: MemoryDAO,
+    private val database: AppDatabase? = null,
+) {
     companion object {
         const val GLOBAL_MEMORY_ID = "__global__"
         const val NEW_FILE_VERSION = "new"
@@ -96,11 +103,30 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
             return MemoryWriteResult.Conflict(current)
         }
         memoryDAO.deleteFile(assistantId, normalized)
+        database?.let { db ->
+            withContext(Dispatchers.IO) {
+                SyncTombstones.mark(
+                    db.openHelper.writableDatabase,
+                    SyncTombstones.KIND_MEMORY,
+                    assistantId + SyncTombstones.MEMORY_SEPARATOR + normalized,
+                )
+            }
+        }
         MemoryWriteResult.Success(null)
     }
 
     suspend fun deleteFilesOfAssistant(assistantId: String) {
+        val paths = memoryDAO.getFilesOfAssistant(assistantId).map { it.path }
         memoryDAO.deleteFilesOfAssistant(assistantId)
+        database?.let { db ->
+            withContext(Dispatchers.IO) {
+                SyncTombstones.markAll(
+                    db.openHelper.writableDatabase,
+                    SyncTombstones.KIND_MEMORY,
+                    paths.map { assistantId + SyncTombstones.MEMORY_SEPARATOR + it },
+                )
+            }
+        }
     }
 
     suspend fun copyFiles(fromAssistantId: String, toAssistantId: String) {

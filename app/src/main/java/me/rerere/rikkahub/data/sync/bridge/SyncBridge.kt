@@ -12,8 +12,10 @@ import me.rerere.rikkahub.data.sync.RestoreMode
  * 那一方挡在外面，sharedUserId 同样受签名约束。剩下的办法是按 UID 反查包名：包名全设备唯一，
  * 同 UID 的包还必须全部落在 [PACKAGES] 里，才允许调用。
  *
- * 传输的内容就是现有的备份归档：提供服务的一方负责打包与接收，接收侧仍走 BackupManager.stageRestore，
- * 附件路径改写、Keystore 凭据清理、失败回滚都用那一套，这里不另立格式。
+ * 协议 2 起支持增量：先换清单，再按会话的 update_at 水位与文件的 (路径, 大小) 差异取数据，
+ * 只有对端仍是协议 1 的老包时才退回整份归档。两条路最终都落到同一套安装流程：
+ * 归档走 [me.rerere.rikkahub.data.sync.BackupManager.stageRestore]，
+ * 增量走 [me.rerere.rikkahub.data.sync.PendingDelta]，都在下次启动、Room 打开之前生效。
  */
 object SyncBridge {
     const val BASE_PACKAGE = "com.rikkahub.l3hub.wfadnf"
@@ -21,12 +23,18 @@ object SyncBridge {
     /** 允许互相同步的包名；同步的前提是两版装在同一台设备上 */
     val PACKAGES = listOf(BASE_PACKAGE, "$BASE_PACKAGE.debug")
 
+    /** 增量协议版本。对端 ping 返回值低于它时退回整份归档 */
+    const val PROTOCOL_VERSION = 2
+
     // 方法
     const val METHOD_PING = "ping"
     const val METHOD_EXPORT = "export"
     const val METHOD_JOB = "job"
     const val METHOD_IMPORT = "import"
     const val METHOD_CLEANUP = "cleanup"
+    const val METHOD_MANIFEST = "manifest"
+    const val METHOD_EXPORT_DELTA = "exportDelta"
+    const val METHOD_IMPORT_DELTA = "importDelta"
 
     // 参数与返回值的键
     const val KEY_TOKEN = "token"
@@ -38,8 +46,12 @@ object SyncBridge {
     const val KEY_VERSION_CODE = "versionCode"
     const val KEY_SCHEMA_VERSION = "schemaVersion"
     const val KEY_PENDING_RESTORE = "pendingRestore"
+    const val KEY_PROTOCOL = "protocol"
     const val KEY_INCLUDE_DATABASE = "includeDatabase"
     const val KEY_INCLUDE_FILES = "includeFiles"
+    const val KEY_INCLUDE_SETTINGS = "includeSettings"
+    const val KEY_SINCE = "since"
+    const val KEY_PATHS = "paths"
     const val KEY_ARCHIVE = "archive"
     const val KEY_ITEMS = "items"
     const val KEY_MODE = "mode"
@@ -55,6 +67,7 @@ object SyncBridge {
 
     fun endpoint(packageName: String): Uri = Uri.parse("content://${authority(packageName)}")
 
+    /** 取走一份已生成的中转文件：整份归档、清单、增量包或按需文件包都用这条路径 */
     fun exportUri(packageName: String, token: String): Uri =
         Uri.parse("content://${authority(packageName)}/export/$token")
 

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.SavedSshSecrets
@@ -19,6 +20,7 @@ import me.rerere.rikkahub.data.model.SshWorkspaceSettings
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.data.model.dropUndecryptableSecrets
 import me.rerere.rikkahub.data.model.normalizeStorageMountPath
+import me.rerere.rikkahub.data.sync.SyncTombstones
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.SecretCipher
 import me.rerere.workspace.RootfsInstallProgress
@@ -53,6 +55,7 @@ class WorkspaceRepository(
     private val settingsStore: SettingsStore,
     private val sshPool: SshConnectionPool,
     private val folderRepository: FolderRepository,
+    private val database: AppDatabase? = null,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
@@ -433,6 +436,11 @@ class WorkspaceRepository(
     suspend fun delete(id: String): Boolean {
         val workspace = dao.getById(id) ?: return false
         dao.deleteById(id)
+        database?.let { db ->
+            withContext(Dispatchers.IO) {
+                SyncTombstones.mark(db.openHelper.writableDatabase, SyncTombstones.KIND_WORKSPACE, id)
+            }
+        }
         withContext(Dispatchers.IO) {
             sshPool.close(id)
             manager.deleteWorkspace(workspace.root)

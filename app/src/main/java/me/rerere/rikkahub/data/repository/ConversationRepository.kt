@@ -26,6 +26,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.TodoItem
+import me.rerere.rikkahub.data.sync.SyncTombstones
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
 import kotlin.uuid.Uuid
@@ -380,6 +381,12 @@ class ConversationRepository(
         database.withTransaction {
             // 收藏表和会话没有外键，要单独删
             favoriteDAO.deleteNodeFavoritesOfConversation(conversationId)
+            // 记一笔删除墓碑：增量同步只传变更，没有它删掉的会话会在下次同步时被对方带回来
+            SyncTombstones.mark(
+                database.openHelper.writableDatabase,
+                SyncTombstones.KIND_CONVERSATION,
+                conversationId,
+            )
             // message_node 会通过 CASCADE 自动删除
             conversationDAO.delete(
                 conversationToConversationEntity(conversation)

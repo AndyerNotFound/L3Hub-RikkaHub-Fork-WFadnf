@@ -15,6 +15,7 @@ import me.rerere.rikkahub.data.db.migrations.Migration_35_36
 import me.rerere.rikkahub.data.db.migrations.Migration_36_37
 import me.rerere.rikkahub.data.db.migrations.Migration_37_38
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
+import me.rerere.rikkahub.data.sync.SyncTombstones
 import java.io.File
 
 /** Shared schema, migrations and extensions for the app and staged backup validation. */
@@ -39,6 +40,7 @@ internal object AppDatabaseFactory {
                     // 旧版本搜索用 jieba 分词，会把词典解压到这里（约 14MB），现在不再需要
                     File(context.filesDir, "simple_dict").takeIf { it.exists() }?.deleteRecursively()
                     createMessageFtsTables(db)
+                    SyncTombstones.createTable(db)
                 }
             })
             .openHelperFactory(SQLiteConfiguration.openHelperFactory(context))

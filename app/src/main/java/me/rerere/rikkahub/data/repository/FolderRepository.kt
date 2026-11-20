@@ -5,12 +5,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.model.WorkspaceBinding
+import me.rerere.rikkahub.data.sync.SyncTombstones
 import java.time.Instant
 import kotlin.uuid.Uuid
 
@@ -29,6 +31,7 @@ data class FolderLatestActivity(
 class FolderRepository(
     private val folderDAO: FolderDAO,
     private val conversationDAO: ConversationDAO,
+    private val database: AppDatabase? = null,
 ) {
     fun getFoldersOfAssistant(assistantId: Uuid): Flow<List<Folder>> {
         return folderDAO.getFoldersOfAssistant(assistantId.toString())
@@ -94,6 +97,15 @@ class FolderRepository(
     suspend fun deleteFolder(id: Uuid) {
         conversationDAO.clearFolder(id.toString())
         folderDAO.deleteById(id.toString())
+        database?.let { db ->
+            withContext(Dispatchers.IO) {
+                SyncTombstones.mark(
+                    db.openHelper.writableDatabase,
+                    SyncTombstones.KIND_FOLDER,
+                    id.toString(),
+                )
+            }
+        }
     }
 
     /** 文件夹绑定的工作区；没绑或文件夹已删除时是空绑定，会话按自己的绑定走。 */

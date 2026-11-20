@@ -43,6 +43,21 @@ class BackupManager(
 ) {
     private val restoreMutex = Mutex()
 
+    /**
+     * 生成与整份备份里完全相同的 settings.json。
+     *
+     * 增量同步只带设置文件时用它：设置是单个 DataStore 文件加启动次数、语言标签，没有可切分的增量，
+     * 整体带上最省事，也与恢复端的解析沿用同一套格式。
+     */
+    suspend fun settingsJson(): String {
+        val settings = settingsStore.awaitLoaded()
+        return json.encodeSettings(
+            settings = settings,
+            launchCount = settingsStore.launchCountFlow.first(),
+            appLanguageTag = AppLanguage.currentTag(context),
+        )
+    }
+
     suspend fun createBackup(includeDatabase: Boolean, includeFiles: Boolean): File = withContext(Dispatchers.IO) {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val archive = File.createTempFile("backup_${timestamp}_", ".zip", context.cacheDir)

@@ -36,6 +36,7 @@ import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.skills.SkillManager
 import me.rerere.rikkahub.data.sync.BackupManager
+import me.rerere.rikkahub.data.sync.PendingDelta
 import me.rerere.rikkahub.data.sync.RestoreFailedException
 import me.rerere.rikkahub.di.appModule
 import me.rerere.rikkahub.di.dataSourceModule
@@ -85,6 +86,15 @@ class RikkaHubApp : Application() {
         } catch (e: RestoreFailedException) {
             Log.e(TAG, "Backup restore rolled back", e)
             Toast.makeText(this, "备份恢复失败，已保留原数据，请重新导入备份。", Toast.LENGTH_LONG).show()
+        }
+
+        // 增量同步的安装点在整份恢复之后：它代表更新的那一部分，失败只记日志，不拦启动
+        try {
+            runBlocking(Dispatchers.IO) {
+                PendingDelta.applyPending(this@RikkaHubApp, JsonInstant)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Delta sync failed", e)
         }
         startKoin {
             androidLogger()
