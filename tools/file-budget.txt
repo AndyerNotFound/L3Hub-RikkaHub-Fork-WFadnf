@@ -1,7 +1,7 @@
 # 大文件的行数上限。格式：路径<TAB>上限。只许调低，不许调高。
 # GoogleSans.kt 是字体度量表，拆它没有意义，不在名单里。
 app/src/main/java/me/rerere/rikkahub/service/ChatService.kt	1798
-app/src/main/java/me/rerere/rikkahub/data/ai/tools/WorkspaceTools.kt	1697
+app/src/main/java/me/rerere/rikkahub/data/ai/tools/WorkspaceTools.kt	1640
 app/src/main/java/me/rerere/rikkahub/ui/components/message/ChatMessage.kt	1590
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/components/ProviderGuardSettings.kt	1476
 app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt	1472
