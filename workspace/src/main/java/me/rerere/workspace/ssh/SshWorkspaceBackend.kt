@@ -156,21 +156,21 @@ class SshWorkspaceBackend(
     }
 
     override fun absoluteFileSize(path: String): Long {
-        val file = normalizeAbsolute(path)
+        val file = requireAbsolute(path)
         return pool.use(id, config, retry = true) { connection ->
             connection.sftp { it.requireFile(file, path).size }
         }
     }
 
     override fun exportAbsoluteFile(path: String, outputStream: OutputStream) {
-        val file = normalizeAbsolute(path)
+        val file = requireAbsolute(path)
         pool.use(id, config, retry = false) { connection ->
             connection.sftp { it.export(file, path, outputStream) }
         }
     }
 
     override fun writeAbsoluteText(path: String, text: String, overwrite: Boolean): WorkspaceFileEntry {
-        val file = normalizeAbsolute(path)
+        val file = requireAbsolute(path)
         return pool.use(id, config, retry = false) { connection ->
             connection.sftp { sftp ->
                 sftp.writeBytes(file, text.toByteArray(Charsets.UTF_8), overwrite, path)
@@ -189,7 +189,7 @@ class SshWorkspaceBackend(
         timeoutMillis: Long,
         stdin: ByteArray?,
     ): WorkspaceCommandResult {
-        val workingDir = normalizeAbsolute(layout.absolutePath(WorkspaceStorageArea.FILES, cwd))
+        val workingDir = layout.absolutePath(WorkspaceStorageArea.FILES, cwd)
         return pool.use(id, config, retry = false) { connection ->
             connection.ensureDir(workspaceDir)
             // 远程登录 shell 不一定是 POSIX shell, 统一交给探测到的 shell 执行;
@@ -240,23 +240,22 @@ class SshWorkspaceBackend(
 
     private fun resolve(area: WorkspaceStorageArea, path: String): String {
         val root = areaRoot(area)
-        val relative = path.replace('\\', '/').trim().trimStart('/')
-        val resolved = normalizeAbsolute(if (relative.isEmpty()) root else "$root/$relative")
-        require(root == "/" || resolved == root || resolved.startsWith("$root/")) {
-            "Path escapes workspace root: $path"
-        }
-        return resolved
+        return WorkspacePaths.join(root, path) ?: error("Path escapes workspace root: $path")
     }
 
     private fun relativePath(area: WorkspaceStorageArea, path: String): String =
-        path.removePrefix(areaRoot(area)).trimStart('/')
+        WorkspacePaths.relativeTo(areaRoot(area), path) ?: path
+
+    private fun requireAbsolute(path: String): String =
+        WorkspacePaths.normalize(path) ?: error("Path must be an absolute path: $path")
 
     companion object {
         private const val SCAN_TIMEOUT_MS = 10_000L
 
         /** 不需要连接即可得到的目录约定, 供界面展示路径使用 */
         fun layoutOf(remoteDir: String): WorkspaceLayout {
-            val workspaceDir = normalizeAbsolute(remoteDir)
+            val workspaceDir = WorkspacePaths.normalize(remoteDir)
+                ?: error("Remote directory must be an absolute path: $remoteDir")
             return WorkspaceLayout(
                 workspaceDir = workspaceDir,
                 writableRoots = listOf(workspaceDir, "/tmp"),
@@ -341,22 +340,6 @@ class SshWorkspaceBackend(
         ChannelSftp.SSH_FX_PERMISSION_DENIED -> IOException("Permission denied: $displayPath", this)
         else -> IOException("SFTP error on $displayPath: $message", this)
     }
-}
-
-/** 按字面规范化绝对路径: 去掉 . 和多余的 /, 解析 .., 不跟随软链 */
-internal fun normalizeAbsolute(path: String): String {
-    val normalized = path.replace('\\', '/').trim()
-    require(normalized.startsWith("/")) { "Path must be absolute: $path" }
-    require(!normalized.contains('\u0000')) { "Path contains invalid character" }
-    val segments = ArrayDeque<String>()
-    normalized.split('/').forEach { segment ->
-        when (segment) {
-            "", "." -> Unit
-            ".." -> segments.removeLastOrNull()
-            else -> segments.addLast(segment)
-        }
-    }
-    return "/" + segments.joinToString("/")
 }
 
 private fun String.child(name: String): String = if (this == "/") "/$name" else "$this/$name"

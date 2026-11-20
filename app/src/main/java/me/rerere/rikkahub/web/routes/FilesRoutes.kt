@@ -23,6 +23,7 @@ import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.web.dto.UploadFilesResponseDto
 import me.rerere.rikkahub.web.dto.UploadedFileDto
+import me.rerere.workspace.HostPaths
 import java.io.ByteArrayOutputStream
 import java.io.File
 
@@ -128,7 +129,7 @@ fun Route.filesRoutes(
             val file = File(filesDir, relativePath)
 
             // Ensure the file is within the app's files directory
-            if (!file.canonicalPath.startsWith(filesDir.canonicalPath)) {
+            if (!HostPaths.contains(filesDir, file)) {
                 throw BadRequestException("Invalid file path")
             }
 

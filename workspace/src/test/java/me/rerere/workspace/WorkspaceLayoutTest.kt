@@ -51,6 +51,29 @@ class WorkspaceLayoutTest {
     }
 
     @Test
+    fun absolutePathFoldsSegmentsAndRejectsEscapes() {
+        val layout = WorkspaceLayout(workspaceDir = "/workspace", writableRoots = listOf("/workspace"))
+
+        assertEquals("/workspace/a/b", layout.absolutePath(WorkspaceStorageArea.FILES, "a/./b"))
+        assertEquals("/workspace", layout.absolutePath(WorkspaceStorageArea.FILES, ""))
+        assertEquals("/etc/hostname", layout.absolutePath(WorkspaceStorageArea.LINUX, "etc/hostname"))
+        assertThrows(IllegalArgumentException::class.java) {
+            layout.absolutePath(WorkspaceStorageArea.FILES, "../etc/passwd")
+        }
+    }
+
+    @Test
+    fun relativeToWorkspaceKeepsSiblingDirectoriesApart() {
+        val layout = WorkspaceLayout(workspaceDir = "/workspace", writableRoots = emptyList())
+
+        assertEquals("src", layout.relativeToWorkspace("/workspace/src"))
+        assertEquals("src", layout.relativeToWorkspace("src"))
+        assertEquals("/workspace-other/a.kt", layout.relativeToWorkspace("/workspace-other/a.kt"))
+        assertTrue(layout.contains("/workspace/a.kt"))
+        assertFalse(layout.contains("/workspace-other/a.kt"))
+    }
+
+    @Test
     fun commandsFailWhenWorkspaceMountIsUnavailable() {
         val manager = WorkspaceManager(baseDir = tempFolder.newFolder("workspaces"))
         manager.ensureWorkspace("ws")

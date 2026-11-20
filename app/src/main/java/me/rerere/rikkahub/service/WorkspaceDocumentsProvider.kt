@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.workspace.HostPaths
 import me.rerere.workspace.WorkspaceManager
 import org.koin.core.context.GlobalContext
 import java.io.File
@@ -172,9 +173,7 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
         require(destDir.isDirectory) { "Target is not a directory" }
         val dest = uniqueChild(destDir, srcFile.name)
         // 防止把目录复制到自身内部
-        require(!dest.canonicalPath.startsWith(srcFile.canonicalPath + File.separator)) {
-            "Cannot copy a directory into itself"
-        }
+        require(!HostPaths.contains(srcFile, dest)) { "Cannot copy a directory into itself" }
         require(srcFile.copyRecursively(dest)) { "Failed to copy: $sourceDocumentId" }
         notifyChange(targetParentDocumentId)
         return buildDocId(targetParent.root, relPathOf(targetParent.root, dest))
@@ -194,9 +193,7 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
         require(destDir.isDirectory) { "Target is not a directory" }
         val dest = uniqueChild(destDir, srcFile.name)
         // 防止把目录移动到自身内部
-        require(!dest.canonicalPath.startsWith(srcFile.canonicalPath + File.separator)) {
-            "Cannot move a directory into itself"
-        }
+        require(!HostPaths.contains(srcFile, dest)) { "Cannot move a directory into itself" }
         if (!srcFile.renameTo(dest)) {
             // 所有 workspace 都在应用私有目录下，renameTo 一般可行；失败则回退为复制+删除
             require(srcFile.copyRecursively(dest)) { "Failed to move: $sourceDocumentId" }
@@ -275,21 +272,16 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
     /** 将 workspace files 目录下的文件解析为相对路径（root 自身返回空串） */
     private fun relPathOf(root: String, file: File): String {
         val base = manager().filesDir(root).canonicalFile
-        return file.canonicalFile.relativeTo(base).path.replace(File.separatorChar, '/')
+        return HostPaths.relativeToCanonical(base, file.canonicalFile)
+            ?: error("File is outside the workspace: ${file.path}")
     }
 
     /** 解析 documentId 指向的实际文件，并校验路径不逃逸 workspace files 目录 */
     private fun resolveFile(root: String, relPath: String): File {
         val base = manager().filesDir(root).canonicalFile
         base.mkdirs()
-        val normalized = relPath.trim().trimStart('/')
-        require(!normalized.contains('\u0000')) { "Path contains invalid character" }
-        if (normalized.isEmpty()) return base
-        val target = File(base, normalized).canonicalFile
-        require(target.path == base.path || target.path.startsWith(base.path + File.separator)) {
-            "Path escapes workspace root: $relPath"
-        }
-        return target
+        require(!relPath.contains('\u0000')) { "Path contains invalid character" }
+        return HostPaths.resolve(base, relPath) ?: error("Path escapes workspace root: $relPath")
     }
 
     private fun parseDocId(documentId: String): DocId {

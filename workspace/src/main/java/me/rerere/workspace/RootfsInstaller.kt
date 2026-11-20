@@ -348,12 +348,8 @@ class RootfsInstaller(
 
     private fun File.safeResolve(path: String): File {
         val normalized = normalizeTarPath(path)
-        val root = canonicalFile
-        val target = File(root, normalized).canonicalFile
-        require(target.path == root.path || target.path.startsWith(root.path + File.separator)) {
-            "Rootfs entry escapes target directory: $path"
-        }
-        return target
+        return HostPaths.resolve(this, normalized)
+            ?: error("Rootfs entry escapes target directory: $path")
     }
 
     private fun File.applyMode(mode: Int) {

@@ -7,6 +7,7 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceFileEntry
+import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceStorageArea
 import kotlin.math.max
 
@@ -171,7 +172,7 @@ class WorkspaceCompletionProvider(
     }
 
     private fun WorkspaceFileEntry.workspacePath(): String =
-        workspaceDir.orEmpty().trimEnd('/') + "/" + path
+        WorkspacePaths.join(workspaceDir.orEmpty(), path) ?: path
 
     private fun WorkspaceFileEntry.matchScore(query: String, absoluteQuery: Boolean): Int? {
         val normalizedPath = path.lowercase()

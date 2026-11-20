@@ -173,21 +173,8 @@ class WorkspaceFileSystem(
 
     private fun resolvePath(root: File, path: String): File {
         root.mkdirs()
-        val normalized = path
-            .replace('\\', '/')
-            .trim()
-            .trimStart('/')
-            .ifBlank { "." }
-        require(!normalized.contains('\u0000')) { "Path contains invalid character" }
-
-        val rootFile = root.canonicalFile
-        val target = if (normalized == ".") rootFile else File(rootFile, normalized).canonicalFile
-        val rootPath = rootFile.path
-        val targetPath = target.path
-        require(targetPath == rootPath || targetPath.startsWith(rootPath + File.separator)) {
-            "Path escapes workspace root: $path"
-        }
-        return target
+        require(!path.contains('\u0000')) { "Path contains invalid character" }
+        return HostPaths.resolve(root, path) ?: error("Path escapes workspace root: $path")
     }
 
     fun resolve(root: File, path: String): File = resolvePath(root, path)
@@ -200,10 +187,14 @@ class WorkspaceFileSystem(
         updatedAt = lastModified(),
     )
 
+    /**
+     * 条目路径按「父目录相对 root 的路径 + 文件名」算, 不解析最后一段:
+     * 子目录里的软链可能指向工作区外, 解析后再取相对路径会把父目录一起丢掉。
+     */
     private fun File.relativePath(root: File): String {
-        val rootCanonical = root.canonicalFile
-        val parentCanonical = (parentFile ?: rootCanonical).canonicalFile
-        return File(parentCanonical, name).relativeTo(rootCanonical).path.replace(File.separatorChar, '/')
+        val parent = parentFile ?: return name
+        val parentPath = HostPaths.relativeTo(root, parent) ?: return name
+        return WorkspacePaths.joinRelative(parentPath, name)
     }
 
     private fun Path.normalizeForMatch(): Path =

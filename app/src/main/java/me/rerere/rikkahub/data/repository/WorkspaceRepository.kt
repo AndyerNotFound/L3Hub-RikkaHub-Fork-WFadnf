@@ -56,6 +56,19 @@ class WorkspaceRepository(
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
+    /**
+     * 后端句柄按工作区缓存; 工作区记录一改 (updatedAt 变) 就重建。
+     *
+     * 一次工具调用常常连着读、写、stat 同一个工作区, 原先每次都要重查数据库、重新解密
+     * SSH 凭据、再新建一个后端对象。缓存按访问顺序淘汰, 只留最近用到的几个。
+     */
+    private val backendCache = object : LinkedHashMap<String, CachedBackend>(4, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedBackend>): Boolean =
+            size > MAX_CACHED_BACKENDS
+    }
+
+    private class CachedBackend(val updatedAt: Long, val backend: WorkspaceBackend)
+
     /** SSH 连接池的实时状态，界面上用来显示连接指示灯 */
     val sshStates: StateFlow<Map<String, SshPoolState>> get() = sshPool.states
 
@@ -368,11 +381,8 @@ class WorkspaceRepository(
         path: String,
         text: String,
         overwrite: Boolean,
-    ): WorkspaceFileEntry {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return runInterruptible(Dispatchers.IO) {
-            backendOf(workspace).writeAbsoluteText(path, text, overwrite)
-        }
+    ): WorkspaceFileEntry = withBackend(id, interruptible = true) {
+        it.writeAbsoluteText(path, text, overwrite)
     }
 
     /** 按环境内绝对路径导出文件内容, 本地工作区支持 /workspace、bind mount 与 Rootfs 内部路径 */
@@ -399,10 +409,9 @@ class WorkspaceRepository(
         timeoutMillis: Long = WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS,
         stdin: ByteArray? = null,
     ): WorkspaceCommandResult {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
-        return runInterruptible(Dispatchers.IO) {
-            backendOf(workspace).executeCommand(command, cwd, timeoutMillis, stdin)
+        return withBackend(id, interruptible = true) {
+            it.executeCommand(command, cwd, timeoutMillis, stdin)
         }
     }
 
@@ -465,7 +474,19 @@ class WorkspaceRepository(
         return backend.openShell(columns, rows)
     }
 
-    private fun backendOf(workspace: WorkspaceEntity): WorkspaceBackend =
+    private fun backendOf(workspace: WorkspaceEntity): WorkspaceBackend {
+        synchronized(backendCache) {
+            backendCache[workspace.id]?.takeIf { it.updatedAt == workspace.updatedAt }
+                ?.let { return it.backend }
+        }
+        val backend = createBackend(workspace)
+        synchronized(backendCache) {
+            backendCache[workspace.id] = CachedBackend(workspace.updatedAt, backend)
+        }
+        return backend
+    }
+
+    private fun createBackend(workspace: WorkspaceEntity): WorkspaceBackend =
         if (workspace.isSsh()) {
             val settings = workspace.sshSettings() ?: error("SSH workspace config is missing: ${workspace.id}")
             SshWorkspaceBackend(sshPool, workspace.id, settings.toConnectionConfig())
@@ -536,25 +557,32 @@ class WorkspaceRepository(
     }
 
     /**
-     * 读操作: 取消时中断线程, 远程读取卡在网络上时也能及时返回。
-     * 中途放弃没有副作用; 写操作被打断会留下写了一半的文件, 走 [withBackend] 照常执行完。
+     * 取一次工作区记录与后端句柄, 再执行 [block]。
+     *
+     * [interruptible] 为真时取消会中断线程, 远程读取卡在网络上也能及时返回, 中途放弃没有副作用;
+     * 普通写入不设中断, 免得留下写了一半的文件; 本地 Rootfs 内的写走 shell, 按写操作单独声明为可中断。
      */
-    private suspend fun <T> readFromBackend(id: String, block: (WorkspaceBackend) -> T): T {
+    private suspend fun <T> withBackend(
+        id: String,
+        interruptible: Boolean = false,
+        block: (WorkspaceBackend) -> T,
+    ): T {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return try {
-            runInterruptible(Dispatchers.IO) { block(backendOf(workspace)) }
-        } catch (e: Exception) {
-            // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
-            currentCoroutineContext().ensureActive()
-            throw e
+        return if (interruptible) {
+            try {
+                runInterruptible(Dispatchers.IO) { block(backendOf(workspace)) }
+            } catch (e: Exception) {
+                // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
+                currentCoroutineContext().ensureActive()
+                throw e
+            }
+        } else {
+            withContext(Dispatchers.IO) { block(backendOf(workspace)) }
         }
     }
 
-    private suspend fun <T> withBackend(id: String, block: (WorkspaceBackend) -> T): T =
-        withContext(Dispatchers.IO) {
-            val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-            block(backendOf(workspace))
-        }
+    private suspend fun <T> readFromBackend(id: String, block: (WorkspaceBackend) -> T): T =
+        withBackend(id, interruptible = true, block = block)
 
     private suspend fun restoreShellState(workspace: WorkspaceEntity) {
         updateShellState(workspace.id, workspace.shellStatus)
@@ -578,6 +606,9 @@ class WorkspaceRepository(
 
     companion object {
         private const val TAG = "WorkspaceRepository"
+
+        /** 缓存的工作区后端个数; 手机上同时用到的通常只有一两个 */
+        private const val MAX_CACHED_BACKENDS = 4
         private const val MAX_PREVIEW_BYTES = 512L * 1024
     }
 }

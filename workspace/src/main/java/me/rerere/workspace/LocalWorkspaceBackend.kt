@@ -107,17 +107,14 @@ class LocalWorkspaceBackend(
         // 之外时它抛的正是 IllegalArgumentException——那恰恰是要拦的情况。这里若按「解析不出来
         // 就放行」处理，守卫在唯一该生效的场景下会失效（软链逃逸正是这么漏过去的）。
         val target = try {
-            val file = manager.resolveRootfsFile(root, path)
-            val parent = file.parentFile?.canonicalFile ?: return
-            parent.resolve(file.name).canonicalFile
+            manager.resolveRootfsFile(root, path).canonicalFile
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException(
                 "Refusing to write through a symlink that leaves the writable area: $path",
                 e,
             )
         }
-        val inside = target.path == hostRoot.path || target.path.startsWith(hostRoot.path + File.separator)
-        require(inside) {
+        require(HostPaths.relativeToCanonical(hostRoot, target) != null) {
             "Refusing to write through a symlink that leaves the writable area: $path"
         }
     }

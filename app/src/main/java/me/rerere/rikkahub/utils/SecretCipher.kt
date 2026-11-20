@@ -22,6 +22,9 @@ object SecretCipher {
     private const val IV_SIZE = 12
     private const val TAG_BITS = 128
 
+    @Volatile
+    private var cachedKey: SecretKey? = null
+
     fun encrypt(plaintext: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
@@ -40,8 +43,19 @@ object SecretCipher {
     /** 密文能否用本机的密钥解开; 换设备或换包名恢复备份后旧密文解不开 */
     fun canDecrypt(value: String): Boolean = runCatching { decrypt(value) }.isSuccess
 
-    @Synchronized
+    /**
+     * Keystore 取密钥是一次 binder 往返, 之前每解一个字段就重取一次 (SSH 工作区一次文件操作要解 1~3 个字段)。
+     * 句柄本身不可导出, 缓存它不扩大暴露面; 密钥在系统里被换掉时下一次加解密自然会失败, 与不缓存时一致。
+     */
     private fun secretKey(): SecretKey {
+        cachedKey?.let { return it }
+        synchronized(this) {
+            cachedKey?.let { return it }
+            return loadOrCreateKey().also { cachedKey = it }
+        }
+    }
+
+    private fun loadOrCreateKey(): SecretKey {
         val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).apply {

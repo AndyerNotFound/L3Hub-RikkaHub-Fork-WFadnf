@@ -78,41 +78,33 @@ data class WorkspaceLayout(
 ) {
     /** 存储区内的相对路径转成环境内的绝对路径 */
     fun absolutePath(area: WorkspaceStorageArea, path: String): String {
-        val relative = path.trim('/')
-        return when (area) {
-            WorkspaceStorageArea.FILES -> if (relative.isEmpty()) workspaceDir else "$workspaceDir/$relative"
-            WorkspaceStorageArea.LINUX -> "/$relative"
+        val root = when (area) {
+            WorkspaceStorageArea.FILES -> workspaceDir
+            WorkspaceStorageArea.LINUX -> "/"
         }
+        return WorkspacePaths.join(root, path) ?: error("Path escapes the workspace root: $path")
     }
 
     /** 文件区内的绝对路径转成相对文件区的路径, 不在文件区内时原样返回 */
     fun relativeToWorkspace(path: String): String =
-        path.removePrefix("$workspaceDir/").removePrefix(workspaceDir)
+        WorkspacePaths.relativeTo(workspaceDir, path) ?: path
+
+    /** 是否落在文件区内, 按目录边界判断 */
+    fun contains(path: String): Boolean = WorkspacePaths.contains(workspaceDir, path)
 
     /** 按最长匹配的目录判断: 例如 /a 免审批、/a/b 需审批时, /a/b 下的路径需要审批 */
     fun isWritable(path: String): Boolean {
-        val normalized = normalizeAbsolutePath(path) ?: return false
-        fun List<String>.deepestMatch(): Int? = filter { root ->
-            normalized == root || normalized.startsWith("$root/")
-        }.maxOfOrNull { it.length }
-        val writable = writableRoots.deepestMatch() ?: return false
-        val approval = approvalRoots.deepestMatch() ?: return true
+        val normalized = WorkspacePaths.normalize(path) ?: return false
+        val writable = writableRoots.deepestMatchOf(normalized) ?: return false
+        val approval = approvalRoots.deepestMatchOf(normalized) ?: return true
         return writable > approval
     }
 
-    private companion object {
-        /** 消掉 . 和 .., 避免 /workspace/../x 这类路径绕过审批; 越过根目录时返回 null */
-        fun normalizeAbsolutePath(path: String): String? {
-            if (!path.startsWith("/")) return null
-            val segments = ArrayDeque<String>()
-            path.split('/').forEach { segment ->
-                when (segment) {
-                    "", "." -> Unit
-                    ".." -> segments.removeLastOrNull() ?: return null
-                    else -> segments.addLast(segment)
-                }
-            }
-            return segments.joinToString(separator = "/", prefix = "/")
-        }
-    }
+    /** 命中的目录里最深的一个, 返回规范化后的长度用于比较深浅 */
+    private fun List<String>.deepestMatchOf(normalized: String): Int? =
+        mapNotNull { root ->
+            WorkspacePaths.normalize(root)
+                ?.takeIf { normalized == it || normalized.startsWith("$it/") }
+                ?.length
+        }.maxOrNull()
 }

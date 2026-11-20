@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.workspace.HostPaths
 import java.io.File
 
 val LocalChatFontFamily = staticCompositionLocalOf<FontFamily?> { null }
@@ -72,7 +73,5 @@ private fun DisplaySetting.loadCustomFontFamilyChain(context: Context): FontFami
 
 private fun resolveFilesDirFile(context: Context, relativePath: String): File? {
     if (relativePath.isBlank()) return null
-    val filesDir = runCatching { context.filesDir.canonicalFile }.getOrNull() ?: return null
-    val file = runCatching { File(filesDir, relativePath).canonicalFile }.getOrNull() ?: return null
-    return file.takeIf { it.path.startsWith("${filesDir.path}${File.separator}") }
+    return HostPaths.resolve(context.filesDir, relativePath)
 }

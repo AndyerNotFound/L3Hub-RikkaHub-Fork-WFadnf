@@ -31,17 +31,20 @@ import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceCapabilities
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
-import kotlin.uuid.Uuid
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.Paths
+import kotlin.uuid.Uuid
 
 internal const val SHELL_TIMEOUT_MAX_SECONDS = 600L
 private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+private const val READ_BUFFER_INITIAL_BYTES = 64 * 1024
 private const val MAX_SNAPSHOT_FILE_BYTES = 4L * 1024 * 1024
 private const val DEFAULT_READ_LINES = 2000
 private const val MAX_READ_LINES = 5000
@@ -819,13 +822,12 @@ private fun WorkspaceLayout.resolvePatchPath(raw: String): String {
     val cleaned = raw.replace('\\', '/').trim()
     require(cleaned.isNotEmpty()) { "empty path in patch" }
     require(!cleaned.contains('\u0000')) { "invalid character in patch path" }
-    val normalized = if (cleaned.startsWith("/")) {
-        cleaned
+    require(cleaned.split('/').none { it == ".." }) { "patch path must not escape the workspace: $raw" }
+    return if (cleaned.startsWith("/")) {
+        WorkspacePaths.normalize(cleaned) ?: error("invalid path in patch: $raw")
     } else {
-        "${workspaceDir.trimEnd('/')}/${cleaned.trimStart('/')}"
+        WorkspacePaths.join(workspaceDir, cleaned) ?: error("invalid path in patch: $raw")
     }
-    require(normalized.split('/').none { it == ".." }) { "patch path must not escape the workspace: $raw" }
-    return normalized
 }
 
 private fun kotlinx.serialization.json.JsonObject.patchOutsideWritableRoots(layout: WorkspaceLayout): Boolean =
@@ -1123,17 +1125,45 @@ private suspend fun WorkspaceRepository.readRootfsBuffer(
     path: String,
     knownSize: Long? = null,
 ): ByteArrayOutputStream {
-    // 检索时目录列表已经给过大小, 不再为每个文件多跑一次 stat（SSH 上就是每文件两次往返）
-    val size = knownSize ?: absoluteFileSize(workspaceId, path)
+    // 目录列表已经给过大小就按它先挡一次; 没给也不再单独 stat, 读的时候按上限截断。
+    // SSH 工作区上每次 stat 都是一趟独立往返, 而拷贝本来就会把字节数带回来。
+    if (knownSize != null) requireReadableSize(path, knownSize)
+    val buffer = SizeLimitedOutputStream(path)
+    exportAbsoluteFile(workspaceId, path, buffer)
+    return buffer
+}
+
+private fun requireReadableSize(path: String, size: Long) {
     require(size <= MAX_READ_FILE_BYTES) {
         "File is too large to read: $path (${size / 1024 / 1024}MB, max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). Use shell commands like head, tail, or grep to read parts of it."
     }
-    val buffer = ByteArrayOutputStream(size.toInt()).also { exportAbsoluteFile(workspaceId, path, it) }
-    // 目录枚举给的大小可能已经过时（文件在读之前被追加），拷完之后再按上限确认一次
-    require(buffer.size() <= MAX_READ_FILE_BYTES) {
-        "File is too large to read: $path (${buffer.size() / 1024 / 1024}MB, max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). Use shell commands like head, tail, or grep to read parts of it."
+}
+
+/** 读到上限就中止: 大文件不必整份拉进内存, 也不必为了判断大小先 stat 一次 */
+private class SizeLimitedOutputStream(
+    private val path: String,
+) : ByteArrayOutputStream(READ_BUFFER_INITIAL_BYTES) {
+    private var total = 0
+
+    override fun write(b: Int) {
+        track(1)
+        super.write(b)
     }
-    return buffer
+
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        track(len)
+        super.write(b, off, len)
+    }
+
+    private fun track(len: Int) {
+        total += len
+        if (total > MAX_READ_FILE_BYTES) {
+            throw IOException(
+                "File is too large to read: $path (max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). " +
+                    "Use shell commands like head, tail, or grep to read parts of it."
+            )
+        }
+    }
 }
 
 private suspend fun WorkspaceRepository.readImageInRootfs(
@@ -1155,28 +1185,28 @@ private suspend fun WorkspaceRepository.readImageInRootfs(
     )
 }
 
-private fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): String {
-    val path = string(name)?.replace('\\', '/')?.trim() ?: error("$name is required")
+private fun kotlinx.serialization.json.JsonObject.absolutePathOrNull(name: String): String? {
+    val raw = string(name) ?: return null
+    val path = raw.replace('\\', '/').trim()
     require(path.isNotBlank()) { "$name is required" }
-    require(path.startsWith("/")) { "$name must be an absolute path inside Rootfs" }
-    require(!path.contains('\u0000')) { "$name contains invalid character" }
-    return path
+    return WorkspacePaths.normalize(path)
+        ?: error("$name must be an absolute path inside Rootfs: $raw")
 }
 
+private fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): String =
+    absolutePathOrNull(name) ?: error("$name is required")
+
 /**
- * 写类工具用的路径: 在读路径规则之外再折叠 `.` 与 `..`, 并把 `..` 直接拒掉。
+ * 写类工具用的路径: 与审批判定共用 [WorkspacePaths] 的规范形式。
  *
  * 审批判定和落盘必须用同一个规范形式, 否则 `/workspace/../etc/x` 会在审批时被判成
- * 「在可写区内」, 到真正写入时才被折叠成 `/etc/x`。补丁工具早就这么做了, 这里对齐。
+ * 「在可写区内」, 到真正写入时才被折叠成 `/etc/x`。
  */
 internal fun WorkspaceLayout.normalizeWritePath(raw: String): String {
     val cleaned = raw.replace('\\', '/').trim()
     require(cleaned.isNotEmpty()) { "path is required" }
-    require(cleaned.startsWith("/")) { "path must be an absolute path inside Rootfs" }
-    require(!cleaned.contains('\u0000')) { "path contains invalid character" }
-    require(cleaned.split('/').none { it == ".." }) { "path must not contain '..': $raw" }
-    val segments = cleaned.split('/').filter { it.isNotEmpty() && it != "." }
-    return "/" + segments.joinToString("/")
+    return WorkspacePaths.normalize(cleaned)
+        ?: error("path must be an absolute path inside Rootfs: $raw")
 }
 
 private fun kotlinx.serialization.json.JsonObject.writePath(
@@ -1276,21 +1306,15 @@ internal fun pageText(text: String, offset: Int, limit: Int): PagedText {
 
 /** 环境内绝对路径落在文件区还是 Rootfs 区；返回值可直接交给 backend.listFiles */
 internal fun resolveStorageArea(layout: WorkspaceLayout, path: String): Pair<WorkspaceStorageArea, String> {
-    val normalized = path.trim().trimEnd('/').ifBlank { "/" }
-    val root = layout.workspaceDir.trimEnd('/').ifBlank { "/" }
-    return when {
-        normalized == root -> WorkspaceStorageArea.FILES to ""
-        root != "/" && normalized.startsWith("$root/") ->
-            WorkspaceStorageArea.FILES to normalized.removePrefix("$root/")
-        normalized == "/" -> WorkspaceStorageArea.LINUX to ""
-        else -> WorkspaceStorageArea.LINUX to normalized.trimStart('/')
-    }
+    val normalized = WorkspacePaths.normalize(path)
+        ?: return WorkspaceStorageArea.LINUX to path.trim().trimStart('/')
+    val relative = WorkspacePaths.relativeTo(layout.workspaceDir, normalized)
+        ?: return WorkspaceStorageArea.LINUX to normalized.trimStart('/')
+    return WorkspaceStorageArea.FILES to relative
 }
 
-private fun joinAbsolute(directory: String, name: String): String {
-    val base = directory.trimEnd('/')
-    return if (base.isEmpty()) "/$name" else "$base/$name"
-}
+private fun joinAbsolute(directory: String, name: String): String =
+    WorkspacePaths.join(directory, name) ?: error("invalid path: $directory/$name")
 
 /** 预编译 glob，避免逐个文件重新解析；pattern 非法时 isValid 为 false */
 internal class GlobMatcher(pattern: String) {
@@ -1410,9 +1434,8 @@ private fun createRepoMapTool(
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
-        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.cwdRoot(cwds)
+        val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val maxFiles = params.string("max_files")?.toIntOrNull()?.coerceIn(1, MAX_REPO_MAP_FILES) ?: DEFAULT_REPO_MAP_FILES
-        val prefix = target.layout.workspaceDir.trimEnd('/') + "/"
 
         val files = mutableListOf<RepoMapFile>()
         walkWorkspace(
@@ -1424,7 +1447,7 @@ private fun createRepoMapTool(
             if (!entry.isDirectory && files.size < maxFiles && absolute.isRepoMapSource()) {
                 val text = workspaceRepository.readTextForSearch(target.id, absolute, entry.sizeBytes)
                 if (text != null) {
-                    val relative = absolute.removePrefix(prefix)
+                    val relative = WorkspacePaths.relativeTo(target.layout.workspaceDir, absolute) ?: absolute
                     files += RepoMapFile(
                         path = relative,
                         lines = text.count { it == '\n' } + 1,
@@ -1482,7 +1505,7 @@ private fun createListTool(
     execute = {
         val params = it.jsonObject
         val target = params.resolveWorkspace(targets)
-        val path = params.string("path")?.let { params.absolutePath("path") } ?: target.cwdRoot(cwds)
+        val path = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val (area, relative) = resolveStorageArea(target.layout, path)
         val all = workspaceRepository.listFiles(target.id, area, relative)
             .sortedWith(compareByDescending<WorkspaceFileEntry> { it.isDirectory }.thenBy { it.name.lowercase() })
@@ -1548,16 +1571,15 @@ private fun createGlobTool(
         val target = params.resolveWorkspace(targets)
         val pattern = params.string("pattern")?.trim().orEmpty()
         require(pattern.isNotEmpty()) { "pattern is required" }
-        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.cwdRoot(cwds)
+        val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val limit = (params.int("limit") ?: MAX_GLOB_RESULTS).coerceIn(1, 2000)
         val matcher = GlobMatcher(pattern)
         require(matcher.isValid) { "Invalid glob pattern: $pattern" }
 
         val matches = mutableListOf<WorkspaceFileEntry>()
-        val prefix = root.trimEnd('/')
         walkWorkspace(workspaceRepository, target, root, MAX_SEARCH_ENTRIES) { absolute, entry ->
             if (!entry.isDirectory) {
-                val relative = absolute.removePrefix(prefix).trimStart('/')
+                val relative = WorkspacePaths.relativeTo(root, absolute) ?: absolute
                 if (matcher.matches(relative, entry.name)) {
                     matches += entry.copy(path = absolute)
                 }
@@ -1635,7 +1657,7 @@ private fun createGrepTool(
         val target = params.resolveWorkspace(targets)
         val query = params.string("query").orEmpty()
         require(query.isNotEmpty()) { "query is required" }
-        val root = params.string("path")?.let { params.absolutePath("path") } ?: target.cwdRoot(cwds)
+        val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val limit = (params.int("limit") ?: MAX_GREP_RESULTS).coerceIn(1, 1000)
         val include = params.string("include")?.trim()?.takeIf { it.isNotEmpty() }
         val includeMatcher = include?.let(::GlobMatcher)

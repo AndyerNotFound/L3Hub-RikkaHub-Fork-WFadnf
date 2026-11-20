@@ -41,6 +41,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.workspace.WorkspacePaths
 import org.koin.compose.koinInject
 
 /** workspace_apply_patch：显示改了哪些文件，以及冲突时哪个 hunk 哪一行 */
@@ -205,7 +206,9 @@ object WorkspaceTestToolUI : ToolUIRenderer {
                 }
                 val candidates = buildList {
                     add(path)
-                    if (cwd.isNotEmpty() && !path.startsWith("$cwd/")) add("$cwd/$path")
+                    if (cwd.isNotEmpty() && !path.startsWith("$cwd/")) {
+                        add(WorkspacePaths.joinRelative(cwd, path))
+                    }
                 }.distinct()
                 var lastError: Throwable? = null
                 for (candidate in candidates) {

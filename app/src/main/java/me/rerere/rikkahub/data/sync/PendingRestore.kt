@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.MediaCreationFiles
+import me.rerere.workspace.HostPaths
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -218,11 +219,8 @@ internal class PendingRestore(
                 '\\' !in relativePath && relativePath.split('/').none { it == ".." || it == "." }) {
                 "Invalid backup file path: $relativePath"
             }
-            val target = File(root, relativePath).canonicalFile
-            require(target.path.startsWith(root.canonicalPath + File.separator)) {
-                "Backup file is outside its target directory"
-            }
-            return target
+            return HostPaths.resolve(root, relativePath)
+                ?: error("Backup file is outside its target directory: $relativePath")
         }
 
         fun writeDurably(file: File, text: String) {

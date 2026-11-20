@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import android.webkit.MimeTypeMap
+import me.rerere.workspace.HostPaths
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
@@ -31,16 +32,8 @@ object FileUtils {
     fun buildRelativePath(folder: String, file: File): String =
         "$folder/${file.name}"
 
-    fun getRelativePathInFilesDir(filesDir: File, file: File): String? {
-        val canonicalFile = runCatching { file.canonicalFile }.getOrNull() ?: return null
-        val canonicalFilesDir = runCatching { filesDir.canonicalFile }.getOrNull() ?: return null
-        val basePath = canonicalFilesDir.path
-        val filePath = canonicalFile.path
-        if (!filePath.startsWith("$basePath${File.separator}")) {
-            return null
-        }
-        return canonicalFile.relativeTo(canonicalFilesDir).path.replace(File.separatorChar, '/')
-    }
+    fun getRelativePathInFilesDir(filesDir: File, file: File): String? =
+        HostPaths.relativeTo(filesDir, file)?.ifEmpty { null }
 
     fun getFileNameFromUri(context: Context, uri: Uri): String? {
         return runCatching {

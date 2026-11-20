@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,7 +46,6 @@ import me.rerere.hugeicons.stroke.Alert02
 import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.FolderLinks
 import me.rerere.hugeicons.stroke.FolderOpen
-import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -291,7 +291,7 @@ private fun Uri.toStoragePath(): String? {
         volume.isNotBlank() -> "/storage/$volume"
         else -> return null
     }
-    return if (relative.isEmpty()) base else "$base/$relative"
+    return if (relative.isEmpty()) base else File(base, relative).path
 }
 
 @RequiresApi(Build.VERSION_CODES.R)
