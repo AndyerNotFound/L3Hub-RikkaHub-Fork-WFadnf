@@ -43,7 +43,8 @@ object DeltaSync {
         fun rollback()
     }
 
-    interface Cursor : AutoCloseable {
+    /** 只读游标；只依赖 JVM 的 [java.io.Closeable]，两端都能用 `use {}` 收尾 */
+    interface Cursor : java.io.Closeable {
         fun moveToNext(): Boolean
         fun moveToFirst(): Boolean
         fun int(column: Int): Int
