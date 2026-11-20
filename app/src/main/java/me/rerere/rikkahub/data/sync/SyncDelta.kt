@@ -65,7 +65,7 @@ private class SupportSession(private val database: SupportSQLiteDatabase) : Delt
     }
 
     override fun query(sql: String, args: Array<Any?>?): DeltaSync.Cursor =
-        wrap(if (args == null) database.rawQuery(sql, null) else database.rawQuery(sql, args))
+        wrap(if (args == null) database.query(sql) else database.query(sql, args))
 
     override fun begin() = database.beginTransaction()
 
