@@ -71,8 +71,8 @@ object SyncBridge {
     /** 分层备份包从这个协议版本开始支持 */
     const val BUNDLE_PROTOCOL = L3HubSyncProtocol.BUNDLE_PROTOCOL
 
-    /** 对外自报的协议版本：能力取并集，增量（2）与分层包（3）都要能谈 */
-    const val ADVERTISED_PROTOCOL = maxOf(PROTOCOL_VERSION, BUNDLE_PROTOCOL)
+    /** 对外自报的协议版本：分层包（3）是在增量（2）之上加的，报最高那个即可 */
+    const val ADVERTISED_PROTOCOL = L3HubSyncProtocol.BUNDLE_PROTOCOL
 
     // 打包任务的状态
     const val STATE_RUNNING = L3HubSyncProtocol.STATE_RUNNING
