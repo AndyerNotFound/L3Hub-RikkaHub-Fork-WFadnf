@@ -31,6 +31,9 @@
     android:required="false" />
 
   <queries>
+    <!-- 版本同步要能查到另一版本的包与 provider，Android 11+ 需要显式声明包可见性 -->
+    <package android:name="com.rikkahub.l3hub.wfadnf" />
+    <package android:name="com.rikkahub.l3hub.wfadnf.debug" />
     <intent>
       <action android:name="android.intent.action.TTS_SERVICE" />
     </intent>
@@ -163,6 +166,16 @@
         android:value="local web and SSH server for LLM chat UI" />
     </service>
 
+    <!--
+      正式版与预览版互传数据。调用方由 provider 按 UID 反查包名校验：两版签名密钥不同，
+      signature 级权限恰好会把要同步的那一方挡在外面，详见 SyncBridge。
+    -->
+    <provider
+      android:name=".service.VersionSyncProvider"
+      android:authorities="${applicationId}.sync"
+      android:exported="true"
+      android:label="@string/backup_page_version_sync"
+      tools:ignore="ExportedContentProvider" />
     <provider
       android:name="androidx.core.content.FileProvider"
       android:authorities="${applicationId}.fileprovider"

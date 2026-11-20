@@ -27,6 +27,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Bucket
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Notification01
+import me.rerere.hugeicons.stroke.Repeat
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -36,6 +37,7 @@ import me.rerere.rikkahub.ui.pages.backup.components.BackupDialog
 import me.rerere.rikkahub.ui.pages.backup.tabs.ImportExportTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.ReminderTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.S3Tab
+import me.rerere.rikkahub.ui.pages.backup.tabs.VersionSyncTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.WebDavTab
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
@@ -45,6 +47,7 @@ private enum class BackupTab(
     @param:StringRes private val labelRes: Int,
 ) : PagerTab {
     LOCAL(HugeIcons.SmartPhone01, R.string.backup_page_import_export),
+    VERSION(HugeIcons.Repeat, R.string.backup_page_version_sync),
     WEBDAV(HugeIcons.CloudServer, R.string.backup_page_webdav_backup),
     S3(HugeIcons.Bucket, R.string.backup_page_s3_backup),
     REMINDER(HugeIcons.Notification01, R.string.backup_page_reminder);
@@ -98,6 +101,12 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                     BackupTab.LOCAL -> {
                         ImportExportTab(
                             vm = vm,
+                            onShowRestartDialog = { showRestartDialog = true }
+                        )
+                    }
+
+                    BackupTab.VERSION -> {
+                        VersionSyncTab(
                             onShowRestartDialog = { showRestartDialog = true }
                         )
                     }

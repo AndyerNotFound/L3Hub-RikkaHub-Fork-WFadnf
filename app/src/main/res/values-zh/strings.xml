@@ -210,7 +210,7 @@
   <string name="backup_page_restore_items">恢复内容</string>
   <string name="backup_page_restore_mode">恢复方式</string>
   <string name="backup_page_restore_mode_merge">合并</string>
-  <string name="backup_page_restore_mode_merge_desc">保留当前数据，只补入备份中当前缺少的部分；已有的聊天记录、资源文件与设置项均不受影响。</string>
+  <string name="backup_page_restore_mode_merge_desc">保留当前数据，补入备份中缺少的部分，并把备份里更新时间更晚的会话整条替换；已有的资源文件与设置项不受影响。</string>
   <string name="backup_page_restore_mode_overwrite">覆盖</string>
   <string name="backup_page_restore_mode_overwrite_desc">用备份替换所选数据；备份中不存在的聊天记录与资源文件会被删除，设置整体以备份为准。</string>
   <string name="backup_page_restore_nothing_selected">至少选择一项数据。</string>
@@ -3068,4 +3068,27 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="backup_page_import_deepseek_complete">DeepSeek 导入完成</string>
   <string name="backup_page_import_deepseek_summary">已导入会话：%1$d\n已存在跳过的会话：%2$d\n空会话跳过：%3$d\n导出里缺失或无法导入的附件：%4$d，其文件名已保留为占位符。</string>
   <string name="backup_page_import_deepseek_missing_attachment">[附件在导出里缺失或无法导入：%1$s]</string>
+  <string name="backup_page_version_sync">版本同步</string>
+  <string name="backup_page_version_sync_peer_title">另一版本</string>
+  <string name="backup_page_version_sync_absent">未检测到另一版本</string>
+  <string name="backup_page_version_sync_absent_desc">正式版与测试版的包名不同，可以同时安装。装好另一版本后即可在此互传数据。</string>
+  <string name="backup_page_version_sync_release">正式版</string>
+  <string name="backup_page_version_sync_preview">测试版</string>
+  <string name="backup_page_version_sync_unsupported">该版本还没有版本同步，两端都需升级</string>
+  <string name="backup_page_version_sync_peer_pending">对方有一份恢复在等重启，请先重启对方应用</string>
+  <string name="backup_page_version_sync_peer_detail">%1$s · 数据库 v%2$d</string>
+  <string name="backup_page_version_sync_pull">从另一版本导入</string>
+  <string name="backup_page_version_sync_pull_desc">把对方的数据复制到这里，随后重启本应用</string>
+  <string name="backup_page_version_sync_push">推送到另一版本</string>
+  <string name="backup_page_version_sync_push_desc">把本应用的数据交给对方，对方下次启动时生效</string>
+  <string name="backup_page_version_sync_packing">正在打包…</string>
+  <string name="backup_page_version_sync_copying">正在复制 %1$s / %2$s</string>
+  <string name="backup_page_version_sync_importing">正在导入…</string>
+  <string name="backup_page_version_sync_handing_over">正在移交…</string>
+  <string name="backup_page_version_sync_pulled">已导入，重启本应用后生效</string>
+  <string name="backup_page_version_sync_pushed">已交给对方，重启对方应用后生效</string>
+  <string name="backup_page_version_sync_failed">同步失败：%s</string>
+  <string name="backup_page_version_sync_merge_note">合并会补上本应用缺少的内容，并按更新时间替换对方较新的会话；覆盖会用对方的数据整份替换所选类别。</string>
+  <string name="backup_page_version_sync_local_pending">本应用已有一份恢复在等重启，请先重启本应用</string>
+  <string name="backup_page_version_sync_schema_newer">对方的数据库更新（v%1$d &gt; v%2$d），请先升级本应用</string>
 </resources>

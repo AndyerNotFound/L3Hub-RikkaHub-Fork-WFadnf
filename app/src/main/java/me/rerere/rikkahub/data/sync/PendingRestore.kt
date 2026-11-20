@@ -214,6 +214,14 @@ internal class PendingRestore(
     companion object {
         private const val OPTIONS_FILE = "options.json"
 
+        /** 待恢复目录，位于 noBackupFilesDir 下，不参与系统备份 */
+        private const val ROOT_DIR = "backup-restore"
+
+        fun rootOf(context: Context): File = File(context.noBackupFilesDir, ROOT_DIR)
+
+        /** 是否已经有一份恢复在等下次启动安装；正在打包或导入的归档不能再追加 */
+        fun hasPending(context: Context): Boolean = File(rootOf(context), "pending").isDirectory
+
         fun resolveInside(root: File, relativePath: String): File {
             require(relativePath.isNotBlank() && !relativePath.startsWith('/') &&
                 '\\' !in relativePath && relativePath.split('/').none { it == ".." || it == "." }) {

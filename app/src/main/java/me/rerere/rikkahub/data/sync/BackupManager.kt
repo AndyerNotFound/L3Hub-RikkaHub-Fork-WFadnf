@@ -250,7 +250,7 @@ class BackupManager(
                 ?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
 
         private fun pendingRestore(context: Context) = PendingRestore(
-            root = File(context.noBackupFilesDir, "backup-restore"),
+            root = PendingRestore.rootOf(context),
             databaseFile = context.getDatabasePath(SQLiteConfiguration.DATABASE_NAME),
             filesDir = context.filesDir,
             context = context.applicationContext,

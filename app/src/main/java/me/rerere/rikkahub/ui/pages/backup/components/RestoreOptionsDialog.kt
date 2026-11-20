@@ -36,15 +36,16 @@ private val RESTORE_ITEM_ORDER = listOf(
     RestoreItem.SETTINGS,
 )
 
-/** 恢复前的选项弹窗：选合并还是覆盖，以及要恢复哪些数据。 */
+/** 恢复前的选项弹窗：选合并还是覆盖，以及要恢复哪些数据。[defaultItems] 供版本同步按自己的默认范围复用。 */
 @Composable
 internal fun RestoreOptionsDialog(
     onDismissRequest: () -> Unit,
+    defaultItems: Set<RestoreItem> = RESTORE_ITEM_ORDER.toSet(),
     onConfirm: (RestoreOptions) -> Unit,
 ) {
     // 默认合并：不破坏当前数据，误点也不会丢东西
     var mode by remember { mutableStateOf(RestoreMode.MERGE) }
-    var items by remember { mutableStateOf(RESTORE_ITEM_ORDER.toSet()) }
+    var items by remember { mutableStateOf(defaultItems) }
 
     AnimatedAlertDialog(
         onDismissRequest = onDismissRequest,

@@ -67,6 +67,9 @@ internal object DatabaseMerge {
         // 先记下备份里有、当前没有的会话，消息节点和搜索索引只补这些会话的
         database.execSQL("DROP TABLE IF EXISTS temp.restored_conversations")
         database.execSQL("CREATE TEMP TABLE restored_conversations (id TEXT PRIMARY KEY)")
+        // 两边都有、但对端更新的会话：整条换成对端那份，用于「在另一版本里继续聊过」的情况
+        database.execSQL("DROP TABLE IF EXISTS temp.refreshed_conversations")
+        database.execSQL("CREATE TEMP TABLE refreshed_conversations (id TEXT PRIMARY KEY)")
         if ("ConversationEntity" in backupTables && "ConversationEntity" in liveTables) {
             database.execSQL(
                 """
@@ -75,6 +78,16 @@ internal object DatabaseMerge {
                 WHERE id NOT IN (SELECT id FROM main.`ConversationEntity`)
                 """.trimIndent()
             )
+            // update_at 由本应用自己写，两版共用同一台设备的时钟，可以直接比大小
+            database.execSQL(
+                """
+                INSERT OR IGNORE INTO temp.refreshed_conversations(id)
+                SELECT b.id FROM backup.`ConversationEntity` AS b
+                JOIN main.`ConversationEntity` AS m ON m.id = b.id
+                WHERE b.update_at > m.update_at
+                """.trimIndent()
+            )
+            dropRefreshedConversations(database, liveTables)
         }
 
         var mergedTables = 0
@@ -91,7 +104,10 @@ internal object DatabaseMerge {
                 """
                 INSERT OR IGNORE INTO main.`message_node`
                 SELECT * FROM backup.`message_node`
-                WHERE conversation_id IN (SELECT id FROM temp.restored_conversations)
+                WHERE conversation_id IN (
+                    SELECT id FROM temp.restored_conversations
+                    UNION SELECT id FROM temp.refreshed_conversations
+                )
                 """.trimIndent()
             )
         }
@@ -127,6 +143,41 @@ internal object DatabaseMerge {
     }
 
     /**
+     * 把对端较新的那份会话从现有库里摘掉：整行、它的消息节点与搜索行一起删。
+     *
+     * 删完下面按主键补缺的拷贝会把它当缺行重新插入，于是这条会话连同消息整份换成对端版本。
+     * 不这么做的话，已经存在的会话在合并时拿不到对端新增的消息——节点只在补整条会话时才会抄。
+     */
+    private fun dropRefreshedConversations(database: SQLiteDatabase, liveTables: Set<String>) {
+        val hasRefreshed = database.query(
+            "SELECT 1 FROM temp.refreshed_conversations LIMIT 1"
+        ).use { it.moveToFirst() }
+        if (!hasRefreshed) return
+        database.execSQL(
+            "DELETE FROM main.`ConversationEntity` " +
+                "WHERE id IN (SELECT id FROM temp.refreshed_conversations)"
+        )
+        if ("message_node" in liveTables) {
+            database.execSQL(
+                "DELETE FROM main.`message_node` " +
+                    "WHERE conversation_id IN (SELECT id FROM temp.refreshed_conversations)"
+            )
+        }
+        if ("message_fts" in liveTables && "message_fts_rowid" in liveTables) {
+            // message_fts 的 conversation_id 是 UNINDEXED 列，按会话删要先经 rowid 映射表查出 rowid
+            database.execSQL(
+                "DELETE FROM main.`message_fts` WHERE rowid IN (" +
+                    "SELECT fts_rowid FROM main.`message_fts_rowid` " +
+                    "WHERE conversation_id IN (SELECT id FROM temp.refreshed_conversations))"
+            )
+            database.execSQL(
+                "DELETE FROM main.`message_fts_rowid` " +
+                    "WHERE conversation_id IN (SELECT id FROM temp.refreshed_conversations)"
+            )
+        }
+    }
+
+    /**
      * 搜索索引按会话增量补：只把新会话的消息抄进 message_fts，再给缺映射的索引行补上归属。
      * 不重建全部索引，长会话里重新分词很慢。
      */
@@ -141,7 +192,10 @@ internal object DatabaseMerge {
             """
             INSERT INTO main.`message_fts`(text, node_id, message_id, conversation_id)
             SELECT text, node_id, message_id, conversation_id FROM backup.`message_fts`
-            WHERE conversation_id IN (SELECT id FROM temp.restored_conversations)
+            WHERE conversation_id IN (
+                SELECT id FROM temp.restored_conversations
+                UNION SELECT id FROM temp.refreshed_conversations
+            )
             """.trimIndent()
         )
         database.execSQL(
