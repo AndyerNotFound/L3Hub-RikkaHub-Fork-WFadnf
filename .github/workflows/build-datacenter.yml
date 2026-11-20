@@ -176,7 +176,7 @@ jobs:
             echo
             echo '### 这一版'
             echo
-            git log --no-merges --pretty='- %s' -n 20 "${TAG}" \
+            git log --no-merges --pretty='- %s' -n 20 "${TAG}" -- datacenter syncproto docs/data-center.md \
               | grep -vE '^- (ci|test|build)(\(|:)' || echo '- 首个版本'
             echo
             echo '### 安装'
