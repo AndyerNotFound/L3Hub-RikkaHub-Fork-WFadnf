@@ -76,13 +76,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -123,8 +120,6 @@ import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
-import me.rerere.rikkahub.ui.components.ui.Favicon
-import me.rerere.rikkahub.ui.components.ui.FaviconRow
 import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -144,7 +139,6 @@ import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
-import me.rerere.rikkahub.utils.urlDecode
 import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -1255,68 +1249,6 @@ private fun Modifier.clipDrawing(shape: Shape): Modifier = drawWithCache {
     val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
     onDrawWithContent {
         clipPath(path) { this@onDrawWithContent.drawContent() }
-    }
-}
-
-@Composable
-private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
-    var expand by remember { mutableStateOf(false) }
-    val urls = remember(annotations) {
-        annotations.map { annotation ->
-            when (annotation) {
-                is UIMessageAnnotation.UrlCitation -> annotation.url
-            }
-        }
-    }
-    Column(
-        modifier = Modifier
-            .motionContentSize()
-            .motionBlurOnToggle(expand),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        ChatMessageFileChip(
-            text = stringResource(R.string.citations_count, annotations.size),
-            onClick = { expand = !expand },
-            color = LocalUiSlots.current.aiBubble,
-            icon = { FaviconRow(urls = urls, size = 18.dp) },
-        )
-        if (expand) {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-            ) {
-                ProvideTextStyle(
-                    MaterialTheme.typography.labelMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        annotations.fastForEachIndexed { index, annotation ->
-                            when (annotation) {
-                                is UIMessageAnnotation.UrlCitation -> {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Favicon(annotation.url, modifier = Modifier.size(20.dp))
-                                        Text(
-                                            text = buildAnnotatedString {
-                                                append("${index + 1}. ")
-                                                withLink(LinkAnnotation.Url(annotation.url)) {
-                                                    append(annotation.title.urlDecode())
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

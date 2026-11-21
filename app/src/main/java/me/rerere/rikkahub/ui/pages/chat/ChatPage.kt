@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
@@ -67,19 +66,16 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.ai.core.MessageRole
-import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessage
@@ -87,7 +83,6 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.transformers.collectLorebookInjections
-import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -100,7 +95,6 @@ import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
-import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
@@ -122,8 +116,6 @@ import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.style.TextButton
@@ -430,45 +422,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         ToolDetailSidePanel(host = toolDetailHost)
     }
 }
-
-/**
- * 聊天页装配所需的只读上下文。
- *
- * 页面层负责算派生值，这里只做承载：加一个字段不用再改函数签名和两个布局分支的调用点。
- * 会话正文仍按 [conversationState] 传入，页面只读派生出来的字段，逐 token 的重组留给消息列表。
- */
-private data class ChatPageUiState(
-    val inputState: ChatInputState,
-    val loadingJob: Job?,
-    val processingStatus: String?,
-    val setting: Settings,
-    val conversationState: State<Conversation>,
-    val conversationId: Uuid,
-    val folderId: Uuid?,
-    val messageCount: Int,
-    val folderWorkspaceName: String?,
-    val navController: Navigator,
-    val vm: ChatVM,
-    val chatListState: LazyListState,
-    val assistant: Assistant,
-    val currentChatModel: Model?,
-    val errors: List<ChatError>,
-    val backgroundHazeState: HazeState,
-    // 布局：两个布局分支的差异只落在这三个字段上
-    val threePane: Boolean = false,
-    val sidebarOpen: Boolean = false,
-    val chatWidth: Dp? = null,
-)
-
-/** 聊天页向上的动作。两个布局分支只覆盖自己需要的槽位。 */
-private data class ChatPageActions(
-    val onStartVoiceMode: () -> Unit,
-    val onCreateNewChat: () -> Unit,
-    val onDismissError: (Uuid) -> Unit,
-    val onClearAllErrors: () -> Unit,
-    val onOpenSidebar: () -> Unit = {},
-    val onChatResize: (Dp) -> Unit = {},
-)
 
 @Composable
 private fun ChatPageContent(
