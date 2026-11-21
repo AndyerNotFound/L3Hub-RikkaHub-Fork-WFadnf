@@ -17,9 +17,9 @@ app/src/main/java/me/rerere/rikkahub/ui/pages/stats/StatsPage.kt	1106
 app/src/main/java/me/rerere/rikkahub/ui/components/ai/ChatInput.kt	1079
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingSearchDetailPage.kt	1072
 app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatDrawer.kt	1071
-app/src/main/java/me/rerere/rikkahub/RouteActivity.kt	1053
+app/src/main/java/me/rerere/rikkahub/RouteActivity.kt	719
 app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatList.kt	1026
-app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ConversationExport.kt	988
+app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ConversationExport.kt	882
 app/src/main/java/me/rerere/rikkahub/ui/components/message/tools/BuiltinToolUIs.kt	943
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderPage.kt	908
 app/src/main/java/me/rerere/rikkahub/ui/pages/imggen/ImgGenPage.kt	880
