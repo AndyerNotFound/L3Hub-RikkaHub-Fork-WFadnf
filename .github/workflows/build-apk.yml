@@ -369,6 +369,12 @@ jobs:
           ORG_GRADLE_PROJECT_kotlin.daemon.jvmargs: '-Xmx6g'
         run: |
           set -euo pipefail
+          # compileGithubReleaseKotlin 走 BTA in-process：Kotlin 编译跑在 Gradle daemon 里，
+          # 堆由 org.gradle.jvmargs 决定。仓库里的 -Xmx3g 是照本机 8G 定的，P1–P2-4 后
+          # 这个任务要 7g+：codegen 转换失败进诊断路径，getNodeText 渲染方法文本时
+          # OOM（attempt3 把 kotlin daemon 抬到 6g 后失败点不变，就是这条证据）。
+          # 写进 ~/.gradle/gradle.properties 覆盖仓库值，本机的 3g 不受影响。
+          printf '%s\n' 'org.gradle.jvmargs=-Xmx10g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8' 'kotlin.daemon.jvmargs=-Xmx6g' > ~/.gradle/gradle.properties
           chmod +x gradlew tools/build-apk.sh
           # 产物名里用 tag；手动触发不填 tag 时退回 versionName，免得叫 L3Hub-arm64-v8a.apk
           if [ -n "${TAG:-}" ]; then
