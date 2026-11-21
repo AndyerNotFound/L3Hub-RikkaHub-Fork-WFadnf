@@ -12,7 +12,6 @@ import me.rerere.rikkahub.utils.toLocalString
 // ConversationExport.kt 的区域文件：Markdown 导出的正文拼装。
 // 除 private → internal（供同包源文件调用）外，函数体逐字节照搬。
 internal fun buildMarkdownExport(
-private fun buildMarkdownExport(
     conversation: Conversation,
     messages: List<UIMessage>,
     options: ExportOptions,
