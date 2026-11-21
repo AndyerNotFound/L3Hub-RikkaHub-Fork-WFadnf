@@ -155,15 +155,24 @@ fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
  * 档位和页面转场共用，关掉动效时直接跳变。
  */
 @Composable
-fun <T> rememberSlideSpec(animated: Boolean = true): FiniteAnimationSpec<T> {
-    if (!animated || !LocalAnimationsEnabled.current) return snap()
+fun <T> rememberSlideSpec(
+    animated: Boolean = true,
     // 曲线取 ImageToolbox 的 FancyTransitionEasing（尾段 3% 过冲）：整页滑到位以后
     // 再"顿"一下才停，这是那个工程最好认的手感。档位只管时长，三档共用同一条曲线。
-    return when (LocalAnimationSpeed.current) {
-        AnimationSpeed.SYSTEM -> tween(durationMillis = 300, easing = FancyTransitionEasing)
-        AnimationSpeed.FAST -> tween(durationMillis = 180, easing = FancyTransitionEasing)
-        AnimationSpeed.GENTLE -> tween(durationMillis = 420, easing = FancyTransitionEasing)
-    }
+    // 源工程那段转场是 fade + slide + scale 三条各一条曲线，所以曲线做成参数；
+    // 时长仍由同一档给，三者同时开始、同时结束。
+    easing: Easing = FancyTransitionEasing,
+): FiniteAnimationSpec<T> {
+    if (!animated || !LocalAnimationsEnabled.current) return snap()
+    return tween(durationMillis = slideDurationMillis(), easing = easing)
+}
+
+/** 页面位移动画这一档的时长（毫秒）。fade / scale 跟它取同一个值。 */
+@Composable
+fun slideDurationMillis(): Int = when (LocalAnimationSpeed.current) {
+    AnimationSpeed.SYSTEM -> 300
+    AnimationSpeed.FAST -> 180
+    AnimationSpeed.GENTLE -> 420
 }
 
 // ---------------------------------------------------------------------------

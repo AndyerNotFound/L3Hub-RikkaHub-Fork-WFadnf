@@ -493,6 +493,34 @@ sealed class，这里拆成 `CornerStyle` 枚举 + 独立的 `cornerScale`：能
 > 违禁符号 grep 为空；括号静态检查通过。风险最集中的两处是
 > `Slider(state=, enabled=, colors=, …)` 这组参数与 `androidx.compose.ui.util` 的几个浮点打包函数。
 
+### 页面转场三件套与形状动画（ImageToolbox 移植 · 第五轮，2026-11-21）
+
+源工程的页面转场是 `fade + slide + scale` 三条同时跑（`Animations.kt` 的
+`toolboxPredictiveBackAnimation` 兜底：fade 300 / slide 400 / scale 500，各一条曲线），
+组件形状切换靠 `ShapeDefaults.AnimatedShape`（四角各一条 `Animatable`）。这两样都搬了。
+
+| 位置 | 改了什么 |
+|---|---|
+| `ui/navigation/NavTransitions.kt` | 滑入页（会话、设置首页）的进场与返回从「只有位移」变成 `fadeIn(AlphaEasing) + slideInVertically(FancyTransitionEasing) + scaleIn(PointToPointEasing, 0.9 → 1)`，返回是同一组的三条逆动画；容器变换页不动——那边位移由 `sharedBounds` 演，叠加缩放会变成两套位移 |
+| `ui/theme/MotionSpecs.kt` | `rememberSlideSpec` 增加 `easing` 参数（源工程三条动画各一条曲线），新增 `slideDurationMillis()`；三条动画共用同一档时长（SYSTEM 300 / FAST 180 / GENTLE 420），同时开始同时结束 |
+| `ui/theme/MotionEasing.kt` | `AlphaEasing`、`PointToPointEasing` 就是这一轮接进去的 |
+| `ui/shape/AnimatedShape.kt`（新增） | `AnimatedShape` / `rememberAnimatedShape` / `animateShape`：四角各一条 `Animatable`（弹簧阻尼 0.4 / `StiffnessLow`，与源工程一致），目标值走 `Channel.CONFLATED`，连续重组只取最后一个；半径按 px 存，`CornerSize` 是百分比也能插值；过冲由 `fastCoerceIn(0, halfHeight)` 兜住 |
+| `ui/components/ui/CardGroup.kt` | 列表项与表单项的圆角动画从「上下两条 `animateDpAsState`」换成 `rememberAnimatedShape`：插入 / 删除条目、按下首尾项变圆、换轮廓类型时四个角各自收放 |
+
+一处订正：P1 那次把 `FancyTransitionEasing` 换进了 `rememberSlideSpec`，但当时滑入页读的是
+`rememberSpatialSpec`（MotionScheme 的空间弹簧），所以那条曲线实际只作用在容器变换的淡入窗口上。
+这一轮把滑入页改成读 `rememberSlideSpec`，尾段过冲的手感才真正落到页面位移上。
+
+边界：
+
+- 预测性返回仍是「不跟手」：`predictivePop` 直接委托 `pop`，返回手势松手后才播整段三步动画。
+  跟手预览要走 Decompose 那套 `predictiveBackAnimation`（换引擎之后才有）。
+- 形状动画每帧按当前轮廓重建一次形状：波浪边这类要算 Path 的轮廓在动画期间会多一次路径计算。
+- `AnimatedShape` 以 `(轮廓类型, 边角大小, 密度, 动画 spec)` 为 key：用户在中途换轮廓类型时直接以新形状重置，不播跨类型的插值（源工程同样如此）。
+
+> 本轮未编译验证：括号与引用静态检查通过，行为待 CI 出包确认。
+> 最可能出问题的是 `scaleIn/scaleOut` 与 `fadeIn/slideInVertically` 用 `+` 组合后的 `EnterTransition` 类型推断。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

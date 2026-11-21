@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -66,6 +65,7 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
+import me.rerere.rikkahub.ui.shape.rememberAnimatedShape
 import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 
 private val CardGroupCorner = 20.dp
@@ -337,20 +337,11 @@ private fun CardGroupFormItem(
     // 静态形状会让这张卡的下圆角硬跳一下
     val corner = adaptiveCornerRadius(CardGroupCorner)
     val inner = adaptiveCornerRadius(CardGroupInnerCorner)
-    val topCorner by animateDpAsState(
-        targetValue = if (index == 0) corner else inner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "formTopCorner",
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (index == count - 1) corner else inner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "formBottomCorner",
-    )
-    // 弹簧会过冲，负半径会让形状构造抛异常；轮廓类型（圆角/切角/波浪…）由主题层的显示设置决定
-    val shape = adaptiveStyledShape(
-        topRadius = topCorner.coerceAtLeast(0.dp),
-        bottomRadius = bottomCorner.coerceAtLeast(0.dp),
+    val shape = rememberAnimatedShape(
+        currentShape = adaptiveStyledShape(
+            topRadius = if (index == 0) corner else inner,
+            bottomRadius = if (index == count - 1) corner else inner,
+        ),
     )
     val glass = LocalSettings.current.displaySetting.enableBlurEffect
     Surface(
@@ -378,19 +369,15 @@ private fun CardGroupListItem(
 
     val corner = adaptiveCornerRadius(CardGroupCorner)
     val innerCorner = adaptiveCornerRadius(CardGroupInnerCorner)
-    val topCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isFirst) corner else innerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+    // 四角各跑一条 Animatable（ImageToolbox 的 AnimatedShape）：条目被插入 / 删除、
+    // 整组换轮廓、按下时首尾项变圆，四个角按各自剩余距离收放，不会硬跳。
+    // 过冲与负半径由 AnimatedShape 自己在 clamp 里处理。
+    val shape = rememberAnimatedShape(
+        currentShape = adaptiveStyledShape(
+            topRadius = if (isPressed || count == 1 || isFirst) corner else innerCorner,
+            bottomRadius = if (isPressed || count == 1 || isLast) corner else innerCorner,
+        ),
     )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isLast) corner else innerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
-
-    // 弹簧动画会过冲，圆角可能瞬时为负（尤其全宽模式下目标值是 0），必须夹一下
-    val safeTopCorner = topCorner.coerceAtLeast(0.dp)
-    val safeBottomCorner = bottomCorner.coerceAtLeast(0.dp)
-    val shape = adaptiveStyledShape(topRadius = safeTopCorner, bottomRadius = safeBottomCorner)
     // 毛玻璃底只加在这类「开关行 / 按钮行」上；列表项本身不挂 hazeSource，避免滚动时每项重糊一次
     val glass = LocalSettings.current.displaySetting.enableBlurEffect
     ListItem(

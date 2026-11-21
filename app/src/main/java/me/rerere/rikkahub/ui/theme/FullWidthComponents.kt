@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
@@ -101,7 +102,7 @@ fun adaptiveShape(radius: Dp): Shape {
  */
 @Composable
 @ReadOnlyComposable
-fun adaptiveStyledShape(topRadius: Dp, bottomRadius: Dp): Shape {
+fun adaptiveStyledShape(topRadius: Dp, bottomRadius: Dp): CornerBasedShape {
     val top = topRadius.coerceAtLeast(0.dp)
     val bottom = bottomRadius.coerceAtLeast(0.dp)
     if (LocalFullWidthComponents.current) return SquareShapes.small

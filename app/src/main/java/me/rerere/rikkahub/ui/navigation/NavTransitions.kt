@@ -7,6 +7,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -30,8 +32,12 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.LocalNavEntryPopped
 import me.rerere.rikkahub.ui.hooks.usesContainerTransform
+import me.rerere.rikkahub.ui.theme.AlphaEasing
+import me.rerere.rikkahub.ui.theme.PointToPointEasing
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+
+/** 滑入页进场 / 退场的缩放端点，与源工程 decompose `scale` 的默认值一致。 */
+private const val PAGE_SCALE = 0.9f
 
 /**
  * 一整套页面转场规格：中列、右列两个 `NavDisplay` 共用同一份，参数不会各写各的。
@@ -67,13 +73,15 @@ class NavTransitionSpecs internal constructor(
  */
 @Composable
 fun rememberNavTransitionSpecs(): NavTransitionSpecs {
-    // 页面滑入用当前档位的空间曲线（有加速有减速），默认那个弹簧偏匀速，看起来像线性
-    val slideSpec = rememberSpatialSpec<IntOffset>()
+    // 页面滑入：ImageToolbox 的页转场是 fade + slide + scale 三条同时跑，各一条曲线。
+    // 位移用 FancyTransitionEasing（尾段 3% 过冲，整页到位后再顿一下才停），
+    // 淡入淡出用 AlphaEasing，缩放用 PointToPointEasing；三条时长取同一档（180/300/420）。
+    val slideSpec = rememberSlideSpec<IntOffset>()
     val currentSlideSpec = rememberUpdatedState(slideSpec)
-    // 容器变换页的窗口时长：进出都不位移，但离场页要留到容器收回条目为止，进场也要留够
-    // 被盖住那页的存活时间供 sharedBounds 配对。时长与「动画速度」三档同源。
-    val fadeSpec = rememberSlideSpec<Float>()
+    val fadeSpec = rememberSlideSpec<Float>(easing = AlphaEasing)
     val currentFadeSpec = rememberUpdatedState(fadeSpec)
+    val scaleSpec = rememberSlideSpec<Float>(easing = PointToPointEasing)
+    val currentScaleSpec = rememberUpdatedState(scaleSpec)
     return remember {
         val pop: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
             // 离场的那一页在 initialState 这一侧；nav3 1.2 起 key 包在 Scene 里
@@ -83,11 +91,20 @@ fun rememberNavTransitionSpecs(): NavTransitionSpecs {
                 // sharedBounds，display 级只留一个不位移的窗口，给收回的容器变换留出播放时间
                 EnterTransition.None togetherWith fadeOut(animationSpec = currentFadeSpec.value)
             } else {
-                // 滑入的页面：从哪一侧进来就往哪一侧滑回去——进场动画的逆
+                // 滑入的页面：从哪一侧进来就往哪一侧滑回去——进场动画的逆。
+                // 退场同样是 fade + slide + scale 三条，与进场同参同侧
                 val fromTop = (leaving as? Screen.Chat)?.enterFromTop == true
-                EnterTransition.None togetherWith slideOutVertically(
-                    animationSpec = currentSlideSpec.value,
-                ) { if (fromTop) -it else it }
+                EnterTransition.None togetherWith (
+                    fadeOut(animationSpec = currentFadeSpec.value) +
+                        slideOutVertically(animationSpec = currentSlideSpec.value) {
+                            if (fromTop) -it else it
+                        } +
+                        scaleOut(
+                            animationSpec = currentScaleSpec.value,
+                            // 源工程 decompose 的 scale 默认 0.9 → 1，这里取同一档
+                            targetScale = PAGE_SCALE,
+                        )
+                    )
             }
         }
         NavTransitionSpecs(
@@ -101,11 +118,16 @@ fun rememberNavTransitionSpecs(): NavTransitionSpecs {
                     // 配对没成时也是淡入而不是硬切
                     fadeIn(animationSpec = currentFadeSpec.value) togetherWith ExitTransition.None
                 } else {
-                    // 侧边栏点进来的会话：抽屉先收回去，会话页从点击项那一侧落下来
+                    // 侧边栏点进来的会话：抽屉先收回去，会话页从点击项那一侧落下来。
+                    // 除了滑入，再叠一段淡入与 0.9 → 1 的放大（源工程的 fade + slide + scale）
                     val enterFromTop = (target as? Screen.Chat)?.enterFromTop
-                    slideInVertically(animationSpec = currentSlideSpec.value) {
-                        if (enterFromTop == true) -it else it
-                    } togetherWith ExitTransition.None
+                    (
+                        fadeIn(animationSpec = currentFadeSpec.value) +
+                            slideInVertically(animationSpec = currentSlideSpec.value) {
+                                if (enterFromTop == true) -it else it
+                            } +
+                            scaleIn(animationSpec = currentScaleSpec.value, initialScale = PAGE_SCALE)
+                        ) togetherWith ExitTransition.None
                 }
             },
             pop = pop,

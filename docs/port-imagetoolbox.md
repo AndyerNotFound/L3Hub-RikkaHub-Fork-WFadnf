@@ -27,7 +27,8 @@
 | P2b-开关 | 八档开关（跟随皮肤 / Compose / Pixel / Fluent / iOS / 液态玻璃 / HyperOS / OneUI） | 已落地（未编译） |
 | P2b-顶栏 | `EnhancedTopAppBar` 大标题折叠（NATIVE 走 M3 `LargeTopAppBar`，MIUIX 手写等价实现） | 待做 |
 | P2c | 四档滑块（MaterialYou / Fancy / Material / HyperOS）+ 自绘滑杆引擎 | 已落地（未编译） |
-| P2d | 十二档滑动曲线 + 动效时长标尺 | 待做 |
+| P2d | 十二档滑动曲线 + 动效时长标尺（要 `io.iamjosephmj:flinger` 与 recomposer 改造，待定） | 待做 |
+| 转场 | 滑入页 fade+slide+scale 三件套 + `AnimatedShape` 形状动画 | 已落地（未编译） |
 | P4 | 换 Decompose 引擎（见第 4 节） | 待做 |
 | P3 | 预测性返回进度 | 放在 P4 之后：Decompose 自带 `predictiveBackAnimation` |
 
