@@ -228,6 +228,39 @@ enum class AnimationSpeed {
 }
 
 /**
+ * 组件轮廓的形状类型，取自 ImageToolbox 的 ShapeType（T8RIN，Apache-2.0）。
+ *
+ * 与那个工程的差别：那边是带 `strength` 的 sealed class，每个实例自带强度；
+ * 这里拆成 enum + 独立的 [DisplaySetting.cornerScale]，一是能直接序列化进设置，
+ * 二是「形状」与「大小」本来就是两个设置项，合成一个对象反而不好存回 DataStore。
+ *
+ * [scaleRatio]：Scoop / Notch 在同样的半径下视觉上更夸张，源工程按 0.65 打薄，
+ * 照搬这个比例，两种形状才不会比圆角大一圈。
+ */
+enum class CornerStyle(val scaleRatio: Float) {
+    /** 普通圆角（Compose `RoundedCornerShape`） */
+    ROUNDED(1f),
+
+    /** 切角（Compose `CutCornerShape`） */
+    CUT(1f),
+
+    /** 超椭圆，四角像 iOS 图标那样更"方"一点 */
+    SQUIRCLE(1f),
+
+    /** 连续圆角：圆角与直边的过渡带一段曲率过渡（`kyant0:capsule`） */
+    SMOOTH(1f),
+
+    /** 波浪边：直边按正弦起伏 */
+    WAVY(1f),
+
+    /** 凹角：圆角向内挖 */
+    SCOOP(0.65f),
+
+    /** 缺口角：圆角处切成直角缺口 */
+    NOTCH(0.65f),
+}
+
+/**
  * 触感强度。
  *
  * SYSTEM 是默认值：不接管 `LocalHapticFeedback`，行为与没有这个设置时完全一致。
@@ -365,6 +398,10 @@ data class DisplaySetting(
     val enableMessageGenerationHapticEffect: Boolean = false,
     // 全局触感强度：只影响走 LocalHapticFeedback 的震动，不影响消息生成那条独立的开关
     val hapticsStrength: HapticsStrength = HapticsStrength.SYSTEM,
+    // 组件轮廓：形状类型、边角大小倍率（0f–2f，1f 为设计值）、改变按压轮廓时的节流（毫秒）
+    val cornerStyle: CornerStyle = CornerStyle.ROUNDED,
+    val cornerScale: Float = 1f,
+    val cornerAnimThrottle: Int = 128,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -31,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
+import me.rerere.rikkahub.data.datastore.CornerStyle
 import me.rerere.rikkahub.data.datastore.UiStyle
+import me.rerere.rikkahub.ui.shape.styledShape
 import me.rerere.rikkahub.ui.haptics.rememberEnhancedHapticFeedback
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
@@ -190,9 +193,28 @@ fun RikkahubTheme(
     val systemHaptics = LocalHapticFeedback.current
     val enhancedHaptics = rememberEnhancedHapticFeedback(settings.displaySetting.hapticsStrength)
 
+    // 轮廓：形状类型与边角大小都从显示设置来，全宽模式仍然一律直角
+    val cornerStyle = settings.displaySetting.cornerStyle
+    val cornerScale = settings.displaySetting.cornerScale.coerceIn(0f, 2f)
+    // 没有外层主题时 MaterialTheme.shapes 就是 M3 默认值，拿它当基准逐角换形状，
+    // 五档半径不用在这里重写一遍（改了会和 M3 的 scale 脱节）
+    val baseShapes = MaterialTheme.shapes
+    val styledShapes = remember(baseShapes, cornerStyle, cornerScale) {
+        Shapes(
+            extraSmall = styledShape(cornerStyle, baseShapes.extraSmall.topStart, baseShapes.extraSmall.topEnd, baseShapes.extraSmall.bottomEnd, baseShapes.extraSmall.bottomStart, cornerScale),
+            small = styledShape(cornerStyle, baseShapes.small.topStart, baseShapes.small.topEnd, baseShapes.small.bottomEnd, baseShapes.small.bottomStart, cornerScale),
+            medium = styledShape(cornerStyle, baseShapes.medium.topStart, baseShapes.medium.topEnd, baseShapes.medium.bottomEnd, baseShapes.medium.bottomStart, cornerScale),
+            large = styledShape(cornerStyle, baseShapes.large.topStart, baseShapes.large.topEnd, baseShapes.large.bottomEnd, baseShapes.large.bottomStart, cornerScale),
+            extraLarge = styledShape(cornerStyle, baseShapes.extraLarge.topStart, baseShapes.extraLarge.topEnd, baseShapes.extraLarge.bottomEnd, baseShapes.extraLarge.bottomStart, cornerScale),
+        )
+    }
+
     CompositionLocalProvider(
         LocalDensity provides scaledDensity,
         LocalHapticFeedback provides (enhancedHaptics ?: systemHaptics),
+        LocalCornerStyle provides cornerStyle,
+        LocalCornerScale provides cornerScale,
+        LocalCornerThrottle provides settings.displaySetting.cornerAnimThrottle.coerceIn(0, 2000),
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,
@@ -200,14 +222,16 @@ fun RikkahubTheme(
         LocalFullWidthComponents provides fullWidthComponents,
         LocalUiStyle provides uiStyle,
         LocalMiuixPressFeedback provides settings.displaySetting.miuixPressFeedback,
-        LocalMiuixCornerRadius provides settings.displaySetting.miuixCornerRadius.dp,
+        LocalMiuixCornerRadius provides (settings.displaySetting.miuixCornerRadius * cornerScale).dp,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
             typography = typography,
             shapes = when {
                 fullWidthComponents -> SquareShapes
-                else -> MaterialTheme.shapes
+                // 全部是默认圆角时直接用基准那份，省掉一次五档重建
+                cornerStyle == CornerStyle.ROUNDED && cornerScale == 1f -> baseShapes
+                else -> styledShapes
             },
             content = {
                 // 弹窗的进出场跟页面转场共用一档速度：用户在设置里调快以后，

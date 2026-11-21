@@ -23,7 +23,7 @@
 | 期 | 内容 | 状态 |
 |---|---|---|
 | P1 | 七条曲线 + 滑入换 `FancyTransitionEasing`；触感强度三档；`rememberShapeByInteraction` / `MorphShape` | 已落地（未编译） |
-| P2a | `ShapeType`（Cut/Rounded/Smooth/Squircle/Notch/Scoop + strength）+ `AutoCornersShape` 接进 `Theme.kt` 的 `shapes`；收口 `CardGroup` / `SquareShapes` / `adaptiveCornerRadius` | 待做 |
+| P2a | 七种轮廓 + 边角大小 + 边角动画节流；`styledShape` 接进 `Theme.kt` / `CardGroup` / `adaptiveShape` | 已落地（未编译） |
 | P2b | `EnhancedTopAppBar` 大标题折叠（NATIVE 走 M3 `LargeTopAppBar`，MIUIX 手写等价实现） | 待做 |
 | P4 | 换 Decompose 引擎（见第 4 节） | 待做 |
 | P3 | 预测性返回进度 | 放在 P4 之后：Decompose 自带 `predictiveBackAnimation` |
@@ -40,9 +40,8 @@
 `LocalMiuixCornerRadius` + `MiuixTheme` 圆角，`UiStyle.MIUIX` 下形状要映射过去，
 不能只改 Material 的 `shapes`。
 
-`AutoCornersShape` 在源工程里依赖两个第三方库：`io.github.kyant0:capsule`（超椭圆）
-与 `com.stoyanvuchev:squircle-shape-android`。不加依赖就得自己写超椭圆路径，
-这是 P2a 开始前必须先定的一件事。
+两个第三方依赖已按源工程版本引入（`io.github.kyant0:capsule:2.1.3`、
+`com.stoyanvuchev:squircle-shape-android:5.4.0`）。
 
 ## 4 P4：换 Decompose 的五个子步
 

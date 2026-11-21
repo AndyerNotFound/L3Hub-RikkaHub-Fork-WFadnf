@@ -16,6 +16,10 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.theme.LocalCornerThrottle
 import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 
 /**
@@ -36,9 +40,10 @@ fun rememberShapeByInteraction(
     pressedShape: Shape,
     interactionSource: InteractionSource?,
     enabled: Boolean = true,
+    throttleMs: Int = LocalCornerThrottle.current,
 ): Shape {
     if (!enabled || interactionSource == null) return shape
-    val pressed = rememberPressed(interactionSource)
+    val pressed = rememberPressed(interactionSource, throttleMs)
     val progress by motionFastFloatAsState(
         targetValue = if (pressed) 1f else 0f,
         label = "shapeByInteraction",
@@ -50,23 +55,36 @@ fun rememberShapeByInteraction(
     }
 }
 
-/** 按住或获得焦点时返回 true；焦点也算按下，键盘 / 手柄操作才有同样的轮廓反馈。 */
+/**
+ * 按住或获得焦点时返回 true；焦点也算按下，键盘 / 手柄操作才有同样的轮廓反馈。
+ *
+ * [throttleMs] 是设置里的「边角动画节流」：每个状态变化先立刻生效，随后 [throttleMs] 内的
+ * 连续变化只在窗口结束时补最后那一个（`Channel.CONFLATED` 天然只留最新值）。
+ * 连点时轮廓不会每一下都弹一遍，但也不会漏掉松开那一下。
+ */
 @Composable
-private fun rememberPressed(interactionSource: InteractionSource): Boolean {
+private fun rememberPressed(interactionSource: InteractionSource, throttleMs: Int): Boolean {
     var pressed by remember(interactionSource) { mutableStateOf(false) }
-    LaunchedEffect(interactionSource) {
-        val presses = mutableSetOf<PressInteraction.Press>()
-        var focusCount = 0
-        interactionSource.interactions.collect { interaction ->
-            when (interaction) {
-                is PressInteraction.Press -> presses.add(interaction)
-                is PressInteraction.Release -> presses.remove(interaction.press)
-                is PressInteraction.Cancel -> presses.remove(interaction.press)
-                is FocusInteraction.Focus -> focusCount++
-                is FocusInteraction.Unfocus -> focusCount = (focusCount - 1).coerceAtLeast(0)
-                else -> Unit
+    LaunchedEffect(interactionSource, throttleMs) {
+        val changes = Channel<Boolean>(Channel.CONFLATED)
+        launch {
+            val presses = mutableSetOf<PressInteraction.Press>()
+            var focusCount = 0
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> presses.add(interaction)
+                    is PressInteraction.Release -> presses.remove(interaction.press)
+                    is PressInteraction.Cancel -> presses.remove(interaction.press)
+                    is FocusInteraction.Focus -> focusCount++
+                    is FocusInteraction.Unfocus -> focusCount = (focusCount - 1).coerceAtLeast(0)
+                    else -> Unit
+                }
+                changes.trySend(presses.isNotEmpty() || focusCount > 0)
             }
-            pressed = presses.isNotEmpty() || focusCount > 0
+        }
+        for (next in changes) {
+            if (next != pressed) pressed = next
+            if (throttleMs > 0) delay(throttleMs.toLong())
         }
     }
     return pressed

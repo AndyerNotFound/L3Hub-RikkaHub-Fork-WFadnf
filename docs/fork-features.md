@@ -164,6 +164,9 @@
 | 滑入曲线 | — | `rememberSlideSpec` 用 ImageToolbox 的 `FancyTransitionEasing`（尾段 3% 过冲），三档时长不变 |
 | 触感强度 | 设置 → 偏好设置 → 通用 | `hapticsStrength`：跟随系统 / 轻 / 重；后两档带 `FLAG_IGNORE_GLOBAL_SETTING` 绕过系统"触摸时震动"，读屏开着时不发 |
 | 按压轮廓 | — | `rememberShapeByInteraction` / `MorphShape` 逐角插值；`Modifier.pressScale(restShape=, pressedShape=)` 可与缩放叠加。首个调用点：设置页色板缩略图 |
+| 形状类型 | 设置 → 偏好设置 → 通用 | `cornerStyle` 七种：圆角 / 切角 / 超椭圆 / 连续圆角 / 波浪边 / 凹角 / 缺口角；`Theme.kt` 五档 shapes、`CardGroup`、容器变换起始形状三处一起换 |
+| 边角大小 | 同上 | `cornerScale` 0–200%，等比缩放所有圆角；Miuix 卡片的 `miuixCornerRadius` 同步缩放 |
+| 边角动画节流 | 同上 | `cornerAnimThrottle` 0–500ms；按压轮廓先立刻生效，窗口内连点只补最后一下 |
 
 ## 3 布局与导航
 

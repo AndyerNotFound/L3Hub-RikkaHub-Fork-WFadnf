@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -35,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.CornerStyle
 import me.rerere.rikkahub.data.datastore.HapticsStrength
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
@@ -348,6 +351,52 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         )
                     }
                 }
+                // 轮廓：形状类型 / 边角大小 / 按压轮廓的节流，取自 ImageToolbox 的「布局」分组
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_corner_style_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_corner_style_desc)) },
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CornerStyle.entries.forEach { style ->
+                            FilterChip(
+                                selected = displaySetting.cornerStyle == style,
+                                onClick = {
+                                    updateDisplaySetting(displaySetting.copy(cornerStyle = style))
+                                },
+                                label = { Text(cornerStyleLabel(style)) },
+                            )
+                        }
+                    }
+                }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_corner_scale_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_corner_scale_desc)) },
+                    trailingContent = { CardGroupValue("${(displaySetting.cornerScale * 100).roundToInt()}%") },
+                ) {
+                    Slider(
+                        value = displaySetting.cornerScale,
+                        onValueChange = { scale ->
+                            updateDisplaySetting(displaySetting.copy(cornerScale = scale))
+                        },
+                        valueRange = 0f..2f,
+                    )
+                }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_corner_throttle_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_corner_throttle_desc)) },
+                    trailingContent = { CardGroupValue("${displaySetting.cornerAnimThrottle} ms") },
+                ) {
+                    NumberSlider(
+                        value = displaySetting.cornerAnimThrottle,
+                        onValueChange = { throttle ->
+                            updateDisplaySetting(displaySetting.copy(cornerAnimThrottle = throttle))
+                        },
+                        valueRange = 0..500,
+                    )
+                }
             }
 
             CardGroup {
@@ -560,3 +609,17 @@ private fun LanguagePickerDialog(
         },
     )
 }
+
+/** 形状类型的中文/英文标签；只给设置页用，别在别处重复一份。 */
+@Composable
+private fun cornerStyleLabel(style: CornerStyle): String = stringResource(
+    when (style) {
+        CornerStyle.ROUNDED -> R.string.setting_display_page_corner_style_rounded
+        CornerStyle.CUT -> R.string.setting_display_page_corner_style_cut
+        CornerStyle.SQUIRCLE -> R.string.setting_display_page_corner_style_squircle
+        CornerStyle.SMOOTH -> R.string.setting_display_page_corner_style_smooth
+        CornerStyle.WAVY -> R.string.setting_display_page_corner_style_wavy
+        CornerStyle.SCOOP -> R.string.setting_display_page_corner_style_scoop
+        CornerStyle.NOTCH -> R.string.setting_display_page_corner_style_notch
+    }
+)

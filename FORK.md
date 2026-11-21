@@ -404,6 +404,38 @@ attack 段，前者由 `motionAnimationsEnabled()` 兜住。
 
 > 本轮同样未编译验证（Termux 侧禁止编译）：括号与引用做了静态检查，行为待 CI 出包确认。
 
+### 形状体系（ImageToolbox 移植 · 第二轮，2026-11-21）
+
+截图里那组「形状类型 / 边角大小 / 边角动画节流」原样搬过来了。源工程用带 `strength` 的
+sealed class，这里拆成 `CornerStyle` 枚举 + 独立的 `cornerScale`：能直接序列化进设置，
+而且「形状」和「大小」本来就是两个设置项。
+
+| 文件 | 说明 |
+|---|---|
+| `ui/shape/AppShape.kt`（新增） | `styledShape(style, 四角 CornerSize 或单个半径, scale)` 分发七种轮廓；`ScaledCornerSize` 按 `scale * style.scaleRatio` 缩放每个角，强度为 0 时退成直角 |
+| `ui/shape/ContiniousRoundedRectangle.kt` | 连续圆角（Smooth），来自 `kyant0:capsule` 的 `Continuity` |
+| `ui/shape/WavyShape.kt` / `ScoopShape.kt` / `NotchShape.kt` | 波浪边 / 凹角 / 缺口角，源工程本地 Path 实现，逐行搬，只改 package |
+| `data/datastore/Settings.kt` | `cornerStyle`（七种，默认圆角）、`cornerScale`（0–2，默认 1）、`cornerAnimThrottle`（默认 128ms） |
+| `ui/theme/Theme.kt` | `MaterialTheme.shapes` 五档逐角换成当前轮廓；`LocalCornerStyle` / `LocalCornerScale` / `LocalCornerThrottle` 下发；Miuix 卡片的 `miuixCornerRadius` 乘上边角大小 |
+| `ui/theme/FullWidthComponents.kt` | `adaptiveShape` 返回 `Shape`（不再是 `RoundedCornerShape`）；新增 `adaptiveStyledShape(top, bottom)` 给卡片分组 |
+| `ui/components/ui/CardGroup.kt` | 三处形状收口到 `adaptiveStyledShape`：`cardGroupItemShape()`、列表项、表单项 |
+| `ui/hooks/HeroAnimation.kt` | 容器变换的起始 / 目标形状改走 `adaptiveShape`，换了切角时展开的第一帧才不会对不上条目 |
+| `ui/modifier/ShapeInteraction.kt` | 按压轮廓按 `cornerAnimThrottle` 节流：先立刻生效，窗口内的连点只补最后一下（`Channel.CONFLATED`） |
+| 设置页 | 偏好设置 → 通用 →「形状类型」七个 Chip、「边角大小」0–200%、「边角动画节流」0–500ms |
+
+新增两个依赖，版本与源工程一致：`io.github.kyant0:capsule:2.1.3`（连续圆角）、
+`com.stoyanvuchev:squircle-shape-android:5.4.0`（超椭圆），均在 Maven Central。
+
+已知边界：
+
+- **Miuix 皮肤只跟「边角大小」**：Miuix 的卡片只有 `cornerRadius` 一个参数，切角 / 波浪边这类轮廓它画不出来。切到 Miuix 时形状类型不生效，半径照样缩放。
+- **全宽组件优先**：`fullWidthComponents` 打开时一律直角，形状类型被跳过（顺序与原来一致）。
+- **波浪边 / 凹角 / 缺口角在极小的组件上**（Chip、开关）会看不清纹理，按半径比例自适应；小于 4dp 的角基本等同于直角。
+- 容器变换期间形状每帧重建，波浪边这类要算 Path 的轮廓在转场动画里会多一次路径计算；转场只有几百毫秒，先按可用处理，真掉帧再给形状做实例缓存。
+
+> 本轮未编译验证（Termux 侧禁止编译）：五个新文件与原文件逐行 diff 过（只差 package 与授权头），
+> 引用与括号做过静态检查，行为待 CI 出包确认。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

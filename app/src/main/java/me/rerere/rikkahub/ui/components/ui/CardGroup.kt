@@ -66,6 +66,7 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
+import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 
 private val CardGroupCorner = 20.dp
 private val CardGroupItemSpacing = 2.dp
@@ -230,7 +231,7 @@ fun cardGroupItemShape(index: Int, count: Int): Shape {
     val inner = adaptiveCornerRadius(CardGroupInnerCorner)
     val top = if (index == 0) corner else inner
     val bottom = if (index == count - 1) corner else inner
-    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+    return adaptiveStyledShape(topRadius = top, bottomRadius = bottom)
 }
 
 // 列表项开头带圆形底色的图标
@@ -346,12 +347,10 @@ private fun CardGroupFormItem(
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "formBottomCorner",
     )
-    // 弹簧会过冲，负半径会让 RoundedCornerShape 直接抛异常
-    val shape = RoundedCornerShape(
-        topStart = topCorner.coerceAtLeast(0.dp),
-        topEnd = topCorner.coerceAtLeast(0.dp),
-        bottomStart = bottomCorner.coerceAtLeast(0.dp),
-        bottomEnd = bottomCorner.coerceAtLeast(0.dp),
+    // 弹簧会过冲，负半径会让形状构造抛异常；轮廓类型（圆角/切角/波浪…）由主题层的显示设置决定
+    val shape = adaptiveStyledShape(
+        topRadius = topCorner.coerceAtLeast(0.dp),
+        bottomRadius = bottomCorner.coerceAtLeast(0.dp),
     )
     val glass = LocalSettings.current.displaySetting.enableBlurEffect
     Surface(
@@ -391,12 +390,7 @@ private fun CardGroupListItem(
     // 弹簧动画会过冲，圆角可能瞬时为负（尤其全宽模式下目标值是 0），必须夹一下
     val safeTopCorner = topCorner.coerceAtLeast(0.dp)
     val safeBottomCorner = bottomCorner.coerceAtLeast(0.dp)
-    val shape = RoundedCornerShape(
-        topStart = safeTopCorner,
-        topEnd = safeTopCorner,
-        bottomStart = safeBottomCorner,
-        bottomEnd = safeBottomCorner,
-    )
+    val shape = adaptiveStyledShape(topRadius = safeTopCorner, bottomRadius = safeBottomCorner)
     // 毛玻璃底只加在这类「开关行 / 按钮行」上；列表项本身不挂 hazeSource，避免滚动时每项重糊一次
     val glass = LocalSettings.current.displaySetting.enableBlurEffect
     ListItem(

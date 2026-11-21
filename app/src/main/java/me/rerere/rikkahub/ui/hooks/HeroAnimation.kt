@@ -7,7 +7,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -23,6 +22,7 @@ import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
+import me.rerere.rikkahub.ui.theme.adaptiveShape
 
 /** 源条目侧的圆角。页面到位后收到 0；返回时跟着容器一起长回这个值，落回条目那一帧才对得上。 */
 val HeroSourceCorner = 20.dp
@@ -105,8 +105,9 @@ fun HeroPage(
     Box(
         modifier = modifier
             .fillMaxSize()
-            // 弹簧会过冲，负半径会让 RoundedCornerShape 直接抛异常
-            .heroPageContainer(heroKey, RoundedCornerShape(corner.coerceAtLeast(0.dp))),
+            // 弹簧会过冲，负半径会让形状构造抛异常
+            // 起始形状跟着当前轮廓类型走：选了切角 / 连续圆角时，展开的第一帧才不会对不上条目
+            .heroPageContainer(heroKey, adaptiveShape(corner.coerceAtLeast(0.dp))),
     ) {
         content()
     }
@@ -129,7 +130,8 @@ fun Modifier.heroSource(
     shape: Shape? = null,
 ): Modifier = heroContainer(
     screen.heroKey(),
-    shape ?: RoundedCornerShape(adaptiveCornerRadius(HeroSourceCorner)),
+    // 没传形状时按主题当前的轮廓类型造，和条目自己画的那个一致
+    shape ?: adaptiveShape(adaptiveCornerRadius(HeroSourceCorner)),
 )
 
 /**

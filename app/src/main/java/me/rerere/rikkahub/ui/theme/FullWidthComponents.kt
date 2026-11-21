@@ -7,16 +7,20 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.data.datastore.CornerStyle
+import me.rerere.rikkahub.ui.shape.styledShape
 
 /**
  * 「全宽组件」显示设置（`DisplaySetting.fullWidthComponents`）。
@@ -45,10 +49,53 @@ fun adaptiveCornerRadius(radius: Dp): Dp {
     return radius.coerceAtLeast(0.dp)
 }
 
-/** 全宽模式下是直角，否则用传入的半径。 */
+/** 组件轮廓类型，由 [RikkahubTheme] 从显示设置写入；没有主题包裹时是普通圆角。 */
+val LocalCornerStyle = compositionLocalOf { CornerStyle.ROUNDED }
+
+/** 边角大小倍率（显示设置里的「边角大小」，1f 为设计值）。 */
+val LocalCornerScale = compositionLocalOf { 1f }
+
+/** 按压轮廓变形的节流窗口（毫秒），对应显示设置里的「边角动画节流」。 */
+val LocalCornerThrottle = compositionLocalOf { 128 }
+
+/**
+ * 全宽模式下是直角，否则按当前轮廓类型与边角大小造形状。
+ *
+ * 返回 `Shape` 而不是 `RoundedCornerShape`：选了切角 / 连续圆角 / 波浪边以后，
+ * 这里给出的既不是圆角也不是 `RoundedCornerShape` 能表示的东西。调用点一律当 `Shape` 用。
+ */
 @Composable
 @ReadOnlyComposable
-fun adaptiveShape(radius: Dp): RoundedCornerShape = RoundedCornerShape(adaptiveCornerRadius(radius))
+fun adaptiveShape(radius: Dp): Shape {
+    if (LocalFullWidthComponents.current) return SquareShapes.small
+    return styledShape(
+        style = LocalCornerStyle.current,
+        radius = CornerSize(radius.coerceAtLeast(0.dp)),
+        scale = LocalCornerScale.current,
+    )
+}
+
+/**
+ * 上下两段圆角不同的卡片分组：按当前轮廓类型造逐角形状。
+ *
+ * 参数是「上边的半径」和「下边的半径」两个值（分组首尾项取大圆角、中间项取小圆角），
+ * 不是四个角各给一个——现有调用点只按上下两段区分。
+ */
+@Composable
+@ReadOnlyComposable
+fun adaptiveStyledShape(topRadius: Dp, bottomRadius: Dp): Shape {
+    val top = topRadius.coerceAtLeast(0.dp)
+    val bottom = bottomRadius.coerceAtLeast(0.dp)
+    if (LocalFullWidthComponents.current) return SquareShapes.small
+    return styledShape(
+        style = LocalCornerStyle.current,
+        topStart = CornerSize(top),
+        topEnd = CornerSize(top),
+        bottomEnd = CornerSize(bottom),
+        bottomStart = CornerSize(bottom),
+        scale = LocalCornerScale.current,
+    )
+}
 
 /** 全宽模式下返回 0（贴父容器边缘），否则返回 [padding]。 */
 @Composable
