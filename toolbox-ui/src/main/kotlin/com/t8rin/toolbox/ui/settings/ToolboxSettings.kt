@@ -20,8 +20,12 @@ package com.t8rin.toolbox.ui.settings
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import com.t8rin.dynamic.theme.PaletteStyle
+import com.t8rin.toolbox.ui.model.DialogPosition
+import com.t8rin.toolbox.ui.model.FlingType
 import com.t8rin.toolbox.ui.model.IconShape
 import com.t8rin.toolbox.ui.model.ShapeType
+import com.t8rin.toolbox.ui.model.SliderType
+import com.t8rin.toolbox.ui.model.SwitchType
 
 /**
  * Read-only view of the host app settings consumed by toolbox-ui.
@@ -54,8 +58,49 @@ interface ToolboxSettings {
     val drawAppBarShadows: Boolean
 
     val shapeByInteractionThrottle: Long
+
+    // 阶段 3（Enhanced 组件系列）新增：字段名与 ImageToolbox UiSettingsState 一致
+    val drawButtonShadows: Boolean
+
+    val drawFabShadows: Boolean
+
+    val drawSwitchShadows: Boolean
+
+    val drawSliderShadows: Boolean
+
+    val sheetNestedScrollEnabled: Boolean
+
+    val isCompactSelectorsLayout: Boolean
+
+    val isCenterAlignDialogButtons: Boolean
+
+    val dragHandleWidth: Dp
+
+    val switchType: SwitchType
+
+    val sliderType: SliderType
+
+    val flingType: FlingType
+
+    val dialogPosition: DialogPosition
 }
 
 val LocalToolboxSettings = staticCompositionLocalOf<ToolboxSettings> {
     error("ToolboxSettings not provided")
 }
+
+/**
+ * Adapter for the single `copy(...)` call site in the ported widgets
+ * (EnhancedButtonGroup temporarily overrides `shapesType` for its edge buttons).
+ *
+ * ImageToolbox's `UiSettingsState` is a data class, so `copy` is free there;
+ * [ToolboxSettings] is a read-only view owned by the host, so only the override
+ * that the widgets actually use is expressed here.
+ */
+fun ToolboxSettings.copy(shapesType: ShapeType): ToolboxSettings =
+    ToolboxSettingsWithShapesType(this, shapesType)
+
+private class ToolboxSettingsWithShapesType(
+    private val delegate: ToolboxSettings,
+    override val shapesType: ShapeType
+) : ToolboxSettings by delegate

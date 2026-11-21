@@ -1,0 +1,192 @@
+/*
+ * ImageToolbox is an image editor for android
+ * Copyright (c) 2026 T8RIN (Malik Mukhametzyanov)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+ */
+
+package com.t8rin.toolbox.ui.widget.enhanced
+
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.material.minimumInteractiveComponentSize
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.contentColorFor
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.t8rin.toolbox.resources.utils.animation.animateColorAsState
+import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
+import com.t8rin.toolbox.ui.theme.DisabledAlpha
+import com.t8rin.toolbox.ui.theme.mixedContainer
+import com.t8rin.toolbox.ui.theme.onMixedContainer
+import com.t8rin.toolbox.ui.theme.outlineVariant
+import com.t8rin.toolbox.ui.utils.helper.ProvidesValue
+import com.t8rin.toolbox.ui.utils.provider.LocalContainerBrush
+import com.t8rin.toolbox.ui.widget.modifier.AutoCircleShape
+import com.t8rin.toolbox.ui.widget.modifier.materialShadow
+import com.t8rin.toolbox.ui.widget.modifier.shapeByInteraction
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+
+@Composable
+fun EnhancedIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    onHoldStep: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = contentColor(containerColor),
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant(onTopOf = containerColor),
+    disabledContentColor: Color = contentColor.copy(alpha = DisabledAlpha),
+    disabledContainerColor: Color = Color.Transparent,
+    shape: Shape = AutoCircleShape(),
+    pressedShape: Shape = IconButtonDefaults.smallPressedShape,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    forceMinimumInteractiveComponentSize: Boolean = true,
+    enableAutoShadowAndBorder: Boolean = containerColor != Color.Transparent || LocalContainerBrush.current != null,
+    isShadowClip: Boolean = containerColor.alpha != 1f || !enabled,
+    content: @Composable () -> Unit
+) {
+    val settingsState = LocalToolboxSettings.current
+    val haptics = LocalHapticFeedback.current
+    val brush = LocalContainerBrush.current.takeIf { enabled }
+    val currentOnClick = rememberUpdatedState(onClick)
+    val currentOnLongClick = rememberUpdatedState(onLongClick)
+    val currentOnHoldStep = rememberUpdatedState(onHoldStep)
+
+    LocalMinimumInteractiveComponentSize.ProvidesValue(Dp.Unspecified) {
+        if (onLongClick != null || onHoldStep != null) {
+            val viewConfiguration = LocalViewConfiguration.current
+
+            LaunchedEffect(interactionSource) {
+                var isLongClickOrHold = false
+
+                interactionSource.interactions.collectLatest { interaction ->
+                    when (interaction) {
+                        is PressInteraction.Press -> {
+                            isLongClickOrHold = false
+                            delay(viewConfiguration.longPressTimeoutMillis)
+                            isLongClickOrHold = true
+                            haptics.longPress()
+
+                            currentOnLongClick.value?.invoke()
+
+                            var repeatDelayMs = 140L
+                            while (currentOnHoldStep.value != null) {
+                                currentOnHoldStep.value?.invoke()
+                                delay(repeatDelayMs)
+                                repeatDelayMs = (repeatDelayMs * 0.94f).toLong()
+                                    .coerceAtLeast(45L)
+                            }
+                        }
+
+                        is PressInteraction.Release -> {
+                            if (!isLongClickOrHold) {
+                                currentOnClick.value()
+                                haptics.press()
+                            }
+                        }
+
+                        is PressInteraction.Cancel -> {
+                            isLongClickOrHold = false
+                        }
+                    }
+                }
+            }
+        }
+        val animatedShape = shapeByInteraction(
+            shape = shape,
+            pressedShape = pressedShape,
+            interactionSource = interactionSource
+        )
+
+        OutlinedIconButton(
+            onClick = {
+                if (onLongClick == null && onHoldStep == null) {
+                    onClick()
+                    haptics.longPress()
+                }
+            },
+            modifier = modifier
+                .then(
+                    if (forceMinimumInteractiveComponentSize) Modifier.minimumInteractiveComponentSize()
+                    else Modifier
+                )
+                .materialShadow(
+                    shape = animatedShape,
+                    isClipped = isShadowClip,
+                    enabled = LocalToolboxSettings.current.drawButtonShadows,
+                    elevation = if (settingsState.borderWidth > 0.dp || !enableAutoShadowAndBorder) 0.dp else 0.7.dp
+                )
+                .then(
+                    if (brush != null) Modifier.background(brush, animatedShape)
+                    else Modifier
+                ),
+            shape = animatedShape,
+            colors = IconButtonDefaults.iconButtonColors(
+                contentColor = animateColorAsState(
+                    if (enabled) contentColor
+                    else disabledContentColor
+                ).value,
+                containerColor = animateColorAsState(
+                    when {
+                        !enabled -> disabledContainerColor
+                        brush != null -> Color.Transparent
+                        else -> containerColor
+                    }
+                ).value,
+                disabledContentColor = disabledContentColor,
+                disabledContainerColor = disabledContainerColor
+            ),
+            enabled = enabled,
+            border = BorderStroke(
+                width = animateDpAsState(
+                    if (enableAutoShadowAndBorder) settingsState.borderWidth
+                    else 0.dp
+                ).value,
+                color = animateColorAsState(
+                    if (enableAutoShadowAndBorder) borderColor
+                    else Color.Transparent
+                ).value
+            ),
+            interactionSource = interactionSource,
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun contentColor(
+    backgroundColor: Color
+) = MaterialTheme.colorScheme.contentColorFor(backgroundColor).takeOrElse {
+    if (backgroundColor == MaterialTheme.colorScheme.mixedContainer) MaterialTheme.colorScheme.onMixedContainer
+    else LocalContentColor.current
+}

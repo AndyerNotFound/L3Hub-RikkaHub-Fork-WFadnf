@@ -27,12 +27,16 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
+    // @Preview 注解：ui/utils/helper/Preview.kt 的 EnPreview
+    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     // modalsheet 引擎使用 Material 2 的 Surface / contentColorFor
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.palette.ktx)
     implementation(libs.kotlinx.coroutines.core)
+    // awaitFrame：ValueDialog / LiquidToggle
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material.kolor)
     // 形状体系：连续圆角（Smooth）与超椭圆（Squircle）
     implementation(libs.capsule)
@@ -42,4 +46,10 @@ dependencies {
     implementation(libs.compose.shadows.plus)
     // IconShape.entries 使用持久化不可变列表
     implementation(libs.kotlinx.collections.immutable)
+    // 液态玻璃开关（LiquidToggle）的 blur/lens/highlight 绘制
+    implementation(libs.backdrop)
+    // 渐隐边缘 / 跑马灯：widget/modifier/FadingEdges 与 widget/text/Marquee
+    implementation(libs.fading.edges)
+    // 惯性滚动预设：EnhancedFlingBehavior
+    implementation(libs.flinger)
 }

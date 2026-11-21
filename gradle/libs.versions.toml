@@ -54,6 +54,9 @@ squircle-shape = "5.4.0"
 shadow-gadgets = "2.5.0"
 compose-shadows-plus = "1.0.4"
 kotlinx-collections-immutable = "0.5.2"
+# toolbox-ui 阶段 3：deceleration fling 预设（EnhancedFlingBehavior）与渐隐边缘/跑马灯绘制
+flinger = "2.1.0"
+fading-edges = "1.0.4"
 # 液态玻璃开关：blur / lens / highlight 这套绘制，同属 kyant0
 backdrop = "2.0.1"
 uiautomator = "2.4.0"
@@ -182,6 +185,9 @@ haze-glass-material3 = { module = "dev.chrisbanes.haze:haze-glass-material3", ve
 capsule = { module = "io.github.kyant0:capsule", version.ref = "capsule" }
 backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 squircle-shape = { group = "com.stoyanvuchev", name = "squircle-shape-android", version.ref = "squircle-shape" }
+flinger = { module = "com.github.iamjosephmj:flinger", version.ref = "flinger" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlin-coroutines-core" }
+fading-edges = { module = "com.github.t8rin:ComposeFadingEdges", version.ref = "fading-edges" }
 shadow-gadgets = { module = "com.github.zed-alpha.shadow-gadgets:compose", version.ref = "shadow-gadgets" }
 compose-shadows-plus = { module = "com.github.GIGAMOLE:ComposeShadowsPlus", version.ref = "compose-shadows-plus" }
 kotlinx-collections-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "kotlinx-collections-immutable" }

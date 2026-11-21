@@ -1,0 +1,62 @@
+/*
+ * ImageToolbox is an image editor for android
+ * Copyright (c) 2026 T8RIN (Malik Mukhametzyanov)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+ *
+ * Note: this is a subset of ImageToolbox's core/domain/.../utils/StringUtils.kt
+ * (`String.trimTrailingZero`) and core/domain/.../utils/Rounding.kt
+ * (`NEAREST_ODD_ROUNDING`, `roundToNearestOdd`, `Float.roundTo`).
+ * Only the numeric-formatting helpers consumed by toolbox-ui widgets are vendored;
+ * the remaining core.domain helpers (`differenceFrom`, image/save models, ...) are out of scope.
+ */
+
+@file:Suppress("unused")
+
+package com.t8rin.toolbox.ui.utils
+
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
+fun String.trimTrailingZero(): String {
+    val value = this
+    return if (value.isNotEmpty()) {
+        if (value.indexOf(".") < 0) {
+            value
+        } else {
+            value.replace("0*$".toRegex(), "").replace("\\.$".toRegex(), "")
+        }
+    } else {
+        value
+    }
+}
+
+const val NEAREST_ODD_ROUNDING = -3
+
+fun roundToNearestOdd(
+    number: Float
+): Float = number.roundToInt().let {
+    if (it % 2 != 0) it
+    else it + 1
+}.toFloat()
+
+fun Float.roundTo(
+    digits: Int
+): Float = if (digits == NEAREST_ODD_ROUNDING) roundToNearestOdd(this)
+else (this * 10f.pow(digits)).roundToInt() / (10f.pow(digits))
+
+/**
+ * Vendored from ImageToolbox's `lib/colors` module
+ * (`com.t8rin.colors.util.RoundngUtil.kt`), which is out of scope for this stage.
+ */
+fun Float.roundToTwoDigits() = (this * 100.0f).roundToInt() / 100.0f
