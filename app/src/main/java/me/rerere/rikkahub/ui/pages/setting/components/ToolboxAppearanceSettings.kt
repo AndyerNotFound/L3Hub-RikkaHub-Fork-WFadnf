@@ -65,7 +65,7 @@ fun ToolboxAppearanceSettings(
             title = { Text(stringResource(R.string.setting_theme_page_engine_title)) },
         ) {
             if (dynamicColor) {
-                item("engineDynamicHint") {
+                item {
                     Text(
                         text = stringResource(R.string.setting_theme_page_engine_dynamic_hint),
                         style = MaterialTheme.typography.bodyMedium,
@@ -237,7 +237,7 @@ private fun IconShapePicker(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
     ) {
-        item("none") {
+        item {
             IconShapeOption(
                 shape = null,
                 label = stringResource(R.string.setting_theme_icon_shape_none),
@@ -255,7 +255,7 @@ private fun IconShapePicker(
                 onClick = { onSelect(key) },
             )
         }
-        item("random") {
+        item {
             IconShapeOption(
                 shape = ToolboxIconShapes.random,
                 label = stringResource(R.string.setting_theme_icon_shape_random),
