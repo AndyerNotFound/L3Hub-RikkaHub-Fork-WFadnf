@@ -635,7 +635,7 @@ class RouteActivity : ComponentActivity() {
                                 // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
                                 // 等这一段演完再出栈，不吃掉也不重定向
                                 onBack = { navController.popBackStack() },
-                                // 规格与右列同源：进场按 enterFromTop 上下、返回收回来源条目、预测性返回同参
+                                // 规格与右列同源：容器变换页收回条目、滑入页原路滑出、预测性返回同参
                                 transitionSpec = navTransitionSpecs.enter,
                                 popTransitionSpec = navTransitionSpecs.pop,
                                 predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
@@ -667,7 +667,7 @@ class RouteActivity : ComponentActivity() {
                                             .fillMaxHeight(),
                                         onBack = { navController.popBackStack() },
                                         // 与中列同一份规格。右列只装设置里的下钻页，都不带 enterFromTop，
-                                        // 落地仍然是从下方滑入；返回与中列同一条收回路径
+                                        // 右列只装设置里的下钻页，都是容器变换页：进场从卡片展开、返回收回那一块
                                         transitionSpec = navTransitionSpecs.enter,
                                         popTransitionSpec = navTransitionSpecs.pop,
                                         predictivePopTransitionSpec = navTransitionSpecs.predictivePop,

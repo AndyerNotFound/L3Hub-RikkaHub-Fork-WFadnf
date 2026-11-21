@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -20,6 +22,7 @@ import androidx.navigation3.scene.Scene
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberNavInteractionDecorator
+import me.rerere.rikkahub.ui.hooks.usesContainerTransform
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
@@ -28,16 +31,17 @@ import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
  *
  * 三条规矩，写在类型里而不是散在调用点上：
  *
- * - 进场按栈顶那一页的 `Screen.Chat.enterFromTop` 决定从上方还是下方落下，被盖住的页面原地不动；
- * - 返回只有一种：整页收回它的来源条目（页面自己的 sharedBounds 演的容器变换），底下那页原地露出；
- *   没有来源条目的页面（会话、设置首页）只淡出；两者都不位移，也不再向下滑出；
+ * - 页面按 `Screen.usesContainerTransform()` 分两类，各自的进出互为逆：
+ *   容器变换页从卡片 / 选项卡展开，返回收回那一块，进出都不位移；
+ *   其余页面（会话、设置首页）从下方（`Screen.Chat.enterFromTop` 时为上方）滑入，返回原路滑出；
+ * - 被盖住的页面用 `ExitTransition.None`，原地不动；
  * - 手势返回跟手后的收尾与普通返回同参（[predictivePop] 直接委托 [pop]）。
  */
 @Immutable
 class NavTransitionSpecs internal constructor(
     /** 进场：新页从一侧滑入，底下那页不动。 */
     val enter: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform,
-    /** 返回：容器变换收回条目，不位移。 */
+    /** 返回：容器变换页收回条目，滑入页原路滑出。 */
     val pop: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform,
 ) {
     /**
@@ -59,26 +63,43 @@ fun rememberNavTransitionSpecs(): NavTransitionSpecs {
     // 页面滑入用当前档位的空间曲线（有加速有减速），默认那个弹簧偏匀速，看起来像线性
     val slideSpec = rememberSpatialSpec<IntOffset>()
     val currentSlideSpec = rememberUpdatedState(slideSpec)
-    // 退场不再位移，但离场这一页要留到容器变换收回条目为止：用同时长的淡出占住这段窗口。
-    // 时长与「动画速度」三档同源，收起与展开不会一段快一段慢。
-    val popSpec = rememberSlideSpec<Float>()
-    val currentPopSpec = rememberUpdatedState(popSpec)
+    // 容器变换页的窗口时长：进出都不位移，但离场页要留到容器收回条目为止，进场也要留够
+    // 被盖住那页的存活时间供 sharedBounds 配对。时长与「动画速度」三档同源。
+    val fadeSpec = rememberSlideSpec<Float>()
+    val currentFadeSpec = rememberUpdatedState(fadeSpec)
     return remember {
-        // 返回只有一种：整页收回来源条目，底下的页面原地露出。位移全交给页面自己的 sharedBounds，
-        // display 级只留一个不位移的退场窗口，给收起的容器变换留出播放时间
         val pop: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
-            EnterTransition.None togetherWith fadeOut(animationSpec = currentPopSpec.value)
+            // 离场的那一页在 initialState 这一侧；nav3 1.2 起 key 包在 Scene 里
+            val leaving = (initialState as? Scene<*>)?.key as? Screen
+            if (leaving != null && leaving.usesContainerTransform()) {
+                // 从卡片 / 选项卡展开进来的页面：退场原路收回那一块。位移交给页面自己的
+                // sharedBounds，display 级只留一个不位移的窗口，给收回的容器变换留出播放时间
+                EnterTransition.None togetherWith fadeOut(animationSpec = currentFadeSpec.value)
+            } else {
+                // 滑入的页面：从哪一侧进来就往哪一侧滑回去——进场动画的逆
+                val fromTop = (leaving as? Screen.Chat)?.enterFromTop == true
+                EnterTransition.None togetherWith slideOutVertically(
+                    animationSpec = currentSlideSpec.value,
+                ) { if (fromTop) -it else it }
+            }
         }
         NavTransitionSpecs(
             enter = {
                 // nav3 1.2 起 target 包在 Scene 里，页面 key 在 Scene.key——
                 // 直接 `targetState as? Screen` 永远是 null，enterFromTop 会整个失效
                 val target = (targetState as? Scene<*>)?.key as? Screen
-                val enterFromTop = (target as? Screen.Chat)?.enterFromTop
-                // 侧边栏点进来的会话：抽屉先收回去，会话页从点击项那一侧落下来
-                slideInVertically(animationSpec = currentSlideSpec.value) {
-                    if (enterFromTop == true) -it else it
-                } togetherWith ExitTransition.None
+                if (target != null && target.usesContainerTransform()) {
+                    // 容器变换页：位移由页面自己的 sharedBounds 演（从卡片展开），
+                    // display 级只给一段同时长的淡入——被盖住那页因此留在组合里能配上，
+                    // 配对没成时也是淡入而不是硬切
+                    fadeIn(animationSpec = currentFadeSpec.value) togetherWith ExitTransition.None
+                } else {
+                    // 侧边栏点进来的会话：抽屉先收回去，会话页从点击项那一侧落下来
+                    val enterFromTop = (target as? Screen.Chat)?.enterFromTop
+                    slideInVertically(animationSpec = currentSlideSpec.value) {
+                        if (enterFromTop == true) -it else it
+                    } togetherWith ExitTransition.None
+                }
             },
             pop = pop,
         )

@@ -132,6 +132,20 @@ fun Modifier.heroSource(
 )
 
 /**
+ * 这一页是不是靠容器变换进出：从卡片 / 选项卡展开成整页，返回时收回那一块。
+ *
+ * 判据必须与 `RouteActivity.kt` 的入口清单一致：走 `heroEntry` 的页面都算 [true]；
+ * 走普通 `entry` 的会话页与设置首页是 [false]——它们是滑入的，退场要滑回原来那一侧。
+ * `Screen.MediaCreation` 虽然注册成普通 `entry`，但它在页面内部用 sharedBounds 展开，
+ * 同样算容器变换页（它自带 entry 级 metadata，display 级的进场规格不作用于它）。
+ */
+fun Screen.usesContainerTransform(): Boolean = when (this) {
+    is Screen.Chat -> false
+    Screen.Setting -> false
+    else -> true
+}
+
+/**
  * 每个 Screen 一个稳定 key：源条目和目标页面各算一次，两边必须完全一致。
  *
  * 新增 Screen 时这里会编译不过，正好逼着补一条——key 撞车会让两个页面的容器变换互相串台。

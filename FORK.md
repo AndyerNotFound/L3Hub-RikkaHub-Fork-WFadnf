@@ -522,18 +522,24 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 
 页面级转场统一由 `ui/navigation/NavTransitions.kt` 提供，中列与设置右列使用同一份规格：
 
-- 进场默认从下方滑入，`Screen.Chat.enterFromTop` 可改为从上方进入；被盖住的页面使用
-  `ExitTransition.None`，原地不动。
-- 普通返回与预测性返回共用同一个 `NavTransitionSpecs.pop`：整页收回它的来源条目（页面自己的
-  sharedBounds 演的容器变换），下层页面原地露出；没有来源条目的页面（会话、设置首页）只淡出。
-  返回不位移，也不再向下滑出——退场那一侧只留一个与「动画速度」同档的淡出窗口，
-  用来占住离场页，直到容器变换收起为止。
+- 页面按 `Screen.usesContainerTransform()` 分两类，各自的进出互为逆。被盖住的页面统一用
+  `ExitTransition.None`，原地不动：
+  - 容器变换页（走 `heroEntry` 的全部页面与 `Screen.MediaCreation`）：从卡片 / 选项卡展开成整页，
+    返回收回那一块，进出都不位移，位移全交给页面自己的 sharedBounds；display 级只给一段与
+    「动画速度」同档的淡入 / 淡出窗口，用来占住被盖住或离场那一页，供配对与收回播放。
+  - 滑入页（会话、设置首页）：从下方滑入（`Screen.Chat.enterFromTop` 时改为从上方），
+    返回**原路滑出**，即进场动画的逆。
+- 普通返回与预测性返回共用同一个 `NavTransitionSpecs.pop`，按离场页（`initialState` 那一侧的 scene key）
+  选上述两条中的一条。
+- `usesContainerTransform()` 必须与 `RouteActivity.kt` 的入口清单一致：新增普通 `entry` 页面
+  （不套 `heroEntry`）时要在那个 `when` 里列出来，否则它会被当成容器变换页、进场只剩一段淡入。
 - `Screen.MediaCreation` 保留 entry 级 `None` 转场，容器变换只由页面内部的 sharedBounds 演出，避免双层位移。
 - 路由身份在同包的 `Screen.kt`，入口清单是 `RouteActivity.kt` 顶层的 `appNavEntries()`；两个 `NavDisplay`
   共用 remembered entry provider，但各自持有 SaveableState / ViewModelStore / 输入守卫装饰器实例。
 
 `heroEntry<T>` 负责可配对页面的容器变换：进场展开、返回收回，两个方向都配对共享元素，是同一段
 容器变换的正反两面；`heroPageContainer` 因此在离场时也保留，不再按 `transition.targetState` 摘除。
+容器变换页的 display 级进场与退场因此都不位移（只有淡入淡出窗口），不会与容器变换叠成两套位移。
 页内元素（`heroAnimation`）仍只在进场配对，返回时通过 `LocalNavEntryPopped` 摘掉，
 避免「整页收回条目 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
 `HeroPage`；`Screen.Setting` 与 `Screen.MediaCreation` 的既有例外保持不变。
