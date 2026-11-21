@@ -55,6 +55,7 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.LocalDialogDismiss
 
 /**
  * 后台子代理跑完后自动回投的结果。
@@ -177,8 +178,11 @@ fun ChatMessageSubAgentNotice(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        editing = false
-                        onEdit?.invoke(draft.trim())
+                        val action = {
+                            editing = false
+                            onEdit?.invoke(draft.trim())
+                        }
+                        LocalDialogDismiss.current?.invoke(action) ?: action()
                     },
                     enabled = draft.isNotBlank(),
                 ) {
@@ -186,7 +190,7 @@ fun ChatMessageSubAgentNotice(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { editing = false }) {
+                TextButton(onClick = { LocalDialogDismiss.current?.invoke({ editing = false }) ?: run { editing = false } }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

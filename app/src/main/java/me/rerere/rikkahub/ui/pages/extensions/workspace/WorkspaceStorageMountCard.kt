@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -41,6 +40,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert02
 import me.rerere.hugeicons.stroke.FolderAdd
@@ -188,7 +189,7 @@ private fun StorageMountDialog(
         if (picked != null) path = picked
     }
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -252,7 +253,9 @@ private fun StorageMountDialog(
                     if (target != initial?.path && !File(target).isDirectory) {
                         unavailable = true
                     } else {
-                        onConfirm(WorkspaceStorageMount(path = target, writable = writable))
+                        // 先播退场再交回父级关闭，窗口不至于当场消失
+                        val action = { onConfirm(WorkspaceStorageMount(path = target, writable = writable)) }
+                        LocalDialogDismiss.current?.invoke(action) ?: action()
                     }
                 },
                 enabled = pathError == null && !unavailable,
@@ -267,7 +270,7 @@ private fun StorageMountDialog(
                         Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = { LocalDialogDismiss.current?.invoke(onDismiss) ?: onDismiss() }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }

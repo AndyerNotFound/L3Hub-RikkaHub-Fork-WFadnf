@@ -45,6 +45,7 @@ import me.rerere.rikkahub.data.workspace.WorkspaceGit
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.ui.richtext.DiffView
 import org.koin.compose.koinInject
 
@@ -290,23 +291,29 @@ internal fun TurnDiffActions(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        pendingDiscard = null
-                        scope.launch {
-                            val result = withContext(Dispatchers.IO) {
-                                runCatching { git.discard(workspaceId, paths = listOf(path)) }.getOrNull()
+                        // 先播退场再执行：直接置状态会把窗口当场拆掉，退场演不出来
+                        val action = {
+                            pendingDiscard = null
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching { git.discard(workspaceId, paths = listOf(path)) }.getOrNull()
+                                }
+                                Toast.makeText(
+                                    context,
+                                    if (result?.ok == true) context.getString(R.string.turn_diff_restore_done) else context.getString(R.string.turn_diff_restore_failed, result?.output.orEmpty().take(120)),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                                reload()
                             }
-                            Toast.makeText(
-                                context,
-                                if (result?.ok == true) context.getString(R.string.turn_diff_restore_done) else context.getString(R.string.turn_diff_restore_failed, result?.output.orEmpty().take(120)),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            reload()
                         }
+                        LocalDialogDismiss.current?.invoke(action) ?: action()
                     },
                 ) { Text(stringResource(R.string.turn_diff_discard)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDiscard = null }) { Text(stringResource(R.string.common_cancel)) }
+                TextButton(
+                    onClick = { LocalDialogDismiss.current?.invoke({ pendingDiscard = null }) ?: run { pendingDiscard = null } },
+                ) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }

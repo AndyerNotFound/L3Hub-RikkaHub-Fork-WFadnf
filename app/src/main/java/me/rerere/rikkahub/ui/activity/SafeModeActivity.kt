@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -45,6 +44,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.datastore.Settings
@@ -196,7 +197,7 @@ class SafeModeActivity : ComponentActivity() {
                 }
 
                 pendingClearKey?.let { key ->
-                    AlertDialog(
+                    AnimatedAlertDialog(
                         onDismissRequest = { pendingClearKey = null },
                         title = { Text("Clear ${storedFieldLabel(key)}?") },
                         text = {
@@ -208,22 +209,27 @@ class SafeModeActivity : ComponentActivity() {
                         confirmButton = {
                             TextButton(
                                 onClick = {
-                                    pendingClearKey = null
-                                    clearing = true
-                                    scope.launch {
-                                        try {
-                                            settingsStore.resetStoredField(key)
-                                        } finally {
-                                            clearing = false
+                                    val action = {
+                                        pendingClearKey = null
+                                        clearing = true
+                                        scope.launch {
+                                            try {
+                                                settingsStore.resetStoredField(key)
+                                            } finally {
+                                                clearing = false
+                                            }
                                         }
                                     }
+                                    LocalDialogDismiss.current?.invoke(action) ?: action()
                                 }
                             ) {
                                 Text("Clear", color = MaterialTheme.colorScheme.error)
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { pendingClearKey = null }) { Text("Cancel") }
+                            TextButton(
+                                onClick = { LocalDialogDismiss.current?.invoke({ pendingClearKey = null }) ?: run { pendingClearKey = null } },
+                            ) { Text("Cancel") }
                         },
                     )
                 }

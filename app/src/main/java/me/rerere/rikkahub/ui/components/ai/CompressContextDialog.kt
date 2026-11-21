@@ -38,6 +38,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
+import me.rerere.ui.components.LocalDialogDismiss
 
 @Composable
 fun CompressContextDialog(
@@ -172,7 +173,7 @@ fun CompressContextDialog(
         },
         dismissButton = {
             if (!isLoading) {
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = { LocalDialogDismiss.current?.invoke(onDismiss) ?: onDismiss() }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
