@@ -101,10 +101,12 @@ internal fun AsrButton(
         tonalElevation = if (isIdle) 0.dp else 2.dp,
         color = containerColor,
     ) {
+        // transitionSpec 不是 @Composable，共用过渡要在组合层先算好
+        val contentTransition = rememberContentTransition()
         AnimatedContent(
             targetState = displayState,
             transitionSpec = {
-                rememberContentTransition().using(SizeTransform(clip = false))
+                contentTransition.using(SizeTransform(clip = false))
             },
             label = "asr_content_switch"
         ) { display ->
