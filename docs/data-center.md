@@ -118,6 +118,12 @@ files/hub/
 水位记在每个包的记录里（`pullWatermark` / `pushWatermark`）；增量层的结构版本与上一份快照不一致、
 或上一份快照已经被清理时退回整份。
 
+增量库的 SQL 由两端共用（`:syncproto` 的 `DeltaSync`）。ATTACH 只对执行它的那条连接可见，而 SQLite
+把 ATTACH 判成只读语句，连接池会把它派给一条只读连接，紧接着的 `CREATE TABLE delta.*` 就报
+`unknown database delta`。app 侧 Room 是 WAL、池里有十条连接，所以导出整段包在一个事务里把写连接钉住，
+DETACH 另开一个空事务回到同一条连接；`apply` 要在事务外关外键约束、钉不住，只能由单连接实现调用
+（两端的恢复与合并都直接开一条 requery 连接）。
+
 ## 拉取
 
 1. `ping` 确认版本、库版本、是否有待安装数据；

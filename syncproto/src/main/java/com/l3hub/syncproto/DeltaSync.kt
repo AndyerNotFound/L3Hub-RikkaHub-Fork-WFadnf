@@ -34,6 +34,9 @@ object DeltaSync {
      * 一条数据库连接的最小抽象。
      *
      * [exec] 与 [query] 的参数按 SQLite 的位置参数绑定；实现方负责把占位符与参数交给底层驱动。
+     *
+     * ATTACH 只对执行它的那条连接可见，池化实现必须让同一段 SQL 走在同一条连接上，否则 `delta.*`
+     * 会报 unknown database delta。
      */
     interface Session {
         fun exec(sql: String, args: Array<Any?>? = null)
@@ -62,102 +65,127 @@ object DeltaSync {
         if (destination.exists()) check(destination.delete()) { "Cannot replace the delta database" }
         val schemaVersion = userVersion(session, "main")
         val tableToTombstone = tableExists(session, "main", TABLE_TOMBSTONE)
-        session.exec("ATTACH DATABASE ? AS delta", arrayOf<Any?>(destination.absolutePath))
         var conversations = 0
         var nodes = 0
+        var attached = false
+        // ATTACH 必须和后面的语句落在同一条连接上：SQLite 把 ATTACH 判成只读语句，池化连接会把它交给
+        // 一条只读连接，紧接着的 CREATE TABLE delta.* 走写连接就报 unknown database delta。
+        // 事务期间会话独占写连接，ATTACH、建表、版本号与统计都在它上面做完。
+        session.begin()
         try {
-            session.begin()
-            try {
+            session.exec("ATTACH DATABASE ? AS delta", arrayOf<Any?>(destination.absolutePath))
+            attached = true
+            session.exec(
+                "CREATE TABLE delta.`ConversationEntity` AS " +
+                    "SELECT * FROM main.`ConversationEntity` WHERE update_at > $since"
+            )
+            session.exec(
+                "CREATE TABLE delta.`message_node` AS SELECT * FROM main.`message_node` " +
+                    "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
+            )
+            session.exec(
+                "CREATE TABLE delta.`message_fts` AS " +
+                    "SELECT text, node_id, message_id, conversation_id FROM main.`message_fts` " +
+                    "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
+            )
+            if (tableToTombstone) {
                 session.exec(
-                    "CREATE TABLE delta.`ConversationEntity` AS " +
-                        "SELECT * FROM main.`ConversationEntity` WHERE update_at > $since"
+                    "CREATE TABLE delta.`$TABLE_TOMBSTONE` AS " +
+                        "SELECT * FROM main.`$TABLE_TOMBSTONE` WHERE deleted_at > $since"
                 )
+            }
+            // 分组与收藏行数很少，且没有可靠的更新时间，整表带上比漏掉改名更划算
+            session.exec("CREATE TABLE delta.`conversation_folder` AS SELECT * FROM main.`conversation_folder`")
+            session.exec("CREATE TABLE delta.`favorites` AS SELECT * FROM main.`favorites`")
+            session.exec(
+                "CREATE TABLE delta.`memory_file` AS SELECT * FROM main.`memory_file` " +
+                    "WHERE updated_at > $since"
+            )
+            session.exec(
+                "CREATE TABLE delta.`memory_consolidation` AS " +
+                    "SELECT * FROM main.`memory_consolidation` WHERE consolidated_at > $since"
+            )
+            session.exec(
+                "CREATE TABLE delta.`workspaces` AS SELECT * FROM main.`workspaces` " +
+                    "WHERE updated_at > $since"
+            )
+            // 用量流水没有可判重的自然键，只带本次变更会话名下的；应用侧再按「本地新会话」过滤一次
+            session.exec(
+                "CREATE TABLE delta.`usage_record` AS SELECT * FROM main.`usage_record` " +
+                    "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
+            )
+            // 附件登记与媒体创作在整份备份里是「有就带」的普通表，增量层按时间戳带上变化的部分，
+            // 否则从链恢复之后这些表会停在 base 那一刻，新导入的附件不再被登记
+            if (tableExists(session, "main", "managed_files")) {
                 session.exec(
-                    "CREATE TABLE delta.`message_node` AS SELECT * FROM main.`message_node` " +
-                        "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
-                )
-                session.exec(
-                    "CREATE TABLE delta.`message_fts` AS " +
-                        "SELECT text, node_id, message_id, conversation_id FROM main.`message_fts` " +
-                        "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
-                )
-                if (tableToTombstone) {
-                    session.exec(
-                        "CREATE TABLE delta.`$TABLE_TOMBSTONE` AS " +
-                            "SELECT * FROM main.`$TABLE_TOMBSTONE` WHERE deleted_at > $since"
-                    )
-                }
-                // 分组与收藏行数很少，且没有可靠的更新时间，整表带上比漏掉改名更划算
-                session.exec("CREATE TABLE delta.`conversation_folder` AS SELECT * FROM main.`conversation_folder`")
-                session.exec("CREATE TABLE delta.`favorites` AS SELECT * FROM main.`favorites`")
-                session.exec(
-                    "CREATE TABLE delta.`memory_file` AS SELECT * FROM main.`memory_file` " +
+                    "CREATE TABLE delta.`managed_files` AS SELECT * FROM main.`managed_files` " +
                         "WHERE updated_at > $since"
                 )
+            }
+            if (tableExists(session, "main", "GenMediaEntity")) {
                 session.exec(
-                    "CREATE TABLE delta.`memory_consolidation` AS " +
-                        "SELECT * FROM main.`memory_consolidation` WHERE consolidated_at > $since"
+                    "CREATE TABLE delta.`GenMediaEntity` AS SELECT * FROM main.`GenMediaEntity` " +
+                        "WHERE create_at > $since"
+                )
+            }
+            if (tableExists(session, "main", "media_creation_session")) {
+                session.exec(
+                    "CREATE TABLE delta.`media_creation_session` AS " +
+                        "SELECT * FROM main.`media_creation_session` WHERE update_at > $since"
                 )
                 session.exec(
-                    "CREATE TABLE delta.`workspaces` AS SELECT * FROM main.`workspaces` " +
-                        "WHERE updated_at > $since"
+                    "CREATE TABLE delta.`media_creation_node` AS SELECT * FROM main.`media_creation_node` " +
+                        "WHERE session_id IN (SELECT id FROM delta.`media_creation_session`)"
                 )
-                // 用量流水没有可判重的自然键，只带本次变更会话名下的；应用侧再按「本地新会话」过滤一次
                 session.exec(
-                    "CREATE TABLE delta.`usage_record` AS SELECT * FROM main.`usage_record` " +
-                        "WHERE conversation_id IN (SELECT id FROM delta.`ConversationEntity`)"
+                    "CREATE TABLE delta.`media_creation_record` AS " +
+                        "SELECT * FROM main.`media_creation_record` WHERE update_at > $since"
                 )
-                // 附件登记与媒体创作在整份备份里是「有就带」的普通表，增量层按时间戳带上变化的部分，
-                // 否则从链恢复之后这些表会停在 base 那一刻，新导入的附件不再被登记
-                if (tableExists(session, "main", "managed_files")) {
-                    session.exec(
-                        "CREATE TABLE delta.`managed_files` AS SELECT * FROM main.`managed_files` " +
-                            "WHERE updated_at > $since"
-                    )
-                }
-                if (tableExists(session, "main", "GenMediaEntity")) {
-                    session.exec(
-                        "CREATE TABLE delta.`GenMediaEntity` AS SELECT * FROM main.`GenMediaEntity` " +
-                            "WHERE create_at > $since"
-                    )
-                }
-                if (tableExists(session, "main", "media_creation_session")) {
-                    session.exec(
-                        "CREATE TABLE delta.`media_creation_session` AS " +
-                            "SELECT * FROM main.`media_creation_session` WHERE update_at > $since"
-                    )
-                    session.exec(
-                        "CREATE TABLE delta.`media_creation_node` AS SELECT * FROM main.`media_creation_node` " +
-                            "WHERE session_id IN (SELECT id FROM delta.`media_creation_session`)"
-                    )
-                    session.exec(
-                        "CREATE TABLE delta.`media_creation_record` AS " +
-                            "SELECT * FROM main.`media_creation_record` WHERE update_at > $since"
-                    )
-                }
-                if (tableExists(session, "main", "translation_history")) {
-                    session.exec(
-                        "CREATE TABLE delta.`translation_history` AS " +
-                            "SELECT * FROM main.`translation_history` WHERE create_at > $since"
-                    )
-                }
-                session.commit()
-            } catch (e: Throwable) {
-                runCatching { session.rollback() }
-                throw e
+            }
+            if (tableExists(session, "main", "translation_history")) {
+                session.exec(
+                    "CREATE TABLE delta.`translation_history` AS " +
+                        "SELECT * FROM main.`translation_history` WHERE create_at > $since"
+                )
             }
             // 版本号必须落在增量库里，应用侧靠它拒绝列结构不一致的包
             session.exec("PRAGMA delta.user_version = $schemaVersion")
             // 统计要在 DETACH 之前做完，脱离之后 delta 这个 schema 就查不到了
             conversations = count(session, "delta", "ConversationEntity")
             nodes = count(session, "delta", "message_node")
-        } finally {
-            session.exec("DETACH DATABASE delta")
+            session.commit()
+        } catch (e: Throwable) {
+            runCatching { session.rollback() }
+            if (attached) runCatching { detach(session) }
+            throw e
         }
+        detach(session)
         return Summary(conversations = conversations, nodes = nodes)
     }
 
-    /** 把一份增量库合并进当前连接指向的库。 */
+    /**
+     * 脱离增量库。
+     *
+     * DETACH 在事务里会被 delta 自己锁住，只能另开一个空事务把写连接拿回来再脱开：池化实现前后两次
+     * 拿到的仍是同一条写连接，ATTACH 留下的状态还在上面。
+     */
+    private fun detach(session: Session) {
+        session.begin()
+        try {
+            session.exec("DETACH DATABASE delta")
+            session.commit()
+        } catch (e: Throwable) {
+            runCatching { session.rollback() }
+            throw e
+        }
+    }
+
+    /**
+     * 把一份增量库合并进当前连接指向的库。
+     *
+     * 这里的 [Session] 必须是单连接实现（恢复与合并都直接开一条 requery 连接）：ATTACH 之后的每次
+     * 读写都要落在同一条连接上，还必须在事务外先关掉外键约束，没法像 [export] 那样用事务把连接钉住。
+     */
     fun apply(session: Session, deltaFile: File): Summary {
         session.exec("ATTACH DATABASE ? AS delta", arrayOf<Any?>(deltaFile.absolutePath))
         try {
