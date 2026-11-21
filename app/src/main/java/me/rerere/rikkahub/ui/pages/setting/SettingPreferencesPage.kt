@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -14,17 +14,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.CloudServer
+import me.rerere.hugeicons.stroke.Notification01
+import me.rerere.hugeicons.stroke.PaintBoard
+import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 偏好设置：所有选项都在这一页，按类别分组，不再收进二级菜单。
+ * 偏好设置：分类入口页。每一类点击后进入对应子页（多级设置）。
  */
 @Composable
 fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val navController = LocalNavController.current
 
     Scaffold(
         topBar = {
@@ -44,33 +56,60 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { PreferencesSectionTitle(stringResource(R.string.setting_page_preferences_theme)) }
-            item { SettingPreferencesThemePage(embedded = true) }
-
-            item { PreferencesSectionTitle(stringResource(R.string.setting_page_preferences_ui)) }
-            item { SettingPreferencesUIPage(embedded = true) }
-
-            item { PreferencesSectionTitle(stringResource(R.string.setting_page_preferences_general)) }
-            item { SettingPreferencesGeneralPage(embedded = true) }
-
-            item { PreferencesSectionTitle(stringResource(R.string.setting_page_preferences_notification)) }
-            item { SettingPreferencesNotificationPage(embedded = true) }
-
-            item { PreferencesSectionTitle(stringResource(R.string.setting_page_preferences_network)) }
-            item { SettingPreferencesNetworkPage(embedded = true) }
+            item("preferences") {
+                val containerColor = MaterialTheme.colorScheme.primaryContainer
+                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                CardGroup {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
+                        heroScreen = Screen.SettingPreferencesGeneral,
+                        leadingContent = {
+                            CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor)
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_general_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_general)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesTheme) },
+                        heroScreen = Screen.SettingPreferencesTheme,
+                        leadingContent = {
+                            CardGroupIcon(HugeIcons.Sun01, containerColor = containerColor, contentColor = contentColor)
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_theme_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_theme)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesUI) },
+                        heroScreen = Screen.SettingPreferencesUI,
+                        leadingContent = {
+                            CardGroupIcon(HugeIcons.PaintBoard, containerColor = containerColor, contentColor = contentColor)
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_ui)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
+                        heroScreen = Screen.SettingPreferencesNotification,
+                        leadingContent = {
+                            CardGroupIcon(HugeIcons.Notification01, containerColor = containerColor, contentColor = contentColor)
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
+                        heroScreen = Screen.SettingPreferencesNetwork,
+                        leadingContent = {
+                            CardGroupIcon(HugeIcons.CloudServer, containerColor = containerColor, contentColor = contentColor)
+                        },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
+                    )
+                }
+            }
         }
     }
-}
-
-@Composable
-private fun PreferencesSectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
-    )
 }
