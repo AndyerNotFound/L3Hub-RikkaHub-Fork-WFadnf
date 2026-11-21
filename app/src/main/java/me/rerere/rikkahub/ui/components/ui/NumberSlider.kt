@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -194,7 +193,8 @@ fun NumberSlider(
             }
         },
     ) { sliderModifier ->
-        Slider(
+        // 外观跟「滑块类型」设置走；默认档仍是 M3 的 Slider
+        AppSlider(
             value = value.coerceIn(valueRange.first, valueRange.last).toFloat(),
             onValueChange = { raw ->
                 onValueChange(raw.roundToInt().coerceIn(valueRange.first, valueRange.last))
@@ -241,7 +241,7 @@ fun PercentNumberSlider(
             }
         },
     ) { sliderModifier ->
-        Slider(
+        AppSlider(
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = onValueChange,
             valueRange = valueRange,

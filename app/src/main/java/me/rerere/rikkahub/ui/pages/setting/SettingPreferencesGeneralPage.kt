@@ -18,7 +18,6 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -39,11 +38,13 @@ import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.CornerStyle
 import me.rerere.rikkahub.data.datastore.HapticsStrength
+import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -271,7 +272,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         CardGroupValue("${(displaySetting.blurOpacity * 100).roundToInt()}%")
                     },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.blurOpacity,
                         onValueChange = {
                             updateDisplaySetting(displaySetting.copy(blurOpacity = it))
@@ -288,7 +289,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         CardGroupValue("${(displaySetting.glassOpacity * 100).roundToInt()}%")
                     },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.glassOpacity,
                         onValueChange = {
                             updateDisplaySetting(displaySetting.copy(glassOpacity = it))
@@ -377,7 +378,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_display_page_corner_scale_desc)) },
                     trailingContent = { CardGroupValue("${(displaySetting.cornerScale * 100).roundToInt()}%") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.cornerScale,
                         onValueChange = { scale ->
                             updateDisplaySetting(displaySetting.copy(cornerScale = scale))
@@ -413,6 +414,25 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                     updateDisplaySetting(displaySetting.copy(switchType = type))
                                 },
                                 label = { Text(switchTypeLabel(type)) },
+                            )
+                        }
+                    }
+                }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_slider_type_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_slider_type_desc)) },
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SliderType.entries.forEach { type ->
+                            FilterChip(
+                                selected = displaySetting.sliderType == type,
+                                onClick = {
+                                    updateDisplaySetting(displaySetting.copy(sliderType = type))
+                                },
+                                label = { Text(sliderTypeLabel(type)) },
                             )
                         }
                     }
@@ -459,7 +479,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     headlineContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_ratio)) },
                     trailingContent = { CardGroupValue("${(displaySetting.volumeKeyScrollRatio * 100).toInt()}%") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.volumeKeyScrollRatio,
                         onValueChange = {
                             updateDisplaySetting(displaySetting.copy(volumeKeyScrollRatio = it))
@@ -479,7 +499,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_tts_page_default_playback_speed_description)) },
                     trailingContent = { CardGroupValue("x${"%.1f".format(ttsPlaybackSpeed)}") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = ttsPlaybackSpeed,
                         onValueChange = {
                             ttsPlaybackSpeed = (it * 10).roundToInt() / 10f
@@ -629,6 +649,17 @@ private fun LanguagePickerDialog(
         },
     )
 }
+
+/** 滑块类型标签；只给设置页用。 */
+@Composable
+private fun sliderTypeLabel(type: SliderType): String = stringResource(
+    when (type) {
+        SliderType.MATERIAL_YOU -> R.string.setting_display_page_slider_type_material_you
+        SliderType.FANCY -> R.string.setting_display_page_slider_type_fancy
+        SliderType.MATERIAL -> R.string.setting_display_page_slider_type_material
+        SliderType.HYPEROS -> R.string.setting_display_page_slider_type_hyperos
+    }
+)
 
 /** 开关类型标签；只给设置页用。 */
 @Composable

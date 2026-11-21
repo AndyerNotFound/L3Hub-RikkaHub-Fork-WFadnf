@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.datastore.CornerStyle
+import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.ui.shape.styledShape
 
@@ -66,6 +67,14 @@ val LocalCornerThrottle = compositionLocalOf { 128 }
  * 其余七档一律用 `ui/components/ui/switch` 里的自绘实现，两套皮肤表现一致。
  */
 val LocalSwitchType = compositionLocalOf { SwitchType.MATERIAL_YOU }
+
+/**
+ * 滑块外观，对应显示设置里的「滑块类型」。
+ *
+ * 默认 [SliderType.MATERIAL_YOU]，此时不接管，仍是 M3 的 `Slider`；
+ * 其余三档用 `ui/components/ui/slider` 里从 ImageToolbox 搬过来的实现。
+ */
+val LocalSliderType = compositionLocalOf { SliderType.MATERIAL_YOU }
 
 /**
  * 全宽模式下是直角，否则按当前轮廓类型与边角大小造形状。

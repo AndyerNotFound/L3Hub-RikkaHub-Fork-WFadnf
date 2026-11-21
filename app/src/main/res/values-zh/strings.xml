@@ -830,6 +830,12 @@
   <string name="setting_display_page_switch_type_liquid_glass">液态玻璃</string>
   <string name="setting_display_page_switch_type_hyperos">HyperOS</string>
   <string name="setting_display_page_switch_type_one_ui">OneUI</string>
+  <string name="setting_display_page_slider_type_title">滑块类型</string>
+  <string name="setting_display_page_slider_type_desc">设置里所有滑杆的外观；跟随 M3 时用原生的，其余三档是自绘实现</string>
+  <string name="setting_display_page_slider_type_material_you">跟随 M3</string>
+  <string name="setting_display_page_slider_type_fancy">精致</string>
+  <string name="setting_display_page_slider_type_material">Material 2</string>
+  <string name="setting_display_page_slider_type_hyperos">HyperOS</string>
   <string name="setting_display_page_font_size_preview">凌晨四点钟，看到海棠花未眠。我常常这样，在无人的夜里独自醒着，想，若有人此刻也在想我，那就好了。</string>
   <string name="setting_display_page_ui_scale_title">界面缩放</string>
   <string name="setting_display_page_ui_scale_desc">整个应用的尺寸，50% 到 200%，每档 5%</string>

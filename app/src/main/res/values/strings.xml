@@ -837,6 +837,12 @@
   <string name="setting_display_page_switch_type_liquid_glass">Liquid Glass</string>
   <string name="setting_display_page_switch_type_hyperos">HyperOS</string>
   <string name="setting_display_page_switch_type_one_ui">OneUI</string>
+  <string name="setting_display_page_slider_type_title">Slider Style</string>
+  <string name="setting_display_page_slider_type_desc">Appearance of every slider in settings. Follow M3 keeps the native one; the other three are drawn in-app.</string>
+  <string name="setting_display_page_slider_type_material_you">Follow M3</string>
+  <string name="setting_display_page_slider_type_fancy">Fancy</string>
+  <string name="setting_display_page_slider_type_material">Material 2</string>
+  <string name="setting_display_page_slider_type_hyperos">HyperOS</string>
   <string name="setting_display_page_font_size_preview">At four in the morning, I saw the begonia flowers still awake. I am often like this — lying awake alone in the quiet night, thinking: if someone is thinking of me at this moment, that would be wonderful.</string>
   <string name="setting_display_page_ui_scale_title">UI Scale</string>
   <string name="setting_display_page_ui_scale_desc">Size of the whole app. 50%–200%, in 5% steps</string>

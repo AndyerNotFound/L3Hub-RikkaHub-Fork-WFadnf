@@ -470,6 +470,29 @@ sealed class，这里拆成 `CornerStyle` 枚举 + 独立的 `cornerScale`：能
 > 本轮未编译验证（Termux 侧禁止编译）：逐文件与原文件 diff 过，差异只有包名、授权头与上表那些替换；
 > 违禁符号 grep 为空；括号静态检查通过。行为待 CI 出包确认。
 
+### 滑块类型（ImageToolbox 移植 · 第四轮，2026-11-21）
+
+四档滑块，其中三档依赖源工程自己的一套滑杆引擎（`custom_slider/`），所以是整包搬。
+
+| 文件 | 说明 |
+|---|---|
+| `ui/components/ui/slider/CustomSlider*.kt`（5 个） | 滑杆引擎：`CustomSlider` / `CustomSliderState` / `CustomSliderColors` / `CustomSliderDefaults` / `CustomSliderRange` / `CustomSliderUtils`。区间滑杆（`CustomRangeSlider*` 约 900 行）没搬，本项目没有区间滑杆 |
+| `ui/components/ui/slider/M3Slider.kt` / `M2Slider.kt` / `HyperOSSlider.kt` / `FancySlider.kt` | 四档外观；Fancy 的拇指星形（`MaterialStarShape`）连带路径数据一起搬进文件 |
+| `ui/components/ui/slider/SliderByType.kt` | 分发器（源 `EnhancedSlider` 的 `when` 与配色选择），去掉它那份 `LocalSettingsState` 读取与逐步触觉反馈 |
+| `ui/components/ui/AppSlider.kt` | 读 `LocalSliderType`：默认档仍是 M3 `Slider`，其余三档走 `SliderByType` |
+| `data/datastore/Settings.kt` | `sliderType`，四档，默认 `MATERIAL_YOU` |
+| 落点 | `NumberSlider` / `PercentNumberSlider`（设置里几乎所有滑杆都走这两个）、设置页里五处直接 `Slider` 的项 |
+| 设置页 | 偏好设置 → 通用 →「滑块类型」四个 Chip |
+
+去掉的胶水层：`Modifier.container(...)`（描边/圆角/阴影容器）与 `materialShadow` 删除，
+只留它两侧的 padding；`drawSliderShadows` 这个设置项在本项目不存在。
+`M3Slider` 里的 `rememberSliderState` 换成 `remember { SliderState(...) } + SideEffect`，
+因为本仓库没有该函数的调用点、无法确认它在 1.5.0-rc01 的可见性（`ReasoningPicker.kt` 用的是构造函数）。
+
+> 本轮未编译验证：逐文件 diff 过，差异只有包名、授权头、删除的容器/阴影与上表那些替换；
+> 违禁符号 grep 为空；括号静态检查通过。风险最集中的两处是
+> `Slider(state=, enabled=, colors=, …)` 这组参数与 `androidx.compose.ui.util` 的几个浮点打包函数。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

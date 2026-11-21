@@ -262,6 +262,26 @@ enum class SwitchType {
 }
 
 /**
+ * 滑块外观，取自 ImageToolbox 的 `SliderType`（T8RIN，Apache-2.0）。
+ *
+ * 源工程是四个 `data object`，这里改成 enum 以便序列化。
+ * [MATERIAL_YOU] 是默认值，走的仍是本项目原来的 M3 `Slider`。
+ */
+enum class SliderType {
+    /** 跟随 Material 3 的滑块 */
+    MATERIAL_YOU,
+
+    /** 精致款：拇指带外圈与光晕，轨道有刻度（源工程 `FancySlider`） */
+    FANCY,
+
+    /** Material 2 款：拇指空心、轨道更细 */
+    MATERIAL,
+
+    /** HyperOS 款：轨道两端圆头更薄，滑块跟手更紧 */
+    HYPEROS,
+}
+
+/**
  * 组件轮廓的形状类型，取自 ImageToolbox 的 ShapeType（T8RIN，Apache-2.0）。
  *
  * 与那个工程的差别：那边是带 `strength` 的 sealed class，每个实例自带强度；
@@ -438,6 +458,8 @@ data class DisplaySetting(
     val cornerAnimThrottle: Int = 128,
     // 开关外观：默认跟随皮肤，其余七档是自绘实现
     val switchType: SwitchType = SwitchType.MATERIAL_YOU,
+    // 滑块外观：默认跟随 M3，其余三档是自绘实现
+    val sliderType: SliderType = SliderType.MATERIAL_YOU,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,
