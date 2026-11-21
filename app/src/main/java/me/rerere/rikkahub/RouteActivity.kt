@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalDecomposeApi::class)
+
 package me.rerere.rikkahub
 
 import android.annotation.SuppressLint
@@ -11,15 +13,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,7 +60,6 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -70,11 +68,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation3.runtime.EntryProviderScope
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.gif.AnimatedImageDecoder
@@ -83,6 +77,13 @@ import coil3.network.cachecontrol.CacheControlCacheStrategy
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
+import com.arkivanov.decompose.DecomposeSettings
+import com.arkivanov.decompose.ExperimentalDecomposeApi
+import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.StackAnimation
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.arkivanov.decompose.retainedComponent
+import com.arkivanov.essenty.backhandler.BackCallback
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.datastore.AppLockStateStore
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -104,78 +105,19 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.hooks.HeroPage
-import me.rerere.rikkahub.ui.hooks.heroKey
+import me.rerere.rikkahub.nav.DetailDestination
+import me.rerere.rikkahub.nav.NavChild
+import me.rerere.rikkahub.nav.RootComponent
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
-import me.rerere.rikkahub.ui.navigation.rememberAppNavEntryDecorators
-import me.rerere.rikkahub.ui.navigation.rememberNavTransitionSpecs
-import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantExtensionsPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantHeartbeatPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
-import me.rerere.rikkahub.ui.pages.backup.BackupPage
-import me.rerere.rikkahub.ui.pages.chat.ChatPage
-import me.rerere.rikkahub.ui.pages.debug.DebugPage
-import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
-import me.rerere.rikkahub.ui.pages.extensions.PromptPage
-import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
-import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailPage
-import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceFileEditorPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
-import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
-import me.rerere.rikkahub.ui.pages.history.HistoryPage
-import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
-import me.rerere.rikkahub.ui.pages.log.LogPage
-import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationPage
-import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsPage
-import me.rerere.rikkahub.ui.pages.memory.MemoryFilePage
-import me.rerere.rikkahub.ui.pages.search.SearchPage
-import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
-import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
-import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
-import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
-import me.rerere.rikkahub.ui.pages.setting.SettingMcpDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
-import me.rerere.rikkahub.ui.pages.setting.SettingMediaPage
-import me.rerere.rikkahub.ui.pages.setting.SettingMediaProviderDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPalettePage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesThemePage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesUIPage
-import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
+import me.rerere.rikkahub.ui.navigation.HeroStackAnimation
+import me.rerere.rikkahub.ui.navigation.ScreenContent
+import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
-import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
-import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
-import me.rerere.rikkahub.ui.pages.setting.SettingToolOverridePage
-import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
 import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
-import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
-import me.rerere.rikkahub.ui.pages.stats.StatsPage
-import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
-import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
@@ -185,7 +127,6 @@ import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.openUsageAccessSettings
 import me.rerere.ui.toast.Toaster
 import me.rerere.ui.toast.rememberToasterState
-import me.rerere.workspace.WorkspaceStorageArea
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
@@ -212,8 +153,24 @@ class RouteActivity : ComponentActivity() {
     private val settingsStore by inject<SettingsStore>()
     private val appLockState by lazy { AppLockStateStore(this) }
     private val mediaCreationRepository by inject<MediaCreationRepository>()
-    private var navStack: MutableList<NavKey>? = null
-    private val pendingIntents = ArrayDeque<Intent>()
+    private val rootComponent: RootComponent by lazy {
+        retainedComponent { context ->
+            RootComponent(
+                componentContext = context,
+                initialScreen = startScreen(),
+            )
+        }
+    }
+
+    /** 首屏由偏好同步决定；进程死亡后整条栈走 Decompose stateKeeper 恢复 */
+    private fun startScreen(): Screen =
+        Screen.Chat(
+            id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
+                Uuid.random().toString()
+            } else {
+                readStringPreference("lastConversationId") ?: Uuid.random().toString()
+            }
+        )
 
     // Volume key listener registry — last registered handler wins
     internal val volumeKeyListeners = mutableListOf<(isVolumeUp: Boolean) -> Boolean>()
@@ -240,6 +197,8 @@ class RouteActivity : ComponentActivity() {
             finish()
             return
         }
+        // 同一 Screen 可能重复入栈（popUpTo 原地重进、会话重开等）
+        DecomposeSettings.update { it.copy(duplicateConfigurationsEnabled = true) }
         if (savedInstanceState == null) {
             handleIntent(intent)
         }
@@ -399,15 +358,10 @@ class RouteActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        val backStack = navStack ?: run {
-            // Compose 尚未创建导航栈，待就绪后处理。
-            pendingIntents.addLast(intent)
-            return
-        }
         val destination = when (intent.action) {
             ACTION_TRANSLATE -> Screen.Translator
             ACTION_MEDIA_CREATION -> {
-                openNewMediaCreation(backStack)
+                openNewMediaCreation()
                 null
             }
             Intent.ACTION_SEND -> Screen.ShareHandler(
@@ -420,16 +374,18 @@ class RouteActivity : ComponentActivity() {
             else -> mediaCreationDestination(intent)
                 ?: intent.getStringExtra(EXTRA_CONVERSATION_ID)?.let { Screen.Chat(it) }
         }
-        if (destination != null && backStack.lastOrNull() != destination) {
-            backStack.add(destination)
+        if (destination != null && rootComponent.childStack.value.active.configuration != destination) {
+            rootComponent.pushRoot(destination)
         }
     }
 
     // 快捷方式没有指定会话，打开一个空会话
-    private fun openNewMediaCreation(backStack: MutableList<NavKey>) {
+    private fun openNewMediaCreation() {
         lifecycleScope.launch {
             val destination = Screen.MediaCreation(mediaCreationRepository.newSession().id.toString())
-            if (backStack.lastOrNull() != destination) backStack.add(destination)
+            if (rootComponent.childStack.value.active.configuration != destination) {
+                rootComponent.pushRoot(destination)
+            }
         }
     }
 
@@ -460,28 +416,12 @@ class RouteActivity : ComponentActivity() {
         }
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
 
-        val startScreen = Screen.Chat(
-            id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
-                Uuid.random().toString()
-            } else {
-                readStringPreference(
-                    "lastConversationId",
-                    Uuid.random().toString()
-                ) ?: Uuid.random().toString()
-            }
-        )
-
-        val backStack = rememberNavBackStack(startScreen)
-        SideEffect {
-            navStack = backStack
-            while (pendingIntents.isNotEmpty()) {
-                handleIntent(pendingIntents.removeFirst())
-            }
-        }
+        val backStack by rootComponent.childStack.subscribeAsState()
+        val detailStack by rootComponent.detailStack.subscribeAsState()
+        val navigator = remember { RootNavigator(rootComponent) }
 
         SharedTransitionLayout {
-            // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只按栈造一次
-            val navigator = remember(backStack) { Navigator(backStack) }
+            // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只造一次
             CompositionLocalProvider(
                 LocalNavController provides navigator,
                 LocalSharedTransitionScope provides this,
@@ -498,22 +438,29 @@ class RouteActivity : ComponentActivity() {
                         .semantics { testTagsAsResourceId = true }
                         .background(MaterialTheme.colorScheme.background)
                 ) {
-                    // 中列与右列共用同一份转场规格：进场按 enterFromTop 决定从哪一侧落下，
-                    // 普通返回与预测性返回是同一个 lambda（见 ui/navigation/NavTransitions.kt）
-                    val navTransitionSpecs = rememberNavTransitionSpecs()
                     val navController = LocalNavController.current
+                    // 根栈带预测性返回 seek（ImageToolbox 的 Nav 同款）；右列详情页不 seek，
+                    // 只走普通返回动画。两者的 fallback 都是每个页面自己的 AnimatedVisibility
+                    // （见 ui/navigation/StackHost.kt）——转场打断只 retarget 各页动画，
+                    // 没有全局前进/返回分类，nav3 那类打断后硬切在这里结构性消失
+                    val rootAnimation: StackAnimation<Screen, NavChild> =
+                        remember(rootComponent) {
+                            l3HubStackAnimation(
+                                backHandler = rootComponent.backHandler,
+                                onBack = navigator::popBackStack,
+                                screenOf = { it.screen },
+                            )
+                        }
+                    val detailAnimation: HeroStackAnimation<DetailDestination, NavChild> =
+                        HeroStackAnimation { it.screen }
                     // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
-                    // 栏本身不参与转场，NavDisplay 一直待在同一个槽位里，进出设置不会重建。
+                    // 栏本身不参与转场，Children 一直待在同一个槽位里，进出设置不会重建。
                     val windowDpSize = currentWindowDpSize()
                     val landscape = windowDpSize.width > windowDpSize.height
-                    val currentScreen = backStack.lastOrNull() as? Screen
-                    // 扩展管理页现在也算设置页，但从聊天抽屉直接进来时栈里没有分区页，
-                    // 这时只显示单页，不凭空挂一条没有选中的左栏
-                    val hasSectionPage = backStack.any { it is Screen && it.isSettingSectionPage() }
+                    val currentScreen = backStack.active.configuration
                     val showSettingRail = landscape &&
                         windowDpSize.width >= 700.dp &&
-                        currentScreen?.isSettingBoard() == true &&
-                        hasSectionPage
+                        currentScreen.isSettingBoard()
                     // 横屏收起状态栏：顶栏贴到屏幕顶边，竖向空间全给内容
                     HideStatusBarInLandscape(landscape)
                     // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
@@ -522,20 +469,36 @@ class RouteActivity : ComponentActivity() {
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                         label = "settingRailWidth",
                     )
-                    // 设置三列：中列停在分区页，页内下钻的详情页挂到右列
-                    val backStackSnapshot = backStack.toList()
-                    val sectionIndex = backStackSnapshot.indexOfLast { it is Screen && it.isSettingSectionPage() }
+                    // 设置三列：中列停在分区页，页内下钻的详情页挂到右列自己的栈
+                    // （Decompose 的 child 身份随栈位置，同一 child 不能在两个 Children 里，
+                    //  所以不再像 nav3 那样切片同一根栈，而是双栈分流，见 Navigator）
                     val splitSettingColumns = showSettingRail &&
-                        sectionIndex >= 0 && sectionIndex < backStackSnapshot.lastIndex
-                    val middleStack = if (splitSettingColumns) {
-                        backStackSnapshot.subList(0, sectionIndex + 1).toList()
-                    } else {
-                        backStackSnapshot
+                        currentScreen.isSettingSectionPage() &&
+                        currentScreen !is Screen.Setting
+                    // 右列收起动画期间（转竖屏 / 模型编辑占根栈）把最后一次的栈撑住
+                    var lastDetailStack by remember {
+                        mutableStateOf<ChildStack<DetailDestination, NavChild>?>(null)
                     }
-                    val rightStack = if (splitSettingColumns) {
-                        backStackSnapshot.subList(sectionIndex + 1, backStackSnapshot.size).toList()
-                    } else {
-                        emptyList()
+                    LaunchedEffect(detailStack, splitSettingColumns) {
+                        if (detailStack.items.size > 1 || splitSettingColumns) lastDetailStack = detailStack
+                    }
+                    val shownDetailStack: ChildStack<DetailDestination, NavChild> =
+                        if (splitSettingColumns || detailStack.items.size > 1) detailStack
+                        else lastDetailStack ?: detailStack
+                    SideEffect { navigator.detailActive = splitSettingColumns }
+
+                    // 右列返回键：优先级高于根栈，但只在右列真正可见且有页时启用——
+                    // 模型编辑这类整宽页占住根栈时不抢返回
+                    val detailBackCallback = remember {
+                        BackCallback(isEnabled = false, priority = 1) { navigator.popBackStack() }
+                    }
+                    DisposableEffect(rootComponent) {
+                        rootComponent.backHandler.register(detailBackCallback)
+                        onDispose { rootComponent.backHandler.unregister(detailBackCallback) }
+                    }
+                    SideEffect {
+                        detailBackCallback.isEnabled =
+                            splitSettingColumns && detailStack.items.size > 1
                     }
                     // 中列 / 右列的分割比例，拖分隔条改；默认中列窄一点，详情页宽一点
                     var settingSplit by rememberSaveable { mutableStateOf(0.42f) }
@@ -552,17 +515,6 @@ class RouteActivity : ComponentActivity() {
                         },
                         label = "settingRightColumn",
                     )
-                    // 收起动画进行时右列栈已经空了，用最后一次的内容把这一段演完
-                    var lastRightStack by remember { mutableStateOf(emptyList<NavKey>()) }
-                    LaunchedEffect(rightStack) {
-                        if (rightStack.isNotEmpty()) lastRightStack = rightStack
-                    }
-                    val shownRightStack = if (rightStack.isNotEmpty()) rightStack else lastRightStack
-
-                    // 导航条目只构造一份，中列和右列的两个 NavDisplay 共用；
-                    // 里面只读 key、不读组合状态，所以记得住，不必每次重组重建
-                    val navEntries = remember { appNavEntries() }
-
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -619,24 +571,17 @@ class RouteActivity : ComponentActivity() {
                             val rightColumnWidth = (contentWidth * rightColumnFraction)
                                 .coerceIn(1.dp, contentWidth)
 
-                            NavDisplay(
-                                backStack = middleStack,
-                                // 装饰器清单只有一处实现，但两个 display 各装配一份（见 NavTransitions.kt）
-                                entryDecorators = rememberAppNavEntryDecorators(navController),
+                            Children(
+                                stack = backStack,
                                 modifier = Modifier
                                     .width(middleColumnWidth)
                                     .fillMaxHeight(),
-                                // 走 Navigator 而不是直接改 backStack：栈深判断只有一处实现，
-                                // 系统返回键与手势返回都落到同一行 popBackStack()
-                                onBack = { navController.popBackStack() },
-                                // 规格与右列同源：容器变换页收回条目、滑入页原路滑出、预测性返回同参
-                                transitionSpec = navTransitionSpecs.enter,
-                                popTransitionSpec = navTransitionSpecs.pop,
-                                predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
-                                entryProvider = navEntries,
-                            )
+                                animation = rootAnimation,
+                            ) { child ->
+                                NavChildContent(child.instance)
+                            }
 
-                            // 右列：只放设置页里的下钻页，转场规格与中列同源（见 NavTransitions.kt）；
+                            // 右列：只放设置里的下钻页，转场引擎与中列同源（见 ui/navigation/StackHost.kt）；
                             // 宽度超出中列留出的那部分时，从右边盖住中列，而不是把中列压窄
                             if (rightColumnFraction > 0.001f) {
                                 Row(
@@ -653,20 +598,15 @@ class RouteActivity : ComponentActivity() {
                                         onDragStart = { rightColumnResizing = true },
                                         onDragEnd = { rightColumnResizing = false },
                                     )
-                                    NavDisplay(
-                                        backStack = shownRightStack,
-                                        entryDecorators = rememberAppNavEntryDecorators(navController),
+                                    Children(
+                                        stack = shownDetailStack,
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight(),
-                                        onBack = { navController.popBackStack() },
-                                        // 与中列同一份规格。右列只装设置里的下钻页，都不带 enterFromTop，
-                                        // 右列只装设置里的下钻页，都是容器变换页：进场从卡片展开、返回收回那一块
-                                        transitionSpec = navTransitionSpecs.enter,
-                                        popTransitionSpec = navTransitionSpecs.pop,
-                                        predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
-                                        entryProvider = navEntries,
-                                    )
+                                        animation = detailAnimation,
+                                    ) { child ->
+                                        NavChildContent(child.instance)
+                                    }
                                 }
                             }
                         }
@@ -724,324 +664,19 @@ class RouteActivity : ComponentActivity() {
 }
 
 /**
- * 带容器变换的 entry：页面从触发它的条目展开，返回时收回条目里。
- * 条目那一侧用 Modifier.heroSource(同一个 Screen)，两边靠 heroKey() 对上。
- */
-private inline fun <reified K : Screen> EntryProviderScope<NavKey>.heroEntry(
-    noinline content: @Composable (K) -> Unit,
-) {
-    entry<K> { key ->
-        HeroPage(key.heroKey()) {
-            content(key)
-        }
-    }
-}
-
-/**
- * 横屏隐藏状态栏，让页面顶栏直接贴到屏幕顶边；回到竖屏再显示出来。
- *
- * 判据用窗口尺寸而不是 Configuration：Activity 的 configChanges 含 orientation，转屏不重建，
- * 只能听测量结果。onResume 再补一次，转屏发生在后台时回来也能对上。
+ * 栈顶内容渲染：每页拿到自己的 [NavChild] 当 ViewModelStoreOwner
+ * （koinViewModel 默认读 LocalViewModelStoreOwner，作用域与 nav3 的
+ * ViewModelStore decorator 对齐），路由分发见 `ui/navigation/ScreenPages.kt`。
  */
 @Composable
-private fun HideStatusBarInLandscape(landscape: Boolean) {
-    val view = LocalView.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val controller = remember(view) {
-        view.context.getActivity()?.let { WindowCompat.getInsetsController(it.window, view) }
-    }
-    DisposableEffect(controller, lifecycleOwner, landscape) {
-        val applyBars = {
-            val bars = controller
-            if (bars != null) {
-                if (landscape) {
-                    bars.systemBarsBehavior =
-                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    bars.hide(WindowInsetsCompat.Type.statusBars())
-                } else {
-                    bars.show(WindowInsetsCompat.Type.statusBars())
-                }
-            }
+private fun NavChildContent(child: NavChild) {
+    val screen = child.screen
+    if (screen == null) {
+        // 右列的空槽位（DetailDestination.None）：右列可见但还没有详情页
+        Box(modifier = Modifier.fillMaxSize())
+    } else {
+        CompositionLocalProvider(LocalViewModelStoreOwner provides child) {
+            ScreenContent(screen)
         }
-        applyBars()
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) applyBars()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-}
-
-/**
- * 全部导航目的地的 entry 清单，中列与右列两个 `NavDisplay` 共用这一份。
- *
- * 放在顶层是为了能被 `remember` 住（见 `AppRoutes`）：每个 entry 只读 key、不读组合状态，
- * 记住它不会拿着过期状态，反而省掉每次重组重建一遍的分配。
- *
- * 转场交给 display 级的 transitionSpec（见 `ui/navigation/NavTransitions.kt`）：抽屉点进来的
- * 会话要按 `enterFromTop` 从对应一侧落下，entry 级 metadata 会把整套 spec 盖掉。
- */
-private fun appNavEntries() = entryProvider<NavKey> {
-    entry<Screen.Chat> { key ->
-        ChatPage(
-            id = Uuid.parse(key.id),
-            text = key.text,
-            files = key.files.map { it.toUri() },
-            nodeId = key.nodeId?.let { Uuid.parse(it) }
-        )
-    }
-
-    heroEntry<Screen.ShareHandler> { key ->
-        ShareHandlerPage(
-            text = key.text,
-            image = key.streamUri
-        )
-    }
-
-    heroEntry<Screen.History> {
-        HistoryPage()
-    }
-
-    heroEntry<Screen.Favorite> {
-        FavoritePage()
-    }
-
-    heroEntry<Screen.Assistant> {
-        AssistantPage()
-    }
-
-    heroEntry<Screen.AssistantDetail> { key ->
-        AssistantDetailPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantBasic> { key ->
-        AssistantBasicPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantPrompt> { key ->
-        AssistantPromptPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantMemory> { key ->
-        AssistantMemoryPage(key.id)
-    }
-
-    heroEntry<Screen.MemoryFile> { key ->
-        MemoryFilePage(memoryId = key.memoryId, path = key.path)
-    }
-
-    heroEntry<Screen.AssistantRequest> { key ->
-        AssistantRequestPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantHeartbeat> { key ->
-        AssistantHeartbeatPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantMcp> { key ->
-        AssistantMcpPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantLocalTool> { key ->
-        AssistantLocalToolPage(key.id)
-    }
-
-    heroEntry<Screen.AssistantInjections> { key ->
-        AssistantExtensionsPage(key.id)
-    }
-
-    heroEntry<Screen.Translator> {
-        TranslatorPage()
-    }
-
-    // 切换配色时会 popUpTo 原地重进，同一个 heroKey 新旧两页同时在组合里，这页不套容器变换
-    entry<Screen.Setting> {
-        SettingPage()
-    }
-
-    heroEntry<Screen.Backup> {
-        BackupPage()
-    }
-
-    heroEntry<Screen.ImageGen> {
-        ImageGenPage()
-    }
-
-    heroEntry<Screen.MediaCreationSessions> {
-        MediaCreationSessionsPage()
-    }
-
-    // 从会话列表展开（容器变换）：位移交给页面内部的 sharedBounds 演，
-    // display 级不叠转场；返回同样由页面内部的 sharedBounds 收回会话列表那张卡片
-    entry<Screen.MediaCreation>(
-        metadata = NavDisplay.transitionSpec {
-            EnterTransition.None togetherWith ExitTransition.None
-        }
-    ) { key ->
-        MediaCreationPage(key.id)
-    }
-
-    heroEntry<Screen.WebView> { key ->
-        WebViewPage(key.url, key.contentId)
-    }
-
-    heroEntry<Screen.SettingTheme> {
-        SettingThemePage()
-    }
-
-    heroEntry<Screen.SettingPalette> {
-        SettingPalettePage()
-    }
-
-    heroEntry<Screen.SettingPreferences> {
-        SettingPreferencesPage()
-    }
-
-    heroEntry<Screen.SettingPreferencesTheme> {
-        SettingPreferencesThemePage()
-    }
-
-    heroEntry<Screen.SettingPreferencesNotification> {
-        SettingPreferencesNotificationPage()
-    }
-
-    heroEntry<Screen.SettingPreferencesGeneral> {
-        SettingPreferencesGeneralPage()
-    }
-
-    heroEntry<Screen.SettingPreferencesUI> {
-        SettingPreferencesUIPage()
-    }
-
-    heroEntry<Screen.SettingPreferencesNetwork> {
-        SettingPreferencesNetworkPage()
-    }
-
-    heroEntry<Screen.SettingProvider> {
-        SettingProviderPage()
-    }
-
-    heroEntry<Screen.SettingProviderDetail> { key ->
-        SettingProviderDetailPage(id = Uuid.parse(key.providerId))
-    }
-
-    heroEntry<Screen.SettingModels> {
-        SettingModelPage()
-    }
-
-    heroEntry<Screen.ModelEditor> { key ->
-        ModelEditorPage(
-            providerId = Uuid.parse(key.providerId),
-            modelId = key.modelId,
-        )
-    }
-
-    heroEntry<Screen.SettingAbout> {
-        SettingAboutPage()
-    }
-
-    heroEntry<Screen.SettingSearch> {
-        SettingSearchPage()
-    }
-
-    heroEntry<Screen.SettingSearchDetail> { key ->
-        val id = Uuid.parse(key.serviceId)
-        SettingSearchDetailPage(id)
-    }
-
-    heroEntry<Screen.SettingSpeech> {
-        SettingSpeechPage()
-    }
-
-    heroEntry<Screen.SettingMedia> {
-        SettingMediaPage()
-    }
-
-    heroEntry<Screen.SettingMediaProviderDetail> { key ->
-        SettingMediaProviderDetailPage(id = Uuid.parse(key.providerId))
-    }
-
-    heroEntry<Screen.SettingMcp> {
-        SettingMcpPage()
-    }
-
-    heroEntry<Screen.ToolOverrides> {
-        SettingToolOverridePage()
-    }
-
-    heroEntry<Screen.SettingMcpDetail> { key ->
-        SettingMcpDetailPage(id = Uuid.parse(key.serverId))
-    }
-
-    heroEntry<Screen.SettingDonate> {
-        SettingDonatePage()
-    }
-
-    heroEntry<Screen.SettingFiles> {
-        SettingFilesPage()
-    }
-
-    heroEntry<Screen.SettingWeb> {
-        SettingWebPage()
-    }
-
-    heroEntry<Screen.Debug> {
-        DebugPage()
-    }
-
-    heroEntry<Screen.Log> {
-        LogPage()
-    }
-
-    heroEntry<Screen.Extensions> {
-        ExtensionsPage()
-    }
-
-    heroEntry<Screen.QuickMessages> {
-        QuickMessagesPage()
-    }
-
-    heroEntry<Screen.Prompts> {
-        PromptPage()
-    }
-
-    heroEntry<Screen.Skills> {
-        SkillsPage()
-    }
-
-    heroEntry<Screen.Workspaces> {
-        WorkspacePage()
-    }
-
-    heroEntry<Screen.WorkspaceDetail> { key ->
-        WorkspaceDetailPage(key.id)
-    }
-
-    heroEntry<Screen.WorkspaceTerminal> { key ->
-        WorkspaceTerminalPage(key.id)
-    }
-
-    heroEntry<Screen.WorkspaceSshEditor> { key ->
-        WorkspaceSshEditorPage(key.id)
-    }
-
-    heroEntry<Screen.WorkspaceFileEditor> { key ->
-        WorkspaceFileEditorPage(
-            id = key.id,
-            area = WorkspaceStorageArea.valueOf(key.area),
-            path = key.path,
-        )
-    }
-
-    heroEntry<Screen.SkillDetail> { key ->
-        SkillDetailPage(skillName = key.skillName)
-    }
-
-    heroEntry<Screen.MessageSearch> {
-        SearchPage()
-    }
-
-    heroEntry<Screen.Stats> {
-        StatsPage()
     }
 }

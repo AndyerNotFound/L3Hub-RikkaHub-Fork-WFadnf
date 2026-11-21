@@ -1,16 +1,15 @@
 package me.rerere.rikkahub
 
-import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 /**
  * 全部导航目的地。
  *
- * 从 RouteActivity.kt 原样搬过来的同包声明，只为把那个文件收窄：包名与类名一个字都没动，
- * 所以 `@Serializable` 的序列化名、nav3 的多态反序列化、以及各处
- * `import me.rerere.rikkahub.Screen` 都不受影响。
+ * 导航目的地清单。引擎换成 Decompose 后不再实现 NavKey，
+ * `@Serializable` 的序列化名与 `Screen.serializer()` 的多态序列化照旧，
+ * 各处 `import me.rerere.rikkahub.Screen` 不受影响。
  */
-sealed interface Screen : NavKey {
+sealed interface Screen {
     @Serializable
     data class Chat(
         val id: String,

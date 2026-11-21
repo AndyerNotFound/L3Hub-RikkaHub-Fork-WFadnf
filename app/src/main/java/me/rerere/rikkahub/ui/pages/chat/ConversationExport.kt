@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Share04
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -73,7 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.compose.runtime.mutableStateListOf
-import androidx.navigation3.runtime.NavKey
+import me.rerere.rikkahub.ui.context.NavigateOptionsBuilder
 import me.rerere.rikkahub.ui.context.Navigator
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -650,8 +651,13 @@ private fun ExportedChatImage(
     messages: List<UIMessage>,
     options: ExportOptions = ExportOptions()
 ) {
-    val navBackStack = remember { mutableStateListOf<NavKey>() }
-    val navigator = Navigator(navBackStack)
+    val navigator = remember {
+        object : Navigator {
+            override fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit) = Unit
+            override fun clearAndNavigate(screen: Screen) = Unit
+            override fun popBackStack() = Unit
+        }
+    }
     val toasterState = rememberToasterState()
     RikkahubTheme {
         CompositionLocalProvider(

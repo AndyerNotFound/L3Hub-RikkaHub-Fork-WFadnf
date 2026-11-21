@@ -58,7 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import me.rerere.rikkahub.ui.navigation.LocalNavAnimatedVisibilityScope
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -131,7 +131,7 @@ fun MediaCreationPage(id: String) {
 
     // 从会话列表点进来时由列表项展开，返回时收回列表项；切换途中带着圆角，到位后变成直角。
     // 两个方向都收角：返回靠容器变换演，角必须和它落回去的那张卡片一致
-    val heroCorner by LocalNavAnimatedContentScope.current.transition.animateDp(label = "heroCorner") { state ->
+    val heroCorner by LocalNavAnimatedVisibilityScope.current.transition.animateDp(label = "heroCorner") { state ->
         if (state == EnterExitState.Visible) 0.dp else 24.dp
     }
 

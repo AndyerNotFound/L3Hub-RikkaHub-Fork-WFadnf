@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import me.rerere.rikkahub.ui.navigation.LocalNavAnimatedVisibilityScope
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
@@ -30,7 +30,7 @@ val HeroSourceCorner = 20.dp
 /**
  * 这一页是不是「被弹出离场」。
  *
- * 由 `rememberAppNavEntryDecorators()` 里的离场标记提供：离场且已经不在返回栈里。
+ * 由 `HeroStackAnimation` 的离场条目提供：返回时正在播退出动画的页面。
  * 被新页盖住的那一页仍是
  * false —— 它得留着页内共享元素源那一半，否则进场的元素动画没有东西可配。
  */
@@ -45,7 +45,7 @@ fun Modifier.heroAnimation(
     // 页内元素再飞一次就成了两套过渡一起演
     if (LocalNavEntryPopped.current) return Modifier
     val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
     return with(sharedTransitionScope) {
         this@heroAnimation.sharedElement(
             sharedContentState = rememberSharedContentState(key),
@@ -65,7 +65,7 @@ fun Modifier.heroContainer(
     shape: Shape,
 ): Modifier {
     val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
     return with(sharedTransitionScope) {
         this@heroContainer.sharedBounds(
             sharedContentState = rememberSharedContentState(key),
@@ -92,7 +92,7 @@ fun HeroPage(
     val sourceCorner = adaptiveCornerRadius(HeroSourceCorner)
     // 圆角也用同一档速度，关掉动效时它是 snap，不会留一段 300ms 的收角
     val cornerSpec = rememberSpatialSpec<Dp>()
-    val transition = LocalNavAnimatedContentScope.current.transition
+    val transition = LocalNavAnimatedVisibilityScope.current.transition
     // 两个方向都收角：进场从条目的圆角收到直角，返回时再长回条目的圆角，
     // 收起的那一帧才和它落进去的条目对得上。原来离场停在直角，是因为返回靠整页下滑演；
     // 下滑撤掉以后，收角与收回条目必须是同一段动画

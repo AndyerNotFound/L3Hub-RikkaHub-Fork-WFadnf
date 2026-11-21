@@ -29,7 +29,7 @@
 | P2c | 四档滑块（MaterialYou / Fancy / Material / HyperOS）+ 自绘滑杆引擎 | 已落地（未编译） |
 | P2d | 十二档滑动曲线 + 动效时长标尺（要 `io.iamjosephmj:flinger` 与 recomposer 改造，待定） | 待做 |
 | 转场 | 滑入页 fade+slide+scale 三件套 + `AnimatedShape` 形状动画 | 已落地（未编译） |
-| P4 | 换 Decompose 引擎（见第 4 节） | 待做 |
+| P4 | 换 Decompose 引擎（见第 4 节） | 已落地（未编译） |
 | P3 | 预测性返回进度 | 放在 P4 之后：Decompose 自带 `predictiveBackAnimation` |
 
 ## 3 P2a 的形状体系要注意什么
@@ -47,7 +47,21 @@
 两个第三方依赖已按源工程版本引入（`io.github.kyant0:capsule:2.1.3`、
 `com.stoyanvuchev:squircle-shape-android:5.4.0`）。
 
-## 4 P4：换 Decompose 的五个子步
+## 4 P4：换 Decompose 的五个子步（2026-11 落地）
+
+已落地的实现与原计划有两处偏差：
+
+- hero 层没有按第 5 子步「每个 child 外面自建 AnimatedVisibility」之外再重写：
+  `ui/navigation/StackHost.kt` 的 `HeroStackAnimation` 给每个 child 套
+  `AnimatedVisibility(visibleState = MutableTransitionState)` 产出
+  `AnimatedVisibilityScope`，经 `LocalNavAnimatedVisibilityScope` 提供，
+  `heroAnimation` / `HeroPage` 只换了一行 scope 来源，`EnterExitState` 判据原样可用；
+- 右列采用方案 B：`RootComponent` 里 `childContext("l3hub_settings_detail", backHandlerPriority = 1)`
+  挂了一条独立 `StackNavigation<DetailDestination>`（None 哨兵 + Page 包 Screen），
+  返回键由 RouteActivity 的 `BackCallback(priority = 1)` 接管（随布局开关启用），
+  不走 childStack 的 handleBackButton；`Navigator` 拆成接口 + `RootNavigator`，
+  detailActive 时把路由分流到右列栈。跨列 hero 配对成立的前提是两列共用
+  RouteActivity 顶层的同一个 `SharedTransitionLayout`。
 
 1. 依赖：`com.arkivanov.decompose:decompose` + `extensions-compose`。
 2. `nav/RootComponent.kt`：`StackNavigation<Screen>` + `childStack(handleBackButton = true)`。
