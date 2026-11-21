@@ -436,6 +436,40 @@ sealed class，这里拆成 `CornerStyle` 枚举 + 独立的 `cornerScale`：能
 > 本轮未编译验证（Termux 侧禁止编译）：五个新文件与原文件逐行 diff 过（只差 package 与授权头），
 > 引用与括号做过静态检查，行为待 CI 出包确认。
 
+### 开关类型（ImageToolbox 移植 · 第三轮，2026-11-21）
+
+「开关类型」这一档在源工程是八个 `data object`，各自一份自绘实现（`widget/switches/` 2512 行）。
+这里逐字搬过来，只替换掉它的胶水层。
+
+| 文件 | 说明 |
+|---|---|
+| `ui/components/ui/switch/{Compose,Pixel,Fluent,Cupertino,LiquidToggle,HyperOS,OneUI}Switch.kt` | 七份自绘实现，绘制逻辑与源文件逐行对应 |
+| `ui/components/ui/switch/CompositeOverSafe.kt` | `Color.compositeOverSafe`，源工程 `core.resources.utils` 的等价物 |
+| `ui/components/ui/switch/SwitchByType.kt` | 分发器（源 `EnhancedSwitch` 的 `when`），参数 `switchType / checked / onCheckedChange / colors / interactionSource / colorUnderSwitch` |
+| `ui/components/ui/AppSwitch.kt` | 读 `LocalSwitchType`：默认档仍走原来的皮肤开关（原生 M3 / Miuix），其余七档走 `SwitchByType` |
+| `data/datastore/Settings.kt` | `switchType`，八档，默认 `MATERIAL_YOU` |
+| 设置页 | 偏好设置 → 通用 →「开关类型」八个 Chip |
+
+替换掉的胶水层（每条都是「本项目没有这个东西」）：`LocalSettingsState.switchType` → 参数；
+`rememberScrollAnchor` / `scrollAnchor` → 删除；`Modifier.container(...)`（它的阴影描边容器）→ 删除，
+阴影仍由本项目的「按钮阴影」控制；`LocalMinimumInteractiveComponentSize.ProvidesValue` →
+`CompositionLocalProvider`；`haptics.longPress()` → `performHapticFeedback(LongPress)`；
+`ShapeDefaults.circle` → `CircleShape`；`AutoCircleShape()` → `CircleShape`；
+`rememberRipple` → 新版 `ripple(bounded, radius)`；`core.ui.theme.blend` → 文件内
+`ColorUtils.blendARGB` 副本（保持 sRGB 插值，不用 Oklab 的 `lerp`）。
+
+两处**有意偏离**：
+
+- `M3Switch`（MaterialYou 档）没搬。它的全部绘制本体是 MDC 的 `MaterialSwitch`，
+  本仓库没有 `com.google.android.material`，也不为一个开关把 appcompat 拉进来；
+  这一档本来就由 `AppSwitch` 直接走皮肤开关，`SwitchByType` 里保留成 Compose 款兜底。
+- 液态玻璃档为它加了 `io.github.kyant0:backdrop:2.0.1`（与 capsule 同一个作者）。
+  没有这个依赖，`blur` / `lens` / `highlight` / `InnerShadow` 全都不存在，
+  用纯色填充替代就不是同一档东西了。
+
+> 本轮未编译验证（Termux 侧禁止编译）：逐文件与原文件 diff 过，差异只有包名、授权头与上表那些替换；
+> 违禁符号 grep 为空；括号静态检查通过。行为待 CI 出包确认。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

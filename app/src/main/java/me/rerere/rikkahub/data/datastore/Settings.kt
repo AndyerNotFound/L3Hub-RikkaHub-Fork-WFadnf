@@ -228,6 +228,40 @@ enum class AnimationSpeed {
 }
 
 /**
+ * 开关外观，取自 ImageToolbox 的 `SwitchType`（T8RIN，Apache-2.0）。
+ *
+ * 顺序与源工程一致（源工程是八个 `data object` 的 sealed class，这里改成 enum，
+ * 因为要直接序列化进 DataStore）。[MATERIAL_YOU] 是默认值，走的仍是本项目原来的
+ * 开关实现（原生皮肤用 M3、Miuix 皮肤用 Miuix 的开关），其余七档一律用移植过来的自绘实现，
+ * 两套皮肤下表现一致。
+ */
+enum class SwitchType {
+    /** 跟随当前界面皮肤（原生 M3 / Miuix） */
+    MATERIAL_YOU,
+
+    /** Compose 基础款：轨道与拇指都是 M3 baseline */
+    COMPOSE,
+
+    /** Pixel 风格：拇指带描边 */
+    PIXEL,
+
+    /** Fluent（Windows）风格：方形轨道，拇指按压缩放 */
+    FLUENT,
+
+    /** Cupertino（iOS）风格：胶囊轨道，拇指大 */
+    CUPERTINO,
+
+    /** LiquidGlass 风格：玻璃质感的轨道与高光 */
+    LIQUID_GLASS,
+
+    /** HyperOS（小米）风格 */
+    HYPEROS,
+
+    /** OneUI（三星）风格 */
+    ONE_UI,
+}
+
+/**
  * 组件轮廓的形状类型，取自 ImageToolbox 的 ShapeType（T8RIN，Apache-2.0）。
  *
  * 与那个工程的差别：那边是带 `strength` 的 sealed class，每个实例自带强度；
@@ -402,6 +436,8 @@ data class DisplaySetting(
     val cornerStyle: CornerStyle = CornerStyle.ROUNDED,
     val cornerScale: Float = 1f,
     val cornerAnimThrottle: Int = 128,
+    // 开关外观：默认跟随皮肤，其余七档是自绘实现
+    val switchType: SwitchType = SwitchType.MATERIAL_YOU,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,

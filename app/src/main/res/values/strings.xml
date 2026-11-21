@@ -827,6 +827,16 @@
   <string name="setting_display_page_corner_scale_desc">50%–200%, scales every corner radius. Also applies to Miuix cards.</string>
   <string name="setting_display_page_corner_throttle_title">Corner Animation Throttle</string>
   <string name="setting_display_page_corner_throttle_desc">Minimum interval between pressed-outline morphs; rapid taps are collapsed to this value.</string>
+  <string name="setting_display_page_switch_type_title">Switch Style</string>
+  <string name="setting_display_page_switch_type_desc">Follow skin keeps the native M3 and Miuix switches; the other seven are drawn in-app and look the same in both skins.</string>
+  <string name="setting_display_page_switch_type_material_you">Follow skin</string>
+  <string name="setting_display_page_switch_type_compose">Compose</string>
+  <string name="setting_display_page_switch_type_pixel">Pixel</string>
+  <string name="setting_display_page_switch_type_fluent">Fluent</string>
+  <string name="setting_display_page_switch_type_cupertino">iOS</string>
+  <string name="setting_display_page_switch_type_liquid_glass">Liquid Glass</string>
+  <string name="setting_display_page_switch_type_hyperos">HyperOS</string>
+  <string name="setting_display_page_switch_type_one_ui">OneUI</string>
   <string name="setting_display_page_font_size_preview">At four in the morning, I saw the begonia flowers still awake. I am often like this — lying awake alone in the quiet night, thinking: if someone is thinking of me at this moment, that would be wonderful.</string>
   <string name="setting_display_page_ui_scale_title">UI Scale</string>
   <string name="setting_display_page_ui_scale_desc">Size of the whole app. 50%–200%, in 5% steps</string>

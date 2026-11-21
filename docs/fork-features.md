@@ -167,6 +167,7 @@
 | 形状类型 | 设置 → 偏好设置 → 通用 | `cornerStyle` 七种：圆角 / 切角 / 超椭圆 / 连续圆角 / 波浪边 / 凹角 / 缺口角；`Theme.kt` 五档 shapes、`CardGroup`、容器变换起始形状三处一起换 |
 | 边角大小 | 同上 | `cornerScale` 0–200%，等比缩放所有圆角；Miuix 卡片的 `miuixCornerRadius` 同步缩放 |
 | 边角动画节流 | 同上 | `cornerAnimThrottle` 0–500ms；按压轮廓先立刻生效，窗口内连点只补最后一下 |
+| 开关类型 | 设置 → 偏好设置 → 通用 | `switchType` 八档：跟随皮肤 / Compose / Pixel / Fluent / iOS / 液态玻璃 / HyperOS / OneUI。跟随皮肤时用原生 M3 与 Miuix 的开关，其余七档是 `ui/components/ui/switch/` 里的自绘实现 |
 
 ## 3 布局与导航
 

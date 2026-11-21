@@ -820,6 +820,16 @@
   <string name="setting_display_page_corner_scale_desc">50%–200%，按比例缩放所有圆角；对 Miuix 皮肤的卡片同样生效</string>
   <string name="setting_display_page_corner_throttle_title">边角动画节流</string>
   <string name="setting_display_page_corner_throttle_desc">按压时轮廓变形的触发间隔；连点时再短也会被这个值吃掉</string>
+  <string name="setting_display_page_switch_type_title">开关类型</string>
+  <string name="setting_display_page_switch_type_desc">跟随皮肤时沿用原生 M3 与 Miuix 的开关；其余七档是自绘实现，两套皮肤表现一致</string>
+  <string name="setting_display_page_switch_type_material_you">跟随皮肤</string>
+  <string name="setting_display_page_switch_type_compose">Compose</string>
+  <string name="setting_display_page_switch_type_pixel">Pixel</string>
+  <string name="setting_display_page_switch_type_fluent">Fluent</string>
+  <string name="setting_display_page_switch_type_cupertino">iOS</string>
+  <string name="setting_display_page_switch_type_liquid_glass">液态玻璃</string>
+  <string name="setting_display_page_switch_type_hyperos">HyperOS</string>
+  <string name="setting_display_page_switch_type_one_ui">OneUI</string>
   <string name="setting_display_page_font_size_preview">凌晨四点钟，看到海棠花未眠。我常常这样，在无人的夜里独自醒着，想，若有人此刻也在想我，那就好了。</string>
   <string name="setting_display_page_ui_scale_title">界面缩放</string>
   <string name="setting_display_page_ui_scale_desc">整个应用的尺寸，50% 到 200%，每档 5%</string>

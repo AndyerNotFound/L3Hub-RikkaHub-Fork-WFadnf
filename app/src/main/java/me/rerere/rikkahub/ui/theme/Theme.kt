@@ -215,6 +215,7 @@ fun RikkahubTheme(
         LocalCornerStyle provides cornerStyle,
         LocalCornerScale provides cornerScale,
         LocalCornerThrottle provides settings.displaySetting.cornerAnimThrottle.coerceIn(0, 2000),
+        LocalSwitchType provides settings.displaySetting.switchType,
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,

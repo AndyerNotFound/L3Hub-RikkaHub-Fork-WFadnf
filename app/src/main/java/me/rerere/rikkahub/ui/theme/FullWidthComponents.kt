@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.datastore.CornerStyle
+import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.ui.shape.styledShape
 
 /**
@@ -57,6 +58,14 @@ val LocalCornerScale = compositionLocalOf { 1f }
 
 /** 按压轮廓变形的节流窗口（毫秒），对应显示设置里的「边角动画节流」。 */
 val LocalCornerThrottle = compositionLocalOf { 128 }
+
+/**
+ * 开关外观，对应显示设置里的「开关类型」。
+ *
+ * 默认 [SwitchType.MATERIAL_YOU]，此时不接管：原生皮肤用 M3 的开关、Miuix 皮肤用 Miuix 的。
+ * 其余七档一律用 `ui/components/ui/switch` 里的自绘实现，两套皮肤表现一致。
+ */
+val LocalSwitchType = compositionLocalOf { SwitchType.MATERIAL_YOU }
 
 /**
  * 全宽模式下是直角，否则按当前轮廓类型与边角大小造形状。

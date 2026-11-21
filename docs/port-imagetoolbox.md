@@ -24,7 +24,10 @@
 |---|---|---|
 | P1 | 七条曲线 + 滑入换 `FancyTransitionEasing`；触感强度三档；`rememberShapeByInteraction` / `MorphShape` | 已落地（未编译） |
 | P2a | 七种轮廓 + 边角大小 + 边角动画节流；`styledShape` 接进 `Theme.kt` / `CardGroup` / `adaptiveShape` | 已落地（未编译） |
-| P2b | `EnhancedTopAppBar` 大标题折叠（NATIVE 走 M3 `LargeTopAppBar`，MIUIX 手写等价实现） | 待做 |
+| P2b-开关 | 八档开关（跟随皮肤 / Compose / Pixel / Fluent / iOS / 液态玻璃 / HyperOS / OneUI） | 已落地（未编译） |
+| P2b-顶栏 | `EnhancedTopAppBar` 大标题折叠（NATIVE 走 M3 `LargeTopAppBar`，MIUIX 手写等价实现） | 待做 |
+| P2c | 四档滑块（MaterialYou / Fancy / Material / HyperOS） | 待做 |
+| P2d | 十二档滑动曲线 + 动效时长标尺 | 待做 |
 | P4 | 换 Decompose 引擎（见第 4 节） | 待做 |
 | P3 | 预测性返回进度 | 放在 P4 之后：Decompose 自带 `predictiveBackAnimation` |
 

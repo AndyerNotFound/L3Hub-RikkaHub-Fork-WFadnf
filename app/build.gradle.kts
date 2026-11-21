@@ -272,6 +272,7 @@ dependencies {
     // Haze (background blur and glass)
     implementation(libs.haze)
     implementation(libs.capsule)
+    implementation(libs.backdrop)
     implementation(libs.squircle.shape)
     implementation(libs.haze.blur)
     implementation(libs.haze.blur.material3)

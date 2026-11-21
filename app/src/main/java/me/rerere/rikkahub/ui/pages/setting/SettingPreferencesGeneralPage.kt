@@ -39,6 +39,7 @@ import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.CornerStyle
 import me.rerere.rikkahub.data.datastore.HapticsStrength
+import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -397,6 +398,25 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         valueRange = 0..500,
                     )
                 }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_switch_type_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_switch_type_desc)) },
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SwitchType.entries.forEach { type ->
+                            FilterChip(
+                                selected = displaySetting.switchType == type,
+                                onClick = {
+                                    updateDisplaySetting(displaySetting.copy(switchType = type))
+                                },
+                                label = { Text(switchTypeLabel(type)) },
+                            )
+                        }
+                    }
+                }
             }
 
             CardGroup {
@@ -609,6 +629,21 @@ private fun LanguagePickerDialog(
         },
     )
 }
+
+/** 开关类型标签；只给设置页用。 */
+@Composable
+private fun switchTypeLabel(type: SwitchType): String = stringResource(
+    when (type) {
+        SwitchType.MATERIAL_YOU -> R.string.setting_display_page_switch_type_material_you
+        SwitchType.COMPOSE -> R.string.setting_display_page_switch_type_compose
+        SwitchType.PIXEL -> R.string.setting_display_page_switch_type_pixel
+        SwitchType.FLUENT -> R.string.setting_display_page_switch_type_fluent
+        SwitchType.CUPERTINO -> R.string.setting_display_page_switch_type_cupertino
+        SwitchType.LIQUID_GLASS -> R.string.setting_display_page_switch_type_liquid_glass
+        SwitchType.HYPEROS -> R.string.setting_display_page_switch_type_hyperos
+        SwitchType.ONE_UI -> R.string.setting_display_page_switch_type_one_ui
+    }
+)
 
 /** 形状类型的中文/英文标签；只给设置页用，别在别处重复一份。 */
 @Composable
