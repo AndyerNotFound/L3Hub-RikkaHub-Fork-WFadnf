@@ -36,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
@@ -77,11 +78,11 @@ fun Button(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
         // 引擎的描边宽度只从 ToolboxSettings.borderWidth 读（现阶段 0.dp），这里只能保住颜色；
         // 没描边的调用点给 Transparent，别让 0.dp 那圈 hairline 冒出来
-        borderColor = border?.color ?: Color.Transparent,
+        borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent,
         shape = shape,
         contentPadding = contentPadding,
         interactionSource = interactionSource ?: remember { MutableInteractionSource() },
@@ -176,9 +177,9 @@ fun FilledTonalButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        borderColor = border?.color ?: Color.Transparent,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent,
         shape = shape,
         contentPadding = contentPadding,
         interactionSource = interactionSource ?: remember { MutableInteractionSource() },
@@ -202,10 +203,10 @@ fun IconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        disabledContainerColor = colors.containerColor(enabled = false),
-        disabledContentColor = colors.contentColor(enabled = false),
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        disabledContainerColor = colors.disabledContainerColor,
+        disabledContentColor = colors.disabledContentColor,
         borderColor = Color.Transparent,
         interactionSource = resolvedInteractionSource,
         content = content,
@@ -228,10 +229,10 @@ fun FilledIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        disabledContainerColor = colors.containerColor(enabled = false),
-        disabledContentColor = colors.contentColor(enabled = false),
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        disabledContainerColor = colors.disabledContainerColor,
+        disabledContentColor = colors.disabledContentColor,
         borderColor = Color.Transparent,
         shape = shape,
         interactionSource = resolvedInteractionSource,
@@ -254,10 +255,10 @@ fun FilledTonalIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        disabledContainerColor = colors.containerColor(enabled = false),
-        disabledContentColor = colors.contentColor(enabled = false),
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        disabledContainerColor = colors.disabledContainerColor,
+        disabledContentColor = colors.disabledContentColor,
         borderColor = Color.Transparent,
         shape = shape,
         interactionSource = resolvedInteractionSource,
@@ -277,9 +278,9 @@ fun Card(
     CardContainer(
         modifier = modifier,
         shape = shape,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        shadowElevation = 0.dp, // CardElevation 全 internal 无法取值；阴影统一走 drawContainerShadows（阶段 5 接设置）
         border = border,
         interactionSource = null,
         enabled = true,
@@ -303,9 +304,9 @@ fun Card(
     CardContainer(
         modifier = modifier,
         shape = shape,
-        containerColor = colors.containerColor(enabled = enabled),
-        contentColor = colors.contentColor(enabled = enabled),
-        shadowElevation = elevation.shadowElevation(enabled, interactionSource).value,
+        containerColor = if (enabled) colors.containerColor else colors.disabledContainerColor,
+        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
+        shadowElevation = 0.dp, // CardElevation 全 internal 无法取值；阴影统一走 drawContainerShadows（阶段 5 接设置）
         border = border,
         interactionSource = interactionSource,
         enabled = enabled,
@@ -326,9 +327,9 @@ fun OutlinedCard(
     CardContainer(
         modifier = modifier,
         shape = shape,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        shadowElevation = 0.dp, // CardElevation 全 internal 无法取值；阴影统一走 drawContainerShadows（阶段 5 接设置）
         border = border,
         interactionSource = null,
         enabled = true,
@@ -352,9 +353,9 @@ fun OutlinedCard(
     CardContainer(
         modifier = modifier,
         shape = shape,
-        containerColor = colors.containerColor(enabled = enabled),
-        contentColor = colors.contentColor(enabled = enabled),
-        shadowElevation = elevation.shadowElevation(enabled, interactionSource).value,
+        containerColor = if (enabled) colors.containerColor else colors.disabledContainerColor,
+        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
+        shadowElevation = 0.dp, // CardElevation 全 internal 无法取值；阴影统一走 drawContainerShadows（阶段 5 接设置）
         border = border,
         interactionSource = interactionSource,
         enabled = enabled,
@@ -374,9 +375,9 @@ fun ElevatedCard(
     CardContainer(
         modifier = modifier,
         shape = shape,
-        containerColor = colors.containerColor(enabled = true),
-        contentColor = colors.contentColor(enabled = true),
-        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        shadowElevation = 0.dp, // CardElevation 全 internal 无法取值；阴影统一走 drawContainerShadows（阶段 5 接设置）
         border = null,
         interactionSource = null,
         enabled = true,
@@ -415,7 +416,7 @@ private fun CardContainer(
                     // M3 的 Card 没有内边距；引擎默认那 4.dp 是给阴影留的余量，卡片不能要
                     resultPadding = 0.dp,
                     borderWidth = border?.width ?: 0.dp,
-                    borderColor = border?.color,
+                    borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent, // BorderStroke 无 .color 属性，从 brush 取
                     // 阴影是否真的画由 ToolboxSettings.drawContainerShadows 定（现阶段 false）；
                     // 照样把 M3 的 elevation 传下去，阶段 5 打开开关就直接生效
                     autoShadowElevation = shadowElevation,
