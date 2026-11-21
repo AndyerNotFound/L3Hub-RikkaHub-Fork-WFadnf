@@ -15,8 +15,8 @@ android {
         applicationId = "com.l3hub.database.wfadnf"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
 
         // 只出真机用的 ABI：requery 的 SQLite 会把四套 .so 一起带进来，不裁的话包体大半是别的架构
         ndk {
