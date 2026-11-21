@@ -1,16 +1,16 @@
 name: Build Data Center
 
-# 数据中心是独立的应用（com.l3hub.database.wfadnf），与 L3Hub 共用同一把 release 签名钥匙，
-# 因此能覆盖安装、也能被 L3Hub 的 provider 认作可信调用方。
-# 出包通道只有一条：tag 形如 DB-v1.0.0 → 正式 Release，产物是 arm64-v8a 的单个 APK
-# （内含 libsimple，FTS5 的 simple 分词器要用；requery 的 SQLite 只裁到 arm64，包体才不至于翻倍）。
+# 数据中心为独立应用（com.l3hub.database.wfadnf），与 L3Hub 共用同一 release 签名密钥，
+# 因此可覆盖安装，且能被 L3Hub 的 provider 识别为可信调用方。
+# 发布通道仅有一条：tag 形如 DB-v1.0.0 → 正式 Release，产物为 arm64-v8a 的单个 APK
+# （内含 libsimple，供 FTS5 的 simple 分词器使用；requery 的 SQLite 仅保留 arm64，以控制包体体积）。
 on:
   push:
     tags: ['DB-v*.*.*']
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布 tag（形如 DB-v1.0.0；留空只出 artifact 不发版）'
+        description: '发布 tag（形如 DB-v1.0.0；留空则仅产出 artifact，不发布 Release）'
         required: false
         default: ''
 
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 手动触发填了 tag 时编那个提交；否则编当前分支
+          # 手动触发并填写 tag 时构建该提交；否则构建当前分支
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
 
@@ -52,9 +52,9 @@ jobs:
             exit 1
           fi
           echo "TAG=$tag" >> "$GITHUB_ENV"
-          echo "tag=${tag:-（无，只出 artifact）}"
+          echo "tag=${tag:-（无，仅产出 artifact）}"
 
-      # 版本号没有第二处校验：tag 打错也照样能发出去，这里把两者对一次。
+      # 版本号无其他校验环节：tag 有误时仍可发布，此处对二者进行核对。
       - name: Check version against tag
         run: |
           set -euo pipefail
@@ -63,13 +63,13 @@ jobs:
             exit 0
           fi
           if [ ! -f datacenter/build.gradle.kts ]; then
-            echo "当前提交里没有 datacenter/build.gradle.kts，tag ${TAG} 指错地方了？" >&2
+            echo "当前提交中不存在 datacenter/build.gradle.kts，请核对 tag ${TAG} 指向的提交" >&2
             exit 1
           fi
           name=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' datacenter/build.gradle.kts | head -1)
           code=$(sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' datacenter/build.gradle.kts | head -1)
           if [ -z "$name" ] || [ -z "$code" ]; then
-            echo "没读到 versionCode / versionName，datacenter/build.gradle.kts 的格式变了？" >&2
+            echo "未能读取 versionCode / versionName，请检查 datacenter/build.gradle.kts 的格式" >&2
             exit 1
           fi
           base=${TAG#DB-v}
@@ -99,7 +99,7 @@ jobs:
           chmod 600 "$ks"
           if ! keytool -list -keystore "$ks" -storepass "$ANDROID_RELEASE_STORE_PASSWORD" \
                -alias "$ANDROID_RELEASE_KEY_ALIAS" >/dev/null 2>&1; then
-            echo "keystore 解不开：口令或 alias 和 secret 对不上" >&2
+            echo "keystore 无法解开：口令或 alias 与 secret 不匹配" >&2
             exit 1
           fi
           {
@@ -141,7 +141,7 @@ jobs:
           mkdir -p dist
           apk=$(find datacenter/build/outputs/apk/release -name '*.apk' | head -1)
           if [ -z "$apk" ]; then
-            echo "没有找到 release APK" >&2
+            echo "未找到 release APK" >&2
             exit 1
           fi
           asset="L3Hub-DataCenter-${TAG:-dev}.apk"
@@ -150,7 +150,7 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           ls -l dist
 
-      # 签名指纹必须和 L3Hub 正式版一致，否则目标端的 UID 校验还在，但用户装不上同一个身份的新包
+      # 签名指纹必须与 L3Hub 正式版一致：否则目标端的 UID 校验仍然存在，但用户将无法安装同一身份的新包
       - name: Verify APK
         run: |
           set -euo pipefail
@@ -171,28 +171,28 @@ jobs:
           {
             echo "## L3Hub 数据中心 ${version}"
             echo
-            echo '用于在本机各 L3Hub 构建之间搬运数据：列出已安装的正式版、Canary、Nightly 与改过包名的分支，'
-            echo '经 ContentProvider 读取它们的数据库结构与快照，按目标的结构换算后再投递。'
+            echo '用于在本机各 L3Hub 构建之间迁移数据：列出已安装的正式版、Canary、Nightly 与更改过包名的分支，'
+            echo '经 ContentProvider 读取其数据库结构与快照，按目标端结构换算后完成投递。'
             echo
-            echo '### 这一版'
+            echo '### 本版更新'
             echo
-            # 只取上一个数据中心 tag 到本 tag 的提交，否则会把历次版本的改动全列一遍
+            # 仅取上一个数据中心 tag 至本 tag 的提交，否则将列出历次版本的全部改动
             prev=$(git describe --tags --abbrev=0 --exclude="${TAG}" --match 'DB-v*' "${TAG}^" 2>/dev/null || true)
             if [ -n "$prev" ]; then range="${prev}..${TAG}"; else range="${TAG}"; fi
             git log --no-merges --pretty='- %s' "$range" -- datacenter syncproto docs/data-center.md \
-              | grep -vE '^- (ci|test|build)(\(|:)' || echo '- 首个版本'
+              | grep -vE '^- (ci|test|build)(\(|:)' || echo '- 首个发布版本'
             echo
-            echo '### 安装'
+            echo '### 安装说明'
             echo
-            echo '包名 `com.l3hub.database.wfadnf`，与 L3Hub 各构建是独立应用，可同装。'
-            echo '签名与 L3Hub 正式版相同；装过更早的测试包可直接覆盖安装。'
+            echo '包名 `com.l3hub.database.wfadnf`，与 L3Hub 各构建为独立应用，可同装。'
+            echo '签名与 L3Hub 正式版一致；已安装更早测试包的设备可直接覆盖安装。'
             echo
             echo '### 使用前提'
             echo
-            echo '要同步的 L3Hub 需更新到包含数据中心授权的版本（同步 provider 允许 `com.l3hub.database.wfadnf` 调用）。'
-            echo '投递完成后需重启目标应用，数据在它下次启动、数据库打开之前安装。'
+            echo '待同步的 L3Hub 需更新至包含数据中心授权的版本（同步 provider 允许 `com.l3hub.database.wfadnf` 调用）。'
+            echo '投递完成后需重启目标应用，数据将于其下次启动、数据库打开之前完成安装。'
             echo
-            echo '校验：`sha256sum -c '"${{ steps.collect.outputs.asset }}"'.sha256`'
+            echo '校验方式：`sha256sum -c '"${{ steps.collect.outputs.asset }}"'.sha256`'
             echo
             echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
           } > RELEASE_NOTES.md

@@ -1,9 +1,9 @@
 name: CI
 
-# 本机不能编译，所有验证都走这里。
-# 只跑单测，不出包；出包/发版仍由 build-apk.yml（打 tag 触发）负责。
+# 本机环境不执行编译，全部验证由本工作流承担。
+# 仅运行单元测试，不产出安装包；出包与发版仍由 build-apk.yml（tag 触发）负责。
 on:
-  # 打 tag 时 build-apk.yml 会在同一份代码上再跑一遍构建，这里只盯分支，别重复烧 runner
+  # 打 tag 时 build-apk.yml 会在同一代码上再次执行构建，此处仅监听分支，避免重复消耗 runner
   push:
     branches: ['**']
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
         with:
           submodules: recursive
 
-      # 大文件只许变短：名单见 tools/file-budget.txt，超一行就红，别等拆完才发现又长回去了
+      # 大文件体量只允许缩减：名单见 tools/file-budget.txt，超出一行即判定失败，防止拆分后再度增长
       - name: File budget
         run: tools/check-file-budget.sh
 
@@ -31,8 +31,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # :terminal / :workspace 带 CMake，配置阶段就要 NDK 28.2.13676358（约 700MB）。
-      # 不缓存的话每次都要现下，下坏一次（Error reading Zip content）整轮就红。
+      # :terminal / :workspace 带 CMake，配置阶段需要 NDK 28.2.13676358（约 700MB）。
+      # 不缓存时每次均需现下载，且曾出现下载损坏（Error reading Zip content）导致整轮失败。
       - name: Cache NDK
         uses: actions/cache@v4
         with:
@@ -44,7 +44,7 @@ jobs:
           ndk=/usr/local/lib/android/sdk/ndk/28.2.13676358
           if [ -e "$ndk" ] && { [ ! -f "$ndk/source.properties" ] || \
              [ ! -x "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]; }; then
-            echo "缓存里的 NDK 不完整，删掉重新下载"
+            echo "缓存中的 NDK 不完整，删除后重新下载"
             rm -rf "$ndk"
           fi
 
@@ -56,10 +56,10 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-        # 1) :web:preBuild 依赖 buildWebUi（要 pnpm），单测用不到前端产物，跳过
-        # 2) 只跑 githubDebug 一个变体：gradle.properties 里的 JVM 上限是照本机 8G 定的
-        #    （heap 3g / kotlin daemon 1.5g），跑 ./gradlew test 会把 app 的四个变体都编一遍，
-        #    在 runner 上直接 OOM。这里显式列出任务，并把 kotlin daemon 抬到 3g。
+        # 1) :web:preBuild 依赖 buildWebUi（需 pnpm），单元测试不使用前端产物，予以跳过
+        # 2) 仅运行 githubDebug 一个变体：gradle.properties 的 JVM 上限按本机 8G 内存设定
+        #    （heap 3g / kotlin daemon 1.5g），执行 ./gradlew test 会构建 app 的全部四个变体，
+        #    在 runner 上直接 OOM。此处显式列出任务，并将 kotlin daemon 提升至 3g。
         run: |
           ./gradlew \
             :app:testGithubDebugUnitTest \
@@ -89,8 +89,8 @@ jobs:
             **/build/test-results/**
           if-no-files-found: warn
 
-  # web-ui 的构建只在发版时跑，平时的 Kotlin 单测看不到它。
-  # 这里单独跑类型检查，前端改动（尤其是后端 DTO 同步）在 PR 阶段就能红。
+  # web-ui 的构建仅在发版时执行，日常 Kotlin 单测不覆盖该部分。
+  # 此处单独运行类型检查，使前端改动（尤其是后端 DTO 同步）在 PR 阶段即可暴露问题。
   web-ui:
     name: Web UI typecheck
     runs-on: ubuntu-latest

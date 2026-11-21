@@ -1,21 +1,21 @@
 name: Build APK
 
-# 四条通道共用一套流程，按 tag 形态与事件区分：
-#   v3.1.1              → 正式版：githubRelease 变体，包名不带后缀，正式 Release
-#   v3.3.0.2            → 正式版（四段）：同一条线上再补一版，versionName 与 tag 完全一致
+# 四条发布通道共用同一构建流程，按 tag 形态与触发事件区分：
+#   v3.1.1              → 正式版：githubRelease 变体，包名不带后缀，发布正式 Release
+#   v3.3.0.2            → 正式版（四段版本号）：同一流程内补发，versionName 与 tag 完全一致
 #   Canary-Build        → Canary：githubRelease 变体 + .canary 包名，Pre-release
 #   Nightly-Build       → 每夜构建：githubDebug 变体 + .debug 包名，Pre-release
 #   v3.1.1-preview.102  → 旧预览通道：githubDebug 变体 + .debug 包名，Pre-release
-# 正式版出两个 APK：完整版（含 LiteRT-LM 运行时）与精简版（文件名带 -nolitert，不含），
-# 同包名、同版本号、同签名；测试通道只出精简版。
-# Nightly 另有 schedule：每天把 Nightly-Build 挪到默认分支 HEAD 并覆盖资产。
-# 正式版与 Canary 用 Secrets 里的 release key，Nightly / 预览用仓库里的 debug key，
-# 见 FORK.md「发版」一节。
+# 正式版产出两个 APK：完整版（包含 LiteRT-LM 运行时）与精简版（文件名带 -nolitert，不含），
+# 二者同包名、同版本号、同签名；测试通道仅产出精简版。
+# Nightly 另有 schedule 触发：每日将 Nightly-Build 标签移动至默认分支 HEAD 并覆盖发布资产。
+# 正式版与 Canary 使用 Secrets 中的 release key，Nightly 与预览通道使用仓库内的 debug key，
+# 详见 FORK.md「发版」一节。
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '发布 tag（留空只出 artifact 不发版；不带 - 为正式版，Canary-Build 为 .canary 测试通道，Nightly-Build 为 .debug 每夜构建，其余带 - 的为旧预览通道）'
+        description: '发布 tag（留空则仅产出 artifact，不发布 Release；不含连字符为正式版，Canary-Build 为 .canary 测试通道，Nightly-Build 为 .debug 每夜构建，其余含连字符的 tag 走旧预览通道）'
         required: false
         default: ''
       variant:
@@ -30,7 +30,7 @@ on:
   push:
     tags: ['v*', 'Canary-Build', 'Nightly-Build']
   schedule:
-    # 每天 19:00 UTC，即北京时间次日 03:00。GitHub 高峰期可能推迟十几分钟。
+    # 每天 19:00 UTC（北京时间次日 03:00）触发；GitHub 高峰期可能有十余分钟延迟。
     - cron: '0 19 * * *'
 
 concurrency:
@@ -46,9 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 手动触发填了 tag 时，要编的是那个 tag 的提交；否则会拿分支 HEAD 出的包挂到 tag 上
+          # 手动触发并填写 tag 时，构建该 tag 指向的提交；否则分支 HEAD 的构建产物将挂载至该 tag
           ref: ${{ inputs.tag || github.ref }}
-          # 发布说明要用 git log 取出上一个 tag 到本 tag 的提交，浅克隆拿不到
+          # 发布说明需通过 git log 获取上一个 tag 至本 tag 的提交，浅克隆无法满足
           fetch-depth: 0
           submodules: recursive
 
@@ -57,8 +57,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # 变体、tag、是否 prerelease 全在第一步定下来：后面的步骤只读环境变量，
-      # 不用把 ${{ }} 判断散在各处
+      # 变体、tag 与是否 prerelease 均于第一步确定：后续步骤仅读取环境变量，
+      # 避免将 ${{ }} 判断分散在各处
       - name: Resolve build parameters
         id: params
         env:
@@ -68,28 +68,28 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            # 每夜构建没有 tag 可读，固定落到 Nightly-Build 这个滚动 tag 上
+            # 每夜构建无 tag 可读，固定使用滚动标签 Nightly-Build
             tag=Nightly-Build
           elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
             tag="$REF_NAME"
           else
             tag="${INPUT_TAG:-}"
           fi
-          # 首字符 - 会被 gh 当 flag；/ 和空格会让 cp 写进不存在的目录。
-          # 空 tag 是合法输入：手动触发只出 artifact、不发版
+          # 首字符为 - 会被 gh 解析为参数；/ 与空格会导致 cp 写入不存在的目录。
+          # 空 tag 为合法输入：手动触发时仅产出 artifact，不发布 Release
           case "$tag" in
             '' ) ;;
             -*|*[!A-Za-z0-9._-]*)
-              echo "非法 tag：[${tag}]" >&2
+              echo "非法 tag 格式：[${tag}]" >&2
               exit 1 ;;
           esac
 
-          # 渠道决定包名、签名与出几个包：
-          #   stable  v3.1.1               正式版，release 变体，包名不带后缀，完整版 + 精简版
-          #   canary  Canary-Build         测试通道，release 变体 + .canary 包名，只出精简版
-          #   nightly Nightly-Build        每夜构建，debug 变体 + .debug 包名（buildType 自带），只出精简版
-          #   preview v3.1.1-preview.102   旧的独立包名预览通道，debug 变体，只出精简版
-          #   manual  （空 tag）            只出 artifact、不发版，变体由输入决定
+          # 渠道决定包名、签名与产物数量：
+          #   stable  v3.1.1               正式版：release 变体，包名不带后缀，完整版 + 精简版
+          #   canary  Canary-Build         测试通道：release 变体 + .canary 包名，仅产出精简版
+          #   nightly Nightly-Build        每夜构建：debug 变体 + .debug 包名（buildType 自带），仅产出精简版
+          #   preview v3.1.1-preview.102   旧预览通道（独立包名）：debug 变体，仅产出精简版
+          #   manual  （空 tag）            仅产出 artifact、不发布 Release，变体由输入决定
           channel=preview
           rolling=false
           case "$tag" in
@@ -109,8 +109,8 @@ jobs:
           if [ "$channel" = "canary" ]; then is_canary=true; fi
           if [ "$channel" = "nightly" ]; then is_nightly=true; fi
 
-          # 滚动通道不带版本号，永远指向最新构建；带版本号的 Canary 仍要卡形态，
-          # 否则版本号核对会把它当成别的 base 前缀匹配
+          # 滚动通道不带版本号，始终指向最新构建；带版本号的 Canary 仍需校验格式，
+          # 否则版本号核对会将其按其他 base 前缀匹配
           if [ "$channel" = "canary" ] && [ "$rolling" != "true" ] \
              && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-canary\.[0-9]+$ ]]; then
             echo "canary tag ${tag} 应形如 vX.Y.Z-canary.N" >&2
@@ -124,9 +124,9 @@ jobs:
               *) variant=debug ;;
             esac
           fi
-          # 包名与签名必须和 tag 语义对得上：正式版出成 debug 包会换掉应用身份（老用户
-          # 再也覆盖安装不了），Canary 出成 debug 会丢掉 .canary 的约定，Nightly 出成
-          # release 会丢掉 .debug 包名、与正式版撞身份
+          # 包名与签名必须与 tag 语义一致：正式版误用 debug 变体将变更应用身份（老用户
+          # 无法覆盖安装），Canary 误用 debug 变体将失去 .canary 约定，Nightly 误用
+          # release 变体将失去 .debug 包名并与正式版冲突
           case "$channel" in
             stable)
               if [ "$variant" != "release" ]; then
@@ -140,7 +140,7 @@ jobs:
               fi ;;
             nightly)
               if [ "$variant" != "debug" ]; then
-                echo "Nightly 必须用 debug 变体，包名才带 .debug" >&2
+                echo "Nightly 必须使用 debug 变体，以保证包名携带 .debug 后缀" >&2
                 exit 1
               fi ;;
             preview)
@@ -150,7 +150,7 @@ jobs:
               fi ;;
           esac
 
-          # 包名后缀与桌面名由 gradle 属性注入，变体名与产物目录都不变
+          # 包名后缀与桌面名称由 gradle 属性注入，变体名与产物目录保持不变
           app_id_suffix=""
           app_label=""
           case "$channel" in
@@ -159,10 +159,10 @@ jobs:
             preview) app_label="L3Hub Preview" ;;
           esac
 
-          # 正式版出完整版 + 精简版各一个；测试通道只出精简版，
-          # 本机推理用不着，少编一遍也少等十分钟。
-          # 空 tag 的手动触发不是发布通道，保持原来的行为：release 出两个包，
-          # debug 只出完整包，方便单独验证 LiteRT。
+          # 正式版产出完整版与精简版各一个；测试通道仅产出精简版，
+          # 本地推理不依赖该运行时，减少一次编译以缩短构建时间。
+          # 空 tag 的手动触发不属于发布通道，维持原有行为：release 变体产出两个包，
+          # debug 变体仅产出完整包，便于单独验证 LiteRT。
           build_full=true
           build_nolitert=true
           case "$channel" in
@@ -187,40 +187,40 @@ jobs:
           artifact="L3Hub-${variant}"
           if [ -n "$tag" ]; then artifact="${artifact}-${tag}"; fi
           echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"
-          echo "渠道=$channel 变体=$variant tag=${tag:-（无，只出 artifact）} prerelease=$is_pre 完整版=$build_full 精简版=$build_nolitert"
+          echo "渠道=$channel 变体=$variant tag=${tag:-（无，仅产出 artifact）} prerelease=$is_pre 完整版=$build_full 精简版=$build_nolitert"
 
-      # 版本号没有第二处校验：versionName 只被读出来当文案，tag 打错或忘了改版本号
-      # 都能绿着发出去，装到手机上却是同一个 versionCode。这里把两者对一次。
+      # versionName 此前无二次校验：tag 有误或未同步更新版本号时，构建仍可成功发布，
+      # 但实际安装的 versionCode 与 tag 不符。此步骤对二者进行核对。
       - name: Check version against tag
         run: |
           set -euo pipefail
-          # Nightly 由 schedule 触发，远端 tag 还没挪过来；先建成本地 tag，
-          # 后面的 tag 解析与 head 计算才有一致的对象（推送在 Publish 前单独做）
+          # Nightly 由 schedule 触发，远端 tag 尚未移动；先创建本地 tag，
+          # 使后续 tag 解析与 head 计算具有一致对象（推送在 Publish 前单独执行）
           if [ "$IS_NIGHTLY" = "true" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             git tag -f "$TAG" HEAD
           fi
           if [ -z "${TAG:-}" ]; then
-            echo "没有 tag（只出 artifact），跳过版本号校验"
+            echo "无 tag（仅产出 artifact），跳过版本号校验"
             exit 0
           fi
           if [ ! -f app/build.gradle.kts ]; then
-            echo "当前提交里没有 app/build.gradle.kts，tag ${TAG} 指错地方了？" >&2
+            echo "当前提交中不存在 app/build.gradle.kts，请核对 tag ${TAG} 指向的提交" >&2
             exit 1
           fi
           code=$(sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' app/build.gradle.kts | head -1)
           name=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts | head -1)
           if [ -z "$code" ] || [ -z "$name" ]; then
-            echo "没读到 versionCode / versionName，app/build.gradle.kts 的格式变了？" >&2
+            echo "未能读取 versionCode / versionName，请检查 app/build.gradle.kts 的格式" >&2
             exit 1
           fi
-          # tag 解析不到（打错、浅克隆没拿到）说明 checkout 的 ref 和 TAG 不是一回事，
-          # 下面「找不到上一个 tag 就跳过」会把这种情况一起吞掉，先在这里拦下
+          # tag 无法解析（输入有误或浅克隆未包含）说明 checkout 的 ref 与 TAG 不一致，
+          # 后续「找不到上一个 tag 即跳过」的逻辑会掩盖该情况，故在此先行拦截
           if ! git rev-parse --verify --quiet "${TAG}^{commit}" >/dev/null; then
             echo "tag ${TAG} 解析不到，无法核对版本号" >&2
             exit 1
           fi
-          # 少打一段（v3.1）会跟 L.3.1.6.107 前缀匹配上，先卡形态。
-          # 四段 vX.Y.Z.W 表示同一条线上再补一版（前三段不动），同样算正式版
+          # 版本段缺失时（如 v3.1）会与 L.3.1.6.107 前缀误匹配，故先校验格式。
+          # 四段 vX.Y.Z.W 表示同一版本线上的补发版本（前三段不变），同样视为正式版
           case "$TAG" in
             *-*) ;;
             *)
@@ -245,39 +245,39 @@ jobs:
           else
             echo "滚动通道 ${CHANNEL}，跳过 versionName 前缀核对：versionName=${name}"
           fi
-          # 测试通道都是独立包名，versionCode 和正式版撞车不影响谁覆盖谁，
-          # 只核对 versionName，别为了打个测试包还得先 bump 版本号。
-          # 只有正式版需要保证 versionCode 递增。
+          # 测试通道均为独立包名，versionCode 与正式版重复不会导致相互覆盖，
+          # 故仅核对 versionName，测试包无需先行递增版本号。
+          # 仅正式版要求 versionCode 严格递增。
           if [ "$CHANNEL" != "stable" ]; then
-            echo "非正式版通道（${CHANNEL}），只核对 versionName：${name}"
+            echo "非正式版通道（${CHANNEL}），仅核对 versionName：${name}"
             exit 0
           fi
-          # 正式版 versionCode 不涨，覆盖安装只是重装同一个版本，用户会以为没更新成功
+          # 正式版 versionCode 未递增时，覆盖安装等同于重装同一版本，用户会误以为更新失败
           prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^" 2>/dev/null || true)
           if [ -z "$prev" ]; then
-            echo "没有上一个正式版 tag，跳过 versionCode 递增校验；versionName=${name}"
+            echo "无上一个正式版 tag，跳过 versionCode 递增校验；versionName=${name}"
             exit 0
           fi
-          # 前序 tag 上可能根本没有这个文件（早于模块拆分），git show 会非零退出，
-          # set -e 下整个 job 就死在 git 的 fatal 上，先探一下
+          # 前序 tag 上可能不存在该文件（早于模块拆分），git show 将非零退出，
+          # 在 set -e 下整个 job 会因此终止，故先行探测
           if ! git cat-file -e "${prev}:app/build.gradle.kts" 2>/dev/null; then
-            echo "::warning::${prev} 上没有 app/build.gradle.kts，跳过 versionCode 递增校验"
+            echo "::warning::${prev} 不包含 app/build.gradle.kts，跳过 versionCode 递增校验"
             exit 0
           fi
           prev_code=$(git show "${prev}:app/build.gradle.kts" \
             | sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' | head -1)
           if [ -z "$prev_code" ]; then
-            echo "::warning::没从 ${prev} 读到 versionCode，跳过递增校验"
+            echo "::warning::未能从 ${prev} 读取 versionCode，跳过递增校验"
             exit 0
           fi
           if [ "$code" -le "$prev_code" ]; then
-            echo "versionCode ${code} 没有大于 ${prev} 的 ${prev_code}" >&2
+            echo "versionCode ${code} 未大于 ${prev} 的 ${prev_code}" >&2
             exit 1
           fi
           echo "versionName=${name} versionCode=${code} > ${prev} 的 ${prev_code}"
 
-      # 预览版用仓库里固定的 debug key（keystore/l3hub-debug.jks），正式版用 Secrets 里的
-      # release key。build.gradle.kts 的 release 签名只认 local.properties，这里按变体写进去。
+      # 预览版使用仓库内固定的 debug key（keystore/l3hub-debug.jks），正式版使用 Secrets 中的
+      # release key。build.gradle.kts 的 release 签名仅从 local.properties 读取，此处按变体写入。
       - name: Restore signing keystore
         env:
           ANDROID_RELEASE_KEYSTORE: ${{ secrets.ANDROID_RELEASE_KEYSTORE }}
@@ -287,11 +287,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$VARIANT" != "release" ]; then
-            echo "debug 变体（Nightly / 预览版）签的是仓库里的 keystore/l3hub-debug.jks，不用还原密钥"
+            echo "debug 变体（Nightly / 预览版）使用仓库内 keystore/l3hub-debug.jks 签名，无需还原密钥"
             exit 0
           fi
-          # 四个都必须是真值：build.gradle.kts 只判 null，而 Properties.load 把「storePassword=」
-          # 读成空串，一路走到 validateSigning 才报「keystore 口令不对」，看不出是 secret 没配
+          # 四项均须为真值：build.gradle.kts 仅判断 null，而 Properties.load 会将「storePassword=」
+          # 读为空串，直至 validateSigning 才报「keystore 口令不对」，无法体现是 secret 未配置
           for name in ANDROID_RELEASE_KEYSTORE ANDROID_RELEASE_STORE_PASSWORD \
                       ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
             if [ -z "${!name:-}" ]; then
@@ -300,12 +300,12 @@ jobs:
             fi
           done
           ks="$RUNNER_TEMP/l3hub-release.jks"
-          # 网页上粘 base64 常带换行，GNU base64 -d 遇到就 invalid input 退出，报错完全不提 secret
+          # 从网页粘贴的 base64 常含换行，GNU base64 -d 遇到会以 invalid input 退出，且报错不指明与 secret 相关
           printf '%s' "$ANDROID_RELEASE_KEYSTORE" | tr -d ' \t\r\n' | base64 -d > "$ks"
           chmod 600 "$ks"
           if ! keytool -list -keystore "$ks" -storepass "$ANDROID_RELEASE_STORE_PASSWORD" \
                -alias "$ANDROID_RELEASE_KEY_ALIAS" >/dev/null 2>&1; then
-            echo "keystore 解不开：口令或 alias 和 secret 对不上" >&2
+            echo "keystore 无法解开：口令或 alias 与 secret 不匹配" >&2
             exit 1
           fi
           {
@@ -316,30 +316,30 @@ jobs:
           } >> local.properties
           echo "release keystore 已还原到 $ks"
 
-      # :terminal / :workspace 带 CMake，AGP 每次配置阶段都要 NDK 28.2.13676358（约 700MB）。
-      # 上一次「Error reading Zip content from a SeekableByteChannel」就是这份下载被截断，
-      # 还没走到底就红了。缓存住这个目录，之后不再依赖一次性下载。
+      # :terminal / :workspace 带 CMake，AGP 配置阶段需要 NDK 28.2.13676358（约 700MB）。
+      # 此前曾因一次性下载被截断（Error reading Zip content from a SeekableByteChannel）
+      # 导致构建失败，故缓存该目录，后续不再依赖一次性下载。
       - name: Cache NDK
         uses: actions/cache@v4
         with:
           path: /usr/local/lib/android/sdk/ndk/28.2.13676358
           key: ndk-28.2.13676358-ubuntu
 
-      # 缓存是固定 key，一次下载截断被存进去就会一直命中坏副本。
-      # 每次跑之前验一下，不全就删掉让 AGP 重下（重下约 16 秒，比修一个坏缓存便宜）。
+      # 缓存使用固定 key：一旦截断的下载被写入缓存，后续将一直命中坏副本。
+      # 因此每次构建前校验完整性，不完整则删除并重新下载（约 16 秒，代价远低于排查坏缓存）。
       - name: Validate NDK
         run: |
           ndk=/usr/local/lib/android/sdk/ndk/28.2.13676358
           if [ -e "$ndk" ] && { [ ! -f "$ndk/source.properties" ] || \
              [ ! -x "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]; }; then
-            echo "缓存里的 NDK 不完整，删掉重新下载"
+            echo "缓存中的 NDK 不完整，删除后重新下载"
             rm -rf "$ndk"
           fi
 
       - uses: pnpm/action-setup@v4
         with:
-          # web-ui/pnpm-workspace.yaml 只有 allowBuilds（pnpm 10.26+ 的字段），没有 packages:，
-          # pnpm 9 会报 "packages field missing or empty"，所以这里必须用 pnpm 11。
+          # web-ui/pnpm-workspace.yaml 仅包含 allowBuilds（pnpm 10.26+ 的字段），无 packages:，
+          # pnpm 9 会报 "packages field missing or empty"，因此必须使用 pnpm 11。
           version: 11
 
       - uses: actions/setup-node@v4
@@ -360,23 +360,23 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-          # 本地默认跳过 Web UI；CI 装上 pnpm 后把它一起打进包，避免 APK 里缺 static/assets
+          # 本地构建默认跳过 Web UI；CI 安装 pnpm 后将其一并打入包内，避免 APK 缺失 static/assets
           WITH_WEB_UI: '1'
-          # gradle.properties 的 kotlin.daemon.jvmargs 是照本机 8G 定的 1.5g；出包要连着编
-          # 完整版和精简版两遍，编译后端的临时图会在 1.5g 上撞 GC overhead limit。
-          # runner 上先抬到 3g；P1–P2-4 之后 :app 的 inline 展开更大，3g 在
-          # compileGithubReleaseKotlin 的 codegen.inline 里 OOM，标准 runner 16G，抬到 6g。
+          # gradle.properties 的 kotlin.daemon.jvmargs 按本机 8G 内存定为 1.5g；出包需连续构建
+          # 完整版与精简版各一遍，编译后端的临时对象图在 1.5g 下会触发 GC overhead limit。
+          # runner 上先提升至 3g；P1–P2-4 之后 :app 的 inline 展开更大，3g 在
+          # compileGithubReleaseKotlin 的 codegen.inline 中 OOM；标准 runner 为 16G，故提升至 6g。
           ORG_GRADLE_PROJECT_kotlin.daemon.jvmargs: '-Xmx6g'
         run: |
           set -euo pipefail
-          # compileGithubReleaseKotlin 走 BTA in-process：Kotlin 编译跑在 Gradle daemon 里，
-          # 堆由 org.gradle.jvmargs 决定。仓库里的 -Xmx3g 是照本机 8G 定的，P1–P2-4 后
-          # 这个任务要 7g+：codegen 转换失败进诊断路径，getNodeText 渲染方法文本时
-          # OOM（attempt3 把 kotlin daemon 抬到 6g 后失败点不变，就是这条证据）。
-          # 写进 ~/.gradle/gradle.properties 覆盖仓库值，本机的 3g 不受影响。
+          # compileGithubReleaseKotlin 采用 BTA in-process：Kotlin 编译运行于 Gradle daemon 内，
+          # 堆大小由 org.gradle.jvmargs 决定。仓库中的 -Xmx3g 按本机 8G 内存设定，P1–P2-4 后
+          # 该任务需要 7g 以上：codegen 转换失败进入诊断路径，getNodeText 渲染方法文本时
+          # OOM（attempt3 将 kotlin daemon 提升至 6g 后失败点不变，即为佐证）。
+          # 写入 ~/.gradle/gradle.properties 以覆盖仓库值，本机的 3g 配置不受影响。
           printf '%s\n' 'org.gradle.jvmargs=-Xmx10g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8' 'kotlin.daemon.jvmargs=-Xmx6g' > ~/.gradle/gradle.properties
           chmod +x gradlew tools/build-apk.sh
-          # 产物名里用 tag；手动触发不填 tag 时退回 versionName，免得叫 L3Hub-arm64-v8a.apk
+          # 产物名使用 tag；手动触发未填写 tag 时回退为 versionName，避免产物命名为 L3Hub-arm64-v8a.apk
           if [ -n "${TAG:-}" ]; then
             tag_for_name="$TAG"
           else
@@ -385,8 +385,8 @@ jobs:
           echo "TAG_FOR_NAME=$tag_for_name" >> "$GITHUB_ENV"
           mkdir -p dist
 
-          # 同一个变体编两遍，输出目录和文件名都一样：编完立刻按最终名字拷进 dist 再清掉，
-          # 第二遍的产物才不会把第一遍盖掉
+          # 同一变体需构建两遍，输出目录与文件名相同：构建完成后立即按最终名称拷入 dist 并清除，
+          # 以免第二遍的产物覆盖第一遍
           build_apk() {
             local variant="$1"
             local suffix="$2"
@@ -403,7 +403,7 @@ jobs:
             rm -rf "$dir"
           }
 
-          # 包名后缀与桌面名只由测试通道注入；正式版这两个参数为空，产物与历史一致
+          # 包名后缀与桌面名称仅由测试通道注入；正式版该两参数为空，产物与历史保持一致
           app_args=()
           if [ -n "${APP_ID_SUFFIX:-}" ]; then
             app_args+=("-PappIdSuffix=${APP_ID_SUFFIX}")
@@ -412,7 +412,7 @@ jobs:
             app_args+=("-PappLabel=${APP_LABEL}")
           fi
 
-          # 精简版 = 不打包 LiteRT-LM 运行时，见 :ai / :app 的 build.gradle.kts
+          # 精简版 = 不打包 LiteRT-LM 运行时，参见 :ai / :app 的 build.gradle.kts
           if [ "$BUILD_FULL" = "true" ]; then
             build_apk "$VARIANT" "" "${app_args[@]}"
           fi
@@ -422,8 +422,8 @@ jobs:
 
           ls -l dist
 
-      # 正式版换了包名和签名密钥，这一步把「装到手机上到底是什么」打进日志，
-      # 出问题时不用重新下载 APK 就能核对
+      # 正式版更换了包名与签名密钥，此步骤将实际安装信息写入日志，
+      # 出现问题时无需重新下载 APK 即可核对
       - name: Verify APK
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
@@ -442,7 +442,7 @@ jobs:
             apk_name=$(basename "$apk")
             echo "== ${apk_name}（$(du -h "$apk" | cut -f1)）=="
             "${build_tools}apksigner" verify --print-certs "$apk"
-            # 一次运行只出一种通道，包名与签名都按渠道核对
+            # 单次运行仅对应一种通道，包名与签名均按渠道核对
             if [ "$VARIANT" = "release" ]; then group=release; else group=debug; fi
             case "$CHANNEL" in
               canary) want=com.rikkahub.l3hub.wfadnf.canary ;;
@@ -457,32 +457,32 @@ jobs:
             echo "包名：${pkg}"
             "${build_tools}aapt2" dump badging "$apk" 2>/dev/null \
               | grep -E '^(package|application-label|sdkVersion|targetSdkVersion)' || true
-            # apksigner 不同版本打的前缀不一样（Signer #1 certificate… / V2 Signer: certificate…），
-            # 只认后面那截
+            # apksigner 各版本输出的前缀不同（Signer #1 certificate… / V2 Signer: certificate…），
+            # 故仅匹配其后缀部分
             apk_cert=$("${build_tools}apksigner" verify --print-certs "$apk" \
               | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)
             if [ -z "$apk_cert" ]; then
-              echo "没读到签名证书指纹，apksigner 输出格式变了？" >&2
+              echo "未能读取签名证书指纹，apksigner 输出格式可能已变更" >&2
               exit 1
             fi
             apk_cert=$(printf '%s' "$apk_cert" | tr -d ':' | tr 'A-Z' 'a-z')
             echo "签名证书 SHA-256：${apk_cert}"
             if [ "$group" = "release" ]; then
-              # 完整版与精简版要能互相覆盖安装，签名必须完全一致
+              # 完整版与精简版需可互相覆盖安装，签名必须完全一致
               if [ -n "$cert_release" ] && [ "$apk_cert" != "$cert_release" ]; then
                 echo "两个正式包的签名证书不一致：${apk_cert} ≠ ${cert_release}" >&2
                 exit 1
               fi
               cert_release="$apk_cert"
-              # 正式版换密钥就等于换应用身份（老用户再也覆盖安装不了），指纹对不上要在这里红。
-              # 真要换密钥，连这一行和 FORK.md 里的指纹一起改。
+              # 正式版更换密钥等同于变更应用身份（老用户将无法覆盖安装），指纹不符应在此处失败。
+              # 确需更换密钥时，须同步修改本行与 FORK.md 中的指纹记录。
               want_cert=0ed133055246d7231888e72197f29fa616a65367de875042108f9d417b583542
               if [ "$apk_cert" != "$want_cert" ]; then
                 echo "正式版签名证书指纹不符：${apk_cert} ≠ ${want_cert}" >&2
                 exit 1
               fi
             else
-              # 调试包用仓库里的 l3hub-debug.jks，指纹不写死；只要求同组的几个包一致
+              # 调试包使用仓库内的 l3hub-debug.jks，指纹不作硬编码；仅要求同组各包之间一致
               if [ -n "$cert_debug" ] && [ "$apk_cert" != "$cert_debug" ]; then
                 echo "两个调试包的签名证书不一致：${apk_cert} ≠ ${cert_debug}" >&2
                 exit 1
@@ -492,8 +492,8 @@ jobs:
           done
           if [ -n "$cert_release" ]; then echo "CERT_SHA256=$cert_release" >> "$GITHUB_ENV"; fi
 
-      # Gradle 产出的名字是 app-github-arm64-v8a-release.apk，下载下来分不清版本。
-      # 重命名与拷贝在 Build 里已经做完（同一变体要编两遍，晚了会被覆盖），这里只补 sha256。
+      # Gradle 产出的文件名为 app-github-arm64-v8a-release.apk，下载后难以区分版本。
+      # 重命名与拷贝已在 Build 步骤完成（同一变体需构建两遍，滞后处理会被覆盖），此处仅补充 sha256。
       - name: Collect APK
         run: |
           set -euo pipefail
@@ -506,20 +506,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.params.outputs.artifact }}
-          # 连 .sha256 一起带：手动触发只出包时也能拿到校验文件
+          # 连同 .sha256 一并上传：手动触发仅出包时也可获取校验文件
           path: dist/*
           if-no-files-found: error
 
-      # Nightly 的 tag 每次都要指向当夜的提交：release 页面的源码快照、下次构建计算
-      # 改动区间都靠它。schedule 没有 tag 可推，这里补上；GITHUB_TOKEN 推的 tag 不会
-      # 触发新的 workflow，不会自己再跑一轮。
+      # Nightly 的 tag 每次须指向当夜的提交：release 页面的源码快照与下次构建的改动区间
+      # 计算均依赖于此。schedule 无 tag 可推送，故在此补上；GITHUB_TOKEN 推送的 tag
+      # 不会触发新的 workflow，因此不会循环构建。
       - name: Move rolling tag
         if: github.event_name == 'schedule'
         run: |
           set -euo pipefail
           git tag -f "$TAG" "$(git rev-parse HEAD)"
           git push --force origin "refs/tags/$TAG"
-          echo "已把 $TAG 挪到 $(git rev-parse --short HEAD)"
+          echo "已将 $TAG 移动至 $(git rev-parse --short HEAD)"
 
       - name: Publish release
         if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.tag != ''
@@ -527,21 +527,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # 本仓库不走 PR，GitHub 的 --generate-notes 只会给一行 Full Changelog。
-          # 自己按「上一个 tag..这个 tag」列提交，读的人才知道这版改了什么。
-          # 正式版要排除预览版 tag（v3.1.1-preview.102 也是 tag），否则区间从上一个预览版
-          # 开始算，正式版之间真正的改动整段消失；预览版反过来要留在预览 tag 之间，
-          # 否则区间被拉回上一个正式版，把已经随正式版发过的改动重列一遍。
+          # 本仓库不使用 PR，GitHub 的 --generate-notes 仅输出一行 Full Changelog。
+          # 按上一 tag 至本 tag 的提交区间自行生成列表，使阅读者了解本版变更内容。
+          # 正式版须排除预览版 tag（v3.1.1-preview.102 亦为 tag），否则区间将自上一个预览版
+          # 起算，正式版之间的实际改动将整体缺失；预览版反之须保留在预览 tag 之间，
+          # 否则区间会回退至上一个正式版，将已随正式版发布的改动重复列出。
           if [ "$IS_PRERELEASE" = "true" ]; then
             prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
           else
             prev=$(git describe --tags --abbrev=0 --exclude='*-*' "${TAG}^" 2>/dev/null || true)
           fi
           head=$(git rev-parse "${TAG}^{commit}")
-          # 滚动 tag 每次都被挪到新提交上，git 里查不到「上次从这里发的是哪个提交」，
-          # 只看 tag 会把上一个版本 tag 以来的改动整段重列一遍。上一版发的是哪个提交、
-          # 从哪算起，都记在上一版说明的 HTML 注释里，下次生成时读回来。
-          # head 与本次相同说明是同一个提交重跑，沿用那次算出的起点，说明才不会退化成空。
+          # 滚动 tag 每次均被移动至新提交，git 中无法查询「上次发布自哪个提交起」，
+          # 仅凭 tag 会将上一个版本 tag 以来的改动整体重列。上一版发布的提交及起点
+          # 均记录于上一版说明的 HTML 注释中，生成时读取回传。
+          # head 与本次相同即为同一提交重跑，沿用该次计算的起点，避免说明退化为空。
           if [ "$ROLLING" = "true" ]; then
             key=canary
             if [ "$IS_NIGHTLY" = "true" ]; then key=nightly; fi
@@ -555,16 +555,16 @@ jobs:
             else
               prev=${last:-$base}
             fi
-            # 强推改了 tag 之后老提交可能已经不在仓库里，git log 会直接报错退出
+            # 强制移动 tag 后，旧提交可能已不在仓库中，git log 将直接报错退出
             if [ -n "$prev" ] && ! git cat-file -e "${prev}^{commit}" 2>/dev/null; then
-              echo "::warning::上一版说明记录的提交 ${prev} 不在仓库里，退回按 tag 取区间"
+              echo "::warning::上一版说明记录的提交 ${prev} 已不在仓库中，退回按 tag 取区间"
               prev=
             fi
             if [ -z "$prev" ]; then
               prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
             fi
             echo "滚动通道 ${CHANNEL} 的改动起点：${prev:-（无，首个版本）}"
-            # 记进说明的一律是提交 sha：起点可能是 tag 名，下次读回来要能直接喂给 git log
+            # 记入说明的一律为提交 sha：起点可能是 tag 名称，读取后须可直接用于 git log
             prev_sha=""
             if [ -n "$prev" ]; then prev_sha=$(git rev-parse "${prev}^{commit}"); fi
           fi
@@ -575,82 +575,82 @@ jobs:
           esac
           version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
           {
-            echo "## 本版改动"
+            echo "## 本版更新"
             echo
             if [ -n "$prev" ]; then
-              # 只留改到应用本身的提交：ci / test / build 作用域（含 `fix(ci):` 这种）、
-              # 以及发版时的版本号 bump 都是仓库内部的事，读 Release 的人不关心
+              # 仅保留涉及应用本身的提交：ci / test / build 作用域（含 `fix(ci):` 形式）
+              # 与发版时的版本号变更均属仓库内部事务，与 Release 读者无关
               changes=$(git log --no-merges --pretty='- %s' "${prev}..${TAG}" \
                 | grep -vE '^- (ci|test|build)(\(|:)|^- [[:alnum:]_-]+\((ci|test|build)\):|^- chore: bump version' || true)
               if [ -n "$changes" ]; then
-                # 两个正式版之间可能隔着两百个提交，整段贴上去没人读得完；
-                # 前 60 条足够看出主线，剩下的让读者顺着完整对比看
+                # 两个正式版之间可能间隔大量提交，全部列出不利于阅读；
+                # 前 60 条足以呈现主线，其余请读者经由完整对比查看
                 total=$(printf '%s\n' "$changes" | wc -l | tr -d ' ')
                 printf '%s\n' "$changes" | sed -n '1,60p'
                 if [ "$total" -gt 60 ]; then
                   echo
-                  echo "（只列前 60 条，其余 $((total - 60)) 条见下方完整对比）"
+                  echo "（仅列出前 60 条，其余 $((total - 60)) 条请参阅下方完整对比）"
                 fi
               else
-                echo "- 只有内部改动（CI / 构建 / 版本号），没有影响使用的变化"
+                echo "- 本版仅包含内部改动（CI、构建与版本号），无影响使用的变化"
               fi
               echo
-              echo "**完整对比**：https://github.com/${GITHUB_REPOSITORY}/compare/${prev}...${TAG}"
+              echo "**完整变更对比**：https://github.com/${GITHUB_REPOSITORY}/compare/${prev}...${TAG}"
             else
-              echo "- 首个版本"
+              echo "- 首个发布版本"
             fi
             echo
-            echo "## 安装"
+            echo "## 安装说明"
             echo
             if [ "$BUILD_FULL" = "true" ]; then
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — 完整版，含 LiteRT-LM 本地推理运行时，可在应用内直接跑 `.litertlm` 模型。'
+              echo '`L3Hub-'"${TAG}"'-arm64-v8a.apk` — 完整版，内置 LiteRT-LM 本地推理运行时，支持在应用内直接运行 `.litertlm` 模型。'
               echo
             fi
             if [ "$BUILD_NOLITERT" = "true" ]; then
-              echo '`L3Hub-'"${TAG}"'-arm64-v8a-nolitert.apk` — 精简版，不含 LiteRT-LM 运行时，体积更小；其余功能与完整版一致，只是本地模型入口不显示。'
+              echo '`L3Hub-'"${TAG}"'-arm64-v8a-nolitert.apk` — 精简版，不含 LiteRT-LM 运行时，安装包体积更小；其余功能与完整版一致，仅本地模型入口不予显示。'
               echo
             fi
             if [ "$BUILD_FULL" = "true" ] && [ "$BUILD_NOLITERT" = "true" ]; then
-              echo '两个正式包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装即可，应用数据保留。'
+              echo '两个正式包采用相同的包名、版本号与签名，同一设备仅可安装其一；切换安装时直接覆盖安装即可，应用数据将完整保留。'
               echo
             fi
-            echo '包名 `'"${pkg}"'`，版本 `'"${version}"'`，arm64-v8a。'
+            echo '包名 `'"${pkg}"'`，版本 `'"${version}"'`，架构 arm64-v8a。'
             echo
             case "$CHANNEL" in
               stable)
-                echo 'Canary 的包名是 `'"${pkg}"'.canary`，Nightly 的是 `'"${pkg}"'.debug`，都与正式版是独立应用，可同装在一台手机上，互不覆盖数据。'
+                echo 'Canary 通道的包名为 `'"${pkg}"'.canary`，Nightly 通道为 `'"${pkg}"'.debug`；二者与正式版互为独立应用，可在同一设备共存安装，数据互不覆盖。'
                 echo
-                echo '从测试通道迁过来：在那边导出备份，装正式版后导入即可；备份里的附件、字体路径会按新包名自动改写。'
+                echo '如需从测试通道迁移：先在测试通道导出备份，安装正式版后导入即可；备份中的附件与字体路径将按新包名自动改写。'
                 ;;
               canary)
-                echo '这是 Canary 预发布：功能比正式版新，稳定性不作保证。'
+                echo '本版本为 Canary 预发布：功能较正式版更新，稳定性不作保证。'
                 echo
-                echo '包名带 `.canary` 后缀，与正式版 `com.rikkahub.l3hub.wfadnf` 是两个独立应用，可同装，数据互不影响；测试通道只出精简版。'
+                echo '包名带 `.canary` 后缀，与正式版 `com.rikkahub.l3hub.wfadnf` 为两个独立应用，可同装，数据互不影响；测试通道仅提供精简版。'
                 echo
-                echo 'Canary 的 versionCode 不随构建递增：同一 versionCode 的包可以互相覆盖；需要把数据带回正式版时，用备份导出与导入。'
+                echo 'Canary 的 versionCode 不随构建递增：相同 versionCode 的安装包可直接互相覆盖；如需将数据迁回正式版，请使用备份导出与导入功能。'
                 ;;
               nightly)
-                echo '这是 Nightly 预发布：每夜自动构建，功能比正式版新，稳定性不作保证。'
+                echo '本版本为 Nightly 预发布：由每夜自动构建产生，功能较正式版更新，稳定性不作保证。'
                 echo
-                echo '包名带 `.debug` 后缀，与正式版是两个独立应用，可同装；测试通道只出精简版。'
+                echo '包名带 `.debug` 后缀，与正式版为两个独立应用，可同装；测试通道仅提供精简版。'
                 echo
-                echo '资产每夜被下一版同名覆盖，同一 versionCode 的构建可直接覆盖安装；回退到更早的构建，装上一版的 APK 即可。'
+                echo '资产每夜被下一版同名覆盖，相同 versionCode 的构建可直接覆盖安装；如需回退到更早的构建，安装上一版的 APK 即可。'
                 echo
                 echo '构建提交 `'"$(git rev-parse --short HEAD)"'`，构建时间 `'"$(date -u '+%Y-%m-%d %H:%M UTC')"'`。'
                 ;;
               preview)
-                echo '这是旧预览通道的构建：包名带 `.debug` 后缀，与正式版是独立应用，可同装；只出精简版。'
+                echo '本版本来自旧预览通道：包名带 `.debug` 后缀，与正式版为独立应用，可同装；仅提供精简版。'
                 ;;
             esac
             echo
             for apk in dist/*.apk; do
-              printf '校验：`sha256sum -c %s.sha256`\n' "$(basename "$apk")"
+              printf '校验方式：`sha256sum -c %s.sha256`\n' "$(basename "$apk")"
             done
             if [ -n "${CERT_SHA256:-}" ]; then
               echo
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
             fi
-            # 下一次滚动构建从这一行读起点，别把注释删掉
+            # 滚动构建的改动起点记录于下方 HTML 注释，下次生成时读取，请勿删除
             if [ "$ROLLING" = "true" ]; then
               echo
               echo "<!-- ${key}:from=${prev_sha} head=${head} -->"
@@ -658,11 +658,11 @@ jobs:
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
-          # 幂等：release 已存在（重跑、或夜间覆盖）就覆盖资产并刷新说明，不要整个 job 失败
+          # 幂等处理：release 已存在（重跑或夜间覆盖）时覆盖资产并刷新说明，而非使整个 job 失败
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG 已存在，覆盖资产并刷新说明"
-            # 产物名可能和上一版不一样，只 clobber 同名的会把旧包一直留在下载列表里，
-            # 先删掉这次没有的
+            # 产物名称可能与上一版不同：仅 clobber 同名文件会令旧包长期留在下载列表中，
+            # 故先删除本次未产出的资产
             for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
               if [ ! -f "dist/$name" ]; then
                 echo "删除过期资产：$name"
@@ -670,20 +670,20 @@ jobs:
               fi
             done
             gh release upload "$TAG" dist/*.apk dist/*.sha256 --clobber
-            # --draft=false：同名 release 停在草稿状态时，只改说明会让它永远发不出去，而 job 是绿的
+            # --draft=false：同名 release 停留于草稿状态时，仅修改说明会使其始终无法发布，而 job 显示为成功
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --prerelease="$IS_PRERELEASE" --draft=false
           else
             flags=()
             if [ "$IS_PRERELEASE" = "true" ]; then
               flags+=(--prerelease)
             fi
-            # --verify-tag：tag 不存在时直接报错，不要拿 GITHUB_SHA 现造一个，
-            # 否则「手动触发 + 打错 tag」会凭空多出一个和代码无关的版本
+            # --verify-tag：tag 不存在时直接报错，而非以 GITHUB_SHA 现行创建，
+            # 否则「手动触发 + tag 输入有误」会产生与代码无关的版本
             gh release create "$TAG" dist/*.apk dist/*.sha256 \
               --title "$TAG" --notes-file RELEASE_NOTES.md --verify-tag "${flags[@]}"
           fi
 
-      # local.properties 里是明文口令，keystore 也有临时副本，都别留在工作区等后续步骤/缓存捡走
+      # local.properties 中为明文口令，keystore 亦存有临时副本，均不得留在工作区被后续步骤或缓存读取
       - name: Clear secrets
         if: always()
         run: |
