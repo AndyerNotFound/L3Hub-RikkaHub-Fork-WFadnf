@@ -27,7 +27,20 @@ class UpstreamCompatTest {
             },
             {"type": "gguf", "models": [{"type": "CHAT", "id": "local"}]}
           ],
-          "assistants": [{"reasoningLevel": "ultra", "name": "a"}],
+          "assistants": [
+            {
+              "reasoningLevel": "ultra",
+              "name": "a",
+              "localTools": [{"type": "time_info"}, {"type": "sub_agent"}],
+              "avatar": {"type": "me.rerere.rikkahub.data.model.Avatar.Video", "url": "/a.mp4"}
+            },
+            {
+              "reasoningLevel": "auto",
+              "name": "b",
+              "localTools": [{"type": "sub_agent"}],
+              "avatar": {"type": "me.rerere.rikkahub.data.model.Avatar.Image", "url": "/a.png"}
+            }
+          ],
           "uiStyle": "MIUIX"
         }
     """.trimIndent()
@@ -53,6 +66,28 @@ class UpstreamCompatTest {
         )
         assertEquals("low", json["assistants"]!!.jsonArray[0].jsonObject["reasoningLevel"]!!.jsonPrimitive.content)
         assertEquals("blur", json["backgroundEffectType"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `drops local tools the original does not know`() {
+        val assistants = downgrade(settings)["assistants"]!!.jsonArray
+        val first = assistants[0].jsonObject["localTools"]!!.jsonArray
+        assertEquals(1, first.size)
+        assertEquals("time_info", first[0].jsonObject["type"]!!.jsonPrimitive.content)
+        assertEquals(0, assistants[1].jsonObject["localTools"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `replaces video avatars with the empty one`() {
+        val assistants = downgrade(settings)["assistants"]!!.jsonArray
+        assertEquals(
+            "me.rerere.rikkahub.data.model.Avatar.Dummy",
+            assistants[0].jsonObject["avatar"]!!.jsonObject["type"]!!.jsonPrimitive.content,
+        )
+        assertEquals(
+            "me.rerere.rikkahub.data.model.Avatar.Image",
+            assistants[1].jsonObject["avatar"]!!.jsonObject["type"]!!.jsonPrimitive.content,
+        )
     }
 
     @Test

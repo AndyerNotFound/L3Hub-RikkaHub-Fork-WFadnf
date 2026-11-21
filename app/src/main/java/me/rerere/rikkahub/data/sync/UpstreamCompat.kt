@@ -50,6 +50,27 @@ internal object UpstreamCompat {
     /** 原版 `ModelType` 的取值；OCR 模型原版没有，留着同样会让整份设置解码失败 */
     private val MODEL_TYPES = setOf("CHAT", "IMAGE", "EMBEDDING")
 
+    /** 原版 `LocalToolOption` 认得的本地工具；Fork 的 `sub_agent` 会让助手列表整份解码失败 */
+    private val LOCAL_TOOLS = setOf(
+        "ask_user",
+        "calendar",
+        "chart_display",
+        "clipboard",
+        "javascript_engine",
+        "phone_use",
+        "screen_time",
+        "time_info",
+        "tts",
+    )
+
+    /** 原版 `Avatar` 的三个子类；Fork 新增的 `Video` 换成空头像 */
+    private val AVATAR_TYPES = setOf(
+        "me.rerere.rikkahub.data.model.Avatar.Dummy",
+        "me.rerere.rikkahub.data.model.Avatar.Emoji",
+        "me.rerere.rikkahub.data.model.Avatar.Image",
+    )
+    private const val AVATAR_DUMMY = "me.rerere.rikkahub.data.model.Avatar.Dummy"
+
     /** 原版缺失的枚举值按最近的档位降级，键是序列化后的字段名 */
     private val ENUM_VALUES = mapOf(
         "reasoningLevel" to mapOf("minimal" to "low", "ultra" to "max"),
@@ -68,7 +89,7 @@ internal object UpstreamCompat {
         if (providers != null) {
             fields["providers"] = JsonArray(providers.mapNotNull { downgradeProvider(it) })
         }
-        val downgraded = JsonObject(fields).mapEnumValues(ENUM_VALUES)
+        val downgraded = JsonObject(fields).downgradeValues(ENUM_VALUES)
         val text = Json.encodeToString(JsonElement.serializer(), downgraded)
         return BackupPaths.rewrite(text, File(TARGET_FILES_DIR))
     }
@@ -111,20 +132,44 @@ internal object UpstreamCompat {
         return JsonObject(fields + ("models" to JsonArray(kept)))
     }
 
-    /** 递归替换指定键上的取值；同名键只出现在这几类配置里，不必关心层级 */
-    private fun JsonElement.mapEnumValues(mappings: Map<String, Map<String, String>>): JsonElement =
+    /**
+     * 递归清掉原版认不出的取值；同名键只出现在这几类配置里，不必关心层级。
+     *
+     * - 枚举：按 [mappings] 换成最近的档位；
+     * - `localTools`：只留原版有的本地工具；
+     * - `avatar`：Fork 的视频头像换成空头像。
+     */
+    private fun JsonElement.downgradeValues(mappings: Map<String, Map<String, String>>): JsonElement =
         when (this) {
             is JsonObject -> JsonObject(
                 mapValues { (key, value) ->
-                    val mapped = (value as? JsonPrimitive)
-                        ?.takeIf { it.isString }
-                        ?.contentOrNull
-                        ?.let { mappings[key]?.get(it) }
-                    if (mapped != null) JsonPrimitive(mapped) else value.mapEnumValues(mappings)
+                    when (key) {
+                        "localTools" -> JsonArray(
+                            (value as? JsonArray).orEmpty().filter { tool ->
+                                ((tool as? JsonObject)?.get("type") as? JsonPrimitive)
+                                    ?.contentOrNull in LOCAL_TOOLS
+                            }
+                        )
+
+                        "avatar" -> {
+                            val type = ((value as? JsonObject)?.get("type") as? JsonPrimitive)?.contentOrNull
+                            if (type in AVATAR_TYPES) value else JsonObject(
+                                mapOf("type" to JsonPrimitive(AVATAR_DUMMY))
+                            )
+                        }
+
+                        else -> {
+                            val mapped = (value as? JsonPrimitive)
+                                ?.takeIf { it.isString }
+                                ?.contentOrNull
+                                ?.let { mappings[key]?.get(it) }
+                            if (mapped != null) JsonPrimitive(mapped) else value.downgradeValues(mappings)
+                        }
+                    }
                 }
             )
 
-            is JsonArray -> JsonArray(map { it.mapEnumValues(mappings) })
+            is JsonArray -> JsonArray(map { it.downgradeValues(mappings) })
             else -> this
         }
 }
