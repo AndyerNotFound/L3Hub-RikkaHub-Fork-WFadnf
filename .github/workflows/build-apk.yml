@@ -364,8 +364,9 @@ jobs:
           WITH_WEB_UI: '1'
           # gradle.properties 的 kotlin.daemon.jvmargs 是照本机 8G 定的 1.5g；出包要连着编
           # 完整版和精简版两遍，编译后端的临时图会在 1.5g 上撞 GC overhead limit。
-          # 与 ci.yml 的单测一致，runner 上抬到 3g。
-          ORG_GRADLE_PROJECT_kotlin.daemon.jvmargs: '-Xmx3g'
+          # runner 上先抬到 3g；P1–P2-4 之后 :app 的 inline 展开更大，3g 在
+          # compileGithubReleaseKotlin 的 codegen.inline 里 OOM，标准 runner 16G，抬到 6g。
+          ORG_GRADLE_PROJECT_kotlin.daemon.jvmargs: '-Xmx6g'
         run: |
           set -euo pipefail
           chmod +x gradlew tools/build-apk.sh
