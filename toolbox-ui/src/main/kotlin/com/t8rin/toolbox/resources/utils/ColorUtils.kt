@@ -19,6 +19,7 @@ package com.t8rin.toolbox.resources.utils
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.toArgb
 
@@ -35,3 +36,8 @@ fun Color.toSafeSrgb(
 } else {
     fallback
 }
+
+@Stable
+fun Int.toSafeSrgb(
+    fallback: Color = Color.Transparent
+): Color = runCatching { Color(this) }.getOrDefault(fallback)
