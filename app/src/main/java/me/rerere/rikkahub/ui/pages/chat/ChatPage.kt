@@ -991,6 +991,9 @@ private fun ChatPageContent(
                 .hazeSource(state.backgroundHazeState),
             // 横屏三栏不再盖渐变遮罩，背景图原样透出来
             scrim = !state.threePane,
+            // 生成中背景完全不动：几十秒周期的漂移停一会儿看不出来，
+            // 而它每帧推进会作为模糊源失效，把整屏模糊重算一遍
+            animateGradient = state.loadingJob == null,
         )
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
         CompositionLocalProvider(

@@ -26,10 +26,12 @@ fun AssistantBackground(
     modifier: Modifier,
     // 背景图上的全屏渐变遮罩：竖屏留着压住亮部、保证正文可读；横屏三栏里去掉
     scrim: Boolean = true,
+    // 生成中停掉网格背景的漂移：它是所有模糊效果的源，相位一动整屏模糊就要重算
+    animateGradient: Boolean = true,
 ) {
     val assistant = setting.getCurrentAssistant()
     if (assistant.useGradientBackground) {
-        MeshGradientBackground(modifier = modifier)
+        MeshGradientBackground(modifier = modifier, animate = animateGradient)
         return
     }
     if (assistant.background != null) {

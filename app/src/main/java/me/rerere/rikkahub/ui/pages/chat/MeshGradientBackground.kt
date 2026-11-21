@@ -88,6 +88,9 @@ private fun MeshBlob.color(huePhase: Float): Color = Color.hsv(
 @Composable
 fun MeshGradientBackground(
     modifier: Modifier = Modifier,
+    // 帧时钟是否推进。这一层同时是输入框、顶栏和气泡的模糊源：
+    // 相位一变，源就失效，所有模糊都要重算一遍。生成期间整段停下来省掉的就是这份开销
+    animate: Boolean = true,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     var phases by remember { mutableStateOf(MeshPhases()) }
@@ -106,8 +109,8 @@ fun MeshGradientBackground(
     }
 
     // 跟着帧时钟走：每帧按真实经过时间推进相位，与屏幕刷新同步。
-    LaunchedEffect(resumed) {
-        if (!resumed) return@LaunchedEffect
+    LaunchedEffect(resumed, animate) {
+        if (!resumed || !animate) return@LaunchedEffect
         var lastNanos = 0L
         while (true) {
             val now = withFrameNanos { it }

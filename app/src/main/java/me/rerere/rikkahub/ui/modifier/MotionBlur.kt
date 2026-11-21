@@ -271,10 +271,14 @@ fun Modifier.motionBlurOnToggle(
 }
 
 /**
- * 容器高度的弹性伸展与折叠：内容长高时高度按空间曲线追上去，内容变少时收回来。
+ * 容器高度的弹性伸展与折叠：内容变少时高度按空间曲线收回来。
  *
  * 只改报告给父布局的高度，内容仍按自然高度排版并贴顶放置，超出的那一截由外层裁掉，
- * 所以文字不会在伸缩过程中重新换行；气泡自己的圆角与背景跟着报告高度走，看起来就是气泡在长。
+ * 所以文字不会在伸缩过程中重新换行；气泡自己的圆角与背景跟着报告高度走。
+ *
+ * 增长是否也动画由 [animateGrowth] 决定，默认直接跟上：流式追加时高度每来一段文本就要追一次，
+ * 而动画对象是测量阶段读的，动画一推进整棵内容就要重新测量一遍，逐帧失效的正是这一段。
+ * 内容变短（折叠、卡片收起）时仍然走动画，那个方向才有可见的收放过程。
  *
  * 这里不再叠模糊：高度每帧都在变，跟着高度走的 RenderEffect 会在「差得远」和「追上」之间
  * 反复切换，流式追加时整只气泡就跟着忽明忽暗。要模糊的过渡交给专门的收放动画去带。
@@ -284,6 +288,7 @@ fun Modifier.motionBlurOnToggle(
 @Composable
 fun Modifier.motionStretchHeight(
     enabled: Boolean = true,
+    animateGrowth: Boolean = false,
     animationSpec: FiniteAnimationSpec<Float> = rememberSpatialSpec(),
 ): Modifier {
     if (!enabled) return this
@@ -299,17 +304,41 @@ fun Modifier.motionStretchHeight(
                 ?: Animatable(natural).also { created ->
                     state.animatable = created
                     state.target = natural
+                    state.reported = natural
                 }
             if (state.target != natural) {
                 state.target = natural
-                scope.launch { anim.animateTo(natural, animationSpec) }
+                if (animateGrowth || natural < state.reported) {
+                    // 动画值可能停在增长前的高度，先对齐到当前报出去的值，收缩才不会先弹一下
+                    val from = state.reported
+                    scope.launch {
+                        // 排队期间内容又变长（target 被换掉）：这次收缩作废，
+                        // 否则会在已经跟上的高度上再播一段往回缩
+                        if (state.target != natural) return@launch
+                        anim.snapTo(from)
+                        if (state.target != natural) return@launch
+                        anim.animateTo(natural, animationSpec)
+                    }
+                } else {
+                    // 变长：直接跟上。撤掉正在跑的动画，之后不再有逐帧失效，
+                    // 整条消息也不必为了一帧几像素的增长重新测量
+                    anim.cancelAnimation()
+                }
             }
-            val animated = anim.value.roundToInt()
+            val reported = when {
+                animateGrowth -> anim.value
+                // 增长分支不读动画值：读它就会让动画每推进一帧都重新测量这一次
+                natural >= state.reported -> natural
+                else -> maxOf(natural, anim.value)
+            }
+            // 普通字段，不是快照状态：写它不会反过来触发一轮测量
+            state.reported = reported
+            val heightPx = reported.roundToInt()
             // 量的时候放开了高度限制，报出去还得守住父容器的上限
             val height = if (constraints.hasBoundedHeight) {
-                animated.coerceIn(0, constraints.maxHeight)
+                heightPx.coerceIn(0, constraints.maxHeight)
             } else {
-                animated.coerceAtLeast(0)
+                heightPx.coerceAtLeast(0)
             }
             layout(placeable.width, height) { placeable.place(0, 0) }
         }
@@ -319,6 +348,9 @@ fun Modifier.motionStretchHeight(
 private class StretchHeightState {
     var animatable: Animatable<Float, AnimationVector1D>? = null
     var target: Float = 0f
+
+    /** 上一轮报给父布局的高度；增长时直接按自然高度跟上，收缩才从它动画过去 */
+    var reported: Float = 0f
 }
 
 /**

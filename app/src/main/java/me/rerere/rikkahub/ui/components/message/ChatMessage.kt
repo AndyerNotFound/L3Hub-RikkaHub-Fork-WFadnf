@@ -718,8 +718,11 @@ private fun MessagePartsBlock(
                     val chainEffect = settings.displaySetting.effectiveBackgroundEffect
                     val chainShape = adaptiveShape(20.dp)
                     val chainBaseColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明
-                    val chainHasEffect = chainEffect != BackgroundEffectType.OFF && hazeState != null
+                    // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明。
+                    // 生成中步骤还在往这只卡片里加，尺寸每来一段就变一次，模糊要跟着重新采样，
+                    // 这一段退回半透明底色，停止输出后恢复
+                    val chainHasEffect = chainEffect != BackgroundEffectType.OFF &&
+                        hazeState != null && !loading
                     ChainOfThought(
                         // 高度交给卡片里各步骤的收放动画；这里再包一层 animateContentSize
                         // 会和它串联成两条弹簧，展开后卡片高度在目标附近反复上下
@@ -861,9 +864,10 @@ private fun MessagePartsBlock(
                                                     // 拆段后首尾仍与相邻消息相连，中间各段自成一只气泡
                                                     joinedToPrevious = joinedToPrevious && index == 0,
                                                     joinedToNext = joinedToNext && index == paragraphs.lastIndex,
-                                                    // 高度改由气泡内部的弹性伸缩带动：伸缩时整只气泡带动态模糊，
+                                                    // 高度改由气泡内部的弹性伸缩带动，
                                                     // 外面的 animateContentSize 只在报告高度，气泡底边会先一步到位
                                                     stretchHeight = true,
+                                                    streaming = streamingText && index == paragraphs.lastIndex,
                                                 ) {
                                                     MarkdownBlock(
                                                         content = paragraph,
@@ -1144,8 +1148,11 @@ private fun ChatMessageBubble(
     color: Color,
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier,
-    // 正文气泡的弹性伸展与折叠：高度追着内容走，伸缩过程整只气泡带动态模糊
+    // 正文气泡的弹性伸展与折叠：高度追着内容走
     stretchHeight: Boolean = false,
+    // 这条正文还在流式输出：尺寸每来一段文本就变一次。模糊效果要按尺寸重新采样，
+    // 等于每帧重算一遍背景，所以这一段退回静态底色，停止输出后恢复设置里的背景效果
+    streaming: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
@@ -1179,7 +1186,7 @@ private fun ChatMessageBubble(
     }
     val displaySetting = LocalSettings.current.displaySetting
     val effect = displaySetting.effectiveBackgroundEffect
-    val useEffect = hazeState != null && effect != BackgroundEffectType.OFF
+    val useEffect = hazeState != null && effect != BackgroundEffectType.OFF && !streaming
     val hazeModifier = if (useEffect && hazeState != null) {
         Modifier.chatInputHaze(
             hazeState = hazeState,
@@ -1201,7 +1208,7 @@ private fun ChatMessageBubble(
             // 特效开启时着色层由 chatInputHaze 叠在模糊之上，这里不再铺第二层
             .then(if (useEffect) Modifier else Modifier.background(color))
             .then(
-                if (effect == BackgroundEffectType.BLUR) {
+                if (useEffect && effect == BackgroundEffectType.BLUR) {
                     Modifier.border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),

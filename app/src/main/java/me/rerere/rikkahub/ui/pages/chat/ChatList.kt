@@ -324,22 +324,29 @@ fun ChatList(
 
 // 顶部渐隐：消息滚到标题栏下面时逐渐透明，从状态栏一直淡出到标题栏下沿之外，保证标题可读。
 // 让内容自己变透明而不是盖一层背景色，背景图和动态渐变背景才不会被盖住。
-internal fun Modifier.topFadingEdge(height: Dp): Modifier = this
-    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    .drawWithCache {
-        val fadeHeight = height.toPx()
-        val brush = Brush.verticalGradient(
-            0f to Color.Transparent,
-            0.6f to Color.Black.copy(alpha = 0.15f),
-            1f to Color.Black,
-            startY = 0f,
-            endY = fadeHeight,
-        )
-        onDrawWithContent {
-            drawContent()
-            drawRect(brush, size = Size(size.width, fadeHeight), blendMode = BlendMode.DstIn)
+//
+// 这条渐隐靠离屏图层做 DstIn 遮罩：整块列表先录进一张离线纹理，再按渐变扣掉 alpha。
+// 静止时没有失效，绘制整体被跳过；流式输出每来一个 token 都会失效，于是每帧都要
+// 重新录制一整屏内容再做一次遮罩，是生成期间最贵的固定开销之一，[enabled] 关掉它。
+internal fun Modifier.topFadingEdge(height: Dp, enabled: Boolean = true): Modifier {
+    if (!enabled) return this
+    return this
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithCache {
+            val fadeHeight = height.toPx()
+            val brush = Brush.verticalGradient(
+                0f to Color.Transparent,
+                0.6f to Color.Black.copy(alpha = 0.15f),
+                1f to Color.Black,
+                startY = 0f,
+                endY = fadeHeight,
+            )
+            onDrawWithContent {
+                drawContent()
+                drawRect(brush, size = Size(size.width, fadeHeight), blendMode = BlendMode.DstIn)
+            }
         }
-    }
+}
 
 @Composable
 private fun ChatListNormal(
@@ -677,8 +684,13 @@ private fun ChatListNormal(
                             !followScrollBlurPaused,
                     )
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
-                    // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级
-                    .topFadingEdge(minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp))
+                    // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级。
+                    // 生成期间不挂：正文每来一个 token 都要把整块列表重新录进离屏层，
+                    // 停下来那一刻再恢复，中间这段正好是最缺帧预算的时候
+                    .topFadingEdge(
+                        height = minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp),
+                        enabled = !loading,
+                    )
                     .nestedScroll(createPullConnection)
                     // 静息时把列表也交给 haze：输入框与顶栏能糊到正文；
                     // 生成中撤掉，省掉「每个 token 重糊整块列表」的开销
