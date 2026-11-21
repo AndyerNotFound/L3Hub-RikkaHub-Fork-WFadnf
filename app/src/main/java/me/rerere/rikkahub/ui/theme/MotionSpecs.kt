@@ -157,10 +157,12 @@ fun <T> rememberFastSpatialSpec(): FiniteAnimationSpec<T> {
 @Composable
 fun <T> rememberSlideSpec(animated: Boolean = true): FiniteAnimationSpec<T> {
     if (!animated || !LocalAnimationsEnabled.current) return snap()
+    // 曲线取 ImageToolbox 的 FancyTransitionEasing（尾段 3% 过冲）：整页滑到位以后
+    // 再"顿"一下才停，这是那个工程最好认的手感。档位只管时长，三档共用同一条曲线。
     return when (LocalAnimationSpeed.current) {
-        AnimationSpeed.SYSTEM -> tween(durationMillis = 300, easing = FastOutSlowInEasing)
-        AnimationSpeed.FAST -> tween(durationMillis = 180, easing = FastOutSlowInEasing)
-        AnimationSpeed.GENTLE -> tween(durationMillis = 420, easing = FastOutSlowInEasing)
+        AnimationSpeed.SYSTEM -> tween(durationMillis = 300, easing = FancyTransitionEasing)
+        AnimationSpeed.FAST -> tween(durationMillis = 180, easing = FancyTransitionEasing)
+        AnimationSpeed.GENTLE -> tween(durationMillis = 420, easing = FancyTransitionEasing)
     }
 }
 

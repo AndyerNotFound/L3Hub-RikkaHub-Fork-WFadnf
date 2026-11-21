@@ -161,6 +161,9 @@
 | 退场后再执行 | — | `rememberSheetDismiss()` 与对话框的 `LocalDialogDismiss` 同一约定；没有 sheet 包着时退化为直接执行 |
 | 动效档位 | 设置 → 偏好设置 → 界面 | `animationSpeed`：`SYSTEM` / `FAST` / `GENTLE` 各给一套 `MotionScheme` 交给主题，material3 自带的抽屉收放、菜单、遮罩、拖拽吸附只读这一个口子 |
 | 关闭动效 | 同上 | `disableAnimations`：motionScheme 换 `snap`，手写动画先读 `LocalAnimationsEnabled`，避免关掉后侧边栏还滑 300ms |
+| 滑入曲线 | — | `rememberSlideSpec` 用 ImageToolbox 的 `FancyTransitionEasing`（尾段 3% 过冲），三档时长不变 |
+| 触感强度 | 设置 → 偏好设置 → 通用 | `hapticsStrength`：跟随系统 / 轻 / 重；后两档带 `FLAG_IGNORE_GLOBAL_SETTING` 绕过系统"触摸时震动"，读屏开着时不发 |
+| 按压轮廓 | — | `rememberShapeByInteraction` / `MorphShape` 逐角插值；`Modifier.pressScale(restShape=, pressedShape=)` 可与缩放叠加。首个调用点：设置页色板缩略图 |
 
 ## 3 布局与导航
 

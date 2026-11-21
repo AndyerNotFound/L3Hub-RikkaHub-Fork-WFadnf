@@ -228,6 +228,23 @@ enum class AnimationSpeed {
 }
 
 /**
+ * 触感强度。
+ *
+ * SYSTEM 是默认值：不接管 `LocalHapticFeedback`，行为与没有这个设置时完全一致。
+ * 其余两档用 `FLAG_IGNORE_GLOBAL_SETTING` 发震动，绕过系统里"触摸时震动"的开关。
+ */
+enum class HapticsStrength {
+    /** 沿用系统默认实现 */
+    SYSTEM,
+
+    /** 短促一下（`CONTEXT_CLICK`） */
+    LIGHT,
+
+    /** 重一些（`LONG_PRESS`） */
+    STRONG,
+}
+
+/**
  * 动态模糊的统一参数。
  *
  * 列表滚动、卡片收放、消息入场这些过渡共用同一套数：半径按各处的相对强度缩放，
@@ -346,6 +363,8 @@ data class DisplaySetting(
     // Miuix 卡片的圆角（dp）
     val miuixCornerRadius: Int = 16,
     val enableMessageGenerationHapticEffect: Boolean = false,
+    // 全局触感强度：只影响走 LocalHapticFeedback 的震动，不影响消息生成那条独立的开关
+    val hapticsStrength: HapticsStrength = HapticsStrength.SYSTEM,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,

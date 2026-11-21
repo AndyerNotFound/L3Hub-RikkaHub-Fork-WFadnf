@@ -382,6 +382,28 @@ attack 段，前者由 `motionAnimationsEnabled()` 兜住。
 
 > 本轮改动未编译验证（Termux 侧禁止编译）：已做括号与 import 的静态检查，行为验证待下一次出包。
 
+### 曲线与触感（ImageToolbox 移植 · 第一轮，2026-11-21）
+
+从 `~/WorkSpace/ImageToolbox`（T8RIN，Apache-2.0）搬的是手感，不是导航引擎：
+那个工程是 Decompose 的 `Children` + `StackNavigation`，本项目是 navigation3 的
+`NavDisplay` + hero 容器变换，两套栈语义对不上（详见 `docs/port-imagetoolbox.md`）。
+这一轮只动曲线、触感与按压轮廓，三处都不碰导航。
+
+| 层 | 文件 | 说明 |
+|---|---|---|
+| 曲线 | `ui/theme/MotionEasing.kt`（新增） | 七条贝塞尔：`FancyTransitionEasing`(0.48,0.19,0.05,1.03) / `AlphaEasing` / `PointToPointEasing` / `FastInvokeEasing` / `OverslideEasing` / `RotationEasing` / `SoftEasing`。只管手感，快慢仍由 `MotionSpecs` 的档位给 |
+| 页面滑入 | `ui/theme/MotionSpecs.kt` | `rememberSlideSpec` 的三档时长不变（300/180/420），曲线从 `FastOutSlowInEasing` 换成 `FancyTransitionEasing`：整页到位后再"顿"一下才停 |
+| 触感 | `ui/haptics/EnhancedHaptics.kt`（新增）、`Theme.kt` | `HapticsStrength` 三档：`SYSTEM` 时**不接管** `LocalHapticFeedback`（等于功能关着，行为与改动前完全一致），`LIGHT` 发 `CONTEXT_CLICK`、`STRONG` 发 `LONG_PRESS`，两者都带 `FLAG_IGNORE_GLOBAL_SETTING`，绕过系统"触摸时震动"；读屏开着时直接不发 |
+| 按压轮廓 | `ui/modifier/ShapeInteraction.kt`（新增）、`PressScale.kt` | `rememberShapeByInteraction(shape, pressedShape, interactionSource)` 在按下时逐角插值，`MorphShape` 只对 `Outline.Rounded` 之间做插值，其它形状整块切换；`Modifier.pressScale(restShape=, pressedShape=)` 把轮廓与缩放叠在一起（会顺带 `clip`） |
+| 首个调用点 | `ui/pages/setting/components/PresetThemeButton.kt` | 色板缩略图按下时 16dp → 6dp，松手弹回 |
+
+触感这一项新增了设置项：设置 → 偏好设置 → 通用 →「触感强度」，默认「跟随系统」，
+老用户升级后手感不变。为了让「轻」和「重」发得出来，`EnhancedHapticFeedback` 只映射
+`LongPress` / `TextHandleMove` 两类语义，其余落到 `VIRTUAL_KEY`：Compose 的
+`HapticFeedbackType` 常量在各版本间增删过，逐个列举会在升级时编译失败。
+
+> 本轮同样未编译验证（Termux 侧禁止编译）：括号与引用做了静态检查，行为待 CI 出包确认。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.HapticsStrength
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -326,6 +327,27 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title)) },
                 )
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_haptics_strength_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_haptics_strength_desc)) },
+                ) {
+                    ConnectedChoiceButtons(
+                        options = HapticsStrength.entries,
+                        selected = displaySetting.hapticsStrength,
+                        onSelect = { strength ->
+                            updateDisplaySetting(displaySetting.copy(hapticsStrength = strength))
+                        },
+                    ) { strength, selected ->
+                        ConnectedChoiceLabel(
+                            text = when (strength) {
+                                HapticsStrength.SYSTEM -> stringResource(R.string.setting_display_page_haptics_strength_system)
+                                HapticsStrength.LIGHT -> stringResource(R.string.setting_display_page_haptics_strength_light)
+                                HapticsStrength.STRONG -> stringResource(R.string.setting_display_page_haptics_strength_strong)
+                            },
+                            selected = selected,
+                        )
+                    }
+                }
             }
 
             CardGroup {

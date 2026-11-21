@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import me.rerere.rikkahub.ui.modifier.rememberShapeByInteraction
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.PresetTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
@@ -48,13 +49,21 @@ fun PresetThemeButton(
     val darkMode = LocalDarkMode.current
     val scheme = theme.getColorScheme(darkMode)
 
+    // 色板缩略图按下时轮廓收一下：16dp 的圆角块变成 6dp，松手弹回（ImageToolbox 的按压形状）
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = rememberShapeByInteraction(
+        shape = RoundedCornerShape(16.dp),
+        pressedShape = RoundedCornerShape(6.dp),
+        interactionSource = interactionSource,
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(shape)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = LocalIndication.current,
                 onClick = {
                     onClick()

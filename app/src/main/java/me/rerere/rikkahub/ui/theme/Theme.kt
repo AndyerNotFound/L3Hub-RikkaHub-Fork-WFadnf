@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.UiStyle
+import me.rerere.rikkahub.ui.haptics.rememberEnhancedHapticFeedback
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
@@ -184,8 +186,13 @@ fun RikkahubTheme(
         if (uiScale == 1f) baseDensity else Density(baseDensity.density * uiScale, baseDensity.fontScale)
     }
 
+    // 触感强度：SYSTEM 档返回 null，此时不接管 LocalHapticFeedback，沿用 Compose 默认实现
+    val systemHaptics = LocalHapticFeedback.current
+    val enhancedHaptics = rememberEnhancedHapticFeedback(settings.displaySetting.hapticsStrength)
+
     CompositionLocalProvider(
         LocalDensity provides scaledDensity,
+        LocalHapticFeedback provides (enhancedHaptics ?: systemHaptics),
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,
