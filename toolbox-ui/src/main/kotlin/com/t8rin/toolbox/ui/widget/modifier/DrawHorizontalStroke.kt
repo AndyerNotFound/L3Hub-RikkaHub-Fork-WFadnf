@@ -189,17 +189,22 @@ private class DrawHorizontalStrokeNode(
     }
 
     override fun ContentDrawScope.draw() {
-        drawSoftLayerShadow(
-            radius = shadowRadius.value,
-            color = ShadowsPlusDefaults.ShadowColor,
-            shape = RectangleShape,
-            spread = (-2).dp,
-            offset = DpOffset(
-                x = 0.dp,
-                y = if (top) (-1).dp else 2.dp
-            ),
-            isAlphaContentClip = false
-        )
+        // 半径为 0 时 drawSoftLayerShadow 不会走 setShadowLayer，paint 直接兜底成实心
+        // ShadowColor，画出一块与本体同尺寸的色块；顶栏这类透明容器会整块透出来
+        // （聊天页顶栏底下的黑色横带就是它）。没配阴影（半径 0）就什么都不画。
+        if (shadowRadius.value > 0.dp) {
+            drawSoftLayerShadow(
+                radius = shadowRadius.value,
+                color = ShadowsPlusDefaults.ShadowColor,
+                shape = RectangleShape,
+                spread = (-2).dp,
+                offset = DpOffset(
+                    x = 0.dp,
+                    y = if (top) (-1).dp else 2.dp
+                ),
+                isAlphaContentClip = false
+            )
+        }
 
         drawContent()
 
