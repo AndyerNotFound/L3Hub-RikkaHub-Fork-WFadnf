@@ -383,6 +383,8 @@ dependencies {
     implementation(project(":common"))
     implementation(project(":material3"))
     implementation(project(":ui"))
+    // 弹层引擎与 ToolboxSettings 接口：主题层要提供 LocalToolboxSettings 实现
+    implementation(project(":toolbox-ui"))
     implementation(project(":workspace"))
     implementation(project(":terminal"))
     implementation(project(":oauth"))

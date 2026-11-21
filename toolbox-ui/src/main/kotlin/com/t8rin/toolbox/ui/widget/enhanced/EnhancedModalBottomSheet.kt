@@ -195,6 +195,45 @@ fun EnhancedModalBottomSheet(
 }
 
 
+/**
+ * Styled overload: exposes the shape / container / scrim knobs of [EnhancedModalSheetImpl].
+ *
+ * ImageToolbox's three overloads above all use [EnhancedBottomSheetDefaults], so a host that
+ * carries its own sheet shape (L3Hub's glass sheet) has no way in. Everything else keeps the
+ * engine's behaviour, including the visible-driven show/hide lifecycle.
+ *
+ * [containerColor] intentionally has no default: with a default this overload would be applicable
+ * to every call the first overload already accepts, and those calls would become ambiguous.
+ */
+@Composable
+fun EnhancedModalBottomSheet(
+    visible: Boolean,
+    onDismiss: (Boolean) -> Unit,
+    containerColor: Color,
+    modifier: Modifier = Modifier,
+    cancelable: Boolean = true,
+    nestedScrollEnabled: Boolean = LocalToolboxSettings.current.sheetNestedScrollEnabled,
+    dragHandle: @Composable ColumnScope.() -> Unit = { EnhancedModalSheetDragHandle() },
+    shape: Shape = EnhancedBottomSheetDefaults.shape,
+    contentColor: Color = contentColorFor(containerColor),
+    scrimColor: Color = EnhancedBottomSheetDefaults.scrimColor,
+    sheetContent: @Composable ColumnScope.() -> Unit,
+) {
+    EnhancedModalSheetImpl(
+        visible = visible,
+        onVisibleChange = onDismiss,
+        modifier = modifier,
+        dragHandle = dragHandle,
+        nestedScrollEnabled = nestedScrollEnabled,
+        cancelable = cancelable,
+        shape = shape,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        scrimColor = scrimColor,
+        content = sheetContent
+    )
+}
+
 @Composable
 private fun EnhancedModalSheetImpl(
     visible: Boolean,

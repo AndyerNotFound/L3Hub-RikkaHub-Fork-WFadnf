@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.CornerStyle
@@ -160,6 +161,17 @@ fun RikkahubTheme(
     val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
     val effectiveDark = darkTheme
 
+    // 从 ImageToolbox 端口过来的组件（Enhanced 弹窗 / 抽屉）读这一份设置视图。
+    // 深浅色与 AMOLED 用上面已经算好的结果传进去，桥接里不再重读一次 SharedPreferences；
+    // 其余字段要么映射到本项目的设置，要么给那边的默认值，逐条写在 ToolboxSettingsBridge 里
+    val toolboxSettings = remember(settings, effectiveDark, amoledDarkMode) {
+        ToolboxSettingsBridge(
+            settings = settings,
+            darkTheme = effectiveDark,
+            amoledDark = amoledDarkMode,
+        )
+    }
+
     // 更新状态栏图标颜色
     val view = LocalView.current
     val activity = view.context.getActivity()
@@ -217,6 +229,8 @@ fun RikkahubTheme(
         LocalCornerThrottle provides settings.displaySetting.cornerAnimThrottle.coerceIn(0, 2000),
         LocalSwitchType provides settings.displaySetting.switchType,
         LocalSliderType provides settings.displaySetting.sliderType,
+        // 端口组件的设置视图（形状类型、开关/滑块样式、抽屉嵌套滚动…）：引擎只认这一个入口
+        LocalToolboxSettings provides toolboxSettings,
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,

@@ -13,6 +13,9 @@ tasks.withType<KotlinCompile>().configureEach {
 }
 
 dependencies {
+    // 弹层引擎（EnhancedAlertDialog / EnhancedModalBottomSheet）与 ToolboxSettings：
+    // 三个高频组件的对外签名保持 M3 类型，所以这里用 implementation 而不是 api。
+    implementation(project(":toolbox-ui"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.ink.authoring.compose)

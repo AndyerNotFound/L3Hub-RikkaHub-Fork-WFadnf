@@ -1,27 +1,23 @@
 package me.rerere.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedModalBottomSheet
 
 /**
  * sheet 内容里要主动关窗时走这里：先播退场，演完再执行动作。
@@ -40,17 +36,19 @@ fun rememberSheetDismiss(): (() -> Unit) -> Unit {
 }
 
 /**
- * M3 [ModalBottomSheet] 的「进出场对称」版本：把可见性交给这里，关闭动作怎么写都有退场。
+ * M3 [androidx.compose.material3.ModalBottomSheet] 的「进出场对称」版本，引擎换成
+ * [EnhancedModalBottomSheet]。参数与语义对调用方不变。
  *
- * 原生弹窗只在自己收场时才会播退场——点遮罩、按返回键，库先 `hide()` 再回调；
- * 调用方拿着布尔直接 `if (show) { ModalBottomSheet(...) }` 的时候，一旦把布尔翻回 false，
+ * 退场为什么还是完整的：原生弹窗只在自己收场时才会播退场——点遮罩、按返回键，库先 `hide()`
+ * 再回调；调用方拿着布尔直接 `if (show) { ModalBottomSheet(...) }` 的时候，一旦把布尔翻回 false，
  * 窗口跟着组合一起销毁，退场根本没有机会播，观感就是「打开有动画、关闭一帧消失」。
  *
- * 这里把窗口的存活和可见性拆开：`visible` 变 false 时先 `hide()`，播完才把窗口从组合里拿掉。
- * 调用方不必再自己 `rememberBottomSheetState` / `hide()`，关窗怎么写都行——点按钮、选中一项、
- * 点外部，全部走同一条退场。
+ * 以前的实现自己记了 `mounted`、自己调 `hide()` 来兜这一下。现在交给引擎：
+ * [EnhancedModalBottomSheet] 把「窗口存活」和「visible」拆开——visible 变 false 时先收回去，
+ * 收完才把窗口从组合里拿掉；手势下拉、点遮罩、返回键也都走同一条退场。
  *
- * 档位（进入 / 退出曲线）由主题的 motionScheme 决定，动画速度设置一改就跟着变。
+ * 所以 [LocalSheetDismiss] 现在只需把动作交出去：动作自己会把 visible 翻回 false，引擎接着演完退场。
+ * 换句话说是「动作触发退场，窗口等退场演完再拆」，用户看到的依然是抽屉滑出去而不是当场消失。
  */
 @Composable
 fun AnimatedModalBottomSheet(
@@ -67,54 +65,45 @@ fun AnimatedModalBottomSheet(
     contentWindowInsets: @Composable () -> WindowInsets = { BottomSheetDefaults.modalWindowInsets },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // 窗口比可见性多活一段：关闭时先把 sheet 收回去，收完再拆窗口。
-    // 打开晚一帧挂上，看不出差别，但避免了在组合期写状态
-    var mounted by remember { mutableStateOf(visible) }
-    LaunchedEffect(visible) {
-        if (visible) mounted = true
-    }
-    if (!mounted) return
-
-    // 每次挂上都用一份新的状态：库自己的 show() 挂在 sheetState 上，复用旧实例时不会再跑一遍，
-    // 第二次打开会停在屏幕外
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    LaunchedEffect(visible) {
-        if (!visible) {
-            // hide() 被取消（同一帧又被打开）时 mounted 也得留在 true，交给 finally 收尾
-            try {
-                sheetState.hide()
-            } finally {
-                mounted = false
-            }
-        }
-    }
-
-    val scope = rememberCoroutineScope()
-    // 内容里的按钮走这条：先把 sheet 收回去，再执行动作（通常是关状态 + 跳页面）
-    val dismissThen: (() -> Unit) -> Unit = { action ->
-        scope.launch {
-            sheetState.hide()
-            action()
-        }
-    }
+    // 动作即退场：内容里的按钮走这条（往常见的是「关状态 + 选一项 + 跳页面」）
+    val dismissThen: (() -> Unit) -> Unit = remember { { action -> action() } }
 
     CompositionLocalProvider(LocalSheetDismiss provides dismissThen) {
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            modifier = modifier,
-            sheetState = sheetState,
-            sheetGesturesEnabled = sheetGesturesEnabled,
-            shape = shape,
+        EnhancedModalBottomSheet(
+            visible = visible,
+            // 引擎的 onDismiss 是「可见性变了」，true 不是请求关闭，忽略掉：
+            // 调用方自己握着那个布尔，这里只把关闭请求转回去
+            onDismiss = { shown -> if (!shown) onDismissRequest() },
             containerColor = containerColor,
+            modifier = modifier,
+            // sheetGesturesEnabled=false 时引擎会拒掉手势与遮罩的隐藏请求，只剩代码里翻布尔这一条路
+            cancelable = sheetGesturesEnabled,
+            // dragHandle 可空：传空时画成空的拖拽条，与原来 `dragHandle = null` 的观感一致
+            dragHandle = { dragHandle?.invoke() },
+            shape = shape,
             contentColor = contentColor,
-            tonalElevation = tonalElevation,
             scrimColor = scrimColor,
-            dragHandle = dragHandle,
-            contentWindowInsets = contentWindowInsets,
-            content = content,
+            // 内容自己补 inset：引擎的抽屉贴在屏幕最底，只给确认栏加了 navigationBarsPadding，
+            // 内容那一层不带；M3 的 ModalBottomSheet 是靠 contentWindowInsets 把内容顶到导航栏之上的。
+            // 顶端不补：引擎已经在抽屉表面加了 statusBarsPadding，再补一次会叠出双倍空隙
+            sheetContent = {
+                Column(
+                    modifier = Modifier.windowInsetsPadding(
+                        contentWindowInsets().only(
+                            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                        )
+                    )
+                ) {
+                    content()
+                }
+            },
         )
     }
 }
+
+/*
+ * 这里只登一个没映射过来的参数：
+ * tonalElevation —— 引擎内部固定 elevation = 0.dp，抽屉靠描边与底色分层，不吃点阴影。
+ * 本仓库的调用点没有传过它，签名保留是为了调用方零改动。
+ * contentWindowInsets 有映射，见上面 content 那层 Column：底与水平方向补 inset，顶端交给引擎的 statusBarsPadding。
+ */

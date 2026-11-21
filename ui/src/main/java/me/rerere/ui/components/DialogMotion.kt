@@ -3,7 +3,6 @@ package me.rerere.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -23,6 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedAlertDialog
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -52,7 +52,7 @@ private val DialogSlideDistance = 24.dp
 /**
  * 一个弹窗的进场/退场状态。
  *
- * 进场在第一次组合时自己跑完，不要调用方传可见性——`if (show) AlertDialog(...)` 这种写法里，
+ * 进场在第一次组合时自己跑完，不要调用方传可见性——`if (show) AnimatedAlertDialog(...)` 这种写法里，
  * 弹窗一被组合就该出现，这里接住那一下。
  */
 private class DialogMotion(
@@ -135,10 +135,20 @@ private fun Modifier.dialogSlideLayer(motion: DialogMotion): Modifier = this
     }
 
 /**
- * M3 [AlertDialog] 的滑入滑出版本，参数与原来一一对应，调用处改一下函数名和 import 就行。
+ * M3 [androidx.compose.material3.AlertDialog] 的滑入滑出版本，参数与原来一一对应，
+ * 调用处改一下函数名和 import 就行。引擎换成 [EnhancedAlertDialog]。
  *
- * [modifier] 会落到 AlertDialog 内部那层铺满窗口内容区的 Box 上（M3 的约定），
- * 因此位移作用的是整块内容而不是背景遮罩——遮罩仍然由窗口自己淡入。
+ * 进出场的曲线仍然由 [LocalDialogEnterSpec] / [LocalDialogExitSpec] 决定：引擎自带的那层
+ * 淡入 + 缩放是它自己的身份（固定 300ms，参数化不了），而这层 graphicsLayer 的位移与透明度
+ * 走的是主题下发的档位——两者叠在一起，档位这一条仍然说话算话。
+ *
+ * 退场全归这边：引擎只在 `visible` 翻成 false 时才自己演退场，而这里从头到尾传 `visible = true`，
+ * 弹窗的拆装由调用方的 `if (show)` 决定。所以 [LocalDialogDismiss] 的「先播退场再执行动作」
+ * 还是原来那一份实现，一行都没改。
+ *
+ * [properties] 装不进引擎：`BasicEnhancedAlertDialog` 只留了 `dismissOnClickOutside` 这一个口子，
+ * 返回键由它的 predictive back 兜，`securePolicy` / `usePlatformDefaultWidth` 没有对应项。
+ * 本仓库的调用点没有传过 `properties`，签名保留是为了调用方零改动。
  */
 @Composable
 fun AnimatedAlertDialog(
@@ -153,15 +163,19 @@ fun AnimatedAlertDialog(
 ) {
     val motion = rememberDialogMotion(onDismissRequest)
     CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
-        AlertDialog(
+        EnhancedAlertDialog(
+            // 恒为 true：false 会让引擎演一遍自己的退场，然后把弹窗留在组合里继续拦输入。
+            // 这个组件的存活期本来就等于调用方那个布尔，退场交给下面这层自己演。
+            visible = true,
             onDismissRequest = motion.requestDismiss,
             confirmButton = confirmButton,
+            // 引擎把 modifier 落在卡片那层 Surface 上（不再是整块内容区的 Box），
+            // 位移和透明度作用的是卡片本身，遮罩仍旧由引擎淡入
             modifier = modifier.dialogSlideLayer(motion),
             dismissButton = dismissButton,
             icon = icon,
             title = title,
             text = text,
-            properties = properties,
         )
     }
 }
@@ -169,6 +183,9 @@ fun AnimatedAlertDialog(
 /**
  * M3 [BasicAlertDialog] 的滑入滑出版本，给自带容器、只借一个窗口的那些弹窗用。
  * 参数与 [BasicAlertDialog] 一致。
+ *
+ * 这一步没换引擎：它借的是「一个空窗口」，引擎那边对应的是 [com.t8rin.modalsheet.FullscreenPopup]，
+ * 换过去等于把调用方的自绘容器塞进全屏浮层，布局语义会变。高频对话框（本阶段的三个组件）不包含它。
  */
 @Composable
 fun AnimatedBasicAlertDialog(
@@ -194,6 +211,9 @@ fun AnimatedBasicAlertDialog(
  * 内容自己画、可能撑满整屏的那些（图片预览、扫码、终端）走这里。
  * 外面这层 Box 不加任何尺寸约束，只把内容原样量一遍再原样交给窗口，
  * 所以窗口大小仍旧由内容决定，和直接用 [Dialog] 一样。
+ *
+ * 同样没有换引擎：这些内容要的是「真正的窗口」（整屏、自己的输入法/安全策略），
+ * 引擎的浮层是贴在 decorView 上的一块 View，不是同一件事。
  */
 @Composable
 fun AnimatedDialog(
