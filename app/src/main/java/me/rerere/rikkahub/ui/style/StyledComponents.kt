@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.ui.style
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
@@ -21,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.RadioButtonColors
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.SwitchColors
@@ -28,16 +32,30 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedButton
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedIconButton
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedTopAppBar
+import com.t8rin.toolbox.ui.widget.modifier.container
 import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
 
 /**
- * 组件的统一入口：直接转发 Material，调用点只需把 `androidx.compose.material3.X` 的 import 换成这里。
- * 包着这一层是为了让整棵树的按钮、卡片、开关都从这里进来，换实现只改这里。
+ * 组件的统一入口：按钮、卡片、顶栏都从这一层进来，调用点只认这里的签名，换实现只改这里。
+ *
+ * 内部实现：能无损映射的走 ImageToolbox 的 Enhanced 引擎（[EnhancedButton]、
+ * [EnhancedIconButton]、[EnhancedTopAppBar]、[container]），映射不了或者会明显改变观感的
+ * 保留 Material 转发，理由写在各函数上。公开参数一个都没改，调用方一行不用动。
+ *
+ * 形状（CornerStyle/cornerScale）已经在 [me.rerere.rikkahub.ui.theme.RikkahubTheme] 里算进
+ * MaterialTheme.shapes，所以带 shape 参数的包装照传即可，别让引擎的 AutoCircleShape 顶掉；
+ * 不带 shape 参数的（IconButton 一族）交给引擎从 LocalToolboxSettings.shapesType 读。
  */
 @Composable
 fun Button(
@@ -52,20 +70,33 @@ fun Button(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    androidx.compose.material3.Button(
+    // elevation：M3 的 ButtonElevation 是随交互查表的函数，引擎没有对应入口
+    // （阴影只认 ToolboxSettings.drawButtonShadows，现阶段 false），这里忽略；
+    // 启用态的底色/文字色照传，禁用态由引擎自己算（onSurface 12%/38%），与 M3 填充按钮一致
+    EnhancedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        // 引擎的描边宽度只从 ToolboxSettings.borderWidth 读（现阶段 0.dp），这里只能保住颜色；
+        // 没描边的调用点给 Transparent，别让 0.dp 那圈 hairline 冒出来
+        borderColor = border?.color ?: Color.Transparent,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
         content = content,
     )
 }
 
+/**
+ * 保留 Material 转发。
+ *
+ * [EnhancedButton] 没有 disabledContainerColor 这类入口：禁用时它自己铺一层 onSurface 12%
+ * 的底色。填充按钮本来就是这个禁用色，文本按钮不是——文本按钮禁用时应当全透明。换过去会让
+ * 每个加载中的「取消」「确定」多出一块灰底。需要底色的文本按钮另有专门实现
+ * （ui/components/ui/shadow/ShadowButtons.kt），不必在这里兼着。
+ */
 @Composable
 fun TextButton(
     onClick: () -> Unit,
@@ -93,6 +124,13 @@ fun TextButton(
     )
 }
 
+/**
+ * 保留 Material 转发。
+ *
+ * 描边是描边按钮的全部身份，而 [EnhancedButton] 的描边宽度写死从 ToolboxSettings.borderWidth
+ * 读（现阶段 0.dp），只开放颜色。换过去等于把描边按钮变成文字按钮，属明显观感退化。
+ * 等阶段 5 把描边体系接进设置，再回来换成 EnhancedButton（那时 border 用 defaults 里的颜色）。
+ */
 @Composable
 fun OutlinedButton(
     onClick: () -> Unit,
@@ -133,16 +171,17 @@ fun FilledTonalButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    androidx.compose.material3.FilledTonalButton(
+    // 与 Button 同一套映射：elevation 引擎接不住（现阶段阴影全关），描边只能保颜色
+    EnhancedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        borderColor = border?.color ?: Color.Transparent,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
         content = content,
     )
 }
@@ -156,12 +195,19 @@ fun IconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    androidx.compose.material3.IconButton(
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    // M3 的 IconButton 是透明的：容器色原样传（默认 Transparent），禁用色引擎有专门入口，
+    // 能无损映射（引擎默认会画的描边现在没有宽度，颜色给 Transparent 压掉）
+    EnhancedIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        colors = colors,
-        interactionSource = interactionSource,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        disabledContainerColor = colors.containerColor(enabled = false),
+        disabledContentColor = colors.contentColor(enabled = false),
+        borderColor = Color.Transparent,
+        interactionSource = resolvedInteractionSource,
         content = content,
     )
 }
@@ -176,13 +222,19 @@ fun FilledIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    androidx.compose.material3.FilledIconButton(
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    // 形状照传（M3 默认是圆），别让引擎的 AutoCircleShape 把 FilledIconButton 的圆改成跟随 CornerStyle
+    EnhancedIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        disabledContainerColor = colors.containerColor(enabled = false),
+        disabledContentColor = colors.contentColor(enabled = false),
+        borderColor = Color.Transparent,
         shape = shape,
-        colors = colors,
-        interactionSource = interactionSource,
+        interactionSource = resolvedInteractionSource,
         content = content,
     )
 }
@@ -197,13 +249,18 @@ fun FilledTonalIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    androidx.compose.material3.FilledTonalIconButton(
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    EnhancedIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        disabledContainerColor = colors.containerColor(enabled = false),
+        disabledContentColor = colors.contentColor(enabled = false),
+        borderColor = Color.Transparent,
         shape = shape,
-        colors = colors,
-        interactionSource = interactionSource,
+        interactionSource = resolvedInteractionSource,
         content = content,
     )
 }
@@ -217,7 +274,18 @@ fun Card(
     border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.material3.Card(modifier, shape, colors, elevation, border, content)
+    CardContainer(
+        modifier = modifier,
+        shape = shape,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        border = border,
+        interactionSource = null,
+        enabled = true,
+        onClick = null,
+        content = content,
+    )
 }
 
 @Composable
@@ -232,15 +300,16 @@ fun Card(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.material3.Card(
-        onClick = onClick,
+    CardContainer(
         modifier = modifier,
-        enabled = enabled,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
+        containerColor = colors.containerColor(enabled = enabled),
+        contentColor = colors.contentColor(enabled = enabled),
+        shadowElevation = elevation.shadowElevation(enabled, interactionSource).value,
         border = border,
         interactionSource = interactionSource,
+        enabled = enabled,
+        onClick = onClick,
         content = content,
     )
 }
@@ -254,7 +323,18 @@ fun OutlinedCard(
     border: BorderStroke = CardDefaults.outlinedCardBorder(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.material3.OutlinedCard(modifier, shape, colors, elevation, border, content)
+    CardContainer(
+        modifier = modifier,
+        shape = shape,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        border = border,
+        interactionSource = null,
+        enabled = true,
+        onClick = null,
+        content = content,
+    )
 }
 
 @Composable
@@ -269,15 +349,16 @@ fun OutlinedCard(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.material3.OutlinedCard(
-        onClick = onClick,
+    CardContainer(
         modifier = modifier,
-        enabled = enabled,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
+        containerColor = colors.containerColor(enabled = enabled),
+        contentColor = colors.contentColor(enabled = enabled),
+        shadowElevation = elevation.shadowElevation(enabled, interactionSource).value,
         border = border,
         interactionSource = interactionSource,
+        enabled = enabled,
+        onClick = onClick,
         content = content,
     )
 }
@@ -290,7 +371,73 @@ fun ElevatedCard(
     elevation: CardElevation = CardDefaults.elevatedCardElevation(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    androidx.compose.material3.ElevatedCard(modifier, shape, colors, elevation, content)
+    CardContainer(
+        modifier = modifier,
+        shape = shape,
+        containerColor = colors.containerColor(enabled = true),
+        contentColor = colors.contentColor(enabled = true),
+        shadowElevation = elevation.shadowElevation(enabled = true, interactionSource = null).value,
+        border = null,
+        interactionSource = null,
+        enabled = true,
+        onClick = null,
+        content = content,
+    )
+}
+
+/**
+ * 三个 Card 的共同实现：底色/形状/描边/阴影走引擎的 [container]，内容用 Column 排。
+ *
+ * M3 的 Card 是 Surface + Column，这里对齐它的几个可见行为：内容色经 LocalContentColor 下发；
+ * 不可点的卡片用空 pointerInput 吞掉点击（M3 Surface 的做法，卡片下面的可点击区域不该被穿透）。
+ * 描边宽度能完整保住——[container] 要的是 borderWidth/borderColor，不像按钮那样只收颜色。
+ */
+@Composable
+private fun CardContainer(
+    modifier: Modifier,
+    shape: Shape,
+    containerColor: Color,
+    contentColor: Color,
+    shadowElevation: Dp,
+    border: BorderStroke?,
+    interactionSource: MutableInteractionSource?,
+    enabled: Boolean,
+    onClick: (() -> Unit)?,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val indication = LocalIndication.current
+    CompositionLocalProvider(LocalContentColor provides contentColor) {
+        Column(
+            modifier = modifier
+                .container(
+                    shape = shape,
+                    color = containerColor,
+                    // M3 的 Card 没有内边距；引擎默认那 4.dp 是给阴影留的余量，卡片不能要
+                    resultPadding = 0.dp,
+                    borderWidth = border?.width ?: 0.dp,
+                    borderColor = border?.color,
+                    // 阴影是否真的画由 ToolboxSettings.drawContainerShadows 定（现阶段 false）；
+                    // 照样把 M3 的 elevation 传下去，阶段 5 打开开关就直接生效
+                    autoShadowElevation = shadowElevation,
+                    // 玻璃卡/半透明底色原样保留，别在引擎里合成到底色上
+                    composeColorOnTopOfBackground = false,
+                )
+                .then(
+                    if (onClick != null) {
+                        // 没有额外触感反馈：M3 的 Surface(onClick) 本来也不发，行为与改动前一致
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = indication,
+                            enabled = enabled,
+                            onClick = onClick,
+                        )
+                    } else {
+                        Modifier.pointerInput(Unit) {}
+                    }
+                ),
+            content = content,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -305,12 +452,15 @@ fun TopAppBar(
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
-    androidx.compose.material3.TopAppBar(
+    // expandedHeight：引擎的 EnhancedTopAppBar 只有 Normal/Center/Medium/Large 四档，
+    // 接不住逐 dp 的高度。M3 自己的默认值就是 64.dp，21 个调用点全用默认，忽略。
+    // 底部分隔线/顶栏阴影由引擎按 ToolboxSettings.borderWidth / drawAppBarShadows 决定画不画
+    // （现阶段 0.dp / false），观感与原来的 M3 顶栏一致，所以那两个参数不必显式关。
+    EnhancedTopAppBar(
         title = title,
         modifier = modifier,
         navigationIcon = navigationIcon,
         actions = actions,
-        expandedHeight = expandedHeight,
         windowInsets = windowInsets,
         colors = colors,
         scrollBehavior = scrollBehavior,
