@@ -194,6 +194,13 @@ class WebDavSync(
         return file
     }
 
+    /** 导出给原版 RikkaHub 的整份 zip；内容按原版的取值降级，与本应用的备份格式设置无关 */
+    suspend fun prepareUpstreamCompatFile(items: List<WebDavConfig.BackupItem>): File =
+        backupManager.createUpstreamCompatBackup(
+            includeDatabase = WebDavConfig.BackupItem.DATABASE in items,
+            includeFiles = WebDavConfig.BackupItem.FILES in items,
+        )
+
     private suspend fun restoreFromBackupFile(
         backupFile: File,
         options: RestoreOptions,

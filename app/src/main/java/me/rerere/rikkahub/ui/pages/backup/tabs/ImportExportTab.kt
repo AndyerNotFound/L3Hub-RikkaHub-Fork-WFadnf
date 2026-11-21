@@ -109,6 +109,37 @@ fun ImportExportTab(
         }
     }
 
+    // 原版兼容包单独一个 launcher：内容按原版的取值降级，与上面的备份格式设置无关
+    val upstreamCompatLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        uri?.let { targetUri ->
+            scope.launch {
+                isExporting = true
+                runCatching {
+                    val exportFile = vm.exportUpstreamCompat()
+                    context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
+                        FileInputStream(exportFile).use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    exportFile.delete()
+                    toaster.show(
+                        context.getString(R.string.backup_page_backup_success),
+                        type = ToastType.Success
+                    )
+                }.onFailure { e ->
+                    e.printStackTrace()
+                    toaster.show(
+                        context.getString(R.string.backup_page_export_failed, e.message ?: ""),
+                        type = ToastType.Error
+                    )
+                }
+                isExporting = false
+            }
+        }
+    }
+
     // 创建文件选择的launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -328,6 +359,19 @@ fun ImportExportTab(
                 leadingContent = {
                     BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "local")
                 },
+            )
+
+            item(
+                onClick = if (!isExporting) {
+                    {
+                        val timestamp = LocalDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                        upstreamCompatLauncher.launch("rikkahub_upstream_$timestamp.zip")
+                    }
+                } else null,
+                headlineContent = { Text(stringResource(R.string.backup_page_upstream_export)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_upstream_export_desc)) },
+                leadingContent = { BackupActionIcon(HugeIcons.FileExport, loading = isExporting) },
             )
         }
 

@@ -9,10 +9,19 @@ import java.io.File
  * 换了 applicationId 之后，这些路径指向原应用的私有目录，新应用没有读权限，
  * 于是头像、背景图和聊天附件全部显示不出来——文件本身其实已经解包到了同样的相对位置。
  * 恢复时把前缀统一改写成当前应用的 filesDir。
+ *
+ * 只认 RikkaHub 家族的包名：`/data/data/com.termux/files/...` 这类别的应用路径形状完全一样，
+ * 按通配包名改写会把消息正文里的路径一起改掉。
  */
 internal object BackupPaths {
+    private const val RIKKAHUB_PACKAGES =
+        "me\\.rerere\\.rikkahub|com\\.rikkahub\\.l3hub\\.wfadnf|com\\.rikkahub\\.fork"
+    private const val RIKKAHUB_SUFFIX = "(?:\\.(?:debug|canary|beta|prerelease))?"
+
     /** 同时覆盖 `file://` URI 和裸路径(字体只存路径)，兼容 /data/user/N 与 /data/data 两种写法 */
-    private val FILES_PREFIX = Regex("""(file://)?/data/(?:user/\d+|data)/[^/"]+/files/""")
+    private val FILES_PREFIX = Regex(
+        """(file://)?/data/(?:user/\d+|data)/(?:$RIKKAHUB_PACKAGES)$RIKKAHUB_SUFFIX/files/"""
+    )
 
     /** 一次恢复里出现的不同来源包名不会太多，留点余量防止反复扫描 */
     private const val MAX_PREFIXES = 4

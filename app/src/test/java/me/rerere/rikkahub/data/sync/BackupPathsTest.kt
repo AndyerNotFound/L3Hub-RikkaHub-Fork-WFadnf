@@ -40,6 +40,20 @@ class BackupPathsTest {
     }
 
     @Test
+    fun `keeps other apps data paths untouched`() {
+        val text = """/data/data/com.termux/files/usr/bin/bash"""
+        assertEquals(text, BackupPaths.rewrite(text, filesDir))
+    }
+
+    @Test
+    fun `rewrites the old fork package`() {
+        assertEquals(
+            "/data/user/0/com.rikkahub.l3hub.wfadnf/files/upload/a.jpg",
+            BackupPaths.rewrite("/data/data/com.rikkahub.fork.debug/files/upload/a.jpg", filesDir),
+        )
+    }
+
+    @Test
     fun `rewriting is idempotent`() {
         val once = BackupPaths.rewrite("file:///data/user/0/me.rerere.rikkahub/files/upload/a.png", filesDir)
         assertEquals(once, BackupPaths.rewrite(once, filesDir))

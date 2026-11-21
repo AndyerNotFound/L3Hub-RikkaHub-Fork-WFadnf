@@ -113,6 +113,9 @@ class BackupVM(
         return file
     }
 
+    /** 导出原版 RikkaHub 能直接恢复的整份 zip；不记为一次常规备份 */
+    suspend fun exportUpstreamCompat(): File = webDavSync.prepareUpstreamCompatFile(localBackupItems.value)
+
     /** 默认走增量（.l3b）；用户在数据备份页切到「全量」时仍按旧 zip 打包 */
     fun incrementalBackup(): Boolean = settings.value.backupFormat != BACKUP_FORMAT_FULL
 

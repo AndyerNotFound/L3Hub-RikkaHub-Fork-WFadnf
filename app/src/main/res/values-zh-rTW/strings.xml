@@ -171,6 +171,8 @@
   <string name="backup_page_delete_failed">刪除失敗: %s</string>
   <string name="backup_page_delete_success">刪除成功</string>
   <string name="backup_page_export_desc">導出APP數據為檔案</string>
+  <string name="backup_page_upstream_export">匯出為原版 RikkaHub 相容包</string>
+  <string name="backup_page_upstream_export_desc">產生原版 3.3.0 能還原的 zip；OCR 模型、本地推論 provider 等原版讀不懂的項目會被移除</string>
   <string name="backup_page_exporting">正在導出...</string>
   <string name="backup_page_export_failed">匯出失敗: %s</string>
   <string name="backup_page_files">檔案</string>

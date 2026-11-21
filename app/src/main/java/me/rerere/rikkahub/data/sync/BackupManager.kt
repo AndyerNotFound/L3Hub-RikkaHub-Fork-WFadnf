@@ -135,6 +135,43 @@ class BackupManager(
     }
 
     /**
+     * 打一份原版 RikkaHub 能直接恢复的整份 zip。
+     *
+     * 与 [createBackup] 的区别只在内容：设置按原版的取值降级、库改成原版认识的版本、附件只收原版
+     * 白名单里的目录。恢复流程本身在对方应用里走，这里不产生任何待安装状态。
+     */
+    suspend fun createUpstreamCompatBackup(
+        includeDatabase: Boolean,
+        includeFiles: Boolean,
+    ): File = withContext(Dispatchers.IO) {
+        val archive = File.createTempFile("rikkahub_upstream_", ".zip", context.cacheDir)
+        val staging = Files.createTempDirectory(context.cacheDir.toPath(), "upstream-").toFile()
+        try {
+            ZipOutputStream(FileOutputStream(archive)).use { zip ->
+                addText(zip, BundleFormat.ENTRY_SETTINGS, UpstreamCompat.downgradeSettings(settingsJson()))
+                if (includeDatabase) {
+                    val snapshot = File(staging, SQLiteConfiguration.DATABASE_NAME)
+                    DatabaseBackup.createSnapshot(database.openHelper.writableDatabase, snapshot)
+                    UpstreamCompat.downgradeDatabase(context, snapshot)
+                    addFile(zip, snapshot, BundleFormat.ENTRY_DATABASE)
+                }
+                if (includeFiles) {
+                    for ((path, file) in attachmentFiles(UpstreamCompat.ATTACHMENT_FOLDERS)) {
+                        currentCoroutineContext().ensureActive()
+                        addFile(zip, file, path)
+                    }
+                }
+            }
+            archive
+        } catch (e: Throwable) {
+            archive.delete()
+            throw e
+        } finally {
+            staging.deleteRecursively()
+        }
+    }
+
+    /**
      * 准备下一个备份层。
      *
      * 层里带什么完全由 [BundleRequest] 决定：base 层是整份（整库快照 + 全部附件 + 设置），delta 层
@@ -410,9 +447,9 @@ class BackupManager(
     }
 
     /** 白名单目录下可备份的附件，键是相对 filesDir 的路径 */
-    private fun attachmentFiles(): Map<String, File> {
+    private fun attachmentFiles(folders: List<String> = ATTACHMENT_FOLDERS): Map<String, File> {
         val map = LinkedHashMap<String, File>()
-        for (folder in ATTACHMENT_FOLDERS) {
+        for (folder in folders) {
             val directory = File(context.filesDir, folder)
             val files = backupFiles(directory, nested = folder in NESTED_ATTACHMENT_FOLDERS)
             for (file in files) {
