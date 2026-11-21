@@ -24,7 +24,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonArray
@@ -36,6 +35,9 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
+import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
+import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -282,6 +284,8 @@ private fun KeyText(key: String) {
 
 @Composable
 private fun ValueText(primitive: JsonPrimitive, onClick: (() -> Unit)? = null) {
+    // JSON token 三色跟随代码高亮配色（Atom One），与代码块渲染同源，不再各存一份 Darcula 色值
+    val palette = if (LocalDarkMode.current) AtomOneDarkPalette else AtomOneLightPalette
     val (text, color) = when {
         primitive.isString -> {
             val content = (primitive.contentOrNull ?: "")
@@ -289,15 +293,15 @@ private fun ValueText(primitive: JsonPrimitive, onClick: (() -> Unit)? = null) {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t")
-            "\"$content\"" to Color(0xFF6A8759)
+            "\"$content\"" to palette.string
         }
 
         primitive.booleanOrNull != null -> {
-            primitive.content to Color(0xFFCC7832)
+            primitive.content to palette.boolean
         }
 
         primitive.longOrNull != null || primitive.doubleOrNull != null -> {
-            primitive.content to Color(0xFF6897BB)
+            primitive.content to palette.number
         }
 
         else -> {
