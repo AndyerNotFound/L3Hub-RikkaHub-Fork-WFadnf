@@ -283,6 +283,7 @@ internal fun TurnDiffActions(
     }
 
     if (pendingDiscard != null) {
+        val dialogDismiss = LocalDialogDismiss.current
         val path = pendingDiscard!!
         AnimatedAlertDialog(
             onDismissRequest = { pendingDiscard = null },
@@ -306,13 +307,13 @@ internal fun TurnDiffActions(
                                 reload()
                             }
                         }
-                        LocalDialogDismiss.current?.invoke(action) ?: action()
+                        dialogDismiss?.invoke { action() } ?: action()
                     },
                 ) { Text(stringResource(R.string.turn_diff_discard)) }
             },
             dismissButton = {
                 TextButton(
-                    onClick = { LocalDialogDismiss.current?.invoke({ pendingDiscard = null }) ?: run { pendingDiscard = null } },
+                    onClick = { dialogDismiss?.invoke({ pendingDiscard = null }) ?: run { pendingDiscard = null } },
                 ) { Text(stringResource(R.string.common_cancel)) }
             },
         )

@@ -197,6 +197,7 @@ class SafeModeActivity : ComponentActivity() {
                 }
 
                 pendingClearKey?.let { key ->
+                    val dialogDismiss = LocalDialogDismiss.current
                     AnimatedAlertDialog(
                         onDismissRequest = { pendingClearKey = null },
                         title = { Text("Clear ${storedFieldLabel(key)}?") },
@@ -220,7 +221,7 @@ class SafeModeActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-                                    LocalDialogDismiss.current?.invoke(action) ?: action()
+                                    dialogDismiss?.invoke { action() } ?: action()
                                 }
                             ) {
                                 Text("Clear", color = MaterialTheme.colorScheme.error)
@@ -228,7 +229,7 @@ class SafeModeActivity : ComponentActivity() {
                         },
                         dismissButton = {
                             TextButton(
-                                onClick = { LocalDialogDismiss.current?.invoke({ pendingClearKey = null }) ?: run { pendingClearKey = null } },
+                                onClick = { dialogDismiss?.invoke({ pendingClearKey = null }) ?: run { pendingClearKey = null } },
                             ) { Text("Cancel") }
                         },
                     )

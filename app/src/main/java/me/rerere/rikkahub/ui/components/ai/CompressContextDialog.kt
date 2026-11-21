@@ -61,6 +61,7 @@ fun CompressContextDialog(
         currentJob = null
     }
 
+    val dialogDismiss = LocalDialogDismiss.current
     AnimatedAlertDialog(
         onDismissRequest = {
             if (!isLoading) {
@@ -173,7 +174,7 @@ fun CompressContextDialog(
         },
         dismissButton = {
             if (!isLoading) {
-                TextButton(onClick = { LocalDialogDismiss.current?.invoke(onDismiss) ?: onDismiss() }) {
+                TextButton(onClick = { dialogDismiss?.invoke(onDismiss) ?: onDismiss() }) {
                     Text(stringResource(R.string.cancel))
                 }
             }

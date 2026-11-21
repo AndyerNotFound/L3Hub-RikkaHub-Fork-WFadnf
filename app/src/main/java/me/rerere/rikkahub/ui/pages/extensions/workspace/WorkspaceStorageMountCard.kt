@@ -189,6 +189,7 @@ private fun StorageMountDialog(
         if (picked != null) path = picked
     }
 
+    val dialogDismiss = LocalDialogDismiss.current
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -255,7 +256,7 @@ private fun StorageMountDialog(
                     } else {
                         // 先播退场再交回父级关闭，窗口不至于当场消失
                         val action = { onConfirm(WorkspaceStorageMount(path = target, writable = writable)) }
-                        LocalDialogDismiss.current?.invoke(action) ?: action()
+                        dialogDismiss?.invoke(action) ?: action()
                     }
                 },
                 enabled = pathError == null && !unavailable,
@@ -270,7 +271,7 @@ private fun StorageMountDialog(
                         Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = { LocalDialogDismiss.current?.invoke(onDismiss) ?: onDismiss() }) {
+                TextButton(onClick = { dialogDismiss?.invoke(onDismiss) ?: onDismiss() }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }

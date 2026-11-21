@@ -302,7 +302,7 @@ private class DampedDragAnimation(
 ) {
 
     private val valueAnimationSpec =
-        if (animationsEnabled) spring(1f, 1000f, visibilityThreshold) else snap(visibilityThreshold)
+        if (animationsEnabled) spring(1f, 1000f, visibilityThreshold) else snap()
     private val velocityAnimationSpec =
         if (animationsEnabled) spring(0.5f, 300f, visibilityThreshold * 10f) else snap()
     private val pressProgressAnimationSpec =

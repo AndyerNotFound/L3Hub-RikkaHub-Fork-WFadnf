@@ -78,7 +78,7 @@ fun OneUISwitch(
 
     val actualColors = colors.forConfig(enabled, checked)
 
-    val spec = rememberFixedSpec(animDuration)
+    val spec = rememberFixedSpec<Color>(animDuration)
     val thumbColor by animateColorAsState(
         targetValue = actualColors.thumb,
         label = "Switch thumb color",

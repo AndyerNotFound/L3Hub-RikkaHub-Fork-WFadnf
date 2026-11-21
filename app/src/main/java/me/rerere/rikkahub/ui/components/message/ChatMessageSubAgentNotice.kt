@@ -162,6 +162,7 @@ fun ChatMessageSubAgentNotice(
     }
 
     if (editing) {
+        val dialogDismiss = LocalDialogDismiss.current
         AnimatedAlertDialog(
             onDismissRequest = { editing = false },
             title = { Text(stringResource(R.string.chat_message_sub_agent_notice_edit_title)) },
@@ -182,7 +183,7 @@ fun ChatMessageSubAgentNotice(
                             editing = false
                             onEdit?.invoke(draft.trim())
                         }
-                        LocalDialogDismiss.current?.invoke(action) ?: action()
+                        dialogDismiss?.invoke(action) ?: action()
                     },
                     enabled = draft.isNotBlank(),
                 ) {
@@ -190,7 +191,7 @@ fun ChatMessageSubAgentNotice(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { LocalDialogDismiss.current?.invoke({ editing = false }) ?: run { editing = false } }) {
+                TextButton(onClick = { dialogDismiss?.invoke({ editing = false }) ?: run { editing = false } }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
