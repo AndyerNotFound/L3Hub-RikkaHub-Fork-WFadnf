@@ -82,6 +82,7 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.StackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.retainedComponent
 import com.arkivanov.essenty.backhandler.BackCallback
 import kotlinx.coroutines.launch
@@ -105,6 +106,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.context.RootNavigator
 import me.rerere.rikkahub.nav.DetailDestination
 import me.rerere.rikkahub.nav.NavChild
 import me.rerere.rikkahub.nav.RootComponent
@@ -678,5 +680,40 @@ private fun NavChildContent(child: NavChild) {
         CompositionLocalProvider(LocalViewModelStoreOwner provides child) {
             ScreenContent(screen)
         }
+    }
+}
+
+/**
+ * 横屏隐藏状态栏，让页面顶栏直接贴到屏幕顶边；回到竖屏再显示出来。
+ *
+ * 判据用窗口尺寸而不是 Configuration：Activity 的 configChanges 含 orientation，转屏不重建，
+ * 只能听测量结果。onResume 再补一次，转屏发生在后台时回来也能对上。
+ */
+@Composable
+private fun HideStatusBarInLandscape(landscape: Boolean) {
+    val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val controller = remember(view) {
+        view.context.getActivity()?.let { WindowCompat.getInsetsController(it.window, view) }
+    }
+    DisposableEffect(controller, lifecycleOwner, landscape) {
+        val applyBars = {
+            val bars = controller
+            if (bars != null) {
+                if (landscape) {
+                    bars.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    bars.hide(WindowInsetsCompat.Type.statusBars())
+                } else {
+                    bars.show(WindowInsetsCompat.Type.statusBars())
+                }
+            }
+        }
+        applyBars()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) applyBars()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }

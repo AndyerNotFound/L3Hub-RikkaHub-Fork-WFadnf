@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
  * `@Serializable` 的序列化名与 `Screen.serializer()` 的多态序列化照旧，
  * 各处 `import me.rerere.rikkahub.Screen` 不受影响。
  */
+@Serializable
 sealed interface Screen {
     @Serializable
     data class Chat(

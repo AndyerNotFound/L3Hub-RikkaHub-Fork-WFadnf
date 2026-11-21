@@ -30,11 +30,11 @@ class NavChild(
     val screen: Screen?,
 ) : ViewModelStoreOwner {
 
-    private val store: ViewModelStore =
+    private val storeInstance: ViewModelStoreInstance =
         context.instanceKeeper.getOrCreate(VIEW_MODEL_STORE_KEY) { ViewModelStoreInstance() }
 
     override val viewModelStore: ViewModelStore
-        get() = store
+        get() = storeInstance.store
 
     /** essenty 的 Instance 回调：child 出栈销毁时清掉全部 ViewModel（onCleared 会触发） */
     private class ViewModelStoreInstance : InstanceKeeper.Instance {

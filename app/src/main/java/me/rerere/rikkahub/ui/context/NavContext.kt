@@ -36,7 +36,7 @@ class RootNavigator(private val root: RootComponent) : Navigator {
     private val rootTopIsSection: Boolean
         get() = root.childStack.value.active.configuration.isSettingSectionPage()
 
-    override fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit = {}) {
+    override fun navigate(screen: Screen, builder: NavigateOptionsBuilder.() -> Unit) {
         val options = NavigateOptionsBuilder().apply(builder)
 
         if (options.popUpToScreen != null) {
