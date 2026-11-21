@@ -206,8 +206,10 @@ class HeroStackAnimation<C : Any, T : Any>(
                     scaleOut(scaleSpec, targetScale = PAGE_SCALE)
         }
 
+        // 初始可见性只在该 key 首次进组合时生效：
+        // 进场页从不可见起步（enter 才播得出来），COVERED / EXIT 本来就在屏上
         val visible = remember(item.key) {
-            MutableTransitionState(item.mode != Mode.EXIT).apply {
+            MutableTransitionState(item.mode != Mode.ENTER).apply {
                 targetState = item.mode != Mode.EXIT
             }
         }
