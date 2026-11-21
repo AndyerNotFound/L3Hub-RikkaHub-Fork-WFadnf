@@ -30,7 +30,8 @@ val HeroSourceCorner = 20.dp
 /**
  * 这一页是不是「被弹出离场」。
  *
- * 由 `rememberNavInteractionDecorator()` 提供：离场且已经不在返回栈里。被新页盖住的那一页仍是
+ * 由 `rememberAppNavEntryDecorators()` 里的离场标记提供：离场且已经不在返回栈里。
+ * 被新页盖住的那一页仍是
  * false —— 它得留着页内共享元素源那一半，否则进场的元素动画没有东西可配。
  */
 val LocalNavEntryPopped = compositionLocalOf { false }

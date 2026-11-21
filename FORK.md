@@ -249,10 +249,8 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 ## 侧边栏改版（fork）
 
-- 手势跟手且不掉帧：收起状态只认从左边缘起手的右滑，展开后左滑收起；拖动时抽屉跟着手指走，
-  松手时位移过半或甩动速度够格（350dp/s），就从手指停下的位置继续播完开/关动画，点击外侧与返回键照旧收起
-- 抽屉位置只写进一个只被绘制阶段读取的 `offset`：拖动和动画的每一帧只更新 `graphicsLayer` 平移，
-  只重绘、不重新测量、不触发重组，抽屉里再重的列表也不会跟着重新布局
+- 抽屉开关走 Material 的 `ModalNavigationDrawer` 与 `DrawerState`：边缘手势、拖拽仲裁、遮罩与收放曲线
+  全部由 MD3 和当前 `motionScheme` 决定，点击外侧与返回键收起
 - 抽屉内容不再订阅流式会话，只拿当前会话 id，生成中不会跟着每个 token 重组
 - 抽屉底部改为 ChatGPT 风格：左侧大胶囊「新聊天」，右侧用户头像；头像点击进入设置，并带一段从抽屉飞向页面顶部的过渡动画
 - 顶部用户信息（头像/昵称/问候）移除，昵称和头像改到「设置 → 偏好设置 → 通用 → 个人资料」；设置首页顶部改为紧凑标题栏 + 居中大头像，飞行动画正好落在这里
@@ -544,17 +542,14 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 避免「整页收回条目 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
 `HeroPage`；`Screen.Setting` 与 `Screen.MediaCreation` 的既有例外保持不变。
 
-转场期间离场页仍会留在 `AnimatedContent` 里。`ui/hooks/NavInputGuard.kt` 给目标状态不是 Visible 的
-entry 盖一层指针守卫，在 Initial 阶段消费输入，防止看不见或正在离开的页面继续响应点击。该层是吞掉事件，
-不是把事件透给下一页。
+转场期间离场页仍会留在 `AnimatedContent` 里，导航层不干预它的指针输入，与上游一致。离场页继续吃点击是
+navigation3 1.2 的既有行为，需要时由页面自行处理，不要另建一层全局指针守卫。
 
-返回仍由 `ui/context/NavContext.kt` 统一判定：同帧重复 pop 去重；进场中按返回进入 `pendingPops`，
-由 `RouteActivity` 的常驻 `drainPendingPops()` 在转场落定后逐层出栈；预测性 seek 正倒向下一层时则立即出栈，
-让手势顺势收尾。`navigate` / `clearAndNavigate` 清空排队，避免旧返回弹掉新页面。
+返回由 `ui/context/NavContext.kt` 直接出栈：与上游同口径，`popBackStack()` 只做「栈深大于 1 就弹一层」，
+不做去重窗口、不排队等待转场落定、不区分预测性 seek。快速连按返回与转场中途返回都按栈的真实状态执行。
 
-转场状态按 `NavEntry.contentKey` 分页记录：`NavTransitionReport` 读取的是各 entry 自己的子转场，
-同一段动画里离场页与露出页可以处于不同状态，不能共用一个布尔值互相覆盖。entry 销毁时删除自己的记录；
-150ms / 1200ms 两处等待上限仅作兜底，防止关闭动效或状态缺失时永久卡住返回。
+`ui/navigation/NavTransitions.kt` 里只剩一处装饰器：`NavEntryPoppedDecorator` 给「离场且已不在返回栈」的
+entry 提供 `LocalNavEntryPopped`，供 `heroAnimation` 摘掉页内共享元素。它只读栈内容，不写导航状态。
 
 动画曲线继续取 `ui/theme/MotionSpecs.kt` 与当前 MD3 motionScheme。不要为「统一」把页面弹簧改成另一套
  tween；关闭动效时仍由主题统一切到 snap。带模糊的滚动交换使用 `rememberMotionBlurSpec()`，跟随偏好设置里的
@@ -571,11 +566,10 @@ composable 内容作为参数传入即可。
 | 文件 | 职责 |
 |---|---|
 | `Screen.kt` | 路由身份与序列化声明 |
-| `RouteActivity.kt` | 入口清单、三列装配、常驻排队返回消费端 |
-| `ui/navigation/NavTransitions.kt` | 两列共用的进场、返回、预测性返回规格与装饰器入口 |
+| `RouteActivity.kt` | 入口清单、三列装配 |
+| `ui/navigation/NavTransitions.kt` | 两列共用的进场、返回、预测性返回规格与离场标记装饰器 |
 | `ui/hooks/HeroAnimation.kt` | 进场共享元素与返回摘除 |
-| `ui/hooks/NavInputGuard.kt` | 离场页输入拦截、按 entry 回报转场状态 |
-| `ui/context/NavContext.kt` | 栈操作、返回排队与超时兜底 |
+| `ui/context/NavContext.kt` | 栈操作与只读栈视图 |
 | `ui/components/ui/CardGroup.kt` | 条件项注册、统一收放与原生/Miuix 条目布局 |
 
 ## 模型编辑页（fork 新增）

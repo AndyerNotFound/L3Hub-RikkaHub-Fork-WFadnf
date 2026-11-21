@@ -480,13 +480,8 @@ class RouteActivity : ComponentActivity() {
         }
 
         SharedTransitionLayout {
-            // 每次重组新建一个 Navigator 会把防抖窗口和栈操作的节流全清掉，
-            // 而且 Local 的值一直在变，读它的页面会跟着整片重组
+            // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只按栈造一次
             val navigator = remember(backStack) { Navigator(backStack) }
-            // 排队返回的常驻消费端：转场中按下的返回等这一段演完再出栈。
-            // 直接出栈会被 nav3 当成打断进场重定向，进场参数按 content 缓存，
-            // 上一页会拿旧参数重播一遍进场并且盖在离场页上面。
-            LaunchedEffect(navigator) { navigator.drainPendingPops() }
             CompositionLocalProvider(
                 LocalNavController provides navigator,
                 LocalSharedTransitionScope provides this,
@@ -631,9 +626,8 @@ class RouteActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .width(middleColumnWidth)
                                     .fillMaxHeight(),
-                                // 走 Navigator 而不是直接改 backStack：系统返回键也走同一套判断。
-                                // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
-                                // 等这一段演完再出栈，不吃掉也不重定向
+                                // 走 Navigator 而不是直接改 backStack：栈深判断只有一处实现，
+                                // 系统返回键与手势返回都落到同一行 popBackStack()
                                 onBack = { navController.popBackStack() },
                                 // 规格与右列同源：容器变换页收回条目、滑入页原路滑出、预测性返回同参
                                 transitionSpec = navTransitionSpecs.enter,

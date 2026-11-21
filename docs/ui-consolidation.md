@@ -11,7 +11,7 @@ architecture contract, not a verification report. Build and test results belong 
 | Route registration | `appNavEntries()` in `RouteActivity.kt` | Both navigation panes use the same remembered entry provider. |
 | Page transitions | `ui/navigation/NavTransitions.kt` | Both panes share one specification. Predictive pop returns the same specification as ordinary pop. |
 | Back-stack operations | `ui/context/NavContext.kt` | New navigation code goes through `Navigator`; do not add a parallel back-stack policy. |
-| Transition reporting and input guards | `ui/hooks/NavInputGuard.kt` | Transition state is tracked per entry and removed when that entry is disposed. |
+| Departure marker | `ui/navigation/NavTransitions.kt` | The only entry decorator marks an entry that is leaving and already popped. It reads the back stack and never writes navigation state. |
 | Motion parameters | `ui/theme/MotionSpecs.kt` | Use the active MD3 motion scheme and existing animation settings; do not add isolated timing tables. |
 | Expand/collapse motion | `ui/modifier/MotionBlur.kt` | Enter and exit use matching parameters. Do not build another blur pipeline for the same behavior. |
 | MD3/Miuix component routing | `ui/style/StyledComponents.kt` | Shared visual components live in `ui.style`, not in the terminal UI package. |

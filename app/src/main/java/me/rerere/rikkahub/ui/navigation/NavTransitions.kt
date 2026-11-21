@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
@@ -9,19 +10,25 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.hooks.rememberNavInteractionDecorator
+import me.rerere.rikkahub.ui.hooks.LocalNavEntryPopped
 import me.rerere.rikkahub.ui.hooks.usesContainerTransform
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
@@ -107,8 +114,42 @@ fun rememberNavTransitionSpecs(): NavTransitionSpecs {
 }
 
 /**
+ * 告诉页面「自己正被弹出离场」。
+ *
+ * 只有一件事要知道：被弹出的那一页不再配对页内共享元素（见 [LocalNavEntryPopped]）。导航
+ * 语义一点不碰——出栈规则全在 [Navigator] 里，这里只读栈内容来判断走的是「被新页盖住」还是
+ * 「被弹出」。
+ */
+@Composable
+private fun <T : Any> NavEntryPoppedDecorator(navigator: Navigator, entry: NavEntry<T>) {
+    val leaving = LocalNavAnimatedContentScope.current.transition.targetState != EnterExitState.Visible
+    val popped = leaving && !isInBackStack(navigator, entry)
+    // 必须自己撑满：这一层如果按内容包裹，父级给的是 0..max 的约束，
+    // 页面里那些 fillMaxSize 的子节点会跟着缩
+    Box(modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalNavEntryPopped provides popped) {
+            entry.Content()
+        }
+    }
+}
+
+/**
+ * 这一页现在还在返回栈里吗。
+ *
+ * 离场那一页还在栈里 = 只是被新页盖住；不在栈里 = 被弹出（返回）。
+ */
+@Composable
+private fun isInBackStack(navigator: Navigator, entry: NavEntry<*>): Boolean {
+    val contentKey = entry.contentKey
+    for (key in navigator.stackKeys) {
+        if (remember(key) { NavEntry(key) {}.contentKey } == contentKey) return true
+    }
+    return false
+}
+
+/**
  * 两个 `NavDisplay` 的 entry 装饰器清单，一处实现：状态保存、ViewModel 存储、
- * 转场期间的输入拦截与状态回写（见 `NavInputGuard.kt`）。
+ * 离场标记。
  *
  * 清单本身按 [navigator] 记住，重组不再重新装配；但**每个 `NavDisplay` 各调一次**，
  * 不共用同一份实例：`rememberSaveableStateHolderNavEntryDecorator` 内部是一个
@@ -121,10 +162,10 @@ fun rememberAppNavEntryDecorators(navigator: Navigator): List<NavEntryDecorator<
     // 让 Kotlin 从期望类型推出元素类型，比猜它们的类型参数怎么写更稳
     val saveableState: NavEntryDecorator<NavKey> = rememberSaveableStateHolderNavEntryDecorator()
     val viewModelStore: NavEntryDecorator<NavKey> = rememberViewModelStoreNavEntryDecorator()
-    // 转场期间的点击拦截与状态回写合在一处：离场页仍然组合着、也仍然吃点击
-    // （nav3 1.2.0 的已知问题），同时把「转场还在不在播」回写给 Navigator，返回据此排队
-    val interaction: NavEntryDecorator<NavKey> = rememberNavInteractionDecorator(navigator)
-    return remember(saveableState, viewModelStore, interaction) {
-        listOf(saveableState, viewModelStore, interaction)
+    val popped: NavEntryDecorator<NavKey> = remember(navigator) {
+        NavEntryDecorator<NavKey> { entry -> NavEntryPoppedDecorator(navigator, entry) }
+    }
+    return remember(saveableState, viewModelStore, popped) {
+        listOf(saveableState, viewModelStore, popped)
     }
 }

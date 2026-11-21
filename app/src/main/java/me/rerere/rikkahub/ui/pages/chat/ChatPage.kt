@@ -27,12 +27,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -117,7 +120,6 @@ import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
-import me.rerere.rikkahub.ui.components.ui.SlideOverDrawer
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -181,9 +183,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             else -> null
         }
     }
-    // 竖屏的侧边栏：自己画的滑入抽屉（见 SlideOverDrawer），不用 Material 那个会回弹的弹簧
-    var drawerOpen by rememberSaveable { mutableStateOf(false) }
-    val drawerSlideSpec = rememberSlideSpec<Float>(animated = !setting.displaySetting.disableAnimations)
+    // 竖屏的侧边栏：Material 的模态抽屉，开关、边缘手势与手势仲裁都交给 DrawerState
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // 背景层（AssistantBackground）单独一份 Haze 源：抽屉和浮层的玻璃都取它，
     // 取聊天列表会把正文一起糊进来。提到这一层是为了抽屉也拿得到
     val backgroundHazeState = rememberHazeState()
@@ -200,13 +201,13 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     // 抽屉开着时接管返回键
-    BackHandler(enabled = drawerOpen) {
-        drawerOpen = false
+    BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
     }
 
     // Clear input focus so popup transitions cannot reopen the keyboard.
-    LaunchedEffect(drawerOpen) {
-        if (drawerOpen) {
+    LaunchedEffect(drawerState.isOpen) {
+        if (drawerState.isOpen) {
             focusManager.clearFocus(force = true)
             softwareKeyboardController?.hide()
         }
@@ -223,8 +224,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     var sidebarResizing by remember { mutableStateOf(false) }
     // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
     LaunchedEffect(threePaneLayout) {
-        if (threePaneLayout && drawerOpen) {
-            drawerOpen = false
+        if (threePaneLayout && drawerState.isOpen) {
+            drawerState.close()
         }
     }
 
@@ -234,9 +235,16 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         navController.navigate(Screen.Setting)
     }
     val startNewChat: () -> Unit = {
-        // 横屏三栏没有模态抽屉可收；竖屏收一下，免得新会话页还被挡着
-        if (!threePaneLayout) drawerOpen = false
-        navigateToChatPage(navController, Uuid.random())
+        // 横屏三栏没有模态抽屉可收；竖屏收一下，免得新会话页还被挡着。
+        // 先收再换会话，两段动画分开走，不叠在一起
+        if (!threePaneLayout) {
+            scope.launch {
+                drawerState.close()
+                navigateToChatPage(navController, Uuid.random())
+            }
+        } else {
+            navigateToChatPage(navController, Uuid.random())
+        }
     }
 
     val startVoiceMode = rememberVoiceModeStarter(vm, setting)
@@ -364,7 +372,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                                 settings = setting,
                                 onNewChat = startNewChat,
                                 onOpenSettings = openSettingsFromDrawer,
-                                // 不传 onCloseDrawer：点会话时左栏要留着，它是常驻列不是抽屉
                                 hazeState = backgroundHazeState,
                                 widthOverride = sidebarWidthDp.dp,
                             )
@@ -397,11 +404,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 }
             }
         } else {
-            SlideOverDrawer(
-                open = drawerOpen,
-                onOpenChange = { drawerOpen = it },
-                animationSpec = drawerSlideSpec,
-                sheet = {
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                drawerContent = {
                     ChatDrawerContent(
                         navController = navController,
                         currentConversationId = conversationId,
@@ -409,14 +414,15 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         settings = setting,
                         onNewChat = startNewChat,
                         onOpenSettings = openSettingsFromDrawer,
-                        onCloseDrawer = { drawerOpen = false },
                         hazeState = backgroundHazeState,
                     )
                 },
             ) {
                 ChatPageContent(
-                    state = pageState.copy(sidebarOpen = drawerOpen),
-                    actions = pageActions.copy(onOpenSidebar = { drawerOpen = true }),
+                    state = pageState.copy(sidebarOpen = drawerState.isOpen),
+                    actions = pageActions.copy(
+                        onOpenSidebar = { scope.launch { drawerState.open() } },
+                    ),
                 )
             }
         }

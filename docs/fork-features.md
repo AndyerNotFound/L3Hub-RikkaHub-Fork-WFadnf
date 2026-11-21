@@ -154,8 +154,8 @@
 | 功能 | 入口 | 说明 |
 | --- | --- | --- |
 | 页面转场规格 | — | `ui/navigation/NavTransitions.kt` 一份给中列与设置右列共用：容器变换页（`heroEntry` 全部页面与媒体创作）从卡片展开、返回收回，进出都不位移；滑入页（会话、设置首页）从下方滑入、返回原路滑出；被盖住的页面 `ExitTransition.None`；返回与预测性返回同参；曲线在转场开始时读取，改动画速度不必重建 spec |
-| 返回排队 | — | `NavContext` 统一判定：同帧重复 pop 去重；进场中的返回进入 `pendingPops`，转场落定后逐层出栈；预测性 seek 正倒向下一层时立即出栈。`navigate` / `clearAndNavigate` 清空排队 |
-| 离场页输入拦截 | — | `NavInputGuard` 给目标状态不是 Visible 的 entry 盖一层指针守卫，在 Initial 阶段消费输入，避免看不见的页面继续响应点击 |
+| 返回 | — | 与上游同口径：`Navigator.popBackStack()` 只做「栈深大于 1 就弹一层」，不设去重窗口、不排队等转场落定 |
+| 离场标记 | — | `NavEntryPoppedDecorator` 给离场且已不在返回栈的 entry 提供 `LocalNavEntryPopped`，供 `heroAnimation` 摘掉页内共享元素；不拦截指针输入 |
 | 底部抽屉统一退场 | — | `AnimatedModalBottomSheet(visible, onDismissRequest)` 把窗口存活与可见性拆开：`visible=false` 先 `hide()`，播完再拆窗口。全部 `ModalBottomSheet` 调用点统一替换，不再出现“打开有动画、关闭硬切” |
 | 共享元素 | — | 可配对页面走 `heroEntry`：进场从条目展开、返回收回条目，两个方向都配对容器变换；页内元素（`heroAnimation`）只在进场配对，返回时通过 `LocalNavEntryPopped` 摘掉，避免“整页收回条目 + 元素飞回”两种过渡同时出现；模型卡片进入编辑页即走这一条 |
 | 退场后再执行 | — | `rememberSheetDismiss()` 与对话框的 `LocalDialogDismiss` 同一约定；没有 sheet 包着时退化为直接执行 |
@@ -168,8 +168,8 @@
 
 | 功能 | 入口 | 说明 |
 | --- | --- | --- |
-| 抽屉手势 | 聊天页左侧 | 收起态可从左边缘起手，也可在内容任意位置向右拖动拉出；展开后左滑收起。拖动跟手，松手按位移过半或甩动速度（350dp/s）从手指停下的位置继续播完开/关动画；点外侧与返回键照旧收起 |
-| 绘制阶段平移 | — | 抽屉位置只写进一个只被绘制阶段读取的 `offset`，每帧只更新 `graphicsLayer`，不重新测量、不触发重组；抽屉内容不订阅流式会话，只拿当前会话 id |
+| 抽屉开关 | 聊天页左侧 | 竖屏用 Material 的 `ModalNavigationDrawer` + `DrawerState`：边缘手势、拖拽仲裁、scrim 与收放曲线全部由 MD3 与当前 `motionScheme` 决定；点外侧与返回键收起 |
+| 抽屉内容作用域 | — | 抽屉内容不订阅流式会话，只拿当前会话 id；底部列表生成中不按 token 重组 |
 | 底部胶囊 | 抽屉底部 | 左侧大胶囊“新聊天”，右侧用户头像；头像点击进设置，并带一段从抽屉飞向设置页顶部头像的过渡 |
 | 个人资料移位 | 设置 → 通用 → 个人资料 | 顶部用户信息（头像 / 昵称 / 问候）移除，改到设置；设置首页顶部改为紧凑标题栏加居中大头像，正好承接飞行动画 |
 | 日期分组折叠 | 抽屉会话列表 | 日期标题可点折叠/展开，折叠后只隐藏会话，不吞掉下一个标题，也不留空白间隙；走 `MotionExpandCollapse` |

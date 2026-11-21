@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.modifier.pressScale
 import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 
 // 连接式单选按钮组，选中项更宽；选项不多（两到四个）时用来代替下拉框
@@ -116,6 +117,7 @@ private fun <T> ConnectedButtons(
                 modifier = Modifier
                     .weight(weight)
                     .heightIn(min = minHeight)
+                    .pressScale()
                     .semantics { this.role = role },
                 shapes = when (index) {
                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()

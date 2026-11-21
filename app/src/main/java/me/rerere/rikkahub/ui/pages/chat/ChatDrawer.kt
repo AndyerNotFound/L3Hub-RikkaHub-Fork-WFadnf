@@ -28,7 +28,6 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -141,16 +140,12 @@ fun ChatDrawerContent(
     currentConversationId: Uuid,
     onNewChat: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    // 大屏的抽屉是常驻栏，没有"收起来"这回事；只有模态抽屉会传这个
-    onCloseDrawer: (suspend () -> Unit)? = null,
     // 抽屉底板的玻璃取样源（聊天页的背景层）。没有源时 canGlassPane 返回 false，底板退回实色
     hazeState: HazeState? = null,
     // 横屏三栏的左栏宽度由列宽决定，不再按窗口比例算
     widthOverride: Dp? = null,
 ) {
     val scope = rememberCoroutineScope()
-    // 抽屉还在收起时列表仍然可点，两次点击的导航落地顺序由动画时长决定
-    var lastConversationOpenAt by remember { mutableStateOf(0L) }
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val repo = koinInject<ConversationRepository>()
@@ -212,16 +207,10 @@ fun ChatDrawerContent(
 
     // 扁平与竖向两种列表共用同一批回调，省得两处各写一份后行为走样
     fun openConversation(conversation: Conversation, index: Int?, itemCount: Int) {
-        val now = SystemClock.uptimeMillis()
-        if (now - lastConversationOpenAt < 400L) return
-        lastConversationOpenAt = now
         // 点的是列表上半部分就从上方落进来，下半部分从下方升上来
         val fromTop = index != null && index * 2 < itemCount
-        scope.launch {
-            // 先把抽屉收回去再换会话，两段动画分开走，别叠在一起
-            onCloseDrawer?.invoke()
-            navigateToChatPage(navController, conversation.id, enterFromTop = fromTop)
-        }
+        // 直接换会话：新会话页带自己的抽屉状态，旧的随这一页一起退场
+        navigateToChatPage(navController, conversation.id, enterFromTop = fromTop)
     }
 
     val onDeleteConversation: (Conversation) -> Unit = { conversation ->
