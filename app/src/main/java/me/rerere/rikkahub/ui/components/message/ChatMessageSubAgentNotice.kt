@@ -181,7 +181,7 @@ fun ChatMessageSubAgentNotice(
                     onClick = {
                         val action = {
                             editing = false
-                            onEdit?.invoke(draft.trim())
+                            if (onEdit != null) onEdit(draft.trim())
                         }
                         dialogDismiss?.invoke(action) ?: action()
                     },
