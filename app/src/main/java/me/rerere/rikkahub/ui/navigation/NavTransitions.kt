@@ -4,8 +4,8 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -20,6 +20,7 @@ import androidx.navigation3.scene.Scene
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberNavInteractionDecorator
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
 /**
@@ -28,14 +29,15 @@ import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
  * 三条规矩，写在类型里而不是散在调用点上：
  *
  * - 进场按栈顶那一页的 `Screen.Chat.enterFromTop` 决定从上方还是下方落下，被盖住的页面原地不动；
- * - 返回只有一种：整页向下滑出，底下那页原地露出，不淡入也不淡出；
+ * - 返回只有一种：整页收回它的来源条目（页面自己的 sharedBounds 演的容器变换），底下那页原地露出；
+ *   没有来源条目的页面（会话、设置首页）只淡出；两者都不位移，也不再向下滑出；
  * - 手势返回跟手后的收尾与普通返回同参（[predictivePop] 直接委托 [pop]）。
  */
 @Immutable
 class NavTransitionSpecs internal constructor(
     /** 进场：新页从一侧滑入，底下那页不动。 */
     val enter: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform,
-    /** 返回：整页下滑出。 */
+    /** 返回：容器变换收回条目，不位移。 */
     val pop: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform,
 ) {
     /**
@@ -54,14 +56,18 @@ class NavTransitionSpecs internal constructor(
  */
 @Composable
 fun rememberNavTransitionSpecs(): NavTransitionSpecs {
-    // 页面滑入/滑出用 expressive 的空间曲线（有加速有减速），默认那个弹簧偏匀速，看起来像线性
+    // 页面滑入用当前档位的空间曲线（有加速有减速），默认那个弹簧偏匀速，看起来像线性
     val slideSpec = rememberSpatialSpec<IntOffset>()
     val currentSlideSpec = rememberUpdatedState(slideSpec)
+    // 退场不再位移，但离场这一页要留到容器变换收回条目为止：用同时长的淡出占住这段窗口。
+    // 时长与「动画速度」三档同源，收起与展开不会一段快一段慢。
+    val popSpec = rememberSlideSpec<Float>()
+    val currentPopSpec = rememberUpdatedState(popSpec)
     return remember {
-        // 返回只有一种：整页向下滑出，底下的页面原地露出，不淡入也不淡出
+        // 返回只有一种：整页收回来源条目，底下的页面原地露出。位移全交给页面自己的 sharedBounds，
+        // display 级只留一个不位移的退场窗口，给收起的容器变换留出播放时间
         val pop: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
-            EnterTransition.None togetherWith
-                slideOutVertically(animationSpec = currentSlideSpec.value) { it }
+            EnterTransition.None togetherWith fadeOut(animationSpec = currentPopSpec.value)
         }
         NavTransitionSpecs(
             enter = {

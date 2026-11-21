@@ -635,7 +635,7 @@ class RouteActivity : ComponentActivity() {
                                 // 同一帧里的重复回调吃掉（不然会把栈弹空）；转场还在播时先排队，
                                 // 等这一段演完再出栈，不吃掉也不重定向
                                 onBack = { navController.popBackStack() },
-                                // 规格与右列同源：进场按 enterFromTop 上下、返回整页下滑、预测性返回同参
+                                // 规格与右列同源：进场按 enterFromTop 上下、返回收回来源条目、预测性返回同参
                                 transitionSpec = navTransitionSpecs.enter,
                                 popTransitionSpec = navTransitionSpecs.pop,
                                 predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
@@ -667,7 +667,7 @@ class RouteActivity : ComponentActivity() {
                                             .fillMaxHeight(),
                                         onBack = { navController.popBackStack() },
                                         // 与中列同一份规格。右列只装设置里的下钻页，都不带 enterFromTop，
-                                        // 落地仍然是从下方滑入；返回同样整页下滑
+                                        // 落地仍然是从下方滑入；返回与中列同一条收回路径
                                         transitionSpec = navTransitionSpecs.enter,
                                         popTransitionSpec = navTransitionSpecs.pop,
                                         predictivePopTransitionSpec = navTransitionSpecs.predictivePop,
@@ -878,7 +878,7 @@ private fun appNavEntries() = entryProvider<NavKey> {
     }
 
     // 从会话列表展开（容器变换）：位移交给页面内部的 sharedBounds 演，
-    // display 级不叠转场；返回不单独覆盖，跟其它页一样走 display 级的下滑
+    // display 级不叠转场；返回同样由页面内部的 sharedBounds 收回会话列表那张卡片
     entry<Screen.MediaCreation>(
         metadata = NavDisplay.transitionSpec {
             EnterTransition.None togetherWith ExitTransition.None

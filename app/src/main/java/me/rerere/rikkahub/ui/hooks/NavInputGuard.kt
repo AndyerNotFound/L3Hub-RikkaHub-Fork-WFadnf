@@ -58,7 +58,7 @@ private fun <T : Any> NavPointerGuard(navigator: Navigator, entry: NavEntry<T>) 
     val leaving = LocalNavAnimatedContentScope.current.transition.targetState !=
         EnterExitState.Visible
     // 离场有两种：被新页盖住（还在栈里）与被弹出（已经不在栈里）。页内共享元素只在前一种情况下
-    // 要留着源那一半，返回时摘掉才不会「整页下滑 + 元素飞回」两套过渡一起演
+    // 要留着源那一半，返回时摘掉才不会「整页收回条目 + 元素飞回」两套过渡一起演
     val popped = leaving && !isInBackStack(navigator, entry)
     // 必须自己撑满：这一层如果按内容包裹，父级给的是 0..max 的约束，
     // 页面里那些 fillMaxSize 的子节点会跟着缩，转场途中布局会跳一下

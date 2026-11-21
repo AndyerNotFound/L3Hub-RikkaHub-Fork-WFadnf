@@ -524,13 +524,18 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 
 - 进场默认从下方滑入，`Screen.Chat.enterFromTop` 可改为从上方进入；被盖住的页面使用
   `ExitTransition.None`，原地不动。
-- 普通返回与预测性返回共用同一个 `NavTransitionSpecs.pop`：整页向下滑出，下层页面原地露出，不叠淡入淡出。
+- 普通返回与预测性返回共用同一个 `NavTransitionSpecs.pop`：整页收回它的来源条目（页面自己的
+  sharedBounds 演的容器变换），下层页面原地露出；没有来源条目的页面（会话、设置首页）只淡出。
+  返回不位移，也不再向下滑出——退场那一侧只留一个与「动画速度」同档的淡出窗口，
+  用来占住离场页，直到容器变换收起为止。
 - `Screen.MediaCreation` 保留 entry 级 `None` 转场，容器变换只由页面内部的 sharedBounds 演出，避免双层位移。
 - 路由身份在同包的 `Screen.kt`，入口清单是 `RouteActivity.kt` 顶层的 `appNavEntries()`；两个 `NavDisplay`
   共用 remembered entry provider，但各自持有 SaveableState / ViewModelStore / 输入守卫装饰器实例。
 
-`heroEntry<T>` 仍负责可配对页面的容器变换：只有进场配对共享元素，返回时通过 `LocalNavEntryPopped`
-摘掉共享元素，避免「整页下滑 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
+`heroEntry<T>` 负责可配对页面的容器变换：进场展开、返回收回，两个方向都配对共享元素，是同一段
+容器变换的正反两面；`heroPageContainer` 因此在离场时也保留，不再按 `transition.targetState` 摘除。
+页内元素（`heroAnimation`）仍只在进场配对，返回时通过 `LocalNavEntryPopped` 摘掉，
+避免「整页收回条目 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
 `HeroPage`；`Screen.Setting` 与 `Screen.MediaCreation` 的既有例外保持不变。
 
 转场期间离场页仍会留在 `AnimatedContent` 里。`ui/hooks/NavInputGuard.kt` 给目标状态不是 Visible 的

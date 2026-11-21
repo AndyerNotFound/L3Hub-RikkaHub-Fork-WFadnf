@@ -24,7 +24,7 @@ import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 
-/** 源条目侧的圆角。页面到位后收到 0；返回不再收角，离场直接用直角下滑。 */
+/** 源条目侧的圆角。页面到位后收到 0；返回时跟着容器一起长回这个值，落回条目那一帧才对得上。 */
 val HeroSourceCorner = 20.dp
 
 /**
@@ -40,7 +40,7 @@ fun Modifier.heroAnimation(
     key: Any,
     boundsTransform: BoundsTransform = SharedTransitionDefaults.BoundsTransform,
 ): Modifier {
-    // 返回（这一页正在被弹出）不再配对：返回只留 display 级那条整页下滑，
+    // 返回（这一页正在被弹出）不再配对：返回由整页容器变换收回条目演，
     // 页内元素再飞一次就成了两套过渡一起演
     if (LocalNavEntryPopped.current) return Modifier
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -76,10 +76,10 @@ fun Modifier.heroContainer(
 }
 
 /**
- * 目标页面侧的容器变换：把整页包进去，它就从源条目（同一个 [heroKey]）展开。
+ * 目标页面侧的容器变换：把整页包进去，它就从源条目（同一个 [heroKey]）展开，返回时收回条目里。
  *
- * 只有进场参与共享元素。返回统一由 display 级的下滑演（RouteActivity 的 popTransitionSpec），
- * 离场时这一层会被摘掉，页面不会一边下滑一边收进条目里。
+ * 两个方向都参与共享元素：进场展开、返回收回，是同一段容器变换的正反两面。
+ * display 级（RouteActivity 的 popTransitionSpec）只留一个不位移的退场窗口，不再用位移演返回。
  */
 @Composable
 fun HeroPage(
@@ -92,18 +92,14 @@ fun HeroPage(
     // 圆角也用同一档速度，关掉动效时它是 snap，不会留一段 300ms 的收角
     val cornerSpec = rememberSpatialSpec<Dp>()
     val transition = LocalNavAnimatedContentScope.current.transition
-    // 离场不再收角：返回只由 display 级的下滑演，圆角停在直角。留着这段收角，
-    // 返回就是「整页下滑 + 圆角长大」两套过渡同时在演
-    val corner = if (transition.targetState == EnterExitState.Visible) {
-        val animated by transition.animateDp(
-            transitionSpec = { cornerSpec },
-            label = "heroPageCorner",
-        ) { state ->
-            if (state == EnterExitState.Visible) 0.dp else sourceCorner
-        }
-        animated
-    } else {
-        0.dp
+    // 两个方向都收角：进场从条目的圆角收到直角，返回时再长回条目的圆角，
+    // 收起的那一帧才和它落进去的条目对得上。原来离场停在直角，是因为返回靠整页下滑演；
+    // 下滑撤掉以后，收角与收回条目必须是同一段动画
+    val corner by transition.animateDp(
+        transitionSpec = { cornerSpec },
+        label = "heroPageCorner",
+    ) { state ->
+        if (state == EnterExitState.Visible) 0.dp else sourceCorner
     }
     Box(
         modifier = modifier
@@ -116,19 +112,14 @@ fun HeroPage(
 }
 
 /**
- * 页面侧（共享元素的目标那一半）的容器变换，只在进场时套上。
+ * 页面侧（共享元素的目标那一半）的容器变换：进场展开、返回收回，两个方向都套着。
  *
- * `sharedBounds` 没有方向参数：推送和返回共用同一套配对逻辑，只要两边都在组合里就会演。
- * 返回要的是整页下滑，所以离场这一半必须退出共享元素——摘掉修饰符后这一页老老实实跟着
- * display 级的位移走，而不是被 overlay 收进条目里。判定和 [rememberNavInteractionDecorator]
- * 一样看 `transition.targetState`：目标状态不是 Visible 就是正在离场。
+ * `sharedBounds` 没有方向参数，配对了就两向都演。上一版在退场时把这一半摘掉，返回只剩 display 级
+ * 的位移，于是同一类页面进场是展开、退场是下滑，两套过渡各演一次；现在留着一半，
+ * 返回与进场是同一段容器变换的正反两面，摘掉的动作只发生在页面离开组合的时候。
  */
 @Composable
-fun Modifier.heroPageContainer(key: Any, shape: Shape): Modifier {
-    val entering = LocalNavAnimatedContentScope.current.transition.targetState ==
-        EnterExitState.Visible
-    return if (entering) heroContainer(key, shape) else Modifier
-}
+fun Modifier.heroPageContainer(key: Any, shape: Shape): Modifier = heroContainer(key, shape)
 
 /** 源条目侧：和 [HeroPage] 成对使用，shape 要和条目自身的圆角一致。 */
 @Composable

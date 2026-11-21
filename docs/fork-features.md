@@ -153,11 +153,11 @@
 
 | 功能 | 入口 | 说明 |
 | --- | --- | --- |
-| 页面转场规格 | — | `ui/navigation/NavTransitions.kt` 一份给中列与设置右列共用：进场默认自下而上，被盖住的页面 `ExitTransition.None`；返回与预测性返回同参，整页下滑出、不叠淡入淡出；曲线在转场开始时读取，改动画速度不必重建 spec |
+| 页面转场规格 | — | `ui/navigation/NavTransitions.kt` 一份给中列与设置右列共用：进场默认自下而上，被盖住的页面 `ExitTransition.None`；返回与预测性返回同参，整页收回它的来源条目（容器变换），没有来源条目的页面只淡出——不位移、不向下滑出；曲线在转场开始时读取，改动画速度不必重建 spec |
 | 返回排队 | — | `NavContext` 统一判定：同帧重复 pop 去重；进场中的返回进入 `pendingPops`，转场落定后逐层出栈；预测性 seek 正倒向下一层时立即出栈。`navigate` / `clearAndNavigate` 清空排队 |
 | 离场页输入拦截 | — | `NavInputGuard` 给目标状态不是 Visible 的 entry 盖一层指针守卫，在 Initial 阶段消费输入，避免看不见的页面继续响应点击 |
 | 底部抽屉统一退场 | — | `AnimatedModalBottomSheet(visible, onDismissRequest)` 把窗口存活与可见性拆开：`visible=false` 先 `hide()`，播完再拆窗口。全部 `ModalBottomSheet` 调用点统一替换，不再出现“打开有动画、关闭硬切” |
-| 共享元素 | — | 可配对页面走 `heroEntry`：只有进场配对共享元素，返回时通过 `LocalNavEntryPopped` 摘掉，避免“整页下滑 + 元素飞回”两种过渡同时出现；模型卡片进入编辑页即走这一条 |
+| 共享元素 | — | 可配对页面走 `heroEntry`：进场从条目展开、返回收回条目，两个方向都配对容器变换；页内元素（`heroAnimation`）只在进场配对，返回时通过 `LocalNavEntryPopped` 摘掉，避免“整页收回条目 + 元素飞回”两种过渡同时出现；模型卡片进入编辑页即走这一条 |
 | 退场后再执行 | — | `rememberSheetDismiss()` 与对话框的 `LocalDialogDismiss` 同一约定；没有 sheet 包着时退化为直接执行 |
 | 动效档位 | 设置 → 偏好设置 → 界面 | `animationSpeed`：`SYSTEM` / `FAST` / `GENTLE` 各给一套 `MotionScheme` 交给主题，material3 自带的抽屉收放、菜单、遮罩、拖拽吸附只读这一个口子 |
 | 关闭动效 | 同上 | `disableAnimations`：motionScheme 换 `snap`，手写动画先读 `LocalAnimationsEnabled`，避免关掉后侧边栏还滑 300ms |
