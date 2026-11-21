@@ -8,8 +8,10 @@ import androidx.core.content.pm.PackageInfoCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.l3hub.syncproto.BundleFormat
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.sync.BackupManager
+import me.rerere.rikkahub.data.sync.BundleRequest
 import me.rerere.rikkahub.data.sync.PendingDelta
 import me.rerere.rikkahub.data.sync.PendingRestore
 import me.rerere.rikkahub.data.sync.RestoreItem
@@ -62,6 +64,10 @@ class VersionSyncClient(
         /** 对端能按清单与水位给增量，且库版本与增量格式对得上 */
         val usesDelta: Boolean
             get() = supported && protocol >= SyncBridge.PROTOCOL_VERSION && schemaVersion > 0
+
+        /** 对端认 `.l3b`：增量层按分层备份包传，不再用临时的增量 zip */
+        val usesBundle: Boolean
+            get() = usesDelta && protocol >= SyncBridge.BUNDLE_PROTOCOL
     }
 
     sealed interface Progress {
@@ -104,7 +110,7 @@ class VersionSyncClient(
         if (!peer.usesDelta || peer.schemaVersion != localSchemaVersion()) {
             return@withContext pullFull(peer, options, onProgress)
         }
-        pullDelta(peer, options, onProgress)
+        if (peer.usesBundle) pullBundle(peer, options, onProgress) else pullDelta(peer, options, onProgress)
     }
 
     /** 把本应用的数据递给对方；返回对方暂存下来的类别 */
@@ -118,10 +124,135 @@ class VersionSyncClient(
         if (!peer.usesDelta || peer.schemaVersion != localSchemaVersion()) {
             return@withContext pushFull(peer, options, onProgress)
         }
-        pushDelta(peer, options, onProgress)
+        if (peer.usesBundle) pushBundle(peer, options, onProgress) else pushDelta(peer, options, onProgress)
     }
 
     // ---- 增量 ----
+    // ---- 分层备份包（协议 3） ----
+
+    /**
+     * 拉取：对端把一层 `.l3b` 打包过来，整条链按整份恢复安装。
+     *
+     * 第一次没有水位时要 base 层（整份库），之后每次只要水位之后的增量层；两者最终都落到
+     * [BackupManager.stageRestore]，由它按「有没有 base 层」分成整份恢复与增量合并两条路。
+     */
+    private suspend fun pullBundle(
+        peer: Peer,
+        options: RestoreOptions,
+        onProgress: (Progress) -> Unit,
+    ): RestoreStageResult {
+        val since = watermarks.pulledAt(peer.packageName)
+        // 用水位起点而不是成功时刻记录：同步期间对方的新写入宁可下次多带一遍
+        val startedAt = System.currentTimeMillis()
+        val includeFiles = RestoreItem.FILES in options.items
+        onProgress(Progress.Packing)
+        val manifest = fetchManifest(peer, includeFiles)
+        val plan = if (includeFiles) {
+            planFilesToFetch(manifest, context.filesDir)
+        } else {
+            SyncFilePlan(emptyList(), full = false)
+        }
+        val wantsFiles = includeFiles && (plan.full || plan.paths.isNotEmpty())
+        val extras = Bundle().apply {
+            putBoolean(SyncBridge.KEY_BASE, since == 0L)
+            putLong(SyncBridge.KEY_SINCE, since)
+            putBoolean(SyncBridge.KEY_INCLUDE_DATABASE, RestoreItem.CHAT_RECORDS in options.items)
+            putBoolean(SyncBridge.KEY_INCLUDE_SETTINGS, RestoreItem.SETTINGS in options.items)
+            putBoolean(SyncBridge.KEY_INCLUDE_FILES, wantsFiles)
+            if (wantsFiles && !plan.full) {
+                putStringArrayList(SyncBridge.KEY_PATHS, ArrayList(plan.paths))
+            }
+        }
+        val token = call(peer, SyncBridge.METHOD_EXPORT_BUNDLE, extras = extras)
+            ?.getString(SyncBridge.KEY_TOKEN)
+            ?: throw Failure.Remote("The other build did not start an export")
+        val effectiveOptions = if (wantsFiles) {
+            options
+        } else {
+            options.copy(items = options.items - RestoreItem.FILES)
+        }
+        val archive = File.createTempFile("version-sync-bundle-", ".l3b", context.cacheDir)
+        try {
+            val size = awaitExport(peer, token)
+            onProgress(Progress.Copying(0, size))
+            copyArchive(peer, token, archive, size, onProgress)
+            onProgress(Progress.Importing)
+            val result = backupManager.stageRestore(archive = archive, options = effectiveOptions, verify = false)
+            watermarks.recordPull(peer.packageName, startedAt)
+            return result
+        } finally {
+            runCatching { call(peer, SyncBridge.METHOD_CLEANUP, arg = token) }
+            archive.delete()
+        }
+    }
+
+    /**
+     * 推送：本地按自己的库现做一层 `.l3b`，对端按文件头识别、在下次启动安装。
+     *
+     * 第一次没有水位时是 base 层（整份），之后是只带变化的增量层；附件仍按清单与大小的差异点名携带。
+     */
+    private suspend fun pushBundle(
+        peer: Peer,
+        options: RestoreOptions,
+        onProgress: (Progress) -> Unit,
+    ): RestoreStageResult {
+        val since = watermarks.pushedAt(peer.packageName)
+        val startedAt = System.currentTimeMillis()
+        val includeFiles = RestoreItem.FILES in options.items
+        val includeDatabase = RestoreItem.CHAT_RECORDS in options.items
+        onProgress(Progress.Packing)
+        val remoteManifest = fetchManifest(peer, includeFiles)
+        val localFiles = if (includeFiles) collectSyncableFiles(context.filesDir) else emptyList()
+        val plan = if (includeFiles) {
+            planFilesToSend(localFiles, remoteManifest)
+        } else {
+            SyncFilePlan(emptyList(), full = false)
+        }
+        val paths = when {
+            !includeFiles -> emptyList()
+            plan.full -> localFiles.map { it.path }
+            else -> plan.paths
+        }
+        val base = since == 0L
+        val prepared = backupManager.prepareBundleLayer(
+            BundleRequest(
+                includeDatabase = includeDatabase,
+                includeFiles = includeFiles,
+                base = base,
+                includeSettings = RestoreItem.SETTINGS in options.items,
+                since = if (base) 0L else since,
+                paths = if (base) null else paths,
+                compress = false,
+            )
+        )
+        val archive = File.createTempFile("version-sync-bundle-", ".l3b", context.cacheDir)
+        try {
+            backupManager.appendBundle(archive, prepared)
+        } finally {
+            prepared.payload.delete()
+        }
+        // 对方已经齐全时包里没有附件，同样不要把 FILES 报成「被跳过」
+        val effectiveOptions = if (includeFiles && paths.isEmpty()) {
+            options.copy(items = options.items - RestoreItem.FILES)
+        } else {
+            options
+        }
+        try {
+            onProgress(Progress.Copying(0, archive.length()))
+            val result = withArchiveDescriptor(archive, effectiveOptions) { extras ->
+                onProgress(Progress.Importing)
+                call(peer, SyncBridge.METHOD_IMPORT_DELTA, extras = extras)
+            } ?: throw Failure.Remote("The other build did not answer")
+            watermarks.recordPush(peer.packageName, startedAt)
+            return RestoreStageResult(
+                staged = SyncBridge.decodeItems(result.getStringArrayList(SyncBridge.KEY_STAGED)),
+                skipped = SyncBridge.decodeItems(result.getStringArrayList(SyncBridge.KEY_SKIPPED)),
+            )
+        } finally {
+            archive.delete()
+        }
+    }
+
 
     private suspend fun pullDelta(
         peer: Peer,
