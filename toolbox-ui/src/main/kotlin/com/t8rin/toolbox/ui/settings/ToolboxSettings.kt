@@ -90,17 +90,91 @@ val LocalToolboxSettings = staticCompositionLocalOf<ToolboxSettings> {
 }
 
 /**
- * Adapter for the single `copy(...)` call site in the ported widgets
- * (EnhancedButtonGroup temporarily overrides `shapesType` for its edge buttons).
+ * Adapter for the `copy(...)` call sites in the ported widgets.
  *
  * ImageToolbox's `UiSettingsState` is a data class, so `copy` is free there;
- * [ToolboxSettings] is a read-only view owned by the host, so only the override
- * that the widgets actually use is expressed here.
+ * [ToolboxSettings] is a read-only view owned by the host, so a full-field
+ * defaulted extension mirrors the data-class `copy` semantics. Every ported
+ * call site uses named arguments, so new interface fields only need to be
+ * appended here (and to [ToolboxSettingsOverride]) without touching call sites.
  */
-fun ToolboxSettings.copy(shapesType: ShapeType): ToolboxSettings =
-    ToolboxSettingsWithShapesType(this, shapesType)
+fun ToolboxSettings.copy(
+    isNightMode: Boolean = this.isNightMode,
+    isAmoledMode: Boolean = this.isAmoledMode,
+    isAmoledModeExtended: Boolean = this.isAmoledModeExtended,
+    themeStyle: PaletteStyle = this.themeStyle,
+    themeContrastLevel: Double = this.themeContrastLevel,
+    isInvertThemeColors: Boolean = this.isInvertThemeColors,
+    shapesType: ShapeType = this.shapesType,
+    iconShape: IconShape? = this.iconShape,
+    borderWidth: Dp = this.borderWidth,
+    drawContainerShadows: Boolean = this.drawContainerShadows,
+    drawAppBarShadows: Boolean = this.drawAppBarShadows,
+    shapeByInteractionThrottle: Long = this.shapeByInteractionThrottle,
+    drawButtonShadows: Boolean = this.drawButtonShadows,
+    drawFabShadows: Boolean = this.drawFabShadows,
+    drawSwitchShadows: Boolean = this.drawSwitchShadows,
+    drawSliderShadows: Boolean = this.drawSliderShadows,
+    sheetNestedScrollEnabled: Boolean = this.sheetNestedScrollEnabled,
+    isCompactSelectorsLayout: Boolean = this.isCompactSelectorsLayout,
+    isCenterAlignDialogButtons: Boolean = this.isCenterAlignDialogButtons,
+    dragHandleWidth: Dp = this.dragHandleWidth,
+    switchType: SwitchType = this.switchType,
+    sliderType: SliderType = this.sliderType,
+    flingType: FlingType = this.flingType,
+    dialogPosition: DialogPosition = this.dialogPosition
+): ToolboxSettings = ToolboxSettingsOverride(
+    delegate = this,
+    isNightMode = isNightMode,
+    isAmoledMode = isAmoledMode,
+    isAmoledModeExtended = isAmoledModeExtended,
+    themeStyle = themeStyle,
+    themeContrastLevel = themeContrastLevel,
+    isInvertThemeColors = isInvertThemeColors,
+    shapesType = shapesType,
+    iconShape = iconShape,
+    borderWidth = borderWidth,
+    drawContainerShadows = drawContainerShadows,
+    drawAppBarShadows = drawAppBarShadows,
+    shapeByInteractionThrottle = shapeByInteractionThrottle,
+    drawButtonShadows = drawButtonShadows,
+    drawFabShadows = drawFabShadows,
+    drawSwitchShadows = drawSwitchShadows,
+    drawSliderShadows = drawSliderShadows,
+    sheetNestedScrollEnabled = sheetNestedScrollEnabled,
+    isCompactSelectorsLayout = isCompactSelectorsLayout,
+    isCenterAlignDialogButtons = isCenterAlignDialogButtons,
+    dragHandleWidth = dragHandleWidth,
+    switchType = switchType,
+    sliderType = sliderType,
+    flingType = flingType,
+    dialogPosition = dialogPosition
+)
 
-private class ToolboxSettingsWithShapesType(
+private class ToolboxSettingsOverride(
     private val delegate: ToolboxSettings,
-    override val shapesType: ShapeType
-) : ToolboxSettings by delegate
+    override val isNightMode: Boolean,
+    override val isAmoledMode: Boolean,
+    override val isAmoledModeExtended: Boolean,
+    override val themeStyle: PaletteStyle,
+    override val themeContrastLevel: Double,
+    override val isInvertThemeColors: Boolean,
+    override val shapesType: ShapeType,
+    override val iconShape: IconShape?,
+    override val borderWidth: Dp,
+    override val drawContainerShadows: Boolean,
+    override val drawAppBarShadows: Boolean,
+    override val shapeByInteractionThrottle: Long,
+    override val drawButtonShadows: Boolean,
+    override val drawFabShadows: Boolean,
+    override val drawSwitchShadows: Boolean,
+    override val drawSliderShadows: Boolean,
+    override val sheetNestedScrollEnabled: Boolean,
+    override val isCompactSelectorsLayout: Boolean,
+    override val isCenterAlignDialogButtons: Boolean,
+    override val dragHandleWidth: Dp,
+    override val switchType: SwitchType,
+    override val sliderType: SliderType,
+    override val flingType: FlingType,
+    override val dialogPosition: DialogPosition
+) : ToolboxSettings

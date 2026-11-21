@@ -50,6 +50,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
+import com.t8rin.toolbox.ui.settings.copy
 import com.t8rin.toolbox.ui.utils.provider.ProvideContainerDefaults
 import com.t8rin.toolbox.ui.widget.enhanced.hapticsClickable
 import com.t8rin.toolbox.ui.widget.enhanced.hapticsCombinedClickable
