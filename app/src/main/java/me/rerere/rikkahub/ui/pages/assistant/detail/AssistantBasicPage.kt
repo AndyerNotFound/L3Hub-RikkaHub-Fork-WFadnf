@@ -20,7 +20,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -246,7 +246,7 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                Slider(
+                AppSlider(
                     value = assistant.guidanceInterval.coerceIn(1, 4).toFloat(),
                     onValueChange = {
                         onUpdate(assistant.copy(guidanceInterval = it.roundToInt().coerceIn(1, 4)))
@@ -627,7 +627,7 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                Slider(
+                AppSlider(
                     value = backgroundOpacity,
                     onValueChange = {
                         onUpdate(
@@ -653,7 +653,7 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                Slider(
+                AppSlider(
                     value = assistant.backgroundBlur.coerceIn(0f, 1f),
                     onValueChange = {
                         onUpdate(assistant.copy(backgroundBlur = it))

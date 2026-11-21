@@ -26,7 +26,6 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
@@ -66,6 +65,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
@@ -479,7 +479,7 @@ private fun MemorySettingsTab(
                     CardGroupValue("${(assistant.autoCompressRatio * 100).roundToInt()}%")
                 },
             ) {
-                Slider(
+                AppSlider(
                     value = assistant.autoCompressRatio,
                     onValueChange = { value ->
                         // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值

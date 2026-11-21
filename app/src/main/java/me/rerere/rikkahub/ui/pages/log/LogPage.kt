@@ -19,14 +19,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +51,7 @@ import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.LogPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.HorizontalDivider
@@ -627,15 +627,9 @@ private fun LogSizeLimitCard(
     maxBytes: Long,
     onMaxBytesChange: (Long) -> Unit,
 ) {
-    // 拖动时只有 SliderState 在变，松手才落盘：滑过一整条轨道会写十几次磁盘
-    val sliderState = remember(maxBytes) {
-        SliderState(
-            value = nearestLogSizeIndex(maxBytes).toFloat(),
-            trackRange = 0f..LOG_SIZE_OPTIONS.lastIndex.toFloat(),
-            steps = LOG_SIZE_OPTIONS.size - 2,
-        )
-    }
-    val selected = LOG_SIZE_OPTIONS[sliderState.value.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)]
+    // 拖动时只有 draft 在变，松手才落盘：滑过一整条轨道会写十几次磁盘
+    var draftIndex by remember(maxBytes) { mutableFloatStateOf(nearestLogSizeIndex(maxBytes).toFloat()) }
+    val selected = LOG_SIZE_OPTIONS[draftIndex.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)]
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -666,14 +660,16 @@ private fun LogSizeLimitCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            Slider(
-                state = sliderState,
-                onValueChange = { sliderState.value = it },
+            AppSlider(
+                value = draftIndex,
+                onValueChange = { draftIndex = it },
                 onValueChangeFinished = {
-                    val index = sliderState.value.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)
-                    sliderState.value = index.toFloat()
+                    val index = draftIndex.roundToInt().coerceIn(0, LOG_SIZE_OPTIONS.lastIndex)
+                    draftIndex = index.toFloat()
                     onMaxBytesChange(LOG_SIZE_OPTIONS[index])
                 },
+                valueRange = 0f..LOG_SIZE_OPTIONS.lastIndex.toFloat(),
+                steps = LOG_SIZE_OPTIONS.size - 2,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

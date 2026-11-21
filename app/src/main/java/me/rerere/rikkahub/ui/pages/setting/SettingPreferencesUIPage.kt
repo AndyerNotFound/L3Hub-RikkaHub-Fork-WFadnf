@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -59,6 +58,7 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
@@ -250,7 +250,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
                     trailingContent = { CardGroupValue("${(displaySetting.bubbleOpacity * 100).roundToInt()}%") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.bubbleOpacity,
                         onValueChange = {
                             updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
@@ -369,7 +369,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         )
                     },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.inputPadding.toFloat(),
                         onValueChange = {
                             updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
@@ -797,7 +797,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_ui_scale_desc)) },
                     trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).roundToInt()}%") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.uiScale,
                         onValueChange = { ratio ->
                             // 5% 一档：0.5、0.55 … 2.0
@@ -813,7 +813,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
                     trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
                 ) {
-                    Slider(
+                    AppSlider(
                         value = displaySetting.fontSizeRatio,
                         onValueChange = { ratio ->
                             val snapped = (ratio * 20f).roundToInt() / 20f

@@ -11,7 +11,6 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -24,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock01
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.HeartbeatSetting
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
@@ -125,7 +125,7 @@ fun AssistantHeartbeatPage(id: String) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Slider(
+                    AppSlider(
                         value = heartbeat.startHour.toFloat(),
                         onValueChange = { value ->
                             update { it.copy(startHour = value.roundToInt().coerceIn(0, 23)) }
@@ -138,7 +138,7 @@ fun AssistantHeartbeatPage(id: String) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Slider(
+                    AppSlider(
                         value = heartbeat.endHour.toFloat(),
                         onValueChange = { value ->
                             update { it.copy(endHour = value.roundToInt().coerceIn(0, 23)) }

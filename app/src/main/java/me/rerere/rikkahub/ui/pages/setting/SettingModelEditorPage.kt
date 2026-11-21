@@ -25,7 +25,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
@@ -61,6 +60,7 @@ import me.rerere.hugeicons.stroke.ScanText
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.data.model.withResolvedContextLength
@@ -1011,7 +1011,7 @@ private fun ContextThresholdSlider(
                 commitEmpty = true,
             )
         }
-        Slider(
+        AppSlider(
             value = contextStopPosition(stops, value),
             onValueChange = { position ->
                 onValueChange(stops[position.roundToInt().coerceIn(stops.indices)])

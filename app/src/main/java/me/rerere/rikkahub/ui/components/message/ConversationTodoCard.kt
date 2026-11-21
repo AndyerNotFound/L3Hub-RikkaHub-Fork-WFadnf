@@ -22,7 +22,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,6 +66,7 @@ import me.rerere.rikkahub.data.model.addTodo
 import me.rerere.rikkahub.data.model.removeTodoAt
 import me.rerere.rikkahub.data.model.setTodoStatusAt
 import me.rerere.rikkahub.data.model.toggleTodoCompletedAt
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.Switch
@@ -366,7 +366,7 @@ private fun ReminderControls(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Slider(
+            AppSlider(
                 value = interval.toFloat(),
                 onValueChange = { onChange(reminder.copy(interval = it.roundToInt().coerceIn(1, 4))) },
                 valueRange = 1f..4f,
