@@ -22,8 +22,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
@@ -66,6 +66,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import androidx.compose.material3.SwitchColors as M3SwitchColors
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 
 
 @Composable
@@ -87,11 +89,17 @@ fun HyperOSSwitch(
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    val springSpec = remember {
-        spring<Dp>(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        )
+    // 关闭动效时弹簧一并停掉：拇指尺寸直接跳到目标值
+    val animationsEnabled = motionAnimationsEnabled()
+    val springSpec = remember(animationsEnabled) {
+        if (animationsEnabled) {
+            spring<Dp>(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        } else {
+            snap<Dp>()
+        }
     }
 
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -101,7 +109,7 @@ fun HyperOSSwitch(
         } else {
             if (!enabled) 4.dp else if (isPressed || isDragged || isHovered) 3.dp else 4.dp
         } + dragOffset.dp,
-        animationSpec = tween(600, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(600, easing = PointToPointEasing)
     )
 
     val thumbSize by animateDpAsState(
@@ -115,7 +123,7 @@ fun HyperOSSwitch(
 
     val backgroundColor by animateColorAsState(
         if (checked) colors.checkedTrackColor(enabled) else colors.uncheckedTrackColor(enabled),
-        animationSpec = tween(durationMillis = 200)
+        animationSpec = rememberFixedSpec(durationMillis = 200)
     )
 
     val toggleableModifier = if (onCheckedChange != null) {

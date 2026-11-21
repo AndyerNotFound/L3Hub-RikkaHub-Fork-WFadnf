@@ -22,7 +22,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 
 @Composable
 fun PixelSwitch(
@@ -67,19 +67,19 @@ fun PixelSwitch(
     }
     val trackColor by animateColorAsState(
         targetValue = trackColor(enabled, checked, colors),
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
     val thumbColor by animateColorAsState(
         targetValue = thumbColor(enabled, checked, colors),
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
     val borderColor by animateColorAsState(
         targetValue = borderColor(enabled, checked, colors),
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
     val thumbSize by animateDpAsState(
         targetValue = if (checked) SelectedHandleSize else UnselectedHandleSize,
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
 
     val density = LocalDensity.current
@@ -103,7 +103,7 @@ fun PixelSwitch(
 
     val thumbOffset by animateFloatAsState(
         targetValue = offsetAnimated,
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
 
     Box(

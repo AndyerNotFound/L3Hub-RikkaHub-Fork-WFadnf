@@ -21,7 +21,6 @@ package me.rerere.rikkahub.ui.components.ui.switch
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -59,6 +58,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 
 @Composable
 fun OneUISwitch(
@@ -78,7 +78,7 @@ fun OneUISwitch(
 
     val actualColors = colors.forConfig(enabled, checked)
 
-    val spec = tween<Color>(animDuration)
+    val spec = rememberFixedSpec(animDuration)
     val thumbColor by animateColorAsState(
         targetValue = actualColors.thumb,
         label = "Switch thumb color",
@@ -97,12 +97,12 @@ fun OneUISwitch(
     val rippleAlphaFactor by animateFloatAsState(
         targetValue = if (isAnimating) 1F else 0F,
         label = "Switch ripple alpha",
-        animationSpec = tween(animDuration)
+        animationSpec = rememberFixedSpec(animDuration)
     )
     val rippleRadius by animateDpAsState(
         targetValue = if (isAnimating) rippleRadius else 0.dp,
         label = "Switch ripple radius",
-        animationSpec = tween(animDuration)
+        animationSpec = rememberFixedSpec(animDuration)
     )
 
     val ripple = MaterialTheme.colorScheme.outline.copy(0.1f)
@@ -111,7 +111,7 @@ fun OneUISwitch(
     val progress by animateFloatAsState(
         targetValue = dragProgress ?: if (checked) 1f else 0f,
         label = "Switch progress",
-        animationSpec = tween(animDuration)
+        animationSpec = rememberFixedSpec(animDuration)
     )
 
     val shape = CircleShape

@@ -22,7 +22,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.Orientation
@@ -56,6 +55,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 
 @Composable
 fun FluentSwitch(
@@ -77,7 +77,7 @@ fun FluentSwitch(
             pressed || dragged -> 14.dp
             else -> 12.dp
         },
-        tween(Duration, easing = FastInvokeEasing)
+        rememberFixedSpec(Duration, easing = FastInvokeEasing)
     )
 
     val width by animateDpAsState(
@@ -85,7 +85,7 @@ fun FluentSwitch(
             pressed || dragged -> 17.dp
             else -> 12.dp
         },
-        tween(Duration, easing = FastInvokeEasing)
+        rememberFixedSpec(Duration, easing = FastInvokeEasing)
     )
 
     val maxValue = 32.dp - (width / 2)
@@ -112,7 +112,7 @@ fun FluentSwitch(
 
     val offset by animateFloatAsState(
         targetValue = offsetAnimated,
-        animationSpec = tween(Duration, easing = PointToPointEasing)
+        animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
     )
 
     Row(
@@ -148,15 +148,15 @@ fun FluentSwitch(
     ) {
         val trackColor by animateColorAsState(
             targetValue = trackColor(enabled, checked, colors),
-            animationSpec = tween(Duration, easing = PointToPointEasing)
+            animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
         )
         val thumbColor by animateColorAsState(
             targetValue = thumbColor(enabled, checked, colors),
-            animationSpec = tween(Duration, easing = PointToPointEasing)
+            animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
         )
         val borderColor by animateColorAsState(
             targetValue = borderColor(enabled, checked, colors),
-            animationSpec = tween(Duration, easing = PointToPointEasing)
+            animationSpec = rememberFixedSpec(Duration, easing = PointToPointEasing)
         )
 
         Box(

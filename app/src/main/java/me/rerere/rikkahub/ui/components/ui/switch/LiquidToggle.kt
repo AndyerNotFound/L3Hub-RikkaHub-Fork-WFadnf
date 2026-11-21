@@ -19,6 +19,7 @@
 package me.rerere.rikkahub.ui.components.ui.switch
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -87,6 +88,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 
 @Composable
 internal fun LiquidToggle(
@@ -118,9 +120,11 @@ internal fun LiquidToggle(
     var didDrag by remember { mutableStateOf(false) }
     var fraction by remember { mutableFloatStateOf(if (checked()) 1f else 0f) }
     var start by remember { mutableStateOf<DragInteraction.Start?>(null) }
-    val dampedDragAnimation = remember(animationScope, enabled, onCheckedChange) {
+    val animationsEnabled = motionAnimationsEnabled()
+    val dampedDragAnimation = remember(animationScope, enabled, onCheckedChange, animationsEnabled) {
         DampedDragAnimation(
             enabled = enabled,
+            animationsEnabled = animationsEnabled,
             animationScope = animationScope,
             initialValue = fraction,
             valueRange = 0f..1f,
@@ -284,6 +288,8 @@ internal fun LiquidToggle(
 
 private class DampedDragAnimation(
     enabled: Boolean,
+    // 「关闭动效」开关：关闭时所有弹簧换成 snap，按下去不再有任何过渡
+    animationsEnabled: Boolean,
     private val animationScope: CoroutineScope,
     val initialValue: Float,
     val valueRange: ClosedRange<Float>,
@@ -296,15 +302,15 @@ private class DampedDragAnimation(
 ) {
 
     private val valueAnimationSpec =
-        spring(1f, 1000f, visibilityThreshold)
+        if (animationsEnabled) spring(1f, 1000f, visibilityThreshold) else snap(visibilityThreshold)
     private val velocityAnimationSpec =
-        spring(0.5f, 300f, visibilityThreshold * 10f)
+        if (animationsEnabled) spring(0.5f, 300f, visibilityThreshold * 10f) else snap()
     private val pressProgressAnimationSpec =
-        spring(1f, 1000f, 0.001f)
+        if (animationsEnabled) spring(1f, 1000f, 0.001f) else snap()
     private val scaleXAnimationSpec =
-        spring(0.6f, 250f, 0.001f)
+        if (animationsEnabled) spring(0.6f, 250f, 0.001f) else snap()
     private val scaleYAnimationSpec =
-        spring(0.7f, 250f, 0.001f)
+        if (animationsEnabled) spring(0.7f, 250f, 0.001f) else snap()
 
     private val valueAnimation =
         Animatable(initialValue, visibilityThreshold)

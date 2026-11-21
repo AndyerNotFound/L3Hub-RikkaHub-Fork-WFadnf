@@ -23,7 +23,6 @@ package me.rerere.rikkahub.ui.components.ui.switch
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -64,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import com.kyant.backdrop.backdrops.rememberCanvasBackdrop
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 
 /**
  * Cupertino Design Switch.
@@ -99,11 +99,11 @@ fun CupertinoSwitch(
 
     val animatedAspectRatio by animateFloatAsState(
         targetValue = if (isPressed || isDragged) 1.25f else 1f,
-        animationSpec = AspectRationAnimationSpec
+        animationSpec = aspectRationAnimationSpec()
     )
     val animatedBackground by animateColorAsState(
         targetValue = colors.trackColor(enabled, checked).value,
-        animationSpec = ColorAnimationSpec
+        animationSpec = colorAnimationSpec()
     )
 
     var alignment by remember(checked) {
@@ -118,7 +118,7 @@ fun CupertinoSwitch(
 
     val animatedAlignment by animateFloatAsState(
         targetValue = alignment,
-        animationSpec = AlignmentAnimationSpec
+        animationSpec = alignmentAnimationSpec()
     )
 
     Column(
@@ -230,11 +230,11 @@ private fun FallbackLiquidGlassSwitch(
 
     val animatedAspectRatio by animateFloatAsState(
         targetValue = if (isPressed || isDragged) 1.8f else 1.6f,
-        animationSpec = AspectRationAnimationSpec
+        animationSpec = aspectRationAnimationSpec()
     )
     val animatedBackground by animateColorAsState(
         targetValue = colors.trackColor(enabled, checked).value,
-        animationSpec = ColorAnimationSpec
+        animationSpec = colorAnimationSpec()
     )
 
     var alignment by remember(checked) {
@@ -249,7 +249,7 @@ private fun FallbackLiquidGlassSwitch(
 
     val animatedAlignment by animateFloatAsState(
         targetValue = alignment,
-        animationSpec = AlignmentAnimationSpec
+        animationSpec = alignmentAnimationSpec()
     )
 
     Column(
@@ -332,7 +332,7 @@ class CupertinoSwitchColors internal constructor(
             } else {
                 disabledThumbColor
             },
-            animationSpec = ColorAnimationSpec
+            animationSpec = colorAnimationSpec()
         )
     }
 
@@ -353,7 +353,7 @@ class CupertinoSwitchColors internal constructor(
             } else {
                 if (checked) disabledCheckedTrackColor else disabledUncheckedTrackColor
             },
-            animationSpec = ColorAnimationSpec
+            animationSpec = colorAnimationSpec()
         )
     }
 
@@ -374,7 +374,7 @@ class CupertinoSwitchColors internal constructor(
             } else {
                 if (checked) disabledCheckedIconColor else disabledUncheckedIconColor
             },
-            animationSpec = ColorAnimationSpec
+            animationSpec = colorAnimationSpec()
         )
     }
 
@@ -479,6 +479,12 @@ private fun Color.blend(
     fraction: Float = 0.2f
 ): Color = Color(ColorUtils.blendARGB(toArgb(), color.toArgb(), fraction))
 
-private val AspectRationAnimationSpec = tween<Float>(durationMillis = 300)
-private val ColorAnimationSpec = tween<Color>(durationMillis = 300)
-private val AlignmentAnimationSpec = AspectRationAnimationSpec
+// 固定节奏：时长照旧，只接「关闭动效」这道闸；原来是顶层 tween 常量，读不到 CompositionLocal
+@Composable
+private fun aspectRationAnimationSpec() = rememberFixedSpec<Float>(durationMillis = 300)
+
+@Composable
+private fun colorAnimationSpec() = rememberFixedSpec<Color>(durationMillis = 300)
+
+@Composable
+private fun alignmentAnimationSpec() = aspectRationAnimationSpec()
