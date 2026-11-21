@@ -59,6 +59,7 @@ import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
@@ -123,9 +124,8 @@ fun SettingAboutPage() {
                 item {
                     val interactionSource = remember { MutableInteractionSource() }
                     val pressed by interactionSource.collectIsPressedAsState()
-                    val logoScale by animateFloatAsState(
+                    val logoScale by motionFastFloatAsState(
                         targetValue = if (pressed) 0.88f else 1f,
-                        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                     )
                     // 每点一次，轮廓变形到下一个形状
                     var shapeIndex by remember { mutableIntStateOf(0) }

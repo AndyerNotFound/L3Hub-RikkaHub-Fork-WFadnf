@@ -68,6 +68,7 @@ import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
 import me.rerere.rikkahub.ui.style.Checkbox
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 import me.rerere.search.SearchServiceOptions
 
 enum class SearchMode {
@@ -262,9 +263,8 @@ private fun SearchPicker(
         ) {
             modes.fastForEachIndexed { index, mode ->
                 val selected = mode == currentMode
-                val weight by animateFloatAsState(
+                val weight by motionFastFloatAsState(
                     targetValue = if (selected) 1.3f else 1f,
-                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                 )
                 ToggleButton(
                     checked = selected,

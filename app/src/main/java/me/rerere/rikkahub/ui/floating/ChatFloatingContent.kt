@@ -117,6 +117,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.uuid.Uuid
@@ -268,10 +269,9 @@ private fun LogoBubble(animating: Boolean, onClick: () -> Unit) {
     val logoLayers = rememberAppLogoLayers()
     val shapePosition = remember { Animatable(0f) }
     val spin = remember { Animatable(0f) }
+    val animationsEnabled = motionAnimationsEnabled()
     // 固定间隔变一个形状，弹簧和计时同时跑
-    LaunchedEffect(animating) {
-        if (!animating) {
-            // 停在一个完整的形状上
+    LaunchedEffect(animating, animationsEnabled) { if (!animating || !animationsEnabled) {
             shapePosition.animateTo(ceil(shapePosition.value), MorphSpring)
             return@LaunchedEffect
         }
@@ -307,8 +307,8 @@ private fun LogoBubble(animating: Boolean, onClick: () -> Unit) {
 @Composable
 private fun BubbleWithIcon(icon: FloatingBubbleIcon, animating: Boolean, onClick: () -> Unit) {
     val scale = remember { Animatable(1f) }
-    LaunchedEffect(animating) {
-        if (!animating) {
+    val animationsEnabled = motionAnimationsEnabled()
+    LaunchedEffect(animating, animationsEnabled) { if (!animating || !animationsEnabled) {
             scale.animateTo(1f, tween(BUBBLE_SETTLE_MILLIS))
             return@LaunchedEffect
         }

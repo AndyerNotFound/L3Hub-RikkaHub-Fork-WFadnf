@@ -133,6 +133,7 @@ import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionColorAsState
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.writeClipboardText
@@ -1022,13 +1023,12 @@ private fun WorkspaceFileItem(
             }
         }
     }
-    val containerColor by animateColorAsState(
+    val containerColor by motionColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.secondaryContainer
         } else {
             CustomColors.listItemColors.containerColor
         },
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
 
     Surface(

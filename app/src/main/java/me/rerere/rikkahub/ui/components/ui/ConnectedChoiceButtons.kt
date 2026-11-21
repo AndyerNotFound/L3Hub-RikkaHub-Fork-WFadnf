@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 
 // 连接式单选按钮组，选中项更宽；选项不多（两到四个）时用来代替下拉框
 @Composable
@@ -106,9 +107,8 @@ private fun <T> ConnectedButtons(
     ) {
         options.fastForEachIndexed { index, option ->
             val selected = isSelected(option)
-            val weight by animateFloatAsState(
+            val weight by motionFastFloatAsState(
                 targetValue = if (selected && growSelected) 1.3f else 1f,
-                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
             )
             ToggleButton(
                 checked = selected,

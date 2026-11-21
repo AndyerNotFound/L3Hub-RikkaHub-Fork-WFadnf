@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -69,6 +68,7 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 
@@ -415,7 +415,7 @@ private fun ToolDescriptionRow(tool: ChatRequestPreviewTool) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .padding(start = 20.dp)
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .motionBlurOnToggle(expanded),
         )
         MotionExpandCollapse(visible = expanded && tool.instructions.isNotBlank()) {

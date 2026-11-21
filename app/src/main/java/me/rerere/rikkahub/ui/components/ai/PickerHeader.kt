@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
+import me.rerere.rikkahub.ui.theme.motionColorAsState
 
 // sheet 的头部：左侧标题与说明，右侧放操作
 @Composable
@@ -138,13 +139,11 @@ internal fun PickerHero(
         targetValue = index.toFloat(),
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
     )
-    val animatedContainerColor by animateColorAsState(
+    val animatedContainerColor by motionColorAsState(
         targetValue = containerColor,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
-    val animatedContentColor by animateColorAsState(
+    val animatedContentColor by motionColorAsState(
         targetValue = contentColor,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
     val iconSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val iconEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()

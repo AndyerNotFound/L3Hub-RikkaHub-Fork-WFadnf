@@ -65,6 +65,7 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -107,15 +108,15 @@ internal fun CollapsibleSectionItem(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val sizeSpec = rememberFixedSpec<IntSize>(SECTION_TOGGLE_DURATION_MS)
+    val fadeSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS / 2)
     MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
-        enter = expandVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +
-            fadeIn(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
-        exit = shrinkVertically(animationSpec = tween(SECTION_TOGGLE_DURATION_MS)) +
-            fadeOut(animationSpec = tween(SECTION_TOGGLE_DURATION_MS / 2)),
-        enterBlurSpec = tween(SECTION_TOGGLE_DURATION_MS),
-        exitBlurSpec = tween(SECTION_TOGGLE_DURATION_MS),
+        enter = expandVertically(animationSpec = sizeSpec) + fadeIn(animationSpec = fadeSpec),
+        exit = shrinkVertically(animationSpec = sizeSpec) + fadeOut(animationSpec = fadeSpec),
+        enterBlurSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS),
+        exitBlurSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS),
     ) {
         content()
     }

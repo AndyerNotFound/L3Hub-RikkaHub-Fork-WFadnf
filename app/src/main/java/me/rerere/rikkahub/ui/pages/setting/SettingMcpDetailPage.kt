@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -91,6 +90,7 @@ import me.rerere.rikkahub.ui.style.HorizontalDivider
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -689,7 +689,7 @@ private fun McpToolCard(
     ) {
         Column(
             modifier = Modifier
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .motionBlurOnToggle(expanded)
                 .fillMaxWidth()
                 .padding(8.dp),

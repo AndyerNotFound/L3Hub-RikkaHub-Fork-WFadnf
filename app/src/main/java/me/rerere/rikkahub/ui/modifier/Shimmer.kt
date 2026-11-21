@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 
 /**
  * 为 Composable 添加 Shimmer 加载效果的 Modifier.
@@ -50,16 +51,21 @@ fun Modifier.shimmer(
         // 记住组件的尺寸，以便计算渐变
         var size by remember { mutableStateOf(IntSize.Zero) }
         // 创建无限循环动画
-        val transition = rememberInfiniteTransition(label = "ShimmerTransition")
-        val translateAnimation = transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f, // 动画值从 0 到 1
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = durationMillis, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart // 每次都从头开始
-            ),
-            label = "ShimmerTranslate"
-        )
+        // 关掉动效时停在半程：亮带还在，只是不扫，也不占帧
+        val shimmerProgress = if (motionAnimationsEnabled()) {
+            val transition = rememberInfiniteTransition(label = "ShimmerTransition")
+            transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f, // 动画值从 0 到 1
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = durationMillis, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart // 每次都从头开始
+                ),
+                label = "ShimmerTranslate"
+            ).value
+        } else {
+            0.5f
+        }
         // 将角度转换为弧度
         val angleRad = Math.toRadians(angle.toDouble()).toFloat()
         // 计算渐变颜色的列表
@@ -94,7 +100,7 @@ fun Modifier.shimmer(
                 // 总移动距离需要覆盖组件加上渐变宽度，确保完全扫过
                 // 我们让它从完全在组件左/上侧开始，移动到完全在右/下侧结束
                 val totalDistance = diagonal + gradientWidth
-                val currentOffset = translateAnimation.value * totalDistance - gradientWidth
+                val currentOffset = shimmerProgress * totalDistance - gradientWidth
                 // 计算渐变的起始点和结束点，考虑角度
                 val startX = currentOffset * kotlin.math.cos(angleRad)
                 val startY = currentOffset * kotlin.math.sin(angleRad)

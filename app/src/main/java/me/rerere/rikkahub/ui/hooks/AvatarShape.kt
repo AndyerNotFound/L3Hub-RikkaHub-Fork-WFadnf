@@ -11,12 +11,13 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Shape
 import kotlin.math.roundToInt
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 
 @Composable
 fun rememberAvatarShape(loading: Boolean): Shape {
     // 不生成时直接给圆形，连无限动画都不起：列表里每个头像各挂一条 60/120Hz 的
     // 无限 transition，即使没人读它的值，也会一直申请下一帧，整页都静不下来。
-    if (!loading) return CircleShape
+    if (!loading || !motionAnimationsEnabled()) return CircleShape
     val infiniteTransition = rememberInfiniteTransition()
     val rotateAngle = infiniteTransition.animateFloat(
         initialValue = 0f,

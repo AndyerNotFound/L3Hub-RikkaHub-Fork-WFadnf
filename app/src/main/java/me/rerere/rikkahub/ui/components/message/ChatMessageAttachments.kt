@@ -32,6 +32,7 @@ import androidx.compose.ui.util.lerp
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
+import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
 
 /**
  * 按压进度：按下趋向 1，松开回到 0，用来让容器的圆角在按下时收紧。
@@ -40,9 +41,8 @@ import androidx.core.net.toUri
 @Composable
 internal fun animatePressProgress(interactionSource: InteractionSource): State<Float> {
     val pressed by interactionSource.collectIsPressedAsState()
-    return animateFloatAsState(
+    return motionFastFloatAsState(
         targetValue = if (pressed) 1f else 0f,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "PressProgress",
     )
 }

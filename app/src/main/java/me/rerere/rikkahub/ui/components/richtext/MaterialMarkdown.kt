@@ -50,6 +50,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
+import me.rerere.rikkahub.ui.theme.motionFloatAsState
 import me.rerere.ui.table.DataTable
 import kotlin.math.max
 import me.rerere.bettertext.markdown.Markdown as BetterMarkdown
@@ -146,7 +147,7 @@ object MaterialMarkdownDefaults {
     ) {
         // 流式输出中 open 属性可能后到；只在它变化时重新初始化状态。
         var expanded by rememberSaveable(block.open) { mutableStateOf(block.open) }
-        val rotation by animateFloatAsState(if (expanded) 90f else 0f)
+        val rotation by motionFloatAsState(if (expanded) 90f else 0f, label = "markdown_chevron")
         Column(modifier) {
             Row(
                 modifier = Modifier

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -50,6 +49,8 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.HorizontalDivider
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import java.util.Locale
 
@@ -227,16 +228,21 @@ fun CollapsibleTranslationText(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        val infiniteTransition = rememberInfiniteTransition(label = "loading")
-                        val alpha by infiniteTransition.animateFloat(
-                            initialValue = 0.3f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(1000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "alpha"
-                        )
+                        // 关掉动效时定在最亮的一档：加载提示还在，只是不闪，也不占帧
+                        val alpha = if (motionAnimationsEnabled()) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "loading")
+                            infiniteTransition.animateFloat(
+                                initialValue = 0.3f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "alpha"
+                            ).value
+                        } else {
+                            1f
+                        }
 
                         Text(
                             text = stringResource(R.string.translating),
@@ -252,7 +258,7 @@ fun CollapsibleTranslationText(
                         onClickCitation = onClickCitation,
                         modifier = Modifier
                             .padding(12.dp)
-                            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                            .motionContentSize()
                     )
                 }
             }

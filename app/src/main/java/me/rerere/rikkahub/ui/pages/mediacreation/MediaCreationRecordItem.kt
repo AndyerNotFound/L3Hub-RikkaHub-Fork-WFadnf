@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.mediacreation
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,6 +88,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -256,7 +256,7 @@ private fun RecordInput(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .clickable { expanded = !expanded }
-                    .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                    .motionContentSize()
                     .motionBlurOnToggle(expanded),
             )
         }

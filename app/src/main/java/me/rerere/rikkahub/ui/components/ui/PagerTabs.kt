@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 
 internal interface PagerTab {
     val icon: ImageVector
@@ -98,10 +100,11 @@ internal fun PagerTabs(
             ) {
                 AnimatedVisibility(
                     visible = selected,
-                    enter = expandHorizontally(motionScheme.fastSpatialSpec()) +
-                        fadeIn(motionScheme.fastEffectsSpec()),
-                    exit = shrinkHorizontally(motionScheme.fastSpatialSpec()) +
-                        fadeOut(motionScheme.fastEffectsSpec()),
+                    // Tab 指示条用 fast 档：比页面转场紧一级，跟手不拖
+                    enter = expandHorizontally(rememberFastSpatialSpec()) +
+                        fadeIn(rememberEffectsSpec()),
+                    exit = shrinkHorizontally(rememberFastSpatialSpec()) +
+                        fadeOut(rememberEffectsSpec()),
                 ) {
                     Row {
                         Icon(

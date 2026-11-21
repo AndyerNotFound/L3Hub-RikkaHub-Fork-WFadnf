@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -58,6 +59,9 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.modifier.shimmer
+import me.rerere.rikkahub.ui.theme.fixedMotionSpec
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.utils.extractLatestThinkingTitle
 import me.rerere.rikkahub.utils.extractThinkingSummary
 import me.rerere.rikkahub.utils.extractThinkingTitle
@@ -371,20 +375,21 @@ private fun ReasoningTitle(
     var shown by remember { mutableStateOf(title) }
     var leaving by remember { mutableStateOf<String?>(null) }
     val roll = remember { Animatable(1f) }
+    val animationsEnabled = motionAnimationsEnabled()
 
-    LaunchedEffect(title) {
+    LaunchedEffect(title, animationsEnabled) {
         if (title == shown) return@LaunchedEffect
         roll.snapTo(0f)
         leaving = shown
         shown = title
-        roll.animateTo(1f, tween(TITLE_ROLL_MILLIS, easing = FastOutSlowInEasing))
+        roll.animateTo(1f, fixedMotionSpec(animationsEnabled, TITLE_ROLL_MILLIS))
         leaving = null
     }
 
     Box(
         modifier = modifier
             .clipToBounds()
-            .animateContentSize(tween(TITLE_ROLL_MILLIS, easing = FastOutSlowInEasing)),
+            .animateContentSize(rememberFixedSpec<IntSize>(TITLE_ROLL_MILLIS)),
     ) {
         Text(
             text = shown,

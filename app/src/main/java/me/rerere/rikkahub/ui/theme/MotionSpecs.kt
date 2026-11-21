@@ -1,14 +1,36 @@
 package me.rerere.rikkahub.ui.theme
 
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.MotionBlurSetting
 
@@ -141,3 +163,207 @@ fun <T> rememberSlideSpec(animated: Boolean = true): FiniteAnimationSpec<T> {
         AnimationSpeed.GENTLE -> tween(durationMillis = 420, easing = FastOutSlowInEasing)
     }
 }
+
+// ---------------------------------------------------------------------------
+// 取用顺序
+//
+// 页面代码只认下面四层，任何一层都不自己写 tween / spring：
+//
+//   1. spec        —— 只描述「多快、什么曲线」：rememberSpatialSpec / rememberEffectsSpec /
+//                     rememberFastSpatialSpec / rememberSizeSpec / rememberOffsetSpec /
+//                     rememberFastOffsetSpec / rememberColorSpec / rememberSlideSpec
+//   2. 固定节奏    —— 手感已经定死、不跟三档走的动画：rememberFixedSpec(duration, easing)；
+//                     协程里 animateTo 用 fixedMotionSpec(enabled, duration, easing)
+//   3. 状态动画    —— animate*AsState 的统一替代：motionFloatAsState / motionFastFloatAsState /
+//                     motionDpAsState / motionColorAsState；容器高度用 Modifier.motionContentSize()
+//   4. 组合过渡    —— 整块内容的进出场：rememberRevealEnter / rememberRevealExit（含横向）、
+//                     rememberFadeEnter / rememberFadeExit、rememberContentTransition；
+//                     带模糊的收放走 ui/modifier/MotionBlur.kt 里的 MotionExpandCollapse 等
+//
+// 四条约束：
+//   - 档位统一从 MaterialTheme.motionScheme 读，关闭动效时主题把 scheme 换成全 snap，
+//     spec 层因此不用重复判断开关。调用点直接读 scheme 也合法，与 helper 等价，
+//     只是泛型要自己写——新代码优先用 helper。
+//   - 固定节奏必须走第 2 层。裸写 tween 的地方关掉动效后照样播完，是最常见的一批漏网。
+//   - 无限循环动画（呼吸、闪烁、扫光、自转）读 motionAnimationsEnabled()，关闭时连
+//     rememberInfiniteTransition 一起不建：只不用它的值，它照样每帧申请下一帧。
+//   - 进出同参、收放同侧：退场不得收紧，expandFrom 与 shrinkTowards 取同一侧。
+// ---------------------------------------------------------------------------
+
+/** 高度 / 宽度收放的空间曲线。省掉调用点写 `defaultSpatialSpec<IntSize>()` 这种泛型猜测。 */
+@Composable
+fun rememberSizeSpec(): FiniteAnimationSpec<IntSize> =
+    MaterialTheme.motionScheme.defaultSpatialSpec()
+
+/** 滑入滑出的位移曲线。 */
+@Composable
+fun rememberOffsetSpec(): FiniteAnimationSpec<IntOffset> =
+    MaterialTheme.motionScheme.defaultSpatialSpec()
+
+/** 比默认更紧的位移曲线：吸附、原位复位。不用于进出场。 */
+@Composable
+fun rememberFastOffsetSpec(): FiniteAnimationSpec<IntOffset> =
+    MaterialTheme.motionScheme.fastSpatialSpec()
+
+/**
+ * 颜色过渡的曲线。
+ *
+ * 颜色不能走空间曲线：spring 在两端会过冲出不属于色板的颜色，深色主题上尤其明显。
+ * 这里取档位的 effects 曲线，关闭动效时同样是 snap。
+ */
+@Composable
+fun rememberColorSpec(): FiniteAnimationSpec<Color> =
+    MaterialTheme.motionScheme.defaultEffectsSpec()
+
+/**
+ * 位移动画的统一入口，替代 `animateFloatAsState`。
+ *
+ * 官方默认值是 `spring()`，不认「动画速度」三档，关闭动效时也照样播完。
+ */
+@Composable
+fun motionFloatAsState(
+    targetValue: Float,
+    label: String = "motion",
+): State<Float> = animateFloatAsState(
+    targetValue = targetValue,
+    animationSpec = rememberSpatialSpec(),
+    label = label,
+)
+
+/**
+ * 比默认更紧的状态动画：选中项挤开、按压缩放这类手指底下的小位移。
+ *
+ * 与 [rememberFastSpatialSpec] 同档，别用 default：默认弹簧在 1.0 → 1.3 这种
+ * 小跨度上会过冲一下，按钮看着像被弹了一下。
+ */
+@Composable
+fun motionFastFloatAsState(
+    targetValue: Float,
+    label: String = "motion",
+): State<Float> = animateFloatAsState(
+    targetValue = targetValue,
+    animationSpec = rememberFastSpatialSpec(),
+    label = label,
+)
+
+/** 尺寸动画的统一入口，替代 `animateDpAsState`。 */
+@Composable
+fun motionDpAsState(
+    targetValue: Dp,
+    label: String = "motion",
+): State<Dp> = animateDpAsState(
+    targetValue = targetValue,
+    animationSpec = rememberSpatialSpec(),
+    label = label,
+)
+
+/** 颜色动画的统一入口，替代 `animateColorAsState`。 */
+@Composable
+fun motionColorAsState(
+    targetValue: Color,
+    label: String = "motion",
+): State<Color> = animateColorAsState(
+    targetValue = targetValue,
+    animationSpec = rememberColorSpec(),
+    label = label,
+)
+
+/**
+ * 收放式显隐的进场：淡入 + 高度展开。
+ *
+ * [expandFrom] 与 [rememberRevealExit] 的 `shrinkTowards` 必须取同一侧。
+ * `expandVertically` / `shrinkVertically` 自己的默认值是 Bottom / Top，直接配对就会
+ * 展开从底边长、收起往顶上缩，两端看着是两个动画。
+ */
+@Composable
+fun rememberRevealEnter(
+    expandFrom: Alignment.Vertical = Alignment.Top,
+): EnterTransition = fadeIn(rememberEffectsSpec()) +
+    expandVertically(rememberSizeSpec(), expandFrom)
+
+/** 收放式显隐的退场，与 [rememberRevealEnter] 同参同侧。 */
+@Composable
+fun rememberRevealExit(
+    shrinkTowards: Alignment.Vertical = Alignment.Top,
+): ExitTransition = fadeOut(rememberEffectsSpec()) +
+    shrinkVertically(rememberSizeSpec(), shrinkTowards)
+
+/** 横向收放的进场，与 [rememberRevealExitHorizontal] 同参同侧。 */
+@Composable
+fun rememberRevealEnterHorizontal(
+    expandFrom: Alignment.Horizontal = Alignment.Start,
+): EnterTransition = fadeIn(rememberEffectsSpec()) +
+    expandHorizontally(rememberSizeSpec(), expandFrom)
+
+/** 横向收放的退场，与 [rememberRevealEnterHorizontal] 同参同侧。 */
+@Composable
+fun rememberRevealExitHorizontal(
+    shrinkTowards: Alignment.Horizontal = Alignment.Start,
+): ExitTransition = fadeOut(rememberEffectsSpec()) +
+    shrinkHorizontally(rememberSizeSpec(), shrinkTowards)
+
+/**
+ * `AnimatedContent` 的默认内容切换：进出同一条曲线、同一时长。
+ *
+ * 官方默认是 `fadeIn() togetherWith fadeOut()`，两侧各取 `tween(220)` 的常量，
+ * 不认档位；关闭动效时也会淡入淡出。
+ */
+@Composable
+fun rememberContentTransition(): ContentTransform =
+    fadeIn(rememberEffectsSpec()) togetherWith fadeOut(rememberEffectsSpec())
+
+/**
+ * [rememberFixedSpec] 的非组合版本：协程里 `animateTo(...)`、`snapTo(...)` 用。
+ *
+ * 协程里读不到 CompositionLocal，把 [LocalAnimationsEnabled] 在组合层读出来再传进来。
+ */
+fun <T> fixedMotionSpec(
+    enabled: Boolean,
+    durationMillis: Int,
+    easing: Easing = FastOutSlowInEasing,
+): FiniteAnimationSpec<T> = if (enabled) tween(durationMillis, easing = easing) else snap()
+
+/**
+ * 有固定节奏的动画：输入框展开、标题滚动、浮动球脉动这类手感已经定死的过渡。
+ *
+ * 时长与曲线照旧，只接通「关闭动效」这一道闸。原本直接写 `tween(...)` 的地方，
+ * 关掉动效后照样播完——这些是最明显的一批漏网。
+ */
+@Composable
+fun <T> rememberFixedSpec(
+    durationMillis: Int,
+    easing: Easing = FastOutSlowInEasing,
+): FiniteAnimationSpec<T> = fixedMotionSpec(LocalAnimationsEnabled.current, durationMillis, easing)
+
+/**
+ * `Modifier.animateContentSize` 的统一入口。
+ *
+ * 官方默认是 `spring()`，不认「动画速度」三档，关闭动效时也照样播完。
+ * 内容长高、缩短的容器都走这里，高度与内容刷新才不会各走各的曲线。
+ */
+@Composable
+fun Modifier.motionContentSize(
+    alignment: Alignment = Alignment.TopStart,
+    finishedListener: ((initialValue: IntSize, targetValue: IntSize) -> Unit)? = null,
+): Modifier = animateContentSize(
+    animationSpec = rememberSizeSpec(),
+    alignment = alignment,
+    finishedListener = finishedListener,
+)
+
+/** 纯淡入：菜单、提示条、浮层这类不改变尺寸的显隐，与 [rememberFadeExit] 同参。 */
+@Composable
+fun rememberFadeEnter(): EnterTransition = fadeIn(rememberEffectsSpec())
+
+/** 纯淡出，与 [rememberFadeEnter] 同参。 */
+@Composable
+fun rememberFadeExit(): ExitTransition = fadeOut(rememberEffectsSpec())
+
+/**
+ * 当前是否允许播放动画。
+ *
+ * 有明确终点的动画不必读它——关闭动效时主题把 scheme 换成全 snap，曲线自己会停下。
+ * 只有无限循环动画（呼吸、闪烁、波形）要读它把自己停住，否则关掉动效后它们还在转。
+ */
+@Composable
+fun motionAnimationsEnabled(): Boolean = LocalAnimationsEnabled.current

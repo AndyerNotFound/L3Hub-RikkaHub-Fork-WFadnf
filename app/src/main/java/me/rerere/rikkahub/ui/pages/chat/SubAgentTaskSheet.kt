@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +67,7 @@ import me.rerere.rikkahub.ui.components.ui.GlassSheetShape
 import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import org.koin.compose.koinInject
@@ -544,7 +544,7 @@ private fun CodeBlock(text: String, maxLines: Int, emphasized: Boolean = false) 
         Column(
             modifier = Modifier
                 .padding(8.dp)
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .motionBlurOnToggle(expanded),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.plus
 import me.rerere.search.DoubaoSearchMode
 import me.rerere.search.SearchCommonOptions
@@ -133,7 +133,7 @@ fun SettingSearchDetailPage(
                 ) {
                     Column(
                         modifier = Modifier
-                            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                            .motionContentSize()
                             .fillMaxWidth()
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -250,7 +250,7 @@ private fun SearchTestSection(
     ) {
         Column(
             modifier = Modifier
-                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)

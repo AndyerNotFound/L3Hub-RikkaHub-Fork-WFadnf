@@ -10,6 +10,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableListItemScope
+import me.rerere.rikkahub.ui.theme.motionFloatAsState
 
 private const val DraggingScale = 0.95f
 
@@ -58,7 +59,7 @@ fun ReorderableListItemScope.longPressReorder(
 
 @Composable
 private fun Modifier.draggingScale(isDragging: Boolean): Modifier {
-    val scale by animateFloatAsState(if (isDragging) DraggingScale else 1f, label = "reorder_scale")
+    val scale by motionFloatAsState(if (isDragging) DraggingScale else 1f, label = "reorder_scale")
     return graphicsLayer {
         scaleX = scale
         scaleY = scale

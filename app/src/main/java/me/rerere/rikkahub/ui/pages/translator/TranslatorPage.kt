@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -91,6 +90,8 @@ import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionColorAsState
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.getText
@@ -271,7 +272,7 @@ private fun InputCard(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())) {
+        Column(modifier = Modifier.motionContentSize()) {
             TextField(
                 value = text,
                 onValueChange = onTextChange,
@@ -328,7 +329,7 @@ private fun ResultCard(
     onUseAsInput: () -> Unit,
 ) {
     val hasResult = text.isNotBlank()
-    val containerColor by animateColorAsState(
+    val containerColor by motionColorAsState(
         if (hasResult) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
     )
 
@@ -339,7 +340,7 @@ private fun ResultCard(
     ) {
         Column(
             modifier = Modifier
-                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

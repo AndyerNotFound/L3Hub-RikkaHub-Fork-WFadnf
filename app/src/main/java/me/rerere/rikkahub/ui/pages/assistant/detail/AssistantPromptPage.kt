@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -94,6 +93,7 @@ import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.insertAtCursor
 import me.rerere.rikkahub.utils.onError
@@ -522,7 +522,7 @@ private fun AssistantRegexCard(
         Column(
             modifier = Modifier
                 .padding(horizontal = 8.dp, vertical = 8.dp)
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .motionBlurOnToggle(expanded),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

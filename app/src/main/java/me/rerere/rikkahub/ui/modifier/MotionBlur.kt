@@ -18,17 +18,14 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -46,13 +43,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
+import me.rerere.rikkahub.ui.theme.rememberOffsetSpec
+import me.rerere.rikkahub.ui.theme.rememberRevealEnter
+import me.rerere.rikkahub.ui.theme.rememberRevealEnterHorizontal
+import me.rerere.rikkahub.ui.theme.rememberRevealExit
+import me.rerere.rikkahub.ui.theme.rememberRevealExitHorizontal
+import me.rerere.rikkahub.ui.theme.rememberSizeSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.roundToInt
 
@@ -130,12 +131,9 @@ fun rememberMotionBlurSteps(
 fun MotionExpandCollapse(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    enter: EnterTransition = expandVertically(
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
-    ) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec<Float>()),
-    exit: ExitTransition = shrinkVertically(
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
-    ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec<Float>()),
+    // 进出同侧：顶边固定，内容从顶边展开、往顶边收起
+    enter: EnterTransition = rememberRevealEnter(),
+    exit: ExitTransition = rememberRevealExit(),
     maxBlurRadius: Dp = 6.dp,
     // 模糊与两个方向的位移共用一条曲线：收起与展开同参同时长，
     // 任何一侧拖在位移后面都会看成那一边的硬过渡。
@@ -193,20 +191,19 @@ fun MotionSlideReveal(
     maxBlurRadius: Dp = 6.dp,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
     // 高度与位移各取一份同档位的空间曲线：两条时间线一致，展开/收起都不会一边先到
-    val sizeSpec = motionScheme.defaultSpatialSpec<IntSize>()
-    val offsetSpec = motionScheme.defaultSpatialSpec<IntOffset>()
-    val effectsSpec = motionScheme.defaultEffectsSpec<Float>()
+    val sizeSpec = rememberSizeSpec()
+    val offsetSpec = rememberOffsetSpec()
+    val effectsSpec = rememberEffectsSpec<Float>()
     MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
-        // 收放从顶边起、往顶边收（expandVertically / shrinkVertically 的默认对齐），
-        // 内容再沿同一条上下路径滑出滑回
-        enter = expandVertically(animationSpec = sizeSpec) +
+        // 收放从顶边起、往顶边收：expandVertically / shrinkVertically 的默认对齐是
+        // Bottom / Top，必须两边都写出来才是同一侧；内容再沿同一条上下路径滑出滑回
+        enter = expandVertically(animationSpec = sizeSpec, expandFrom = Alignment.Top) +
             slideInVertically(offsetSpec) { -it / 2 } +
             fadeIn(effectsSpec),
-        exit = shrinkVertically(animationSpec = sizeSpec) +
+        exit = shrinkVertically(animationSpec = sizeSpec, shrinkTowards = Alignment.Top) +
             slideOutVertically(offsetSpec) { -it / 2 } +
             fadeOut(effectsSpec),
         maxBlurRadius = maxBlurRadius,
@@ -224,14 +221,11 @@ fun MotionExpandCollapseHorizontal(
     maxBlurRadius: Dp = 4.dp,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
     MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
-        enter = expandHorizontally(motionScheme.defaultSpatialSpec<IntSize>()) +
-            fadeIn(motionScheme.defaultEffectsSpec<Float>()),
-        exit = shrinkHorizontally(motionScheme.defaultSpatialSpec<IntSize>()) +
-            fadeOut(motionScheme.defaultEffectsSpec<Float>()),
+        enter = rememberRevealEnterHorizontal(),
+        exit = rememberRevealExitHorizontal(),
         maxBlurRadius = maxBlurRadius,
         content = content,
     )
@@ -356,9 +350,9 @@ fun <S> MotionScrollSwap(
     val enterDistance = with(density) { enterTravel.roundToPx() }
     val exitDistance = with(density) { exitTravel.roundToPx() }
     // 进出共用同一组曲线：位移、透明度、尺寸、模糊走同一条时间线
-    val slideSpec = rememberSpatialSpec<IntOffset>()
+    val slideSpec = rememberOffsetSpec()
     val fadeSpec = rememberEffectsSpec<Float>()
-    val sizeSpec = rememberSpatialSpec<IntSize>()
+    val sizeSpec = rememberSizeSpec()
 
     AnimatedContent(
         targetState = targetState,

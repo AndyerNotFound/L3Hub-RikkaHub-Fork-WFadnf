@@ -361,6 +361,29 @@ background 加 Surface 底色），设置页卡片只有 style 里那一层（�
   生成中撤掉这个源，保留「流式不逐 token 重糊列表」的优化
 - 抽屉、右栏、详情面板与两张 BottomSheet 的着色下限仍保留（压在未模糊的正文上），下限之内照样跟滑杆走
 
+### 动效取用层（2026-11-21）
+
+「动画速度」三档与「关闭动效」原先是两条轨：material3 自带组件认 `MaterialTheme.motionScheme`，
+页面里手写的 `tween` / `AnimatedVisibility` / `animate*AsState` 各走各的，滑杆只对一部分生效。
+这一轮把三条入口收进 `ui/theme/MotionSpecs.kt`，页面不再自己拼时长。
+
+| 层 | 函数 | 用途 |
+|---|---|---|
+| 1. spec | `rememberSpatialSpec` / `rememberEffectsSpec` / `rememberFastSpatialSpec` / `rememberSizeSpec` / `rememberOffsetSpec` / `rememberFastOffsetSpec` / `rememberColorSpec` / `rememberSlideSpec` | 只描述快慢与曲线，档位从当前 scheme 读 |
+| 2. 固定节奏 | `rememberFixedSpec(duration, easing)`、非组合版 `fixedMotionSpec(enabled, duration, easing)` | 手感定死、不跟三档走的动画（输入框展开、标题滚动、浮动球）保留原时长，只接通「关闭动效」 |
+| 3. 状态动画 | `motionFloatAsState` / `motionFastFloatAsState` / `motionDpAsState` / `motionColorAsState`、`Modifier.motionContentSize()` | 替代裸 `animate*AsState` 与 `animateContentSize` 的默认 spring |
+| 4. 组合过渡 | `rememberRevealEnter/Exit`（含横向）、`rememberFadeEnter/Exit`、`rememberContentTransition`；`MotionExpandCollapse` / `MotionSlideReveal` / `MotionScrollSwap` | 整块内容的进出场与带模糊的收放 |
+
+无限循环动画（ASR 脉冲、翻译提示、shimmer、头像自转）改读 `motionAnimationsEnabled()`：
+关闭动效时连 `rememberInfiniteTransition` 一起不建——只忽略它的值，它仍然每帧申请下一帧。
+
+本轮迁移的调用点（36 个文件）：输入框与浮动条、语音按钮、推理标题、消息气泡与引用、代码块、
+选择器头部与模式按钮、翻译卡、Tab 指示、设置页（关于 / 语音 / MCP / 搜索）、会话列表段落收放、
+子代理窗口、工作区与媒体生成列表。页面里剩下的裸 `tween` 只在无限循环内部与 `MotionBlur` 自身的
+attack 段，前者由 `motionAnimationsEnabled()` 兜住。
+
+> 本轮改动未编译验证（Termux 侧禁止编译）：已做括号与 import 的静态检查，行为验证待下一次出包。
+
 ### 多色背景
 
 `MeshGradientBackground` 从原来的蓝色系改成四个光斑（蓝 / 青 / 紫品红 / 橙琥珀），

@@ -75,6 +75,7 @@ import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionColorAsState
 import me.rerere.tts.provider.TTSProviderSetting
 import me.rerere.ui.components.RikkaConfirmDialog
 import org.koin.androidx.compose.koinViewModel
@@ -478,13 +479,12 @@ private fun SpeechProviderItem(
     // 跟在标签后面的操作，比如试听
     action: (@Composable () -> Unit)? = null,
 ) {
-    val containerColor by animateColorAsState(
+    val containerColor by motionColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
             CustomColors.listItemColors.containerColor
         },
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
 
     Card(

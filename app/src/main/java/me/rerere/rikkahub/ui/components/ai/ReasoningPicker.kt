@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -70,6 +69,7 @@ import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedModalBottomSheet
@@ -200,7 +200,7 @@ fun ReasoningPicker(
         // 从思考强度面板切到模型列表时不关 sheet，直接换内容
         // 两页要叠在同一块区域上，所以套了 Box；Box 里是 BoxScope，直接写 AnimatedVisibility
         // 会落到 sheet 内容的 ColumnScope 那个重载上、被布局的 DSL marker 挡掉，这里显式指回去
-        Box(modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()).clipToBounds()) {
+        Box(modifier = Modifier.motionContentSize().clipToBounds()) {
             this@sheet.AnimatedVisibility(
                 visible = !showModelList,
                 enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeIn(rememberEffectsSpec<Float>()),

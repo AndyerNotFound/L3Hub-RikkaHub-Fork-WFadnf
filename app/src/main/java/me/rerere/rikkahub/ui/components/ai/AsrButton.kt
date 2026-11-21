@@ -3,13 +3,13 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -47,6 +47,10 @@ import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.motionColorAsState
+import me.rerere.rikkahub.ui.theme.motionContentSize
+import me.rerere.rikkahub.ui.theme.rememberContentTransition
 
 private enum class AsrDisplayState {
     Idle, Connecting, Active
@@ -72,14 +76,12 @@ internal fun AsrButton(
         ASRStatus.Stopping -> MaterialTheme.colorScheme.onTertiaryContainer
         ASRStatus.Error -> MaterialTheme.colorScheme.onErrorContainer
     }
-    val containerColor by animateColorAsState(
+    val containerColor by motionColorAsState(
         targetValue = targetContainerColor,
-        animationSpec = tween(300),
         label = "asr_container"
     )
-    val contentColor by animateColorAsState(
+    val contentColor by motionColorAsState(
         targetValue = targetContentColor,
-        animationSpec = tween(300),
         label = "asr_content"
     )
 
@@ -94,7 +96,7 @@ internal fun AsrButton(
         modifier = Modifier
             .height(36.dp)
             .widthIn(min = 36.dp)
-            .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
+            .motionContentSize(),
         shape = CircleShape,
         tonalElevation = if (isIdle) 0.dp else 2.dp,
         color = containerColor,
@@ -102,8 +104,7 @@ internal fun AsrButton(
         AnimatedContent(
             targetState = displayState,
             transitionSpec = {
-                (fadeIn(tween(200)) togetherWith fadeOut(tween(200)))
-                    .using(SizeTransform(clip = false))
+                rememberContentTransition().using(SizeTransform(clip = false))
             },
             label = "asr_content_switch"
         ) { display ->
@@ -126,16 +127,21 @@ internal fun AsrButton(
                         modifier = Modifier.size(36.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        val infiniteTransition = rememberInfiniteTransition(label = "asr_pulse")
-                        val scale by infiniteTransition.animateFloat(
-                            initialValue = 0.8f,
-                            targetValue = 1.2f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(600, easing = LinearEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "asr_pulse_scale"
-                        )
+                        // 关掉动效时连过渡都不起：无限动画即使没人读值，也会一直申请下一帧
+                        val scale = if (motionAnimationsEnabled()) {
+                            val infiniteTransition = rememberInfiniteTransition(label = "asr_pulse")
+                            infiniteTransition.animateFloat(
+                                initialValue = 0.8f,
+                                targetValue = 1.2f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(600, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "asr_pulse_scale"
+                            ).value
+                        } else {
+                            1f
+                        }
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -197,10 +203,11 @@ private fun AudioLevelDots(
         values.forEachIndexed { index, amp ->
             val animatedAmp by animateFloatAsState(
                 targetValue = amp.coerceIn(0f, 1f),
-                animationSpec = spring(
-                    dampingRatio = 0.6f,
-                    stiffness = 400f,
-                ),
+                animationSpec = if (motionAnimationsEnabled()) {
+                    spring(dampingRatio = 0.6f, stiffness = 400f)
+                } else {
+                    snap()
+                },
                 label = "bar_$index"
             )
             val barHeight = minHeight + (maxHeight - minHeight) * animatedAmp

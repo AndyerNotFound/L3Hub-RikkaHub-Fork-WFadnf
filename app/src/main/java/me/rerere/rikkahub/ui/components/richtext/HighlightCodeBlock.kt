@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,6 +77,7 @@ import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.ui.webview.WebView
 import me.rerere.ui.webview.WebViewContentCache
@@ -167,7 +167,7 @@ fun HighlightCodeBlock(
         Column(
             modifier = Modifier
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
-                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .motionContentSize()
                 .motionBlurOnToggle(isExpanded),
         ) {
             when {
@@ -341,7 +341,7 @@ private fun CodeBlockDefault(
         SelectableContent {
             BetterText(
                 text = rememberHighlightedCode(displayCode, language, colorPalette),
-                modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
+                modifier = Modifier.motionContentSize(),
                 style = codeTextStyle(textStyle),
             )
         }

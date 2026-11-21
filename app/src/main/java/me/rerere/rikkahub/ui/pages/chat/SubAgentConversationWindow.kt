@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +55,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.components.message.ChatMessage
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.ui.components.AnimatedDialog
 import org.koin.compose.koinInject
 
@@ -124,11 +126,11 @@ fun SubAgentConversationWindow(
             AnimatedVisibility(
                 visible = visible,
                 enter = slideInVertically(
-                    animationSpec = tween(EXIT_ANIMATION_MS),
+                    animationSpec = rememberFixedSpec<IntOffset>(EXIT_ANIMATION_MS),
                     initialOffsetY = { -it },
                 ),
                 exit = slideOutVertically(
-                    animationSpec = tween(EXIT_ANIMATION_MS),
+                    animationSpec = rememberFixedSpec<IntOffset>(EXIT_ANIMATION_MS),
                     targetOffsetY = { -it },
                 ),
                 modifier = Modifier.align(Alignment.TopCenter),

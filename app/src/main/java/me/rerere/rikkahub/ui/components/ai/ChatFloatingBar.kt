@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
@@ -52,6 +53,7 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
@@ -134,11 +136,12 @@ internal fun ChatFloatingBar(
     // 显隐共用一组参数：收起不再比展开快一截，高度、位移、透明度走同一条时间线
     val barTransitionMillis = 320
     val barEasing = FastOutSlowInEasing
+    // 节奏保持不变，只接通「关闭动效」与「动画速度」两档开关
+    val barSpec = rememberFixedSpec<Float>(barTransitionMillis, barEasing)
+    val barSizeSpec = rememberFixedSpec<IntSize>(barTransitionMillis, barEasing)
     val transition = updateTransition(targetState = visible, label = "chatFloatingBar")
     val progress by transition.animateFloat(
-        transitionSpec = {
-            tween(durationMillis = barTransitionMillis, easing = barEasing)
-        },
+        transitionSpec = { barSpec },
         label = "chatFloatingBarProgress",
     ) { shown -> if (shown) 1f else 0f }
     val blur = rememberMotionBlurSteps(maxRadius = 6.dp)
@@ -148,14 +151,8 @@ internal fun ChatFloatingBar(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = expandVertically(
-            animationSpec = tween(durationMillis = barTransitionMillis, easing = barEasing),
-            expandFrom = Alignment.Top,
-        ),
-        exit = shrinkVertically(
-            animationSpec = tween(durationMillis = barTransitionMillis, easing = barEasing),
-            shrinkTowards = Alignment.Top,
-        ),
+        enter = expandVertically(animationSpec = barSizeSpec, expandFrom = Alignment.Top),
+        exit = shrinkVertically(animationSpec = barSizeSpec, shrinkTowards = Alignment.Top),
     ) {
         Box(
             modifier = Modifier

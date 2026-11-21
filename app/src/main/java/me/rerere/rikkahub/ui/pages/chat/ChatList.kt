@@ -856,7 +856,7 @@ private fun ChatListNormal(
                 // 档位与配色跟上下文预警里的速度圆点共用一套，只是这里按本轮峰值归一化
                 val speedRatio by animateFloatAsState(
                     targetValue = generationSpeed.peakRatio,
-                    animationSpec = tween(durationMillis = 420),
+                    animationSpec = rememberSpatialSpec(),
                     label = "loadingIndicatorSpeed",
                 )
                 MotionExpandCollapse(

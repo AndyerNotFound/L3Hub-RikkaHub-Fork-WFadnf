@@ -124,7 +124,9 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
@@ -236,7 +238,7 @@ fun ChatInput(
     val expanded = singleLine && (fieldFocused || hasContent)
     val expandProgress = animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = tween(380, easing = ChatInputExpandEasing),
+        animationSpec = rememberFixedSpec(380, ChatInputExpandEasing),
         label = "chatInputExpand",
     )
     // 按钮行固定 48dp：点击区域留够，行高定了上下留白才能算准
@@ -457,11 +459,8 @@ fun ChatInput(
                 // 300ms 的高矮动画，底栏高度逐帧变，英雄卡和输入区抬升量就跟着逐帧重排。
                 // 贴底以后才需要这段平滑：清单、消息队列、编辑提示条进出都靠它。
                 .then(
-                    if (pinContentToTop) {
-                        Modifier
-                    } else {
-                        Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(), alignment = Alignment.BottomStart)
-                    },
+                    if (pinContentToTop) Modifier
+                    else Modifier.motionContentSize(alignment = Alignment.BottomStart)
                 )
                 // 进入/退出编辑时带上模糊：提示条收放和输入区变高变矮是一段动画，
                 // 不是提示条先消失、高度再慢慢弹回去

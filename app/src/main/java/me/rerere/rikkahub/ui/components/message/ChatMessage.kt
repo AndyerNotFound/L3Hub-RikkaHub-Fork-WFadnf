@@ -139,6 +139,7 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.JsonInstant
@@ -477,9 +478,7 @@ fun ChatMessage(
             exit = slideOutVertically(motionScheme.defaultSpatialSpec()) { it / 2 } +
                 fadeOut(motionScheme.defaultEffectsSpec()),
         ) {
-            Column(
-                modifier = Modifier.animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
-            ) {
+            Column(modifier = Modifier.motionContentSize()) {
                 ChatMessageActionButtons(
                     message = message,
                     onRegenerate = onRegenerate,
@@ -1264,7 +1263,7 @@ private fun ChatMessageCitations(annotations: List<UIMessageAnnotation>) {
     }
     Column(
         modifier = Modifier
-            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+            .motionContentSize()
             .motionBlurOnToggle(expand),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

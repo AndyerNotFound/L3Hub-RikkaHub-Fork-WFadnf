@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -51,6 +52,9 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
+import me.rerere.rikkahub.ui.theme.fixedMotionSpec
+import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -77,17 +81,14 @@ internal fun ChatInputModelPill(
         visible = visible,
         modifier = modifier,
         // 进出同参：收起不再先快一截，也没有只在进场存在的错峰延迟
-        enter = fadeIn(tween(durationMillis = 200)) +
+        enter = fadeIn(rememberFixedSpec<Float>(200)) +
             slideInHorizontally(
-                animationSpec = tween(
-                    durationMillis = 380,
-                    easing = ChatInputExpandEasing,
-                ),
+                animationSpec = rememberFixedSpec<IntOffset>(380, ChatInputExpandEasing),
                 initialOffsetX = { -slideDistance },
             ),
-        exit = fadeOut(tween(durationMillis = 200)) +
+        exit = fadeOut(rememberFixedSpec<Float>(200)) +
             slideOutHorizontally(
-                animationSpec = tween(durationMillis = 380, easing = ChatInputExpandEasing),
+                animationSpec = rememberFixedSpec<IntOffset>(380, ChatInputExpandEasing),
                 targetOffsetX = { -slideDistance },
             ),
     ) {
@@ -181,6 +182,8 @@ internal fun MorphingPlaceholder(
     // 每轮 effect 领一个令牌，只有最新一轮能收尾：被取消的旧动画晚一步跑完时
     // 不能把新一轮的状态抹掉，也不能让它自己的中间态留在屏幕上
     val activeToken = remember { AtomicReference<Any?>(null) }
+    // 逐字动画在协程里跑，读不到 CompositionLocal：在这里取一次开关传下去
+    val animationsEnabled = motionAnimationsEnabled()
 
     LaunchedEffect(target) {
         val token = Any()
@@ -201,9 +204,14 @@ internal fun MorphingPlaceholder(
             inDriver.snapTo(0f)
             // 先让文字带上移一点再换字，两个动作别挤在同一帧
             delay(PLACEHOLDER_START_DELAY_MS.toLong())
-            launch { outDriver.animateTo(1f, tween(durationMillis = outTotal, easing = LinearEasing)) }
+            launch {
+                outDriver.animateTo(
+                    1f,
+                    fixedMotionSpec(animationsEnabled, outTotal, LinearEasing),
+                )
+            }
             delay(inStart.toLong())
-            inDriver.animateTo(1f, tween(durationMillis = inTotal, easing = LinearEasing))
+            inDriver.animateTo(1f, fixedMotionSpec(animationsEnabled, inTotal, LinearEasing))
             if (activeToken.get() === token) resting = target
         } finally {
             if (activeToken.get() === token) {
