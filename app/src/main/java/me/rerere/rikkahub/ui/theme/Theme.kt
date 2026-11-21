@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.theme
 
-import android.os.Build
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.LocalOverscrollFactory
@@ -12,8 +11,6 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.MotionScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -23,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
@@ -115,27 +111,26 @@ fun RikkahubTheme(
     }
     val amoledDarkMode by rememberAmoledDarkMode()
 
-    // 调色板：深浅两套各自生成；没启用时返回 null，继续用主题设置里的配色
+    // 调色板：深浅两套各自生成；没启用时返回 null，交给下面的主题引擎
     val paletteScheme = remember(settings.palette, darkTheme) {
         settings.palette.generateColorScheme(darkTheme)
     }
 
-    val colorScheme = when {
-        settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        paletteScheme != null -> paletteScheme
-        else -> {
-            val theme = findThemeById(settings.themeId, settings.customThemes)
-                ?: findPresetTheme(settings.themeId)
-            theme.getColorScheme(dark = darkTheme)
-        }
-    }
+    // 配色：没启用调色板时由主题引擎（com.t8rin.dynamic.theme）算整套颜色。
+    // 调色板是「逐角色覆盖」，引擎只会从种子色往外推，推不出「这一格就是这个值」，
+    // 所以那一条原样走调色板、不经过引擎（取舍写在 ToolboxColorScheme.kt 顶部）。
+    // elvis 右侧是条件调用的 @Composable：调色板那一档连引擎的动画都不会跑。
+    val colorScheme = paletteScheme ?: rememberToolboxColorScheme(
+        settings = settings,
+        darkTheme = darkTheme,
+        amoledDark = amoledDarkMode,
+    )
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
-    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
-        if (darkTheme && amoledDarkMode) {
+    // AMOLED：走引擎的那一条已经由引擎的 amoledMode 压过黑（连强调色一起降调），
+    // 这里只补调色板那一条，两处都压就叠了两次，黑上加黑、强调色也跟着二次变暗
+    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, paletteScheme, colorScheme) {
+        if (paletteScheme != null && darkTheme && amoledDarkMode) {
             colorScheme.amoledSurface()
         } else {
             colorScheme

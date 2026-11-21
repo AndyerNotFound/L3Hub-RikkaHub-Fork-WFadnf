@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.theme
 
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.t8rin.dynamic.theme.PaletteStyle
 import com.t8rin.toolbox.ui.model.DialogPosition
 import com.t8rin.toolbox.ui.model.FlingType
@@ -21,7 +20,7 @@ import me.rerere.rikkahub.data.datastore.SwitchType
  * 引擎（[com.t8rin.toolbox.ui.widget.enhanced.EnhancedAlertDialog]、
  * [com.t8rin.toolbox.ui.widget.enhanced.EnhancedModalBottomSheet] 等）读的是这一份只读视图，
  * 字段名与 ImageToolbox 的 `UiSettingsState` 一模一样，所以每个字段要么映射到本项目已有的设置，
- * 要么给那边的默认值。阶段 5 接设置时只改这个文件，端口过来的组件一行不用动。
+ * 要么给那边的默认值。接设置只改这个文件，端口过来的组件一行不用动。
  *
  * 深浅色与 AMOLED 不在这里推：主题层已经算好 [darkTheme] / [amoledDark]，
  * 传进来即可，重复读 SharedPreferences 只会多一处会走岔的真相。
@@ -32,6 +31,9 @@ class ToolboxSettingsBridge(
     private val amoledDark: Boolean,
 ) : ToolboxSettings {
 
+    /** 主题引擎那一份设置（配色风格/对比度/反色/图标形状/描边/阴影/拖拽条）：下面这些字段都从这里读。 */
+    private val toolTheme = settings.toolTheme
+
     override val isNightMode: Boolean get() = darkTheme
 
     override val isAmoledMode: Boolean get() = amoledDark
@@ -39,37 +41,37 @@ class ToolboxSettingsBridge(
     /** L3Hub 的 AMOLED 是单个开关（[amoledDark]），没有 ImageToolbox 那层「扩展」。 */
     override val isAmoledModeExtended: Boolean get() = false
 
-    /** 阶段 5 接设置：本项目自己生成调色板，不走这边的主题风格。 */
-    override val themeStyle: PaletteStyle get() = PaletteStyle.TonalSpot
+    /** 配色风格：引擎用它把种子色推开成整套 48 个角色。 */
+    override val themeStyle: PaletteStyle get() = toolTheme.paletteStyle
 
-    /** 阶段 5 接设置 */
-    override val themeContrastLevel: Double get() = 0.0
+    /** 对比度 0.0–1.0，0 是引擎默认档 */
+    override val themeContrastLevel: Double get() = toolTheme.themeContrastLevel
 
-    /** 阶段 5 接设置 */
-    override val isInvertThemeColors: Boolean get() = false
+    /** 反色：和 RikkahubTheme 传给引擎的是同一个字段，两处必须是同一个值 */
+    override val isInvertThemeColors: Boolean get() = toolTheme.isInvertThemeColors
 
     /** 形状：CornerStyle 的七种与 ShapeType 的七个子类一一对上，强度用 cornerScale。 */
     override val shapesType: ShapeType
         get() = settings.displaySetting.let { shapeTypeOf(it.cornerStyle, it.cornerScale) }
 
-    /** 阶段 5 接设置：本项目的图标不带形状容器，用引擎的「无」。 */
-    override val iconShape: IconShape? get() = null
+    /** 图标形状：设置里存的是位置键（见 [ToolboxIconShapes]），这里换成引擎的实例；null = 不带形状容器。 */
+    override val iconShape: IconShape? get() = ToolboxIconShapes.resolve(toolTheme.iconShapeName)
 
-    /** 阶段 5 接设置：引擎的描边宽度（边框贴边时用来补一行 offset），本项目没有描边体系。 */
-    override val borderWidth: Dp get() = 0.dp
+    /** 组件描边宽度：0 表示不描边；引擎据此决定按钮/卡片要不要画那圈线。 */
+    override val borderWidth: Dp get() = toolTheme.uiBorderWidthDp
 
-    /** 阶段 5 接设置：这些都是引擎的阴影/描边开关，本项目还没有对应设置，先按「不画」给。 */
-    override val drawContainerShadows: Boolean get() = false
+    /** 引擎的六项阴影开关：默认全关（和接设置之前一致），开哪一项就在设置页里勾哪一项。 */
+    override val drawContainerShadows: Boolean get() = toolTheme.drawContainerShadows
 
-    override val drawAppBarShadows: Boolean get() = false
+    override val drawAppBarShadows: Boolean get() = toolTheme.drawAppBarShadows
 
-    override val drawButtonShadows: Boolean get() = false
+    override val drawButtonShadows: Boolean get() = toolTheme.drawButtonShadows
 
-    override val drawFabShadows: Boolean get() = false
+    override val drawFabShadows: Boolean get() = toolTheme.drawFabShadows
 
-    override val drawSwitchShadows: Boolean get() = false
+    override val drawSwitchShadows: Boolean get() = toolTheme.drawSwitchShadows
 
-    override val drawSliderShadows: Boolean get() = false
+    override val drawSliderShadows: Boolean get() = toolTheme.drawSliderShadows
 
     /** 形状动画的节流：本项目的 cornerAnimThrottle 是同一个意思，直接映射。 */
     override val shapeByInteractionThrottle: Long
@@ -83,14 +85,14 @@ class ToolboxSettingsBridge(
      */
     override val sheetNestedScrollEnabled: Boolean get() = true
 
-    /** 阶段 5 接设置：紧凑选择器布局 */
+    /** 固定值：本项目的滑块/选择器一直用宽松布局，没有紧凑档 */
     override val isCompactSelectorsLayout: Boolean get() = false
 
-    /** 阶段 5 接设置：对话框按钮居中（引擎默认靠右，与本项目现状一致） */
+    /** 固定值：靠右——引擎的默认，也是本项目一直以来的样子 */
     override val isCenterAlignDialogButtons: Boolean get() = false
 
-    /** 阶段 5 接设置：拖拽条宽度。引擎只在用 EnhancedModalSheetDragHandle 时才读它。 */
-    override val dragHandleWidth: Dp get() = 12.dp
+    /** 拖拽条宽度：引擎只在用 EnhancedModalSheetDragHandle 时才读它。 */
+    override val dragHandleWidth: Dp get() = toolTheme.dragHandleWidthDp
 
     override val switchType: ToolboxSwitchType
         get() = when (settings.displaySetting.switchType) {
@@ -112,10 +114,10 @@ class ToolboxSettingsBridge(
             SliderType.HYPEROS -> ToolboxSliderType.HyperOS
         }
 
-    /** 阶段 5 接设置：惯性滚动预设 */
+    /** 固定值：引擎默认的惯性曲线，本项目没有惯性档设置 */
     override val flingType: FlingType get() = FlingType.DEFAULT
 
-    /** 阶段 5 接设置：弹窗贴顶/居中/贴底 */
+    /** 固定值：弹窗居中，和接引擎之前的位置一致 */
     override val dialogPosition: DialogPosition get() = DialogPosition.Center
 }
 

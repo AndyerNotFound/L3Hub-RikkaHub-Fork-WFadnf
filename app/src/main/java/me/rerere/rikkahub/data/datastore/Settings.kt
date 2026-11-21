@@ -40,6 +40,8 @@ data class Settings(
     val customThemes: List<CustomTheme> = emptyList(),
     // 调色板：预设或用户逐个改过的深浅两套颜色，默认不启用（跟随 themeId / 动态取色）
     val palette: PaletteSetting = PaletteSetting(),
+    // 主题引擎（阶段 5）：配色风格/对比度/色盲/反色/图标形状/描边与阴影，见 ToolThemeSetting
+    val toolTheme: ToolThemeSetting = ToolThemeSetting(),
     val developerMode: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
     val networkSetting: NetworkSetting = NetworkSetting(),

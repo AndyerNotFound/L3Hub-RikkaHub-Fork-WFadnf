@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButtonColors
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.SwitchColors
@@ -41,6 +42,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
+import com.t8rin.toolbox.ui.theme.outlineVariant
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedButton
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedIconButton
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedTopAppBar
@@ -58,6 +61,26 @@ import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
  * MaterialTheme.shapes，所以带 shape 参数的包装照传即可，别让引擎的 AutoCircleShape 顶掉；
  * 不带 shape 参数的（IconButton 一族）交给引擎从 LocalToolboxSettings.shapesType 读。
  */
+/**
+ * 按钮描边的颜色。
+ *
+ * 描边宽度不在调用点手里：引擎一律从 `ToolboxSettings.borderWidth` 读，所以这里只能决定颜色。
+ * - 调用点给了 `border`：照它的颜色画，宽窄仍按设置走。
+ * - 没给：宽度 0 时给 Transparent——引擎画的是 `OutlinedButton`，宽度 0 也可能留一圈 hairline，
+ *   颜色不压透明就凭空多一条边；宽度 > 0 时用户要的就是那圈线，颜色取引擎的默认色
+ *   （`outlineVariant` 盖在容器色上，和 EnhancedButton 自己的默认参数是同一个表达式），
+ *   否则等于画了条看不见的边。
+ */
+@Composable
+private fun buttonBorderColor(border: BorderStroke?, containerColor: Color): Color {
+    (border?.brush as? SolidColor)?.value?.let { return it }
+    return if (LocalToolboxSettings.current.borderWidth > 0.dp) {
+        MaterialTheme.colorScheme.outlineVariant(onTopOf = containerColor)
+    } else {
+        Color.Transparent
+    }
+}
+
 @Composable
 fun Button(
     onClick: () -> Unit,
@@ -80,9 +103,8 @@ fun Button(
         enabled = enabled,
         containerColor = colors.containerColor,
         contentColor = colors.contentColor,
-        // 引擎的描边宽度只从 ToolboxSettings.borderWidth 读（现阶段 0.dp），这里只能保住颜色；
-        // 没描边的调用点给 Transparent，别让 0.dp 那圈 hairline 冒出来
-        borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent,
+        // 宽度由设置决定，颜色跟着同一个宽度走（见 buttonBorderColor）
+        borderColor = buttonBorderColor(border = border, containerColor = colors.containerColor),
         shape = shape,
         contentPadding = contentPadding,
         interactionSource = interactionSource ?: remember { MutableInteractionSource() },
@@ -128,9 +150,9 @@ fun TextButton(
 /**
  * 保留 Material 转发。
  *
- * 描边是描边按钮的全部身份，而 [EnhancedButton] 的描边宽度写死从 ToolboxSettings.borderWidth
- * 读（现阶段 0.dp），只开放颜色。换过去等于把描边按钮变成文字按钮，属明显观感退化。
- * 等阶段 5 把描边体系接进设置，再回来换成 EnhancedButton（那时 border 用 defaults 里的颜色）。
+ * 描边是描边按钮的全部身份，而 [EnhancedButton] 的描边宽度只从 ToolboxSettings.borderWidth 读，
+ * 调用点给的 `border.width` 会被忽略。设置里那一档默认是 0，换过去等于把描边按钮变成文字按钮。
+ * 宽度接进设置之后依然不能换：那是全局一项，描边按钮要的是自己那一圈。
  */
 @Composable
 fun OutlinedButton(
@@ -172,14 +194,14 @@ fun FilledTonalButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    // 与 Button 同一套映射：elevation 引擎接不住（现阶段阴影全关），描边只能保颜色
+    // 与 Button 同一套映射：elevation 仍由引擎的 drawButtonShadows 决定
     EnhancedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
         containerColor = colors.containerColor,
         contentColor = colors.contentColor,
-        borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent,
+        borderColor = buttonBorderColor(border = border, containerColor = colors.containerColor),
         shape = shape,
         contentPadding = contentPadding,
         interactionSource = interactionSource ?: remember { MutableInteractionSource() },
@@ -198,7 +220,7 @@ fun IconButton(
 ) {
     val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     // M3 的 IconButton 是透明的：容器色原样传（默认 Transparent），禁用色引擎有专门入口，
-    // 能无损映射（引擎默认会画的描边现在没有宽度，颜色给 Transparent 压掉）
+    // 能无损映射；描边颜色和按钮同一套规则（宽度 0 时 Transparent 压掉 hairline）
     EnhancedIconButton(
         onClick = onClick,
         modifier = modifier,
@@ -207,7 +229,7 @@ fun IconButton(
         contentColor = colors.contentColor,
         disabledContainerColor = colors.disabledContainerColor,
         disabledContentColor = colors.disabledContentColor,
-        borderColor = Color.Transparent,
+        borderColor = buttonBorderColor(border = null, containerColor = colors.containerColor),
         interactionSource = resolvedInteractionSource,
         content = content,
     )
@@ -233,7 +255,7 @@ fun FilledIconButton(
         contentColor = colors.contentColor,
         disabledContainerColor = colors.disabledContainerColor,
         disabledContentColor = colors.disabledContentColor,
-        borderColor = Color.Transparent,
+        borderColor = buttonBorderColor(border = null, containerColor = colors.containerColor),
         shape = shape,
         interactionSource = resolvedInteractionSource,
         content = content,
@@ -259,7 +281,7 @@ fun FilledTonalIconButton(
         contentColor = colors.contentColor,
         disabledContainerColor = colors.disabledContainerColor,
         disabledContentColor = colors.disabledContentColor,
-        borderColor = Color.Transparent,
+        borderColor = buttonBorderColor(border = null, containerColor = colors.containerColor),
         shape = shape,
         interactionSource = resolvedInteractionSource,
         content = content,

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.datastore
 
 import androidx.datastore.preferences.core.emptyPreferences
+import com.t8rin.dynamic.theme.ColorBlindType
+import com.t8rin.dynamic.theme.PaletteStyle as ToolboxPaletteStyle
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.descriptors.elementNames
@@ -130,6 +132,22 @@ private val SAMPLE = Settings(
         light = PaletteColors(primary = 0xFF112233, onPrimary = 0xFF445566),
         dark = PaletteColors(primary = 0xFF778899),
     ),
+    toolTheme = ToolThemeSetting(
+        appColorTuple = ThemeColorTuple(primary = 0xFF112233, error = 0xFF445566),
+        paletteStyle = ToolboxPaletteStyle.Vibrant,
+        themeContrastLevel = 0.5,
+        colorBlindType = ColorBlindType.Deuteranopia,
+        isInvertThemeColors = true,
+        iconShapeName = "entry:1",
+        uiBorderWidth = 2f,
+        drawContainerShadows = true,
+        drawAppBarShadows = true,
+        drawButtonShadows = true,
+        drawFabShadows = true,
+        drawSwitchShadows = true,
+        drawSliderShadows = true,
+        dragHandleWidth = 16f,
+    ),
     developerMode = true,
     appLockEnabled = true,
     appLockTimeoutMinutes = 15,
@@ -223,6 +241,7 @@ private val STORED_KEYS = setOf(
     "theme_id",
     "custom_themes",
     "palette",
+    "tool_theme",
     "display_setting",
     "network_setting",
     "developer_mode",
