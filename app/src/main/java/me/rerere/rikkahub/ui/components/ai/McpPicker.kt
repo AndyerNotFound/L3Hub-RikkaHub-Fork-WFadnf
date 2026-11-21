@@ -1,10 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +40,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
@@ -55,8 +50,6 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.Switch
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.ToggleSurface
 import org.koin.compose.koinInject
@@ -136,10 +129,8 @@ fun McpPickerButton(
                     fontWeight = FontWeight.Bold
                 )
             )
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = loading,
-                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -235,11 +226,9 @@ internal fun McpPickerPage(
                 McpRefreshButton(mcpManager)
             },
         )
-        AnimatedVisibility(
+        MotionExpandCollapse(
             visible = loading,
             modifier = Modifier.align(Alignment.CenterHorizontally),
-            enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-            exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

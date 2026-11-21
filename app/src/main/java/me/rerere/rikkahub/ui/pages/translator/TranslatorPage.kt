@@ -58,7 +58,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -75,6 +74,7 @@ import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.hugeicons.stroke.Share08
 import me.rerere.hugeicons.stroke.Stop
 import me.rerere.hugeicons.stroke.Translate
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
@@ -85,7 +85,6 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
@@ -350,10 +349,8 @@ private fun ResultCard(
                 color = MaterialTheme.colorScheme.primary,
             )
 
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = translating,
-                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
             ) {
                 LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
             }

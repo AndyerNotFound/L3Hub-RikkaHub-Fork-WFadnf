@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -57,16 +56,14 @@ import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.glassColor
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.ui.components.AnimatedAlertDialog
 import java.time.LocalDate
@@ -237,10 +234,8 @@ internal fun ConversationItem(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = selectionMode,
-                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
             ) {
                 Box(
                     modifier = Modifier
@@ -281,10 +276,8 @@ internal fun ConversationItem(
             Spacer(Modifier.weight(1f))
 
             // 置顶图标
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = conversation.isPinned,
-                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
             ) {
                 Icon(
                     imageVector = HugeIcons.Pin,
@@ -293,10 +286,8 @@ internal fun ConversationItem(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            AnimatedVisibility(
+            MotionExpandCollapse(
                 visible = loading,
-                enter = fadeIn(rememberEffectsSpec<Float>()) + expandVertically(rememberSpatialSpec<IntSize>()),
-                exit = fadeOut(rememberEffectsSpec<Float>()) + shrinkVertically(rememberSpatialSpec<IntSize>()),
             ) {
                 Box(
                     modifier = Modifier

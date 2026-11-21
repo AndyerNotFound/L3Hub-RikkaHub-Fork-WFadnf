@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.MutableTransitionState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
@@ -171,6 +172,34 @@ fun MotionExpandCollapse(
         },
         enter = enter,
         exit = exit,
+        content = content,
+    )
+}
+
+/**
+ * [MotionExpandCollapse] 的 [MutableTransitionState] 版本：调用方要自己控制初始状态
+ * （例如按消息 id 重置、避免切换内容时闪一次动画）时用它。
+ * 其余行为与 Boolean 版完全一致，内部按 targetState 委托过去。
+ */
+@Composable
+fun MotionExpandCollapse(
+    visibleState: MutableTransitionState<Boolean>,
+    modifier: Modifier = Modifier,
+    enter: EnterTransition = rememberRevealEnter(),
+    exit: ExitTransition = rememberRevealExit(),
+    maxBlurRadius: Dp = 6.dp,
+    enterBlurSpec: AnimationSpec<Float> = rememberMotionBlurSpec(),
+    exitBlurSpec: AnimationSpec<Float> = enterBlurSpec,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
+) {
+    MotionExpandCollapse(
+        visible = visibleState.targetState,
+        modifier = modifier,
+        enter = enter,
+        exit = exit,
+        maxBlurRadius = maxBlurRadius,
+        enterBlurSpec = enterBlurSpec,
+        exitBlurSpec = exitBlurSpec,
         content = content,
     )
 }

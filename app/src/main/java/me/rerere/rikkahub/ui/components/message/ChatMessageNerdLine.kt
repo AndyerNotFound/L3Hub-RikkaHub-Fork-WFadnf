@@ -1,13 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,14 +45,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.takeOrElse
 import kotlinx.coroutines.launch
@@ -78,6 +69,7 @@ import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Repeat
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -87,10 +79,6 @@ import me.rerere.rikkahub.data.model.TokenBucket
 import me.rerere.rikkahub.data.model.TokenDestination
 import me.rerere.rikkahub.data.model.buildTokenBreakdown
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toDp
@@ -156,27 +144,10 @@ fun ChatMessageNerdLine(
 
     // 生成结束拿到 usage 的一刻，这一行和加载图标的退场同时发生：
     // 数字带模糊渐显、行高从上往下展开；重新生成清掉 usage 时反向收起
-    val blurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
-    val enterSize = rememberSpatialSpec<IntSize>()
-    val fadeSpec = rememberEffectsSpec<Float>()
-    // 模糊跟着动态模糊设置里的时长走，位移仍按动画速度档位
-    val enterBlurSpec = rememberMotionBlurSpec()
-    AnimatedVisibility(
+    MotionExpandCollapse(
         visibleState = visibility,
         modifier = modifier,
-        enter = expandVertically(animationSpec = enterSize) + fadeIn(fadeSpec),
-        exit = shrinkVertically(animationSpec = enterSize) + fadeOut(fadeSpec),
-        label = "nerdLine",
     ) {
-        val blur by transition.animateFloat(
-            transitionSpec = { enterBlurSpec },
-            label = "nerdLineBlur",
-        ) { state ->
-            if (state == EnterExitState.Visible) 0f else 1f
-        }
-        Box(
-            modifier = Modifier.graphicsLayer { renderEffect = blurSteps.at(blur) },
-        ) {
             TooltipBox(
                 positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                 tooltip = {
@@ -262,7 +233,6 @@ fun ChatMessageNerdLine(
                     }
                 }
             }
-        }
     }
 }
 
