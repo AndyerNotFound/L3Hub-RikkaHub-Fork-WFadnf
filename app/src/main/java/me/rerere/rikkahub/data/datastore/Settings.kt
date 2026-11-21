@@ -232,11 +232,10 @@ enum class AnimationSpeed {
  *
  * 顺序与源工程一致（源工程是八个 `data object` 的 sealed class，这里改成 enum，
  * 因为要直接序列化进 DataStore）。[MATERIAL_YOU] 是默认值，走的仍是本项目原来的
- * 开关实现（原生皮肤用 M3、Miuix 皮肤用 Miuix 的开关），其余七档一律用移植过来的自绘实现，
- * 两套皮肤下表现一致。
+ * 开关实现（M3 的 `Switch`），其余七档一律用移植过来的自绘实现。
  */
 enum class SwitchType {
-    /** 跟随当前界面皮肤（原生 M3 / Miuix） */
+    /** 跟随 Material 3 的开关 */
     MATERIAL_YOU,
 
     /** Compose 基础款：轨道与拇指都是 M3 baseline */
@@ -351,48 +350,6 @@ data class MotionBlurSetting(
     val scrollBlur: Boolean = true,
 )
 
-/** 整套界面走哪套组件：原生 Material 3，或 Miuix（HyperOS 风格）。 */
-@Serializable
-enum class UiStyle {
-    NATIVE,
-    MIUIX,
-}
-
-/** Miuix 组件的按压反馈：按下时不动、整体下沉、或轻微倾斜。 */
-@Serializable
-enum class MiuixPressFeedback {
-    NONE,
-    SINK,
-    TILT,
-}
-
-/** Miuix 的配色从哪来。 */
-@Serializable
-enum class MiuixColorSource {
-    /** 跟随当前界面：直接映射调色板与位置层，跟原生页面是同一套底色 */
-    THEME,
-
-    /** 从主题主色自动生成，风格由 [MiuixPalette] 决定 */
-    GENERATED,
-
-    /** Miuix 自带的那套蓝色 */
-    DEFAULT,
-}
-
-/** 自动生成配色时的风格（对应 Miuix 的 ThemePaletteStyle）。 */
-@Serializable
-enum class MiuixPalette {
-    TONAL_SPOT,
-    NEUTRAL,
-    VIBRANT,
-    EXPRESSIVE,
-    RAINBOW,
-    FRUIT_SALAD,
-    MONOCHROME,
-    FIDELITY,
-    CONTENT,
-}
-
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
@@ -437,18 +394,6 @@ data class DisplaySetting(
     val fontSizeRatio: Float = 1.0f,
     // 整个界面的缩放（0.5–2.0）：改的是应用自己的密度，dp 与 sp 一起缩放
     val uiScale: Float = 1.0f,
-    // 界面风格：切到 Miuix 后整棵树的骨架组件（卡片分组、开关）换成 Miuix 的实现，
-    // 水波纹与滚动回弹也交给 Miuix。没迁过去的页面保持原来样子。
-    val uiStyle: UiStyle = UiStyle.NATIVE,
-    // Miuix 的配色从哪来；自动生成时配色风格才有意义
-    val miuixColorSource: MiuixColorSource = MiuixColorSource.THEME,
-    val miuixPalette: MiuixPalette = MiuixPalette.TONAL_SPOT,
-    // Miuix 组件的按压反馈
-    val miuixPressFeedback: MiuixPressFeedback = MiuixPressFeedback.SINK,
-    // Miuix 的滚动回弹，关掉沿用系统的
-    val miuixOverscroll: Boolean = true,
-    // Miuix 卡片的圆角（dp）
-    val miuixCornerRadius: Int = 16,
     val enableMessageGenerationHapticEffect: Boolean = false,
     // 全局触感强度：只影响走 LocalHapticFeedback 的震动，不影响消息生成那条独立的开关
     val hapticsStrength: HapticsStrength = HapticsStrength.SYSTEM,

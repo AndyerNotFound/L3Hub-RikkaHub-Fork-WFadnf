@@ -41,7 +41,7 @@ class UpstreamCompatTest {
               "avatar": {"type": "me.rerere.rikkahub.data.model.Avatar.Image", "url": "/a.png"}
             }
           ],
-          "uiStyle": "MIUIX"
+          "someFutureForkKey": "kept-as-is"
         }
     """.trimIndent()
 
@@ -92,7 +92,7 @@ class UpstreamCompatTest {
 
     @Test
     fun `keeps unknown fork keys for the original to ignore`() {
-        assertEquals("MIUIX", downgrade(settings)["uiStyle"]!!.jsonPrimitive.content)
+        assertEquals("kept-as-is", downgrade(settings)["someFutureForkKey"]!!.jsonPrimitive.content)
         assertEquals("minimal", downgrade(settings)["themeId"]!!.jsonPrimitive.content)
     }
 

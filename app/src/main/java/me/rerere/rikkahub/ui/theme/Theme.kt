@@ -28,13 +28,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.CornerStyle
-import me.rerere.rikkahub.data.datastore.UiStyle
 import me.rerere.rikkahub.ui.shape.styledShape
 import me.rerere.rikkahub.ui.haptics.rememberEnhancedHapticFeedback
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
@@ -136,8 +134,6 @@ fun RikkahubTheme(
     }
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
-    // 界面风格：Miuix 模式下整棵树套一层 MiuixTheme，骨架组件各自走 Miuix 实现
-    val uiStyle = settings.displaySetting.uiStyle
     val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
         if (darkTheme && amoledDarkMode) {
             colorScheme.amoledSurface()
@@ -236,9 +232,6 @@ fun RikkahubTheme(
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
         LocalFullWidthComponents provides fullWidthComponents,
-        LocalUiStyle provides uiStyle,
-        LocalMiuixPressFeedback provides settings.displaySetting.miuixPressFeedback,
-        LocalMiuixCornerRadius provides (settings.displaySetting.miuixCornerRadius * cornerScale).dp,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
@@ -286,20 +279,7 @@ fun RikkahubTheme(
                             }
                         }
                     }
-                    // Miuix 模式下整棵树外面套一层 MiuixTheme：组件拿得到 Miuix 的色板与字号，
-                    // 水波纹和滚动回弹也换成 Miuix 的。没迁过去的 Material 页面照常渲染，
-                    // 只是共用这一层 LocalIndication。
-                    if (uiStyle == UiStyle.MIUIX) {
-                        MiuixRootTheme(
-                            dark = effectiveDark,
-                            colorSource = settings.displaySetting.miuixColorSource,
-                            palette = settings.displaySetting.miuixPalette,
-                            overscroll = settings.displaySetting.miuixOverscroll,
-                            content = body,
-                        )
-                    } else {
-                        body()
-                    }
+                    body()
                 }
             },
             // 档位直接换成对应的 MotionScheme：material3 自己的动效（底部抽屉、菜单、

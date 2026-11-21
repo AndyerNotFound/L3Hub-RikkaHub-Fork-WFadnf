@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
@@ -55,14 +54,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
-import me.rerere.rikkahub.data.datastore.UiStyle
-import me.rerere.rikkahub.ui.theme.LocalMiuixCornerRadius
-import me.rerere.rikkahub.ui.theme.LocalUiStyle
-import me.rerere.rikkahub.ui.theme.miuixPressFeedbackType
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
-import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.shape.rememberAnimatedShape
@@ -287,7 +279,7 @@ fun CardGroupValue(
     }
 }
 
-// 原生表单项和 Miuix 卡片的内部是同一套布局：标题行 + 表单内容，两边共用
+// 表单项的内部布局：标题行 + 表单内容
 @Composable
 private fun CardGroupItemLayout(
     item: CardGroupItem,
@@ -409,7 +401,7 @@ private fun CardGroupListItem(
     )
 }
 
-// 原生与 Miuix 两个分支的收放参数完全一样，收在这里，改一处两边一起变
+// 收放参数收在这里：展开、模糊、淡入各一档，整组共用同一份
 private data class CardGroupCollapseSpecs(
     val expand: FiniteAnimationSpec<IntSize>,
     val blur: FiniteAnimationSpec<Float>,
@@ -439,10 +431,6 @@ fun CardGroup(
 ) {
     val scope = CardGroupScopeImpl()
     scope.content()
-    if (LocalUiStyle.current == UiStyle.MIUIX) {
-        MiuixCardGroup(modifier = modifier, title = title, scope = scope)
-        return
-    }
 
     Column(modifier = modifier) {
         if (title != null) {
@@ -526,67 +514,5 @@ private fun CardGroupPreview() {
                 }
             }
         }
-    }
-}
-
-private val MiuixCardSpacing = 4.dp
-
-/**
- * Miuix 模式下的分组：每一项一张可点的 Miuix 卡。
- *
- * 原生那套是一整组拼成一块（首尾 20dp、中间 4dp、间距 2dp）；Miuix 的卡片只有统一圆角，
- * 拼不出这种接缝，所以改成每项独立一张、间距拉开。按压反馈交给 Miuix（设置里可选下沉或倾斜），
- * 水波纹与滚动回弹由外层 MiuixTheme 提供。
- */
-@Composable
-private fun MiuixCardGroup(
-    modifier: Modifier = Modifier,
-    title: (@Composable () -> Unit)? = null,
-    scope: CardGroupScopeImpl,
-) {
-    Column(modifier = modifier) {
-        if (title != null) {
-            CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.primary) {
-                ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
-                    Box(modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)) {
-                        title()
-                    }
-                }
-            }
-        }
-        val specs = cardGroupCollapseSpecs()
-        scope.items.fastForEachIndexed { _, item ->
-            MotionExpandCollapse(
-                visible = item.visible,
-                enter = expandVertically(specs.expand) + fadeIn(specs.fade),
-                exit = shrinkVertically(specs.expand) + fadeOut(specs.fade),
-                enterBlurSpec = specs.blur,
-                exitBlurSpec = specs.blur,
-            ) {
-                Column {
-                    MiuixCardGroupItem(item = item)
-                    Spacer(modifier = Modifier.height(MiuixCardSpacing))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiuixCardGroupItem(item: CardGroupItem) {
-    val cornerRadius = LocalMiuixCornerRadius.current
-    val shape = RoundedCornerShape(cornerRadius)
-    // 和原生分支同一套判断：开了模糊特效就把卡片的实色底交给玻璃层
-    val glass = LocalSettings.current.displaySetting.enableBlurEffect
-    MiuixCard(
-        modifier = item.modifier
-            .fillMaxWidth()
-            .glassSurface(shape = shape, baseColor = MaterialTheme.colorScheme.surfaceBright),
-        cornerRadius = cornerRadius,
-        colors = if (glass) MiuixCardDefaults.defaultColors(color = Color.Transparent) else MiuixCardDefaults.defaultColors(),
-        pressFeedbackType = miuixPressFeedbackType(),
-        onClick = item.onClick,
-    ) {
-        CardGroupItemLayout(item = item, formContent = item.formContent)
     }
 }

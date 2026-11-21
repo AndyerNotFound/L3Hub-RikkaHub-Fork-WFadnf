@@ -7,19 +7,16 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.datastore.SwitchType
-import me.rerere.rikkahub.data.datastore.UiStyle
 import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.components.ui.switch.SwitchByType
 import me.rerere.rikkahub.ui.theme.LocalSwitchType
-import me.rerere.rikkahub.ui.theme.LocalUiStyle
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 
 /**
  * 跟随"按钮阴影"设置的开关，并按「开关类型」分发到对应实现。
  *
- * [SwitchType.MATERIAL_YOU]（默认）不接管：原生皮肤走 M3 的 `Switch`、Miuix 皮肤走 Miuix 的，
- * 与改动前完全一致。其余七档用 `ui/components/ui/switch` 里从 ImageToolbox 搬过来的自绘实现，
- * 两套皮肤下画的是同一个东西。
+ * [SwitchType.MATERIAL_YOU]（默认）不接管，走 M3 的 `Switch`，与改动前完全一致。
+ * 其余七档用 `ui/components/ui/switch` 里从 ImageToolbox 搬过来的自绘实现。
  */
 @Composable
 fun AppSwitch(
@@ -28,7 +25,7 @@ fun AppSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val useShadow = LocalUiStyle.current != UiStyle.MIUIX && LocalButtonShadow.current && enabled
+    val useShadow = LocalButtonShadow.current && enabled
     val switchType = LocalSwitchType.current
     val shadowedModifier = if (useShadow) {
         modifier.shadow(

@@ -64,8 +64,8 @@ val LocalCornerThrottle = compositionLocalOf { 128 }
 /**
  * 开关外观，对应显示设置里的「开关类型」。
  *
- * 默认 [SwitchType.MATERIAL_YOU]，此时不接管：原生皮肤用 M3 的开关、Miuix 皮肤用 Miuix 的。
- * 其余七档一律用 `ui/components/ui/switch` 里的自绘实现，两套皮肤表现一致。
+ * 默认 [SwitchType.MATERIAL_YOU]，此时不接管，用 M3 的开关。
+ * 其余七档一律用 `ui/components/ui/switch` 里的自绘实现。
  */
 val LocalSwitchType = compositionLocalOf { SwitchType.MATERIAL_YOU }
 
