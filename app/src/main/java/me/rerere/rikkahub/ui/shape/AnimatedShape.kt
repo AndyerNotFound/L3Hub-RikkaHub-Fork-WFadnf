@@ -4,7 +4,7 @@ package me.rerere.rikkahub.ui.shape
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.StiffnessLow
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -105,7 +105,7 @@ private typealias ShapeAnimatable = Animatable<Float, AnimationVector1D>
 /**
  * 跟随 [currentShape] 变化的形状。
  *
- * 目标一变就把四个角各 animate 一段（弹簧，阻尼 0.4 / `StiffnessLow`，与源工程一致）；
+ * 目标一变就把四个角各 animate 一段（弹簧，阻尼 0.4 / `Spring.StiffnessLow`，与源工程一致）；
  * 关掉动效时直接 `snap`，不会留一段几百毫秒的收角。
  *
  * 目标值放 [Channel.CONFLATED] 里再消费：连续重组（比如拖滑杆、连续插值出来的形状）
@@ -119,7 +119,7 @@ fun rememberAnimatedShape(
 ): AnimatedShape {
     val density = LocalDensity.current
     val animationSpec = if (motionAnimationsEnabled()) {
-        remember { spring<Float>(dampingRatio = 0.4f, stiffness = StiffnessLow) }
+        remember { spring<Float>(dampingRatio = 0.4f, stiffness = Spring.StiffnessLow) }
     } else {
         remember { snap<Float>() }
     }

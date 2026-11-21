@@ -1,9 +1,9 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.ui.effectSurface
@@ -21,7 +21,7 @@ internal fun Modifier.chatInputHaze(
     hazeState: HazeState,
     displaySetting: DisplaySetting,
     containerColor: Color,
-    shape: RoundedCornerShape,
+    shape: Shape,
     // 留空时按档位取滑杆：模糊读 blurOpacity，玻璃读 glassOpacity
     alpha: Float? = null,
 ): Modifier = effectSurface(

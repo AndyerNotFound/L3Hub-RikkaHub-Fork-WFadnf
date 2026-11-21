@@ -336,37 +336,35 @@ private data class ActualSwitchColors(
     val thumb: Color,
     val track: Color,
     val stroke: Color
-) {
-    companion object {
-        @Suppress("KotlinConstantConditions")
-        fun SwitchColors.forConfig(
-            enabled: Boolean,
-            checked: Boolean
-        ): ActualSwitchColors = if (
-            enabled && checked
-        ) ActualSwitchColors(
-            thumb = checkedThumbColor,
-            track = checkedTrackColor,
-            stroke = checkedTrackColor
-        ) else if (
-            !enabled && checked
-        ) ActualSwitchColors(
-            thumb = disabledCheckedThumbColor,
-            track = disabledCheckedTrackColor,
-            stroke = disabledCheckedTrackColor
-        ) else if (
-            enabled && !checked
-        ) ActualSwitchColors(
-            thumb = uncheckedTrackColor.copy(1f),
-            track = uncheckedThumbColor.copy(1f),
-            stroke = uncheckedThumbColor.copy(1f),
-        ) else ActualSwitchColors(
-            thumb = disabledUncheckedTrackColor,
-            track = disabledUncheckedThumbColor,
-            stroke = disabledUncheckedThumbColor
-        )
-    }
-}
+)
+
+@Suppress("KotlinConstantConditions")
+private fun SwitchColors.forConfig(
+    enabled: Boolean,
+    checked: Boolean
+): ActualSwitchColors = if (
+    enabled && checked
+) ActualSwitchColors(
+    thumb = checkedThumbColor,
+    track = checkedTrackColor,
+    stroke = checkedTrackColor
+) else if (
+    !enabled && checked
+) ActualSwitchColors(
+    thumb = disabledCheckedThumbColor,
+    track = disabledCheckedTrackColor,
+    stroke = disabledCheckedTrackColor
+) else if (
+    enabled && !checked
+) ActualSwitchColors(
+    thumb = uncheckedTrackColor.copy(1f),
+    track = uncheckedThumbColor.copy(1f),
+    stroke = uncheckedThumbColor.copy(1f),
+) else ActualSwitchColors(
+    thumb = disabledUncheckedTrackColor,
+    track = disabledUncheckedThumbColor,
+    stroke = disabledUncheckedThumbColor
+)
 
 private const val animDuration = 250
 private val strokeWidth = 2.dp

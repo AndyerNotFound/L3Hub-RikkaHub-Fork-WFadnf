@@ -321,8 +321,14 @@ fun Modifier.motionStretchHeight(
                     }
                 } else {
                     // 变长：直接跟上。撤掉正在跑的动画，之后不再有逐帧失效，
-                    // 整条消息也不必为了一帧几像素的增长重新测量
-                    anim.cancelAnimation()
+                    // 整条消息也不必为了一帧几像素的增长重新测量。
+                    // Animatable 只有挂起的 stop()，丢到测量外的协程里撤；
+                    // 排到执行前目标又变了就作废，免得撤掉新一轮的动画
+                    val settling = natural
+                    scope.launch {
+                        if (state.target != settling) return@launch
+                        anim.stop()
+                    }
                 }
             }
             val reported = when {

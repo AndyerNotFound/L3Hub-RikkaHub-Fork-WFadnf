@@ -9,7 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
@@ -137,15 +137,19 @@ private fun lerpRoundRect(start: RoundRect, end: RoundRect, t: Float): RoundRect
     top = lerpFloat(start.top, end.top, t),
     right = lerpFloat(start.right, end.right, t),
     bottom = lerpFloat(start.bottom, end.bottom, t),
-    topLeftCornerRadius = lerpOffset(start.topLeftCornerRadius, end.topLeftCornerRadius, t),
-    topRightCornerRadius = lerpOffset(start.topRightCornerRadius, end.topRightCornerRadius, t),
-    bottomRightCornerRadius = lerpOffset(start.bottomRightCornerRadius, end.bottomRightCornerRadius, t),
-    bottomLeftCornerRadius = lerpOffset(start.bottomLeftCornerRadius, end.bottomLeftCornerRadius, t),
+    topLeftCornerRadius = lerpCornerRadius(start.topLeftCornerRadius, end.topLeftCornerRadius, t),
+    topRightCornerRadius = lerpCornerRadius(start.topRightCornerRadius, end.topRightCornerRadius, t),
+    bottomRightCornerRadius = lerpCornerRadius(start.bottomRightCornerRadius, end.bottomRightCornerRadius, t),
+    bottomLeftCornerRadius = lerpCornerRadius(start.bottomLeftCornerRadius, end.bottomLeftCornerRadius, t),
 )
 
 private fun lerpFloat(start: Float, stop: Float, t: Float): Float = start + (stop - start) * t
 
-private fun lerpOffset(start: Offset, stop: Offset, t: Float): Offset = Offset(
-    x = lerpFloat(start.x, stop.x, t),
-    y = lerpFloat(start.y, stop.y, t),
+private fun lerpCornerRadius(
+    start: CornerRadius,
+    stop: CornerRadius,
+    t: Float,
+): CornerRadius = CornerRadius(
+    lerpFloat(start.x, stop.x, t),
+    lerpFloat(start.y, stop.y, t),
 )
