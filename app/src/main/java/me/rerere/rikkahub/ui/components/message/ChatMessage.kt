@@ -840,46 +840,107 @@ private fun MessagePartsBlock(
                             } else {
                                 if (settings.displaySetting.showAssistantBubble) {
                                     val splitByParagraph = settings.displaySetting.splitAssistantBubbleByParagraph
-                                    // 拆成多个气泡只影响显示，消息本身还是一条
-                                    val paragraphs = remember(renderedText, splitByParagraph) {
-                                        if (splitByParagraph) {
+                                    if (splitByParagraph) {
+                                        // 拆成多个气泡只影响显示，消息本身还是一条；
+                                        // 已完成段落的 MarkdownBlock 参数不变，重组时直接跳过，只有最后一段重排
+                                        val paragraphs = remember(renderedText, splitByParagraph) {
                                             splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
-                                        } else {
-                                            listOf(renderedText)
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            paragraphs.fastForEachIndexed { index, paragraph ->
+                                                key(index) {
+                                                    ChatMessageBubble(
+                                                        role = role,
+                                                        color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                                        hazeState = hazeState,
+                                                        // 回归原版节奏：气泡高度随内容平滑伸缩（档位化的 animateContentSize），
+                                                        // 流式追加与生成结束的高度变化不再硬跳
+                                                        modifier = Modifier.motionContentSize(),
+                                                        // 拆段后首尾仍与相邻消息相连，中间各段自成一只气泡
+                                                        joinedToPrevious = joinedToPrevious && index == 0,
+                                                        joinedToNext = joinedToNext && index == paragraphs.lastIndex,
+                                                        streaming = streamingText && index == paragraphs.lastIndex,
+                                                    ) {
+                                                        MarkdownBlock(
+                                                            content = paragraph,
+                                                            streaming = streamingText && index == paragraphs.lastIndex,
+                                                            onClickCitation = handleClickCitation,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else if (streamingText) {
+                                        // 流式增量（对齐 Kelivo 的思路）：单气泡内按段拆分，
+                                        // 段落以文本为 key，已完成段落参数不变直接跳过重组，
+                                        // 每次 token 只重排正在生长的最后一段，长回复不再整段全文重排
+                                        val paragraphs = remember(renderedText) {
+                                            splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
+                                        }
+                                        ChatMessageBubble(
+                                            role = role,
+                                            color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                            hazeState = hazeState,
+                                            // 气泡高度随内容平滑伸缩，段落数增长时不是硬跳
+                                            modifier = Modifier.motionContentSize(),
+                                            joinedToPrevious = joinedToPrevious,
+                                            joinedToNext = joinedToNext,
+                                            // 生成中退回静态底色，避免每个 token 重采样模糊背景
+                                            streaming = true,
+                                        ) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                paragraphs.fastForEachIndexed { index, paragraph ->
+                                                    key(paragraph) {
+                                                        MarkdownBlock(
+                                                            content = paragraph,
+                                                            streaming = index == paragraphs.lastIndex,
+                                                            onClickCitation = handleClickCitation,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // 生成结束/历史消息：整段一次渲染
+                                        ChatMessageBubble(
+                                            role = role,
+                                            color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
+                                            hazeState = hazeState,
+                                            modifier = Modifier.motionContentSize(),
+                                            joinedToPrevious = joinedToPrevious,
+                                            joinedToNext = joinedToNext,
+                                        ) {
+                                            MarkdownBlock(
+                                                content = renderedText,
+                                                onClickCitation = handleClickCitation,
+                                            )
                                         }
                                     }
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        paragraphs.fastForEachIndexed { index, paragraph ->
-                                            key(index) {
-                                                ChatMessageBubble(
-                                                    role = role,
-                                                    color = LocalUiSlots.current.aiBubble.copy(alpha = settings.displaySetting.bubbleOpacity),
-                                                    hazeState = hazeState,
-                                                    // 拆段后首尾仍与相邻消息相连，中间各段自成一只气泡
-                                                    joinedToPrevious = joinedToPrevious && index == 0,
-                                                    joinedToNext = joinedToNext && index == paragraphs.lastIndex,
-                                                    // 高度改由气泡内部的弹性伸缩带动，
-                                                    // 外面的 animateContentSize 只在报告高度，气泡底边会先一步到位
-                                                    stretchHeight = true,
-                                                    streaming = streamingText && index == paragraphs.lastIndex,
-                                                ) {
+                                } else {
+                                    if (streamingText) {
+                                        // 无气泡模式同样流式增量：按段拆分，已完成段落跳过重组
+                                        val paragraphs = remember(renderedText) {
+                                            splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            paragraphs.fastForEachIndexed { index, paragraph ->
+                                                key(paragraph) {
                                                     MarkdownBlock(
                                                         content = paragraph,
-                                                        streaming = streamingText && index == paragraphs.lastIndex,
+                                                        streaming = index == paragraphs.lastIndex,
                                                         onClickCitation = handleClickCitation,
                                                     )
                                                 }
                                             }
                                         }
+                                    } else {
+                                        MarkdownBlock(
+                                            content = renderedText,
+                                            onClickCitation = handleClickCitation,
+                                            // 没有气泡时同样平滑伸缩（原版节奏）
+                                            modifier = Modifier.motionContentSize(),
+                                        )
                                     }
-                                } else {
-                                    MarkdownBlock(
-                                        content = renderedText,
-                                        streaming = streamingText,
-                                        onClickCitation = handleClickCitation,
-                                        // 没有气泡时同样让正文块弹性伸缩，只把高度与模糊交给伸缩层
-                                        modifier = Modifier.motionStretchHeight(),
-                                    )
                                 }
                             }
                         }
