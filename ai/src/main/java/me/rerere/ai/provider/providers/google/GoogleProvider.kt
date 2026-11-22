@@ -313,7 +313,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                Log.i(TAG, "onEvent: $data")
+                // 逐 chunk 的原始报文只在打开该 tag 的 DEBUG 时记录：流式时每秒上百条，写进 logd 会把主线程一起拖住
+                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onEvent: $data")
 
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))

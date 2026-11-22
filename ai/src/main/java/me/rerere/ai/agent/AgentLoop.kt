@@ -23,6 +23,7 @@ import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.util.json
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -142,20 +143,29 @@ internal class AgentLoop(
                 val handler = StreamChunkHandler(params.model)
                 var attempt = stepStart
                 var firstChunk: TimeMark? = null
+                // 预览按帧合并：每次落帧都要在 UI 线程把这段正文重排一遍，正文越长那一次越贵。
+                // 逐 chunk 都落帧时，长回复里几乎每一帧都在排版，跟不上刷新率。
+                // 末帧不受影响：这一步结束时由 finishStep 写回完整内容。
+                var lastPreviewAt: TimeMark? = null
                 request.provider.streamText(request.providerSetting, messages, params).collect { chunk ->
                     try {
                         val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
                         attempt = handler.handle(listOf(attempt), chunk).single()
-                        preview(
-                            attempt.withStepStats(
-                                stepBase = base,
-                                stepTime = mark.elapsedNow(),
-                                params = params,
-                                atMillis = atMillis,
-                                includeCost = false,
-                            ),
-                            newPartsFrom = base.parts.size,
-                        )
+                        val previewMark = TimeSource.Monotonic.markNow()
+                        val sinceLastPreview = lastPreviewAt?.let { previewMark - it }
+                        if (sinceLastPreview == null || sinceLastPreview >= previewInterval(attempt)) {
+                            lastPreviewAt = previewMark
+                            preview(
+                                attempt.withStepStats(
+                                    stepBase = base,
+                                    stepTime = mark.elapsedNow(),
+                                    params = params,
+                                    atMillis = atMillis,
+                                    includeCost = false,
+                                ),
+                                newPartsFrom = base.parts.size,
+                            )
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
@@ -351,5 +361,33 @@ private fun UIMessage.withStepStats(
         stepCount = (stepBase.stepCount ?: 0) + 1,
     )
 }
+
+/**
+ * 流式预览的最小间隔。
+ *
+ * 一次落帧要在 UI 线程把这段正文重排并重录绘制，成本随正文长度增长；
+ * 短回复按一帧合并，长回复按长度放宽，让单次落帧的开销停在一帧的量级。
+ */
+private fun previewInterval(message: UIMessage): Duration {
+    val length = message.parts.sumOf { part ->
+        when (part) {
+            is UIMessagePart.Text -> part.text.length
+            is UIMessagePart.Reasoning -> part.reasoning.length
+            else -> 0
+        }
+    }
+    return (PREVIEW_MIN_INTERVAL_MS + length / PREVIEW_CHARS_PER_MILLIS)
+        .coerceAtMost(PREVIEW_MAX_INTERVAL_MS)
+        .milliseconds
+}
+
+/** 预览间隔下限：一帧 */
+private const val PREVIEW_MIN_INTERVAL_MS = 16L
+
+/** 正文每多这么多个字符，落帧间隔多 1ms */
+private const val PREVIEW_CHARS_PER_MILLIS = 400L
+
+/** 预览间隔上限：再长也不会稀于约 8 帧一次 */
+private const val PREVIEW_MAX_INTERVAL_MS = 120L
 
 private fun now() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
