@@ -801,7 +801,7 @@ private fun ProviderRequestOverrideCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = SaltTheme.dimens.item)
-                    .clickable { onCheckedChange(!checked) },
+                    .clickable { updateOverride(requestOverride.copy(enabled = !requestOverride.enabled)) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {

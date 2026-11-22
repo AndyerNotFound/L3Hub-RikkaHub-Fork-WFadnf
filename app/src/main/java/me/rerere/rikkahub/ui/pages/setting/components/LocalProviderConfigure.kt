@@ -252,7 +252,10 @@ internal fun ProviderConfigureLiteRT(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = SaltTheme.dimens.item)
-                                .clickable(onClick = if (selected) null else ({ onCommit(provider.withSelectedModel(model)) })),
+                                .then(
+                                    if (selected) Modifier
+                                    else Modifier.clickable { onCommit(provider.withSelectedModel(model)) }
+                                ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = selected, onClick = null)

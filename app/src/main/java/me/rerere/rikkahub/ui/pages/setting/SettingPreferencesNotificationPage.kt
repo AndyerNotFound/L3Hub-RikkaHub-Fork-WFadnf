@@ -347,10 +347,8 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                                     }
                                 ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
                         }
-                        if (ignoringBatteryOptimizations) {
-                            null
-                        } else {
-                            { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
+                        if (!ignoringBatteryOptimizations) {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         }
                     }
                 }

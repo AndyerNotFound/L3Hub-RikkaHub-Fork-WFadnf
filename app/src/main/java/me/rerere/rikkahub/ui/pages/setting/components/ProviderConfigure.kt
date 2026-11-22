@@ -601,7 +601,9 @@ private fun ProviderConfigureAccount(
                         Spacer(modifier = Modifier.height(2.dp))
                         CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
                             ProvideTextStyle(SaltTheme.textStyles.sub) {
-                                (plan?.let { { Text(it) } })?.invoke()
+                                if (plan != null) {
+                                    Text(plan)
+                                }
                             }
                         }
                     }
@@ -709,11 +711,10 @@ private fun ProviderConfigureAccount(
                         Spacer(modifier = Modifier.height(2.dp))
                         CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
                             ProvideTextStyle(SaltTheme.textStyles.sub) {
-                                (
-                                    (status as? AccountLoginStatus.Failed)?.let { failed ->
-                                                    { Text(failed.message, color = MaterialTheme.colorScheme.error) }
-                                                }
-                                )?.invoke()
+                                val failure = status as? AccountLoginStatus.Failed
+                                if (failure != null) {
+                                    Text(failure.message, color = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
@@ -796,14 +797,11 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
                                     ProvideTextStyle(SaltTheme.textStyles.sub) {
-                                        (
-                                            window.resetsAt?.let { resetsAt ->
-                                                                    {
-                                                                        val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
-                                                                        Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
-                                                                    }
-                                                                }
-                                        )?.invoke()
+                                        val resetsAt = window.resetsAt
+                                        if (resetsAt != null) {
+                                            val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
+                                            Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
+                                        }
                                     }
                                 }
                             }
@@ -960,7 +958,7 @@ private fun ProviderConfigureGoogle(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = SaltTheme.dimens.item)
-                        .clickable { onCheckedChange(!checked) },
+                        .clickable { onEdit(provider.copy(useInteractionsApi = !provider.useInteractionsApi)) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -968,11 +966,9 @@ private fun ProviderConfigureGoogle(
                         Spacer(modifier = Modifier.height(2.dp))
                         CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
                             ProvideTextStyle(SaltTheme.textStyles.sub) {
-                                (
-                                    if (useServiceAccount) {
-                                                    { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
-                                                } else null
-                                )?.invoke()
+                                if (useServiceAccount) {
+                                    Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent")
+                                }
                             }
                         }
                     }
