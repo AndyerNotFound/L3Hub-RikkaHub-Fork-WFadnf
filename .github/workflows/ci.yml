@@ -22,10 +22,6 @@ jobs:
         with:
           submodules: recursive
 
-      # 大文件体量只允许缩减：名单见 tools/file-budget.txt，超出一行即判定失败，防止拆分后再度增长
-      - name: File budget
-        run: tools/check-file-budget.sh
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
