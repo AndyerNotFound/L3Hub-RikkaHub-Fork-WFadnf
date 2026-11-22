@@ -6,7 +6,7 @@ app/src/main/java/me/rerere/rikkahub/ui/components/message/ChatMessage.kt	1590
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/components/ProviderGuardSettings.kt	1476
 app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt	1472
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/components/TTSProviderConfigure.kt	1403
-app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderDetailPage.kt	1377
+app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderDetailPage.kt	1283
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingPalettePage.kt	1357
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingModelEditorPage.kt	1282
 app/src/main/java/me/rerere/rikkahub/ui/pages/extensions/workspace/WorkspaceDetailPage.kt	1244
@@ -28,3 +28,4 @@ app/src/main/java/me/rerere/rikkahub/ui/components/message/ChatMessageNerdLine.k
 app/src/main/java/me/rerere/rikkahub/ui/pages/setting/components/ProviderConfigure.kt	842
 app/src/main/java/me/rerere/rikkahub/data/workspace/TestOutputParser.kt	827
 app/src/main/java/me/rerere/rikkahub/ui/components/ai/FilesPicker.kt	824
+app/src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderModelCard.kt	127

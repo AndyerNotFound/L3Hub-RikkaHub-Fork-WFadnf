@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,12 +33,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconToggleButton
@@ -101,19 +98,14 @@ import me.rerere.rikkahub.data.datastore.removeProvider
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
-import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.ItemAction
-import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
-import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
@@ -127,7 +119,6 @@ import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTestDialog
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderGuardSettings
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderQuotaQuery
-import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.style.TextButton
@@ -136,7 +127,6 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.AnimatedModalBottomSheet
-import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -1278,95 +1268,6 @@ private fun RemoteModelsErrorBanner(
 // 网络异常的 message 常常是空的，退回到异常类名，界面上至少有一行字
 private fun Throwable.displayMessage(): String =
     message?.takeIf { it.isNotBlank() } ?: javaClass.simpleName
-
-@Composable
-private fun ModelCard(
-    model: Model,
-    modifier: Modifier = Modifier,
-    onDelete: () -> Unit,
-    onOpenEditor: () -> Unit,
-) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    Card(
-        onClick = onOpenEditor,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        ),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small,
-            ) {
-                AutoAIIcon(
-                    name = model.modelId,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = model.displayName,
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (model.providerOverwrite != null) {
-                        Tag(type = TagType.INFO) {
-                            Text(
-                                model.providerOverwrite?.javaClass?.simpleName ?: model.providerOverwrite?.name
-                                ?: "ProviderOverwrite"
-                            )
-                        }
-                    }
-                    ModelTypeTag(model = model)
-                    ModelModalityTag(model = model)
-                    ModelAbilityTag(model = model)
-                }
-            }
-
-            ItemActionMenu(
-                actions = listOf(
-                    ItemAction(
-                        text = stringResource(R.string.delete),
-                        icon = HugeIcons.Delete01,
-                        destructive = true,
-                        onClick = { showDeleteDialog = true },
-                    ),
-                )
-            )
-        }
-    }
-
-    RikkaConfirmDialog(
-        show = showDeleteDialog,
-        title = stringResource(R.string.confirm_delete),
-        confirmText = stringResource(R.string.delete),
-        dismissText = stringResource(R.string.cancel),
-        onConfirm = {
-            showDeleteDialog = false
-            onDelete()
-        },
-        onDismiss = { showDeleteDialog = false },
-    ) {
-        Text(stringResource(R.string.common_delete_confirm_message, model.displayName))
-    }
-}
 
 private fun ProviderSetting.proxyHost(): String? = when (this) {
     is ProviderSetting.OpenAI -> baseUrl.hostOf()
