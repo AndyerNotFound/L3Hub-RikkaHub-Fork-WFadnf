@@ -51,7 +51,16 @@ class AutoCompressTriggerTest {
             contextThresholdsAuto = false,
         )
 
-        assertEquals(345_600, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.9f)))
+        // 手填的 352 000 不被 262 144 的窗口收窄：触发点 = 352 000 × 0.9
+        assertEquals(
+            316_800,
+            model.autoCompressTriggerTokens(
+                Assistant(
+                    autoCompressRatio = 0.9f,
+                    autoCompressThreshold = AutoCompressThreshold.WARN,
+                )
+            ),
+        )
     }
 
     @Test
