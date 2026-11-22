@@ -13,7 +13,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -103,7 +102,6 @@ import me.rerere.rikkahub.ui.components.ui.TTSController
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.RootNavigator
@@ -114,14 +112,15 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
-import me.rerere.rikkahub.ui.navigation.HeroStackAnimation
 import me.rerere.rikkahub.ui.navigation.ScreenContent
+import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
 import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
+import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.utils.AppLanguage
 import me.rerere.rikkahub.utils.CrashHandler
@@ -422,12 +421,10 @@ class RouteActivity : ComponentActivity() {
         val detailStack by rootComponent.detailStack.subscribeAsState()
         val navigator = remember { RootNavigator(rootComponent) }
 
-        SharedTransitionLayout {
-            // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只造一次
-            CompositionLocalProvider(
-                LocalNavController provides navigator,
-                LocalSharedTransitionScope provides this,
-                LocalSettings provides settings,
+        // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只造一次
+        CompositionLocalProvider(
+            LocalNavController provides navigator,
+            LocalSettings provides settings,
                 LocalButtonShadow provides settings.displaySetting.buttonShadow,
                 LocalToaster provides toastState,
                 LocalTTSState provides tts,
@@ -441,20 +438,20 @@ class RouteActivity : ComponentActivity() {
                         .background(MaterialTheme.colorScheme.background)
                 ) {
                     val navController = LocalNavController.current
-                    // 根栈带预测性返回 seek（ImageToolbox 的 Nav 同款）；右列详情页不 seek，
-                    // 只走普通返回动画。两者的 fallback 都是每个页面自己的 AnimatedVisibility
-                    // （见 ui/navigation/StackHost.kt）——转场打断只 retarget 各页动画，
-                    // 没有全局前进/返回分类，nav3 那类打断后硬切在这里结构性消失
+                    // 根栈带预测性返回（ImageToolbox 的 toolboxPredictiveBackAnimation 同款）；
+                    // 右列详情页不接手势，走同一套 fade + slide + scale 的普通返回动画。
+                    // 时长跟着设置里的「动画速度」档位走（见 ui/navigation/StackHost.kt）
+                    val pageAnimMillis = slideDurationMillis()
                     val rootAnimation: StackAnimation<Screen, NavChild> =
-                        remember(rootComponent) {
+                        remember(rootComponent, pageAnimMillis) {
                             l3HubStackAnimation(
                                 backHandler = rootComponent.backHandler,
                                 onBack = navigator::popBackStack,
-                                screenOf = { it.screen },
+                                durationMillis = pageAnimMillis,
                             )
                         }
-                    val detailAnimation: HeroStackAnimation<DetailDestination, NavChild> =
-                        HeroStackAnimation { it.screen }
+                    val detailAnimation: StackAnimation<DetailDestination, NavChild> =
+                        remember(pageAnimMillis) { l3HubDetailAnimation(pageAnimMillis) }
                     // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
                     // 栏本身不参与转场，Children 一直待在同一个槽位里，进出设置不会重建。
                     val windowDpSize = currentWindowDpSize()
@@ -655,11 +652,10 @@ class RouteActivity : ComponentActivity() {
                             }
                         }
                     }
-                    Toaster(
-                        state = toastState,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                    )
-                }
+                Toaster(
+                    state = toastState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
             }
         }
     }

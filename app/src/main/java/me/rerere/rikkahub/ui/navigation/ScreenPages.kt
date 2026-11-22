@@ -3,8 +3,6 @@ package me.rerere.rikkahub.ui.navigation
 import androidx.core.net.toUri
 import androidx.compose.runtime.Composable
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.ui.hooks.HeroPage
-import me.rerere.rikkahub.ui.hooks.heroKey
 import me.rerere.rikkahub.ui.pages.assistant.AssistantPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
@@ -70,11 +68,8 @@ import kotlin.uuid.Uuid
 
 /**
  * 路由 → 页面的分发清单（原 `RouteActivity.appNavEntries()` 的 entry DSL 摊平成 when）。
- *
- * 容器变换页（对应旧 `heroEntry`）包一层 [HeroPage]：页面从触发它的条目展开，
- * 返回时收回条目里，两边靠 `heroKey()` 对上。两个例外保持原样：
- * - `Screen.Setting`：切换配色会 popUpTo 原地重进，同一个 heroKey 新旧两页同时在组合里，不套容器变换；
- * - `Screen.MediaCreation`：从会话列表展开的位移由页面内部的 sharedBounds 演，外层不套也不叠转场。
+ * 页面转场统一由 `ui/navigation/StackHost.kt` 的 fade + slide + scale 承担，
+ * 这里不再有页面级容器变换包装。
  */
 @Composable
 fun ScreenContent(screen: Screen) {
@@ -86,99 +81,99 @@ fun ScreenContent(screen: Screen) {
             nodeId = screen.nodeId?.let { Uuid.parse(it) },
         )
 
-        is Screen.ShareHandler -> HeroPage(screen.heroKey()) {
+        is Screen.ShareHandler -> {
             ShareHandlerPage(
                 text = screen.text,
                 image = screen.streamUri,
             )
         }
 
-        Screen.History -> HeroPage(screen.heroKey()) { HistoryPage() }
-        Screen.Favorite -> HeroPage(screen.heroKey()) { FavoritePage() }
-        Screen.Assistant -> HeroPage(screen.heroKey()) { AssistantPage() }
+        Screen.History -> { HistoryPage() }
+        Screen.Favorite -> { FavoritePage() }
+        Screen.Assistant -> { AssistantPage() }
 
-        is Screen.AssistantDetail -> HeroPage(screen.heroKey()) { AssistantDetailPage(screen.id) }
-        is Screen.AssistantBasic -> HeroPage(screen.heroKey()) { AssistantBasicPage(screen.id) }
-        is Screen.AssistantPrompt -> HeroPage(screen.heroKey()) { AssistantPromptPage(screen.id) }
-        is Screen.AssistantMemory -> HeroPage(screen.heroKey()) { AssistantMemoryPage(screen.id) }
+        is Screen.AssistantDetail -> { AssistantDetailPage(screen.id) }
+        is Screen.AssistantBasic -> { AssistantBasicPage(screen.id) }
+        is Screen.AssistantPrompt -> { AssistantPromptPage(screen.id) }
+        is Screen.AssistantMemory -> { AssistantMemoryPage(screen.id) }
 
-        is Screen.MemoryFile -> HeroPage(screen.heroKey()) {
+        is Screen.MemoryFile -> {
             MemoryFilePage(memoryId = screen.memoryId, path = screen.path)
         }
 
-        is Screen.AssistantRequest -> HeroPage(screen.heroKey()) { AssistantRequestPage(screen.id) }
-        is Screen.AssistantHeartbeat -> HeroPage(screen.heroKey()) { AssistantHeartbeatPage(screen.id) }
-        is Screen.AssistantMcp -> HeroPage(screen.heroKey()) { AssistantMcpPage(screen.id) }
-        is Screen.AssistantLocalTool -> HeroPage(screen.heroKey()) { AssistantLocalToolPage(screen.id) }
-        is Screen.AssistantInjections -> HeroPage(screen.heroKey()) { AssistantExtensionsPage(screen.id) }
+        is Screen.AssistantRequest -> { AssistantRequestPage(screen.id) }
+        is Screen.AssistantHeartbeat -> { AssistantHeartbeatPage(screen.id) }
+        is Screen.AssistantMcp -> { AssistantMcpPage(screen.id) }
+        is Screen.AssistantLocalTool -> { AssistantLocalToolPage(screen.id) }
+        is Screen.AssistantInjections -> { AssistantExtensionsPage(screen.id) }
 
-        Screen.Translator -> HeroPage(screen.heroKey()) { TranslatorPage() }
+        Screen.Translator -> { TranslatorPage() }
         Screen.Setting -> SettingPage()
 
-        Screen.Backup -> HeroPage(screen.heroKey()) { BackupPage() }
-        Screen.ImageGen -> HeroPage(screen.heroKey()) { ImageGenPage() }
-        Screen.MediaCreationSessions -> HeroPage(screen.heroKey()) { MediaCreationSessionsPage() }
+        Screen.Backup -> { BackupPage() }
+        Screen.ImageGen -> { ImageGenPage() }
+        Screen.MediaCreationSessions -> { MediaCreationSessionsPage() }
 
         is Screen.MediaCreation -> MediaCreationPage(screen.id)
 
-        is Screen.WebView -> HeroPage(screen.heroKey()) { WebViewPage(screen.url, screen.contentId) }
+        is Screen.WebView -> { WebViewPage(screen.url, screen.contentId) }
 
-        Screen.SettingTheme -> HeroPage(screen.heroKey()) { SettingThemePage() }
-        Screen.SettingPalette -> HeroPage(screen.heroKey()) { SettingPalettePage() }
-        Screen.SettingPreferences -> HeroPage(screen.heroKey()) { SettingPreferencesPage() }
-        Screen.SettingPreferencesTheme -> HeroPage(screen.heroKey()) { SettingPreferencesThemePage() }
-        Screen.SettingPreferencesNotification -> HeroPage(screen.heroKey()) { SettingPreferencesNotificationPage() }
-        Screen.SettingPreferencesGeneral -> HeroPage(screen.heroKey()) { SettingPreferencesGeneralPage() }
-        Screen.SettingPreferencesUI -> HeroPage(screen.heroKey()) { SettingPreferencesUIPage() }
-        Screen.SettingPreferencesNetwork -> HeroPage(screen.heroKey()) { SettingPreferencesNetworkPage() }
+        Screen.SettingTheme -> { SettingThemePage() }
+        Screen.SettingPalette -> { SettingPalettePage() }
+        Screen.SettingPreferences -> { SettingPreferencesPage() }
+        Screen.SettingPreferencesTheme -> { SettingPreferencesThemePage() }
+        Screen.SettingPreferencesNotification -> { SettingPreferencesNotificationPage() }
+        Screen.SettingPreferencesGeneral -> { SettingPreferencesGeneralPage() }
+        Screen.SettingPreferencesUI -> { SettingPreferencesUIPage() }
+        Screen.SettingPreferencesNetwork -> { SettingPreferencesNetworkPage() }
 
-        Screen.SettingProvider -> HeroPage(screen.heroKey()) { SettingProviderPage() }
-        is Screen.SettingProviderDetail -> HeroPage(screen.heroKey()) {
+        Screen.SettingProvider -> { SettingProviderPage() }
+        is Screen.SettingProviderDetail -> {
             SettingProviderDetailPage(id = Uuid.parse(screen.providerId))
         }
 
-        Screen.SettingModels -> HeroPage(screen.heroKey()) { SettingModelPage() }
-        is Screen.ModelEditor -> HeroPage(screen.heroKey()) {
+        Screen.SettingModels -> { SettingModelPage() }
+        is Screen.ModelEditor -> {
             ModelEditorPage(
                 providerId = Uuid.parse(screen.providerId),
                 modelId = screen.modelId,
             )
         }
 
-        Screen.SettingAbout -> HeroPage(screen.heroKey()) { SettingAboutPage() }
-        Screen.SettingSearch -> HeroPage(screen.heroKey()) { SettingSearchPage() }
-        is Screen.SettingSearchDetail -> HeroPage(screen.heroKey()) {
+        Screen.SettingAbout -> { SettingAboutPage() }
+        Screen.SettingSearch -> { SettingSearchPage() }
+        is Screen.SettingSearchDetail -> {
             SettingSearchDetailPage(Uuid.parse(screen.serviceId))
         }
 
-        Screen.SettingSpeech -> HeroPage(screen.heroKey()) { SettingSpeechPage() }
-        Screen.SettingMedia -> HeroPage(screen.heroKey()) { SettingMediaPage() }
-        is Screen.SettingMediaProviderDetail -> HeroPage(screen.heroKey()) {
+        Screen.SettingSpeech -> { SettingSpeechPage() }
+        Screen.SettingMedia -> { SettingMediaPage() }
+        is Screen.SettingMediaProviderDetail -> {
             SettingMediaProviderDetailPage(id = Uuid.parse(screen.providerId))
         }
 
-        Screen.SettingMcp -> HeroPage(screen.heroKey()) { SettingMcpPage() }
-        Screen.ToolOverrides -> HeroPage(screen.heroKey()) { SettingToolOverridePage() }
-        is Screen.SettingMcpDetail -> HeroPage(screen.heroKey()) {
+        Screen.SettingMcp -> { SettingMcpPage() }
+        Screen.ToolOverrides -> { SettingToolOverridePage() }
+        is Screen.SettingMcpDetail -> {
             SettingMcpDetailPage(id = Uuid.parse(screen.serverId))
         }
 
-        Screen.SettingDonate -> HeroPage(screen.heroKey()) { SettingDonatePage() }
-        Screen.SettingFiles -> HeroPage(screen.heroKey()) { SettingFilesPage() }
-        Screen.SettingWeb -> HeroPage(screen.heroKey()) { SettingWebPage() }
-        Screen.Debug -> HeroPage(screen.heroKey()) { DebugPage() }
-        Screen.Log -> HeroPage(screen.heroKey()) { LogPage() }
+        Screen.SettingDonate -> { SettingDonatePage() }
+        Screen.SettingFiles -> { SettingFilesPage() }
+        Screen.SettingWeb -> { SettingWebPage() }
+        Screen.Debug -> { DebugPage() }
+        Screen.Log -> { LogPage() }
 
-        Screen.Extensions -> HeroPage(screen.heroKey()) { ExtensionsPage() }
-        Screen.QuickMessages -> HeroPage(screen.heroKey()) { QuickMessagesPage() }
-        Screen.Prompts -> HeroPage(screen.heroKey()) { PromptPage() }
-        Screen.Skills -> HeroPage(screen.heroKey()) { SkillsPage() }
+        Screen.Extensions -> { ExtensionsPage() }
+        Screen.QuickMessages -> { QuickMessagesPage() }
+        Screen.Prompts -> { PromptPage() }
+        Screen.Skills -> { SkillsPage() }
 
-        Screen.Workspaces -> HeroPage(screen.heroKey()) { WorkspacePage() }
-        is Screen.WorkspaceDetail -> HeroPage(screen.heroKey()) { WorkspaceDetailPage(screen.id) }
-        is Screen.WorkspaceTerminal -> HeroPage(screen.heroKey()) { WorkspaceTerminalPage(screen.id) }
-        is Screen.WorkspaceSshEditor -> HeroPage(screen.heroKey()) { WorkspaceSshEditorPage(screen.id) }
-        is Screen.WorkspaceFileEditor -> HeroPage(screen.heroKey()) {
+        Screen.Workspaces -> { WorkspacePage() }
+        is Screen.WorkspaceDetail -> { WorkspaceDetailPage(screen.id) }
+        is Screen.WorkspaceTerminal -> { WorkspaceTerminalPage(screen.id) }
+        is Screen.WorkspaceSshEditor -> { WorkspaceSshEditorPage(screen.id) }
+        is Screen.WorkspaceFileEditor -> {
             WorkspaceFileEditorPage(
                 id = screen.id,
                 area = WorkspaceStorageArea.valueOf(screen.area),
@@ -186,9 +181,9 @@ fun ScreenContent(screen: Screen) {
             )
         }
 
-        is Screen.SkillDetail -> HeroPage(screen.heroKey()) { SkillDetailPage(skillName = screen.skillName) }
+        is Screen.SkillDetail -> { SkillDetailPage(skillName = screen.skillName) }
 
-        Screen.MessageSearch -> HeroPage(screen.heroKey()) { SearchPage() }
-        Screen.Stats -> HeroPage(screen.heroKey()) { StatsPage() }
+        Screen.MessageSearch -> { SearchPage() }
+        Screen.Stats -> { StatsPage() }
     }.let { /* when 对 sealed interface 必须穷尽，漏了分支这里编译不过 */ }
 }

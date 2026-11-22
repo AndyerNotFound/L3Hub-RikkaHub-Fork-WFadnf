@@ -79,7 +79,6 @@ import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderTypeSheet
 import me.rerere.rikkahub.ui.pages.setting.components.label
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
@@ -214,8 +213,7 @@ private fun MediaProviderList(
                     MediaProviderItem(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(longPressReorder(isDragging))
-                            .heroSource(Screen.SettingMediaProviderDetail(providerId = provider.id.toString())),
+                            .then(longPressReorder(isDragging)),
                         provider = provider,
                         onEdit = { onEdit(provider) },
                         onDelete = { deleteTarget = provider }

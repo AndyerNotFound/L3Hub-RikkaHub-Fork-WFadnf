@@ -72,7 +72,6 @@ import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -208,7 +207,6 @@ fun SkillsPage() {
                     skill = skill,
                     onClick = { navController.navigate(Screen.SkillDetail(skill.name)) },
                     onDelete = { deleteTarget = skill },
-                    modifier = Modifier.heroSource(Screen.SkillDetail(skill.name)),
                 )
             }
 

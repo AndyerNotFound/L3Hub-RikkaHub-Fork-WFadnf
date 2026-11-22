@@ -92,7 +92,6 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceString
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
@@ -388,12 +387,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                 ProviderItem(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .then(longPressReorder(isDragging, enabled = searchQuery.isBlank()))
-                                        .heroSource(
-                                            Screen.SettingProviderDetail(
-                                                providerId = entry.provider.id.toString()
-                                            )
-                                        ),
+                                        .then(longPressReorder(isDragging, enabled = searchQuery.isBlank())),
                                     provider = entry.provider,
                                     onClick = {
                                         navController.navigate(

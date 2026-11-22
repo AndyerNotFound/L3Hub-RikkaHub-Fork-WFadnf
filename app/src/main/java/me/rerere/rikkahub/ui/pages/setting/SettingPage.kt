@@ -262,21 +262,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     }
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferences) },
-                        heroScreen = Screen.SettingPreferences,
                         leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Assistant) },
-                        heroScreen = Screen.Assistant,
                         leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Extensions) },
-                        heroScreen = Screen.Extensions,
                         leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
@@ -292,56 +289,48 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
-                        heroScreen = Screen.SettingModels,
                         leadingContent = { CardGroupIcon(HugeIcons.AiMagic, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingProvider) },
-                        heroScreen = Screen.SettingProvider,
                         leadingContent = { CardGroupIcon(HugeIcons.Brain02, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSearch) },
-                        heroScreen = Screen.SettingSearch,
                         leadingContent = { CardGroupIcon(HugeIcons.GlobalSearch, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSpeech) },
-                        heroScreen = Screen.SettingSpeech,
                         leadingContent = { CardGroupIcon(HugeIcons.Megaphone01, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingMedia) },
-                        heroScreen = Screen.SettingMedia,
                         leadingContent = { CardGroupIcon(HugeIcons.Image02, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_media_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_media)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
-                        heroScreen = Screen.SettingMcp,
                         leadingContent = { CardGroupIcon(HugeIcons.McpServer, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.ToolOverrides) },
-                        heroScreen = Screen.ToolOverrides,
                         leadingContent = { CardGroupIcon(HugeIcons.Tools, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tool_override_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tool_override)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },
-                        heroScreen = Screen.SettingWeb,
                         leadingContent = { CardGroupIcon(HugeIcons.ServerStack01, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
@@ -360,14 +349,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },
-                        heroScreen = Screen.Backup,
                         leadingContent = { CardGroupIcon(HugeIcons.Database02, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingFiles) },
-                        heroScreen = Screen.SettingFiles,
                         leadingContent = { CardGroupIcon(HugeIcons.ImageUpload, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = {
                             if (storageState.first == -1) {
@@ -399,7 +386,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingAbout) },
-                        heroScreen = Screen.SettingAbout,
                         leadingContent = { CardGroupIcon(HugeIcons.Clapping01, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
                         trailingContent = {
@@ -451,7 +437,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.Log) },
-                        heroScreen = Screen.Log,
                         leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01, containerColor = containerColor, contentColor = contentColor) },
                         supportingContent = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },

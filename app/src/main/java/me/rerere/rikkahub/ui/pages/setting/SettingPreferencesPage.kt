@@ -65,7 +65,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
-                        heroScreen = Screen.SettingPreferencesGeneral,
                         leadingContent = {
                             CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor)
                         },
@@ -74,7 +73,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesTheme) },
-                        heroScreen = Screen.SettingPreferencesTheme,
                         leadingContent = {
                             CardGroupIcon(HugeIcons.Sun01, containerColor = containerColor, contentColor = contentColor)
                         },
@@ -83,7 +81,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesUI) },
-                        heroScreen = Screen.SettingPreferencesUI,
                         leadingContent = {
                             CardGroupIcon(HugeIcons.PaintBoard, containerColor = containerColor, contentColor = contentColor)
                         },
@@ -92,7 +89,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
-                        heroScreen = Screen.SettingPreferencesNotification,
                         leadingContent = {
                             CardGroupIcon(HugeIcons.Notification01, containerColor = containerColor, contentColor = contentColor)
                         },
@@ -101,7 +97,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
-                        heroScreen = Screen.SettingPreferencesNetwork,
                         leadingContent = {
                             CardGroupIcon(HugeIcons.CloudServer, containerColor = containerColor, contentColor = contentColor)
                         },

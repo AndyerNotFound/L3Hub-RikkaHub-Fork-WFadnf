@@ -52,7 +52,6 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.hooks.heroCardContainer
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toMessageTimeString
@@ -229,8 +228,7 @@ private fun SessionItem(
     ListItem(
         onClick = onOpen,
         shapes = ListItemDefaults.shapes(shape = SessionItemShape),
-        // 点开时展开成创作页
-        modifier = modifier.heroCardContainer(mediaCreationHeroKey(session.id.toString()), SessionItemShape),
+        modifier = modifier,
         colors = CustomColors.listItemColors,
         leadingContent = {
             val shape = sessionShapes[session.id.hashCode().mod(sessionShapes.size)].toShape()

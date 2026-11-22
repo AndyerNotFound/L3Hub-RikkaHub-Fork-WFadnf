@@ -48,7 +48,6 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -105,7 +104,6 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
                     onRename = { editTarget = workspace },
                     onDelete = { deleteTarget = workspace },
                     onOpen = { navController.navigate(Screen.WorkspaceDetail(workspace.id)) },
-                    modifier = Modifier.heroSource(Screen.WorkspaceDetail(workspace.id)),
                 )
             }
         }

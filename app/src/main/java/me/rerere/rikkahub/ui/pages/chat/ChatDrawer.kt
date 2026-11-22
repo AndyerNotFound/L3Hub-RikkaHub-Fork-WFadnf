@@ -206,11 +206,9 @@ fun ChatDrawerContent(
     var folderWorkspaceDraft by remember { mutableStateOf<Set<Uuid>>(emptySet()) }
 
     // 扁平与竖向两种列表共用同一批回调，省得两处各写一份后行为走样
-    fun openConversation(conversation: Conversation, index: Int?, itemCount: Int) {
-        // 点的是列表上半部分就从上方落进来，下半部分从下方升上来
-        val fromTop = index != null && index * 2 < itemCount
+    fun openConversation(conversation: Conversation) {
         // 直接换会话：新会话页带自己的抽屉状态，旧的随这一页一起退场
-        navigateToChatPage(navController, conversation.id, enterFromTop = fromTop)
+        navigateToChatPage(navController, conversation.id)
     }
 
     val onDeleteConversation: (Conversation) -> Unit = { conversation ->
@@ -372,10 +370,7 @@ fun ChatDrawerContent(
                     .fillMaxWidth()
                     .weight(1f),
                 onClick = { conversation ->
-                    val index = verticalItems.indexOfFirst {
-                        (it as? ConversationListItem.Item)?.conversation?.id == conversation.id
-                    }
-                    openConversation(conversation, index.takeIf { it >= 0 }, verticalItems.size)
+                    openConversation(conversation)
                 },
                 onRegenerateTitle = { vm.generateTitle(it, true) },
                 onRename = onRenameConversation,

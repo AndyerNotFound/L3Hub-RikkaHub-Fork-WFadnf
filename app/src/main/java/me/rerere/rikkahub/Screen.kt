@@ -19,7 +19,6 @@ sealed interface Screen {
         val nodeId: String? = null,
         // 从侧边栏点进来时记下点击项在列表的上半还是下半，转场据此决定从上方还是下方落进来；
         // 其它入口（新会话、收藏、搜索）留 null，走默认转场
-        val enterFromTop: Boolean? = null,
     ) : Screen
 
     @Serializable

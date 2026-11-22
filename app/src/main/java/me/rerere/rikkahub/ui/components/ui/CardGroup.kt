@@ -49,10 +49,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
-import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -67,8 +65,6 @@ private val CardGroupInnerCorner = 4.dp
 private data class CardGroupItem(
     val onClick: (() -> Unit)?,
     val modifier: Modifier,
-    // 不为空时这一项点击后展开成对应页面；形状由条目自己算，中间项是 4dp 不是 20dp
-    val heroScreen: Screen? = null,
     // false 时这一项收起成 0 高度，用来做「主选项打开后附加选项拉出来」
     val visible: Boolean = true,
     val overlineContent: (@Composable () -> Unit)?,
@@ -89,7 +85,6 @@ interface CardGroupScope {
     fun item(
         onClick: (() -> Unit)? = null,
         modifier: Modifier = Modifier,
-        heroScreen: Screen? = null,
         visible: Boolean = true,
         overlineContent: (@Composable () -> Unit)? = null,
         supportingContent: (@Composable () -> Unit)? = null,
@@ -140,7 +135,6 @@ private class CardGroupScopeImpl : CardGroupScope {
     override fun item(
         onClick: (() -> Unit)?,
         modifier: Modifier,
-        heroScreen: Screen?,
         visible: Boolean,
         overlineContent: (@Composable () -> Unit)?,
         supportingContent: (@Composable () -> Unit)?,
@@ -153,7 +147,6 @@ private class CardGroupScopeImpl : CardGroupScope {
             CardGroupItem(
                 onClick = onClick,
                 modifier = modifier,
-                heroScreen = heroScreen,
                 visible = visible,
                 overlineContent = overlineContent,
                 headlineContent = headlineContent,
@@ -376,9 +369,6 @@ private fun CardGroupListItem(
         headlineContent = item.headlineContent ?: {},
         modifier = item.modifier
             .fillMaxWidth()
-            .then(
-                if (item.heroScreen != null) Modifier.heroSource(item.heroScreen, shape) else Modifier
-            )
             .clip(shape)
             .glassSurface(shape = shape, baseColor = MaterialTheme.colorScheme.surfaceBright)
             .then(

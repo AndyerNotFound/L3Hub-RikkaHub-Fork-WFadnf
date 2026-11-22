@@ -70,7 +70,6 @@ import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.EditState
-import me.rerere.rikkahub.ui.hooks.heroSource
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantImporter
 import me.rerere.rikkahub.ui.style.Card
@@ -235,7 +234,6 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                 .fillMaxWidth()
                                 .animateItem()
                                 .then(longPressReorder(isDragging, enabled = !isFiltering))
-                                .heroSource(Screen.AssistantDetail(id = assistant.id.toString()))
                         )
                     }
                 }

@@ -59,7 +59,6 @@ import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.Switch
@@ -168,8 +167,7 @@ internal fun AssistantBasicContent(
                     )
                 },
                 modifier = Modifier
-                    .size(104.dp)
-                    .heroAnimation("assistant_${assistant.id}")
+                    .size(104.dp),
             )
         }
 

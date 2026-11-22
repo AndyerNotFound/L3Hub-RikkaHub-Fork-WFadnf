@@ -611,7 +611,6 @@ private fun MemoryFilesTab(
                 files.fastForEach { memory ->
                     item(
                         onClick = { onOpenMemory(memory.path) },
-                        heroScreen = Screen.MemoryFile(memoryId, memory.path),
                         trailingContent = {
                             ItemActionMenu(
                                 actions = listOf(
