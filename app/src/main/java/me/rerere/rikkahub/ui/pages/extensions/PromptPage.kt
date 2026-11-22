@@ -65,7 +65,6 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
@@ -109,11 +108,10 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.Select
-import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableColumn
 import sh.calvin.reorderable.ReorderableItem
@@ -409,18 +407,13 @@ private fun ModeInjectionEditSheet(
     onConfirm: () -> Unit,
     onEdit: (PromptInjection.ModeInjection) -> Unit
 ) {
-    // 内容里的关闭按钮走 sheet 自己的入口：先播退场再回调
-    val dismissSheet = rememberSheetDismiss()
-
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
-        sheetGesturesEnabled = false,
-        dragHandle = {
-            IconButton(onClick = { dismissSheet { onDismiss() } }) {
-                Icon(HugeIcons.ArrowDown01, null)
-            }
-        }
+        title = stringResource(R.string.prompt_page_edit_mode_injection),
+        // 编辑中的表单不能被手势带走：只留标题栏的关闭按钮
+        dismissible = false,
+        dragEnabled = false,
     ) {
         Column(
             modifier = Modifier
@@ -429,12 +422,6 @@ private fun ModeInjectionEditSheet(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.prompt_page_edit_mode_injection),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -823,8 +810,6 @@ private fun LorebookEditSheet(
     onConfirm: () -> Unit,
     onEdit: (Lorebook) -> Unit
 ) {
-    // 内容里的关闭按钮走 sheet 自己的入口：先播退场再回调
-    val dismissSheet = rememberSheetDismiss()
     val entryEditState = useEditState<PromptInjection.RegexInjection> { edited ->
         val index = book.entries.indexOfFirst { it.id == edited.id }
         if (index >= 0) {
@@ -834,15 +819,13 @@ private fun LorebookEditSheet(
         }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
-        sheetGesturesEnabled = false,
-        dragHandle = {
-            IconButton(onClick = { dismissSheet { onDismiss() } }) {
-                Icon(HugeIcons.ArrowDown01, null)
-            }
-        }
+        title = stringResource(R.string.prompt_page_edit_lorebook),
+        // 编辑中的表单不能被手势带走：只留标题栏的关闭按钮
+        dismissible = false,
+        dragEnabled = false,
     ) {
         Column(
             modifier = Modifier
@@ -851,12 +834,6 @@ private fun LorebookEditSheet(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.prompt_page_edit_lorebook),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-
             Column(
                 modifier = Modifier
                     .weight(1f)

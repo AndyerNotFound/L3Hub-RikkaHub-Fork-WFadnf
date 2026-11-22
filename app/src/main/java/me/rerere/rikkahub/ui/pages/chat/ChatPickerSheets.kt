@@ -36,7 +36,7 @@ import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 
 @Composable
 internal fun ChatFilesPickerSheet(
@@ -52,7 +52,7 @@ internal fun ChatFilesPickerSheet(
     onStartVoiceMode: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {
@@ -165,7 +165,7 @@ internal fun TerminalWorkspacePickerSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

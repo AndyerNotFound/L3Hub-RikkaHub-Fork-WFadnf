@@ -74,7 +74,7 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -336,7 +336,7 @@ private fun ToolOverrideSheet(
             ?: entry.parameters
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

@@ -52,8 +52,8 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -109,7 +109,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {

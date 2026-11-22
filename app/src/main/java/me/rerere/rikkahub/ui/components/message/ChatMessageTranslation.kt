@@ -51,7 +51,7 @@ import me.rerere.rikkahub.ui.style.HorizontalDivider
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.motionContentSize
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import java.util.Locale
 
 @Composable
@@ -61,7 +61,7 @@ fun LanguageSelectionDialog(
     onClearTranslation: () -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
     ) {

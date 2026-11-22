@@ -67,8 +67,8 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.ui.modifier.MotionSlideReveal
 import me.rerere.rikkahub.ui.style.Card
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import java.io.File
 import kotlin.uuid.Uuid
@@ -335,7 +335,7 @@ internal fun EditedFilesList(
     var shownPath by remember { mutableStateOf(selectedPath) }
     LaunchedEffect(selectedPath) { if (selectedPath != null) shownPath = selectedPath }
     val fileName = remember(shownPath) { shownPath?.substringAfterLast('/').orEmpty() }
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = selectedPath != null,
         onDismissRequest = { selectedPath = null },
     ) {

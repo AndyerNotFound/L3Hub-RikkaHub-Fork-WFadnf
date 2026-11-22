@@ -44,8 +44,8 @@ import me.rerere.rikkahub.data.workspace.UnifiedDiff
 import me.rerere.rikkahub.data.workspace.WorkspaceGit
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.LocalDialogDismiss
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.richtext.DiffView
 import org.koin.compose.koinInject
 
@@ -130,7 +130,7 @@ internal fun TurnDiffActions(
         }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showSheet,
         onDismissRequest = { showSheet = false },
     ) {

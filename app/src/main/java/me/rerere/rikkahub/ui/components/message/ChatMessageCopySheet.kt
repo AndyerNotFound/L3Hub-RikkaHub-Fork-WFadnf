@@ -31,14 +31,11 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.GlassSheetShape
-import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
 import me.rerere.rikkahub.ui.components.ui.glassSurface
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 
 @Composable
 fun ChatMessageCopySheet(
@@ -49,26 +46,12 @@ fun ChatMessageCopySheet(
     hazeState: HazeState? = null,
 ) {
     val context = LocalContext.current
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
-        sheetGesturesEnabled = false,
-        dragHandle = null,
-        shape = GlassSheetShape,
-        // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层
-        // 会让 sheet 的锚定失效（面板跑到屏幕中间、不盖住底栏）。这里只把底色做成半透明，
-        // 浓度跟当前档位的滑杆走，0.88 是 sheet 在独立窗口里拿不到 haze 源时的下限。
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(
-            alpha = if (LocalSettings.current.displaySetting.enableBlurEffect) {
-                // sheet 在独立窗口里取不到页面上的 haze 源，只能靠半透明底；
-                // 浓度跟当前档位的滑杆走，0.88 是保证正文不穿透的下限
-                LocalSettings.current.displaySetting.glassOverlayAlpha(0.88f)
-            } else {
-                1f
-            },
-        ),
-        // 同抽屉：底色可能变透明，内容色显式钉住
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        // 选字时要能上下滚，也常误触边缘：点外部与下拉都不关窗，只留内容里的 X
+        dismissible = false,
+        dragEnabled = false,
     ) {
         Column(
             modifier = Modifier

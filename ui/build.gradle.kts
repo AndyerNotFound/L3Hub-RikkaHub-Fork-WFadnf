@@ -33,5 +33,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 
+    // SaltUI：抽屉引擎换成 Salt Sheet 以后由这里提供
+    implementation(libs.saltui)
+
     testImplementation(libs.junit)
 }

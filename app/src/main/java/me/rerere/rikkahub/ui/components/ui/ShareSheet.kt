@@ -29,7 +29,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.migration.migrateProviderQuotaQuery
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import kotlin.io.encoding.Base64
 
 @Composable
@@ -37,7 +37,7 @@ fun ShareSheet(
     state: ShareSheetState,
 ) {
     val context = LocalContext.current
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = state.isShow,
         onDismissRequest = {
             state.dismiss()

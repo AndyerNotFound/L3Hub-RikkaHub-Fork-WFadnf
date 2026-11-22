@@ -63,13 +63,10 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
-import me.rerere.rikkahub.ui.components.ui.GlassSheetShape
-import me.rerere.rikkahub.ui.components.ui.glassOverlayAlpha
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.JsonInstantPretty
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -102,25 +99,9 @@ fun SubAgentTaskSheet(
     // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
     val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
-        // 只改底板，sheet 自己的 scrim / 手势不变
-        shape = GlassSheetShape,
-        // 不要把 glassSurface 挂在 ModalBottomSheet 的 modifier 上：它带来的 clip/haze 图层
-        // 会让 sheet 的锚定失效（面板跑到屏幕中间、不盖住底栏）。这里只把底色做成半透明，
-        // 浓度跟当前档位的滑杆走，0.88 是 sheet 在独立窗口里拿不到 haze 源时的下限。
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(
-            alpha = if (LocalSettings.current.displaySetting.enableBlurEffect) {
-                // sheet 在独立窗口里取不到页面上的 haze 源，只能靠半透明底；
-                // 浓度跟当前档位的滑杆走，0.88 是保证正文不穿透的下限
-                LocalSettings.current.displaySetting.glassOverlayAlpha(0.88f)
-            } else {
-                1f
-            },
-        ),
-        // 同抽屉：底色可能变透明，内容色显式钉住
-        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         SubAgentTaskTree(
             conversationId = conversationId,

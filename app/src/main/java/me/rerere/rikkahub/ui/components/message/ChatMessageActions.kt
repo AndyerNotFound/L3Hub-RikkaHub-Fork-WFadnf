@@ -83,8 +83,8 @@ import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import java.util.Locale
 
 @Composable
@@ -290,7 +290,7 @@ fun ChatMessageActionsSheet(
     // 弹窗顶部的一排快捷操作
     quickActions: (@Composable () -> Unit)? = null,
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
     ) {

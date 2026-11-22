@@ -59,7 +59,7 @@ import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.android.ext.android.inject
 import kotlin.uuid.Uuid
@@ -274,7 +274,7 @@ private fun AssistantPickerSheet(
         else settings.assistants.filter { it.tags.any { id -> id in selectedTagIds } }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

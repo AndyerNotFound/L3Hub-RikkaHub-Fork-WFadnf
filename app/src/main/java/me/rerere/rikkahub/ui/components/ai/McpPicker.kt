@@ -50,7 +50,7 @@ import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.Switch
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.ToggleSurface
 import org.koin.compose.koinInject
 
@@ -111,7 +111,7 @@ fun McpPickerButton(
             }
         }
     }
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showMcpPicker,
         onDismissRequest = { showMcpPicker = false },
     ) {

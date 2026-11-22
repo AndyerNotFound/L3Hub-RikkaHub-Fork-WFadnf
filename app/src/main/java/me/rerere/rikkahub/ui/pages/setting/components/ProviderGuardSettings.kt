@@ -81,7 +81,7 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -855,7 +855,7 @@ private fun QuotaWindowSheet(
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {
@@ -1198,7 +1198,7 @@ private fun LockScheduleSheet(
         )
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

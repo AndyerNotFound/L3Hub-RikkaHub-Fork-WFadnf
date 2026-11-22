@@ -74,8 +74,8 @@ import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.DotLoading
+import me.rerere.ui.components.SaltModalSheet
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -418,7 +418,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         )
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showResult,
         onDismissRequest = { showResult = false },
         content = {

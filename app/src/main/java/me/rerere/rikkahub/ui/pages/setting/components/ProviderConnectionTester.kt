@@ -43,7 +43,7 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 
 // 只有 dialog 本身，开关由调用方持有：入口按钮所在的悬浮工具栏会在键盘弹出时移出 composition，
@@ -283,7 +283,7 @@ private fun TestResultItem(
     LaunchedEffect(errorState) { if (errorState != null) shownError = errorState.error }
     shownError?.let { error ->
         val stackTrace = remember(error) { error.stackTraceToString() }
-        AnimatedModalBottomSheet(
+        SaltModalSheet(
             visible = showErrorSheet && errorState != null,
             onDismissRequest = { showErrorSheet = false },
         ) {

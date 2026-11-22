@@ -108,7 +108,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
@@ -482,7 +482,7 @@ fun ChatDrawerContent(
             conversationToMoveFolder = null
         }
     }
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showMoveToFolderSheet,
         onDismissRequest = {
             showMoveToFolderSheet = false
@@ -641,7 +641,7 @@ fun ChatDrawerContent(
     )
 
     // 移动到助手 Bottom Sheet
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showMoveToAssistantSheet,
         onDismissRequest = {
             showMoveToAssistantSheet = false

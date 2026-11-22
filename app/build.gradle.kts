@@ -272,6 +272,9 @@ dependencies {
     implementation(libs.haze.glass)
     implementation(libs.haze.glass.material3)
 
+    // SaltUI：Sheet / 设置行 / 折叠头这套交互组件
+    implementation(libs.saltui)
+
     // koin
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

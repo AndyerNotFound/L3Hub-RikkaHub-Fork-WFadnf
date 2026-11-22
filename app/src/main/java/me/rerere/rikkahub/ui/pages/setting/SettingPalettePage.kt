@@ -110,8 +110,8 @@ import me.rerere.rikkahub.ui.theme.parseHexColor
 import me.rerere.rikkahub.ui.theme.roleColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -491,7 +491,7 @@ private fun PaletteEditSheet(
     val baseSlots = remember(scheme) { uiSlotsFrom(scheme) }
     val effectiveSlots = remember(colors, slots, scheme) { slots.overlay(baseSlots) }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

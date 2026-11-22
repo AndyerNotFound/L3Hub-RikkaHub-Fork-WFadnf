@@ -35,7 +35,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.webview.WEB_VIEW_BASE_URL
 import me.rerere.ui.webview.WebView
 import me.rerere.ui.webview.WebViewContentCache
@@ -148,7 +148,7 @@ fun WebViewPage(url: String, contentId: String) {
         )
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showConsoleSheet,
         onDismissRequest = { showConsoleSheet = false },
     ) {

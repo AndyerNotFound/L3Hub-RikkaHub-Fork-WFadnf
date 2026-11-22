@@ -92,7 +92,7 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.formatNumber
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
@@ -1215,14 +1215,12 @@ private fun ProviderOverrideSettings(
         var shownProvider by remember { mutableStateOf(editingProvider) }
         LaunchedEffect(editingProvider) { if (editingProvider != null) shownProvider = editingProvider }
         shownProvider?.let { provider ->
-            AnimatedModalBottomSheet(
+            SaltModalSheet(
                 visible = showProviderConfig,
                 onDismissRequest = {
                     showProviderConfig = false
                     editingProvider = null
                 },
-                // 和服务商详情页同一个底色，里面的分段表单才分得开
-                containerColor = CustomColors.topBarColors.containerColor,
             ) {
                 var internalProvider by remember(provider) { mutableStateOf(provider) }
 

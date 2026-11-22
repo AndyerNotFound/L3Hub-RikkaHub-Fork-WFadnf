@@ -42,7 +42,7 @@ import me.rerere.rikkahub.ui.floating.BubbleIconContent
 import me.rerere.rikkahub.ui.floating.BubblePresets
 import me.rerere.rikkahub.ui.floating.bubblePresetIcon
 import me.rerere.rikkahub.ui.style.OutlinedButton
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 
 /**
@@ -85,7 +85,7 @@ internal fun FloatingBubbleIconPicker(
         }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

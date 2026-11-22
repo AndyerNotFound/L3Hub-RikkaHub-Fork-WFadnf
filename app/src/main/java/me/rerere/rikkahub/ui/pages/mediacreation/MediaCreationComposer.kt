@@ -43,7 +43,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
@@ -124,8 +123,8 @@ import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.FormItem
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
 import java.io.File
@@ -1214,10 +1213,9 @@ private fun ComposerSheet(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
     ) {
         Column(
             modifier = Modifier

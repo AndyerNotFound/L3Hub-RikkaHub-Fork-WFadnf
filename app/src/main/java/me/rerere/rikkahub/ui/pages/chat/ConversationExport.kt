@@ -80,7 +80,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.toast.ToastType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -238,7 +238,7 @@ fun ChatExportSheet(
         }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
     ) {

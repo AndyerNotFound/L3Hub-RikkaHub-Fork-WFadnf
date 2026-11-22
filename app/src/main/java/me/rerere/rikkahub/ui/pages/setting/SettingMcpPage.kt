@@ -80,8 +80,8 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -421,7 +421,7 @@ private fun McpImportModal(
     val noValidConfigMsg = stringResource(R.string.setting_mcp_page_import_no_valid_config)
     val parseErrorMsg = stringResource(R.string.setting_mcp_page_import_parse_error)
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

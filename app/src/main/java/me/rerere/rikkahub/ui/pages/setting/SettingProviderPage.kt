@@ -103,8 +103,8 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
@@ -657,7 +657,7 @@ private fun AddButton(
         Icon(HugeIcons.Add01, "Add")
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showSheet,
         onDismissRequest = { showSheet = false },
     ) {

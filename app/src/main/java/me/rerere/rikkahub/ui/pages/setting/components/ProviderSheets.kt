@@ -29,7 +29,7 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 
 // 新建服务商时先选类型的面板
 @Composable
@@ -41,7 +41,7 @@ internal fun <T> ProviderTypeSheet(
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {
@@ -103,7 +103,7 @@ internal fun <T> ProviderEditSheet(
 ) {
     var current by remember(initial) { mutableStateOf(initial) }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

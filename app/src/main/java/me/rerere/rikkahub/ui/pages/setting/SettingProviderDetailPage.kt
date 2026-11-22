@@ -126,7 +126,7 @@ import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -932,7 +932,7 @@ private fun ModelPicker(
     onAllModelDeselected: (List<Model>) -> Unit
 ) {
     var showModal by remember { mutableStateOf(false) }
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showModal,
         onDismissRequest = { showModal = false },
     ) {

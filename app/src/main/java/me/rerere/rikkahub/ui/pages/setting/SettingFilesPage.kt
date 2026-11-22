@@ -83,7 +83,7 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -142,7 +142,7 @@ fun SettingFilesPage(
         )
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = showCleanSheet,
         onDismissRequest = { showCleanSheet = false },
     ) {

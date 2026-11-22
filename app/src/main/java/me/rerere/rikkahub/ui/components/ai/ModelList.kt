@@ -67,7 +67,7 @@ import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.toDp
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -335,15 +335,16 @@ fun ModelListSheet(
         onDispose { state.close() }
     }
 
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         // 关窗统一走 state：wrapper 先播完退场再拆窗口，点外部 / 返回键 / X 走同一条
         visible = state.visible,
         onDismissRequest = { state.close() },
-        // 列表本身要上下滑，sheet 的下拉手势很容易在滚动时误触关闭；
-        // 只留两种关法：点弹窗外部，或点右上角 X
-        sheetGesturesEnabled = false,
-        // 手势关了就别留把手，免得看起来能拖却拖不动
-        dragHandle = null,
+        // 列表本身要上下滑，抽屉的下拉手势很容易在滚动时误触关闭；
+        // 只留两种关法：点抽屉外部，或右上角的关闭按钮
+        dismissible = false,
+        closeButton = true,
+        // 没有把手，也就没有「拖一下就关」这条路，免得看起来能拖却拖不动
+        dragEnabled = false,
     ) {
         ModelListContent(
             state = state,

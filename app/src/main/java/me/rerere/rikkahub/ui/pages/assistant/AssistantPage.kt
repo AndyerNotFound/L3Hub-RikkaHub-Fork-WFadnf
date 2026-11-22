@@ -77,8 +77,8 @@ import me.rerere.rikkahub.ui.style.Checkbox
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.ui.components.AnimatedModalBottomSheet
 import me.rerere.ui.components.RikkaConfirmDialog
+import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -357,13 +357,15 @@ private fun AssistantCreationSheet(
     LaunchedEffect(state.currentState) { if (state.currentState != null) shown = state.currentState }
     shown?.let { assistant ->
         val update: (Assistant) -> Unit = { state.currentState = it }
-        AnimatedModalBottomSheet(
+        SaltModalSheet(
             visible = state.isEditing,
             onDismissRequest = {
                 state.dismiss()
             },
-            dragHandle = {},
-            sheetGesturesEnabled = false
+            // 编辑表单自己带取消与保存，抽屉不提供关闭手势与关闭按钮
+            dismissible = false,
+            closeButton = false,
+            dragEnabled = false,
         ) {
             Column(
                 modifier = Modifier

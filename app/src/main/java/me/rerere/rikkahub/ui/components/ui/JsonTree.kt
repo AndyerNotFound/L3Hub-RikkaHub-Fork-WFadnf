@@ -43,7 +43,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.ui.components.AnimatedModalBottomSheet
+import me.rerere.ui.components.SaltModalSheet
 
 @Composable
 fun JsonTree(
@@ -66,7 +66,7 @@ fun JsonTree(
     // 收起动画期间 selectedString 已经是 null，用最后一份内容把退场演完
     var shownString by remember { mutableStateOf(selectedString) }
     LaunchedEffect(selectedString) { if (selectedString != null) shownString = selectedString }
-    AnimatedModalBottomSheet(
+    SaltModalSheet(
         visible = selectedString != null,
         onDismissRequest = { selectedString = null },
     ) {
