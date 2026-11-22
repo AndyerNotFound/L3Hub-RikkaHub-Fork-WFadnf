@@ -265,7 +265,8 @@ input::placeholder,textarea::placeholder{color:var(--text-3)}
 .chat-title b{display:block;font-size:14.5px;font-weight:600;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-title span{display:block;font-size:11px;color:var(--text-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.msgs{padding:4px 16px 8px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.msgs{padding:4px 16px 8px;display:flex;flex-direction:column;gap:14px}
+.chat-title b,.thread-time{font-variant-numeric:tabular-nums}
 .msg{display:flex;flex-direction:column;max-width:100%;animation:msgIn .32s cubic-bezier(.2,.9,.25,1) both}
 @keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .msg.user{align-items:flex-end}
@@ -468,7 +469,7 @@ textarea#input{
 .sheet-head{display:flex;align-items:center;padding:12px 18px 8px;flex:none}
 .sheet-head b{font-size:15px;letter-spacing:-.01em}
 .sheet-head .icon-btn{margin-left:auto;width:32px;height:32px}
-.sheet-body{overflow-y:auto;padding:0 12px 20px;scrollbar-width:none}
+.sheet-body{overflow-y:auto;padding:0 12px 34px;scrollbar-width:none}
 .sheet-body::-webkit-scrollbar{display:none}
 .provider{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:14px 8px 6px}
 .model-row{
@@ -507,8 +508,8 @@ textarea#input{
   padding:16px;box-shadow:var(--shadow-1);
 }
 .donut-wrap{display:flex;align-items:center;gap:18px}
-.donut{position:relative;flex:none;width:132px;height:132px}
-.donut svg{transform:rotate(-90deg);display:block}
+.donut{position:relative;flex:none;width:124px;height:124px}
+.donut svg{transform:rotate(-90deg);display:block;width:100%;height:100%}
 .donut circle{fill:none;stroke-width:14;stroke-linecap:round;transition:stroke-dasharray .9s cubic-bezier(.2,.9,.25,1)}
 .donut-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
 .donut-center b{display:block;font-size:19px;font-weight:650;letter-spacing:-.03em}
@@ -743,7 +744,6 @@ input[type=range]::-webkit-slider-thumb{
               <textarea id="input" rows="1" placeholder="发送消息…" autocomplete="off"></textarea>
               <div class="composer-actions">
                 <button class="icon-btn sm" data-toast="附件演示中未接入" aria-label="附件"><svg class="ico"><use href="#i-plus"/></svg></button>
-                <span class="send-hint" id="sendHint">Enter 发送</span>
                 <button class="send" id="send" aria-label="发送"><svg class="ico"><use href="#i-send"/></svg></button>
               </div>
             </div>
@@ -925,7 +925,7 @@ input[type=range]::-webkit-slider-thumb{
 /* 助手回复不套气泡，沿用 bubble-ai 的排版 */
 .bubble-ai.ai-blocks{
   background:none;border:0;box-shadow:none;border-radius:0;
-  padding:0 2px;display:flex;flex-direction:column;gap:10px;min-width:0;
+  padding:0 2px 0 32px;display:flex;flex-direction:column;gap:10px;min-width:0;
 }
 .bubble-ai.ai-blocks > *:first-child{margin-top:0}
 .md-live > *:first-child{margin-top:0}
@@ -1240,6 +1240,7 @@ $$('.chip[data-filter]').forEach(c => c.addEventListener('click', () => {
 /* ================= 视图切换 ================= */
 
 function go(name, dir){
+  if(state.view === 'chat' && name !== 'chat' && state.streaming) stop();
   const from = $('.view.is-active');
   const to = $('.view[data-view="' + name + '"]');
   if(!to || from === to) return;
@@ -1264,6 +1265,8 @@ function openChat(id){
   const t = threads.find(x => x.id === id);
   if(!t) return;
   state.thread = t;
+  const m = MODELS.flatMap(g => g.items).find(x => x.label === t.model);
+  if(m) selectModel(m, true);
   $('#chatTitle').textContent = t.title;
   $('#chatSub').textContent = t.model + ' · ' + t.provider;
   msgs.innerHTML = '';
@@ -1402,12 +1405,10 @@ function setSendState(){
     sendBtn.classList.add('stop');
     sendBtn.innerHTML = '<svg class="ico"><use href="#i-stop"/></svg>';
     sendBtn.setAttribute('aria-label', '停止');
-    $('#sendHint').textContent = '生成中';
   }else{
     sendBtn.classList.remove('stop');
     sendBtn.innerHTML = '<svg class="ico"><use href="#i-send"/></svg>';
     sendBtn.setAttribute('aria-label', '发送');
-    $('#sendHint').textContent = 'Enter 发送';
   }
 }
 

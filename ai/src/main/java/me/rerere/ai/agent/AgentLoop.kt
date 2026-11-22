@@ -146,12 +146,12 @@ internal class AgentLoop(
                 // 预览按帧合并：每次落帧都要在 UI 线程把这段正文重排一遍，正文越长那一次越贵。
                 // 逐 chunk 都落帧时，长回复里几乎每一帧都在排版，跟不上刷新率。
                 // 末帧不受影响：这一步结束时由 finishStep 写回完整内容。
-                var lastPreviewAt: TimeMark? = null
+                var lastPreviewAt: Duration? = null
                 request.provider.streamText(request.providerSetting, messages, params).collect { chunk ->
                     try {
                         val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
                         attempt = handler.handle(listOf(attempt), chunk).single()
-                        val previewMark = TimeSource.Monotonic.markNow()
+                        val previewMark = mark.elapsedNow()
                         val sinceLastPreview = lastPreviewAt?.let { previewMark - it }
                         if (sinceLastPreview == null || sinceLastPreview >= previewInterval(attempt)) {
                             lastPreviewAt = previewMark
