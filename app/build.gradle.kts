@@ -164,6 +164,8 @@ android {
     }
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
+    // SaltUI 的 Sheet / Item 等组件都标着 UnstableSaltUiApi：全站都要用，按 material3 实验 API 同样处理
+    compilerOptions.optIn.add("com.moriafly.salt.ui.UnstableSaltUiApi")
         compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
         compilerOptions.optIn.add("androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi")
         compilerOptions.optIn.add("androidx.compose.animation.ExperimentalAnimationApi")
