@@ -2,9 +2,16 @@ package me.rerere.rikkahub.ui.hooks
 
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SharedTransitionDefaults
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -20,6 +27,10 @@ import me.rerere.rikkahub.ui.navigation.LocalNavAnimatedVisibilityScope
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.context.LocalSharedTransitionScope
 import me.rerere.rikkahub.ui.pages.mediacreation.mediaCreationHeroKey
+import me.rerere.rikkahub.ui.theme.AlphaEasing
+import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.rememberFixedSpec
+import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveShape
@@ -56,6 +67,49 @@ fun Modifier.heroAnimation(
 }
 
 /**
+ * 容器变换两侧内容的 alpha 时间线。
+ *
+ * sharedBounds 默认让两份内容在变形 bounds 里全程交叉淡化：展开时「卡片内容 ↔ 整页内容」
+ * 同时半透明，叠在原地不动的被盖页上就是一圈残影——页面的 Scaffold 底色也在参与淡化。
+ * 这里把两侧的淡化刻意错开，让 bounds 大的时候容器里始终只有一份近乎不透明的内容：
+ *
+ * - 展开：页面内容快速淡入（1/3 时长），卡片内容同步快速让位；
+ * - 返回：页面内容拖到 70% 才开始淡出，卡片内容末段才淡入，交叉只发生在
+ *   bounds 已经收得很小的尾段。
+ *
+ * 时长跟着页转场这一档（slideDurationMillis）走，改「动画速度」时两侧一起变；
+ * 关闭动效时全部 snap，与页面级转场一起硬切。
+ */
+@Composable
+private fun rememberHeroFastFade(): FiniteAnimationSpec<Float> =
+    rememberFixedSpec(durationMillis = slideDurationMillis() / 3, easing = AlphaEasing)
+
+/** 返回方向的收尾交叉：前 70% 钉在端点上，末段一次性完成淡入或淡出。 */
+@Composable
+private fun rememberHeroLateRise(): FiniteAnimationSpec<Float> = heroLateKeyframes(rise = true)
+
+@Composable
+private fun rememberHeroLateFall(): FiniteAnimationSpec<Float> = heroLateKeyframes(rise = false)
+
+@Composable
+private fun heroLateKeyframes(rise: Boolean): FiniteAnimationSpec<Float> {
+    if (!LocalAnimationsEnabled.current) return snap()
+    val duration = slideDurationMillis()
+    return keyframes {
+        durationMillis = duration
+        if (rise) {
+            0f at 0
+            0f at duration * 7 / 10
+            1f at duration
+        } else {
+            1f at 0
+            1f at duration * 7 / 10
+            0f at duration
+        }
+    }
+}
+
+/**
  * 容器变换：同一个 key 的两个容器（比如列表项和它打开的整页）在页面切换时互相展开、收回，内容交叉淡入淡出。
  * 两边都按宽度缩放、顶部对齐，不会在动画的每一帧重新测量整页。
  */
@@ -63,6 +117,8 @@ fun Modifier.heroAnimation(
 fun Modifier.heroContainer(
     key: Any,
     shape: Shape,
+    enter: EnterTransition,
+    exit: ExitTransition,
 ): Modifier {
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedVisibilityScope.current
@@ -70,6 +126,10 @@ fun Modifier.heroContainer(
         this@heroContainer.sharedBounds(
             sharedContentState = rememberSharedContentState(key),
             animatedVisibilityScope = animatedVisibilityScope,
+            // 两份内容的交叉淡化由调用侧编排（见 rememberHeroFastFade 的说明）；
+            // 默认的 fadeIn/fadeOut 全程同时半透明，正是残影的来源
+            enter = enter,
+            exit = exit,
             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.TopCenter),
             clipInOverlayDuringTransition = OverlayClip(shape),
         )
@@ -121,7 +181,13 @@ fun HeroPage(
  * 返回与进场是同一段容器变换的正反两面，摘掉的动作只发生在页面离开组合的时候。
  */
 @Composable
-fun Modifier.heroPageContainer(key: Any, shape: Shape): Modifier = heroContainer(key, shape)
+fun Modifier.heroPageContainer(key: Any, shape: Shape): Modifier = heroContainer(
+    key = key,
+    shape = shape,
+    // 页面侧：进场快速变实，返回时拖到末段才淡出
+    enter = fadeIn(rememberHeroFastFade()),
+    exit = fadeOut(rememberHeroLateFall()),
+)
 
 /** 源条目侧：和 [HeroPage] 成对使用，shape 要和条目自身的圆角一致。 */
 @Composable
@@ -132,6 +198,22 @@ fun Modifier.heroSource(
     screen.heroKey(),
     // 没传形状时按主题当前的轮廓类型造，和条目自己画的那个一致
     shape ?: adaptiveShape(adaptiveCornerRadius(HeroSourceCorner)),
+    // 卡片侧：展开时快速让位，返回时末段才出现
+    enter = fadeIn(rememberHeroLateRise()),
+    exit = fadeOut(rememberHeroFastFade()),
+)
+
+/**
+ * 卡片侧的容器变换：与 [heroSource] 同一套 alpha 编排，给 key 不走 [Screen.heroKey] 的
+ * 调用点（如媒体创作会话条目）用。
+ */
+@Composable
+fun Modifier.heroCardContainer(key: Any, shape: Shape): Modifier = heroContainer(
+    key = key,
+    shape = shape,
+    // 卡片侧：展开时快速让位，返回时末段才出现
+    enter = fadeIn(rememberHeroLateRise()),
+    exit = fadeOut(rememberHeroFastFade()),
 )
 
 /**

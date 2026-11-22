@@ -677,6 +677,9 @@ CompositionLocal，页面只读它，不各自去判断 `Settings`。
 `heroEntry<T>` 负责可配对页面的容器变换：进场展开、返回收回，两个方向都配对共享元素，是同一段
 容器变换的正反两面；`heroPageContainer` 因此在离场时也保留，不再按 `transition.targetState` 摘除。
 容器变换页的 display 级进场与退场因此都不位移（只有淡入淡出窗口），不会与容器变换叠成两套位移。
+两侧内容在变形 bounds 里的交叉淡化由 `heroContainer` 的 enter/exit 显式编排：展开时页面内容快淡入、
+卡片内容快让位，返回时两侧都拖到末段（70%）才交叉——默认的全程交叉淡化会让两份内容同时半透明、
+叠在原地不动的被盖页上成残影。时长跟页转场档位走，关闭动效时一起 snap。
 页内元素（`heroAnimation`）仍只在进场配对，返回时通过 `LocalNavEntryPopped` 摘掉，
 避免「整页收回条目 + 元素飞回」两种过渡同时出现。页面自身不要再包一层同 key 的
 `HeroPage`；`Screen.Setting` 与 `Screen.MediaCreation` 的既有例外保持不变。
