@@ -42,6 +42,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
@@ -71,12 +73,11 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltNavItem
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.permission.LocalNetworkPermissionCard
 import me.rerere.rikkahub.ui.components.ui.permission.NotificationPermissionCard
@@ -124,7 +125,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            // 横向内距交给 Salt 的 RoundedColumn（16dp）；这里再补一层会变成 32dp
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("profile") {
@@ -138,7 +140,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -205,6 +207,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             if (settings.isNotConfigured()) {
                 item {
                     ProviderConfigWarningCard(
+                        modifier = Modifier.padding(horizontal = 16.dp),
                         onClick = { navController.navigate(Screen.SettingProvider) }
                     )
                 }
@@ -212,128 +215,131 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             if (localNetworkPermission?.allRequiredPermissionsGranted == false) {
                 item("localNetworkPermission") {
-                    LocalNetworkPermissionCard(permissionState = localNetworkPermission)
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        LocalNetworkPermissionCard(permissionState = localNetworkPermission)
+                    }
                 }
             }
 
             if (notificationPermission?.allRequiredPermissionsGranted == false) {
                 item("notificationPermission") {
-                    NotificationPermissionCard(permissionState = notificationPermission)
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        NotificationPermissionCard(permissionState = notificationPermission)
+                    }
                 }
             }
 
             item("generalSettings") {
                 var colorMode by rememberColorMode()
-                val containerColor = MaterialTheme.colorScheme.primaryContainer
-                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_general_settings)) },
-                ) {
-                    formItem {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            CardGroupIcon(colorMode.icon(), containerColor = containerColor, contentColor = contentColor)
-                            Text(stringResource(R.string.setting_page_color_mode))
-                        }
-                        ConnectedChoiceButtons(
-                            options = ColorMode.entries,
-                            selected = colorMode,
-                            onSelect = {
-                                colorMode = it
-                                navController.navigate(Screen.Setting) {
-                                    popUpTo(Screen.Setting) {
-                                        inclusive = true
+                SaltGroup(title = stringResource(R.string.setting_page_general_settings)) {
+                    ItemContainer {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                Icon(
+                                    imageVector = colorMode.icon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SaltTheme.dimens.itemIcon),
+                                    tint = SaltTheme.colors.text,
+                                )
+                                Text(stringResource(R.string.setting_page_color_mode))
+                            }
+                            ConnectedChoiceButtons(
+                                options = ColorMode.entries,
+                                selected = colorMode,
+                                onSelect = {
+                                    colorMode = it
+                                    navController.navigate(Screen.Setting) {
+                                        popUpTo(Screen.Setting) {
+                                            inclusive = true
+                                        }
                                     }
-                                }
-                            },
-                        ) { mode, selected ->
-                            ConnectedChoiceLabel(
-                                text = when (mode) {
-                                    ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
-                                    ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
-                                    ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
                                 },
-                                selected = selected,
-                                icon = mode.icon(),
-                            )
+                            ) { mode, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (mode) {
+                                        ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
+                                        ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
+                                        ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
+                                    },
+                                    selected = selected,
+                                    icon = mode.icon(),
+                                )
+                            }
                         }
                     }
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Settings03,
+                        text = stringResource(R.string.setting_page_preferences),
                         onClick = { navController.navigate(Screen.SettingPreferences) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences)) },
+                        sub = stringResource(R.string.setting_page_preferences_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.LookTop,
+                        text = stringResource(R.string.setting_page_assistant),
                         onClick = { navController.navigate(Screen.Assistant) },
-                        leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
+                        sub = stringResource(R.string.setting_page_assistant_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Package,
+                        text = stringResource(R.string.setting_page_extensions),
                         onClick = { navController.navigate(Screen.Extensions) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
+                        sub = stringResource(R.string.setting_page_extensions_desc),
                     )
                 }
             }
 
             item("modelServices") {
-                val containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_model_and_services)) },
-                ) {
-                    item(
+                SaltGroup(title = stringResource(R.string.setting_page_model_and_services)) {
+                    SaltNavItem(
+                        icon = HugeIcons.AiMagic,
+                        text = stringResource(R.string.setting_page_default_model),
                         onClick = { navController.navigate(Screen.SettingModels) },
-                        leadingContent = { CardGroupIcon(HugeIcons.AiMagic, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
+                        sub = stringResource(R.string.setting_page_default_model_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Brain02,
+                        text = stringResource(R.string.setting_page_providers),
                         onClick = { navController.navigate(Screen.SettingProvider) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Brain02, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
+                        sub = stringResource(R.string.setting_page_providers_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.GlobalSearch,
+                        text = stringResource(R.string.setting_page_search_service),
                         onClick = { navController.navigate(Screen.SettingSearch) },
-                        leadingContent = { CardGroupIcon(HugeIcons.GlobalSearch, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
+                        sub = stringResource(R.string.setting_page_search_service_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Megaphone01,
+                        text = stringResource(R.string.setting_page_tts_service),
                         onClick = { navController.navigate(Screen.SettingSpeech) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Megaphone01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
+                        sub = stringResource(R.string.setting_page_tts_service_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Image02,
+                        text = stringResource(R.string.setting_page_media),
                         onClick = { navController.navigate(Screen.SettingMedia) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Image02, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_media_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_media)) },
+                        sub = stringResource(R.string.setting_page_media_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.McpServer,
+                        text = stringResource(R.string.setting_page_mcp),
                         onClick = { navController.navigate(Screen.SettingMcp) },
-                        leadingContent = { CardGroupIcon(HugeIcons.McpServer, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                        sub = stringResource(R.string.setting_page_mcp_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Tools,
+                        text = stringResource(R.string.setting_page_tool_override),
                         onClick = { navController.navigate(Screen.ToolOverrides) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Tools, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_tool_override_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_tool_override)) },
+                        sub = stringResource(R.string.setting_page_tool_override_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.ServerStack01,
+                        text = stringResource(R.string.setting_page_web_server),
                         onClick = { navController.navigate(Screen.SettingWeb) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
+                        sub = stringResource(R.string.setting_page_web_server_desc),
                     )
                 }
             }
@@ -342,34 +348,26 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
-                val containerColor = MaterialTheme.colorScheme.secondaryContainer
-                val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_data_settings)) },
-                ) {
-                    item(
+                SaltGroup(title = stringResource(R.string.setting_page_data_settings)) {
+                    SaltNavItem(
+                        icon = HugeIcons.Database02,
+                        text = stringResource(R.string.setting_page_data_backup),
                         onClick = { navController.navigate(Screen.Backup) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Database02, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
+                        sub = stringResource(R.string.setting_page_data_backup_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.ImageUpload,
+                        text = stringResource(R.string.setting_page_chat_storage),
                         onClick = { navController.navigate(Screen.SettingFiles) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = {
-                            if (storageState.first == -1) {
-                                Text(stringResource(R.string.calculating))
-                            } else {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_page_chat_storage_desc,
-                                        storageState.first,
-                                        storageState.second / 1024 / 1024.0
-                                    )
-                                )
-                            }
+                        sub = if (storageState.first == -1) {
+                            stringResource(R.string.calculating)
+                        } else {
+                            stringResource(
+                                R.string.setting_page_chat_storage_desc,
+                                storageState.first,
+                                storageState.second / 1024 / 1024.0
+                            )
                         },
-                        headlineContent = { Text(stringResource(R.string.setting_page_chat_storage)) },
                     )
                 }
             }
@@ -381,48 +379,67 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_page_about)) },
-                ) {
-                    item(
-                        onClick = { navController.navigate(Screen.SettingAbout) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Clapping01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
-                        trailingContent = {
+                SaltGroup(title = stringResource(R.string.setting_page_about)) {
+                    // 这一行右侧要放两个社交按钮，Salt 的 Item 装不下自定义右侧内容，
+                    // 用 ItemContainer 自己拼一行（内外距仍由 Salt 的 RoundedColumn 给）
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { navController.navigate(Screen.SettingAbout) },
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
-                                var showQQGroupSheet by remember { mutableStateOf(false) }
-                                IconButton(
-                                    onClick = { showQQGroupSheet = true }
-                                ) {
-                                    Icon(
-                                        imageVector = TencentQQIcon,
-                                        contentDescription = "QQ",
-                                        tint = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                                QQGroupBottomSheet(
-                                    visible = showQQGroupSheet,
-                                    onDismiss = { showQQGroupSheet = false }
+                                Icon(
+                                    imageVector = HugeIcons.Clapping01,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SaltTheme.dimens.itemIcon),
+                                    tint = SaltTheme.colors.text,
                                 )
-                                IconButton(
-                                    onClick = {
-                                        context.openUrl("https://discord.gg/9weBqxe5c4")
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = DiscordIcon,
-                                        contentDescription = "Discord",
-                                        tint = MaterialTheme.colorScheme.secondary
+                                Column {
+                                    Text(stringResource(R.string.setting_page_about))
+                                    Text(
+                                        text = stringResource(R.string.setting_page_about_desc),
+                                        color = SaltTheme.colors.subText,
+                                        style = MaterialTheme.typography.bodyMedium,
                                     )
                                 }
                             }
-                        },
-                        headlineContent = { Text(stringResource(R.string.setting_page_about)) },
-                    )
-                    item(
+                            var showQQGroupSheet by remember { mutableStateOf(false) }
+                            IconButton(
+                                onClick = { showQQGroupSheet = true }
+                            ) {
+                                Icon(
+                                    imageVector = TencentQQIcon,
+                                    contentDescription = "QQ",
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            QQGroupBottomSheet(
+                                visible = showQQGroupSheet,
+                                onDismiss = { showQQGroupSheet = false }
+                            )
+                            IconButton(
+                                onClick = {
+                                    context.openUrl("https://discord.gg/9weBqxe5c4")
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = DiscordIcon,
+                                    contentDescription = "Discord",
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+                    SaltNavItem(
+                        icon = HugeIcons.Book01,
+                        text = stringResource(R.string.setting_page_documentation),
+                        sub = stringResource(R.string.setting_page_documentation_desc),
                         onClick = {
                             val docUrl = if (java.util.Locale.getDefault().language == "zh") {
                                 "https://docs.rikka-ai.com/zh/introduction"
@@ -431,17 +448,17 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                             context.openUrl(docUrl)
                         },
-                        leadingContent = { CardGroupIcon(HugeIcons.Book01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Bookshelf01,
+                        text = stringResource(R.string.setting_page_request_logs),
                         onClick = { navController.navigate(Screen.Log) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },
+                        sub = stringResource(R.string.setting_page_request_logs_desc),
                     )
-                    item(
+                    SaltNavItem(
+                        icon = HugeIcons.Share04,
+                        text = stringResource(R.string.setting_page_share),
+                        sub = stringResource(R.string.setting_page_share_desc),
                         onClick = {
                             val intent = Intent(Intent.ACTION_SEND)
                             intent.type = "text/plain"
@@ -452,9 +469,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
                             }
                         },
-                        leadingContent = { CardGroupIcon(HugeIcons.Share04, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_share)) },
                     )
                 }
             }
@@ -469,10 +483,13 @@ private fun ColorMode.icon(): ImageVector = when (this) {
 }
 
 @Composable
-private fun ProviderConfigWarningCard(onClick: () -> Unit) {
+private fun ProviderConfigWarningCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
