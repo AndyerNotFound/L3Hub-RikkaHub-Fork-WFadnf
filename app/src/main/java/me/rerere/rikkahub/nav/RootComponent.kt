@@ -9,10 +9,7 @@ import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.navigate
-import com.arkivanov.decompose.router.stack.pop
-import com.arkivanov.decompose.router.stack.pushNew
 import com.arkivanov.decompose.value.Value
-import com.arkivanov.essenty.backhandler.BackHandler
 import com.arkivanov.essenty.instancekeeper.InstanceKeeper
 import com.arkivanov.essenty.instancekeeper.getOrCreate
 import kotlinx.serialization.Serializable
@@ -22,7 +19,7 @@ import me.rerere.rikkahub.Screen
  * 每个导航目的地一个 [NavChild]：包住 Decompose 给的 child ComponentContext，
  * 并把 Android 的 [ViewModelStore] 挂在 InstanceKeeper 上——
  * koinViewModel() 默认读 LocalViewModelStoreOwner，每个页面因此拿到自己的一份 store，
- * 生命周期与 nav3 的 ViewModelStore decorator 对齐：随栈位置存活，出栈时清掉。
+ * 生命周期与栈位置对齐：随栈位置存活，出栈时清掉。
  */
 class NavChild(
     val context: ComponentContext,
@@ -61,13 +58,17 @@ sealed interface DetailDestination {
 }
 
 /**
- * 导航引擎本体（ImageToolbox 同款 Decompose 结构）：
+ * 导航引擎本体：两棵栈，根栈放整宽页面，右列栈只放分区内的下钻页。
  *
- * - 根栈：[StackNavigation] + [childStack]，child 实例直接包成 [NavChild]；
- *   `handleBackButton = true` 让 Decompose 接管系统返回（栈深 > 1 才启用）；
- * - 右列栈：横屏设置分区时详情页进这里；不注册返回键，由 RouteActivity 的
- *   `BackCallback`（优先级 1，随布局开关）接管，模型编辑占根栈时不抢返回。
+ * 这里只做栈本身的操作，不认识"设置分区""该不该挂右列"这类界面语义——
+ * 那些判断在 [me.rerere.rikkahub.ui.context.RootNavigator] 与其兄弟里，规则由
+ * [NavStack] / [nextBackStep] 两个纯函数给出。
+ *
+ * 两棵栈都 *不* 自己注册返回键（`handleBackButton = false`）：返回只有一个主人，
+ * 见 RouteActivity 里注册的那一个 BackCallback 与 ui/navigation/StackHost.kt 的
+ * 预测性返回回调，两者读同一个 [nextBackStep] 结果。
  */
+@OptIn(ExperimentalDecomposeApi::class)
 class RootComponent(
     componentContext: ComponentContext,
     /** 首屏：onCreate 里同步读偏好决定，进程死亡后由 stateKeeper 恢复整条栈 */
@@ -77,21 +78,15 @@ class RootComponent(
     private val rootNavigation = StackNavigation<Screen>()
     private val detailNavigation = StackNavigation<DetailDestination>()
 
-    @OptIn(ExperimentalDecomposeApi::class)
     private val detailContext: ComponentContext =
-        componentContext.childContext(
-            key = "l3hub_settings_detail",
-            backHandlerPriority = 1,
-        )
-
-    val detailBackHandler: BackHandler = detailContext.backHandler
+        componentContext.childContext(key = "l3hub_settings_detail")
 
     val childStack: Value<ChildStack<Screen, NavChild>> by lazy {
         childStack(
             source = rootNavigation,
             initialStack = { listOf(initialScreen) },
             serializer = Screen.serializer(),
-            handleBackButton = true,
+            handleBackButton = false,
             childFactory = { config, context -> NavChild(context, config) },
         )
     }
@@ -108,31 +103,43 @@ class RootComponent(
         )
     }
 
-    // ---- 根栈操作 ----
+    /** 根栈路由，栈底在 index 0 */
+    val rootStack: List<Screen>
+        get() = childStack.value.items.map { it.configuration }
 
-    fun pushRoot(screen: Screen) {
-        rootNavigation.pushNew(screen)
-    }
+    /** 右列栈内容，空槽位在 index 0 */
+    val detailDestinations: List<DetailDestination>
+        get() = detailStack.value.items.map { it.configuration }
 
+    // ---- 根栈 ----
+
+    /** 整条根栈一次算出新栈；算成空栈时保持原栈，栈底那一页是退出边界 */
     fun navigateRoot(transformer: (List<Screen>) -> List<Screen>) {
-        rootNavigation.navigate(transformer)
+        rootNavigation.navigate { current -> transformer(current).ifEmpty { current } }
     }
 
     fun popRoot() {
-        rootNavigation.pop()
+        rootNavigation.navigate { current -> NavStack.pop(current) }
     }
 
-    // ---- 右列操作 ----
+    // ---- 右列 ----
 
     fun pushDetail(screen: Screen) {
-        detailNavigation.pushNew(DetailDestination.Page(screen))
+        detailNavigation.navigate { current ->
+            val stack = current.ifEmpty { listOf(DetailDestination.None) }
+            if (stack.lastOrNull() == DetailDestination.Page(screen)) stack
+            else stack + DetailDestination.Page(screen)
+        }
     }
 
     fun popDetail() {
-        detailNavigation.pop()
+        detailNavigation.navigate { current -> if (current.size > 1) current.dropLast(1) else current }
     }
 
+    /** 回到空槽位：右列只清内容，不动根栈 */
     fun clearDetail() {
-        detailNavigation.navigate { listOf(DetailDestination.None) }
+        detailNavigation.navigate { current ->
+            if (current.size <= 1) current else listOf(DetailDestination.None)
+        }
     }
 }

@@ -154,6 +154,13 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
 internal fun Screen.isSettingSectionPage(): Boolean =
     this is Screen.Setting || SettingSection.entries.any { it.screen == this }
 
+/**
+ * 能挂右列的路由：分区的首屏。设置首页本身只有左栏与中列，右列不出现。
+ * 布局与导航共用这一条判据，免得"哪一列存在"和"哪一列能收页"各写一套。
+ */
+internal fun Screen.hostsDetailColumn(): Boolean =
+    isSettingSectionPage() && this !is Screen.Setting
+
 /** 设置相关的页面：这些路由上才显示左列 */
 internal fun Screen.isSettingBoard(): Boolean {
     // 模型编辑是聚焦编辑页，它自己就要三栏的宽度，不再挂设置栏

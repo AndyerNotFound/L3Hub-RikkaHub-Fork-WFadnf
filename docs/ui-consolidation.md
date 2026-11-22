@@ -8,9 +8,13 @@ architecture contract, not a verification report. Build and test results belong 
 | Area | Single source of truth | Rule |
 |---|---|---|
 | Route identity | `app/src/main/java/me/rerere/rikkahub/Screen.kt` | Keep route identity separate from activity and layout assembly. |
-| Route registration | `appNavEntries()` in `RouteActivity.kt` | Both navigation panes use the same remembered entry provider. |
-| Page transitions | `ui/navigation/NavTransitions.kt` | Both panes share one specification. Predictive pop returns the same specification as ordinary pop. |
-| Back-stack operations | `ui/context/NavContext.kt` | New navigation code goes through `Navigator`; do not add a parallel back-stack policy. |
+| Route to page dispatch | `ui/navigation/ScreenPages.kt` | One `when` over the sealed route type; a missing branch fails compilation. |
+| Page transitions | `ui/navigation/StackHost.kt` | Both panes share one specification. Predictive pop returns the same specification as ordinary pop. |
+| Stack arithmetic | `nav/NavStack.kt` | Push, single top, pop up to and replace all are pure functions. Do not edit route lists inline anywhere else. |
+| Back decision | `nav/NavPolicy.kt` | One `BackStep` per press: right column, then root stack, then the system. The back key, the page back buttons and the predictive-back enablement all read it. |
+| Column navigators | `ui/context/NavContext.kt` | A page receives the navigator of its own column. Cross-column routing is a `CompositionLocal` change, never a global flag. |
+| Back callback owner | `ui/navigation/NavigationBackHandler.kt` | The only back callback registered on the component back handler. |
+| Stack engine | `nav/RootComponent.kt` | Both stacks run with `handleBackButton = false`, so no stack competes with the owner above. |
 | Departure marker | `ui/navigation/NavTransitions.kt` | The only entry decorator marks an entry that is leaving and already popped. It reads the back stack and never writes navigation state. |
 | Motion parameters | `ui/theme/MotionSpecs.kt` | Use the active MD3 motion scheme and existing animation settings; do not add isolated timing tables. |
 | Expand/collapse motion | `ui/modifier/MotionBlur.kt` | Enter and exit use matching parameters. Do not build another blur pipeline for the same behavior. |
@@ -27,6 +31,13 @@ architecture contract, not a verification report. Build and test results belong 
 
 ## Navigation invariants
 
+- A back press walks exactly one layer: the right column unwinds first, then the root stack, and at the bottom the system owns the press.
+  Do not register a second back callback at another priority.
+- The stacks never handle the back button themselves. The predictive-back animation only runs when the single owner is disabled,
+  so a pop of the right column is never animated on the root stack.
+- A page only sees the navigator of its own column. A jump to another settings section lands in the root stack, and the right column
+  is cleared as soon as the root top stops hosting it.
+- The column navigators read the stacks at call time. Do not cache "am I in a split layout" in a mutable flag written from composition.
 - A forward page slides in from the direction selected by `Screen.Chat.enterFromTop`; the covered page stays in
   place. Other forward routes use the existing default direction.
 - Ordinary back and predictive back use the same whole-page downward exit. Do not add a second return animation.

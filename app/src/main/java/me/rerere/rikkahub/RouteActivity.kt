@@ -41,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +82,6 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.StackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.retainedComponent
-import com.arkivanov.essenty.backhandler.BackCallback
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.datastore.AppLockStateStore
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -99,12 +97,13 @@ import me.rerere.rikkahub.ui.activity.SafeModeActivity
 import me.rerere.rikkahub.ui.activity.activityOrientation
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.TTSController
+import me.rerere.rikkahub.ui.context.ColumnNavigators
+import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.context.RootNavigator
 import me.rerere.rikkahub.nav.DetailDestination
 import me.rerere.rikkahub.nav.NavChild
 import me.rerere.rikkahub.nav.RootComponent
@@ -113,11 +112,12 @@ import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.ui.navigation.ScreenContent
+import me.rerere.rikkahub.ui.navigation.NavigationBackHandler
 import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
-import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
+import me.rerere.rikkahub.ui.pages.setting.hostsDetailColumn
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
@@ -162,6 +162,9 @@ class RouteActivity : ComponentActivity() {
             )
         }
     }
+
+    /** 三列各自的导航器：只读栈、不缓存状态；Activity 级入口（通知、分享、快捷方式）用 rootColumn */
+    private val navColumns: ColumnNavigators by lazy { ColumnNavigators(rootComponent) }
 
     /** 首屏由偏好同步决定；进程死亡后整条栈走 Decompose stateKeeper 恢复 */
     private fun startScreen(): Screen =
@@ -375,8 +378,8 @@ class RouteActivity : ComponentActivity() {
             else -> mediaCreationDestination(intent)
                 ?: intent.getStringExtra(EXTRA_CONVERSATION_ID)?.let { Screen.Chat(it) }
         }
-        if (destination != null && rootComponent.childStack.value.active.configuration != destination) {
-            rootComponent.pushRoot(destination)
+        if (destination != null) {
+            navColumns.rootColumn.navigate(destination) { launchSingleTop = true }
         }
     }
 
@@ -384,9 +387,7 @@ class RouteActivity : ComponentActivity() {
     private fun openNewMediaCreation() {
         lifecycleScope.launch {
             val destination = Screen.MediaCreation(mediaCreationRepository.newSession().id.toString())
-            if (rootComponent.childStack.value.active.configuration != destination) {
-                rootComponent.pushRoot(destination)
-            }
+            navColumns.rootColumn.navigate(destination) { launchSingleTop = true }
         }
     }
 
@@ -419,11 +420,9 @@ class RouteActivity : ComponentActivity() {
 
         val backStack by rootComponent.childStack.subscribeAsState()
         val detailStack by rootComponent.detailStack.subscribeAsState()
-        val navigator = remember { RootNavigator(rootComponent) }
-
         // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只造一次
         CompositionLocalProvider(
-            LocalNavController provides navigator,
+            LocalNavController provides navColumns.rootColumn,
             LocalSettings provides settings,
                 LocalButtonShadow provides settings.displaySetting.buttonShadow,
                 LocalToaster provides toastState,
@@ -446,7 +445,7 @@ class RouteActivity : ComponentActivity() {
                         remember(rootComponent, pageAnimMillis) {
                             l3HubStackAnimation(
                                 backHandler = rootComponent.backHandler,
-                                onBack = navigator::popBackStack,
+                                onBack = rootComponent::popRoot,
                                 durationMillis = pageAnimMillis,
                             )
                         }
@@ -471,9 +470,9 @@ class RouteActivity : ComponentActivity() {
                     // 设置三列：中列停在分区页，页内下钻的详情页挂到右列自己的栈
                     // （Decompose 的 child 身份随栈位置，同一 child 不能在两个 Children 里，
                     //  所以不再像 nav3 那样切片同一根栈，而是双栈分流，见 Navigator）
-                    val splitSettingColumns = showSettingRail &&
-                        currentScreen.isSettingSectionPage() &&
-                        currentScreen !is Screen.Setting
+                    val splitSettingColumns = showSettingRail && currentScreen.hostsDetailColumn()
+                    // 中列在分三栏时用中列导航（下钻进右列），整宽时用根列导航
+                    val middleColumn = if (splitSettingColumns) navColumns.sectionColumn else navColumns.rootColumn
                     // 右列收起动画期间（转竖屏 / 模型编辑占根栈）把最后一次的栈撑住
                     var lastDetailStack by remember {
                         mutableStateOf<ChildStack<DetailDestination, NavChild>?>(null)
@@ -484,21 +483,13 @@ class RouteActivity : ComponentActivity() {
                     val shownDetailStack: ChildStack<DetailDestination, NavChild> =
                         if (splitSettingColumns || detailStack.items.size > 1) detailStack
                         else lastDetailStack ?: detailStack
-                    SideEffect { navigator.detailActive = splitSettingColumns }
 
-                    // 右列返回键：优先级高于根栈，但只在右列真正可见且有页时启用——
-                    // 模型编辑这类整宽页占住根栈时不抢返回
-                    val detailBackCallback = remember {
-                        BackCallback(isEnabled = false, priority = 1) { navigator.popBackStack() }
-                    }
-                    DisposableEffect(rootComponent) {
-                        rootComponent.backHandler.register(detailBackCallback)
-                        onDispose { rootComponent.backHandler.unregister(detailBackCallback) }
-                    }
-                    SideEffect {
-                        detailBackCallback.isEnabled =
-                            splitSettingColumns && detailStack.items.size > 1
-                    }
+                    // 返回的唯一主人：右列收页、根栈弹页、交回系统的顺序见 NavPolicy
+                    NavigationBackHandler(
+                        component = rootComponent,
+                        rootDepth = backStack.items.size,
+                        detailDepth = detailStack.items.size,
+                    )
                     // 中列 / 右列的分割比例，拖分隔条改；默认中列窄一点，详情页宽一点
                     var settingSplit by rememberSaveable { mutableStateOf(0.42f) }
                     val settingContentWidth = (windowDpSize.width - 224.dp).coerceAtLeast(1.dp)
@@ -577,7 +568,7 @@ class RouteActivity : ComponentActivity() {
                                     .fillMaxHeight(),
                                 animation = rootAnimation,
                             ) { child ->
-                                NavChildContent(child.instance)
+                                NavChildContent(child.instance, middleColumn)
                             }
 
                             // 右列：只放设置里的下钻页，转场引擎与中列同源（见 ui/navigation/StackHost.kt）；
@@ -604,7 +595,7 @@ class RouteActivity : ComponentActivity() {
                                             .fillMaxHeight(),
                                         animation = detailAnimation,
                                     ) { child ->
-                                        NavChildContent(child.instance)
+                                        NavChildContent(child.instance, navColumns.detailColumn)
                                     }
                                 }
                             }
@@ -667,13 +658,17 @@ class RouteActivity : ComponentActivity() {
  * ViewModelStore decorator 对齐），路由分发见 `ui/navigation/ScreenPages.kt`。
  */
 @Composable
-private fun NavChildContent(child: NavChild) {
+private fun NavChildContent(child: NavChild, navigator: Navigator) {
     val screen = child.screen
     if (screen == null) {
         // 右列的空槽位（DetailDestination.None）：右列可见但还没有详情页
         Box(modifier = Modifier.fillMaxSize())
     } else {
-        CompositionLocalProvider(LocalViewModelStoreOwner provides child) {
+        // 页面拿自己那一列的导航器与自己的 ViewModelStore：返回不跨列，store 随栈位置销毁
+        CompositionLocalProvider(
+            LocalNavController provides navigator,
+            LocalViewModelStoreOwner provides child,
+        ) {
             ScreenContent(screen)
         }
     }
