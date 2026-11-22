@@ -1,14 +1,20 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +34,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -42,15 +51,13 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.SaltModalSheet
 
 @Composable
 internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPadding: PaddingValues) {
-    // 正在编辑哪一项；编辑弹窗放在列表外面，CardGroup 里放不了
+    // 正在编辑哪一项；编辑弹窗放在列表外面，分组里放不了
     var editing by remember { mutableStateOf<PromptSlot?>(null) }
 
     LazyColumn(
@@ -62,7 +69,7 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             // 只有翻译能单独设思考强度，所以自成一组
-            CardGroup {
+            RoundedColumn {
                 promptItem(
                     slot = PromptSlot.TRANSLATION,
                     settings = settings,
@@ -70,9 +77,16 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                     iconContentColor = contentColor,
                     onClick = { editing = it },
                 )
-                item(
-                    headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
-                    trailingContent = {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.assistant_page_thinking_budget))
+                        }
                         ReasoningButton(
                             reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
                             onUpdateReasoningLevel = {
@@ -80,14 +94,14 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                             },
                             useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
-                    },
-                )
+                    }
+                }
             }
         }
         item {
             val containerColor = MaterialTheme.colorScheme.secondaryContainer
             val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            CardGroup {
+            RoundedColumn {
                 PromptSlot.entries.fastForEach { slot ->
                     if (slot != PromptSlot.TRANSLATION) {
                         promptItem(
@@ -166,36 +180,45 @@ private enum class PromptSlot(
 private val Whitespace = Regex("\\s+")
 
 // 一项提示词：标题下面预览当前内容，点击后编辑
-private fun CardGroupScope.promptItem(
+@Composable
+private fun promptItem(
     slot: PromptSlot,
     settings: Settings,
     iconContainerColor: Color,
     iconContentColor: Color,
     onClick: (PromptSlot) -> Unit,
-) = item(
-    onClick = { onClick(slot) },
-    leadingContent = {
-        CardGroupIcon(slot.icon, containerColor = iconContainerColor, contentColor = iconContentColor)
-    },
-    headlineContent = { Text(stringResource(slot.title)) },
-    supportingContent = {
-        val prompt = slot.get(settings)
-        Text(
-            // 提示词里换行很多，压成一行才看得到实际内容
-            text = remember(prompt) { prompt.trim().replace(Whitespace, " ") },
-            // 只留一行：超过两行 ListItem 会把右侧箭头顶到上面去
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    },
-    trailingContent = {
-        Icon(
-            HugeIcons.ArrowRight01,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-        )
-    },
-)
+) {
+    val prompt = slot.get(settings)
+    ItemContainer {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SaltTheme.dimens.item)
+                .clickable(onClick = { onClick(slot) }),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SaltIconBadge(slot.icon, containerColor = iconContainerColor, contentColor = iconContentColor)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = stringResource(slot.title))
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    // 提示词里换行很多，压成一行才看得到实际内容
+                    text = remember(prompt) { prompt.trim().replace(Whitespace, " ") },
+                    color = SaltTheme.colors.subText,
+                    style = SaltTheme.textStyles.sub,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                HugeIcons.ArrowRight01,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
 
 @Composable
 private fun PromptEditSheet(

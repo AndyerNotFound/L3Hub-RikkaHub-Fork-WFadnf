@@ -4,8 +4,10 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
@@ -17,12 +19,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
@@ -40,10 +46,9 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 
@@ -89,10 +94,9 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             )
 
             // 导航条的位置留在列表的内边距里，内容可以滚到它下面
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留纵向
             val contentPadding = PaddingValues(
-                start = 16.dp,
                 top = 8.dp,
-                end = 16.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             )
             HorizontalPager(
@@ -121,7 +125,7 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
 
 @Composable
 private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding: PaddingValues) {
-    // CardGroup 里放不了弹窗，各项的选择状态先在这里建好，弹窗统一放在列表后面
+    // 分组里放不了弹窗，各项的选择状态先在这里建好，弹窗统一放在列表后面
     val chatModel = rememberModelListState(
         modelId = settings.chatModelId,
         providers = settings.providers,
@@ -157,7 +161,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         item {
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            CardGroup {
+            RoundedColumn {
                 modelSettingItem(
                     icon = HugeIcons.BubbleChat,
                     title = R.string.setting_model_page_chat_model,
@@ -172,7 +176,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             // 标题和聊天建议都由快速模型生成，相关的选项跟它放在一组
-            CardGroup {
+            RoundedColumn {
                 modelSettingItem(
                     icon = HugeIcons.Zap,
                     title = R.string.setting_model_page_fast_model,
@@ -181,9 +185,16 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
                 )
-                item(
-                    headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
-                    trailingContent = {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.assistant_page_thinking_budget))
+                        }
                         ReasoningButton(
                             reasoningLevel = settings.fastModelReasoningLevel,
                             onUpdateReasoningLevel = {
@@ -191,21 +202,21 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                             },
                             useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
-                    },
-                )
-                switchItem(
+                    }
+                }
+                SaltSwitchRow(
                     checked = settings.enableAutoTitle,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableAutoTitle = it) }
                     },
-                    headlineContent = { Text(stringResource(R.string.setting_model_page_enable_auto_title)) },
+                    headline = stringResource(R.string.setting_model_page_enable_auto_title),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = settings.enableSuggestion,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableSuggestion = it) }
                     },
-                    headlineContent = { Text(stringResource(R.string.setting_model_page_enable_suggestion)) },
+                    headline = stringResource(R.string.setting_model_page_enable_suggestion),
                 )
             }
         }
@@ -213,7 +224,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             // 没设置时用快速模型，配色和它保持一致
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-            CardGroup {
+            RoundedColumn {
                 // 不设置时跟着快速模型走，所以要能清掉
                 modelSettingItem(
                     icon = HugeIcons.Brain02,
@@ -227,19 +238,27 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                     clearContentDescription = R.string.setting_model_page_memory_model_follow_fast,
                 )
                 // 没设置时推理强度也跟着快速模型
-                item(
-                    visible = memoryModel.currentModel != null,
-                    headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
-                    trailingContent = {
-                        ReasoningButton(
-                            reasoningLevel = settings.memoryModelReasoningLevel,
-                            onUpdateReasoningLevel = {
-                                vm.updateSettings { latest -> latest.copy(memoryModelReasoningLevel = it) }
-                            },
-                            useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
-                        )
-                    },
-                )
+                if (memoryModel.currentModel != null) {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.assistant_page_thinking_budget))
+                            }
+                            ReasoningButton(
+                                reasoningLevel = settings.memoryModelReasoningLevel,
+                                onUpdateReasoningLevel = {
+                                    vm.updateSettings { latest -> latest.copy(memoryModelReasoningLevel = it) }
+                                },
+                                useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
+                            )
+                        }
+                    }
+                }
             }
         }
         item {
@@ -250,7 +269,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 ?.takeIf { it.type == ModelType.CHAT }
                 ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
                 ?.let { R.string.setting_model_page_ocr_model_missing }
-            CardGroup {
+            RoundedColumn {
                 modelSettingItem(
                     icon = HugeIcons.Translate,
                     title = R.string.setting_model_page_translate_model,

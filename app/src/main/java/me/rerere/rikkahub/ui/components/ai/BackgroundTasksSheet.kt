@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -53,9 +58,11 @@ import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
 import java.io.IOException
@@ -161,27 +168,40 @@ private fun TaskList(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
     ) {
-        CardGroup {
+        // 外层已有 16dp 横向边距（标题也在里面），RoundedColumn 不再补，否则叠成 32dp
+        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
             // 最新启动的排在最前
             tasks.asReversed().forEach { task ->
-                item(
-                    onClick = { onSelect(task.id) },
-                    leadingContent = { TaskStatusIcon(task) },
-                    supportingContent = { Text(task.statusText(now)) },
-                    trailingContent = if (task.status == BackgroundShellStatus.RUNNING) {
-                        { StopButton(stopping = task.id in stopping, onClick = { onStop(task.id) }) }
-                    } else {
-                        null
-                    },
-                    headlineContent = {
-                        Text(
-                            text = task.command.replace("\n", " ").trim(),
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                )
+                // 命令用等宽字体单行显示，SaltIconRow 只吃纯文本，这一行自己拼
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable { onSelect(task.id) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TaskStatusIcon(task)
+                        Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = task.command.replace("\n", " ").trim(),
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = task.statusText(now),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                        }
+                        if (task.status == BackgroundShellStatus.RUNNING) {
+                            StopButton(stopping = task.id in stopping, onClick = { onStop(task.id) })
+                        }
+                    }
+                }
             }
         }
     }
@@ -262,7 +282,7 @@ private fun TaskStatusIcon(task: BackgroundShellTask) {
 
         else -> Triple(HugeIcons.Alert01, colors.errorContainer, colors.onErrorContainer)
     }
-    CardGroupIcon(icon = icon, containerColor = container, contentColor = content)
+    SaltIconBadge(icon = icon, containerColor = container, contentColor = content)
 }
 
 @Composable

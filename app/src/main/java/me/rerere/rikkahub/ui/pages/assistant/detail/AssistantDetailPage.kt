@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clock01
@@ -56,8 +57,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Tag as DataTag
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.TopAppBar
@@ -113,7 +113,7 @@ fun AssistantDetailPage(id: String) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = listState,
-            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
@@ -128,18 +128,22 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                CardGroup {
-                    item(
+                RoundedColumn {
+                    SaltIconRow(
+                        icon = HugeIcons.Settings03,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_basic),
+                        supporting = stringResource(R.string.assistant_detail_basic_desc),
                         onClick = { navController.navigate(Screen.AssistantBasic(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_basic_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_basic)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Message02,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_prompt),
+                        supporting = stringResource(R.string.assistant_detail_prompt_desc),
                         onClick = { navController.navigate(Screen.AssistantPrompt(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Message02, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_prompt_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_prompt)) },
                     )
                 }
             }
@@ -147,47 +151,57 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                CardGroup {
-                    item(
+                RoundedColumn {
+                    SaltIconRow(
+                        icon = HugeIcons.Puzzle,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_extensions),
+                        supporting = stringResource(R.string.assistant_detail_extensions_desc),
                         onClick = { navController.navigate(Screen.AssistantInjections(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Puzzle, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_extensions_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_extensions)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Brain02,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_memory),
+                        supporting = stringResource(R.string.assistant_detail_memory_desc),
                         onClick = { navController.navigate(Screen.AssistantMemory(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Brain02, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_memory_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_memory)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.McpServer,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_mcp),
+                        supporting = stringResource(R.string.assistant_detail_mcp_desc),
                         onClick = { navController.navigate(Screen.AssistantMcp(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.McpServer, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_mcp_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_mcp)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Wrench01,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_local_tools),
+                        supporting = stringResource(R.string.assistant_detail_local_tools_desc),
                         onClick = { navController.navigate(Screen.AssistantLocalTool(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Wrench01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_local_tools_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_local_tools)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Clock01,
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        headline = stringResource(R.string.assistant_page_tab_heartbeat),
+                        supporting = stringResource(R.string.assistant_detail_heartbeat_desc),
                         onClick = { navController.navigate(Screen.AssistantHeartbeat(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Clock01, containerColor = containerColor, contentColor = contentColor) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_heartbeat_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_heartbeat)) },
                     )
                 }
             }
 
             item {
-                CardGroup {
-                    item(
+                RoundedColumn {
+                    SaltIconRow(
+                        icon = HugeIcons.Code,
+                        headline = stringResource(R.string.assistant_page_tab_request),
+                        supporting = stringResource(R.string.assistant_detail_request_desc),
                         onClick = { navController.navigate(Screen.AssistantRequest(id)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Code) },
-                        supportingContent = { Text(stringResource(R.string.assistant_detail_request_desc)) },
-                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_request)) },
                     )
                 }
             }

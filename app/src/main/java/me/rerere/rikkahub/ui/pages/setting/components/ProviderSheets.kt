@@ -26,9 +26,10 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.style.TextButton
+import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
+import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 import me.rerere.ui.components.SaltModalSheet
 
 // 新建服务商时先选类型的面板
@@ -62,7 +63,10 @@ internal fun <T> ProviderTypeSheet(
                     val name = typeName(type)
                     Surface(
                         onClick = { onSelect(type) },
-                        shape = cardGroupItemShape(index, types.size),
+                        shape = adaptiveStyledShape(
+                            topRadius = if (index == 0) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                            bottomRadius = if (index == types.size - 1) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                        ),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         Row(

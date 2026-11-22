@@ -84,7 +84,6 @@ import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.QRCodeScannerDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
 import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
@@ -99,7 +98,9 @@ import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.TextButton
 import kotlin.time.Clock
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
+import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -681,7 +682,10 @@ private fun AddButton(
                             showSheet = false
                             onAdd(template.copyProvider(Uuid.random()))
                         },
-                        shape = cardGroupItemShape(index, templates.size),
+                        shape = adaptiveStyledShape(
+                            topRadius = if (index == 0) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                            bottomRadius = if (index == templates.size - 1) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                        ),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         Row(
@@ -721,7 +725,10 @@ private fun AddButton(
                                 showSheet = false
                                 onRestore(provider)
                             },
-                            shape = cardGroupItemShape(index, removedBuiltIns.size),
+                            shape = adaptiveStyledShape(
+                                topRadius = if (index == 0) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                                bottomRadius = if (index == removedBuiltIns.size - 1) adaptiveCornerRadius(20.dp) else adaptiveCornerRadius(4.dp),
+                            ),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         ) {
                             Row(

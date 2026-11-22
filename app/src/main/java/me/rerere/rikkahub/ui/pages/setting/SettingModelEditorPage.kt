@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +46,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import kotlin.math.roundToInt
+import kotlin.uuid.Uuid
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -60,7 +67,6 @@ import me.rerere.hugeicons.stroke.ScanText
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
-import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.ContextThresholdPresets
 import me.rerere.rikkahub.data.model.withResolvedContextLength
@@ -68,9 +74,8 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
@@ -94,8 +99,6 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
-import kotlin.math.roundToInt
-import kotlin.uuid.Uuid
 
 /** 模型编辑器草稿的稳定身份：只跟 provider / model 的身份走，settings 换了实例也不算换模型 */
 internal data class ModelDraftKey(
@@ -611,7 +614,7 @@ private fun ModelOcrHelperSetting(
         ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
         ?.let { R.string.setting_model_page_ocr_model_missing }
 
-    CardGroup {
+    RoundedColumn {
         modelSettingItem(
             icon = HugeIcons.ScanText,
             title = R.string.setting_provider_page_ocr_helper_model,
@@ -683,7 +686,7 @@ private fun ModelOtherOptions(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        CardGroup {
+        RoundedColumn {
             PricingItem(
                 label = R.string.setting_provider_page_price_input,
                 value = model.pricing.input,
@@ -745,19 +748,28 @@ private fun ModelOtherOptions(
     }
 }
 
-private fun CardGroupScope.PricingItem(
+@Composable
+private fun PricingItem(
     @StringRes label: Int,
     value: Double,
     unit: String,
     modelKey: Any,
     onValueChange: (Double) -> Unit,
 ) {
-    item(
-        headlineContent = { Text(stringResource(label)) },
-        trailingContent = {
+    ItemContainer {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SaltTheme.dimens.item),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = stringResource(label))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
             PricingInput(value = value, unit = unit, modelKey = modelKey, onValueChange = onValueChange)
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -1103,22 +1115,29 @@ private fun BuiltInToolsSettings(
             )
         )
 
-        // 弹窗底色和 CardGroup 默认的底色太接近，换一个深一档的
-        val itemColors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-        CardGroup {
+        RoundedColumn {
             availableTools.fastForEach { (tool, info) ->
                 val (title, description) = info
                 val checked = tool in tools
                 val toggle = { enabled: Boolean ->
                     onUpdateTools(if (enabled) tools + tool else tools - tool)
                 }
-                item(
-                    onClick = { toggle(!checked) },
-                    colors = itemColors,
-                    supportingContent = { Text(description) },
-                    trailingContent = { Switch(checked = checked, onCheckedChange = toggle) },
-                    headlineContent = { Text(title) },
-                )
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable(onClick = { toggle(!checked) }),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = title)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                        }
+                        Switch(checked = checked, onCheckedChange = toggle)
+                    }
+                }
             }
         }
     }

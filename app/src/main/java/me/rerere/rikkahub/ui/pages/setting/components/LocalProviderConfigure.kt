@@ -5,19 +5,27 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -25,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +43,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import java.io.File
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -48,12 +60,11 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.local.LiteRTModelStorage
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.RadioButton
@@ -170,97 +181,135 @@ internal fun ProviderConfigureLiteRT(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        CardGroup {
+        RoundedColumn {
             nameItem(provider, onEdit)
         }
 
-        CardGroup(
-            title = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(stringResource(R.string.setting_provider_litert_models))
-                    if (models.isNotEmpty()) {
-                        Text(
-                            stringResource(
-                                R.string.setting_provider_litert_models_usage,
-                                models.size,
-                                models.sumOf { it.sizeBytes }.toReadableSize(),
-                            )
-                        )
-                    }
-                }
-            },
-        ) {
-            item(
-                onClick = if (importing) null else ({ picker.launch(arrayOf("*/*")) }),
-                leadingContent = { CardGroupIcon(HugeIcons.FileImport) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_litert_import)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_litert_import_desc)) },
-            )
-            formItem(visible = importing) {
-                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text(
-                    text = stringResource(
-                        R.string.setting_provider_litert_importing,
-                        (progress * 100).roundToInt(),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item(
-                visible = models.isEmpty() && !importing,
-                headlineContent = { Text(stringResource(R.string.setting_provider_litert_empty)) },
-            )
-            models.forEach { model ->
-                val selected = provider.isSelected(model)
-                item(
-                    onClick = if (selected) null else ({ onCommit(provider.withSelectedModel(model)) }),
-                    leadingContent = { RadioButton(selected = selected, onClick = null) },
-                    headlineContent = {
-                        Text(
-                            text = model.displayName,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            listOfNotNull(
-                                model.sizeBytes.toReadableSize(),
-                                stringResource(R.string.setting_provider_litert_model_in_use)
-                                    .takeIf { selected },
-                            ).joinToString(" · ")
-                        )
-                    },
-                    trailingContent = {
-                        IconButton(onClick = { pendingDelete = model }) {
-                            Icon(
-                                imageVector = HugeIcons.Delete01,
-                                contentDescription = stringResource(R.string.delete),
+        Column {
+            // 这一块的标题原来是自绘分组的复合标题（名称 + 用量），Salt 的 ItemOuterTitle 只吃字符串，
+            // 保留原 Row，补上 RoundedColumn 同宽的横向内距与 subText 文字档
+            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SaltTheme.dimens.padding),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(stringResource(R.string.setting_provider_litert_models))
+                        if (models.isNotEmpty()) {
+                            Text(
+                                stringResource(
+                                    R.string.setting_provider_litert_models_usage,
+                                    models.size,
+                                    models.sumOf { it.sizeBytes }.toReadableSize(),
+                                )
                             )
                         }
-                    },
+                    }
+                }
+            }
+            RoundedColumn {
+                SaltIconRow(
+                    icon = HugeIcons.FileImport,
+                    headline = stringResource(R.string.setting_provider_litert_import),
+                    supporting = stringResource(R.string.setting_provider_litert_import_desc),
+                    onClick = if (importing) null else ({ picker.launch(arrayOf("*/*")) }),
                 )
+                if (importing) {
+                    ItemContainer {
+                        Column {
+                            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                text = stringResource(
+                                    R.string.setting_provider_litert_importing,
+                                    (progress * 100).roundToInt(),
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (models.isEmpty() && !importing) {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.setting_provider_litert_empty))
+                            }
+                        }
+                    }
+                }
+                models.forEach { model ->
+                    val selected = provider.isSelected(model)
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = if (selected) null else ({ onCommit(provider.withSelectedModel(model)) })),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = selected, onClick = null)
+                            Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = model.displayName,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                    ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                        Text(
+                                            listOfNotNull(
+                                                model.sizeBytes.toReadableSize(),
+                                                stringResource(R.string.setting_provider_litert_model_in_use)
+                                                    .takeIf { selected },
+                                            ).joinToString(" · ")
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = { pendingDelete = model }) {
+                                Icon(
+                                    imageVector = HugeIcons.Delete01,
+                                    contentDescription = stringResource(R.string.delete),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        CardGroup(title = { Text(stringResource(R.string.setting_provider_litert_runtime)) }) {
-            formItem(headlineContent = { Text(stringResource(R.string.setting_provider_litert_backend)) }) {
-                ConnectedChoiceButtons(
-                    options = LiteRTBackend.entries,
-                    selected = provider.backend,
-                    onSelect = { onEdit(provider.copy(backend = it)) },
-                ) { option, selected ->
-                    ConnectedChoiceLabel(
-                        text = when (option) {
-                            LiteRTBackend.CPU -> stringResource(R.string.setting_provider_litert_backend_cpu)
-                            LiteRTBackend.GPU -> stringResource(R.string.setting_provider_litert_backend_gpu)
-                        },
-                        selected = selected,
-                    )
+        SaltGroup(title = stringResource(R.string.setting_provider_litert_runtime)) {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_provider_litert_backend))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ConnectedChoiceButtons(
+                        options = LiteRTBackend.entries,
+                        selected = provider.backend,
+                        onSelect = { onEdit(provider.copy(backend = it)) },
+                    ) { option, selected ->
+                        ConnectedChoiceLabel(
+                            text = when (option) {
+                                LiteRTBackend.CPU -> stringResource(R.string.setting_provider_litert_backend_cpu)
+                                LiteRTBackend.GPU -> stringResource(R.string.setting_provider_litert_backend_gpu)
+                            },
+                            selected = selected,
+                        )
+                    }
                 }
             }
             if (provider.backend == LiteRTBackend.CPU) {
@@ -289,7 +338,7 @@ internal fun ProviderConfigureLiteRT(
                 value = provider.maxOutputTokens,
                 range = 1..131072,
             ) { onEdit(provider.copy(maxOutputTokens = it)) }
-            switchItem(
+            SaltSwitchRow(
                 checked = provider.visionEnabled,
                 onCheckedChange = { enabled ->
                     onEdit(
@@ -307,14 +356,14 @@ internal fun ProviderConfigureLiteRT(
                         )
                     )
                 },
-                headlineContent = { Text(stringResource(R.string.setting_provider_litert_vision)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_litert_vision_desc)) },
+                headline = stringResource(R.string.setting_provider_litert_vision),
+                supporting = stringResource(R.string.setting_provider_litert_vision_desc),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = provider.enableThinking,
                 onCheckedChange = { onEdit(provider.copy(enableThinking = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_litert_thinking)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_litert_thinking_desc)) },
+                headline = stringResource(R.string.setting_provider_litert_thinking),
+                supporting = stringResource(R.string.setting_provider_litert_thinking_desc),
             )
             if (provider.enableThinking) {
                 numberItem(
@@ -325,7 +374,7 @@ internal fun ProviderConfigureLiteRT(
             }
         }
 
-        CardGroup(title = { Text(stringResource(R.string.setting_provider_litert_sampling)) }) {
+        SaltGroup(title = stringResource(R.string.setting_provider_litert_sampling)) {
             numberItem(
                 label = { Text(stringResource(R.string.setting_provider_litert_temperature)) },
                 value = provider.temperature,
@@ -354,7 +403,7 @@ internal fun ProviderConfigureLocalServer(
     val command = provider.launchCommand.ifBlank { provider.commandExample() }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        CardGroup {
+        RoundedColumn {
             nameItem(provider, onEdit)
             textItem(
                 label = { Text(stringResource(R.string.setting_provider_local_endpoint)) },
@@ -433,38 +482,63 @@ internal fun ProviderConfigureLocalServer(
             }
         }
 
-        CardGroup(title = { Text(stringResource(R.string.setting_provider_local_runtime)) }) {
-            item(
-                headlineContent = { Text(provider.runtimeName()) },
-                supportingContent = { Text(provider.runtimeDescription()) },
-            )
-            formItem(
-                headlineContent = { Text(stringResource(R.string.setting_provider_local_command)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_local_command_desc)) },
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shape = MaterialTheme.shapes.medium,
+        SaltGroup(title = stringResource(R.string.setting_provider_local_runtime)) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = command,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = { clipboard.setText(AnnotatedString(command)) },
-                    ) {
-                        Text(stringResource(R.string.setting_provider_local_copy_command))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(provider.runtimeName())
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(provider.runtimeDescription())
+                            }
+                        }
                     }
-                    if (provider.launchCommand.isNotBlank()) {
+                }
+            }
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_provider_local_command))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_provider_local_command_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Text(
+                            text = command,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
-                            onClick = { onEdit(provider.copyLocal(launchCommand = "")) },
+                            onClick = { clipboard.setText(AnnotatedString(command)) },
                         ) {
-                            Text(stringResource(R.string.setting_provider_local_reset_command))
+                            Text(stringResource(R.string.setting_provider_local_copy_command))
+                        }
+                        if (provider.launchCommand.isNotBlank()) {
+                            TextButton(
+                                onClick = { onEdit(provider.copyLocal(launchCommand = "")) },
+                            ) {
+                                Text(stringResource(R.string.setting_provider_local_reset_command))
+                            }
                         }
                     }
                 }
@@ -602,51 +676,93 @@ private fun Long.toReadableSize(): String = when {
     else -> "$this B"
 }
 
-private fun CardGroupScope.textItem(
+@Composable
+private fun textItem(
     label: @Composable () -> Unit,
     value: String,
     supporting: (@Composable () -> Unit)? = null,
     isError: Boolean = false,
     onValueChange: (String) -> Unit,
-) = formItem(
-    headlineContent = label,
-    supportingContent = supporting,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        isError = isError,
-        minLines = 1,
-        maxLines = 3,
-        textStyle = MaterialTheme.typography.bodyMedium,
-    )
+    ItemContainer {
+        Column {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    label()
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            (supporting)?.invoke()
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                isError = isError,
+                minLines = 1,
+                maxLines = 3,
+                textStyle = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
 }
 
-private fun CardGroupScope.numberItem(
+@Composable
+private fun numberItem(
     label: @Composable () -> Unit,
     value: Int,
     range: IntRange,
     supporting: (@Composable () -> Unit)? = null,
     onValueChange: (Int) -> Unit,
-) = formItem(
-    headlineContent = label,
-    supportingContent = supporting,
 ) {
-    NumberField(value = value, range = range, onValueChange = onValueChange)
+    ItemContainer {
+        Column {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    label()
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            (supporting)?.invoke()
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            NumberField(value = value, range = range, onValueChange = onValueChange)
+        }
+    }
 }
 
-private fun CardGroupScope.numberItem(
+@Composable
+private fun numberItem(
     label: @Composable () -> Unit,
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     supporting: (@Composable () -> Unit)? = null,
     onValueChange: (Float) -> Unit,
-) = formItem(
-    headlineContent = label,
-    supportingContent = supporting,
 ) {
-    NumberField(value = value, range = range, onValueChange = onValueChange)
+    ItemContainer {
+        Column {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    label()
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            (supporting)?.invoke()
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            NumberField(value = value, range = range, onValueChange = onValueChange)
+        }
+    }
 }
 
 @Composable

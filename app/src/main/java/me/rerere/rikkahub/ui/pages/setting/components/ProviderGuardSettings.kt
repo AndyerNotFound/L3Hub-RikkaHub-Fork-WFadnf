@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -21,8 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -30,6 +33,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -46,6 +50,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import kotlin.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ProviderGuard
@@ -69,10 +81,9 @@ import me.rerere.rikkahub.data.ai.ProviderWindowUsage
 import me.rerere.rikkahub.data.ai.formatGuardDuration
 import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.style.Switch
@@ -83,11 +94,6 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import kotlin.time.Instant
 
 private val LOCK_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 private val COST_INPUT_REGEX = Regex("""^\d{0,9}(\.\d{0,6})?$""")
@@ -228,46 +234,58 @@ private fun ProviderGateStatusCard(
 ) {
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
-    CardGroup {
-        item(
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_status)) },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    val minuteText = if (status != null) {
-                        stringResource(
-                            R.string.setting_provider_guard_status_minute,
-                            status.rpmUsed,
-                            status.tpmUsed.formatNumber(binaryUnits),
-                        )
-                    } else {
-                        "…"
+    RoundedColumn {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setting_provider_guard_status))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                val minuteText = if (status != null) {
+                                    stringResource(
+                                        R.string.setting_provider_guard_status_minute,
+                                        status.rpmUsed,
+                                        status.tpmUsed.formatNumber(binaryUnits),
+                                    )
+                                } else {
+                                    "…"
+                                }
+                                Text(
+                                    text = minuteText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                Text(
+                                    text = when {
+                                        lockedUntil != null -> stringResource(
+                                            R.string.setting_provider_guard_lock_current,
+                                            formatGuardTime(context, lockedUntil),
+                                        )
+                                        nextLockAt != null -> stringResource(
+                                            R.string.setting_provider_guard_lock_next,
+                                            formatGuardTime(context, nextLockAt),
+                                        )
+                                        else -> stringResource(R.string.setting_provider_guard_lock_none)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (lockedUntil != null) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
+                        }
                     }
-                    Text(
-                        text = minuteText,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Text(
-                        text = when {
-                            lockedUntil != null -> stringResource(
-                                R.string.setting_provider_guard_lock_current,
-                                formatGuardTime(context, lockedUntil),
-                            )
-                            nextLockAt != null -> stringResource(
-                                R.string.setting_provider_guard_lock_next,
-                                formatGuardTime(context, nextLockAt),
-                            )
-                            else -> stringResource(R.string.setting_provider_guard_lock_none)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (lockedUntil != null) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -279,65 +297,80 @@ private fun ProviderRateLimitCard(
     onAddWindow: () -> Unit,
     onEditWindow: (ProviderQuotaWindow) -> Unit,
 ) {
-    CardGroup {
-        formItem(
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_rate_section)) },
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                RateField(
-                    label = stringResource(R.string.setting_provider_guard_rpm),
-                    value = guard.rpmLimit,
-                    onValueChange = { onGuardChange(guard.copy(rpmLimit = it)) },
-                )
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_rpm_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.size(6.dp))
-                RateField(
-                    label = stringResource(R.string.setting_provider_guard_tpm),
-                    value = guard.tpmLimit,
-                    onValueChange = { onGuardChange(guard.copy(tpmLimit = it)) },
-                )
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_tpm_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        formItem(
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_windows)) },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_windows_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            },
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (guard.windows.isEmpty()) {
+    RoundedColumn {
+        ItemContainer {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_guard_rate_section))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RateField(
+                        label = stringResource(R.string.setting_provider_guard_rpm),
+                        value = guard.rpmLimit,
+                        onValueChange = { onGuardChange(guard.copy(rpmLimit = it)) },
+                    )
                     Text(
-                        text = stringResource(R.string.setting_provider_guard_window_empty),
+                        text = stringResource(R.string.setting_provider_guard_rpm_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    RateField(
+                        label = stringResource(R.string.setting_provider_guard_tpm),
+                        value = guard.tpmLimit,
+                        onValueChange = { onGuardChange(guard.copy(tpmLimit = it)) },
+                    )
+                    Text(
+                        text = stringResource(R.string.setting_provider_guard_tpm_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                guard.windows.forEach { window ->
-                    WindowRow(
-                        window = window,
-                        usage = status?.windows?.firstOrNull { it.window.id == window.id },
-                        onClick = { onEditWindow(window) },
-                        onDelete = {
-                            onGuardChange(guard.copy(windows = guard.windows.filterNot { it.id == window.id }))
-                        },
-                    )
+            }
+        }
+        ItemContainer {
+            Column {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_guard_windows))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(
+                                    text = stringResource(R.string.setting_provider_guard_windows_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                    }
                 }
-                TextButton(onClick = onAddWindow) {
-                    Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.setting_provider_guard_window_add))
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (guard.windows.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.setting_provider_guard_window_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    guard.windows.forEach { window ->
+                        WindowRow(
+                            window = window,
+                            usage = status?.windows?.firstOrNull { it.window.id == window.id },
+                            onClick = { onEditWindow(window) },
+                            onDelete = {
+                                onGuardChange(guard.copy(windows = guard.windows.filterNot { it.id == window.id }))
+                            },
+                        )
+                    }
+                    TextButton(onClick = onAddWindow) {
+                        Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.setting_provider_guard_window_add))
+                    }
                 }
             }
         }
@@ -497,32 +530,64 @@ private fun ProviderLockCard(
     onAddLock: () -> Unit,
     onEditLock: (ProviderLockSchedule) -> Unit,
 ) {
-    CardGroup {
-        item(
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_locks)) },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_locks_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            },
-        )
-        item(
-            visible = guard.locks.isEmpty(),
-            headlineContent = {
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_lock_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-        )
+    RoundedColumn {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setting_provider_guard_locks))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            Text(
+                                text = stringResource(R.string.setting_provider_guard_locks_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (guard.locks.isEmpty()) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.setting_provider_guard_lock_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
         guard.locks.forEach { lock ->
-            item(
-                onClick = { onEditLock(lock) },
-                headlineContent = { Text(lockSummary(lock)) },
-                supportingContent = { Text(lockSupportingText(lock), style = MaterialTheme.typography.bodySmall) },
-                trailingContent = {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(onClick = { onEditLock(lock) }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(lockSummary(lock))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(lockSupportingText(lock), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -551,21 +616,28 @@ private fun ProviderLockCard(
                             )
                         }
                     }
-                },
-            )
-        }
-        item(
-            onClick = onAddLock,
-            headlineContent = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(stringResource(R.string.setting_provider_guard_lock_add))
                 }
-            },
-        )
+            }
+        }
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item)
+                    .clickable(onClick = onAddLock),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(stringResource(R.string.setting_provider_guard_lock_add))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -631,18 +703,30 @@ private fun ProviderQuotaRefreshCard(
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val options = listOf(0, 30, 60, 120, 300, 900, 1800, 3600)
-    CardGroup {
-        item(
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_refresh)) },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_refresh_desc) +
-                        " · " + intervalLabel(context, guard.quotaRefreshSeconds),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            },
-            onClick = { showDialog = true },
-        )
+    RoundedColumn {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item)
+                    .clickable(onClick = { showDialog = true }),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setting_provider_guard_refresh))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            Text(
+                                text = stringResource(R.string.setting_provider_guard_refresh_desc) +
+                                    " · " + intervalLabel(context, guard.quotaRefreshSeconds),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
     if (showDialog) {
         AnimatedAlertDialog(
@@ -711,84 +795,104 @@ private fun ProviderRequestOverrideCard(
     val updateOverride: (RequestOverride) -> Unit = { newOverride ->
         onGuardChange(guard.copy(requestOverride = newOverride))
     }
-    CardGroup {
-        switchItem(
-            checked = requestOverride.enabled,
-            onCheckedChange = { enabled -> updateOverride(requestOverride.copy(enabled = enabled)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_guard_override)) },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.setting_provider_guard_override_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            },
-        )
-        formItem(visible = requestOverride.enabled) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = curlText,
-                    onValueChange = { text ->
-                        curlText = text
-                        updateOverride(requestOverride.copy(curl = text))
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 140.dp),
-                    label = { Text("cURL") },
-                    placeholder = {
-                        Text("curl 'https://api.example.com/v1/chat/completions' \\\n  -H 'Authorization: Bearer {{apiKey}}' \\\n  -d '{\"model\":\"{{model}}\",\"messages\":{{messages}}}'")
-                    },
-                    minLines = 6,
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                )
-                when {
-                    error != null -> Text(
-                        text = stringResource(R.string.setting_provider_guard_override_invalid, error),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    requestOverride.curl.isNotBlank() -> Text(
-                        text = stringResource(R.string.setting_provider_guard_override_valid),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+    RoundedColumn {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item)
+                    .clickable { onCheckedChange(!checked) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setting_provider_guard_override))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            Text(
+                                text = stringResource(R.string.setting_provider_guard_override_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                val text = clipboard.getClipEntry()
-                                    ?.clipData
-                                    ?.getItemAt(0)
-                                    ?.coerceToText(context)
-                                    ?.toString()
-                                if (!text.isNullOrBlank()) {
-                                    curlText = text
-                                    updateOverride(requestOverride.copy(enabled = true, curl = text))
+                Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                AppSwitch(
+                    checked = requestOverride.enabled,
+                    onCheckedChange = { enabled -> updateOverride(requestOverride.copy(enabled = enabled)) },
+                )
+            }
+        }
+        if (requestOverride.enabled) {
+            ItemContainer {
+                Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = curlText,
+                            onValueChange = { text ->
+                                curlText = text
+                                updateOverride(requestOverride.copy(curl = text))
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 140.dp),
+                            label = { Text("cURL") },
+                            placeholder = {
+                                Text("curl 'https://api.example.com/v1/chat/completions' \\\n  -H 'Authorization: Bearer {{apiKey}}' \\\n  -d '{\"model\":\"{{model}}\",\"messages\":{{messages}}}'")
+                            },
+                            minLines = 6,
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        )
+                        when {
+                            error != null -> Text(
+                                text = stringResource(R.string.setting_provider_guard_override_invalid, error),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            requestOverride.curl.isNotBlank() -> Text(
+                                text = stringResource(R.string.setting_provider_guard_override_valid),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        val text = clipboard.getClipEntry()
+                                            ?.clipData
+                                            ?.getItemAt(0)
+                                            ?.coerceToText(context)
+                                            ?.toString()
+                                        if (!text.isNullOrBlank()) {
+                                            curlText = text
+                                            updateOverride(requestOverride.copy(enabled = true, curl = text))
+                                        }
+                                    }
                                 }
+                            ) {
+                                Text(stringResource(R.string.setting_provider_guard_override_import))
+                            }
+                            TextButton(
+                                onClick = {
+                                    curlText = ""
+                                    updateOverride(requestOverride.copy(curl = ""))
+                                }
+                            ) {
+                                Text(stringResource(R.string.setting_provider_guard_override_clear))
                             }
                         }
-                    ) {
-                        Text(stringResource(R.string.setting_provider_guard_override_import))
-                    }
-                    TextButton(
-                        onClick = {
-                            curlText = ""
-                            updateOverride(requestOverride.copy(curl = ""))
-                        }
-                    ) {
-                        Text(stringResource(R.string.setting_provider_guard_override_clear))
+                        Text(
+                            text = stringResource(
+                                R.string.setting_provider_guard_override_hint,
+                                requestOverride.variableHint(),
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
-                Text(
-                    text = stringResource(
-                        R.string.setting_provider_guard_override_hint,
-                        requestOverride.variableHint(),
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

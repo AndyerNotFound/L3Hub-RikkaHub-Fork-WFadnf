@@ -11,13 +11,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
@@ -26,6 +30,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.addJsonObject
@@ -81,14 +89,13 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.memory.resultText
@@ -375,14 +382,13 @@ private fun MemorySettingsTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 颜色要在 CardGroup 外面读：它的 content 不是 @Composable 作用域
         val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
         val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-        CardGroup {
-            switchItem(
+        RoundedColumn {
+            SaltSwitchRow(
                 checked = assistant.enableMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -391,10 +397,10 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory)) },
+                headline = stringResource(R.string.assistant_page_memory),
+                supporting = stringResource(R.string.assistant_page_memory_desc),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = assistant.enableMemoryWrite,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -404,10 +410,10 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_write_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_write)) },
+                headline = stringResource(R.string.assistant_page_memory_write),
+                supporting = stringResource(R.string.assistant_page_memory_write_desc),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = assistant.useGlobalMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -417,10 +423,10 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                supportingContent = { Text(stringResource(R.string.assistant_page_global_memory_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_global_memory)) },
+                headline = stringResource(R.string.assistant_page_global_memory),
+                supporting = stringResource(R.string.assistant_page_global_memory_desc),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = assistant.autoConsolidateMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -430,8 +436,8 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream)) },
+                headline = stringResource(R.string.assistant_page_memory_auto_dream),
+                supporting = stringResource(R.string.assistant_page_memory_auto_dream_desc),
             )
             modelSettingItem(
                 icon = HugeIcons.Brain02,
@@ -444,7 +450,7 @@ private fun MemorySettingsTab(
                 onClear = { onUpdateAssistant(assistant.copy(dreamingModelId = null)) },
                 clearContentDescription = R.string.assistant_page_dreaming_model_follow_global,
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = assistant.enableRecentChatsReference,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -453,13 +459,13 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_recent_chats)) },
+                headline = stringResource(R.string.assistant_page_recent_chats),
+                supporting = stringResource(R.string.assistant_page_recent_chats_desc),
             )
         }
 
-        CardGroup {
-            switchItem(
+        RoundedColumn {
+            SaltSwitchRow(
                 checked = assistant.autoCompress,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -468,47 +474,70 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
+                headline = stringResource(R.string.assistant_page_memory_auto_compress),
+                supporting = stringResource(R.string.assistant_page_memory_auto_compress_desc),
             )
-            formItem(
-                visible = assistant.autoCompress,
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio)) },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc)) },
-                trailingContent = {
-                    CardGroupValue("${(assistant.autoCompressRatio * 100).roundToInt()}%")
-                },
-            ) {
-                AppSlider(
-                    value = assistant.autoCompressRatio,
-                    onValueChange = { value ->
-                        // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
-                        onUpdateAssistant(
-                            assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
+            if (assistant.autoCompress) {
+                ItemContainer {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.assistant_page_memory_auto_compress_ratio))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc),
+                                    color = SaltTheme.colors.subText,
+                                    style = SaltTheme.textStyles.sub,
+                                )
+                            }
+                            ValuePill(text = "${(assistant.autoCompressRatio * 100).roundToInt()}%")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AppSlider(
+                            value = assistant.autoCompressRatio,
+                            onValueChange = { value ->
+                                // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
+                                onUpdateAssistant(
+                                    assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
+                                )
+                            },
+                            valueRange = AUTO_COMPRESS_RATIO_RANGE,
+                            steps = 8,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                    },
-                    valueRange = AUTO_COMPRESS_RATIO_RANGE,
-                    steps = 8,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                    }
+                }
             }
-            item(
-                visible = assistant.autoCompress,
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },
-                trailingContent = {
-                    Text(
-                        text = assistant.autoCompressThreshold.name,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                onClick = { showAutoCompressThresholdDialog = true },
-            )
+            if (assistant.autoCompress) {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable { showAutoCompressThresholdDialog = true },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                        }
+                        Text(
+                            text = assistant.autoCompressThreshold.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
         }
 
-        CardGroup {
-            switchItem(
+        RoundedColumn {
+            SaltSwitchRow(
                 checked = assistant.enableTimeReminder,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -517,28 +546,41 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },
-                headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder)) },
+                headline = stringResource(R.string.assistant_page_time_reminder),
+                supporting = stringResource(R.string.assistant_page_time_reminder_desc),
             )
-            item(
-                visible = assistant.enableTimeReminder,
-                headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval)) },
-                supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval_desc)) },
-                trailingContent = {
-                    Text(
-                        text = stringResource(
-                            R.string.assistant_page_time_reminder_interval_value,
-                            assistant.timeReminderIntervalMinutes
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                onClick = {
-                    timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
-                    showTimeReminderIntervalDialog = true
-                },
-            )
+            if (assistant.enableTimeReminder) {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable {
+                                timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
+                                showTimeReminderIntervalDialog = true
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.assistant_page_time_reminder_interval))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.assistant_page_time_reminder_interval_desc),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                        }
+                        Text(
+                            text = stringResource(
+                                R.string.assistant_page_time_reminder_interval_value,
+                                assistant.timeReminderIntervalMinutes
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -562,7 +604,7 @@ private fun MemoryFilesTab(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (consolidation != null) {
@@ -571,7 +613,11 @@ private fun MemoryFilesTab(
                     onOrganize = onOrganizeMemory,
                 )
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
                 ExtensionEmptyState(
                     message = stringResource(R.string.assistant_page_memory_empty),
                     description = stringResource(
@@ -594,7 +640,7 @@ private fun MemoryFilesTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (consolidation != null) {
@@ -605,13 +651,45 @@ private fun MemoryFilesTab(
         }
 
         memoryGroups.fastForEach { (directory, files) ->
-            CardGroup(
-                title = { Text(memorySectionTitle(directory)) },
+            SaltGroup(
+                title = memorySectionTitle(directory),
             ) {
                 files.fastForEach { memory ->
-                    item(
-                        onClick = { onOpenMemory(memory.path) },
-                        trailingContent = {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable { onOpenMemory(memory.path) },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = memory.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    if (memory.description.isNotEmpty()) {
+                                        Text(
+                                            text = memory.description,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = SaltTheme.colors.subText,
+                                            style = SaltTheme.textStyles.sub,
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(
+                                            R.string.assistant_page_memory_updated_at,
+                                            relativeTimeOf(memory.updatedAt),
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                            }
                             ItemActionMenu(
                                 actions = listOf(
                                     ItemAction(
@@ -622,34 +700,8 @@ private fun MemoryFilesTab(
                                     ),
                                 )
                             )
-                        },
-                        headlineContent = {
-                            Text(
-                                text = memory.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        supportingContent = {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                if (memory.description.isNotEmpty()) {
-                                    Text(
-                                        text = memory.description,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                Text(
-                                    text = stringResource(
-                                        R.string.assistant_page_memory_updated_at,
-                                        relativeTimeOf(memory.updatedAt),
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
-                                )
-                            }
-                        },
-                    )
+                        }
+                    }
                 }
             }
         }
@@ -682,22 +734,32 @@ private fun MemoryConsolidationSection(
     onOrganize: () -> Unit,
 ) {
     val lastRun = status.lastRun
-    CardGroup {
-        item(
-            headlineContent = { Text(stringResource(R.string.memory_dream_title)) },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(memoryConsolidationSummary(status))
-                    // 整理中画一条进度条，整理完的对话数写在上面那行
-                    status.roundProgress?.let { fraction ->
-                        LinearProgressIndicator(
-                            progress = { fraction },
-                            modifier = Modifier.fillMaxWidth(),
+    RoundedColumn {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.memory_dream_title))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = memoryConsolidationSummary(status),
+                            color = SaltTheme.colors.subText,
+                            style = SaltTheme.textStyles.sub,
                         )
+                        // 整理中画一条进度条，整理完的对话数写在上面那行
+                        status.roundProgress?.let { fraction ->
+                            LinearProgressIndicator(
+                                progress = { fraction },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
-            },
-            trailingContent = {
                 if (status.running) {
                     ContainedLoadingIndicator(modifier = Modifier.size(32.dp))
                 } else {
@@ -713,8 +775,8 @@ private fun MemoryConsolidationSection(
                         )
                     }
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -755,3 +817,20 @@ private fun relativeTimeOf(time: Long): String = DateUtils.getRelativeTimeSpanSt
     DateUtils.MINUTE_IN_MILLIS,
     DateUtils.FORMAT_ABBREV_MONTH,
 ).toString()
+
+// 标题行右侧的取值小标签，保持旧版胶囊观感；等宽数字，拖动滑块时宽度不跳
+@Composable
+private fun ValuePill(text: String) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
+    }
+}

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Notification01
@@ -23,8 +24,7 @@ import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -56,52 +56,53 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp）
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item("preferences") {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                CardGroup {
-                    item(
+                RoundedColumn {
+                    SaltIconRow(
+                        icon = HugeIcons.Settings03,
+                        headline = stringResource(R.string.setting_page_preferences_general),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_general_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
-                        leadingContent = {
-                            CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor)
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_general_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_general)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Sun01,
+                        headline = stringResource(R.string.setting_page_preferences_theme),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_theme_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesTheme) },
-                        leadingContent = {
-                            CardGroupIcon(HugeIcons.Sun01, containerColor = containerColor, contentColor = contentColor)
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_theme_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_theme)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.PaintBoard,
+                        headline = stringResource(R.string.setting_page_preferences_ui),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_ui_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesUI) },
-                        leadingContent = {
-                            CardGroupIcon(HugeIcons.PaintBoard, containerColor = containerColor, contentColor = contentColor)
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_ui)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.Notification01,
+                        headline = stringResource(R.string.setting_page_preferences_notification),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_notification_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
-                        leadingContent = {
-                            CardGroupIcon(HugeIcons.Notification01, containerColor = containerColor, contentColor = contentColor)
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification)) },
                     )
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.CloudServer,
+                        headline = stringResource(R.string.setting_page_preferences_network),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_network_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
-                        leadingContent = {
-                            CardGroupIcon(HugeIcons.CloudServer, containerColor = containerColor, contentColor = contentColor)
-                        },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
                     )
                 }
             }

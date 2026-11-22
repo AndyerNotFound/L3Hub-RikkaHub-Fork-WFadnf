@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -16,13 +19,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupFileInfo
@@ -31,7 +36,6 @@ import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupLayout
 import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupStatus
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
-import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.ui.toast.ToastType
@@ -109,10 +113,8 @@ fun WebDavTab(
             },
         )
 
-        CardGroup {
-            formItem(
-                headlineContent = { Text(stringResource(R.string.backup_page_webdav_server_address)) },
-            ) {
+        RoundedColumn {
+            WebDavFormItem(headline = stringResource(R.string.backup_page_webdav_server_address)) {
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.url,
@@ -121,9 +123,7 @@ fun WebDavTab(
                     singleLine = true
                 )
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.backup_page_username)) },
-            ) {
+            WebDavFormItem(headline = stringResource(R.string.backup_page_username)) {
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.username,
@@ -131,9 +131,7 @@ fun WebDavTab(
                     singleLine = true
                 )
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.backup_page_password)) },
-            ) {
+            WebDavFormItem(headline = stringResource(R.string.backup_page_password)) {
                 var passwordVisible by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
@@ -153,9 +151,7 @@ fun WebDavTab(
                     singleLine = true
                 )
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.backup_page_path)) },
-            ) {
+            WebDavFormItem(headline = stringResource(R.string.backup_page_path)) {
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = webDavConfig.path,
@@ -165,7 +161,7 @@ fun WebDavTab(
             }
         }
 
-        CardGroup {
+        RoundedColumn {
             backupContentItem(
                 options = WebDavConfig.BackupItem.entries,
                 selected = webDavConfig.items,
@@ -242,5 +238,20 @@ fun WebDavTab(
                 }
             },
         )
+    }
+}
+
+// 表单项：标题行 + 下方输入框，等价于旧 DSL 的 formItem
+@Composable
+private fun WebDavFormItem(
+    headline: String,
+    content: @Composable () -> Unit,
+) {
+    ItemContainer {
+        Column {
+            Text(text = headline)
+            Spacer(modifier = Modifier.height(8.dp))
+            content()
+        }
     }
 }

@@ -33,7 +33,6 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -53,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -81,7 +79,7 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ExportDialog
@@ -91,7 +89,6 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -320,7 +317,7 @@ private fun ModeInjectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            CardGroupIcon(
+            SaltIconBadge(
                 icon = HugeIcons.MagicWand01,
                 containerColor = if (injection.enabled) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -715,7 +712,7 @@ private fun LorebookCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            CardGroupIcon(
+            SaltIconBadge(
                 icon = HugeIcons.Book01,
                 containerColor = if (book.enabled) {
                     MaterialTheme.colorScheme.tertiaryContainer
@@ -895,13 +892,12 @@ private fun LorebookEditSheet(
                         }
                         onEdit(book.copy(entries = entries))
                     },
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                ) { index, entry, isDragging ->
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) { _, entry, isDragging ->
                     key(entry.id) {
                         ReorderableItem {
                             RegexInjectionEntryCard(
                                 entry = entry,
-                                shape = cardGroupItemShape(index, book.entries.size),
                                 modifier = longPressReorder(
                                     isDragging = isDragging,
                                     enabled = book.entries.size > 1,
@@ -945,7 +941,6 @@ private fun LorebookEditSheet(
 @Composable
 private fun RegexInjectionEntryCard(
     entry: PromptInjection.RegexInjection,
-    shape: Shape,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -953,7 +948,8 @@ private fun RegexInjectionEntryCard(
     Surface(
         onClick = onEdit,
         modifier = modifier.fillMaxWidth(),
-        shape = shape,
+        // 原来按首尾/中间算分段圆角，现在统一用 Salt 的大圆角
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(

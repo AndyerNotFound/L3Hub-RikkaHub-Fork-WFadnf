@@ -3,15 +3,20 @@ package me.rerere.rikkahub.ui.pages.setting.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.QuotaQuery
@@ -34,7 +42,6 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -55,149 +62,158 @@ fun SettingProviderQuotaQuery(
     val query = provider.quotaQuery
     var expand by remember { mutableStateOf(false) }
     val codeStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
-    CardGroup(modifier = modifier) {
-        formItem(
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_balance_info)) },
-            supportingContent = supportingContent,
-            trailingContent = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = { expand = !expand }) {
-                        Icon(
-                            imageVector = if (expand) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                            contentDescription = null,
-                        )
-                    }
-                    Switch(
-                        checked = query.enabled,
-                        onCheckedChange = { onEdit(query.copy(enabled = it)) },
-                    )
-                }
-            },
-        ) {
-            MotionExpandCollapse(visible = expand) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        QuotaQueryMethod.entries.forEachIndexed { index, method ->
-                            SegmentedButton(
-                                colors = glassSegmentedButtonColors(),
-                                selected = query.method == method,
-                                onClick = { onEdit(query.copy(method = method)) },
-                                shape = SegmentedButtonDefaults.itemShape(index, QuotaQueryMethod.entries.size),
-                            ) {
-                                Text(method.name)
+    RoundedColumn(modifier = modifier) {
+        ItemContainer {
+            Column {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_balance_info))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                (supportingContent)?.invoke()
                             }
                         }
                     }
-                    OutlinedTextField(
-                        value = query.url,
-                        onValueChange = { onEdit(query.copy(url = it)) },
-                        label = { Text("URL") },
-                        isError = !isQuotaUrlValid(query.url),
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = codeStyle,
-                    )
-                    query.headers.forEachIndexed { index, header ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            OutlinedTextField(
-                                value = header.name,
-                                onValueChange = { name ->
-                                    onEdit(query.copy(headers = query.headers.replaced(index, header.copy(name = name))))
-                                },
-                                label = { Text(stringResource(R.string.assistant_page_header_name)) },
-                                singleLine = true,
-                                modifier = Modifier.weight(2f),
-                                textStyle = codeStyle,
-                            )
-                            OutlinedTextField(
-                                value = header.value,
-                                onValueChange = { value ->
-                                    onEdit(query.copy(headers = query.headers.replaced(index, header.copy(value = value))))
-                                },
-                                label = { Text(stringResource(R.string.assistant_page_header_value)) },
-                                singleLine = true,
-                                modifier = Modifier.weight(3f),
-                                textStyle = codeStyle,
-                            )
-                            IconButton(
-                                onClick = {
-                                    onEdit(query.copy(headers = query.headers.filterIndexed { i, _ -> i != index }))
-                                }
-                            ) {
-                                Icon(
-                                    HugeIcons.Delete01,
-                                    contentDescription = stringResource(R.string.assistant_page_delete_header)
-                                )
-                            }
-                        }
-                    }
-                    if (query.method == QuotaQueryMethod.POST) {
-                        OutlinedTextField(
-                            value = query.body,
-                            onValueChange = { onEdit(query.copy(body = it)) },
-                            label = { Text("Body (JSON)") },
-                            minLines = 3,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = codeStyle,
-                        )
-                    }
-                    OutlinedTextField(
-                        value = query.resultPath,
-                        onValueChange = { onEdit(query.copy(resultPath = it)) },
-                        label = { Text(stringResource(R.string.setting_provider_page_balance_json_key)) },
-                        isError = !isJsonExprValid(query.resultPath),
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = codeStyle,
-                    )
-                    if (query.enabled) {
-                        OutlinedTextField(
-                            value = query.balanceWarning,
-                            onValueChange = { onEdit(query.copy(balanceWarning = it)) },
-                            label = { Text(stringResource(R.string.setting_provider_page_balance_warning)) },
-                            placeholder = {
-                                Text(stringResource(R.string.setting_provider_page_balance_warning_hint))
-                            },
-                            isError = !isBalanceWarningValid(query.balanceWarning),
-                            supportingText = {
-                                Text(stringResource(R.string.setting_provider_page_balance_warning_desc))
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = codeStyle,
-                        )
-                    }
-                    Text(
-                        text = stringResource(
-                            R.string.setting_provider_page_quota_variables,
-                            QuotaQuery.VARIABLES.joinToString { "{{$it}}" },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(
-                            onClick = { onEdit(query.copy(headers = query.headers + CustomHeader("", ""))) }
-                        ) {
-                            Icon(HugeIcons.Add01, contentDescription = null)
-                            Text(stringResource(R.string.assistant_page_add_header))
+                        IconButton(onClick = { expand = !expand }) {
+                            Icon(
+                                imageVector = if (expand) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                                contentDescription = null,
+                            )
                         }
-                        TextButton(
-                            onClick = {
-                                val builtIn = DEFAULT_PROVIDERS.find { it.id == provider.id } as? ProviderSetting.ApiKey
-                                onEdit(builtIn?.quotaQuery ?: provider.defaultQuotaQuery())
-                            },
+                        Switch(
+                            checked = query.enabled,
+                            onCheckedChange = { onEdit(query.copy(enabled = it)) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                MotionExpandCollapse(visible = expand) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            QuotaQueryMethod.entries.forEachIndexed { index, method ->
+                                SegmentedButton(
+                                    colors = glassSegmentedButtonColors(),
+                                    selected = query.method == method,
+                                    onClick = { onEdit(query.copy(method = method)) },
+                                    shape = SegmentedButtonDefaults.itemShape(index, QuotaQueryMethod.entries.size),
+                                ) {
+                                    Text(method.name)
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = query.url,
+                            onValueChange = { onEdit(query.copy(url = it)) },
+                            label = { Text("URL") },
+                            isError = !isQuotaUrlValid(query.url),
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = codeStyle,
+                        )
+                        query.headers.forEachIndexed { index, header ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = header.name,
+                                    onValueChange = { name ->
+                                        onEdit(query.copy(headers = query.headers.replaced(index, header.copy(name = name))))
+                                    },
+                                    label = { Text(stringResource(R.string.assistant_page_header_name)) },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(2f),
+                                    textStyle = codeStyle,
+                                )
+                                OutlinedTextField(
+                                    value = header.value,
+                                    onValueChange = { value ->
+                                        onEdit(query.copy(headers = query.headers.replaced(index, header.copy(value = value))))
+                                    },
+                                    label = { Text(stringResource(R.string.assistant_page_header_value)) },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(3f),
+                                    textStyle = codeStyle,
+                                )
+                                IconButton(
+                                    onClick = {
+                                        onEdit(query.copy(headers = query.headers.filterIndexed { i, _ -> i != index }))
+                                    }
+                                ) {
+                                    Icon(
+                                        HugeIcons.Delete01,
+                                        contentDescription = stringResource(R.string.assistant_page_delete_header)
+                                    )
+                                }
+                            }
+                        }
+                        if (query.method == QuotaQueryMethod.POST) {
+                            OutlinedTextField(
+                                value = query.body,
+                                onValueChange = { onEdit(query.copy(body = it)) },
+                                label = { Text("Body (JSON)") },
+                                minLines = 3,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = codeStyle,
+                            )
+                        }
+                        OutlinedTextField(
+                            value = query.resultPath,
+                            onValueChange = { onEdit(query.copy(resultPath = it)) },
+                            label = { Text(stringResource(R.string.setting_provider_page_balance_json_key)) },
+                            isError = !isJsonExprValid(query.resultPath),
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = codeStyle,
+                        )
+                        if (query.enabled) {
+                            OutlinedTextField(
+                                value = query.balanceWarning,
+                                onValueChange = { onEdit(query.copy(balanceWarning = it)) },
+                                label = { Text(stringResource(R.string.setting_provider_page_balance_warning)) },
+                                placeholder = {
+                                    Text(stringResource(R.string.setting_provider_page_balance_warning_hint))
+                                },
+                                isError = !isBalanceWarningValid(query.balanceWarning),
+                                supportingText = {
+                                    Text(stringResource(R.string.setting_provider_page_balance_warning_desc))
+                                },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = codeStyle,
+                            )
+                        }
+                        Text(
+                            text = stringResource(
+                                R.string.setting_provider_page_quota_variables,
+                                QuotaQuery.VARIABLES.joinToString { "{{$it}}" },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(stringResource(R.string.setting_model_page_reset_to_default))
+                            TextButton(
+                                onClick = { onEdit(query.copy(headers = query.headers + CustomHeader("", ""))) }
+                            ) {
+                                Icon(HugeIcons.Add01, contentDescription = null)
+                                Text(stringResource(R.string.assistant_page_add_header))
+                            }
+                            TextButton(
+                                onClick = {
+                                    val builtIn = DEFAULT_PROVIDERS.find { it.id == provider.id } as? ProviderSetting.ApiKey
+                                    onEdit(builtIn?.quotaQuery ?: provider.defaultQuotaQuery())
+                                },
+                            ) {
+                                Text(stringResource(R.string.setting_model_page_reset_to_default))
+                            }
                         }
                     }
                 }

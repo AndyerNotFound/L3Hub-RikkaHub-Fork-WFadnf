@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,12 +9,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.ui.toast.ToastType
+import com.moriafly.salt.ui.RoundedColumn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -26,6 +24,7 @@ import me.rerere.rikkahub.ui.pages.backup.components.RemoteBackupStatus
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
 import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
+import me.rerere.ui.toast.ToastType
 
 @Composable
 fun S3Tab(
@@ -100,11 +99,11 @@ fun S3Tab(
             },
         )
 
-        CardGroup {
+        RoundedColumn {
             s3ConnectionItems(config = s3Config, onUpdate = ::updateS3Config)
         }
 
-        CardGroup {
+        RoundedColumn {
             backupContentItem(
                 options = S3Config.BackupItem.entries,
                 selected = s3Config.items,

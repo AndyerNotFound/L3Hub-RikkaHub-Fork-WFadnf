@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileExport
@@ -32,11 +34,11 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.VersionSyncVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
+import me.rerere.rikkahub.ui.pages.backup.components.BackupActionRow
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
 import me.rerere.ui.toast.ToastType
@@ -77,91 +79,85 @@ fun VersionSyncTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CardGroup(
-            title = { Text(stringResource(R.string.backup_page_version_sync_peer_title)) },
+        SaltGroup(
+            title = stringResource(R.string.backup_page_version_sync_peer_title),
         ) {
-            item(
+            BackupActionRow(
+                icon = HugeIcons.SmartPhone01,
+                loading = detecting,
+                headline = if (peer == null) {
+                    stringResource(R.string.backup_page_version_sync_absent)
+                } else if (peer.isPreview) {
+                    stringResource(R.string.backup_page_version_sync_preview)
+                } else {
+                    stringResource(R.string.backup_page_version_sync_release)
+                },
+                supporting = when {
+                    peer == null -> stringResource(R.string.backup_page_version_sync_absent_desc)
+                    !peer.supported -> stringResource(R.string.backup_page_version_sync_unsupported)
+                    peer.pendingRestore -> stringResource(R.string.backup_page_version_sync_peer_pending)
+                    else -> stringResource(
+                        R.string.backup_page_version_sync_peer_detail,
+                        peer.versionName,
+                        peer.schemaVersion,
+                    )
+                },
                 onClick = if (detecting) null else onRefresh,
-                headlineContent = {
-                    Text(
-                        if (peer == null) {
-                            stringResource(R.string.backup_page_version_sync_absent)
-                        } else if (peer.isPreview) {
-                            stringResource(R.string.backup_page_version_sync_preview)
-                        } else {
-                            stringResource(R.string.backup_page_version_sync_release)
-                        }
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        when {
-                            peer == null -> stringResource(R.string.backup_page_version_sync_absent_desc)
-                            !peer.supported -> stringResource(R.string.backup_page_version_sync_unsupported)
-                            peer.pendingRestore -> stringResource(R.string.backup_page_version_sync_peer_pending)
-                            else -> stringResource(
-                                R.string.backup_page_version_sync_peer_detail,
-                                peer.versionName,
-                                peer.schemaVersion,
-                            )
-                        }
-                    )
-                },
-                leadingContent = { CardGroupIcon(HugeIcons.SmartPhone01) },
-                trailingContent = { BackupActionIcon(HugeIcons.Refresh, loading = detecting) },
+                // 探测中时右侧换成进度圈
+                trailing = { BackupActionIcon(HugeIcons.Refresh, loading = detecting) },
             )
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.backup_page_version_sync)) },
+        SaltGroup(
+            title = stringResource(R.string.backup_page_version_sync),
         ) {
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = working?.direction == SyncDirection.PULL,
+                headline = stringResource(R.string.backup_page_version_sync_pull),
+                supporting = stringResource(R.string.backup_page_version_sync_pull_desc),
                 onClick = if (ready) onPull else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_version_sync_pull)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_version_sync_pull_desc)) },
-                leadingContent = {
-                    BackupActionIcon(
-                        icon = HugeIcons.FileImport,
-                        loading = working?.direction == SyncDirection.PULL,
-                    )
-                },
             )
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileExport,
+                loading = working?.direction == SyncDirection.PUSH,
+                headline = stringResource(R.string.backup_page_version_sync_push),
+                supporting = stringResource(R.string.backup_page_version_sync_push_desc),
                 onClick = if (ready) onPush else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_version_sync_push)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_version_sync_push_desc)) },
-                leadingContent = {
-                    BackupActionIcon(
-                        icon = HugeIcons.FileExport,
-                        loading = working?.direction == SyncDirection.PUSH,
-                    )
-                },
             )
-            formItem(visible = working != null) {
-                val state = working ?: return@formItem
-                val progress = state.progress
-                Text(
-                    text = syncPhaseText(context, state.direction, progress),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                val fraction = progress?.let(::progressFraction)
-                if (fraction == null) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                } else {
-                    LinearProgressIndicator(
-                        progress = { fraction },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    )
+            // 同步进行中时把进度条接在下面
+            val state = working
+            if (state != null) {
+                ItemContainer {
+                    Column {
+                        val progress = state.progress
+                        Text(
+                            text = syncPhaseText(context, state.direction, progress),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        val fraction = progress?.let(::progressFraction)
+                        if (fraction == null) {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            )
+                        } else {
+                            LinearProgressIndicator(
+                                progress = { fraction },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                        }
+                    }
                 }
             }
-            formItem {
+            ItemContainer {
                 Text(
                     text = stringResource(R.string.backup_page_version_sync_merge_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = SaltTheme.colors.subText,
+                    style = SaltTheme.textStyles.sub,
                 )
             }
         }

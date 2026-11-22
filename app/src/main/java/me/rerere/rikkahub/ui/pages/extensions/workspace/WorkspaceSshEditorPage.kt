@@ -5,9 +5,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -52,11 +55,14 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedButton
@@ -113,17 +119,16 @@ fun WorkspaceSshEditorPage(id: String?) {
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
                 top = innerPadding.calculateTopPadding() + 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_basic)) }) {
-                    formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_name)) }) {
+                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_basic)) {
+                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_name)) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.name,
@@ -137,8 +142,8 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_connection)) }) {
-                    formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host)) }) {
+                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_connection)) {
+                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_host)) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.host,
@@ -149,7 +154,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         )
                     }
-                    formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_port)) }) {
+                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_port)) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.port,
@@ -161,7 +166,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }
-                    formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_username)) }) {
+                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_username)) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.username,
@@ -174,16 +179,15 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_auth)) }) {
-                    item(
-                        visible = state.savedCredentialsLost,
-                        leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
-                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost)) },
-                        supportingContent = {
-                            Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc))
-                        },
-                    )
-                    formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_auth_method)) }) {
+                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_auth)) {
+                    if (state.savedCredentialsLost) {
+                        SaltIconRow(
+                            icon = HugeIcons.AlertCircle,
+                            headline = stringResource(R.string.workspace_ssh_editor_credentials_lost),
+                            supporting = stringResource(R.string.workspace_ssh_editor_credentials_lost_desc),
+                        )
+                    }
+                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_auth_method)) {
                         val options = listOf(
                             SshAuthType.PASSWORD to stringResource(R.string.workspace_ssh_editor_password),
                             SshAuthType.PRIVATE_KEY to stringResource(R.string.workspace_ssh_editor_private_key),
@@ -203,7 +207,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                         }
                     }
                     when (state.authType) {
-                        SshAuthType.PASSWORD -> formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_password)) }) {
+                        SshAuthType.PASSWORD -> FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_password)) {
                             SecretTextField(
                                 enabled = editable,
                                 value = state.password,
@@ -213,9 +217,9 @@ fun WorkspaceSshEditorPage(id: String?) {
                         }
 
                         SshAuthType.PRIVATE_KEY -> {
-                            formItem(
-                                headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key)) },
-                                supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key_desc)) },
+                            FormFieldRow(
+                                headline = stringResource(R.string.workspace_ssh_editor_private_key),
+                                supporting = stringResource(R.string.workspace_ssh_editor_private_key_desc),
                             ) {
                                 OutlinedTextField(
                                     enabled = editable,
@@ -249,7 +253,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                                     Text(stringResource(R.string.workspace_ssh_editor_import_key))
                                 }
                             }
-                            formItem(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_passphrase)) }) {
+                            FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_passphrase)) {
                                 SecretTextField(
                                     enabled = editable,
                                     value = state.passphrase,
@@ -263,19 +267,20 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_working_dir)) }) {
-                    formItem(
-                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir)) },
-                        supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir_desc)) },
-                        trailingContent = state.probeResult?.homeDir
-                            ?.takeIf { it != state.remoteDir }
-                            ?.let { home ->
-                                {
-                                    TextButton(onClick = { vm.update { it.copy(remoteDir = home) } }) {
-                                        Text(stringResource(R.string.workspace_ssh_editor_use_home))
-                                    }
+                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_working_dir)) {
+                    val homeDir = state.probeResult?.homeDir?.takeIf { it != state.remoteDir }
+                    FormFieldRow(
+                        headline = stringResource(R.string.workspace_ssh_editor_remote_dir),
+                        supporting = stringResource(R.string.workspace_ssh_editor_remote_dir_desc),
+                        trailing = if (homeDir != null) {
+                            {
+                                TextButton(onClick = { vm.update { it.copy(remoteDir = homeDir) } }) {
+                                    Text(stringResource(R.string.workspace_ssh_editor_use_home))
                                 }
-                            },
+                            }
+                        } else {
+                            null
+                        },
                     ) {
                         OutlinedTextField(
                             enabled = editable,
@@ -291,22 +296,36 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_security)) }) {
-                    item(
-                        leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
-                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host_key)) },
-                        supportingContent = {
-                            val hostKey = state.hostKey
-                            if (hostKey == null) {
-                                Text(stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed))
-                            } else {
-                                Text(
-                                    text = "${hostKey.type}\n${hostKey.fingerprint}",
-                                    fontFamily = FontFamily.Monospace,
-                                )
+                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_security)) {
+                    // 指纹用等宽字体多行显示，SaltIconRow 只吃纯文本，这一行自己拼
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            SaltIconBadge(HugeIcons.FingerPrint)
+                            Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.workspace_ssh_editor_host_key))
+                                Spacer(Modifier.height(2.dp))
+                                val hostKey = state.hostKey
+                                if (hostKey == null) {
+                                    Text(
+                                        text = stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed),
+                                        color = SaltTheme.colors.subText,
+                                        style = SaltTheme.textStyles.sub,
+                                    )
+                                } else {
+                                    Text(
+                                        text = "${hostKey.type}\n${hostKey.fingerprint}",
+                                        fontFamily = FontFamily.Monospace,
+                                        color = SaltTheme.colors.subText,
+                                        style = SaltTheme.textStyles.sub,
+                                    )
+                                }
                             }
-                        },
-                    )
+                        }
+                    }
                 }
             }
 
@@ -364,6 +383,36 @@ fun WorkspaceSshEditorPage(id: String?) {
     }
 }
 
+// 表单项：标题行（可带说明与右侧控件）+ 内容区，内距由 Salt 的 ItemContainer 给
+@Composable
+private fun FormFieldRow(
+    headline: String,
+    supporting: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    ItemContainer {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = headline)
+                    if (supporting != null) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = supporting,
+                            color = SaltTheme.colors.subText,
+                            style = SaltTheme.textStyles.sub,
+                        )
+                    }
+                }
+                trailing?.invoke()
+            }
+            Spacer(Modifier.height(8.dp))
+            content()
+        }
+    }
+}
+
 @Composable
 private fun SecretTextField(
     value: String,
@@ -398,7 +447,10 @@ private fun ProbeSection(
         FilledTonalButton(
             onClick = onTest,
             enabled = !state.busy,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                // LazyColumn 的横向内距交给了 Salt 的分组，这个按钮自己补回来
+                .padding(horizontal = 16.dp),
         ) {
             if (state.testing) {
                 LoadingIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
@@ -415,37 +467,35 @@ private fun ProbeSection(
             )
         }
         state.probeResult?.let { result ->
-            CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_connected)) }) {
-                item(
-                    leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
-                    headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_shell)) },
-                    supportingContent = { Text(result.shell) },
+            SaltGroup(title = stringResource(R.string.workspace_ssh_editor_connected)) {
+                SaltIconRow(
+                    icon = HugeIcons.CloudServer,
+                    headline = stringResource(R.string.workspace_ssh_editor_shell),
+                    supporting = result.shell,
                 )
-                item(
-                    leadingContent = { CardGroupIcon(HugeIcons.Folder01) },
-                    headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_working_dir)) },
-                    supportingContent = {
-                        Text(
-                            when {
-                                state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
-                                    stringResource(R.string.workspace_ssh_editor_home_dir, result.homeDir)
-                                result.remoteDirExists -> state.remoteDir
-                                else -> when (result.remoteDirIssue) {
-                                    SshRemoteDirIssue.PERMISSION_DENIED -> stringResource(
-                                        R.string.workspace_ssh_editor_dir_denied,
-                                        state.remoteDir,
-                                    )
+                val remoteDirText = when {
+                    state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
+                        stringResource(R.string.workspace_ssh_editor_home_dir, result.homeDir)
 
-                                    SshRemoteDirIssue.NOT_A_DIRECTORY -> stringResource(
-                                        R.string.workspace_ssh_editor_dir_not_directory,
-                                        state.remoteDir,
-                                    )
-
-                                    else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
-                                }
-                            }
+                    result.remoteDirExists -> state.remoteDir
+                    else -> when (result.remoteDirIssue) {
+                        SshRemoteDirIssue.PERMISSION_DENIED -> stringResource(
+                            R.string.workspace_ssh_editor_dir_denied,
+                            state.remoteDir,
                         )
-                    },
+
+                        SshRemoteDirIssue.NOT_A_DIRECTORY -> stringResource(
+                            R.string.workspace_ssh_editor_dir_not_directory,
+                            state.remoteDir,
+                        )
+
+                        else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
+                    }
+                }
+                SaltIconRow(
+                    icon = HugeIcons.Folder01,
+                    headline = stringResource(R.string.workspace_ssh_editor_working_dir),
+                    supporting = remoteDirText,
                 )
             }
         }

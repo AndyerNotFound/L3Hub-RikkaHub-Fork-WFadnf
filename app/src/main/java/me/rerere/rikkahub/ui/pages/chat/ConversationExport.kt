@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.RowScope
+import com.moriafly.salt.ui.RoundedColumn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ButtonDefaults
@@ -19,11 +20,10 @@ import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import java.io.File
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Book02
@@ -37,6 +37,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -287,21 +288,21 @@ fun ChatExportSheet(
                 )
             }
 
-            CardGroup {
-                switchItem(
+            // 外层已有 16dp 横向边距（标题和按钮共用），RoundedColumn 不再补，否则叠成 32dp
+            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+                SaltSwitchRow(
                     checked = exportOptions.includeReasoning,
                     onCheckedChange = { exportOptions = exportOptions.copy(includeReasoning = it) },
-                ) {
-                    Text(stringResource(R.string.chat_page_export_include_reasoning))
-                }
-                switchItem(
-                    checked = exportOptions.expandReasoning,
-                    enabled = exportOptions.includeReasoning,
-                    onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
-                    // 只有导出图片时用得上：始终注册，靠 visible 收放
-                    visible = format == ChatExportFormat.Image,
-                ) {
-                    Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
+                    headline = stringResource(R.string.chat_page_export_include_reasoning),
+                )
+                // 只有导出图片时用得上
+                if (format == ChatExportFormat.Image) {
+                    SaltSwitchRow(
+                        checked = exportOptions.expandReasoning,
+                        onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
+                        headline = stringResource(R.string.chat_page_export_image_expand_reasoning),
+                        enabled = exportOptions.includeReasoning,
+                    )
                 }
             }
 

@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -49,6 +52,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -60,18 +66,18 @@ import me.rerere.mediagen.model.MediaKind
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.AssetStorageType
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
@@ -371,10 +377,15 @@ private fun MediaUploadS3Tab(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），卡片以外的控件自己补
+            .padding(top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        ) {
             AssetStorageType.entries.forEachIndexed { index, entry ->
                 SegmentedButton(
                     colors = glassSegmentedButtonColors(),
@@ -404,11 +415,11 @@ private fun MediaUploadS3Tab(
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 20.dp)
         )
 
         if (type == AssetStorageType.S3) {
-            CardGroup {
+            RoundedColumn {
                 s3ConnectionItems(
                     config = config,
                     onUpdate = {
@@ -418,7 +429,10 @@ private fun MediaUploadS3Tab(
                 )
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 OutlinedTextField(
                     value = webDavConfig.url,
                     onValueChange = {
@@ -462,43 +476,50 @@ private fun MediaUploadS3Tab(
             }
         }
 
-        CardGroup {
-            item(
-                onClick = if (!testing) {
-                    {
-                        scope.launch {
-                            testing = true
-                            remoteFileStore.testConnection()
-                                .onSuccess {
-                                    toaster.show(
-                                        context.getString(R.string.backup_page_connection_success),
-                                        type = ToastType.Success
-                                    )
-                                }
-                                .onFailure {
-                                    toaster.show(
-                                        context.getString(R.string.backup_page_connection_failed, it.message ?: ""),
-                                        type = ToastType.Error
-                                    )
-                                }
-                            testing = false
-                        }
-                    }
-                } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_test_connection)) },
-                leadingContent = {
-                    if (testing) {
-                        Box(
-                            modifier = Modifier.size(40.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    } else {
-                        CardGroupIcon(HugeIcons.Connect)
-                    }
-                },
-            )
+RoundedColumn {
+    if (testing) {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier.size(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(text = stringResource(R.string.backup_page_test_connection))
+            }
         }
+    } else {
+        SaltIconRow(
+            icon = HugeIcons.Connect,
+            headline = stringResource(R.string.backup_page_test_connection),
+            onClick = {
+                scope.launch {
+                    testing = true
+                    remoteFileStore.testConnection()
+                        .onSuccess {
+                            toaster.show(
+                                context.getString(R.string.backup_page_connection_success),
+                                type = ToastType.Success
+                            )
+                        }
+                        .onFailure {
+                            toaster.show(
+                                context.getString(R.string.backup_page_connection_failed, it.message ?: ""),
+                                type = ToastType.Error
+                            )
+                        }
+                    testing = false
+                }
+            },
+        )
+    }
+}
     }
 }

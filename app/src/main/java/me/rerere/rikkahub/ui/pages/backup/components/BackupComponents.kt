@@ -5,25 +5,25 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +33,6 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +45,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Clock01
@@ -56,12 +58,10 @@ import me.rerere.hugeicons.stroke.FileZip
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
@@ -89,31 +89,76 @@ internal fun BackupActionIcon(
             CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
         }
     } else {
-        CardGroupIcon(icon)
+        SaltIconBadge(icon)
+    }
+}
+
+// 图标会随进度变化的行：Salt 的 SaltIconRow 只吃固定 ImageVector，
+// 这里用 ItemContainer 手搓同一套行布局，好让开头的图标能在进度圈和图标之间切换
+@Composable
+internal fun BackupActionRow(
+    icon: ImageVector,
+    headline: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    supporting: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    ItemContainer(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SaltTheme.dimens.item)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClick = onClick)
+                    } else {
+                        Modifier
+                    }
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BackupActionIcon(icon = icon, loading = loading)
+            Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = headline)
+                supporting?.let {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = it, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                }
+            }
+            trailing?.invoke()
+        }
     }
 }
 
 // 「备份内容」多选项，本地、WebDAV、S3 共用
-internal fun <T> CardGroupScope.backupContentItem(
+@Composable
+internal fun <T> backupContentItem(
     options: List<T>,
     selected: List<T>,
     onChange: (List<T>) -> Unit,
     label: @Composable (T) -> String,
-) = formItem(
-    headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
 ) {
-    ConnectedMultiChoiceButtons(
-        options = options,
-        selected = selected,
-        onToggle = { option, checked ->
-            onChange(if (checked) selected + option else selected - option)
-        },
-    ) { option, isSelected ->
-        ConnectedChoiceLabel(
-            text = label(option),
-            selected = isSelected,
-            icon = HugeIcons.Tick01,
-        )
+    ItemContainer {
+        Column {
+            Text(text = stringResource(R.string.backup_page_backup_items))
+            Spacer(modifier = Modifier.height(8.dp))
+            ConnectedMultiChoiceButtons(
+                options = options,
+                selected = selected,
+                onToggle = { option, checked ->
+                    onChange(if (checked) selected + option else selected - option)
+                },
+            ) { option, isSelected ->
+                ConnectedChoiceLabel(
+                    text = label(option),
+                    selected = isSelected,
+                    icon = HugeIcons.Tick01,
+                )
+            }
+        }
     }
 }
 
@@ -138,17 +183,17 @@ internal fun RemoteBackupStatus(
         UiState.Idle, is UiState.Error -> "-"
     }
 
-    CardGroup {
-        item(
-            headlineContent = { Text(lastBackupText) },
-            leadingContent = { CardGroupIcon(HugeIcons.Clock01) },
+    RoundedColumn {
+        SaltIconRow(
+            icon = HugeIcons.Clock01,
+            headline = lastBackupText,
         )
-        item(
+        SaltIconRow(
+            icon = HugeIcons.CloudDownload,
+            headline = stringResource(R.string.backup_page_restore),
+            supporting = "${stringResource(R.string.backup_page_files)}: $fileCount",
             onClick = onShowFiles,
-            headlineContent = { Text(stringResource(R.string.backup_page_restore)) },
-            supportingContent = { Text("${stringResource(R.string.backup_page_files)}: $fileCount") },
-            leadingContent = { CardGroupIcon(HugeIcons.CloudDownload) },
-            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+            trailing = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
         )
     }
 }
@@ -177,8 +222,8 @@ internal fun RemoteBackupLayout(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 128.dp),
+                // 底部留出悬浮工具栏的位置；横向内距交给 Salt 的 RoundedColumn
+                .padding(top = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,
         )
@@ -258,8 +303,7 @@ internal fun <T> BackupFilesSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.8f)
-                .padding(horizontal = 16.dp),
+                .fillMaxHeight(0.8f),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
@@ -276,22 +320,22 @@ internal fun <T> BackupFilesSheet(
                             icon = HugeIcons.FileZip,
                         )
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
                         ) {
-                            itemsIndexed(files) { index, file ->
-                                val fileInfo = info(file)
-                                BackupFileItem(
-                                    info = fileInfo,
-                                    index = index,
-                                    count = files.size,
-                                    isRestoring = restoringName == fileInfo.name,
-                                    enabled = restoringName == null,
-                                    onDelete = { onDelete(file) },
-                                    onRestore = { onRestore(file) },
-                                )
+                            RoundedColumn {
+                                files.forEach { file ->
+                                    val fileInfo = info(file)
+                                    BackupFileItem(
+                                        info = fileInfo,
+                                        isRestoring = restoringName == fileInfo.name,
+                                        enabled = restoringName == null,
+                                        onDelete = { onDelete(file) },
+                                        onRestore = { onRestore(file) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -328,39 +372,29 @@ internal fun <T> BackupFilesSheet(
 @Composable
 private fun BackupFileItem(
     info: BackupFileInfo,
-    index: Int,
-    count: Int,
     isRestoring: Boolean,
     enabled: Boolean,
     onDelete: () -> Unit,
     onRestore: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = cardGroupItemShape(index, count),
-        color = CustomColors.listItemColors.containerColor,
-    ) {
+    ItemContainer {
         Column(
-            modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                CardGroupIcon(HugeIcons.FileZip)
+                SaltIconBadge(HugeIcons.FileZip)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Text(
-                        text = info.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Text(text = info.name)
                     Text(
                         text = "${info.lastModified.toLocalDateTime()} · ${info.size.fileSizeToString()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = SaltTheme.colors.subText,
+                        style = SaltTheme.textStyles.sub,
                     )
                 }
             }

@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -47,6 +50,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.io.File
+import java.util.UUID
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,7 +67,6 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.FileImport
-import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
@@ -75,14 +83,14 @@ import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -96,9 +104,6 @@ import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.toast.ToastType
 import me.rerere.workspace.HostPaths
 import org.koin.androidx.compose.koinViewModel
-import java.io.File
-import java.util.UUID
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinViewModel()) {
@@ -182,19 +187,29 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveHorizontalPadding(16.dp)
+                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 屏幕方向：点一下从四个模式里选
             var showDisplayModeDialog by remember { mutableStateOf(false) }
-            CardGroup {
-                item(
-                    onClick = { showDisplayModeDialog = true },
-                    supportingContent = { Text(displaySetting.displayMode.description) },
-                    trailingContent = { CardGroupValue(displaySetting.displayMode.label) },
-                ) {
-                    Text(stringResource(R.string.setting_display_page_display_mode_title))
+            RoundedColumn {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable(onClick = { showDisplayModeDialog = true }),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.setting_display_page_display_mode_title))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = displaySetting.displayMode.description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                        }
+                        ValuePill(displaySetting.displayMode.label)
+                    }
                 }
             }
             if (showDisplayModeDialog) {
@@ -208,124 +223,140 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
-            CardGroup(
-                title = { Text(stringResource(R.string.setting_page_message_display_settings)) },
-            ) {
-                switchItem(
+            SaltGroup(title = stringResource(R.string.setting_page_message_display_settings)) {
+                SaltSwitchRow(
                     checked = displaySetting.showUserAvatar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_user_avatar_title),
+                    supporting = stringResource(R.string.setting_display_page_show_user_avatar_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showAssistantBubble,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showAssistantBubble = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_assistant_bubble_title),
+                    supporting = stringResource(R.string.setting_display_page_show_assistant_bubble_desc),
                 )
-                switchItem(
-                    visible = displaySetting.showAssistantBubble,
-                    checked = displaySetting.splitAssistantBubbleByParagraph,
-                    onCheckedChange = {
-                        updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
-                    },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_title)) },
-                )
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_desc)) },
-                ) {
-                    OutlinedTextField(
-                        value = displaySetting.emptyChatSlogan,
-                        onValueChange = {
-                            updateDisplaySetting(displaySetting.copy(emptyChatSlogan = it))
+                if (displaySetting.showAssistantBubble) {
+                    SaltSwitchRow(
+                        checked = displaySetting.splitAssistantBubbleByParagraph,
+                        onCheckedChange = {
+                            updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.chat_empty_default_slogan)) },
-                        singleLine = true,
+                        headline = stringResource(R.string.setting_display_page_split_assistant_bubble_title),
+                        supporting = stringResource(R.string.setting_display_page_split_assistant_bubble_desc),
                     )
                 }
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
-                    trailingContent = { CardGroupValue("${(displaySetting.bubbleOpacity * 100).roundToInt()}%") },
-                ) {
-                    AppSlider(
-                        value = displaySetting.bubbleOpacity,
-                        onValueChange = {
-                            updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
-                        },
-                        valueRange = 0f..1.0f,
-                        steps = 19,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = displaySetting.emptyChatSlogan,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(emptyChatSlogan = it))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(stringResource(R.string.chat_empty_default_slogan)) },
+                            singleLine = true,
+                        )
+                    }
+                }
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_bubble_opacity_title))
+                            }
+                            ValuePill("${(displaySetting.bubbleOpacity * 100).roundToInt()}%")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AppSlider(
+                            value = displaySetting.bubbleOpacity,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
+                            },
+                            valueRange = 0f..1.0f,
+                            steps = 19,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
-            CardGroup {
-                switchItem(
+            RoundedColumn {
+                SaltSwitchRow(
                     checked = displaySetting.showModelIcon,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelIcon = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
+                    headline = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
+                    supporting = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showModelName,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelName = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_model_name_title),
+                    supporting = stringResource(R.string.setting_display_page_show_model_name_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.buttonShadow,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(buttonShadow = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_button_shadow_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_button_shadow_title)) },
+                    headline = stringResource(R.string.setting_display_page_button_shadow_title),
+                    supporting = stringResource(R.string.setting_display_page_button_shadow_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.hideCompletedTodoCard,
                     onCheckedChange = {
                         updateDisplaySetting(displaySetting.copy(hideCompletedTodoCard = it))
                     },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_title)) },
+                    headline = stringResource(R.string.setting_display_page_hide_completed_todo_title),
+                    supporting = stringResource(R.string.setting_display_page_hide_completed_todo_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showDateTimeInMessage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_datetime_in_message_title),
+                    supporting = stringResource(R.string.setting_display_page_show_datetime_in_message_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.useL3HubReasoningStyle,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(useL3HubReasoningStyle = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_title)) },
+                    headline = stringResource(R.string.setting_display_page_use_l3hub_reasoning_title),
+                    supporting = stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showTokenUsage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_token_usage_title),
+                    supporting = stringResource(R.string.setting_display_page_show_token_usage_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showQuotaBar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showQuotaBar = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_quota_bar_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_quota_bar_title)) },
+                    headline = stringResource(R.string.setting_display_page_quota_bar_title),
+                    supporting = stringResource(R.string.setting_display_page_quota_bar_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.binaryUnits,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(binaryUnits = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_binary_units_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_binary_units_title)) },
+                    headline = stringResource(R.string.setting_display_page_binary_units_title),
+                    supporting = stringResource(R.string.setting_display_page_binary_units_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.usagePieChart,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(usagePieChart = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_usage_pie_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_usage_pie_title)) },
+                    headline = stringResource(R.string.setting_display_page_usage_pie_title),
+                    supporting = stringResource(R.string.setting_display_page_usage_pie_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.contextMeterStyle != ContextMeterStyle.OFF,
                     onCheckedChange = { enabled ->
                         updateDisplaySetting(
@@ -334,105 +365,126 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             )
                         )
                     },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_title)) },
+                    headline = stringResource(R.string.setting_display_page_context_meter_switch_title),
+                    supporting = stringResource(R.string.setting_display_page_context_meter_switch_desc),
                 )
             }
 
-            CardGroup {
-                switchItem(
+            RoundedColumn {
+                SaltSwitchRow(
                     checked = displaySetting.showToolCallOutput,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showToolCallOutput = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_tool_call_output_title),
+                    supporting = stringResource(R.string.setting_display_page_show_tool_call_output_desc),
                 )
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_ui_corner_radius_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius)) },
-                ) {
-                    NumberSlider(
-                        value = displaySetting.uiCornerRadius,
-                        onValueChange = {
-                            updateDisplaySetting(displaySetting.copy(uiCornerRadius = it))
-                        },
-                        valueRange = 0..32,
-                    )
-                }
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_input_padding_title)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                R.string.setting_display_page_input_padding_desc,
-                                displaySetting.inputPadding,
-                            )
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        NumberSlider(
+                            value = displaySetting.uiCornerRadius,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(uiCornerRadius = it))
+                            },
+                            valueRange = 0..32,
                         )
-                    },
-                ) {
-                    AppSlider(
-                        value = displaySetting.inputPadding.toFloat(),
-                        onValueChange = {
-                            updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
-                        },
-                        valueRange = 0f..16f,
-                        steps = 15,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    }
                 }
-                switchItem(
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_input_padding_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(
+                                        R.string.setting_display_page_input_padding_desc,
+                                        displaySetting.inputPadding,
+                                    ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AppSlider(
+                            value = displaySetting.inputPadding.toFloat(),
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
+                            },
+                            valueRange = 0f..16f,
+                            steps = 15,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                SaltSwitchRow(
                     checked = displaySetting.disableAnimations,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(disableAnimations = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_disable_animations_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_disable_animations_title)) },
+                    headline = stringResource(R.string.setting_display_page_disable_animations_title),
+                    supporting = stringResource(R.string.setting_display_page_disable_animations_desc),
                 )
                 // 关掉动效以后这一项没有意义，跟着开关一起收起
-                optionGroup(visible = !displaySetting.disableAnimations) {
+                if (!displaySetting.disableAnimations) {
                     AnimationSpeed.entries.forEach { speed ->
-                        item(
-                            onClick = {
-                                updateDisplaySetting(displaySetting.copy(animationSpeed = speed))
-                            },
-                            supportingContent = { Text(speed.description) },
-                            trailingContent = {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .clickable(onClick = {
+                                        updateDisplaySetting(displaySetting.copy(animationSpeed = speed))
+                                }),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = speed.label)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = speed.description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
                                 RadioButton(
                                     selected = displaySetting.animationSpeed == speed,
                                     onClick = null,
                                 )
-                            },
-                        ) {
-                            Text(speed.label)
+                            }
                         }
                     }
                 }
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showThinkingContent,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_thinking_content_title),
+                    supporting = stringResource(R.string.setting_display_page_show_thinking_content_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.autoCloseThinking,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoCloseThinking = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title)) },
+                    headline = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
+                    supporting = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showThinkingSummary,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingSummary = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_summary_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_summary_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_thinking_summary_title),
+                    supporting = stringResource(R.string.setting_display_page_show_thinking_summary_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.enableLatexRendering,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableLatexRendering = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_title)) },
+                    headline = stringResource(R.string.setting_display_page_enable_latex_rendering_title),
+                    supporting = stringResource(R.string.setting_display_page_enable_latex_rendering_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.enableQuoteHighlight,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_title)) },
+                    headline = stringResource(R.string.setting_display_page_enable_quote_highlight_title),
+                    supporting = stringResource(R.string.setting_display_page_enable_quote_highlight_desc),
                 )
             }
 
@@ -441,10 +493,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
             // 整张卡也跟着「关闭动效」收放：if 掉的话一帧消失，卡片圆角却还在缓动
             MotionExpandCollapse(visible = !displaySetting.disableAnimations) {
                 val motionBlur = displaySetting.motionBlur
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_display_page_motion_blur_title)) },
-                ) {
-                    switchItem(
+                SaltGroup(title = stringResource(R.string.setting_display_page_motion_blur_title)) {
+                    SaltSwitchRow(
                         checked = motionBlur.enabled,
                         onCheckedChange = {
                             updateDisplaySetting(
@@ -453,11 +503,11 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 )
                             )
                         },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_switch)) },
+                        headline = stringResource(R.string.setting_display_page_motion_blur_switch),
+                        supporting = stringResource(R.string.setting_display_page_motion_blur_desc),
                     )
-                    optionGroup(visible = motionBlur.enabled) {
-                        switchItem(
+                    if (motionBlur.enabled) {
+                        SaltSwitchRow(
                             checked = motionBlur.scrollBlur,
                             onCheckedChange = {
                                 updateDisplaySetting(
@@ -466,97 +516,110 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                     )
                                 )
                             },
-                            supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_desc)) },
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_switch)) },
+                            headline = stringResource(R.string.setting_display_page_motion_blur_scroll_switch),
+                            supporting = stringResource(R.string.setting_display_page_motion_blur_scroll_desc),
                         )
-                        formItem(
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_radius_title)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_display_page_motion_blur_radius_desc,
-                                        motionBlur.radius,
-                                    )
-                                )
-                            },
-                        ) {
-                            NumberSlider(
-                                value = motionBlur.radius,
-                                onValueChange = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(
-                                            motionBlur = displaySetting.motionBlur.copy(radius = it)
+                        ItemContainer {
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_radius_title))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = stringResource(
+                                                R.string.setting_display_page_motion_blur_radius_desc,
+                                                motionBlur.radius,
+                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                NumberSlider(
+                                    value = motionBlur.radius,
+                                    onValueChange = {
+                                        updateDisplaySetting(
+                                            displaySetting.copy(
+                                                motionBlur = displaySetting.motionBlur.copy(radius = it)
+                                            )
                                         )
-                                    )
-                                },
-                                valueRange = 0..12,
-                                suffix = "dp",
-                            )
+                                    },
+                                    valueRange = 0..12,
+                                    suffix = "dp",
+                                )
+                            }
                         }
-                        formItem(
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_duration_title)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_display_page_motion_blur_duration_desc,
-                                        motionBlur.durationMillis,
-                                    )
-                                )
-                            },
-                        ) {
-                            NumberSlider(
-                                value = motionBlur.durationMillis,
-                                onValueChange = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(
-                                            motionBlur = displaySetting.motionBlur.copy(durationMillis = it)
+                        ItemContainer {
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_duration_title))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = stringResource(
+                                                R.string.setting_display_page_motion_blur_duration_desc,
+                                                motionBlur.durationMillis,
+                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                NumberSlider(
+                                    value = motionBlur.durationMillis,
+                                    onValueChange = {
+                                        updateDisplaySetting(
+                                            displaySetting.copy(
+                                                motionBlur = displaySetting.motionBlur.copy(durationMillis = it)
+                                            )
                                         )
-                                    )
-                                },
-                                valueRange = 80..600,
-                                suffix = "ms",
-                                // 跨度过大，轨道上不画刻度
-                                steps = 0,
-                            )
+                                    },
+                                    valueRange = 80..600,
+                                    suffix = "ms",
+                                    // 跨度过大，轨道上不画刻度
+                                    steps = 0,
+                                )
+                            }
                         }
-                        formItem(
-                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_travel_title)) },
-                            supportingContent = {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_display_page_motion_blur_travel_desc,
-                                        motionBlur.travel,
-                                    )
-                                )
-                            },
-                        ) {
-                            NumberSlider(
-                                value = motionBlur.travel,
-                                onValueChange = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(
-                                            motionBlur = displaySetting.motionBlur.copy(travel = it)
+                        ItemContainer {
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_travel_title))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = stringResource(
+                                                R.string.setting_display_page_motion_blur_travel_desc,
+                                                motionBlur.travel,
+                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                NumberSlider(
+                                    value = motionBlur.travel,
+                                    onValueChange = {
+                                        updateDisplaySetting(
+                                            displaySetting.copy(
+                                                motionBlur = displaySetting.motionBlur.copy(travel = it)
+                                            )
                                         )
-                                    )
-                                },
-                                valueRange = 8..64,
-                                suffix = "dp",
-                            )
+                                    },
+                                    valueRange = 8..64,
+                                    suffix = "dp",
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            CardGroup(
-                title = { Text(stringResource(R.string.setting_display_page_floating_bar_title)) },
-            ) {
-                switchItem(
+            SaltGroup(title = stringResource(R.string.setting_display_page_floating_bar_title)) {
+                SaltSwitchRow(
                     checked = displaySetting.enableFloatingBar,
                     onCheckedChange = { enabled ->
                         updateDisplaySetting(
                             displaySetting.copy(
                                 enableFloatingBar = enabled,
-                                // 槽位被全部清空后重新打开开关时，先放回默认的两个，避免开关看起来没反应
+
                                 floatingBarItems = if (enabled && displaySetting.floatingBarItems.isEmpty()) {
                                     DEFAULT_FLOATING_BAR_ITEMS
                                 } else {
@@ -565,176 +628,188 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             )
                         )
                     },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
+                    headline = stringResource(R.string.setting_display_page_floating_bar_switch),
+                    supporting = stringResource(R.string.setting_display_page_floating_bar_desc),
                 )
-                switchItem(
-                    visible = displaySetting.enableFloatingBar,
-                    checked = displaySetting.floatingBarAutoHide,
-                    onCheckedChange = { autoHide ->
-                        updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc))
-                    },
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_title))
-                    },
-                )
-                formItem(
-                    visible = displaySetting.enableFloatingBar,
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_desc)) },
-                    trailingContent = {
-                        CardGroupValue(FloatingBarSizing.percentLabel(draftFloatingBarScale))
-                    },
-                ) {
-                    PercentNumberSlider(
-                        value = draftFloatingBarScale,
-                        onValueChange = { ratio ->
-                            draftFloatingBarScale = FloatingBarSizing.clampScale(ratio)
+                if (displaySetting.enableFloatingBar) {
+                    SaltSwitchRow(
+                        checked = displaySetting.floatingBarAutoHide,
+                        onCheckedChange = { autoHide ->
+                            updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
                         },
-                        onValueChangeFinished = {
-                            updateDisplaySetting(
-                                displaySetting.copy(floatingBarScale = draftFloatingBarScale)
-                            )
-                        },
-                        valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
+                        headline = stringResource(R.string.setting_display_page_floating_bar_auto_hide_title),
+                        supporting = stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc),
                     )
                 }
-                displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
-                    item(
-                        visible = displaySetting.enableFloatingBar,
-                        leadingContent = { CardGroupIcon(barItem.icon) },
-                        headlineContent = { Text(barItem.label()) },
-                        supportingContent = {
-                            Text(
-                                stringResource(
-                                    R.string.setting_display_page_floating_bar_slot,
-                                    index + 1,
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (index > 0) {
-                                    IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
-                                        Icon(
-                                            HugeIcons.ArrowUp01,
-                                            contentDescription = stringResource(
-                                                R.string.setting_display_page_floating_bar_move_up
-                                            ),
-                                        )
-                                    }
-                                }
-                                if (index < displaySetting.floatingBarItems.lastIndex) {
-                                    IconButton(onClick = { moveFloatingBarItem(index, index + 1) }) {
-                                        Icon(
-                                            HugeIcons.ArrowDown01,
-                                            contentDescription = stringResource(
-                                                R.string.setting_display_page_floating_bar_move_down
-                                            ),
-                                        )
-                                    }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(
-                                                floatingBarItems = displaySetting.floatingBarItems
-                                                    .filterIndexed { i, _ -> i != index },
-                                            )
-                                        )
-                                    }
-                                ) {
-                                    Icon(
-                                        HugeIcons.Delete02,
-                                        contentDescription = stringResource(
-                                            R.string.setting_display_page_floating_bar_clear
-                                        ),
-                                    )
-                                }
-                            }
-                        },
-                    )
-                }
-                item(
-                    visible = displaySetting.enableFloatingBar &&
-                        displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS,
-                    onClick = { showFloatingBarAddSheet = true },
-                    leadingContent = { CardGroupIcon(HugeIcons.Add01) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_add_slot)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                R.string.setting_display_page_floating_bar_slots_count,
-                                displaySetting.floatingBarItems.size,
-                                MAX_FLOATING_BAR_ITEMS,
-                            )
-                        )
-                    },
-                    trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                )
-            }
-
-            CardGroup {
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
-                ) {
-                    ConnectedChoiceButtons(
-                        options = ChatFontFamily.entries,
-                        selected = displaySetting.chatFontFamily,
-                        onSelect = { family ->
-                            if (family == ChatFontFamily.CUSTOM &&
-                                displaySetting.chatCustomFontPaths.isEmpty() &&
-                                displaySetting.chatCustomFontPath.isBlank()
+                if (displaySetting.enableFloatingBar) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                fontPickerLauncher.launch(CustomFontMimeTypesUI)
-                            } else {
-                                updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_title))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
+                                ValuePill(FloatingBarSizing.percentLabel(draftFloatingBarScale))
                             }
-                        },
-                        minHeight = 64.dp,
-                    ) { family, _ ->
-                        // 每个按钮用对应的字体写一个样字
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Aa",
-                                fontFamily = family.toFontFamilyUI(chatFontFamily),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Text(
-                                text = family.labelUI(),
-                                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.labelSmall,
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PercentNumberSlider(
+                                value = draftFloatingBarScale,
+                                onValueChange = { ratio ->
+                                    draftFloatingBarScale = FloatingBarSizing.clampScale(ratio)
+                                },
+                                onValueChangeFinished = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(floatingBarScale = draftFloatingBarScale)
+                                    )
+                                },
+                                valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
                             )
                         }
                     }
                 }
-                switchItem(
+                displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
+                    if (displaySetting.enableFloatingBar) {
+                        SaltIconRow(
+                            icon = barItem.icon,
+                            headline = barItem.label(),
+                            supporting = stringResource(
+                                R.string.setting_display_page_floating_bar_slot,
+                                index + 1,
+                            ),
+                            trailing = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (index > 0) {
+                                        IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
+                                            Icon(
+                                                HugeIcons.ArrowUp01,
+                                                contentDescription = stringResource(
+                                                    R.string.setting_display_page_floating_bar_move_up
+                                                ),
+                                            )
+                                        }
+                                    }
+                                    if (index < displaySetting.floatingBarItems.lastIndex) {
+                                        IconButton(onClick = { moveFloatingBarItem(index, index + 1) }) {
+                                            Icon(
+                                                HugeIcons.ArrowDown01,
+                                                contentDescription = stringResource(
+                                                    R.string.setting_display_page_floating_bar_move_down
+                                                ),
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            updateDisplaySetting(
+                                                displaySetting.copy(
+                                                    floatingBarItems = displaySetting.floatingBarItems
+                                                        .filterIndexed { i, _ -> i != index },
+                                                )
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            HugeIcons.Delete02,
+                                            contentDescription = stringResource(
+                                                R.string.setting_display_page_floating_bar_clear
+                                            ),
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+                if (displaySetting.enableFloatingBar &&
+                    displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
+                    SaltIconRow(
+                        icon = HugeIcons.Add01,
+                        headline = stringResource(R.string.setting_display_page_floating_bar_add_slot),
+                        supporting = stringResource(
+                            R.string.setting_display_page_floating_bar_slots_count,
+                            displaySetting.floatingBarItems.size,
+                            MAX_FLOATING_BAR_ITEMS,
+                        ),
+                        onClick = { showFloatingBarAddSheet = true },
+                        trailing = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        },
+                    )
+                }
+            }
+
+            RoundedColumn {
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_chat_font_family_title))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ConnectedChoiceButtons(
+                            options = ChatFontFamily.entries,
+                            selected = displaySetting.chatFontFamily,
+                            onSelect = { family ->
+                                if (family == ChatFontFamily.CUSTOM &&
+                                    displaySetting.chatCustomFontPaths.isEmpty() &&
+                                    displaySetting.chatCustomFontPath.isBlank()
+                                ) {
+                                    fontPickerLauncher.launch(CustomFontMimeTypesUI)
+                                } else {
+                                    updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                }
+                            },
+                            minHeight = 64.dp,
+                        ) { family, _ ->
+                            // 每个按钮用对应的字体写一个样字
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Aa",
+                                    fontFamily = family.toFontFamilyUI(chatFontFamily),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = family.labelUI(),
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
+                    }
+                }
+                SaltSwitchRow(
                     checked = displaySetting.fontApplyGlobal,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fontApplyGlobal = it)) },
-                    // 默认字体本就全局生效，这种时候开关没有意义
+                    headline = stringResource(R.string.setting_display_page_font_global_title),
+                    supporting = stringResource(R.string.setting_display_page_font_global_desc),
                     enabled = displaySetting.chatFontFamily != ChatFontFamily.DEFAULT,
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_font_global_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_font_global_title)) },
                 )
-                item(
-                    onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_custom_font_title)) },
-                    supportingContent = {
-                        Text(
-                            if (customFontPaths.isEmpty()) {
-                                stringResource(R.string.setting_display_page_custom_font_not_imported)
-                            } else {
-                                stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
-                            }
-                        )
-                    },
-                    trailingContent = {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable(onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.setting_display_page_custom_font_title))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = if (customFontPaths.isEmpty()) {
+                                    stringResource(R.string.setting_display_page_custom_font_not_imported)
+                                } else {
+                                    stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
+                                }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                        }
                         IconButton(
                             onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }
                         ) {
@@ -746,21 +821,23 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             )
                         }
                     }
-                )
+                }
                 // 已导入字体回退链：每款一行，可上移调整优先级、单独删除（删除后链自动收拢）
                 if (customFontPaths.isNotEmpty()) {
                     customFontPaths.forEachIndexed { index, path ->
-                        item(
-                            headlineContent = {
-                                Text(
-                                    customFontNames.getOrNull(index)?.takeIf { it.isNotBlank() }
-                                        ?: stringResource(R.string.setting_display_page_custom_font_fallback_name, index + 1)
-                                )
-                            },
-                            supportingContent = {
-                                Text(stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1))
-                            },
-                            trailingContent = {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = customFontNames.getOrNull(index)?.takeIf { it.isNotBlank() }
+                                            ?: stringResource(R.string.setting_display_page_custom_font_fallback_name, index + 1))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
                                 Row {
                                     if (index > 0) {
                                         IconButton(
@@ -789,79 +866,94 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_ui_scale_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_display_page_ui_scale_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                            ValuePill("${(displaySetting.uiScale * 100).roundToInt()}%")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AppSlider(
+                            value = displaySetting.uiScale,
+                            onValueChange = { ratio ->
+                                // 5% 一档：0.5、0.55 … 2.0
+                                val snapped = (ratio * 20f).roundToInt() / 20f
+                                updateDisplaySetting(displaySetting.copy(uiScale = snapped))
+                            },
+                            valueRange = 0.5f..2f,
+                            steps = 29,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_ui_scale_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_ui_scale_desc)) },
-                    trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).roundToInt()}%") },
-                ) {
-                    AppSlider(
-                        value = displaySetting.uiScale,
-                        onValueChange = { ratio ->
-                            // 5% 一档：0.5、0.55 … 2.0
-                            val snapped = (ratio * 20f).roundToInt() / 20f
-                            updateDisplaySetting(displaySetting.copy(uiScale = snapped))
-                        },
-                        valueRange = 0.5f..2f,
-                        steps = 29,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
-                    trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
-                ) {
-                    AppSlider(
-                        value = displaySetting.fontSizeRatio,
-                        onValueChange = { ratio ->
-                            val snapped = (ratio * 20f).roundToInt() / 20f
-                            updateDisplaySetting(displaySetting.copy(fontSizeRatio = snapped))
-                        },
-                        valueRange = 0.5f..2f,
-                        steps = 29,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    // 预览放在凹下去的底色里，和设置项本身区分开
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                    ) {
-                        MarkdownBlock(
-                            content = stringResource(R.string.setting_display_page_font_size_preview),
-                            modifier = Modifier.padding(12.dp),
-                            style = LocalTextStyle.current.copy(
-                                fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                                lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                fontFamily = chatFontFamily
-                            )
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_display_page_font_size_title))
+                            }
+                            ValuePill("${(displaySetting.fontSizeRatio * 100).toInt()}%")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AppSlider(
+                            value = displaySetting.fontSizeRatio,
+                            onValueChange = { ratio ->
+                                val snapped = (ratio * 20f).roundToInt() / 20f
+                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = snapped))
+                            },
+                            valueRange = 0.5f..2f,
+                            steps = 29,
+                            modifier = Modifier.fillMaxWidth(),
                         )
+                        // 预览放在凹下去的底色里，和设置项本身区分开
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            MarkdownBlock(
+                                content = stringResource(R.string.setting_display_page_font_size_preview),
+                                modifier = Modifier.padding(12.dp),
+                                style = LocalTextStyle.current.copy(
+                                    fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
+                                    lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+                                    fontFamily = chatFontFamily
+                                )
+                            )
+                        }
                     }
                 }
             }
 
-            CardGroup(
-                title = { Text(stringResource(R.string.setting_page_code_display_settings)) },
-            ) {
-                switchItem(
+            SaltGroup(title = stringResource(R.string.setting_page_code_display_settings)) {
+                SaltSwitchRow(
                     checked = displaySetting.codeBlockAutoWrap,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title)) },
+                    headline = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
+                    supporting = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.codeBlockAutoCollapse,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title)) },
+                    headline = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
+                    supporting = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
                 )
-                switchItem(
+                SaltSwitchRow(
                     checked = displaySetting.showLineNumbers,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showLineNumbers = it)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_title)) },
+                    headline = stringResource(R.string.setting_display_page_show_line_numbers_title),
+                    supporting = stringResource(R.string.setting_display_page_show_line_numbers_desc),
                 )
             }
 
@@ -940,12 +1032,12 @@ private fun FloatingBarAddSheet(
                 text = stringResource(R.string.setting_display_page_floating_bar_add_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
             )
-            CardGroup {
+            RoundedColumn {
                 available.forEach { barItem ->
-                    item(
+                    SaltIconRow(
+                        icon = barItem.icon,
+                        headline = barItem.label(),
                         onClick = { onAdd(barItem) },
-                        leadingContent = { CardGroupIcon(barItem.icon) },
-                        headlineContent = { Text(barItem.label()) },
                     )
                 }
             }
@@ -1158,4 +1250,25 @@ private fun DisplayModePickerDialog(
             }
         },
     )
+}
+
+/** 行右侧的取值小标签，胶囊观感与迁移前的取值标签一致。 */
+@Composable
+private fun ValuePill(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
+    }
 }

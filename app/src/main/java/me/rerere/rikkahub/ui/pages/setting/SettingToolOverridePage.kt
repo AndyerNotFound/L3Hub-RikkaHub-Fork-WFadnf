@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -22,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +42,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,10 +67,8 @@ import me.rerere.rikkahub.data.ai.tools.decodeToolOverrideParameters
 import me.rerere.rikkahub.data.ai.tools.encodeToolOverrideParameters
 import me.rerere.rikkahub.data.model.ToolOverride
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.JsonTree
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.Button
 import me.rerere.rikkahub.ui.style.Switch
@@ -133,22 +138,23 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp）
             contentPadding = PaddingValues(
-                start = 16.dp,
                 top = innerPadding.calculateTopPadding() + 8.dp,
-                end = 16.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item("intro") {
-                CardGroup {
-                    formItem {
-                        Text(
-                            text = stringResource(R.string.tool_override_page_intro),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                RoundedColumn {
+                    ItemContainer {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.tool_override_page_intro),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -185,44 +191,54 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                         item(group.name) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 ToolGroupHeader(group)
-                                CardGroup {
+                                RoundedColumn {
                                     entries.forEach { entry ->
                                         val toolOverride = overrides[entry.name]
                                         val description = toolOverride?.description ?: entry.description
                                         val overlineText = entry.groupDetail
-                                        item(
-                                            onClick = { selectedName = entry.name },
-                                            overlineContent = if (overlineText != null) {
-                                                { Text(text = overlineText) }
-                                            } else {
-                                                null
-                                            },
-                                            supportingContent = {
-                                                val noDescription = stringResource(R.string.tool_override_detail_no_description)
-                                                Text(
-                                                    text = description.ifBlank { noDescription },
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                            },
-                                            leadingContent = {
-                                                CardGroupIcon(
+                                        ItemContainer {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .heightIn(min = SaltTheme.dimens.item)
+                                                    .clickable(onClick = { selectedName = entry.name }),
+                                                verticalAlignment = Alignment.Top,
+                                            ) {
+                                                SaltIconBadge(
                                                     icon = group.icon(),
                                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                                 )
-                                            },
-                                            trailingContent = if (toolOverride == null) null else {
-                                                { CardGroupValue(text = stringResource(R.string.tool_override_overridden)) }
-                                            },
-                                            headlineContent = {
-                                                Text(
-                                                    text = entry.name,
-                                                    fontFamily = JetbrainsMono,
-                                                    fontWeight = FontWeight.Medium,
-                                                )
-                                            },
-                                        )
+                                                Spacer(modifier = Modifier.width(16.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    val noDescriptionText = stringResource(R.string.tool_override_detail_no_description)
+                                                    if (overlineText != null) {
+                                                        Text(
+                                                            text = overlineText,
+                                                            color = SaltTheme.colors.subText,
+                                                            style = SaltTheme.textStyles.sub,
+                                                        )
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                    }
+                                                    Text(
+                                                        text = entry.name,
+                                                        fontFamily = JetbrainsMono,
+                                                        fontWeight = FontWeight.Medium,
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = description.ifBlank { noDescriptionText },
+                                                        color = SaltTheme.colors.subText,
+                                                        style = SaltTheme.textStyles.sub,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                                if (toolOverride != null) {
+                                                    ValuePill(text = stringResource(R.string.tool_override_overridden))
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -236,6 +252,7 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                             text = stringResource(R.string.tool_override_page_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
                 }
@@ -267,7 +284,7 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
 @Composable
 private fun ToolGroupHeader(group: ToolCatalogGroup) {
     Row(
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -361,7 +378,7 @@ private fun ToolOverrideSheet(
                         modifier = Modifier.weight(1f),
                     )
                     if (toolOverride != null) {
-                        CardGroupValue(text = stringResource(R.string.tool_override_overridden))
+                        ValuePill(text = stringResource(R.string.tool_override_overridden))
                     }
                 }
                 val groupLabel = entry.group.label()
@@ -644,3 +661,24 @@ private fun ToolSheetSection(
 }
 
 private const val DEFAULT_TOOL_SCHEMA = """{"type": "object", "properties": {}}"""
+
+/** 行右侧的取值小标签，胶囊观感与迁移前的取值标签一致。 */
+@Composable
+private fun ValuePill(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
+    }
+}

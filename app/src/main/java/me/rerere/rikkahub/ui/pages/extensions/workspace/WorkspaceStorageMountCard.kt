@@ -11,11 +11,14 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
@@ -54,8 +57,13 @@ import me.rerere.rikkahub.data.model.InvalidStorageMountPathException
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.data.model.normalizeStorageMountPath
 import me.rerere.rikkahub.data.model.sharedStorageRoot
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.ItemOuterTip
+import com.moriafly.salt.ui.ItemOuterTitle
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import java.io.File
 
 @Composable
@@ -76,61 +84,63 @@ internal fun WorkspaceStorageMountCard(
     // null: 不显示; -1: 新增; 其余: 编辑对应下标
     var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    CardGroup(
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.workspace_detail_storage_title))
-                Text(
-                    text = stringResource(R.string.workspace_detail_storage_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        ItemOuterTitle(text = stringResource(R.string.workspace_detail_storage_title))
+        ItemOuterTip(text = stringResource(R.string.workspace_detail_storage_desc))
+        RoundedColumn {
+            if (!hasPermission) {
+                SaltIconRow(
+                    icon = HugeIcons.Alert02,
+                    headline = stringResource(R.string.workspace_detail_storage_permission_missing),
+                    supporting = stringResource(R.string.workspace_detail_storage_permission_missing_desc),
+                    onClick = { context.openAllFilesAccessSettings() },
                 )
             }
-        },
-    ) {
-        item(
-            visible = !hasPermission,
-            onClick = { context.openAllFilesAccessSettings() },
-            leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
-            supportingContent = {
-                Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc))
-            },
-        )
-        mounts.forEachIndexed { index, mount ->
-            item(
-                onClick = { editingIndex = index },
-                leadingContent = { CardGroupIcon(HugeIcons.FolderLinks) },
-                headlineContent = {
-                    Text(
-                        text = mount.path,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        stringResource(
-                            if (mount.writable) {
-                                R.string.workspace_detail_storage_writable
-                            } else {
-                                R.string.workspace_detail_storage_needs_approval
-                            }
-                        )
-                    )
+            mounts.forEachIndexed { index, mount ->
+                // 路径用等宽字体、最多两行，SaltIconRow 只吃纯文本，这一行自己拼
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable { editingIndex = index },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SaltIconBadge(HugeIcons.FolderLinks)
+                        Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = mount.path,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(
+                                    if (mount.writable) {
+                                        R.string.workspace_detail_storage_writable
+                                    } else {
+                                        R.string.workspace_detail_storage_needs_approval
+                                    }
+                                ),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                        }
+                    }
+                }
+            }
+            SaltIconRow(
+                icon = HugeIcons.FolderAdd,
+                headline = stringResource(R.string.workspace_detail_storage_add),
+                onClick = if (workspace != null) {
+                    { editingIndex = -1 }
+                } else {
+                    null
                 },
             )
         }
-        item(
-            onClick = if (workspace != null) {
-                { editingIndex = -1 }
-            } else {
-                null
-            },
-            leadingContent = { CardGroupIcon(HugeIcons.FolderAdd) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_storage_add)) },
-        )
     }
 
     editingIndex?.let { index ->

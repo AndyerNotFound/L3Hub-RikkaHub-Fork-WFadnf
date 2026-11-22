@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +60,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.io.File
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clean
@@ -73,7 +79,6 @@ import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -85,8 +90,6 @@ import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
-import java.io.File
-import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -252,7 +255,7 @@ private fun CleanFilesSheet(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp)
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp）
             .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -271,25 +274,30 @@ private fun CleanFilesSheet(
             )
         }
 
-        CardGroup(modifier = Modifier.selectableGroup()) {
+        RoundedColumn(modifier = Modifier.selectableGroup()) {
             CleanRange.entries.forEach { range ->
                 val selected = selectedRange == range
-                item(
-                    onClick = { onRangeSelected(range) },
-                    modifier = Modifier.semantics {
-                        role = Role.RadioButton
-                        this.selected = selected
-                    },
-                    headlineContent = {
-                        Text(
-                            range.days?.let {
-                                stringResource(R.string.setting_files_page_clean_older_than_days, it)
-                            } ?: stringResource(R.string.setting_files_page_clean_all)
-                        )
-                    },
-                    // 点整行选中，单选圈自己不接收点击
-                    leadingContent = { RadioButton(selected = selected, onClick = null) },
-                )
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable(onClick = { onRangeSelected(range) })
+                            .then(Modifier.semantics {
+                                role = Role.RadioButton
+                                this.selected = selected
+                        }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = selected, onClick = null)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = range.days?.let {
+                                    stringResource(R.string.setting_files_page_clean_older_than_days, it)
+                                } ?: stringResource(R.string.setting_files_page_clean_all))
+                        }
+                    }
+                }
             }
         }
 

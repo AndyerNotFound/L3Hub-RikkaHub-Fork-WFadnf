@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.center
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toOffset
+import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
@@ -51,8 +51,7 @@ import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.drawAppLogo
 import me.rerere.rikkahub.ui.components.ui.logoMorphShape
 import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
@@ -118,7 +117,8 @@ fun SettingAboutPage() {
         ) { onBurst ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+                contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
@@ -183,24 +183,21 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.primaryContainer
                     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    CardGroup {
-                        item(
-                            modifier = Modifier.combinedClickable(
-                                onClick = {},
-                                onLongClick = { navController.navigate(Screen.Debug) },
-                            ),
-                            leadingContent = { CardGroupIcon(HugeIcons.Code, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = {
-                                Text("${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE}")
-                            },
-                            headlineContent = { Text(stringResource(R.string.about_page_version)) },
+                    RoundedColumn {
+                        SaltIconRow(
+                            icon = HugeIcons.Code,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_version),
+                            supporting = "${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE}",
+                            onLongClick = { navController.navigate(Screen.Debug) },
                         )
-                        item(
-                            leadingContent = { CardGroupIcon(HugeIcons.SmartPhone01, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = {
-                                Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} / Android ${android.os.Build.VERSION.RELEASE} / SDK ${android.os.Build.VERSION.SDK_INT}")
-                            },
-                            headlineContent = { Text(stringResource(R.string.about_page_system)) },
+                        SaltIconRow(
+                            icon = HugeIcons.SmartPhone01,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_system),
+                            supporting = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} / Android ${android.os.Build.VERSION.RELEASE} / SDK ${android.os.Build.VERSION.SDK_INT}",
                         )
                     }
                 }
@@ -208,24 +205,30 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.secondaryContainer
                     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    CardGroup {
-                        item(
+                    RoundedColumn {
+                        SaltIconRow(
+                            icon = HugeIcons.Github,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_original_author),
+                            supporting = "re-ovo (RE) · https://github.com/re-ovo",
                             onClick = { context.openUrl("https://github.com/re-ovo") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("re-ovo (RE) · https://github.com/re-ovo") },
-                            headlineContent = { Text(stringResource(R.string.about_page_original_author)) },
                         )
-                        item(
+                        SaltIconRow(
+                            icon = HugeIcons.Earth,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_original_project),
+                            supporting = "RikkaHub · https://rikka-ai.com",
                             onClick = { context.openUrl("https://rikka-ai.com") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Earth, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("RikkaHub · https://rikka-ai.com") },
-                            headlineContent = { Text(stringResource(R.string.about_page_original_project)) },
                         )
-                        item(
+                        SaltIconRow(
+                            icon = HugeIcons.InLove,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_sponsor),
+                            supporting = stringResource(R.string.about_page_sponsor_desc),
                             onClick = { navController.navigate(Screen.SettingDonate) },
-                            leadingContent = { CardGroupIcon(HugeIcons.InLove, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text(stringResource(R.string.about_page_sponsor_desc)) },
-                            headlineContent = { Text(stringResource(R.string.about_page_sponsor)) },
                         )
                     }
                 }
@@ -242,24 +245,30 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    CardGroup {
-                        item(
+                    RoundedColumn {
+                        SaltIconRow(
+                            icon = HugeIcons.Earth,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_upstream),
+                            supporting = "https://github.com/rikkahub/rikkahub",
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Earth, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/rikkahub/rikkahub") },
-                            headlineContent = { Text(stringResource(R.string.about_page_upstream)) },
                         )
-                        item(
+                        SaltIconRow(
+                            icon = HugeIcons.Github,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_github),
+                            supporting = "https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf",
                             onClick = { context.openUrl("https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf") },
-                            headlineContent = { Text(stringResource(R.string.about_page_github)) },
                         )
-                        item(
+                        SaltIconRow(
+                            icon = HugeIcons.File02,
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                            headline = stringResource(R.string.about_page_license),
+                            supporting = "https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf/blob/master/LICENSE",
                             onClick = { context.openUrl("https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf/blob/master/LICENSE") },
-                            leadingContent = { CardGroupIcon(HugeIcons.File02, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf/blob/master/LICENSE") },
-                            headlineContent = { Text(stringResource(R.string.about_page_license)) },
                         )
                     }
                 }
@@ -267,4 +276,3 @@ fun SettingAboutPage() {
         }
     }
 }
-

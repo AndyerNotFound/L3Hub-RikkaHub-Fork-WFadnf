@@ -1,12 +1,18 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -31,11 +37,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.remote.SponsorAPI
 import me.rerere.rikkahub.data.model.Sponsor
+import me.rerere.rikkahub.data.remote.SponsorAPI
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.onError
@@ -71,7 +79,7 @@ fun SettingDonatePage() {
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            DonateMethodsCardGroup()
+            DonateMethodsCard()
 
             Text(
                 text = stringResource(R.string.donate_page_sponsor_list),
@@ -89,35 +97,50 @@ fun SettingDonatePage() {
 }
 
 @Composable
-private fun DonateMethodsCardGroup() {
+private fun DonateMethodsCard() {
     val context = LocalContext.current
-    CardGroup(
-        modifier = Modifier.fillMaxWidth(),
-        title = { Text(stringResource(R.string.donate_page_donation_methods)) },
-    ) {
-        item(
-            onClick = { context.openUrl("https://ko-fi.com/reovodev") },
-            leadingContent = {
+    SaltGroup(title = stringResource(R.string.donate_page_donation_methods), modifier = Modifier.fillMaxWidth()) {
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item)
+                    .clickable(onClick = { context.openUrl("https://ko-fi.com/reovodev") }),
+                verticalAlignment = Alignment.Top,
+            ) {
                 AsyncImage(
                     model = R.drawable.kofi,
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                 )
-            },
-            supportingContent = { Text(stringResource(R.string.donate_page_kofi_desc)) },
-            headlineContent = { Text("Kofi") },
-        )
-        item(
-            onClick = { context.openUrl("https://afdian.com/a/reovo") },
-            leadingContent = {
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Kofi")
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = stringResource(R.string.donate_page_kofi_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                }
+            }
+        }
+        ItemContainer {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = SaltTheme.dimens.item)
+                    .clickable(onClick = { context.openUrl("https://afdian.com/a/reovo") }),
+                verticalAlignment = Alignment.Top,
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.afdian),
                     contentDescription = null,
                 )
-            },
-            supportingContent = { Text(stringResource(R.string.donate_page_afdian_desc)) },
-            headlineContent = { Text("爱发电") },
-        )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "爱发电")
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = stringResource(R.string.donate_page_afdian_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                }
+            }
+        }
     }
 }
 

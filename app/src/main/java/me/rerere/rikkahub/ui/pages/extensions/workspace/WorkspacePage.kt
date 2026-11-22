@@ -43,8 +43,9 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -113,29 +114,28 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {
-        CardGroup(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            title = { Text(stringResource(R.string.workspace_page_create)) },
+        // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留底部
+        SaltGroup(
+            title = stringResource(R.string.workspace_page_create),
+            modifier = Modifier.padding(bottom = 24.dp),
         ) {
-            item(
+            SaltIconRow(
+                icon = HugeIcons.FolderCode,
+                headline = stringResource(R.string.workspace_page_type_local),
+                supporting = stringResource(R.string.workspace_page_type_local_desc),
                 onClick = {
                     showTypeSheet = false
                     showAddDialog = true
                 },
-                leadingContent = { CardGroupIcon(HugeIcons.FolderCode) },
-                supportingContent = { Text(stringResource(R.string.workspace_page_type_local_desc)) },
-                headlineContent = { Text(stringResource(R.string.workspace_page_type_local)) },
             )
-            item(
+            SaltIconRow(
+                icon = HugeIcons.CloudServer,
+                headline = stringResource(R.string.workspace_page_type_ssh),
+                supporting = stringResource(R.string.workspace_page_type_ssh_desc),
                 onClick = {
                     showTypeSheet = false
                     navController.navigate(Screen.WorkspaceSshEditor())
                 },
-                leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
-                supportingContent = { Text(stringResource(R.string.workspace_page_type_ssh_desc)) },
-                headlineContent = { Text(stringResource(R.string.workspace_page_type_ssh)) },
             )
         }
     }
@@ -201,7 +201,7 @@ private fun WorkspaceItem(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CardGroupIcon(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
+            SaltIconBadge(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
             Column(
                 modifier = Modifier
                     .weight(1f)

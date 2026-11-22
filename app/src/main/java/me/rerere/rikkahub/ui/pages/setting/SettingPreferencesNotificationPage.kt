@@ -5,13 +5,19 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -37,28 +44,31 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.Item
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.time.Instant
+import kotlin.math.roundToInt
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.floating.FloatingPanelSizing
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
-import java.time.Instant
-import kotlin.math.roundToInt
 
 private val UPDATE_PAUSE_DAY_OPTIONS = listOf(7, 14, 21)
 private const val MILLIS_PER_DAY = 24 * 60 * 60 * 1_000L
@@ -140,42 +150,36 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveHorizontalPadding(16.dp)
+                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Play 版由商店负责更新，不提供更新提醒
             if (BuildConfig.UPDATE_CHECK_ENABLED && !BuildConfig.IS_PLAY_STORE) {
-                CardGroup {
-                    item(
+                RoundedColumn {
+                    Item(
                         onClick = {
                             selectedUpdatePauseDays = UPDATE_PAUSE_DAY_OPTIONS.first()
                             showUpdatePauseDialog = true
                         },
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_updates_title)) },
-                        supportingContent = {
-                            Text(
-                                if (updateChecksEnabled) {
-                                    stringResource(R.string.setting_update_reminder_enabled)
-                                } else {
-                                    stringResource(
-                                        R.string.setting_update_reminder_paused_until,
-                                        Instant.ofEpochMilli(displaySetting.updateCheckDisabledUntilEpochMillis)
-                                            .toLocalDateTime(),
-                                    )
-                                }
+                        text = stringResource(R.string.setting_display_page_show_updates_title),
+                        sub = if (updateChecksEnabled) {
+                            stringResource(R.string.setting_update_reminder_enabled)
+                        } else {
+                            stringResource(
+                                R.string.setting_update_reminder_paused_until,
+                                Instant.ofEpochMilli(displaySetting.updateCheckDisabledUntilEpochMillis)
+                                    .toLocalDateTime(),
                             )
-                        },
-                        trailingContent = {
-                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         },
                     )
                 }
             
             }
 
-            CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_notification_background_generation)) }) {
-                switchItem(
+            SaltGroup(title = stringResource(R.string.setting_page_preferences_notification_background_generation)) {
+                SaltSwitchRow(
                     checked = displaySetting.enableNotificationOnMessageGeneration,
                     onCheckedChange = {
                         if (it && !permissionState.allPermissionsGranted) {
@@ -183,139 +187,173 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         }
                         updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
                     },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
+                    headline = stringResource(R.string.setting_display_page_notification_message_generated),
+                    supporting = stringResource(R.string.setting_display_page_notification_message_generated_desc),
                 )
-                switchItem(
-                    visible = displaySetting.enableNotificationOnMessageGeneration,
-                    checked = displaySetting.enableLiveUpdateNotification,
-                    onCheckedChange = {
-                        updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
-                    },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
-                    headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
-                )
-                switchItem(
+                if (displaySetting.enableNotificationOnMessageGeneration) {
+                    SaltSwitchRow(
+                        checked = displaySetting.enableLiveUpdateNotification,
+                        onCheckedChange = {
+                            updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
+                        },
+                        headline = stringResource(R.string.setting_display_page_live_update_notification),
+                        supporting = stringResource(R.string.setting_display_page_live_update_notification_desc),
+                    )
+                }
+                SaltSwitchRow(
                     checked = displaySetting.enableFloatingChatWindow,
                     onCheckedChange = {
                         if (it && !canDrawOverlays) requestOverlayPermission()
                         updateDisplaySetting(displaySetting.copy(enableFloatingChatWindow = it))
                     },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_preferences_notification_floating_window_desc))
-                    },
-                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window)) },
+                    headline = stringResource(R.string.setting_page_preferences_notification_floating_window),
+                    supporting = stringResource(R.string.setting_page_preferences_notification_floating_window_desc),
                 )
-                item(
-                    visible = displaySetting.enableFloatingChatWindow,
-                    onClick = { showFloatingIconPicker = true },
-                    leadingContent = {
-                        Box(
+                if (displaySetting.enableFloatingChatWindow) {
+                    ItemContainer {
+                        Row(
                             modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer),
-                            contentAlignment = Alignment.Center,
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { showFloatingIconPicker = true }),
+                            verticalAlignment = Alignment.Top,
                         ) {
-                            FloatingBubbleIconThumb(
-                                icon = displaySetting.floatingBubbleIcon,
-                                size = 20.dp,
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                FloatingBubbleIconThumb(
+                                    icon = displaySetting.floatingBubbleIcon,
+                                    size = 20.dp,
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.floating_bubble_icon_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.floating_bubble_icon_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        }
+                    }
+                }
+                if (displaySetting.enableFloatingChatWindow) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.floating_panel_width))
+                                }
+                                ValuePill(FloatingPanelSizing.percentLabel(draftPanelWidth))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PercentNumberSlider(
+                                value = draftPanelWidth,
+                                onValueChange = { draftPanelWidth = FloatingPanelSizing.clampWidthRatio(it) },
+                                onValueChangeFinished = {
+                                    updateDisplaySetting(displaySetting.copy(floatingPanelWidthRatio = draftPanelWidth))
+                                },
+                                valueRange = FloatingPanelSizing.MIN_WIDTH_RATIO..FloatingPanelSizing.MAX_WIDTH_RATIO,
                             )
                         }
-                    },
-                    headlineContent = { Text(stringResource(R.string.floating_bubble_icon_title)) },
-                    supportingContent = { Text(stringResource(R.string.floating_bubble_icon_desc)) },
-                    trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-                )
-                formItem(
-                    visible = displaySetting.enableFloatingChatWindow,
-                    headlineContent = { Text(stringResource(R.string.floating_panel_width)) },
-                    trailingContent = {
-                        CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelWidth))
-                    },
-                ) {
-                    PercentNumberSlider(
-                        value = draftPanelWidth,
-                        onValueChange = { draftPanelWidth = FloatingPanelSizing.clampWidthRatio(it) },
-                        onValueChangeFinished = {
-                            updateDisplaySetting(displaySetting.copy(floatingPanelWidthRatio = draftPanelWidth))
-                        },
-                        valueRange = FloatingPanelSizing.MIN_WIDTH_RATIO..FloatingPanelSizing.MAX_WIDTH_RATIO,
-                    )
+                    }
                 }
-                formItem(
-                    visible = displaySetting.enableFloatingChatWindow,
-                    headlineContent = { Text(stringResource(R.string.floating_panel_height)) },
-                    trailingContent = {
-                        CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelHeight))
-                    },
-                ) {
-                    PercentNumberSlider(
-                        value = draftPanelHeight,
-                        onValueChange = { draftPanelHeight = FloatingPanelSizing.clampHeightRatio(it) },
-                        onValueChangeFinished = {
-                            updateDisplaySetting(displaySetting.copy(floatingPanelHeightRatio = draftPanelHeight))
-                        },
-                        valueRange = FloatingPanelSizing.MIN_HEIGHT_RATIO..FloatingPanelSizing.MAX_HEIGHT_RATIO,
-                    )
-                }
-                formItem(
-                    visible = displaySetting.enableFloatingChatWindow,
-                    headlineContent = { Text(stringResource(R.string.floating_preview_height)) },
-                    trailingContent = {
-                        CardGroupValue(
-                            stringResource(R.string.floating_size_dp, draftPreviewHeight.roundToInt())
-                        )
-                    },
-                ) {
-                    NumberSlider(
-                        value = draftPreviewHeight.roundToInt(),
-                        onValueChange = { draftPreviewHeight = it.toFloat() },
-                        onValueChangeFinished = {
-                            updateDisplaySetting(
-                                displaySetting.copy(
-                                    floatingPreviewMaxHeight =
-                                        FloatingPanelSizing.clampPreviewHeight(draftPreviewHeight.roundToInt()),
-                                )
-                            )
-                        },
-                        valueRange = FloatingPanelSizing.MIN_PREVIEW_HEIGHT_DP..
-                            FloatingPanelSizing.MAX_PREVIEW_HEIGHT_DP,
-                        suffix = "dp",
-                        steps = 0,
-                    )
-                }
-                item(
-                    visible = displaySetting.enableFloatingChatWindow && !canDrawOverlays,
-                    onClick = ::requestOverlayPermission,
-                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission)) },
-                    supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc)) },
-                    trailingContent = {
-                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                    },
-                )
-                item(
-                    onClick = {
-                        if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
-                    },
-                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_battery_optimization)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                if (ignoringBatteryOptimizations) {
-                                    R.string.setting_page_preferences_notification_battery_optimization_granted
-                                } else {
-                                    R.string.setting_page_preferences_notification_battery_optimization_desc
+                if (displaySetting.enableFloatingChatWindow) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.floating_panel_height))
                                 }
+                                ValuePill(FloatingPanelSizing.percentLabel(draftPanelHeight))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PercentNumberSlider(
+                                value = draftPanelHeight,
+                                onValueChange = { draftPanelHeight = FloatingPanelSizing.clampHeightRatio(it) },
+                                onValueChangeFinished = {
+                                    updateDisplaySetting(displaySetting.copy(floatingPanelHeightRatio = draftPanelHeight))
+                                },
+                                valueRange = FloatingPanelSizing.MIN_HEIGHT_RATIO..FloatingPanelSizing.MAX_HEIGHT_RATIO,
                             )
-                        )
-                    },
-                    trailingContent = if (ignoringBatteryOptimizations) {
-                        null
-                    } else {
-                        { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
-                    },
-                )
+                        }
+                    }
+                }
+                if (displaySetting.enableFloatingChatWindow) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.floating_preview_height))
+                                }
+                                ValuePill(
+                                    stringResource(R.string.floating_size_dp, draftPreviewHeight.roundToInt())
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            NumberSlider(
+                                value = draftPreviewHeight.roundToInt(),
+                                onValueChange = { draftPreviewHeight = it.toFloat() },
+                                onValueChangeFinished = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            floatingPreviewMaxHeight =
+                                            FloatingPanelSizing.clampPreviewHeight(draftPreviewHeight.roundToInt()),
+                                        )
+                                    )
+                                },
+                                valueRange = FloatingPanelSizing.MIN_PREVIEW_HEIGHT_DP..
+                                FloatingPanelSizing.MAX_PREVIEW_HEIGHT_DP,
+                                suffix = "dp",
+                                steps = 0,
+                            )
+                        }
+                    }
+                }
+                if (displaySetting.enableFloatingChatWindow && !canDrawOverlays) {
+                    Item(
+                        onClick = ::requestOverlayPermission,
+                        text = stringResource(R.string.setting_page_preferences_notification_overlay_permission),
+                        sub = stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc),
+                    )
+                }
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item)
+                            .clickable(onClick = {
+                                if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
+                        }),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.setting_page_preferences_notification_battery_optimization))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = stringResource(
+                                    if (ignoringBatteryOptimizations) {
+                                        R.string.setting_page_preferences_notification_battery_optimization_granted
+                                    } else {
+                                        R.string.setting_page_preferences_notification_battery_optimization_desc
+                                    }
+                                ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                        }
+                        if (ignoringBatteryOptimizations) {
+                            null
+                        } else {
+                            { Icon(HugeIcons.ArrowRight01, contentDescription = null) }
+                        }
+                    }
+                }
             }
 
         }
@@ -357,5 +395,26 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                 content()
             }
         }
+    }
+}
+
+/** 行右侧的取值小标签，胶囊观感与迁移前的取值标签一致。 */
+@Composable
+private fun ValuePill(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
     }
 }

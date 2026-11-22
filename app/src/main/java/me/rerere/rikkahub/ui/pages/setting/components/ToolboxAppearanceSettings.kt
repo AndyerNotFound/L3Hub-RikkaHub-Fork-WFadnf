@@ -7,15 +7,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.SaltTheme
 import com.t8rin.dynamic.theme.ColorBlindType
 import com.t8rin.dynamic.theme.PaletteStyle as ToolboxPaletteStyle
 import com.t8rin.toolbox.ui.model.IconShape
@@ -33,9 +42,9 @@ import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ThemeColorTuple
 import me.rerere.rikkahub.data.datastore.ToolThemeSetting
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.theme.ToolboxIconShapes
 
 /**
@@ -61,166 +70,241 @@ fun ToolboxAppearanceSettings(
         modifier = Modifier.padding(horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CardGroup(
-            title = { Text(stringResource(R.string.setting_theme_page_engine_title)) },
-        ) {
+        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_title)) {
             if (dynamicColor) {
-                item {
-                    Text(
-                        text = stringResource(R.string.setting_theme_page_engine_dynamic_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.setting_theme_page_engine_dynamic_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_theme_page_engine_style_title))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_style_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EnhancedButtonGroup(
+                        items = styles.map { stringResource(paletteStyleLabel(it)) },
+                        selectedIndex = styles.indexOf(toolTheme.paletteStyle).coerceAtLeast(0),
+                        onIndexChange = { index ->
+                            styles.getOrNull(index)?.let { style ->
+                                onChange(toolTheme.copy(paletteStyle = style))
+                            }
+                        },
+                        isScrollable = true,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     )
                 }
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.setting_theme_page_engine_style_title)) },
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_style_desc)) },
-            ) {
-                EnhancedButtonGroup(
-                    items = styles.map { stringResource(paletteStyleLabel(it)) },
-                    selectedIndex = styles.indexOf(toolTheme.paletteStyle).coerceAtLeast(0),
-                    onIndexChange = { index ->
-                        styles.getOrNull(index)?.let { style ->
-                            onChange(toolTheme.copy(paletteStyle = style))
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_contrast_desc))
+                                }
+                            }
                         }
-                    },
-                    isScrollable = true,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EnhancedSliderItem(
+                        value = toolTheme.themeContrastLevel,
+                        title = stringResource(R.string.setting_theme_page_engine_contrast_title),
+                        valueRange = 0f..1f,
+                        onValueChange = { onChange(toolTheme.copy(themeContrastLevel = it.toDouble())) },
+                        // 内部按 0–100 显示，存回去的仍是 0.0–1.0
+                        internalStateTransformation = { (it * 100).roundToInt() },
+                        valueSuffix = "%",
+                        behaveAsContainer = false,
+                        topContentPadding = 0.dp,
+                    )
+                }
             }
-            formItem(
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_contrast_desc)) },
-            ) {
-                EnhancedSliderItem(
-                    value = toolTheme.themeContrastLevel,
-                    title = stringResource(R.string.setting_theme_page_engine_contrast_title),
-                    valueRange = 0f..1f,
-                    onValueChange = { onChange(toolTheme.copy(themeContrastLevel = it.toDouble())) },
-                    // 内部按 0–100 显示，存回去的仍是 0.0–1.0
-                    internalStateTransformation = { (it * 100).roundToInt() },
-                    valueSuffix = "%",
-                    behaveAsContainer = false,
-                    topContentPadding = 0.dp,
-                )
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_theme_page_engine_color_blind_title))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_color_blind_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EnhancedButtonGroup(
+                        items = colorBlindOptions.map { stringResource(colorBlindLabel(it)) },
+                        selectedIndex = colorBlindOptions.indexOf(toolTheme.colorBlindType).coerceAtLeast(0),
+                        onIndexChange = { index ->
+                            onChange(toolTheme.copy(colorBlindType = colorBlindOptions.getOrNull(index)))
+                        },
+                        isScrollable = true,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.setting_theme_page_engine_color_blind_title)) },
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_color_blind_desc)) },
-            ) {
-                EnhancedButtonGroup(
-                    items = colorBlindOptions.map { stringResource(colorBlindLabel(it)) },
-                    selectedIndex = colorBlindOptions.indexOf(toolTheme.colorBlindType).coerceAtLeast(0),
-                    onIndexChange = { index ->
-                        onChange(toolTheme.copy(colorBlindType = colorBlindOptions.getOrNull(index)))
-                    },
-                    isScrollable = true,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                )
-            }
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.isInvertThemeColors,
                 onCheckedChange = { onChange(toolTheme.copy(isInvertThemeColors = it)) },
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_invert_desc)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_page_engine_invert_title)) },
+                headline = stringResource(R.string.setting_theme_page_engine_invert_title),
+                supporting = stringResource(R.string.setting_theme_page_engine_invert_desc),
             )
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.setting_theme_page_engine_icon_shape_title)) },
-        ) {
-            formItem(
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_icon_shape_desc)) },
-            ) {
-                IconShapePicker(
-                    selectedKey = iconShapeKey,
-                    onSelect = { key -> onChange(toolTheme.copy(iconShapeName = key)) },
-                )
+        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_icon_shape_title)) {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_icon_shape_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IconShapePicker(
+                        selectedKey = iconShapeKey,
+                        onSelect = { key -> onChange(toolTheme.copy(iconShapeName = key)) },
+                    )
+                }
             }
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.setting_theme_page_engine_border_width_title)) },
-        ) {
-            formItem(
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_border_width_desc)) },
-            ) {
-                EnhancedSliderItem(
-                    value = toolTheme.uiBorderWidth,
-                    title = stringResource(R.string.setting_theme_page_engine_border_width_title),
-                    valueRange = 0f..8f,
-                    onValueChange = { onChange(toolTheme.copy(uiBorderWidth = it)) },
-                    internalStateTransformation = { it.roundToInt() },
-                    valueSuffix = " dp",
-                    behaveAsContainer = false,
-                    topContentPadding = 0.dp,
-                )
+        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_border_width_title)) {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_border_width_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EnhancedSliderItem(
+                        value = toolTheme.uiBorderWidth,
+                        title = stringResource(R.string.setting_theme_page_engine_border_width_title),
+                        valueRange = 0f..8f,
+                        onValueChange = { onChange(toolTheme.copy(uiBorderWidth = it)) },
+                        internalStateTransformation = { it.roundToInt() },
+                        valueSuffix = " dp",
+                        behaveAsContainer = false,
+                        topContentPadding = 0.dp,
+                    )
+                }
             }
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.setting_theme_page_engine_shadows_title)) },
-        ) {
-            switchItem(
+        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_shadows_title)) {
+            SaltSwitchRow(
                 checked = toolTheme.drawContainerShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawContainerShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_container)) },
+                headline = stringResource(R.string.setting_theme_shadow_container),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.drawAppBarShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawAppBarShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_app_bar)) },
+                headline = stringResource(R.string.setting_theme_shadow_app_bar),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.drawButtonShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawButtonShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_button)) },
+                headline = stringResource(R.string.setting_theme_shadow_button),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.drawFabShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawFabShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_fab)) },
+                headline = stringResource(R.string.setting_theme_shadow_fab),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.drawSwitchShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawSwitchShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_switch)) },
+                headline = stringResource(R.string.setting_theme_shadow_switch),
             )
-            switchItem(
+            SaltSwitchRow(
                 checked = toolTheme.drawSliderShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawSliderShadows = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_theme_shadow_slider)) },
+                headline = stringResource(R.string.setting_theme_shadow_slider),
             )
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.setting_theme_page_engine_primary_title)) },
-        ) {
-            formItem(
-                supportingContent = { Text(stringResource(R.string.setting_theme_page_engine_primary_desc)) },
-            ) {
-                ColorPickerRow(
-                    // 没设过就显示当前主题的主色，别凭空给一个和界面对不上的颜色
-                    color = toolTheme.appColorTuple?.let { Color(it.primary.toInt()) }
-                        ?: MaterialTheme.colorScheme.primary,
-                    onColorChange = { color ->
-                        onChange(
-                            toolTheme.copy(
-                                appColorTuple = ThemeColorTuple(
-                                    primary = color.toArgb().toLong() and 0xFFFFFFFFL,
+        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_primary_title)) {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(stringResource(R.string.setting_theme_page_engine_primary_desc))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ColorPickerRow(
+                        // 没设过就显示当前主题的主色，别凭空给一个和界面对不上的颜色
+                        color = toolTheme.appColorTuple?.let { Color(it.primary.toInt()) }
+                            ?: MaterialTheme.colorScheme.primary,
+                        onColorChange = { color ->
+                            onChange(
+                                toolTheme.copy(
+                                    appColorTuple = ThemeColorTuple(
+                                        primary = color.toArgb().toLong() and 0xFFFFFFFFL,
+                                    )
                                 )
                             )
-                        )
-                    },
-                )
+                        },
+                    )
+                }
             }
             // 有主色时这一行才可点：点一下清掉，颜色回到当前主题的配色
-            item(
-                onClick = if (toolTheme.appColorTuple != null) {
-                    { onChange(toolTheme.copy(appColorTuple = null)) }
-                } else null,
-                headlineContent = { Text(stringResource(R.string.setting_theme_page_engine_primary_reset)) },
-            )
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .then(
+                            (if (toolTheme.appColorTuple != null) {
+                                    { onChange(toolTheme.copy(appColorTuple = null)) }
+                                } else null
+                            )?.let { click ->
+                                Modifier.clickable(onClick = click)
+                            } ?: Modifier
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_theme_page_engine_primary_reset))
+                    }
+                }
+            }
         }
     }
 }

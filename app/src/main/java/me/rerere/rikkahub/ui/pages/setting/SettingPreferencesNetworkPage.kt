@@ -4,22 +4,26 @@ import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,6 +46,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.Item
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,14 +68,14 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.plus
@@ -72,11 +85,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import java.io.ByteArrayInputStream
-import java.io.IOException
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
 
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
 
@@ -308,113 +316,122 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveHorizontalPadding(16.dp)
+                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            CardGroup {
-                switchItem(
+            RoundedColumn {
+                SaltSwitchRow(
                     checked = settings.networkSetting.enableAutoRetry,
                     onCheckedChange = { enabled ->
                         updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
                     },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
-                    },
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_auto_retry))
-                    },
+                    headline = stringResource(R.string.setting_page_preferences_network_auto_retry),
+                    supporting = stringResource(R.string.setting_page_preferences_network_auto_retry_desc),
                 )
-                formItem(
-                    visible = settings.networkSetting.enableAutoRetry,
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_count))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc))
-                    },
-                ) {
-                    NumberSlider(
-                        value = settings.networkSetting.retryMaxCount,
-                        onValueChange = { count ->
-                            updateNetworkSetting { it.copy(retryMaxCount = count) }
-                        },
-                        valueRange = 0..64,
-                    )
-                }
-                formItem(
-                    visible = settings.networkSetting.enableAutoRetry,
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_interval))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc))
-                    },
-                ) {
-                    NumberSlider(
-                        value = settings.networkSetting.retryIntervalSeconds,
-                        onValueChange = { seconds ->
-                            updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
-                        },
-                        valueRange = 1..60,
-                        suffix = "s",
-                    )
-                }
-                formItem(
-                    visible = settings.networkSetting.enableAutoRetry,
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_codes))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc))
-                    },
-                ) {
-                    RetryErrorCodePicker(
-                        selected = settings.networkSetting.retryErrorCodes,
-                        onValueChange = { codes ->
-                            updateNetworkSetting { it.copy(retryErrorCodes = codes) }
-                        },
-                    )
-                }
-            }
-
-            CardGroup(
-                title = {
-                    Text(stringResource(R.string.setting_page_preferences_network_user_agent))
-                },
-            ) {
-                formItem {
-                    OutlinedTextField(
-                        value = userAgent,
-                        onValueChange = ::updateUserAgent,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(defaultUserAgent) },
-                        supportingText = {
-                            Text(
-                                stringResource(
-                                    R.string.setting_page_preferences_network_user_agent_desc,
-                                    defaultUserAgent,
-                                )
+                if (settings.networkSetting.enableAutoRetry) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            NumberSlider(
+                                value = settings.networkSetting.retryMaxCount,
+                                onValueChange = { count ->
+                                    updateNetworkSetting { it.copy(retryMaxCount = count) }
+                                },
+                                valueRange = 0..64,
                             )
-                        },
-                        singleLine = true,
-                    )
-                    TextButton(
-                        onClick = { updateUserAgent("") },
-                        modifier = Modifier.align(Alignment.End),
-                        enabled = userAgent.isNotEmpty(),
-                    ) {
-                        Text(stringResource(R.string.setting_model_page_reset_to_default))
+                        }
+                    }
+                }
+                if (settings.networkSetting.enableAutoRetry) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            NumberSlider(
+                                value = settings.networkSetting.retryIntervalSeconds,
+                                onValueChange = { seconds ->
+                                    updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
+                                },
+                                valueRange = 1..60,
+                                suffix = "s",
+                            )
+                        }
+                    }
+                }
+                if (settings.networkSetting.enableAutoRetry) {
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            RetryErrorCodePicker(
+                                selected = settings.networkSetting.retryErrorCodes,
+                                onValueChange = { codes ->
+                                    updateNetworkSetting { it.copy(retryErrorCodes = codes) }
+                                },
+                            )
+                        }
                     }
                 }
             }
 
-            CardGroup(
-                title = {
-                    Text(stringResource(R.string.setting_page_preferences_network_proxy))
-                },
-            ) {
-                item(
+            SaltGroup(title = stringResource(R.string.setting_page_preferences_network_user_agent)) {
+                ItemContainer {
+                    Column {
+                        OutlinedTextField(
+                            value = userAgent,
+                            onValueChange = ::updateUserAgent,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(defaultUserAgent) },
+                            supportingText = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_page_preferences_network_user_agent_desc,
+                                        defaultUserAgent,
+                                    )
+                                )
+                            },
+                            singleLine = true,
+                        )
+                        TextButton(
+                            onClick = { updateUserAgent("") },
+                            modifier = Modifier.align(Alignment.End),
+                            enabled = userAgent.isNotEmpty(),
+                        ) {
+                            Text(stringResource(R.string.setting_model_page_reset_to_default))
+                        }
+                    }
+                }
+            }
+
+            SaltGroup(title = stringResource(R.string.setting_page_preferences_network_proxy)) {
+                Item(
                     onClick = {
                         proxyUrlDraft = proxyUrl
                         proxyUsernameDraft = proxyUsername
@@ -422,29 +439,25 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                         proxyPasswordVisible = false
                         proxyDialogVisible = true
                     },
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_config))
-                    },
-                    supportingContent = {
-                        Text(
-                            if (proxyUrl.isBlank()) {
-                                stringResource(
-                                    R.string.setting_page_preferences_network_proxy_desc
-                                )
-                            } else {
-                                proxyUrl
-                            }
+                    text = stringResource(R.string.setting_page_config),
+                    sub = if (proxyUrl.isBlank()) {
+                        stringResource(
+                            R.string.setting_page_preferences_network_proxy_desc
                         )
-                    },
-                    trailingContent = {
-                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                    } else {
+                        proxyUrl
                     },
                 )
-                item(
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_provider_page_test_connection))
-                    },
-                    trailingContent = {
+                ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.setting_provider_page_test_connection))
+                        }
                         FilledTonalButton(
                             onClick = ::testProxy,
                             enabled = proxyUrl.toProxyOrNull() != null && !proxyTesting,
@@ -455,16 +468,24 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Text(stringResource(R.string.setting_provider_page_test))
                             }
                         }
-                    },
-                )
+                    }
+                }
             }
 
-            CardGroup(title = { Text(stringResource(R.string.setting_network_ca_title)) }) {
+            SaltGroup(title = stringResource(R.string.setting_network_ca_title)) {
                 settings.customCaCertificates.forEachIndexed { index, pem ->
-                    item(
-                        headlineContent = { Text(certificateLabel(pem, index)) },
-                        supportingContent = { Text(stringResource(R.string.setting_network_ca_installed)) },
-                        trailingContent = {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = certificateLabel(pem, index))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_network_ca_installed), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             IconButton(
                                 onClick = {
                                     vm.updateSettings { latest ->
@@ -479,13 +500,13 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                     contentDescription = null,
                                 )
                             }
-                        },
-                    )
+                        }
+                    }
                 }
-                item(
+                Item(
                     onClick = { caImporter.launch("*/*") },
-                    headlineContent = { Text(stringResource(R.string.setting_network_ca_import)) },
-                    supportingContent = { Text(stringResource(R.string.setting_network_ca_import_desc)) },
+                    text = stringResource(R.string.setting_network_ca_import),
+                    sub = stringResource(R.string.setting_network_ca_import_desc),
                 )
             }
 

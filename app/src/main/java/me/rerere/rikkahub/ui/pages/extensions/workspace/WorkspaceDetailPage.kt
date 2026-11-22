@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,7 +62,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +72,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.ItemOuterTip
+import com.moriafly.salt.ui.ItemOuterTitle
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import coil3.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -112,8 +118,10 @@ import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -121,10 +129,8 @@ import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.assistant.detail.labelRes
@@ -445,26 +451,24 @@ private fun WorkspaceBasicPage(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+        contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            CardGroup(
-                title = { Text(stringResource(R.string.workspace_detail_workspace_info)) },
-            ) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_name)) },
-                    supportingContent = {
-                        Text(workspace?.name ?: stringResource(R.string.workspace_detail_loading))
-                    },
-                    leadingContent = { CardGroupIcon(HugeIcons.Tag01) },
+            SaltGroup(title = stringResource(R.string.workspace_detail_workspace_info)) {
+                SaltIconRow(
+                    icon = HugeIcons.Tag01,
+                    headline = stringResource(R.string.workspace_detail_name),
+                    supporting = workspace?.name ?: stringResource(R.string.workspace_detail_loading),
                 )
-                item(
-                    visible = hasRootfs,
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_shell_status)) },
-                    leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
-                    trailingContent = { ShellStatusBadge(shellStatus) },
-                )
+                if (hasRootfs) {
+                    SaltIconRow(
+                        icon = HugeIcons.ComputerTerminal01,
+                        headline = stringResource(R.string.workspace_detail_shell_status),
+                        trailing = { ShellStatusBadge(shellStatus) },
+                    )
+                }
             }
         }
 
@@ -475,38 +479,47 @@ private fun WorkspaceBasicPage(
         }
         if (hasRootfs) {
             item {
-                CardGroup(
-                    title = { Text(stringResource(R.string.workspace_detail_enable_shell)) },
-                ) {
-                    formItem(
-                        headlineContent = { Text(stringResource(R.string.workspace_detail_area_rootfs)) },
-                        supportingContent = { Text(stringResource(R.string.workspace_detail_enable_shell_desc)) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Bash) },
-                    ) {
-                        Button(
-                            onClick = onInstallRootfs,
-                            enabled = workspace != null && !installing,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Bash,
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text(installButtonText)
+                SaltGroup(title = stringResource(R.string.workspace_detail_enable_shell)) {
+                    // 图标 + 说明 + 整宽按钮：SaltIconRow 只吃纯文本，这一项自己拼
+                    ItemContainer {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                SaltIconBadge(HugeIcons.Bash)
+                                Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.workspace_detail_area_rootfs))
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.workspace_detail_enable_shell_desc),
+                                        color = SaltTheme.colors.subText,
+                                        style = SaltTheme.textStyles.sub,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = onInstallRootfs,
+                                enabled = workspace != null && !installing,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Bash,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(installButtonText)
+                            }
+                            installProgress?.let { RootfsProgress(it) }
                         }
-                        installProgress?.let { RootfsProgress(it) }
                     }
-                    switchItem(
+                    SaltSwitchRow(
                         checked = workspace?.shellCompatibilityMode ?: false,
                         onCheckedChange = onShellCompatibilityModeChange,
                         enabled = workspace != null,
-                        supportingContent = {
-                            Text(stringResource(R.string.workspace_detail_compatibility_mode_desc))
-                        },
-                        leadingContent = { CardGroupIcon(HugeIcons.Wrench01) },
-                        headlineContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode)) },
+                        headline = stringResource(R.string.workspace_detail_compatibility_mode),
+                        supporting = stringResource(R.string.workspace_detail_compatibility_mode_desc),
+                        icon = HugeIcons.Wrench01,
                     )
                 }
             }
@@ -534,35 +547,42 @@ private fun SshConnectionCard(
     onEdit: () -> Unit,
 ) {
     val settings = workspace.sshSettings()
-    CardGroup(title = { Text(stringResource(R.string.workspace_detail_ssh_connection)) }) {
-        item(
-            leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_address)) },
-            supportingContent = {
-                Text(settings?.let { "${it.username}@${it.host}:${it.port}" } ?: stringResource(R.string.workspace_detail_ssh_config_missing))
-            },
+    SaltGroup(title = stringResource(R.string.workspace_detail_ssh_connection)) {
+        SaltIconRow(
+            icon = HugeIcons.CloudServer,
+            headline = stringResource(R.string.workspace_detail_ssh_address),
+            supporting = settings?.let { "${it.username}@${it.host}:${it.port}" }
+                ?: stringResource(R.string.workspace_detail_ssh_config_missing),
         )
-        item(
-            leadingContent = { CardGroupIcon(HugeIcons.Folder01) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_remote_dir)) },
-            supportingContent = { Text(settings?.remoteDir ?: "-") },
+        SaltIconRow(
+            icon = HugeIcons.Folder01,
+            headline = stringResource(R.string.workspace_detail_ssh_remote_dir),
+            supporting = settings?.remoteDir ?: "-",
         )
-        item(
-            leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_host_key)) },
-            supportingContent = {
-                val hostKey = settings?.hostKey
-                Text(
-                    text = hostKey?.let { "${it.type}\n${it.fingerprint}" } ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
-                    fontFamily = if (hostKey != null) FontFamily.Monospace else null,
-                )
-            },
-        )
-        item(
+        // 指纹用等宽字体多行显示，SaltIconRow 只吃纯文本，这一行自己拼
+        ItemContainer {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SaltIconBadge(HugeIcons.FingerPrint)
+                Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = stringResource(R.string.workspace_detail_ssh_host_key))
+                    Spacer(Modifier.height(2.dp))
+                    val hostKey = settings?.hostKey
+                    Text(
+                        text = hostKey?.let { "${it.type}\n${it.fingerprint}" }
+                            ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
+                        color = SaltTheme.colors.subText,
+                        style = SaltTheme.textStyles.sub,
+                        fontFamily = if (hostKey != null) FontFamily.Monospace else null,
+                    )
+                }
+            }
+        }
+        SaltIconRow(
+            icon = HugeIcons.PencilEdit01,
+            headline = stringResource(R.string.workspace_detail_ssh_edit),
+            supporting = stringResource(R.string.workspace_detail_ssh_edit_desc),
             onClick = onEdit,
-            leadingContent = { CardGroupIcon(HugeIcons.PencilEdit01) },
-            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_edit)) },
-            supportingContent = { Text(stringResource(R.string.workspace_detail_ssh_edit_desc)) },
         )
     }
 }
@@ -605,38 +625,21 @@ private fun WorkspaceToolApprovalCard(
         fileWriteTools || toolName !in WorkspaceFileWriteToolNames
     }
 
-    CardGroup(
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.workspace_detail_tool_approval))
-                Text(
-                    text = stringResource(R.string.workspace_detail_tool_approval_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(R.string.workspace_detail_tool_approval_mode_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        ItemOuterTitle(text = stringResource(R.string.workspace_detail_tool_approval))
+        ItemOuterTip(text = stringResource(R.string.workspace_detail_tool_approval_desc))
+        ItemOuterTip(text = stringResource(R.string.workspace_detail_tool_approval_mode_hint))
+        RoundedColumn {
+            tools.forEach { (toolName, label, icon) ->
+                SaltSwitchRow(
+                    checked = resolveWorkspaceToolApproval(toolName, overrides),
+                    onCheckedChange = { onToolApprovalChange(toolName, it) },
+                    enabled = switchesEnabled,
+                    headline = label,
+                    supporting = toolName,
+                    icon = icon,
                 )
             }
-        },
-    ) {
-        tools.forEach { (toolName, label, icon) ->
-            switchItem(
-                checked = resolveWorkspaceToolApproval(toolName, overrides),
-                onCheckedChange = { onToolApprovalChange(toolName, it) },
-                enabled = switchesEnabled,
-                supportingContent = {
-                    Text(
-                        text = toolName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                leadingContent = { CardGroupIcon(icon) },
-                headlineContent = { Text(label) },
-            )
         }
     }
 }
@@ -835,7 +838,6 @@ private fun WorkspaceFilesPage(
                     entry = entry,
                     area = state.area,
                     copyPath = state.layout?.absolutePath(state.area, entry.path),
-                    shape = cardGroupItemShape(index, state.entries.size),
                     modifier = Modifier.padding(bottom = if (index == state.entries.lastIndex) 0.dp else 2.dp),
                     onResolveImage = { onResolveImage(entry, state.area) },
                     selecting = selecting,
@@ -995,7 +997,6 @@ private fun WorkspaceFileItem(
     area: WorkspaceStorageArea,
     // 复制出去的路径要能直接给 AI 工具和终端用，所以按执行环境内的绝对路径给
     copyPath: String?,
-    shape: Shape,
     onResolveImage: suspend () -> File?,
     selecting: Boolean,
     selected: Boolean,
@@ -1023,6 +1024,8 @@ private fun WorkspaceFileItem(
             }
         }
     }
+    // 原来按首尾/中间算分段圆角，现在统一用 Salt 的大圆角
+    val shape = MaterialTheme.shapes.large
     val containerColor by motionColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.secondaryContainer
@@ -1084,14 +1087,14 @@ private fun WorkspaceFileItem(
                     }
                 }
 
-                entry.isDirectory -> CardGroupIcon(
+                entry.isDirectory -> SaltIconBadge(
                     icon = HugeIcons.Folder01,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
                 // 选中时整行换成 secondaryContainer，图标底色跟着换一档，不然会融进背景
-                else -> CardGroupIcon(
+                else -> SaltIconBadge(
                     icon = HugeIcons.File02,
                     containerColor = if (selected) {
                         MaterialTheme.colorScheme.surfaceBright

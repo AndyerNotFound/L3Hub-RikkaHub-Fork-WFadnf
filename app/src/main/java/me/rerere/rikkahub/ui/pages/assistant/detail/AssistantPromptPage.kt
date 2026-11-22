@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,12 +23,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -43,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -56,6 +54,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -78,15 +79,13 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TextArea
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.Switch
@@ -156,60 +155,61 @@ private fun AssistantPromptContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
             .padding(innerPadding)
             .padding(bottom = 16.dp)
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        CardGroup {
-            formItem {
-                val systemPromptValue = rememberTextFieldState(
-                    initialText = assistant.systemPrompt,
-                )
-                LaunchedEffect(Unit) {
-                    snapshotFlow { systemPromptValue.text }.collect {
-                        onUpdate(
-                            assistant.copy(
-                                systemPrompt = it.toString()
-                            )
-                        )
-                    }
-                }
-
-                TextArea(
-                    state = systemPromptValue,
-                    label = stringResource(R.string.assistant_page_system_prompt),
-                    minLines = 5,
-                    maxLines = 10
-                )
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.assistant_page_available_variables),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        RoundedColumn {
+            ItemContainer {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val systemPromptValue = rememberTextFieldState(
+                        initialText = assistant.systemPrompt,
                     )
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    LaunchedEffect(Unit) {
+                        snapshotFlow { systemPromptValue.text }.collect {
+                            onUpdate(
+                                assistant.copy(
+                                    systemPrompt = it.toString()
+                                )
+                            )
+                        }
+                    }
+
+                    TextArea(
+                        state = systemPromptValue,
+                        label = stringResource(R.string.assistant_page_system_prompt),
+                        minLines = 5,
+                        maxLines = 10
+                    )
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        DefaultPlaceholderProvider.placeholders.forEach { (k, info) ->
-                            Tag(
-                                onClick = {
-                                    systemPromptValue.insertAtCursor("{{$k}}")
+                        Text(
+                            text = stringResource(R.string.assistant_page_available_variables),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            DefaultPlaceholderProvider.placeholders.forEach { (k, info) ->
+                                Tag(
+                                    onClick = {
+                                        systemPromptValue.insertAtCursor("{{$k}}")
+                                    }
+                                ) {
+                                    info.displayName()
+                                    Text(": {{$k}}")
                                 }
-                            ) {
-                                info.displayName()
-                                Text(": {{$k}}")
                             }
                         }
                     }
                 }
             }
-            switchItem(
+            SaltSwitchRow(
                 checked = assistant.allowConversationSystemPrompt,
                 onCheckedChange = {
                     onUpdate(
@@ -218,141 +218,146 @@ private fun AssistantPromptContent(
                         )
                     )
                 },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_system_prompt_desc))
-                },
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_system_prompt))
-                },
+                headline = stringResource(R.string.assistant_page_allow_conversation_system_prompt),
+                supporting = stringResource(R.string.assistant_page_allow_conversation_system_prompt_desc),
             )
         }
 
-        CardGroup {
-            formItem(
-                headlineContent = { Text(stringResource(R.string.assistant_page_message_template)) },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_message_template_desc))
-                    Text(buildAnnotatedString {
-                        append(stringResource(R.string.assistant_page_template_variables_label))
-                        append(" ")
-                        append(stringResource(R.string.assistant_page_template_variable_role))
-                        append(": ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                            append("{{ role }}")
+        RoundedColumn {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = stringResource(R.string.assistant_page_message_template))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.assistant_page_message_template_desc),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                            Text(buildAnnotatedString {
+                                append(stringResource(R.string.assistant_page_template_variables_label))
+                                append(" ")
+                                append(stringResource(R.string.assistant_page_template_variable_role))
+                                append(": ")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                    append("{{ role }}")
+                                }
+                                append(", ")
+                                append(stringResource(R.string.assistant_page_template_variable_message))
+                                append(": ")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                    append("{{ message }}")
+                                }
+                                append(", ")
+                                append(stringResource(R.string.assistant_page_template_variable_time))
+                                append(": ")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                    append("{{ time }}")
+                                }
+                                append(", ")
+                                append(stringResource(R.string.assistant_page_template_variable_date))
+                                append(": ")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                    append("{{ date }}")
+                                }
+                            }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
                         }
-                        append(", ")
-                        append(stringResource(R.string.assistant_page_template_variable_message))
-                        append(": ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                            append("{{ message }}")
+                        IconButton(
+                            onClick = {
+                                onUpdate(assistant.copy(messageTemplate = "{{ message }}"))
+                            },
+                            enabled = assistant.messageTemplate != "{{ message }}",
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Refresh03,
+                                contentDescription = null,
+                            )
                         }
-                        append(", ")
-                        append(stringResource(R.string.assistant_page_template_variable_time))
-                        append(": ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                            append("{{ time }}")
-                        }
-                        append(", ")
-                        append(stringResource(R.string.assistant_page_template_variable_date))
-                        append(": ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                            append("{{ date }}")
-                        }
-                    })
-                },
-                trailingContent = {
-                    IconButton(
-                        onClick = {
-                            onUpdate(assistant.copy(messageTemplate = "{{ message }}"))
-                        },
-                        enabled = assistant.messageTemplate != "{{ message }}",
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Refresh03,
-                            contentDescription = null,
-                        )
                     }
-                },
-            ) {
-                val missingMessage = "{{ message }}" !in assistant.messageTemplate
-                OutlinedTextField(
-                    value = assistant.messageTemplate,
-                    onValueChange = {
-                        onUpdate(
-                            assistant.copy(
-                                messageTemplate = it
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val missingMessage = "{{ message }}" !in assistant.messageTemplate
+                        OutlinedTextField(
+                            value = assistant.messageTemplate,
+                            onValueChange = {
+                                onUpdate(
+                                    assistant.copy(
+                                        messageTemplate = it
+                                    )
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 5,
+                            maxLines = 15,
+                            isError = missingMessage,
+                            supportingText = if (missingMessage) {
+                                { Text(stringResource(R.string.assistant_page_message_template_missing_message)) }
+                            } else null,
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 12.sp,
+                                fontFamily = JetbrainsMono,
+                                lineHeight = 16.sp
                             )
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 5,
-                    maxLines = 15,
-                    isError = missingMessage,
-                    supportingText = if (missingMessage) {
-                        { Text(stringResource(R.string.assistant_page_message_template_missing_message)) }
-                    } else null,
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 12.sp,
-                        fontFamily = JetbrainsMono,
-                        lineHeight = 16.sp
-                    )
-                )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.large)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.assistant_page_template_preview),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val rawMessages = listOf(
-                        UIMessage.user("你好啊"),
-                        UIMessage.assistant("你好，有什么我可以帮你的吗？"),
-                    )
-                    val preview by produceState<UiState<List<UIMessage>>>(
-                        UiState.Success(rawMessages),
-                        assistant
-                    ) {
-                        value = runCatching {
-                            UiState.Success(
-                                templateTransformer.transform(
-                                    ctx = TransformerContext(
-                                        context = context,
-                                        model = Model(modelId = "gpt-4o", displayName = "GPT-4o"),
-                                        assistant = assistant,
-                                        settings = settings
-                                    ),
-                                    messages = rawMessages
-                                )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.large)
+                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.assistant_page_template_preview),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }.getOrElse {
-                            UiState.Error(it)
-                        }
-                    }
-                    preview.onError {
-                        Text(
-                            text = it.message ?: it.javaClass.name,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    preview.onSuccess {
-                        ChatFontProvider(displaySetting = settings.displaySetting) {
-                            it.fastForEach { message ->
-                                ChatMessage(
-                                    node = message.toMessageNode(),
-                                    onFork = {},
-                                    onRegenerate = {},
-                                    onEdit = {},
-                                    onShare = {},
-                                    onDelete = {},
-                                    onUpdate = {},
-                                    lastMessage = false,
+                            val rawMessages = listOf(
+                                UIMessage.user("你好啊"),
+                                UIMessage.assistant("你好，有什么我可以帮你的吗？"),
+                            )
+                            val preview by produceState<UiState<List<UIMessage>>>(
+                                UiState.Success(rawMessages),
+                                assistant
+                            ) {
+                                value = runCatching {
+                                    UiState.Success(
+                                        templateTransformer.transform(
+                                            ctx = TransformerContext(
+                                                context = context,
+                                                model = Model(modelId = "gpt-4o", displayName = "GPT-4o"),
+                                                assistant = assistant,
+                                                settings = settings
+                                            ),
+                                            messages = rawMessages
+                                        )
+                                    )
+                                }.getOrElse {
+                                    UiState.Error(it)
+                                }
+                            }
+                            preview.onError {
+                                Text(
+                                    text = it.message ?: it.javaClass.name,
+                                    color = MaterialTheme.colorScheme.error
                                 )
+                            }
+                            preview.onSuccess {
+                                ChatFontProvider(displaySetting = settings.displaySetting) {
+                                    it.fastForEach { message ->
+                                        ChatMessage(
+                                            node = message.toMessageNode(),
+                                            onFork = {},
+                                            onRegenerate = {},
+                                            onEdit = {},
+                                            onShare = {},
+                                            onDelete = {},
+                                            onUpdate = {},
+                                            lastMessage = false,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -384,23 +389,56 @@ private fun AssistantPromptContent(
                 )
             },
         )
-        CardGroup {
+        RoundedColumn {
             assistant.presetMessages.fastForEachIndexed { index, presetMessage ->
-                formItem {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Select(
-                            options = listOf(MessageRole.USER, MessageRole.ASSISTANT),
-                            selectedOption = presetMessage.role,
-                            onOptionSelected = { role ->
+                ItemContainer {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Select(
+                                options = listOf(MessageRole.USER, MessageRole.ASSISTANT),
+                                selectedOption = presetMessage.role,
+                                onOptionSelected = { role ->
+                                    onUpdate(
+                                        assistant.copy(
+                                            presetMessages = assistant.presetMessages.mapIndexed { i, msg ->
+                                                if (i == index) {
+                                                    msg.copy(role = role)
+                                                } else {
+                                                    msg
+                                                }
+                                            }
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.width(180.dp)
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            IconButton(
+                                onClick = {
+                                    onUpdate(
+                                        assistant.copy(
+                                            presetMessages = assistant.presetMessages.filterIndexed { i, _ ->
+                                                i != index
+                                            }
+                                        )
+                                    )
+                                }
+                            ) {
+                                Icon(HugeIcons.Cancel01, stringResource(R.string.delete))
+                            }
+                        }
+                        OutlinedTextField(
+                            value = presetMessage.toText(),
+                            onValueChange = { text ->
                                 onUpdate(
                                     assistant.copy(
                                         presetMessages = assistant.presetMessages.mapIndexed { i, msg ->
                                             if (i == index) {
-                                                msg.copy(role = role)
+                                                msg.copy(parts = listOf(UIMessagePart.Text(text)))
                                             } else {
                                                 msg
                                             }
@@ -408,41 +446,10 @@ private fun AssistantPromptContent(
                                     )
                                 )
                             },
-                            modifier = Modifier.width(180.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 6
                         )
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(
-                            onClick = {
-                                onUpdate(
-                                    assistant.copy(
-                                        presetMessages = assistant.presetMessages.filterIndexed { i, _ ->
-                                            i != index
-                                        }
-                                    )
-                                )
-                            }
-                        ) {
-                            Icon(HugeIcons.Cancel01, stringResource(R.string.delete))
-                        }
                     }
-                    OutlinedTextField(
-                        value = presetMessage.toText(),
-                        onValueChange = { text ->
-                            onUpdate(
-                                assistant.copy(
-                                    presetMessages = assistant.presetMessages.mapIndexed { i, msg ->
-                                        if (i == index) {
-                                            msg.copy(parts = listOf(UIMessagePart.Text(text)))
-                                        } else {
-                                            msg
-                                        }
-                                    }
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 6
-                    )
                 }
             }
         }
@@ -465,37 +472,37 @@ private fun AssistantPromptContent(
             },
         )
         var expandedIds by remember { mutableStateOf(emptySet<Uuid>()) }
-        ReorderableColumn(
-            list = assistant.regexes,
-            onSettle = { fromIndex, toIndex ->
-                val regexes = assistant.regexes.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
-                }
-                onUpdate(assistant.copy(regexes = regexes))
-            },
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-        ) { index, regex, isDragging ->
-            key(regex.id) {
-                ReorderableItem(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val expanded = regex.id in expandedIds
-                    AssistantRegexCard(
-                        regex = regex,
-                        onUpdate = onUpdate,
-                        assistant = assistant,
-                        index = index,
-                        shape = cardGroupItemShape(index, assistant.regexes.size),
-                        expanded = expanded,
-                        onExpandedChange = {
-                            expandedIds = if (it) expandedIds + regex.id else expandedIds - regex.id
-                        },
-                        // 展开后内部是输入框，长按拖拽会与文本选择冲突
-                        modifier = longPressReorder(
-                            isDragging = isDragging,
-                            enabled = !expanded && assistant.regexes.size > 1,
-                        ),
-                    )
+        RoundedColumn {
+            ReorderableColumn(
+                list = assistant.regexes,
+                onSettle = { fromIndex, toIndex ->
+                    val regexes = assistant.regexes.toMutableList().apply {
+                        add(toIndex, removeAt(fromIndex))
+                    }
+                    onUpdate(assistant.copy(regexes = regexes))
+                },
+            ) { index, regex, isDragging ->
+                key(regex.id) {
+                    ReorderableItem(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val expanded = regex.id in expandedIds
+                        AssistantRegexCard(
+                            regex = regex,
+                            onUpdate = onUpdate,
+                            assistant = assistant,
+                            index = index,
+                            expanded = expanded,
+                            onExpandedChange = {
+                                expandedIds = if (it) expandedIds + regex.id else expandedIds - regex.id
+                            },
+                            // 展开后内部是输入框，长按拖拽会与文本选择冲突
+                            modifier = longPressReorder(
+                                isDragging = isDragging,
+                                enabled = !expanded && assistant.regexes.size > 1,
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -508,20 +515,15 @@ private fun AssistantRegexCard(
     onUpdate: (Assistant) -> Unit,
     assistant: Assistant,
     index: Int,
-    shape: Shape,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = shape,
-        color = CustomColors.listItemColors.containerColor,
-    ) {
+    ItemContainer(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .padding(vertical = 8.dp)
                 .motionContentSize()
                 .motionBlurOnToggle(expanded),
             verticalArrangement = Arrangement.spacedBy(12.dp)

@@ -46,6 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Alert01
@@ -65,10 +67,10 @@ import me.rerere.rikkahub.data.skills.SkillValidationException
 import me.rerere.rikkahub.data.skills.SkillValidator
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -335,33 +337,36 @@ private fun InvalidSkillDirsGroup(
     dirs: List<InvalidSkillDir>,
     onDelete: (InvalidSkillDir) -> Unit,
 ) {
-    CardGroup(title = { Text(stringResource(R.string.skills_page_invalid_dirs_title)) }) {
-        dirs.forEach { dir ->
-            item(
-                leadingContent = {
-                    CardGroupIcon(
-                        icon = HugeIcons.Alert01,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                },
-                headlineContent = {
-                    Text(dir.dirName, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-                supportingContent = { Text(invalidSkillReasonText(dir.reason)) },
-                trailingContent = {
-                    ItemActionMenu(
-                        actions = listOf(
-                            ItemAction(
-                                text = stringResource(R.string.delete),
-                                icon = HugeIcons.Delete01,
-                                destructive = true,
-                                onClick = { onDelete(dir) },
-                            ),
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 外层列表已有 16dp 横向边距，标题跟卡片内的文字对齐
+        Text(
+            text = stringResource(R.string.skills_page_invalid_dirs_title),
+            color = SaltTheme.colors.subText,
+            style = SaltTheme.textStyles.sub,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
+        )
+        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+            dirs.forEach { dir ->
+                SaltIconRow(
+                    icon = HugeIcons.Alert01,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    headline = dir.dirName,
+                    supporting = invalidSkillReasonText(dir.reason),
+                    trailing = {
+                        ItemActionMenu(
+                            actions = listOf(
+                                ItemAction(
+                                    text = stringResource(R.string.delete),
+                                    icon = HugeIcons.Delete01,
+                                    destructive = true,
+                                    onClick = { onDelete(dir) },
+                                ),
+                            )
                         )
-                    )
-                },
-            )
+                    },
+                )
+            }
         }
     }
 }
@@ -385,7 +390,7 @@ private fun SkillCard(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = if (skill.builtin) 16.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CardGroupIcon(HugeIcons.Puzzle)
+            SaltIconBadge(HugeIcons.Puzzle)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -462,21 +467,22 @@ private fun SkillImportSheet(
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
-            CardGroup {
-                item(
+            // 外层已有 16dp 横向边距（标题也在里面），RoundedColumn 不再补，否则叠成 32dp
+            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+                SaltIconRow(
+                    icon = HugeIcons.Add01,
+                    headline = stringResource(R.string.skills_page_add_manually),
                     onClick = onAddManually,
-                    headlineContent = { Text(stringResource(R.string.skills_page_add_manually)) },
-                    leadingContent = { CardGroupIcon(HugeIcons.Add01) },
                 )
-                item(
+                SaltIconRow(
+                    icon = HugeIcons.FileImport,
+                    headline = stringResource(R.string.skills_page_import_from_file),
                     onClick = onImportFromFile,
-                    headlineContent = { Text(stringResource(R.string.skills_page_import_from_file)) },
-                    leadingContent = { CardGroupIcon(HugeIcons.FileImport) },
                 )
-                item(
+                SaltIconRow(
+                    icon = HugeIcons.Download01,
+                    headline = stringResource(R.string.skills_page_import_from_github),
                     onClick = onImportFromGitHub,
-                    headlineContent = { Text(stringResource(R.string.skills_page_import_from_github)) },
-                    leadingContent = { CardGroupIcon(HugeIcons.Download01) },
                 )
             }
         }

@@ -58,7 +58,7 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderOpen
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -244,7 +244,7 @@ private fun FileItem(
             .padding(start = 16.dp + TreeIndent * depth, end = if (deletable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CardGroupIcon(HugeIcons.File02)
+        SaltIconBadge(HugeIcons.File02)
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -302,7 +302,7 @@ private fun DirItem(
                 .padding(start = 16.dp + TreeIndent * depth, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CardGroupIcon(
+            SaltIconBadge(
                 icon = if (expanded) HugeIcons.FolderOpen else HugeIcons.Folder01,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,

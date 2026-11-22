@@ -71,6 +71,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.Item
+import com.moriafly.salt.ui.RoundedColumn
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import me.rerere.ai.provider.Model
@@ -101,12 +104,10 @@ import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
-import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
@@ -124,6 +125,8 @@ import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
+import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.SaltModalSheet
@@ -132,7 +135,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import kotlin.uuid.Uuid
 
 private enum class ProviderDetailTab(
     override val icon: ImageVector,
@@ -504,8 +506,8 @@ private fun SettingProviderConfigPage(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 128.dp),
+                // 底部留出悬浮工具栏的位置；横向内距交给 Salt 的 RoundedColumn（自带 16dp）
+                .padding(top = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ProviderConfigure(
@@ -521,25 +523,21 @@ private fun SettingProviderConfigPage(
                 },
             )
 
-            CardGroup {
-                item(
+            RoundedColumn {
+                Item(
                     onClick = { showGroupDialog = true },
-                    headlineContent = { Text(stringResource(R.string.setting_provider_group_title)) },
-                    supportingContent = {
-                        Text(group ?: stringResource(R.string.setting_provider_group_none))
-                    },
+                    text = stringResource(R.string.setting_provider_group_title),
+                    sub = group ?: stringResource(R.string.setting_provider_group_none),
                 )
-                item(
+                Item(
                     onClick = {
                         proxyInput = proxyUrl.orEmpty()
                         proxyUsername = proxyHost?.let { settings.providerProxyUsernames[it] }.orEmpty()
                         proxyPassword = proxyHost?.let { settings.providerProxyPasswords[it] }.orEmpty()
                         showProxyDialog = true
                     },
-                    headlineContent = { Text(stringResource(R.string.setting_provider_proxy_title)) },
-                    supportingContent = {
-                        Text(proxyUrl ?: stringResource(R.string.setting_provider_proxy_desc_short))
-                    },
+                    text = stringResource(R.string.setting_provider_proxy_title),
+                    sub = proxyUrl ?: stringResource(R.string.setting_provider_proxy_desc_short),
                 )
             }
 
@@ -1058,7 +1056,19 @@ private fun ModelPicker(
                             ) {
                                 itemsIndexed(filteredModels) { index, it ->
                                     Surface(
-                                        shape = cardGroupItemShape(index, filteredModels.size),
+                                        // 分组圆角：首尾项的外角大、中间项的内角小，跟随全局圆角缩放
+                                        shape = adaptiveStyledShape(
+                                            topRadius = if (index == 0) {
+                                                adaptiveCornerRadius(20.dp)
+                                            } else {
+                                                adaptiveCornerRadius(4.dp)
+                                            },
+                                            bottomRadius = if (index == filteredModels.lastIndex) {
+                                                adaptiveCornerRadius(20.dp)
+                                            } else {
+                                                adaptiveCornerRadius(4.dp)
+                                            },
+                                        ),
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     ) {
                                         Row(

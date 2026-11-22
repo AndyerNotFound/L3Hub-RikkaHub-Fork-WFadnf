@@ -31,11 +31,11 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.RestoreOptions
 import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.sync.importer.DeepSeekImportResult
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BACKUP_FORMAT_FULL
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
-import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
+import me.rerere.rikkahub.ui.pages.backup.components.BackupActionRow
 import me.rerere.rikkahub.ui.pages.backup.components.RestoreOptionsDialog
 import me.rerere.rikkahub.ui.pages.backup.components.backupContentItem
 import me.rerere.rikkahub.ui.pages.backup.components.restoreSkippedMessage
@@ -302,11 +302,12 @@ fun ImportExportTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CardGroup(
-            title = { Text(stringResource(R.string.backup_page_local_backup_export)) },
+        SaltGroup(
+            title = stringResource(R.string.backup_page_local_backup_export),
         ) {
             backupContentItem(
                 options = WebDavConfig.BackupItem.entries,
@@ -318,7 +319,15 @@ fun ImportExportTab(
                     WebDavConfig.BackupItem.FILES -> stringResource(R.string.backup_page_files)
                 }
             }
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileExport,
+                loading = isExporting,
+                headline = stringResource(R.string.backup_page_local_backup_export),
+                supporting = if (isExporting) {
+                    stringResource(R.string.backup_page_exporting)
+                } else {
+                    stringResource(R.string.backup_page_export_desc)
+                },
                 onClick = if (!isExporting) {
                     {
                         val timestamp = LocalDateTime.now()
@@ -327,41 +336,29 @@ fun ImportExportTab(
                         createDocumentLauncher.launch("rikkahub_backup_$timestamp.$extension")
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_local_backup_export)) },
-                supportingContent = {
-                    Text(
-                        if (isExporting) {
-                            stringResource(R.string.backup_page_exporting)
-                        } else {
-                            stringResource(R.string.backup_page_export_desc)
-                        }
-                    )
-                },
-                leadingContent = { BackupActionIcon(HugeIcons.FileExport, loading = isExporting) },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "local",
+                headline = stringResource(R.string.backup_page_local_backup_import),
+                supporting = if (isRestoring && importType == "local") {
+                    stringResource(R.string.backup_page_importing)
+                } else {
+                    stringResource(R.string.backup_page_import_desc)
+                },
                 onClick = if (!isRestoring) {
                     {
                         showRestoreOptions = true
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_local_backup_import)) },
-                supportingContent = {
-                    Text(
-                        if (isRestoring && importType == "local") {
-                            stringResource(R.string.backup_page_importing)
-                        } else {
-                            stringResource(R.string.backup_page_import_desc)
-                        }
-                    )
-                },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "local")
-                },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileExport,
+                loading = isExporting,
+                headline = stringResource(R.string.backup_page_upstream_export),
+                supporting = stringResource(R.string.backup_page_upstream_export_desc),
                 onClick = if (!isExporting) {
                     {
                         val timestamp = LocalDateTime.now()
@@ -369,16 +366,22 @@ fun ImportExportTab(
                         upstreamCompatLauncher.launch("rikkahub_upstream_$timestamp.zip")
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_upstream_export)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_upstream_export_desc)) },
-                leadingContent = { BackupActionIcon(HugeIcons.FileExport, loading = isExporting) },
             )
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.backup_page_format)) },
+        SaltGroup(
+            title = stringResource(R.string.backup_page_format),
         ) {
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileExport,
+                headline = stringResource(
+                    if (incremental) R.string.backup_page_format_incremental
+                    else R.string.backup_page_format_full
+                ),
+                supporting = stringResource(
+                    if (incremental) R.string.backup_page_format_incremental_desc
+                    else R.string.backup_page_format_full_desc
+                ),
                 onClick = {
                     vm.updateSettings {
                         it.copy(
@@ -386,99 +389,75 @@ fun ImportExportTab(
                         )
                     }
                 },
-                headlineContent = {
-                    Text(
-                        stringResource(
-                            if (incremental) R.string.backup_page_format_incremental
-                            else R.string.backup_page_format_full
-                        )
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        stringResource(
-                            if (incremental) R.string.backup_page_format_incremental_desc
-                            else R.string.backup_page_format_full_desc
-                        )
-                    )
-                },
-                leadingContent = { BackupActionIcon(HugeIcons.FileExport) },
             )
         }
 
-        CardGroup(
-            title = { Text(stringResource(R.string.backup_page_import_from_other_app)) },
+        SaltGroup(
+            title = stringResource(R.string.backup_page_import_from_other_app),
         ) {
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "markdown",
+                headline = stringResource(R.string.backup_page_import_from_markdown),
+                supporting = stringResource(R.string.backup_page_import_markdown_desc),
                 onClick = if (!isRestoring) {
                     {
                         importType = "markdown"
                         openDocumentLauncher.launch(arrayOf("*/*"))
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_import_from_markdown)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_import_markdown_desc)) },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "markdown")
-                },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "xml",
+                headline = stringResource(R.string.backup_page_import_from_xml),
+                supporting = stringResource(R.string.backup_page_import_xml_desc),
                 onClick = if (!isRestoring) {
                     {
                         importType = "xml"
                         openDocumentLauncher.launch(arrayOf("*/*"))
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_import_from_xml)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_import_xml_desc)) },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "xml")
-                },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "deepseek",
+                headline = stringResource(R.string.backup_page_import_from_deepseek),
+                supporting = stringResource(R.string.backup_page_import_deepseek_desc),
                 onClick = if (!isRestoring) {
                     {
                         importType = "deepseek"
                         openDocumentLauncher.launch(arrayOf("application/zip"))
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_import_from_deepseek)) },
-                supportingContent = {
-                    Text(stringResource(R.string.backup_page_import_deepseek_desc))
-                },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "deepseek")
-                },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "chatbox",
+                headline = stringResource(R.string.backup_page_import_from_chatbox),
+                supporting = stringResource(R.string.backup_page_import_chatbox_desc),
                 onClick = if (!isRestoring) {
                     {
                         importType = "chatbox"
                         openDocumentLauncher.launch(arrayOf("application/zip"))
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_import_from_chatbox)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_import_chatbox_desc)) },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "chatbox")
-                },
             )
 
-            item(
+            BackupActionRow(
+                icon = HugeIcons.FileImport,
+                loading = isRestoring && importType == "cherry",
+                headline = stringResource(R.string.backup_page_import_from_cherry_studio),
+                supporting = stringResource(R.string.backup_page_import_cherry_studio_desc),
                 onClick = if (!isRestoring) {
                     {
                         importType = "cherry"
                         openDocumentLauncher.launch(arrayOf("application/zip"))
                     }
                 } else null,
-                headlineContent = { Text(stringResource(R.string.backup_page_import_from_cherry_studio)) },
-                supportingContent = { Text(stringResource(R.string.backup_page_import_cherry_studio_desc)) },
-                leadingContent = {
-                    BackupActionIcon(HugeIcons.FileImport, loading = isRestoring && importType == "cherry")
-                },
             )
         }
     }

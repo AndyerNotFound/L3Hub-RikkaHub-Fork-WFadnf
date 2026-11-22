@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,9 +34,9 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.ui.components.SaltModalSheet
 
 @Composable
@@ -181,13 +182,14 @@ internal fun TerminalWorkspacePickerSheet(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
-            CardGroup {
+            // 外层已有 16dp 横向边距（标题和分组共用），RoundedColumn 不再补，否则叠成 32dp
+            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
                 workspaces.forEach { workspace ->
-                    item(
+                    SaltIconRow(
+                        icon = HugeIcons.ComputerTerminal01,
+                        headline = workspace.name,
+                        supporting = workspace.workspaceDir(),
                         onClick = { onSelect(workspace.id) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
-                        supportingContent = { Text(workspace.workspaceDir()) },
-                        headlineContent = { Text(workspace.name) },
                     )
                 }
             }

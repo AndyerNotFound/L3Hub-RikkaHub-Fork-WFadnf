@@ -2,24 +2,33 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock01
@@ -30,10 +39,8 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
@@ -82,93 +89,121 @@ fun AssistantHeartbeatPage(id: String) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(12.dp),
+                .padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CardGroup {
-                switchItem(
+            RoundedColumn {
+                SaltSwitchRow(
                     checked = heartbeat.enabled,
                     onCheckedChange = { enabled -> update { it.copy(enabled = enabled) } },
-                    headlineContent = { Text(stringResource(R.string.heartbeat_page_enable_title)) },
-                    supportingContent = { Text(stringResource(R.string.heartbeat_page_enable_desc)) },
+                    headline = stringResource(R.string.heartbeat_page_enable_title),
+                    supporting = stringResource(R.string.heartbeat_page_enable_desc),
                 )
             }
 
-            CardGroup {
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.heartbeat_page_interval_title)) },
-                    supportingContent = { Text(stringResource(R.string.heartbeat_page_interval_desc)) },
-                    trailingContent = {
-                        CardGroupValue(text = "${heartbeat.intervalMinutes} min")
-                    },
-                ) {
-                    NumberSlider(
-                        value = heartbeat.intervalMinutes,
-                        onValueChange = { value ->
-                            update { it.copy(intervalMinutes = value) }
-                        },
-                        valueRange = 5..720,
-                        suffix = "min",
-                    )
-                }
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.heartbeat_page_hours_title)) },
-                    supportingContent = { Text(stringResource(R.string.heartbeat_page_hours_desc)) },
-                    trailingContent = {
-                        CardGroupValue(
-                            text = "%02d:00 - %02d:00".format(heartbeat.startHour, heartbeat.endHour)
+            RoundedColumn {
+                ItemContainer {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.heartbeat_page_interval_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.heartbeat_page_interval_desc),
+                                    color = SaltTheme.colors.subText,
+                                    style = SaltTheme.textStyles.sub,
+                                )
+                            }
+                            ValuePill(text = "${heartbeat.intervalMinutes} min")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        NumberSlider(
+                            value = heartbeat.intervalMinutes,
+                            onValueChange = { value ->
+                                update { it.copy(intervalMinutes = value) }
+                            },
+                            valueRange = 5..720,
+                            suffix = "min",
                         )
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.heartbeat_page_hours_start),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AppSlider(
-                        value = heartbeat.startHour.toFloat(),
-                        onValueChange = { value ->
-                            update { it.copy(startHour = value.roundToInt().coerceIn(0, 23)) }
-                        },
-                        valueRange = 0f..23f,
-                        steps = 22,
-                    )
-                    Text(
-                        text = stringResource(R.string.heartbeat_page_hours_end),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AppSlider(
-                        value = heartbeat.endHour.toFloat(),
-                        onValueChange = { value ->
-                            update { it.copy(endHour = value.roundToInt().coerceIn(0, 23)) }
-                        },
-                        valueRange = 0f..23f,
-                        steps = 22,
-                    )
+                    }
+                }
+                ItemContainer {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.heartbeat_page_hours_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.heartbeat_page_hours_desc),
+                                    color = SaltTheme.colors.subText,
+                                    style = SaltTheme.textStyles.sub,
+                                )
+                            }
+                            ValuePill(text = "%02d:00 - %02d:00".format(heartbeat.startHour, heartbeat.endHour))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = stringResource(R.string.heartbeat_page_hours_start),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AppSlider(
+                                value = heartbeat.startHour.toFloat(),
+                                onValueChange = { value ->
+                                    update { it.copy(startHour = value.roundToInt().coerceIn(0, 23)) }
+                                },
+                                valueRange = 0f..23f,
+                                steps = 22,
+                            )
+                            Text(
+                                text = stringResource(R.string.heartbeat_page_hours_end),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AppSlider(
+                                value = heartbeat.endHour.toFloat(),
+                                onValueChange = { value ->
+                                    update { it.copy(endHour = value.roundToInt().coerceIn(0, 23)) }
+                                },
+                                valueRange = 0f..23f,
+                                steps = 22,
+                            )
+                        }
+                    }
                 }
             }
 
-            CardGroup {
-                formItem(
-                    headlineContent = { Text(stringResource(R.string.heartbeat_page_prompt_title)) },
-                    supportingContent = { Text(stringResource(R.string.heartbeat_page_prompt_desc)) },
-                ) {
-                    OutlinedTextField(
-                        value = heartbeat.prompt,
-                        onValueChange = { text -> update { it.copy(prompt = text) } },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.heartbeat_page_prompt_placeholder)) },
-                        minLines = 2,
-                        maxLines = 6,
-                    )
+            RoundedColumn {
+                ItemContainer {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.heartbeat_page_prompt_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.heartbeat_page_prompt_desc),
+                                    color = SaltTheme.colors.subText,
+                                    style = SaltTheme.textStyles.sub,
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = heartbeat.prompt,
+                            onValueChange = { text -> update { it.copy(prompt = text) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(stringResource(R.string.heartbeat_page_prompt_placeholder)) },
+                            minLines = 2,
+                            maxLines = 6,
+                        )
+                    }
                 }
             }
 
-            // 颜色要在 CardGroup 外面读：它的 content 不是 @Composable 作用域
             val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
             val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-            CardGroup {
+            RoundedColumn {
                 modelSettingItem(
                     icon = HugeIcons.Clock01,
                     title = R.string.heartbeat_page_model_title,
@@ -189,4 +224,21 @@ fun AssistantHeartbeatPage(id: String) {
             update { it.copy(modelId = model.id) }
         },
     )
+}
+
+// 标题行右侧的取值小标签，保持旧版胶囊观感；等宽数字，拖动滑块时宽度不跳
+@Composable
+private fun ValuePill(text: String) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
+    }
 }

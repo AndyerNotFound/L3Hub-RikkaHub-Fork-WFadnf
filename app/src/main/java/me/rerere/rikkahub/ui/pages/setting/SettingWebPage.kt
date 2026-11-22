@@ -2,10 +2,16 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Intent
 import android.os.Build
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -41,6 +48,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.Item
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Play
@@ -53,12 +64,11 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ssh.SshServerManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
@@ -229,15 +239,23 @@ fun SettingWebPage() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                CardGroup(
+                RoundedColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
                 ) {
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_port)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_port_desc)) },
-                        trailingContent = {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_web_server_port))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_page_web_server_port_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             TextField(
                                 value = portText,
                                 onValueChange = { value ->
@@ -262,12 +280,20 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_localhost_only)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_localhost_only_desc)) },
-                        trailingContent = {
+                        }
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             Switch(
                                 checked = settings.webServerLocalhostOnly,
                                 onCheckedChange = { checked ->
@@ -277,15 +303,23 @@ fun SettingWebPage() {
                                         }
                                     }
                                 },
-                                // 运行中不允许切换 需重启服务生效
+
                                 enabled = !serverState.isRunning,
                             )
-                        },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable_desc)) },
-                        trailingContent = {
+                        }
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             Switch(
                                 checked = settings.webServerJwtEnabled,
                                 onCheckedChange = { checked ->
@@ -297,12 +331,20 @@ fun SettingWebPage() {
                                 },
                                 enabled = settings.webServerJwtEnabled || accessPasswordText.isNotBlank(),
                             )
-                        },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_password)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_password_desc)) },
-                        trailingContent = {
+                        }
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_web_server_password))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_page_web_server_password_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             TextField(
                                 value = accessPasswordText,
                                 onValueChange = { value ->
@@ -341,88 +383,126 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        },
-                    )
+                        }
+                    }
                     // 三个地址项始终注册，靠 visible 收放；端口和地址先算好，条件里不再取值
                     val port = serverState.port
                     val lanUrl = "http://${serverState.address ?: "localhost"}:$port"
                     val mdnsUrl = serverState.hostname?.let { "http://$it:$port" }
                     val localUrl = "http://localhost:$port"
-                    item(
-                        visible = serverState.isRunning && !serverState.localhostOnly,
-                        onClick = { copyUrl(lanUrl) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_lan_address)) },
-                        supportingContent = { Text(lanUrl) },
-                    )
-                    item(
-                        visible = serverState.isRunning && !serverState.localhostOnly && mdnsUrl != null,
-                        onClick = mdnsUrl?.let { url -> { copyUrl(url) } },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_mdns_address)) },
-                        supportingContent = mdnsUrl?.let { url -> { Text(url) } },
-                    )
-                    item(
-                        visible = serverState.isRunning,
-                        onClick = { copyUrl(localUrl) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_local_address)) },
-                        supportingContent = { Text(localUrl) },
-                    )
-                    item(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_web_server_address_note),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_web_server_address_note_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                    item(
-                        visible = serverState.error != null,
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_web_server_error),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = serverState.error ?: "",
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                    )
+                    if (serverState.isRunning && !serverState.localhostOnly) {
+                        Item(
+                            onClick = { copyUrl(lanUrl) },
+                            text = stringResource(R.string.setting_page_web_server_lan_address),
+                            sub = lanUrl,
+                        )
+                    }
+                    if (serverState.isRunning && !serverState.localhostOnly && mdnsUrl != null) {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .clickable(onClick = { mdnsUrl?.let { copyUrl(it) } }),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_page_web_server_mdns_address))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    mdnsUrl?.let { url ->
+                                        Text(
+                                            text = url,
+                                            color = SaltTheme.colors.subText,
+                                            style = SaltTheme.textStyles.sub,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (serverState.isRunning) {
+                        Item(
+                            onClick = { copyUrl(localUrl) },
+                            text = stringResource(R.string.setting_page_web_server_local_address),
+                            sub = localUrl,
+                        )
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.setting_page_web_server_address_note),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.setting_page_web_server_address_note_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    if (serverState.error != null) {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.setting_page_web_server_error),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = serverState.error ?: "",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             item {
-                CardGroup(
+                RoundedColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
                 ) {
-                    item(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_ssh_title),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_ssh_title_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                    switchItem(
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.setting_page_ssh_title),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.setting_page_ssh_title_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    SaltSwitchRow(
                         checked = settings.sshServerEnabled,
                         onCheckedChange = { checked ->
                             when {
@@ -450,13 +530,21 @@ fun SettingWebPage() {
                                 }
                             }
                         },
-                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_enable)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_enable_desc)) },
+                        headline = stringResource(R.string.setting_page_ssh_enable),
+                        supporting = stringResource(R.string.setting_page_ssh_enable_desc),
                     )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_port)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_port_desc)) },
-                        trailingContent = {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_ssh_port))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_page_ssh_port_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             TextField(
                                 value = sshPortText,
                                 onValueChange = { value ->
@@ -481,78 +569,95 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        },
-                    )
-                    switchItem(
+                        }
+                    }
+                    SaltSwitchRow(
                         checked = settings.sshServerAllowLan,
                         onCheckedChange = { checked ->
                             scope.launch {
                                 settingsStore.update { it.copy(sshServerAllowLan = checked) }
                             }
                         },
+                        headline = stringResource(R.string.setting_page_ssh_allow_lan),
+                        supporting = stringResource(R.string.setting_page_ssh_allow_lan_desc),
                         enabled = !sshRunning,
-                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_allow_lan)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_allow_lan_desc)) },
                     )
-                    item(
-                        onClick = { copyUrl(settings.webServerAccessPassword) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_token)) },
-                        supportingContent = {
-                            Text(
-                                if (settings.webServerAccessPassword.isBlank()) {
-                                    stringResource(R.string.setting_page_ssh_token_empty)
-                                } else if (tokenVisible) {
-                                    settings.webServerAccessPassword
-                                } else {
-                                    "•".repeat(settings.webServerAccessPassword.length.coerceAtMost(16))
-                                }
-                            )
-                        },
-                        trailingContent = {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { copyUrl(settings.webServerAccessPassword) }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_ssh_token))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = if (settings.webServerAccessPassword.isBlank()) {
+                                        stringResource(R.string.setting_page_ssh_token_empty)
+                                    } else if (tokenVisible) {
+                                        settings.webServerAccessPassword
+                                    } else {
+                                        "•".repeat(settings.webServerAccessPassword.length.coerceAtMost(16))
+                                    }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
                             IconButton(onClick = { tokenVisible = !tokenVisible }) {
                                 Icon(
                                     imageVector = if (tokenVisible) HugeIcons.ViewOff else HugeIcons.View,
                                     contentDescription = null
                                 )
                             }
-                        },
-                    )
-                    item(
+                        }
+                    }
+                    Item(
                         onClick = { copyUrl(sshExampleCommand) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_example)) },
-                        supportingContent = { Text(sshExampleCommand) },
+                        text = stringResource(R.string.setting_page_ssh_example),
+                        sub = sshExampleCommand,
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_ssh_note),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_ssh_note_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                    item(
-                        visible = sshError != null,
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.setting_page_web_server_error),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = sshError ?: "",
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                    )
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.setting_page_ssh_note),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.setting_page_ssh_note_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    if (sshError != null) {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.setting_page_web_server_error),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = sshError ?: "",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

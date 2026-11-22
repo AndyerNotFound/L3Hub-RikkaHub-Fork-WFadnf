@@ -65,6 +65,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,26 +84,23 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.export.PaletteSerializer
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.glassAssistChipColors
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.theme.ColorProbeState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.DEFAULT_PALETTE_ID
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.PaletteColors
-import me.rerere.rikkahub.ui.theme.PalettePresets
 import me.rerere.rikkahub.ui.theme.PaletteGroup
+import me.rerere.rikkahub.ui.theme.PalettePresets
 import me.rerere.rikkahub.ui.theme.PaletteRole
-import me.rerere.rikkahub.ui.theme.PaletteStyle
 import me.rerere.rikkahub.ui.theme.PaletteSetting
+import me.rerere.rikkahub.ui.theme.PaletteStyle
 import me.rerere.rikkahub.ui.theme.UiSlot
 import me.rerere.rikkahub.ui.theme.UiSlotColors
 import me.rerere.rikkahub.ui.theme.UiSlots
-import me.rerere.rikkahub.ui.theme.uiSlotsFrom
 import me.rerere.rikkahub.ui.theme.argbLong
 import me.rerere.rikkahub.ui.theme.findPalettePreset
 import me.rerere.rikkahub.ui.theme.formatHexColor
@@ -108,6 +108,7 @@ import me.rerere.rikkahub.ui.theme.hexDigitCount
 import me.rerere.rikkahub.ui.theme.isCompleteHexColor
 import me.rerere.rikkahub.ui.theme.parseHexColor
 import me.rerere.rikkahub.ui.theme.roleColors
+import me.rerere.rikkahub.ui.theme.uiSlotsFrom
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -202,14 +203,14 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("dynamicColor") {
-                CardGroup {
-                    switchItem(
+                RoundedColumn {
+                    SaltSwitchRow(
                         checked = settings.dynamicColor,
                         onCheckedChange = { enabled ->
                             vm.updateSettings { it.copy(dynamicColor = enabled) }
                         },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_follow_dynamic)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_follow_dynamic_desc)) },
+                        headline = stringResource(R.string.setting_palette_page_follow_dynamic),
+                        supporting = stringResource(R.string.setting_palette_page_follow_dynamic_desc),
                     )
                 }
             }
@@ -226,16 +227,16 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("enablePalette") {
-                CardGroup {
-                    switchItem(
+                RoundedColumn {
+                    SaltSwitchRow(
                         checked = palette.enabled,
                         onCheckedChange = { enabled ->
                             updatePalette {
                                 it.copy(presetId = if (enabled) it.presetId ?: DEFAULT_PALETTE_ID else null)
                             }
                         },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_enable)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_enable_desc)) },
+                        headline = stringResource(R.string.setting_palette_page_enable),
+                        supporting = stringResource(R.string.setting_palette_page_enable_desc),
                     )
                 }
             }
@@ -263,16 +264,22 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("presets") {
-                CardGroup {
+                RoundedColumn {
                     PalettePresets.forEach { preset ->
-                        item(
-                            onClick = { updatePalette { it.copy(presetId = preset.id) } },
-                            leadingContent = {
+                        ItemContainer {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .clickable(onClick = { updatePalette { it.copy(presetId = preset.id) } }),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 val colors = remember(preset.id, darkMode) { preset.colors(darkMode) }
                                 PaletteStrip(colors)
-                            },
-                            headlineContent = { Text(stringResource(preset.nameRes)) },
-                            trailingContent = {
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(preset.nameRes))
+                                }
                                 if (palette.presetId == preset.id) {
                                     Icon(
                                         HugeIcons.Tick01,
@@ -280,8 +287,8 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -293,10 +300,10 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             item("customSides") {
                 val lightColors = remember(palette) { palette.effectiveColors(darkMode = false) }
                 val darkColors = remember(palette) { palette.effectiveColors(darkMode = true) }
-                // CardGroup 的 content 不是 composable 作用域，文案要在这里先取出来
+                // 文案先在组合作用域外取好，下面两项直接引用
                 val lightTitle = stringResource(R.string.setting_palette_page_light_palette)
                 val darkTitle = stringResource(R.string.setting_palette_page_dark_palette)
-                CardGroup {
+                RoundedColumn {
                     paletteSideItem(
                         colors = lightColors,
                         headline = lightTitle,
@@ -311,57 +318,112 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("transfer") {
-                CardGroup {
-                    item(
-                        onClick = { exportLauncher.launch(PaletteSerializer.getExportFileName(settings.palette)) },
-                        leadingContent = { Icon(HugeIcons.Download04, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_export)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_export_desc)) },
-                    )
-                    item(
-                        onClick = {
-                            val json = PaletteSerializer.exportToJson(settings.palette)
-                            scope.launch {
-                                clipboard.setClipEntry(
-                                    ClipEntry(ClipData.newPlainText("palette", json))
-                                )
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.setting_palette_page_copied)
-                                )
+                RoundedColumn {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { exportLauncher.launch(PaletteSerializer.getExportFileName(settings.palette)) }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(HugeIcons.Download04, contentDescription = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_palette_page_export))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_palette_page_export_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
                             }
-                        },
-                        leadingContent = { Icon(HugeIcons.Copy01, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_copy)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_copy_desc)) },
-                    )
-                    item(
-                        onClick = { importLauncher.launch(arrayOf("application/json")) },
-                        leadingContent = { Icon(HugeIcons.Upload02, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_import)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_import_desc)) },
-                    )
+                        }
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = {
+                                    val json = PaletteSerializer.exportToJson(settings.palette)
+                                    scope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipEntry(ClipData.newPlainText("palette", json))
+                                        )
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.setting_palette_page_copied)
+                                        )
+                                    }
+                            }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(HugeIcons.Copy01, contentDescription = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_palette_page_copy))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_palette_page_copy_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                    }
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { importLauncher.launch(arrayOf("application/json")) }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(HugeIcons.Upload02, contentDescription = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_palette_page_import))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_palette_page_import_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                    }
                 }
             }
 
             item("probe") {
-                CardGroup {
-                    item(
-                        onClick = { ColorProbeState.enabled = true },
-                        leadingContent = { Icon(HugeIcons.PencilEdit01, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_probe)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_probe_desc)) },
-                    )
+                RoundedColumn {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { ColorProbeState.enabled = true }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(HugeIcons.PencilEdit01, contentDescription = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_palette_page_probe))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_palette_page_probe_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                    }
                 }
             }
 
             item("reset") {
-                CardGroup {
-                    item(
-                        onClick = { showResetDialog = true },
-                        leadingContent = { Icon(HugeIcons.Refresh01, contentDescription = null) },
-                        headlineContent = { Text(stringResource(R.string.setting_palette_page_reset)) },
-                        supportingContent = { Text(stringResource(R.string.setting_palette_page_reset_desc)) },
-                    )
+                RoundedColumn {
+                    ItemContainer {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = SaltTheme.dimens.item)
+                                .clickable(onClick = { showResetDialog = true }),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(HugeIcons.Refresh01, contentDescription = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_palette_page_reset))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(text = stringResource(R.string.setting_palette_page_reset_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -412,17 +474,35 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
 private fun PaletteSetting.effectiveColors(darkMode: Boolean): PaletteColors =
     colors(darkMode) ?: findPalettePreset(DEFAULT_PALETTE_ID).colors(darkMode)
 
-private fun CardGroupScope.paletteSideItem(
+@Composable
+private fun paletteSideItem(
     colors: PaletteColors,
     headline: String,
     onClick: () -> Unit,
-) = item(
-    onClick = onClick,
-    leadingContent = { PaletteStrip(colors) },
-    headlineContent = { Text(headline) },
-    supportingContent = { Text(stringResource(R.string.setting_palette_page_custom_desc)) },
-    trailingContent = { Icon(HugeIcons.PencilEdit01, contentDescription = stringResource(R.string.edit)) },
-)
+) {
+    ItemContainer {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SaltTheme.dimens.item)
+                .clickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PaletteStrip(colors)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = headline)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.setting_palette_page_custom_desc),
+                    color = SaltTheme.colors.subText,
+                    style = SaltTheme.textStyles.sub,
+                )
+            }
+            Icon(HugeIcons.PencilEdit01, contentDescription = stringResource(R.string.edit))
+        }
+    }
+}
 
 /** 界面真正读取 LocalUiSlots 的位置槽；其余槽组件直接读 colorScheme，单独设置不会生效。 */
 private val CONSUMED_SLOTS = setOf(

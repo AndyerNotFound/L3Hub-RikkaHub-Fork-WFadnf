@@ -3,22 +3,29 @@ package me.rerere.rikkahub.ui.pages.setting.components
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +42,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import java.time.LocalDateTime
+import java.time.ZoneId
+import kotlin.math.roundToInt
+import kotlin.reflect.KClass
+import kotlin.time.toJavaInstant
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -65,12 +81,13 @@ import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -81,12 +98,6 @@ import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.ui.toast.ToastType
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.koin.compose.koinInject
-import java.time.LocalDateTime
-import java.time.ZoneId
-import kotlin.math.roundToInt
-import kotlin.reflect.KClass
-import kotlin.time.toJavaInstant
-import kotlin.uuid.Uuid
 
 @Composable
 fun ProviderConfigure(
@@ -103,24 +114,28 @@ fun ProviderConfigure(
     ) {
         provider.description()
 
-        CardGroup {
+        RoundedColumn {
             // 账号类提供商的接口由登录方式决定，换成自填地址的类型会丢掉凭据
             val typeSwitchable = if (allowTypeSwitch) provider as? ProviderSetting.ApiKey else null
-            formItem(visible = typeSwitchable != null) {
-                typeSwitchable?.let { current ->
-                    ConnectedChoiceButtons(
-                        options = ProviderSetting.Types,
-                        selected = current::class,
-                        onSelect = { onEdit(current.convertTo(it)) },
-                    ) { type, selected ->
-                        ConnectedChoiceLabel(text = type.simpleName ?: "", selected = selected)
+            if (typeSwitchable != null) {
+                ItemContainer {
+                    Column {
+                        typeSwitchable?.let { current ->
+                            ConnectedChoiceButtons(
+                                options = ProviderSetting.Types,
+                                selected = current::class,
+                                onSelect = { onEdit(current.convertTo(it)) },
+                            ) { type, selected ->
+                                ConnectedChoiceLabel(text = type.simpleName ?: "", selected = selected)
+                            }
+                        }
                     }
                 }
             }
-            switchItem(
+            SaltSwitchRow(
                 checked = provider.enabled,
                 onCheckedChange = { onEdit(provider.copyProvider(enabled = it)) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_enable)) },
+                headline = stringResource(R.string.setting_provider_page_enable),
             )
         }
 
@@ -276,7 +291,8 @@ private val OFFICIAL_PROVIDER_HOSTS = setOf(
 )
 
 // 标题在上、输入框在下的表单项；secret 为 true 时默认遮住内容，右侧是显示/隐藏按钮
-private fun CardGroupScope.textFieldItem(
+@Composable
+private fun textFieldItem(
     @StringRes label: Int,
     value: String,
     onValueChange: (String) -> Unit,
@@ -289,36 +305,46 @@ private fun CardGroupScope.textFieldItem(
     supportingText: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     visible: Boolean = true,
-) = formItem(
-    visible = visible,
-    headlineContent = { Text(stringResource(label)) },
 ) {
-    // 明文开关是本项自己的局部状态，与条目的 visible 无关，另起名字免得遮住参数
-    var showValue by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = enabled,
-        isError = isError,
-        minLines = minLines,
-        maxLines = maxLines,
-        textStyle = if (monospace) {
-            MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
-        } else LocalTextStyle.current,
-        supportingText = supportingText,
-        visualTransformation = if (secret && !showValue) PasswordVisualTransformation() else VisualTransformation.None,
-        trailingIcon = if (secret) {
-            {
-                IconButton(onClick = { showValue = !showValue }) {
-                    Icon(if (showValue) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+    if (visible) {
+        ItemContainer {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(label))
+                    }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 明文开关是本项自己的局部状态，与条目的 visible 无关，另起名字免得遮住参数
+                var showValue by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = enabled,
+                    isError = isError,
+                    minLines = minLines,
+                    maxLines = maxLines,
+                    textStyle = if (monospace) {
+                        MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
+                    } else LocalTextStyle.current,
+                    supportingText = supportingText,
+                    visualTransformation = if (secret && !showValue) PasswordVisualTransformation() else VisualTransformation.None,
+                    trailingIcon = if (secret) {
+                        {
+                            IconButton(onClick = { showValue = !showValue }) {
+                                Icon(if (showValue) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                            }
+                        }
+                    } else trailingIcon,
+                )
             }
-        } else trailingIcon,
-    )
+        }
+    }
 }
 
-internal fun CardGroupScope.nameItem(
+@Composable
+internal fun nameItem(
     provider: ProviderSetting,
     onEdit: (ProviderSetting) -> Unit,
 ) = textFieldItem(
@@ -327,124 +353,139 @@ internal fun CardGroupScope.nameItem(
     onValueChange = { onEdit(provider.copyProvider(name = it)) },
 )
 
-private fun CardGroupScope.apiKeyItem(
+@Composable
+private fun apiKeyItem(
     providerId: Uuid,
     apiKey: String,
     disabledApiKeys: List<String>,
     apiKeyLabels: Map<String, String>,
     visible: Boolean = true,
     onValueChange: (apiKey: String, disabledApiKeys: List<String>, apiKeyLabels: Map<String, String>) -> Unit,
-) = formItem(
-    visible = visible,
-    headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
-    supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
 ) {
-    val keys = remember(providerId) {
-        apiKey.split(Regex("[\\n,]"))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .ifEmpty { listOf("") }
-            .toMutableStateList()
-    }
-    // 关掉的 Key 存在 provider 上，按内容匹配而不是按位置，改 Key 文本也不会错位
-    var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
-    // 标签按 Key 文本索引，改 Key 文本时跟着搬过去；删 Key 时一起清掉
-    var labels by remember(providerId, apiKeyLabels) { mutableStateOf(apiKeyLabels) }
-
-    fun emit() {
-        val liveKeys = keys.map { it.trim() }.filter { it.isNotBlank() }
-        onValueChange(
-            liveKeys.joinToString("\n"),
-            disabled,
-            labels.filterKeys { it in liveKeys },
-        )
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        keys.forEachIndexed { index, key ->
-            var keyShown by remember(providerId, index) { mutableStateOf(false) }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = key,
-                    onValueChange = { text ->
-                        val oldKey = keys[index]
-                        if (oldKey != text) {
-                            labels[oldKey]?.let { label ->
-                                labels = labels - oldKey + (text.trim() to label)
+    if (visible) {
+        ItemContainer {
+            Column {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_api_key))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(stringResource(R.string.setting_provider_page_api_key_multi_desc))
                             }
                         }
-                        keys[index] = text
-                        emit()
-                    },
-                    modifier = Modifier.weight(1f),
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.setting_provider_page_api_key_number,
-                                index + 1,
-                            )
-                        )
-                    },
-                    singleLine = true,
-                    visualTransformation = if (keyShown) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { keyShown = !keyShown }) {
-                            Icon(
-                                imageVector = if (keyShown) HugeIcons.ViewOff else HugeIcons.View,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-                if (key.isNotBlank()) {
-                    Switch(
-                        checked = key !in disabled,
-                        onCheckedChange = { enabled ->
-                            disabled = if (enabled) disabled - key else disabled + key
-                            emit()
-                        },
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                val keys = remember(providerId) {
+                    apiKey.split(Regex("[\\n,]"))
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .ifEmpty { listOf("") }
+                        .toMutableStateList()
+                }
+                // 关掉的 Key 存在 provider 上，按内容匹配而不是按位置，改 Key 文本也不会错位
+                var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
+                // 标签按 Key 文本索引，改 Key 文本时跟着搬过去；删 Key 时一起清掉
+                var labels by remember(providerId, apiKeyLabels) { mutableStateOf(apiKeyLabels) }
+
+                fun emit() {
+                    val liveKeys = keys.map { it.trim() }.filter { it.isNotBlank() }
+                    onValueChange(
+                        liveKeys.joinToString("\n"),
+                        disabled,
+                        labels.filterKeys { it in liveKeys },
                     )
                 }
-                if (keys.size > 1) {
-                    IconButton(
-                        onClick = {
-                            val removed = keys[index]
-                            keys.removeAt(index)
-                            if (removed.isNotBlank()) disabled = disabled - removed
-                            emit()
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    keys.forEachIndexed { index, key ->
+                        var keyShown by remember(providerId, index) { mutableStateOf(false) }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                value = key,
+                                onValueChange = { text ->
+                                    val oldKey = keys[index]
+                                    if (oldKey != text) {
+                                        labels[oldKey]?.let { label ->
+                                            labels = labels - oldKey + (text.trim() to label)
+                                        }
+                                    }
+                                    keys[index] = text
+                                    emit()
+                                },
+                                modifier = Modifier.weight(1f),
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.setting_provider_page_api_key_number,
+                                            index + 1,
+                                        )
+                                    )
+                                },
+                                singleLine = true,
+                                visualTransformation = if (keyShown) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = { keyShown = !keyShown }) {
+                                        Icon(
+                                            imageVector = if (keyShown) HugeIcons.ViewOff else HugeIcons.View,
+                                            contentDescription = null,
+                                        )
+                                    }
+                                },
+                            )
+                            if (key.isNotBlank()) {
+                                Switch(
+                                    checked = key !in disabled,
+                                    onCheckedChange = { enabled ->
+                                        disabled = if (enabled) disabled - key else disabled + key
+                                        emit()
+                                    },
+                                )
+                            }
+                            if (keys.size > 1) {
+                                IconButton(
+                                    onClick = {
+                                        val removed = keys[index]
+                                        keys.removeAt(index)
+                                        if (removed.isNotBlank()) disabled = disabled - removed
+                                        emit()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Delete01,
+                                        contentDescription = null,
+                                    )
+                                }
+                            }
                         }
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Delete01,
-                            contentDescription = null,
-                        )
+                        if (key.isNotBlank()) {
+                            OutlinedTextField(
+                                value = labels[key].orEmpty(),
+                                onValueChange = { label ->
+                                    labels = if (label.isBlank()) labels - key else labels + (key to label)
+                                    emit()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
+                                singleLine = true,
+                            )
+                        }
+                        }
+                    }
+                    TextButton(onClick = { keys.add("") }) {
+                        Text(stringResource(R.string.setting_provider_page_api_key_add))
                     }
                 }
             }
-            if (key.isNotBlank()) {
-                OutlinedTextField(
-                    value = labels[key].orEmpty(),
-                    onValueChange = { label ->
-                        labels = if (label.isBlank()) labels - key else labels + (key to label)
-                        emit()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
-                    singleLine = true,
-                )
-            }
-            }
-        }
-        TextButton(onClick = { keys.add("") }) {
-            Text(stringResource(R.string.setting_provider_page_api_key_add))
         }
     }
 }
@@ -457,7 +498,7 @@ private fun ProviderConfigureOpenAI(
     val toaster = LocalToaster.current
     val responseAPIWarning = stringResource(R.string.setting_provider_page_response_api_warning)
 
-    CardGroup {
+    RoundedColumn {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -487,8 +528,8 @@ private fun ProviderConfigureOpenAI(
         )
     }
 
-    CardGroup {
-        switchItem(
+    RoundedColumn {
+        SaltSwitchRow(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
@@ -496,12 +537,12 @@ private fun ProviderConfigureOpenAI(
                     toaster.show(message = responseAPIWarning, type = ToastType.Warning)
                 }
             },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_response_api)) },
+            headline = stringResource(R.string.setting_provider_page_response_api),
         )
-        switchItem(
+        SaltSwitchRow(
             checked = provider.includeHistoryReasoning,
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_include_history_reasoning)) },
+            headline = stringResource(R.string.setting_provider_page_include_history_reasoning),
         )
     }
 }
@@ -530,7 +571,7 @@ private fun ProviderConfigureAccount(
     val status = loginStatus[provider.id]
     val credential = provider.credential
 
-    CardGroup {
+    RoundedColumn {
         nameItem(provider, onEdit)
     }
 
@@ -544,66 +585,142 @@ private fun ProviderConfigureAccount(
     }
     val deviceCode = status as? AccountLoginStatus.DeviceCode
 
-    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
-        item(
-            visible = accountState == AccountCardState.SignedIn,
-            leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
-            supportingContent = plan?.let { { Text(it) } },
-            headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
-        )
-        item(
-            visible = accountState == AccountCardState.SignedIn,
-            onClick = { scope.launch { accountManager.logout(provider.id) } },
-            leadingContent = {
-                CardGroupIcon(
-                    icon = HugeIcons.Logout03,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
-        )
-        item(
-            visible = accountState == AccountCardState.DeviceCode,
-            onClick = {
-                deviceCode?.let { code ->
-                    CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
+    SaltGroup(title = stringResource(R.string.setting_provider_page_account)) {
+        if (accountState == AccountCardState.SignedIn) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SaltIconBadge(HugeIcons.UserCircle)
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                (plan?.let { { Text(it) } })?.invoke()
+                            }
+                        }
+                    }
                 }
-            },
-            leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-            overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
-            supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
-            headlineContent = {
-                Text(
-                    text = deviceCode?.userCode.orEmpty(),
-                    style = MaterialTheme.typography.headlineSmallEmphasized,
-                    fontFamily = JetbrainsMono,
-                )
-            },
-        )
-        item(
-            visible = accountState == AccountCardState.DeviceCode,
-            onClick = { accountManager.cancelLogin(provider.id) },
-            leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
-            headlineContent = { Text(stringResource(R.string.cancel)) },
-        )
-        item(
-            visible = accountState == AccountCardState.Authorizing,
-            onClick = { accountManager.cancelLogin(provider.id) },
-            leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-            supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
-        )
-        item(
-            visible = accountState == AccountCardState.SignedOut,
-            onClick = { accountManager.startLogin(provider.id, context) },
-            leadingContent = { CardGroupIcon(HugeIcons.Login03) },
-            supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
-                { Text(failed.message, color = MaterialTheme.colorScheme.error) }
-            },
-            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
-        )
+            }
+        }
+        if (accountState == AccountCardState.SignedIn) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(onClick = { scope.launch { accountManager.logout(provider.id) } }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SaltIconBadge(
+                        icon = HugeIcons.Logout03,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_sign_out))
+                    }
+                }
+            }
+        }
+        if (accountState == AccountCardState.DeviceCode) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(
+                            onClick = {
+                                deviceCode?.let { code ->
+                                    CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
+                                }
+                            },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_device_code_hint))
+                        Text(
+                            text = deviceCode?.userCode.orEmpty(),
+                            style = MaterialTheme.typography.headlineSmallEmphasized,
+                            fontFamily = JetbrainsMono,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(stringResource(R.string.setting_provider_page_device_code_reopen))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (accountState == AccountCardState.DeviceCode) {
+            SaltIconRow(
+                icon = HugeIcons.Cancel01,
+                headline = stringResource(R.string.cancel),
+                onClick = { accountManager.cancelLogin(provider.id) },
+            )
+        }
+        if (accountState == AccountCardState.Authorizing) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(onClick = { accountManager.cancelLogin(provider.id) }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_waiting_authorization))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (accountState == AccountCardState.SignedOut) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(onClick = { accountManager.startLogin(provider.id, context) }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SaltIconBadge(HugeIcons.Login03)
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                (
+                                    (status as? AccountLoginStatus.Failed)?.let { failed ->
+                                                    { Text(failed.message, color = MaterialTheme.colorScheme.error) }
+                                                }
+                                )?.invoke()
+                            }
+                        }
+                    }
+                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                }
+            }
+        }
     }
 
     if (provider.supportsQuota) {
@@ -623,52 +740,86 @@ private fun ProviderConfigureAccount(
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
     val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
-    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_usage)) }) {
+    SaltGroup(title = stringResource(R.string.setting_provider_page_usage)) {
         when {
-            result == null -> item(
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_loading)) },
-            )
+            result == null -> ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
+                        Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_provider_page_usage_loading))
+                        }
+                    }
+                }
 
-            limits == null -> item(
-                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
-                supportingContent = {
-                    Text(
-                        text = result.exceptionOrNull()?.message.orEmpty(),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_failed)) },
-            )
+            limits == null -> ItemContainer {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = SaltTheme.dimens.item),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SaltIconBadge(HugeIcons.DashboardSpeed02)
+                        Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_provider_page_usage_failed))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    Text(
+                                        text = result.exceptionOrNull()?.message.orEmpty(),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
-            limits.windows.isEmpty() -> item(
-                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_none)) },
-            )
+            limits.windows.isEmpty() -> SaltIconRow(
+                    icon = HugeIcons.DashboardSpeed02,
+                    headline = stringResource(R.string.setting_provider_page_usage_none),
+                )
 
             else -> limits.windows.forEach { window ->
                 val reached = limits.limitReached || window.usedPercent >= 100
-                formItem(
-                    headlineContent = { Text(window.longLabel()) },
-                    supportingContent = window.resetsAt?.let { resetsAt ->
-                        {
-                            val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
-                            Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
+                ItemContainer {
+                    Column {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(window.longLabel())
+                                Spacer(modifier = Modifier.height(2.dp))
+                                CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                                    ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                        (
+                                            window.resetsAt?.let { resetsAt ->
+                                                                    {
+                                                                        val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
+                                                                        Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
+                                                                    }
+                                                                }
+                                        )?.invoke()
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "${window.usedPercent.roundToInt()}%",
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                                color = if (reached) MaterialTheme.colorScheme.error else Color.Unspecified,
+                            )
                         }
-                    },
-                    trailingContent = {
-                        Text(
-                            text = "${window.usedPercent.roundToInt()}%",
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = if (reached) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearWavyProgressIndicator(
+                            progress = { (window.usedPercent / 100).toFloat().coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (reached) MaterialTheme.colorScheme.error else ProgressIndicatorDefaults.linearColor,
                         )
-                    },
-                ) {
-                    LinearWavyProgressIndicator(
-                        progress = { (window.usedPercent / 100).toFloat().coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (reached) MaterialTheme.colorScheme.error else ProgressIndicatorDefaults.linearColor,
-                    )
+                    }
                 }
             }
         }
@@ -680,7 +831,7 @@ private fun ProviderConfigureClaude(
     provider: ProviderSetting.Claude,
     onEdit: (provider: ProviderSetting) -> Unit
 ) {
-    CardGroup {
+    RoundedColumn {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -696,28 +847,35 @@ private fun ProviderConfigureClaude(
         )
     }
 
-    CardGroup {
-        switchItem(
+    RoundedColumn {
+        SaltSwitchRow(
             checked = provider.promptCaching,
             onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_caching)) },
+            headline = stringResource(R.string.setting_provider_page_claude_prompt_caching),
         )
-        formItem(
-            visible = provider.promptCaching,
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl)) },
-        ) {
-            ConnectedChoiceButtons(
-                options = ClaudePromptCacheTtl.entries,
-                selected = provider.promptCacheTtl,
-                onSelect = { onEdit(provider.copy(promptCacheTtl = it)) },
-            ) { ttl, selected ->
-                ConnectedChoiceLabel(
-                    text = when (ttl) {
-                        ClaudePromptCacheTtl.FIVE_MINUTES -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_5m)
-                        ClaudePromptCacheTtl.ONE_HOUR -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_1h)
-                    },
-                    selected = selected,
-                )
+        if (provider.promptCaching) {
+            ItemContainer {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ConnectedChoiceButtons(
+                        options = ClaudePromptCacheTtl.entries,
+                        selected = provider.promptCacheTtl,
+                        onSelect = { onEdit(provider.copy(promptCacheTtl = it)) },
+                    ) { ttl, selected ->
+                        ConnectedChoiceLabel(
+                            text = when (ttl) {
+                                ClaudePromptCacheTtl.FIVE_MINUTES -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_5m)
+                                ClaudePromptCacheTtl.ONE_HOUR -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_1h)
+                            },
+                            selected = selected,
+                        )
+                    }
+                }
             }
         }
     }
@@ -754,7 +912,7 @@ private fun ProviderConfigureGoogle(
     }
     val useServiceAccount = provider.vertexAI && provider.useServiceAccount
 
-    CardGroup {
+    RoundedColumn {
         nameItem(provider, onEdit)
         apiKeyItem(
             providerId = provider.id,
@@ -782,37 +940,68 @@ private fun ProviderConfigureGoogle(
         )
     }
 
-    CardGroup {
-        switchItem(
+    RoundedColumn {
+        SaltSwitchRow(
             checked = provider.vertexAI,
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_vertex_ai)) },
+            headline = stringResource(R.string.setting_provider_page_vertex_ai),
         )
         // 两条互斥：都注册、靠 visible 交叉收放，切换时一条收下去另一条才拉出来
-        switchItem(
-            visible = provider.vertexAI,
-            checked = provider.useServiceAccount,
-            onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
-            headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
-        )
-        switchItem(
-            visible = !provider.vertexAI || useServiceAccount,
-            checked = provider.useInteractionsApi,
-            onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
-            headlineContent = { Text("Interactions API (Beta)") },
-            supportingContent = if (useServiceAccount) {
-                { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
-            } else null,
-        )
+        if (provider.vertexAI) {
+            SaltSwitchRow(
+                checked = provider.useServiceAccount,
+                onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
+                headline = stringResource(R.string.setting_provider_page_use_service_account),
+            )
+        }
+        if (!provider.vertexAI || useServiceAccount) {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable { onCheckedChange(!checked) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Interactions API (Beta)")
+                        Spacer(modifier = Modifier.height(2.dp))
+                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
+                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                (
+                                    if (useServiceAccount) {
+                                                    { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
+                                                } else null
+                                )?.invoke()
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    AppSwitch(
+                        checked = provider.useInteractionsApi,
+                        onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
+                    )
+                }
+            }
+        }
     }
 
     MotionExpandCollapse(visible = useServiceAccount) {
-        CardGroup {
-            item(
-                onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_import_service_account_json)) },
-                trailingContent = { Icon(HugeIcons.FileImport, contentDescription = null) },
-            )
+        RoundedColumn {
+            ItemContainer {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SaltTheme.dimens.item)
+                        .clickable(onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.setting_provider_page_import_service_account_json))
+                    }
+                    Icon(HugeIcons.FileImport, contentDescription = null)
+                }
+            }
             textFieldItem(
                 label = R.string.setting_provider_page_service_account_email,
                 value = provider.serviceAccountEmail,

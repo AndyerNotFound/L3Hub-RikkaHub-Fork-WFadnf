@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,7 +54,9 @@ import me.rerere.rikkahub.data.repository.MemoryWriteResult
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
-import me.rerere.rikkahub.ui.components.ui.CardGroup
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -280,37 +284,41 @@ private fun MemoryFileDetail(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(innerPadding)
-            .padding(horizontal = 16.dp)
+            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
             .padding(bottom = 16.dp),
     ) {
-        CardGroup {
-            item(
-                overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
-                headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
+        RoundedColumn {
+            OverlineRow(
+                overline = stringResource(R.string.memory_file_page_last_updated),
+                value = Instant.ofEpochMilli(file.updatedAt).toLocalDateTime(),
             )
-            item(
-                overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
-                headlineContent = { Text(file.description) },
-                visible = file.description.isNotEmpty(),
-            )
-            item(
-                overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
-                headlineContent = { Text(file.aliases.joinToString(", ")) },
-                visible = file.aliases.isNotEmpty(),
-            )
-            formItem(visible = file.body.isNotBlank()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    // 和上面几项的 overline 保持一致
-                    Text(
-                        text = stringResource(R.string.memory_file_page_details),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    SelectableContent {
-                        MarkdownBlock(
-                            content = file.displayBody,
-                            modifier = Modifier.fillMaxWidth(),
+            if (file.description.isNotEmpty()) {
+                OverlineRow(
+                    overline = stringResource(R.string.memory_file_page_summary),
+                    value = file.description,
+                )
+            }
+            if (file.aliases.isNotEmpty()) {
+                OverlineRow(
+                    overline = stringResource(R.string.memory_file_page_aliases),
+                    value = file.aliases.joinToString(", "),
+                )
+            }
+            if (file.body.isNotBlank()) {
+                ItemContainer {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // 和上面几行的小标题保持一致
+                        Text(
+                            text = stringResource(R.string.memory_file_page_details),
+                            color = SaltTheme.colors.subText,
+                            style = SaltTheme.textStyles.sub,
                         )
+                        SelectableContent {
+                            MarkdownBlock(
+                                content = file.displayBody,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
@@ -362,25 +370,23 @@ private fun MemoryFileEditor(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        CardGroup {
-            // 只有编辑已有文件时才有路径：始终注册，靠 visible 收放
+        // 外层已有 16dp 横向边距（上面的提示文字也在里面），RoundedColumn 不再补，否则叠成 32dp
+        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+            // 只有编辑已有文件时才有路径
             val editingPath = path
-            formItem(
-                visible = editingPath != null,
-                headlineContent = { Text(stringResource(R.string.memory_file_page_path)) },
-            ) {
-                OutlinedTextField(
-                    value = editingPath.orEmpty(),
-                    onValueChange = onPathChange,
-                    placeholder = { Text("/topics/food.md") },
-                    isError = !editingPath.isNullOrEmpty() && !pathValid,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            if (editingPath != null) {
+                FormFieldRow(headline = stringResource(R.string.memory_file_page_path)) {
+                    OutlinedTextField(
+                        value = editingPath,
+                        onValueChange = onPathChange,
+                        placeholder = { Text("/topics/food.md") },
+                        isError = editingPath.isNotEmpty() && !pathValid,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.memory_file_page_title)) },
-            ) {
+            FormFieldRow(headline = stringResource(R.string.memory_file_page_title)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
@@ -389,18 +395,14 @@ private fun MemoryFileEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
-            ) {
+            FormFieldRow(headline = stringResource(R.string.memory_file_page_summary)) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = onDescriptionChange,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            formItem(
-                headlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
-            ) {
+            FormFieldRow(headline = stringResource(R.string.memory_file_page_aliases)) {
                 val addAlias = {
                     onAliasesChange(aliases.withAlias(aliasInput))
                     onAliasInputChange("")
@@ -441,10 +443,8 @@ private fun MemoryFileEditor(
                 )
             }
         }
-        CardGroup {
-            formItem(
-                headlineContent = { Text(stringResource(R.string.memory_file_page_details)) },
-            ) {
+        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+            FormFieldRow(headline = stringResource(R.string.memory_file_page_details)) {
                 OutlinedTextField(
                     value = body,
                     onValueChange = onBodyChange,
@@ -454,6 +454,33 @@ private fun MemoryFileEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
+    }
+}
+
+// 一行「小标题 + 取值」，对应旧版列表项的小标题与正文
+@Composable
+private fun OverlineRow(overline: String, value: String) {
+    ItemContainer {
+        Column {
+            Text(text = overline, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+            Spacer(Modifier.height(2.dp))
+            Text(text = value)
+        }
+    }
+}
+
+// 表单项：标题 + 内容区，内距由 Salt 的 ItemContainer 给
+@Composable
+private fun FormFieldRow(
+    headline: String,
+    content: @Composable () -> Unit,
+) {
+    ItemContainer {
+        Column {
+            Text(text = headline)
+            Spacer(Modifier.height(8.dp))
+            content()
         }
     }
 }
