@@ -265,11 +265,9 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 ## 流式生成不掉帧（fork）
 
-落帧按正文长度自适应合并（`AgentLoop.previewInterval`）：16ms 起，每 400 字符加 1ms，封顶 120ms；
-末帧由 `finishStep` 写回完整内容，不受节流影响。改前的规矩是「按 token 全速到 UI」，
-而一次落帧要在 UI 线程把这段正文重排并重录绘制，正文越长那一次越贵——逐 chunk 落帧时，
-长回复里几乎每一帧都在排版。改前实测（L.3.3.0.8，90Hz）：生成期间 42.5% 的帧超过 16.7ms、
-10.1% 超过 33ms、4.7% 超过 50ms，UI 线程单帧尖峰 40–110ms，中位只有 0.48ms。
+流式预览与 RikkaHub 原版一致：每个 chunk 都落帧，正文随 token 平滑增长，气泡高度逐 token 变化。
+曾试验过按正文长度自适应合并的预览节流（`AgentLoop.previewInterval`：16ms 起、每 400 字符加 1ms、
+封顶 120ms），能压掉长回复生成期间的掉帧，但文本成批出现，观感退化为「卡顿 + 气泡硬过渡」，已回退。
 
 逐 chunk 的 SSE 原始报文不再写 logd：每秒上百条，实测占掉 logcat 缓冲的三分之一。
 五个 provider 的 `onEvent` 改成 `Log.isLoggable(TAG, Log.DEBUG)` 守卫，
