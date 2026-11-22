@@ -50,7 +50,7 @@ data class Assistant(
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val autoConsolidateMemory: Boolean = true, // 对话停下来后在后台自动整理记忆; 关闭后只能手动整理
     val dreamingModelId: Uuid? = null, // 整理记忆(Dreaming)用的模型, 为 null 跟随全局
-    // 上下文占用达到聊天模型窗口的这个比例后自动压缩，效果与手动压缩一致（插入检查点摘要）
+    // 上下文占用达到所选预警线（WARN/MAX）的这个比例后自动压缩，效果与手动压缩一致（插入检查点摘要）
     val autoCompress: Boolean = false,
     val autoCompressRatio: Float = 0.8f,
     val autoCompressThreshold: AutoCompressThreshold = AutoCompressThreshold.WARN,

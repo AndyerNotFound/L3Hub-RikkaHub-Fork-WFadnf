@@ -70,7 +70,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AUTO_COMPRESS_THRESHOLD_RANGE
+import me.rerere.rikkahub.data.model.AUTO_COMPRESS_RATIO_RANGE
 import me.rerere.rikkahub.data.model.AutoCompressThreshold
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
@@ -473,8 +473,8 @@ private fun MemorySettingsTab(
             )
             formItem(
                 visible = assistant.autoCompress,
-                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold)) },
-                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc)) },
                 trailingContent = {
                     CardGroupValue("${(assistant.autoCompressRatio * 100).roundToInt()}%")
                 },
@@ -487,7 +487,7 @@ private fun MemorySettingsTab(
                             assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
                         )
                     },
-                    valueRange = AUTO_COMPRESS_THRESHOLD_RANGE,
+                    valueRange = AUTO_COMPRESS_RATIO_RANGE,
                     steps = 8,
                     modifier = Modifier.fillMaxWidth(),
                 )

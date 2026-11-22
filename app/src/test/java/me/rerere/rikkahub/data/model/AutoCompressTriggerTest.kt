@@ -7,20 +7,7 @@ import org.junit.Test
 
 class AutoCompressTriggerTest {
     @Test
-    fun `ratio fires first when it is below the warning line`() {
-        val model = Model(
-            contextLength = 128_000,
-            warnContextTokens = 100_000,
-            maxContextTokens = 110_000,
-            contextThresholdsAuto = false,
-        )
-        val assistant = Assistant(autoCompressRatio = 0.5f)
-
-        assertEquals(64_000, model.autoCompressTriggerTokens(assistant))
-    }
-
-    @Test
-    fun `warning line fires first when the ratio is above it`() {
+    fun `trigger is the selected line scaled by the ratio`() {
         val model = Model(
             contextLength = 128_000,
             warnContextTokens = 100_000,
@@ -28,9 +15,9 @@ class AutoCompressTriggerTest {
             contextThresholdsAuto = false,
         )
 
-        assertEquals(100_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.95f)))
+        assertEquals(50_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.5f)))
         assertEquals(
-            110_000,
+            104_500,
             model.autoCompressTriggerTokens(
                 Assistant(
                     autoCompressRatio = 0.95f,
@@ -50,8 +37,21 @@ class AutoCompressTriggerTest {
         )
 
         assertEquals(200_000, model.autoCompressLimit(AutoCompressThreshold.WARN))
-        // 按窗口 75% 收窄会变成 192000，这里必须仍是手填的 200000 先到
-        assertEquals(200_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.95f)))
+        // 触发点按预警线算：200000 × 0.95，而不是按窗口 256000 × 0.95 = 243200
+        assertEquals(190_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.95f)))
+    }
+
+    @Test
+    fun `thresholds beyond the window never fire below the line`() {
+        // 门限比窗口还大时，旧行为会退到 窗口 × 比例 提前触发；现在只认预警线
+        val model = Model(
+            contextLength = 262_144,
+            warnContextTokens = 352_000,
+            maxContextTokens = 384_000,
+            contextThresholdsAuto = false,
+        )
+
+        assertEquals(345_600, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.9f)))
     }
 
     @Test
@@ -68,10 +68,11 @@ class AutoCompressTriggerTest {
     }
 
     @Test
-    fun `window without thresholds falls back to the preset percentage`() {
+    fun `window without thresholds scales the fallback line`() {
         val model = Model(contextLength = 128_000)
 
-        assertEquals(96_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.8f)))
+        // 兜底预警线 = 窗口 × 75%，比例再作用在上面：96000 × 0.8
+        assertEquals(76_800, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.8f)))
     }
 
     @Test

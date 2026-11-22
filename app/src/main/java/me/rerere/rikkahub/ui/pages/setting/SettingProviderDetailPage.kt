@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.offset
@@ -48,12 +49,14 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -806,27 +809,31 @@ private fun ModelList(
             colors = CustomColors.floatingToolbarColors,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -ScreenOffset),
+                .offset(y = -ScreenOffset)
+                .height(64.dp),
         ) {
-            AddModelButton(
-                remoteModels = remoteModels,
-                onRefresh = { refreshCount++ },
-                selectedModels = providerSetting.models,
-                onAddModel = {
-                    onUpdateProvider(providerSetting.addModel(it))
-                },
-                onRemoveModel = {
-                    onUpdateProvider(providerSetting.delModel(it))
-                },
-                expanded = expanded,
-                parentProvider = providerSetting,
-                onUpdateProvider = onUpdateProvider,
-                onOpenEditor = {
-                    navController.navigate(
-                        Screen.ModelEditor(providerId = providerSetting.id.toString())
-                    )
-                },
-            )
+            // M3 无 leadingContent 时 balanced padding 公式会把高度撑爆，钉死 64dp 并关掉内部补偿
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                AddModelButton(
+                    remoteModels = remoteModels,
+                    onRefresh = { refreshCount++ },
+                    selectedModels = providerSetting.models,
+                    onAddModel = {
+                        onUpdateProvider(providerSetting.addModel(it))
+                    },
+                    onRemoveModel = {
+                        onUpdateProvider(providerSetting.delModel(it))
+                    },
+                    expanded = expanded,
+                    parentProvider = providerSetting,
+                    onUpdateProvider = onUpdateProvider,
+                    onOpenEditor = {
+                        navController.navigate(
+                            Screen.ModelEditor(providerId = providerSetting.id.toString())
+                        )
+                    },
+                )
+            }
         }
     }
 }
