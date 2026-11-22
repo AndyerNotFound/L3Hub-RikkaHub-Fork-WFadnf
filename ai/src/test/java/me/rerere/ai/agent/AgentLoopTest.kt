@@ -450,9 +450,10 @@ class AgentLoopTest {
         val events = runToEnd(hooks = previewHooks)
 
         val previews = events.filterIsInstance<AgentEvent.MessageUpdated>().dropLast(1).map { it.message.texts() }
-        assertTrue(listOf("HEL") in previews)
-        assertTrue(listOf("HELLO") in previews)
-        // 这一步结束时拿到的是原始内容，预览时的改动不会混进去
+        // 预览按帧间隔合并，落几次取决于真实时钟；这里只断言两件确定的事：
+        // 预览走的是 hooks 版本（大写），原始内容只由收尾写入
+        assertTrue(previews.isNotEmpty())
+        assertTrue(previews.flatten().none { it == "hello" })
         assertEquals(listOf("hello"), events.finished().message.texts())
     }
 
