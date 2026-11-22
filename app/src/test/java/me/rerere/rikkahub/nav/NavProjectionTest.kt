@@ -62,7 +62,7 @@ class NavProjectionTest {
         )
         assertEquals(listOf(chat, setting, models), projection.root)
         assertEquals(listOf(modelEditor, providerDetail), projection.detail)
-        assertEquals(modelEditor, projection.middle)
+        assertEquals(models, projection.middle)
         assertEquals(providerDetail, projection.top)
     }
 
