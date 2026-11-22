@@ -72,6 +72,7 @@ import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -192,9 +193,40 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             .collect { focusManager.clearFocus(force = true) }
     }
 
-    // 抽屉开着时接管返回键
-    BackHandler(enabled = drawerState.isOpen) {
-        scope.launch { drawerState.close() }
+    // 抽屉的开关只走这一条入口。同一个目标在动画途中再点一次，原来的写法会把第二个
+    // close / open 排到动画之后再跑一遍空动画；空的这一遍不移动位移，却把 settledValue
+    // 与外层读到的 isOpen 错开一帧，之后点外部、返回、拖动都落在一个「已经关掉」的状态上，
+    // 抽屉看起来就是卡在原地。
+    fun requestDrawer(value: DrawerValue) {
+        if (drawerState.targetValue == value) return
+        scope.launch {
+            if (value == DrawerValue.Open) drawerState.open() else drawerState.close()
+        }
+    }
+
+    // 抽屉还开着（含打开动画途中、关闭动画途中）就接管返回键：
+    // 正在关的时候再发一次 close 只会空转，所以那一下直接把剩下的动画落地，
+    // 返回键不至于按下去什么也不发生，也不会漏到导航把页面退掉
+    BackHandler(
+        enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open,
+    ) {
+        if (drawerState.targetValue == DrawerValue.Closed) {
+            scope.launch { drawerState.snapTo(DrawerValue.Closed) }
+        } else {
+            requestDrawer(DrawerValue.Closed)
+        }
+    }
+
+    // 收尾校正：动画结束、状态判定为关闭，位移却还停在打开位置时，说明这一轮 close 没落到
+    // Closed 锚点（ModalNavigationDrawer 在布局阶段重算锚点会把进行中的动画改投到最近锚点）。
+    // 不补这一下，抽屉从此停在原地，而所有入口都按「已关闭」短路失效
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.isAnimationRunning to drawerState.isOpen }
+            .distinctUntilChanged()
+            .collect { (running, open) ->
+                if (running || open) return@collect
+                if (drawerState.currentOffset > -1f) drawerState.snapTo(DrawerValue.Closed)
+            }
     }
 
     // Clear input focus so popup transitions cannot reopen the keyboard.
@@ -216,7 +248,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     var sidebarResizing by remember { mutableStateOf(false) }
     // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
     LaunchedEffect(threePaneLayout) {
-        if (threePaneLayout && drawerState.isOpen) {
+        if (threePaneLayout && drawerState.targetValue != DrawerValue.Closed) {
             drawerState.close()
         }
     }
@@ -231,7 +263,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         // 先收再换会话，两段动画分开走，不叠在一起
         if (!threePaneLayout) {
             scope.launch {
-                drawerState.close()
+                // 已经在收的时候别再排一遍空动画，直接等这一轮收完
+                if (drawerState.targetValue != DrawerValue.Closed) drawerState.close()
                 navigateToChatPage(navController, Uuid.random())
             }
         } else {
@@ -413,7 +446,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 ChatPageContent(
                     state = pageState.copy(sidebarOpen = drawerState.isOpen),
                     actions = pageActions.copy(
-                        onOpenSidebar = { scope.launch { drawerState.open() } },
+                        onOpenSidebar = { requestDrawer(DrawerValue.Open) },
                     ),
                 )
             }

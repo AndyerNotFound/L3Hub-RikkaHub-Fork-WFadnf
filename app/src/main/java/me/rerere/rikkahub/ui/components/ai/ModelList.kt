@@ -340,8 +340,8 @@ fun ModelListSheet(
         visible = state.visible,
         onDismissRequest = { state.close() },
         // 列表本身要上下滑，抽屉的下拉手势很容易在滚动时误触关闭；
-        // 只留两种关法：点抽屉外部，或右上角的关闭按钮
-        dismissible = false,
+        // 只留三种关法：点抽屉外部、返回键，或右上角的关闭按钮
+        dismissible = true,
         closeButton = true,
         // 没有把手，也就没有「拖一下就关」这条路，免得看起来能拖却拖不动
         dragEnabled = false,

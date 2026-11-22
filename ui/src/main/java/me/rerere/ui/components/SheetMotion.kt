@@ -13,9 +13,10 @@ import com.moriafly.salt.ui.sheet.SheetDetent
 import com.moriafly.salt.ui.sheet.SheetProperties
 
 /**
- * sheet 内容里要主动关窗时走这里：先播退场，演完再执行动作。
+ * sheet 内容里要主动关窗时走这里。
  *
- * 内容里的按钮直接改外面的布尔，会把窗口从组合里拿掉，退场没有机会播。
+ * 这里只把动作执行掉，退场由 Salt 自己演：翻成 `visible = false` 之后窗口仍留在组合里，
+ * 播完退场才拆。反过来，把 Sheet 从组合里拿掉等于退场没有机会播。
  * 这一条和 [LocalDialogDismiss] 是同一个约定，只是对象换成了底部抽屉。
  * 没有 sheet 包着时返回 null，调用方退回直接执行。
  */
@@ -36,8 +37,8 @@ fun rememberSheetDismiss(): (() -> Unit) -> Unit {
  *   contentColor / dragHandle / contentWindowInsets；
  * - 高度从「贴底一层」变成 Salt 的档位（[SheetDetent]），默认一档 `Content`：内容多高就多高；
  * - 窗口宽 ≥600dp 且高 ≥480dp 时 Salt 自己把抽屉变成居中浮层，手机上仍是贴底抽屉；
- * - 关窗入口拆开：[dismissible] 管点外部 / 返回键 / 下拉，[closeButton] 管标题栏右上角的
- *   关闭按钮，[dragEnabled] 管把手与拖动调高。
+ * - 关窗入口拆开：[dismissible] 管点外部，[dismissOnBackPress] 管返回键与返回手势，
+ *   [closeButton] 管标题栏右上角的关闭按钮，[dragEnabled] 管把手与拖动调高。
  *
  * [visible] 仍然是唯一开关：调用点要保持自己在组合里，退场才演得完（Salt 在 visible 翻成
  * false 之后仍留在组合里，把退场播完再拆窗口）。[onDismissRequest] 只上报用户的关闭意图，
@@ -51,6 +52,10 @@ fun SaltModalSheet(
     modifier: Modifier = Modifier,
     title: String? = null,
     dismissible: Boolean = true,
+    // 返回键 / 返回手势单独一段：它和「点外部」「下拉」不是同一种误触。把返回也一起关掉，
+    // 用户按下去会觉得整个抽屉没反应，所以默认跟随 [dismissible]，需要防误关的编辑表单
+    // 只关点外部，仍然留一条返回可关的路
+    dismissOnBackPress: Boolean = dismissible,
     closeButton: Boolean = dismissible,
     dragEnabled: Boolean = true,
     detents: List<SheetDetent> = listOf(SheetDetent.Content),
@@ -67,8 +72,13 @@ fun SaltModalSheet(
             modifier = modifier,
             title = title,
             properties = SheetProperties(
+                // 退场结束那一刻 Salt 会重建内容、清空几何并重新量一次。量出来的锚点一换，
+                // 进行中的偏移会按旧进度被映射回去，退场看着是「收完又弹回原位」；而此时
+                // 状态已经判成隐藏，拖动、返回、点外部全部短路，抽屉就卡在那里。
+                // 保留内容与几何，退场走完不再重来
+                retainStateWhenHidden = true,
                 dismissOnClickOutside = dismissible,
-                dismissOnBackPress = dismissible,
+                dismissOnBackPress = dismissOnBackPress,
                 dismissOnCloseButtonClick = closeButton,
                 dragEnabled = dragEnabled,
                 // 下拉关窗跟着把手走：没有把手就不留「拖一下就关」这条路

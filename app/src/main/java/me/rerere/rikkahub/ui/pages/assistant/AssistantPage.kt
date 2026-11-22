@@ -362,8 +362,10 @@ private fun AssistantCreationSheet(
             onDismissRequest = {
                 state.dismiss()
             },
-            // 编辑表单自己带取消与保存，抽屉不提供关闭手势与关闭按钮
+            // 编辑表单自己带取消与保存，抽屉不提供点外部关闭、关闭手势与关闭按钮；
+            // 返回键仍然关窗，免得按下去像没反应
             dismissible = false,
+            dismissOnBackPress = true,
             closeButton = false,
             dragEnabled = false,
         ) {

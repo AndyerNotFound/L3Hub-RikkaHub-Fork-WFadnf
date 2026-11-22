@@ -411,8 +411,11 @@ private fun ModeInjectionEditSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.prompt_page_edit_mode_injection),
-        // 编辑中的表单不能被手势带走：只留标题栏的关闭按钮
+        // 编辑中的表单不能被手势带走：点外部与下拉都不关，只留标题栏的关闭按钮与返回键
+        // （closeButton 原来跟着 dismissible 默认成 false，这条注释说的按钮根本没出现）
         dismissible = false,
+        dismissOnBackPress = true,
+        closeButton = true,
         dragEnabled = false,
     ) {
         Column(
@@ -823,8 +826,11 @@ private fun LorebookEditSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.prompt_page_edit_lorebook),
-        // 编辑中的表单不能被手势带走：只留标题栏的关闭按钮
+        // 编辑中的表单不能被手势带走：点外部与下拉都不关，只留标题栏的关闭按钮与返回键
+        // （closeButton 原来跟着 dismissible 默认成 false，这条注释说的按钮根本没出现）
         dismissible = false,
+        dismissOnBackPress = true,
+        closeButton = true,
         dragEnabled = false,
     ) {
         Column(
