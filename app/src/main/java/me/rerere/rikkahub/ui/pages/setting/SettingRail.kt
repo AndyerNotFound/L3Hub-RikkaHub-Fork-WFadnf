@@ -161,12 +161,13 @@ internal fun Screen.isSettingSectionPage(): Boolean =
 internal fun Screen.hostsDetailColumn(): Boolean =
     isSettingSectionPage() && this !is Screen.Setting
 
-/** 设置相关的页面：这些路由上才显示左列 */
-internal fun Screen.isSettingBoard(): Boolean {
-    // 模型编辑是聚焦编辑页，它自己就要三栏的宽度，不再挂设置栏
-    if (this is Screen.ModelEditor) return false
-    return this is Screen.Setting || settingSection() != null
-}
+/**
+ * 设置相关的页面：这些路由上才显示左列。
+ *
+ * 判据只看「主列这一页属于设置板」——模型编辑这类下钻页已经不在主列，不需要在这里再排除。
+ */
+internal fun Screen.isSettingBoard(): Boolean =
+    this is Screen.Setting || settingSection() != null
 
 /**
  * 设置页的一级选项栏。横屏时贴在左边，点一项把右边换成对应的设置页。

@@ -12,37 +12,29 @@ import me.rerere.rikkahub.nav.nextBackStep
 /**
  * 返回键的唯一主人。
  *
- * 右列还有下钻页时由这里收右列；其余情况这个回调保持关闭，让
- * [l3HubStackAnimation] 的预测性返回回调去弹根栈；两层到底时两者都关闭，
- * 返回交回系统退出应用。判据只有 [nextBackStep] 一个来源（见 nav/NavPolicy.kt）。
+ * 判据只有 [nextBackStep] 一个来源（见 nav/NavPolicy.kt），横竖屏一致：历史还有上一层就弹一格。
  *
- * 优先级取 1：关闭时不影响优先级 0 的预测性返回回调，开启时压过它，
- * 手势进度不会被演到根栈上（右列收页与根栈弹页是两件事）。
+ * [ownsBack] 说的是这一下由不由这里接：主列之上还压着右列时接过来——右列的收页不会让主列
+ * 变栈，预测性返回的进度会被演到主列上，所以这一段手势不给它。右列空着时交回
+ * [l3HubStackAnimation] 的预测性返回，弹主列带进度；到底时两者都关，返回交回系统。
+ *
+ * 优先级取 1：关闭时不影响优先级 0 的预测性返回回调，开启时压过它。
  */
 @Composable
 fun NavigationBackHandler(
     component: RootComponent,
-    rootDepth: Int,
-    detailDepth: Int,
+    depth: Int,
+    ownsBack: Boolean,
 ) {
-    val next = nextBackStep(rootDepth = rootDepth, detailDepth = detailDepth)
+    val owns = ownsBack && nextBackStep(depth = depth) == BackStep.Pop
     val callback = remember(component) {
         BackCallback(isEnabled = false, priority = 1) {
-            when (
-                nextBackStep(
-                    rootDepth = component.rootStack.size,
-                    detailDepth = component.detailDestinations.size,
-                )
-            ) {
-                BackStep.PopDetail -> component.popDetail()
-                BackStep.PopRoot -> component.popRoot()
-                BackStep.ExitApp -> Unit
-            }
+            if (nextBackStep(component.depth) == BackStep.Pop) component.pop()
         }
     }
     DisposableEffect(component) {
         component.backHandler.register(callback)
         onDispose { component.backHandler.unregister(callback) }
     }
-    SideEffect { callback.isEnabled = next == BackStep.PopDetail }
+    SideEffect { callback.isEnabled = owns }
 }

@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,7 +98,7 @@ import me.rerere.rikkahub.ui.activity.SafeModeActivity
 import me.rerere.rikkahub.ui.activity.activityOrientation
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.components.ui.TTSController
-import me.rerere.rikkahub.ui.context.ColumnNavigators
+import me.rerere.rikkahub.ui.context.AppNavigator
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -117,7 +118,7 @@ import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
-import me.rerere.rikkahub.ui.pages.setting.hostsDetailColumn
+import me.rerere.rikkahub.ui.pages.setting.isSettingSectionPage
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
@@ -159,12 +160,14 @@ class RouteActivity : ComponentActivity() {
             RootComponent(
                 componentContext = context,
                 initialScreen = startScreen(),
+                // 能当中列分区首屏的页：设置首页与各分区首屏（判据在 SettingRail.kt）
+                isColumnHost = { it.isSettingSectionPage() },
             )
         }
     }
 
-    /** 三列各自的导航器：只读栈、不缓存状态；Activity 级入口（通知、分享、快捷方式）用 rootColumn */
-    private val navColumns: ColumnNavigators by lazy { ColumnNavigators(rootComponent) }
+    /** 唯一的导航器：Activity 级入口（通知、分享、快捷方式）与页面共用同一个 */
+    private val navigator: AppNavigator by lazy { AppNavigator(rootComponent) }
 
     /** 首屏由偏好同步决定；进程死亡后整条栈走 Decompose stateKeeper 恢复 */
     private fun startScreen(): Screen =
@@ -379,7 +382,7 @@ class RouteActivity : ComponentActivity() {
                 ?: intent.getStringExtra(EXTRA_CONVERSATION_ID)?.let { Screen.Chat(it) }
         }
         if (destination != null) {
-            navColumns.rootColumn.navigate(destination) { launchSingleTop = true }
+            navigator.navigate(destination) { launchSingleTop = true }
         }
     }
 
@@ -387,7 +390,7 @@ class RouteActivity : ComponentActivity() {
     private fun openNewMediaCreation() {
         lifecycleScope.launch {
             val destination = Screen.MediaCreation(mediaCreationRepository.newSession().id.toString())
-            navColumns.rootColumn.navigate(destination) { launchSingleTop = true }
+            navigator.navigate(destination) { launchSingleTop = true }
         }
     }
 
@@ -419,10 +422,10 @@ class RouteActivity : ComponentActivity() {
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
 
         val backStack by rootComponent.childStack.subscribeAsState()
-        val detailStack by rootComponent.detailStack.subscribeAsState()
+        val sideStack by rootComponent.sideStack.subscribeAsState()
         // Local 的值一直在变，读它的页面会跟着整片重组：Navigator 只造一次
         CompositionLocalProvider(
-            LocalNavController provides navColumns.rootColumn,
+            LocalNavController provides navigator,
             LocalSettings provides settings,
                 LocalButtonShadow provides settings.displaySetting.buttonShadow,
                 LocalToaster provides toastState,
@@ -436,7 +439,6 @@ class RouteActivity : ComponentActivity() {
                         .semantics { testTagsAsResourceId = true }
                         .background(MaterialTheme.colorScheme.background)
                 ) {
-                    val navController = LocalNavController.current
                     // 根栈带预测性返回（ImageToolbox 的 toolboxPredictiveBackAnimation 同款）；
                     // 右列详情页不接手势，走同一套 fade + slide + scale 的普通返回动画。
                     // 时长跟着设置里的「动画速度」档位走（见 ui/navigation/StackHost.kt）
@@ -445,20 +447,30 @@ class RouteActivity : ComponentActivity() {
                         remember(rootComponent, pageAnimMillis) {
                             l3HubStackAnimation(
                                 backHandler = rootComponent.backHandler,
-                                onBack = rootComponent::popRoot,
+                                onBack = rootComponent::pop,
                                 durationMillis = pageAnimMillis,
                             )
                         }
-                    val detailAnimation: StackAnimation<DetailDestination, NavChild> =
+                    val sideAnimation: StackAnimation<DetailDestination, NavChild> =
                         remember(pageAnimMillis) { l3HubDetailAnimation(pageAnimMillis) }
-                    // 横屏的设置分区：左列常驻一级选项，右列放具体页面。
-                    // 栏本身不参与转场，Children 一直待在同一个槽位里，进出设置不会重建。
+                    // 铺开方式：横屏且宽到放得下两列时并排。历史不受影响，转屏只换拆分
+                    // （见 nav/NavProjection.kt），两列的内容由导航引擎按同一条历史重算。
                     val windowDpSize = currentWindowDpSize()
                     val landscape = windowDpSize.width > windowDpSize.height
+                    val expanded = landscape && windowDpSize.width >= 600.dp
+                    SideEffect { rootComponent.setColumnsExpanded(expanded) }
                     val currentScreen = backStack.active.configuration
-                    val showSettingRail = landscape &&
-                        windowDpSize.width >= 700.dp &&
-                        currentScreen.isSettingBoard()
+                    // 设置板：左列常驻一级选项，中列放分区页
+                    val showSettingRail = expanded && currentScreen.isSettingBoard()
+                    // 右列只在有下钻页时出现；没有详情页时不占宽度，中列直接铺满
+                    val showSideColumn = expanded && sideStack.items.size > 1
+                    // 返回的唯一主人：历史还有上一层就弹一格，横竖屏同一套（见 nav/NavPolicy.kt）
+                    NavigationBackHandler(
+                        component = rootComponent,
+                        depth = rootComponent.depth,
+                        // 右列压在主列之上时这一段手势交给它；右列空着时让预测性返回演主列
+                        ownsBack = sideStack.items.size > 1,
+                    )
                     // 横屏收起状态栏：顶栏贴到屏幕顶边，竖向空间全给内容
                     HideStatusBarInLandscape(landscape)
                     // 左栏用宽度动画进出：离开设置时右栏是平滑变宽，不是整块跳一下
@@ -467,29 +479,6 @@ class RouteActivity : ComponentActivity() {
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                         label = "settingRailWidth",
                     )
-                    // 设置三列：中列停在分区页，页内下钻的详情页挂到右列自己的栈
-                    // （Decompose 的 child 身份随栈位置，同一 child 不能在两个 Children 里，
-                    //  所以不再像 nav3 那样切片同一根栈，而是双栈分流，见 Navigator）
-                    val splitSettingColumns = showSettingRail && currentScreen.hostsDetailColumn()
-                    // 中列在分三栏时用中列导航（下钻进右列），整宽时用根列导航
-                    val middleColumn = if (splitSettingColumns) navColumns.sectionColumn else navColumns.rootColumn
-                    // 右列收起动画期间（转竖屏 / 模型编辑占根栈）把最后一次的栈撑住
-                    var lastDetailStack by remember {
-                        mutableStateOf<ChildStack<DetailDestination, NavChild>?>(null)
-                    }
-                    LaunchedEffect(detailStack, splitSettingColumns) {
-                        if (detailStack.items.size > 1 || splitSettingColumns) lastDetailStack = detailStack
-                    }
-                    val shownDetailStack: ChildStack<DetailDestination, NavChild> =
-                        if (splitSettingColumns || detailStack.items.size > 1) detailStack
-                        else lastDetailStack ?: detailStack
-
-                    // 返回的唯一主人：右列收页、根栈弹页、交回系统的顺序见 NavPolicy
-                    NavigationBackHandler(
-                        component = rootComponent,
-                        rootDepth = backStack.items.size,
-                        detailDepth = detailStack.items.size,
-                    )
                     // 中列 / 右列的分割比例，拖分隔条改；默认中列窄一点，详情页宽一点
                     var settingSplit by rememberSaveable { mutableStateOf(0.42f) }
                     val settingContentWidth = (windowDpSize.width - 224.dp).coerceAtLeast(1.dp)
@@ -497,7 +486,7 @@ class RouteActivity : ComponentActivity() {
                     // 拖动时切回 snap，手柄不能落后于手指
                     var rightColumnResizing by remember { mutableStateOf(false) }
                     val rightColumnFraction by animateFloatAsState(
-                        targetValue = if (splitSettingColumns) 1f - settingSplit else 0f,
+                        targetValue = if (showSideColumn) 1f - settingSplit else 0f,
                         animationSpec = if (rightColumnResizing) {
                             snap()
                         } else {
@@ -529,9 +518,9 @@ class RouteActivity : ComponentActivity() {
                             ) {
                                 SettingRail(
                                     current = currentScreen,
-                                    // 换分区时把上一分区的详情页收掉，返回只回到设置首页
+                                    // 换分区时退到设置首页再入栈，上一分区的下钻页一起收掉
                                     onNavigate = { target ->
-                                        navController.navigate(target) {
+                                        navigator.navigate(target) {
                                             popUpTo(Screen.Setting)
                                             launchSingleTop = true
                                         }
@@ -548,7 +537,7 @@ class RouteActivity : ComponentActivity() {
                         ) {
                             val contentWidth = maxWidth
                             val minRightFraction = 0.34f
-                            val middleTargetWidth = if (splitSettingColumns) {
+                            val middleTargetWidth = if (showSideColumn) {
                                 contentWidth * (1f - minRightFraction)
                             } else {
                                 contentWidth
@@ -568,10 +557,10 @@ class RouteActivity : ComponentActivity() {
                                     .fillMaxHeight(),
                                 animation = rootAnimation,
                             ) { child ->
-                                NavChildContent(child.instance, middleColumn)
+                                NavChildContent(child.instance, navigator)
                             }
 
-                            // 右列：只放设置里的下钻页，转场引擎与中列同源（见 ui/navigation/StackHost.kt）；
+                            // 右列：只放主列之后的下钻页，转场引擎与中列同源（见 ui/navigation/StackHost.kt）；
                             // 宽度超出中列留出的那部分时，从右边盖住中列，而不是把中列压窄
                             if (rightColumnFraction > 0.001f) {
                                 Row(
@@ -589,13 +578,13 @@ class RouteActivity : ComponentActivity() {
                                         onDragEnd = { rightColumnResizing = false },
                                     )
                                     Children(
-                                        stack = shownDetailStack,
+                                        stack = sideStack,
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight(),
-                                        animation = detailAnimation,
+                                        animation = sideAnimation,
                                     ) { child ->
-                                        NavChildContent(child.instance, navColumns.detailColumn)
+                                        NavChildContent(child.instance, navigator)
                                     }
                                 }
                             }
