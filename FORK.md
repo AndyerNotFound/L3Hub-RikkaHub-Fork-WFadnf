@@ -265,7 +265,16 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 ## 流式生成不掉帧（fork）
 
-流式生成的画面不做时间节流：会话状态按 token 全速到 UI，聊天页没有采样或降频。
+落帧按正文长度自适应合并（`AgentLoop.previewInterval`）：16ms 起，每 400 字符加 1ms，封顶 120ms；
+末帧由 `finishStep` 写回完整内容，不受节流影响。改前的规矩是「按 token 全速到 UI」，
+而一次落帧要在 UI 线程把这段正文重排并重录绘制，正文越长那一次越贵——逐 chunk 落帧时，
+长回复里几乎每一帧都在排版。改前实测（L.3.3.0.8，90Hz）：生成期间 42.5% 的帧超过 16.7ms、
+10.1% 超过 33ms、4.7% 超过 50ms，UI 线程单帧尖峰 40–110ms，中位只有 0.48ms。
+
+逐 chunk 的 SSE 原始报文不再写 logd：每秒上百条，实测占掉 logcat 缓冲的三分之一。
+五个 provider 的 `onEvent` 改成 `Log.isLoggable(TAG, Log.DEBUG)` 守卫，
+排障时 `setprop log.tag.<TAG> DEBUG` 打开。
+
 掉帧按重组范围处理——会话以 `State<Conversation>` 交给消息列表，聊天页只派生自己关心的
 字段（有无消息、文件夹、清单、上下文占用等），token 变化只重组列表，输入框、顶栏、
 背景和抽屉不跟着走；抽屉和顶栏只拿会话 id / 有没有消息，旧消息的分享回调不再捕获整份会话，
