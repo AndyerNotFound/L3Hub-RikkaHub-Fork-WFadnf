@@ -1,6 +1,14 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
@@ -46,6 +55,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 
 /**
  * 横屏三栏时右侧栏里的看板，一个看板就是一个标签页。
@@ -132,12 +143,30 @@ internal fun ChatSidePanelColumn(
                     onOpen = onOpen,
                     onClose = onClose,
                 )
+                // 看板切换：旧的滑向右侧、新的从右侧滑入，fade+scale 一起收；
+                // 进出共用同一组曲线（ImageToolbox 的 FancyTransitionEasing），同参同档
+                val paneSlideSpec = rememberSlideSpec<IntOffset>()
+                val paneScaleSpec = rememberSlideSpec<Float>()
+                val paneFadeSpec = rememberEffectsSpec<Float>()
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                 ) {
-                    active?.let { pane -> content(pane) }
+                    if (active != null) {
+                        AnimatedContent(
+                            targetState = active,
+                            transitionSpec = {
+                                (slideInHorizontally(paneSlideSpec) { it } +
+                                    fadeIn(paneFadeSpec) +
+                                    scaleIn(paneScaleSpec, initialScale = 0.97f)) togetherWith
+                                    (slideOutHorizontally(paneSlideSpec) { it } +
+                                        fadeOut(paneFadeSpec) +
+                                        scaleOut(paneScaleSpec, targetScale = 0.97f))
+                            },
+                            label = "sidePaneSwitch",
+                        ) { pane -> content(pane) }
+                    }
                 }
             }
         }

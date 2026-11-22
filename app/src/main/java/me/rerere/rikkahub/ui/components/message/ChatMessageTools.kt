@@ -2,6 +2,14 @@ package me.rerere.rikkahub.ui.components.message
 
 import android.content.res.Configuration
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -33,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,6 +80,8 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.shimmer
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -84,17 +95,35 @@ import kotlin.time.DurationUnit
 fun ChainOfThoughtScope.ChatMessageServerToolStep(tool: UIMessagePart.ServerTool) {
     val loading = !tool.isFinished
     val failed = tool.status == ServerToolStatus.FAILED
+    // 图标在「运行中 / 已结束」间切换：旧的向下滑走、新的从下方滑入，fade+scale 一起收，
+    // 进出共用同一组曲线（ImageToolbox 的 FancyTransitionEasing），同参同档
+    val iconSlideSpec = rememberSlideSpec<IntOffset>()
+    val iconScaleSpec = rememberSlideSpec<Float>()
+    val iconFadeSpec = rememberEffectsSpec<Float>()
     ChainOfThoughtStep(
         icon = {
-            if (loading) {
-                DotLoading(size = 10.dp)
-            } else {
-                Icon(
-                    imageVector = HugeIcons.Tools,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f),
-                )
+            AnimatedContent(
+                targetState = loading,
+                transitionSpec = {
+                    (slideInVertically(iconSlideSpec) { it / 2 } +
+                        fadeIn(iconFadeSpec) +
+                        scaleIn(iconScaleSpec, initialScale = 0.6f)) togetherWith
+                        (slideOutVertically(iconSlideSpec) { it / 2 } +
+                            fadeOut(iconFadeSpec) +
+                            scaleOut(iconScaleSpec, targetScale = 0.6f))
+                },
+                label = "toolStatusIcon",
+            ) { isRunning ->
+                if (isRunning) {
+                    DotLoading(size = 10.dp)
+                } else {
+                    Icon(
+                        imageVector = HugeIcons.Tools,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = LocalContentColor.current.copy(alpha = 0.7f),
+                    )
+                }
             }
         },
         label = {
@@ -280,21 +309,40 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     // 摘要由注册的渲染器决定; 图片输出与拒绝原因为所有工具通用
     val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
 
+    // 图标在「运行中 / 已结束」间切换：旧的向下滑走、新的从下方滑入，fade+scale 一起收，
+    // 进出共用同一组曲线（ImageToolbox 的 FancyTransitionEasing），同参同档
+    val iconSlideSpec = rememberSlideSpec<IntOffset>()
+    val iconScaleSpec = rememberSlideSpec<Float>()
+    val iconFadeSpec = rememberEffectsSpec<Float>()
+
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         icon = {
-            if (loading) {
-                DotLoading(
-                    size = 10.dp
-                )
-            } else {
-                Icon(
-                    imageVector = renderer.icon(context),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
-                )
+            AnimatedContent(
+                targetState = loading,
+                transitionSpec = {
+                    (slideInVertically(iconSlideSpec) { it / 2 } +
+                        fadeIn(iconFadeSpec) +
+                        scaleIn(iconScaleSpec, initialScale = 0.6f)) togetherWith
+                        (slideOutVertically(iconSlideSpec) { it / 2 } +
+                            fadeOut(iconFadeSpec) +
+                            scaleOut(iconScaleSpec, targetScale = 0.6f))
+                },
+                label = "toolStatusIcon",
+            ) { isRunning ->
+                if (isRunning) {
+                    DotLoading(
+                        size = 10.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = renderer.icon(context),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = LocalContentColor.current.copy(alpha = 0.7f)
+                    )
+                }
             }
         },
         label = {
@@ -491,19 +539,38 @@ private fun ChainOfThoughtScope.AskUserToolStep(
 
     var expanded by remember { mutableStateOf(true) }
 
+    // 图标在「待回答 / 已结束」间切换：旧的向下滑走、新的从下方滑入，fade+scale 一起收，
+    // 进出共用同一组曲线（ImageToolbox 的 FancyTransitionEasing），同参同档
+    val iconSlideSpec = rememberSlideSpec<IntOffset>()
+    val iconScaleSpec = rememberSlideSpec<Float>()
+    val iconFadeSpec = rememberEffectsSpec<Float>()
+
     ControlledChainOfThoughtStep(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         icon = {
-            if (loading) {
-                DotLoading(size = 10.dp)
-            } else {
-                Icon(
-                    imageVector = HugeIcons.BubbleChatQuestion,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
-                )
+            AnimatedContent(
+                targetState = loading,
+                transitionSpec = {
+                    (slideInVertically(iconSlideSpec) { it / 2 } +
+                        fadeIn(iconFadeSpec) +
+                        scaleIn(iconScaleSpec, initialScale = 0.6f)) togetherWith
+                        (slideOutVertically(iconSlideSpec) { it / 2 } +
+                            fadeOut(iconFadeSpec) +
+                            scaleOut(iconScaleSpec, targetScale = 0.6f))
+                },
+                label = "toolStatusIcon",
+            ) { isRunning ->
+                if (isRunning) {
+                    DotLoading(size = 10.dp)
+                } else {
+                    Icon(
+                        imageVector = HugeIcons.BubbleChatQuestion,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = LocalContentColor.current.copy(alpha = 0.7f)
+                    )
+                }
             }
         },
         label = {

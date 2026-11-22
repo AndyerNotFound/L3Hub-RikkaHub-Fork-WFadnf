@@ -8,10 +8,10 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -136,6 +136,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.fullWidthHorizontalInset
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.ListSelectableItem
 import me.rerere.ui.components.Tooltip
@@ -435,10 +436,14 @@ private fun ChatListNormal(
     val conversationId = conversation.id
 
     // 同一条节点里切换分支（编辑后重发、重新生成、点分支箭头）时，
-    // 旧的正文原地收掉、新的展开，两层都带模糊；流式输出 id 不变，不会走这里
+    // 旧的正文向下滑走、新的从下方滑入，两层都带模糊；流式输出 id 不变，不会走这里。
+    // 滑入 / 缩放走 ImageToolbox 同一条曲线（FancyTransitionEasing，尾段 3% 过冲），
+    // 与页面转场同档位；fade 仍走 effects 档。三者同时开始、同时结束，进出共用同一组参数
     val foldEnterSize = rememberSpatialSpec<IntSize>()
     val foldSize = rememberSpatialSpec<IntSize>()
     val foldEnterFade = rememberEffectsSpec<Float>()
+    val foldSlide = rememberSlideSpec<IntOffset>()
+    val foldScale = rememberSlideSpec<Float>()
 
     // 跟踪器在 ChatPage 里（空会话时它也在），这里只负责把结果交给每条消息
     // 滚到最底部以后继续上拉：拉满才认。
@@ -709,14 +714,12 @@ private fun ChatListNormal(
                             AnimatedContent(
                                 targetState = currentMessageId,
                                 transitionSpec = {
-                                    (expandVertically(
-                                        animationSpec = foldEnterSize,
-                                        expandFrom = Alignment.Top,
-                                    ) + fadeIn(foldEnterFade)) togetherWith
-                                        (shrinkVertically(
-                                            animationSpec = foldEnterSize,
-                                            shrinkTowards = Alignment.Top,
-                                        ) + fadeOut(foldEnterFade)) using
+                                    (slideInVertically(foldSlide) { it / 2 } +
+                                        fadeIn(foldEnterFade) +
+                                        scaleIn(foldScale, initialScale = 0.92f)) togetherWith
+                                        (slideOutVertically(foldSlide) { it / 2 } +
+                                            fadeOut(foldEnterFade) +
+                                            scaleOut(foldScale, targetScale = 0.92f)) using
                                         SizeTransform(clip = false) { _, _ -> foldSize }
                                 },
                                 contentAlignment = Alignment.TopCenter,
