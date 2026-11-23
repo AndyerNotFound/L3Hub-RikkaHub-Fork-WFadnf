@@ -617,6 +617,35 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
+            RoundedColumn {
+                ItemContainer {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.setting_page_agent_title))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.setting_page_agent_desc),
+                                    color = SaltTheme.colors.subText,
+                                    style = SaltTheme.textStyles.sub,
+                                )
+                            }
+                            ValuePill("${settings.subAgentMaxParallel}")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        NumberSlider(
+                            value = settings.subAgentMaxParallel,
+                            onValueChange = { value ->
+                                vm.updateSettings { it.copy(subAgentMaxParallel = value) }
+                            },
+                            valueRange = 1..8,
+                        )
+                    }
+                }
+            }
+
             SaltGroup(title = stringResource(R.string.setting_page_tts_settings)) {
                 ItemContainer {
                     Column {
