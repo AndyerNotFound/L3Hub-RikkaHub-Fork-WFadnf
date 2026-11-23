@@ -51,7 +51,6 @@ import me.rerere.rikkahub.data.ai.subagent.SUB_AGENT_STATE_RUNNING
 import me.rerere.rikkahub.data.ai.subagent.SubAgentResultStore
 import me.rerere.rikkahub.data.ai.subagent.SubAgentWaits
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
-import me.rerere.rikkahub.data.ai.tools.TODO_UPDATE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.transformers.withOcrResults
@@ -782,7 +781,7 @@ class ChatService(
     private fun UIMessage.todoReminderDue(interval: Int): Boolean {
         val lastTool = (parts.lastOrNull() as? UIMessagePart.Tool)?.takeIf { it.isExecuted }
         if (lastTool != null &&
-            (lastTool.toolName == TODO_WRITE_TOOL_NAME || lastTool.toolName == TODO_UPDATE_TOOL_NAME)
+            lastTool.toolName == TODO_WRITE_TOOL_NAME
         ) {
             return false
         }

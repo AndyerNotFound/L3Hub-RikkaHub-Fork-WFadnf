@@ -18,7 +18,7 @@ data class TodoItem(
     val content: String,
     val status: TodoStatus = TodoStatus.PENDING,
     /**
-     * 稳定标识，供 todo_update 单条翻状态用。
+     * 稳定标识，供界面手动编辑定位单条。
      * 老数据里没有这个字段（null），读出来照常显示；todo_write 或手动编辑会补上。
      */
     val id: String? = null,
@@ -47,8 +47,8 @@ enum class TodoStatus {
 fun newTodoId(): String = Uuid.random().toString().take(8)
 
 /**
- * 老清单里的项可能没有 id（todo_update 之前写的）。
- * 手动编辑时顺手补上，之后模型的 todo_update 才认得出是哪一条；已经有 id 的保持原样。
+ * 老清单里的项可能没有 id。
+ * 手动编辑时顺手补上，界面才认得出是哪一条；已经有 id 的保持原样。
  */
 internal fun List<TodoItem>.ensureTodoIds(): List<TodoItem> =
     map { item -> if (item.id.isNullOrBlank()) item.copy(id = newTodoId()) else item }

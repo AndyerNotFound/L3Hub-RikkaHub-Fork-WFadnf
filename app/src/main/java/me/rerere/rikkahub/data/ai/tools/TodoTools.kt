@@ -27,7 +27,6 @@ private val TODO_STATUS_ENUM: JsonArray = buildJsonArray {
 }
 
 const val TODO_WRITE_TOOL_NAME = "todo_write"
-const val TODO_UPDATE_TOOL_NAME = "todo_update"
 
 /**
  * 会话级任务清单工具。
@@ -60,7 +59,7 @@ fun createTodoTools(
                                     put("type", "string")
                                     put("description", "One-line task description")
                                 })
-                                // 已存在的项把 id 原样带回来, 后续才能用 todo_update 单条更新
+                                // 已存在的项把 id 原样带回来, 保持稳定
                                 put("id", buildJsonObject {
                                     put("type", "string")
                                     put("description", "Omit for a new item; pass back the id shown in the current list to keep it")
@@ -94,7 +93,7 @@ fun createTodoTools(
                     dropped++
                     return@mapNotNull null
                 }
-                // 已经带 id 的原样保留，没有的补一个：后续 todo_update 靠它定位单条
+                // 已经带 id 的原样保留，没有的补一个：id 供界面手动编辑时定位单条
                 val id = obj.get("id")?.jsonPrimitive?.contentOrNull
                     ?.trim()
                     ?.takeIf { it.isNotEmpty() }
@@ -134,7 +133,6 @@ fun createTodoTools(
             )
         },
     ),
-    createTodoUpdateTool(conversationRepository, conversationId),
 )
 
 /**
@@ -154,84 +152,6 @@ private suspend fun writeTodos(
     }
 }
 
-/**
- * 单条更新。
- *
- * 让模型「翻一个状态」时不必把整张表复述一遍：既省 token，也少一类手滑改坏别的项。
- * id 由 todo_write 分配并显示在清单里。
- */
-private fun createTodoUpdateTool(
-    conversationRepository: ConversationRepository,
-    conversationId: Uuid,
-): Tool = Tool(
-    name = TODO_UPDATE_TOOL_NAME,
-    description = """
-        Change the status of one task without rewriting the whole list.
-        Use the id shown next to each item (for example `3f2a9c1d`). Prefer this over todo_write once the list exists.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("id", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Item id from the current task list")
-                })
-                put("status", buildJsonObject {
-                    put("type", "string")
-                    put("enum", TODO_STATUS_ENUM)
-                })
-            },
-            required = listOf("id", "status"),
-        )
-    },
-    needsApproval = { false },
-    execute = {
-        val params = it.jsonObject
-        val id = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-        require(id.isNotEmpty()) { "id is required" }
-        val status = params.parseStatus()
-        val current = readTodos(conversationRepository, conversationId)
-            ?: error("This conversation is not loaded; call todo_write with the full list instead")
-        val index = current.indexOfFirst { it.id == id }
-        if (index < 0) {
-            error(
-                "Unknown todo id '$id'. Current ids: ${current.joinToString { it.id ?: "-" }}. " +
-                    "If the list was written before ids existed, call todo_write once to assign them."
-            )
-        }
-        val updated = current.toMutableList().apply { this[index] = this[index].copy(status = status) }
-        writeTodos(conversationRepository, conversationId, updated)
-
-        val completed = updated.count { it.status == TodoStatus.COMPLETED }
-        val cancelled = updated.count { it.status == TodoStatus.CANCELLED }
-        val inProgress = updated.count { it.status == TodoStatus.IN_PROGRESS }
-        listOf(
-            UIMessagePart.Text(
-                buildString {
-                    appendLine("updated id=$id status=${status.name.lowercase()}")
-                    appendLine(
-                        "total=${updated.size} completed=$completed cancelled=$cancelled inProgress=$inProgress"
-                    )
-                    if (inProgress > 1) appendLine("warning: $inProgress items are in_progress, keep exactly one")
-                    append("Current todo list:\n")
-                    append(formatTodoLines(updated))
-                }
-            )
-        )
-    },
-)
-
-/** 当前清单：优先内存（会话已加载），否则读库 */
-private suspend fun readTodos(
-    conversationRepository: ConversationRepository,
-    conversationId: Uuid,
-): List<TodoItem>? {
-    runCatching { getKoin().get<me.rerere.rikkahub.service.ChatService>() }
-        .getOrNull()
-        ?.currentTodos(conversationId)
-        ?.let { return it }
-    return runCatching { conversationRepository.getConversationById(conversationId)?.todos }.getOrNull()
-}
 
 /** 模型的输出不一定守规矩, 常见的同义写法都收下 */
 internal fun JsonObject.parseStatus(): TodoStatus {

@@ -54,7 +54,7 @@ class TodoStateTransformerTest {
             UIMessage.user("hi"),
             UIMessage(
                 role = MessageRole.ASSISTANT,
-                parts = listOf(UIMessagePart.Tool(toolCallId = "1", toolName = "todo_update", input = "{}")),
+                parts = listOf(UIMessagePart.Tool(toolCallId = "1", toolName = "todo_write", input = "{}")),
             ),
         )
 
