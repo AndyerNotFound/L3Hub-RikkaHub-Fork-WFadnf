@@ -33,9 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
@@ -44,6 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moriafly.salt.ui.ItemContainer
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import com.moriafly.salt.ui.RoundedColumn
 import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
@@ -60,6 +63,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.components.ui.SaltGlassStyles
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -346,24 +350,23 @@ private fun MessageStylePreview(
         assistantResolved
     }
     val dim = style != ChatMessageBackgroundStyle.DEFAULT
-    // 预览用编辑目标的模糊半径模糊背景，调滑杆时能看到强度变化
-    val previewBlur = when (editingTarget) {
-        ChatBubbleStyleTarget.USER -> userResolved.blurRadius
-        ChatBubbleStyleTarget.ASSISTANT -> assistantResolved.blurRadius
-        ChatBubbleStyleTarget.THINKING_TOOL_CARD -> cardResolved.blurRadius
-    }
+    val frosted = style == ChatMessageBackgroundStyle.FROSTED
+    // 预览的毛玻璃源：背景（渐变 + 光斑）注册为 Haze 源，气泡用 hazeBlur 真实模糊它，
+    // 与聊天界面的渲染路径一致（对齐 Kelivo 预览里的 ChatFrostedBackdrop）
+    val previewHaze = rememberHazeState()
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(220.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(1.dp, cs.outlineVariant.copy(alpha = if (isDark) 0.12f else 0.10f), RoundedCornerShape(16.dp)),
     ) {
-        // 被模糊的背景层（渐变 + 光斑），模拟毛玻璃的观感
+        // 清晰的背景源：渐变 + 光斑，毛玻璃气泡透过它显示模糊
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(previewHaze)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -371,8 +374,7 @@ private fun MessageStylePreview(
                             cs.surfaceContainerHigh,
                         ),
                     ),
-                )
-                .blur(previewBlur, BlurredEdgeTreatment.Unbounded),
+                ),
         ) {
             Box(
                 modifier = Modifier
@@ -400,6 +402,8 @@ private fun MessageStylePreview(
                 text = stringResource(R.string.message_style_page_preview_user),
                 modifier = Modifier.align(Alignment.End),
                 dimmed = dim && editingTarget != ChatBubbleStyleTarget.USER,
+                frosted = frosted,
+                hazeState = previewHaze,
             )
             PreviewBubble(
                 resolved = cardResolved,
@@ -408,11 +412,15 @@ private fun MessageStylePreview(
                     editingTarget != ChatBubbleStyleTarget.THINKING_TOOL_CARD &&
                     editingTarget != ChatBubbleStyleTarget.ASSISTANT,
                 compact = true,
+                frosted = frosted,
+                hazeState = previewHaze,
             )
             PreviewBubble(
                 resolved = assistantResolved,
                 text = stringResource(R.string.message_style_page_preview_assistant),
                 dimmed = dim && editingTarget != ChatBubbleStyleTarget.ASSISTANT,
+                frosted = frosted,
+                hazeState = previewHaze,
             )
         }
     }
@@ -426,14 +434,30 @@ private fun PreviewBubble(
     modifier: Modifier = Modifier,
     dimmed: Boolean,
     compact: Boolean = false,
+    frosted: Boolean = false,
+    hazeState: HazeState? = null,
 ) {
     val shape = RoundedCornerShape(resolved.radius)
+    val base = modifier
+        .widthIn(max = 240.dp)
+        .height(if (compact) 34.dp else 44.dp)
+        .alpha(if (dimmed) 0.45f else 1f)
+        .clip(shape)
+    // 毛玻璃档走真实 haze：先模糊预览背景源，再叠半透明底色与边框，
+    // 与聊天界面的 effectSurface 路径一致
+    val effect = if (frosted && hazeState != null) {
+        base.hazeBlur(
+            input = HazeInput.Sources(hazeState),
+            style = SaltGlassStyles.blur(
+                isDarkTheme = LocalDarkMode.current,
+                radius = resolved.blurRadius,
+            ),
+        )
+    } else {
+        base
+    }
     Box(
-        modifier = modifier
-            .widthIn(max = 240.dp)
-            .height(if (compact) 34.dp else 44.dp)
-            .alpha(if (dimmed) 0.45f else 1f)
-            .clip(shape)
+        modifier = effect
             .background(resolved.background)
             .border(resolved.borderWidth, resolved.border, shape)
             .padding(horizontal = 10.dp),
