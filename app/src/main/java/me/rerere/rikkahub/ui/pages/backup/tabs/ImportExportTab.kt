@@ -140,6 +140,37 @@ fun ImportExportTab(
         }
     }
 
+    // Kelivo 兼容备份包单独一个 launcher：产出 Kelivo 能直接恢复的 zip
+    val kelivoCompatLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        uri?.let { targetUri ->
+            scope.launch {
+                isExporting = true
+                runCatching {
+                    val exportFile = vm.exportKelivoCompat()
+                    context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
+                        FileInputStream(exportFile).use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    exportFile.delete()
+                    toaster.show(
+                        context.getString(R.string.backup_page_backup_success),
+                        type = ToastType.Success
+                    )
+                }.onFailure { e ->
+                    e.printStackTrace()
+                    toaster.show(
+                        context.getString(R.string.backup_page_export_failed, e.message ?: ""),
+                        type = ToastType.Error
+                    )
+                }
+                isExporting = false
+            }
+        }
+    }
+
     // 创建文件选择的launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -364,6 +395,20 @@ fun ImportExportTab(
                         val timestamp = LocalDateTime.now()
                             .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                         upstreamCompatLauncher.launch("rikkahub_upstream_$timestamp.zip")
+                    }
+                } else null,
+            )
+
+            BackupActionRow(
+                icon = HugeIcons.FileExport,
+                loading = isExporting,
+                headline = stringResource(R.string.backup_page_kelivo_export),
+                supporting = stringResource(R.string.backup_page_kelivo_export_desc),
+                onClick = if (!isExporting) {
+                    {
+                        val timestamp = LocalDateTime.now()
+                            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                        kelivoCompatLauncher.launch("kelivo_backup_$timestamp.zip")
                     }
                 } else null,
             )

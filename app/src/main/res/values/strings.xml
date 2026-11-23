@@ -179,6 +179,8 @@
   <string name="backup_page_export_desc">Export app data to a file</string>
   <string name="backup_page_upstream_export">Export for Original RikkaHub</string>
   <string name="backup_page_upstream_export_desc">Plain zip the original RikkaHub 3.3.0 can restore; OCR models, local-inference providers and other values the original build cannot read are dropped</string>
+  <string name="backup_page_kelivo_export">Export as Kelivo backup</string>
+  <string name="backup_page_kelivo_export_desc">Package conversations into a backup file that Kelivo can restore directly; attachments follow the content selection</string>
   <string name="backup_page_exporting">Exporting...</string>
   <string name="backup_page_export_failed">Export failed: %s</string>
   <string name="backup_page_files">Files</string>

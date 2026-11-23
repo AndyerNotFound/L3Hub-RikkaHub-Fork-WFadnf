@@ -179,6 +179,8 @@
   <string name="backup_page_export_desc">导出APP数据为文件</string>
   <string name="backup_page_upstream_export">导出为原版 RikkaHub 兼容包</string>
   <string name="backup_page_upstream_export_desc">生成原版 3.3.0 能恢复的 zip；OCR 模型、本地推理 provider 等原版读不懂的项会被去掉</string>
+  <string name="backup_page_kelivo_export">导出为 Kelivo 备份</string>
+  <string name="backup_page_kelivo_export_desc">打包为 Kelivo 可直接恢复的备份文件；附件跟随备份内容勾选</string>
   <string name="backup_page_exporting">正在导出...</string>
   <string name="backup_page_export_failed">导出失败: %s</string>
   <string name="backup_page_files">文件</string>

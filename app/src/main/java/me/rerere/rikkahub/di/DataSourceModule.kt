@@ -41,6 +41,7 @@ import me.rerere.rikkahub.data.remote.SettingsProxySelector
 import me.rerere.rikkahub.data.remote.SettingsSocks5Authenticator
 import me.rerere.rikkahub.data.remote.SponsorAPI
 import me.rerere.rikkahub.data.sync.BackupManager
+import me.rerere.rikkahub.data.sync.KelivoExporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
@@ -281,6 +282,14 @@ val dataSourceModule = module {
     }
 
     single { BackupManager(context = get(), database = get(), settingsStore = get(), json = get()) }
+    single {
+        KelivoExporter(
+            context = get(),
+            conversationDao = get(),
+            messageNodeDao = get(),
+            filesManager = get(),
+        )
+    }
 
     single { VersionSyncClient(context = get(), backupManager = get(), database = get()) }
 
