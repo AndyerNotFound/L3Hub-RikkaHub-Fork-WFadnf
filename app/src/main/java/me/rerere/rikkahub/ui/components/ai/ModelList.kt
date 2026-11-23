@@ -380,7 +380,7 @@ fun ModelListContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // 关闭按钮在 ModelPickerTwoPane 的标题行右侧，这里不再重复放一个
+        // 标题行已整体移除（展开/收起、标题、关闭按钮）；抽屉靠点外部/返回键关，横屏右栏靠标签条关
         ModelPickerTwoPane(
             currentModel = state.modelId,
             providers = state.filteredProviders,

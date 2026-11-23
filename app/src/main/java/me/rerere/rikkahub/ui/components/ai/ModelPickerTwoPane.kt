@@ -30,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +46,6 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Cancel01
@@ -56,7 +54,6 @@ import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
 import me.rerere.rikkahub.utils.compactMagnitude
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.icons.HeartIcon
@@ -68,10 +65,10 @@ private const val SIDEBAR_WIDTH_DP = 88
 private const val COMPACT_WIDTH_DP = 360
 
 /**
- * 双列模型选择：左侧是能整条收起的导航栏，右侧是模型卡片。
+ * 双列模型选择：左侧是固定展开的导航栏，右侧是模型卡片。
  *
  * 导航栏按分组列出供应商 Logo，长按分组名可以调整顺序，长按 Logo 进供应商详情；
- * 点左上角的箭头收起导航栏，右侧就拿满整个弹窗宽度。搜索同时匹配模型名和供应商名。
+ * 搜索同时匹配模型名和供应商名。
  */
 @Composable
 fun ModelPickerTwoPane(
@@ -123,7 +120,6 @@ fun ModelPickerTwoPane(
     var showFavorites by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var reorderDialog by remember { mutableStateOf(false) }
-    var sidebarExpanded by rememberSaveable { mutableStateOf(true) }
     val query = search.trim()
 
     val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
@@ -167,76 +163,35 @@ fun ModelPickerTwoPane(
     }
 
     Row(modifier = Modifier.fillMaxSize()) {
-        MotionExpandCollapseHorizontal(visible = sidebarExpanded) {
-            Row(modifier = Modifier.fillMaxHeight()) {
-                ModelPickerSidebar(
-                    providersByGroup = providersByGroup,
-                    orderedGroups = orderedGroups,
-                    showFavoritesEntry = favoriteModels.isNotEmpty(),
-                    showFavorites = showFavorites,
-                    selectedProviderId = selectedProviderId,
-                    onCollapse = { sidebarExpanded = false },
-                    onSelectFavorites = {
-                        showFavorites = true
-                        search = ""
-                    },
-                    onSelectProvider = { provider ->
-                        showFavorites = false
-                        search = ""
-                        selectedProviderId = provider.id
-                    },
-                    onOpenProvider = onOpenProvider,
-                    onReorderGroups = { reorderDialog = true },
-                    onOpenProviderSettings = onOpenProviderSettings,
-                )
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                )
-            }
+        Row(modifier = Modifier.fillMaxHeight()) {
+            ModelPickerSidebar(
+                providersByGroup = providersByGroup,
+                orderedGroups = orderedGroups,
+                showFavoritesEntry = favoriteModels.isNotEmpty(),
+                showFavorites = showFavorites,
+                selectedProviderId = selectedProviderId,
+                onSelectFavorites = {
+                    showFavorites = true
+                    search = ""
+                },
+                onSelectProvider = { provider ->
+                    showFavorites = false
+                    search = ""
+                    selectedProviderId = provider.id
+                },
+                onOpenProvider = onOpenProvider,
+                onReorderGroups = { reorderDialog = true },
+                onOpenProviderSettings = onOpenProviderSettings,
+            )
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            )
         }
 
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = if (sidebarExpanded) 12.dp else 4.dp, top = 4.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (!sidebarExpanded) {
-                    IconButton(
-                        onClick = { sidebarExpanded = true },
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.ArrowRight01,
-                            contentDescription = stringResource(R.string.model_list_expand_sidebar),
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-                Text(
-                    text = stringResource(R.string.model_list_select_model),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 4.dp),
-                )
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Cancel01,
-                        contentDescription = stringResource(R.string.close),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -357,7 +312,6 @@ private fun ModelPickerSidebar(
     showFavoritesEntry: Boolean,
     showFavorites: Boolean,
     selectedProviderId: Uuid?,
-    onCollapse: () -> Unit,
     onSelectFavorites: () -> Unit,
     onSelectProvider: (ProviderSetting) -> Unit,
     onOpenProvider: (ProviderSetting) -> Unit,
@@ -371,19 +325,6 @@ private fun ModelPickerSidebar(
             .fillMaxHeight(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        IconButton(
-            onClick = onCollapse,
-            modifier = Modifier
-                .align(Alignment.Start)
-                .padding(start = 2.dp, top = 2.dp)
-                .size(36.dp),
-        ) {
-            Icon(
-                imageVector = HugeIcons.ArrowLeft01,
-                contentDescription = stringResource(R.string.model_list_collapse_sidebar),
-                modifier = Modifier.size(18.dp),
-            )
-        }
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),

@@ -2355,8 +2355,6 @@
   <string name="workspace_ssh_editor_missing_password">請填寫密碼</string>
   <string name="workspace_ssh_editor_missing_private_key">請填寫或匯入私鑰</string>
   <string name="workspace_ssh_editor_use_home">主目錄</string>
-  <string name="model_list_collapse_sidebar">收合側欄</string>
-  <string name="model_list_expand_sidebar">展開側欄</string>
   <string name="model_list_no_match">沒有符合的模型</string>
   <string name="assistant_page_top_k">Top K</string>
   <string name="assistant_page_top_k_warning">只從機率最高的 K 個 token 取樣。並非所有供應商都支援這個值。</string>

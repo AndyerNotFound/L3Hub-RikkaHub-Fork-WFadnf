@@ -2559,8 +2559,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_tool_git">Git 审阅</string>
   <string name="workspace_detail_tool_test">运行测试</string>
   <string name="workspace_detail_tool_repo_map">仓库地图</string>
-  <string name="model_list_collapse_sidebar">收起侧栏</string>
-  <string name="model_list_expand_sidebar">展开侧栏</string>
   <string name="model_list_no_match">没有匹配的模型</string>
   <string name="workspace_review_patch_conflicts">%1$d 处补丁冲突，未写入任何内容</string>
   <string name="workspace_review_patch_applied">已为 %1$d 个文件应用补丁</string>
