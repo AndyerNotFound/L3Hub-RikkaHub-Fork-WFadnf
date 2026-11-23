@@ -684,8 +684,9 @@ private fun AssetPickerSheet(
     onSelect: (MediaCreationOutput) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ComposerSheet(visible = visible, onDismiss = onDismiss) {
+    ComposerSheet(visible = visible, onDismiss = onDismiss,
         title = stringResource(when (role) { ImageRole.FIRST_FRAME -> R.string.media_creation_page_add_first_frame_asset; ImageRole.LAST_FRAME -> R.string.media_creation_page_add_last_frame_asset; ImageRole.REFERENCE -> R.string.media_creation_page_add_reference_asset }),
+    ) {
 
         // 一行两个，放不下的换到下一行
         FlowRow(
@@ -763,8 +764,9 @@ private fun ModelSheet(
         .map { provider -> provider to provider.models.filter { provider.capabilities(it.kind) != null } }
         .filter { it.second.isNotEmpty() }
 
-    ComposerSheet(visible = visible, onDismiss = onDismiss) {
+    ComposerSheet(visible = visible, onDismiss = onDismiss,
         title = stringResource(R.string.media_creation_page_select_model),
+    ) {
 
         if (groups.isEmpty()) {
             Text(

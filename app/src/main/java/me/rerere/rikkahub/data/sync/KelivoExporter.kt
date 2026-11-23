@@ -13,6 +13,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -258,7 +259,7 @@ class KelivoExporter(
         })
     }
 
-    private fun insertAttachmentPart(
+    private suspend fun insertAttachmentPart(
         db: SQLiteDatabase,
         conversationId: String,
         revisionId: String,
@@ -288,7 +289,7 @@ class KelivoExporter(
         insertPart(db, conversationId, revisionId, ordinal, kind, payload, micros)
     }
 
-    private fun resolveAttachment(url: String, displayName: String?, mime: String?): ResolvedAttachment? {
+    private suspend fun resolveAttachment(url: String, displayName: String?, mime: String?): ResolvedAttachment? {
         val uri = Uri.parse(url)
         val source: File = when (uri.scheme) {
             "file" -> uri.path?.let(::File)?.takeIf { it.isFile } ?: return null

@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,8 @@ import com.moriafly.salt.ui.ItemContainer
 import com.moriafly.salt.ui.RoundedColumn
 import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.BubbleChat
+import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
@@ -72,7 +75,8 @@ fun SettingPreferencesMessageStylePage(
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
-    var editingDark by remember { mutableStateOf(LocalDarkMode.current) }
+    val isDark = LocalDarkMode.current
+    var editingDark by remember { mutableStateOf(isDark) }
     var editingTarget by remember { mutableStateOf(ChatBubbleStyleTarget.ASSISTANT) }
     var showResetDialog by remember { mutableStateOf(false) }
 
