@@ -53,6 +53,7 @@ import me.rerere.hugeicons.stroke.Book03
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
+import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
@@ -233,9 +234,11 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             item("generalSettings") {
                 var colorMode by rememberColorMode()
+                val containerColor = MaterialTheme.colorScheme.primaryContainer
+                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 CardGroup(title = { Text(stringResource(R.string.setting_page_general_settings)) }) {
                     formItem(
-                        leadingContent = { CardGroupIcon(colorMode.icon()) },
+                        leadingContent = { CardGroupIcon(colorMode.icon(), containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_color_mode)) },
                     ) {
                         ConnectedChoiceButtons(
@@ -263,19 +266,19 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     }
                     item(
                         onClick = { navController.navigate(Screen.SettingPreferences) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Settings03) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Settings03, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Assistant) },
-                        leadingContent = { CardGroupIcon(HugeIcons.LookTop) },
+                        leadingContent = { CardGroupIcon(HugeIcons.LookTop, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Extensions) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Package) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Package, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
                     )
@@ -283,52 +286,54 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             }
 
             item("modelServices") {
+                val containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 CardGroup(title = { Text(stringResource(R.string.setting_page_model_and_services)) }) {
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
-                        leadingContent = { CardGroupIcon(HugeIcons.AiMagic) },
+                        leadingContent = { CardGroupIcon(HugeIcons.AiMagic, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingProvider) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Brain02) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Brain02, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSearch) },
-                        leadingContent = { CardGroupIcon(HugeIcons.GlobalSearch) },
+                        leadingContent = { CardGroupIcon(HugeIcons.GlobalSearch, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSpeech) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Megaphone01) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Megaphone01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingMedia) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Image02) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Image02, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_media)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_media_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
-                        leadingContent = { CardGroupIcon(HugeIcons.McpServer) },
+                        leadingContent = { CardGroupIcon(HugeIcons.McpServer, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.ToolOverrides) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Tools) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Tools, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tool_override)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tool_override_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                     )
@@ -339,16 +344,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
+                val containerColor = MaterialTheme.colorScheme.secondaryContainer
+                val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 CardGroup(title = { Text(stringResource(R.string.setting_page_data_settings)) }) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Database02) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Database02, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingFiles) },
-                        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload) },
+                        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_chat_storage)) },
                         supportingContent = {
                             Text(
@@ -375,62 +382,44 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 CardGroup(title = { Text(stringResource(R.string.setting_page_about)) }) {
-                    // 这一行右侧要放两个社交按钮，普通导航行装不下两个尾部按钮，
-                    // 用 formItem 自己拼一行
-                    formItem {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingAbout) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Clapping01, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
+                        trailingContent = {
                             Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { navController.navigate(Screen.SettingAbout) },
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = HugeIcons.Clapping01,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                var showQQGroupSheet by remember { mutableStateOf(false) }
+                                IconButton(
+                                    onClick = { showQQGroupSheet = true }
+                                ) {
+                                    Icon(
+                                        imageVector = TencentQQIcon,
+                                        contentDescription = "QQ",
+                                        tint = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                                QQGroupBottomSheet(
+                                    visible = showQQGroupSheet,
+                                    onDismiss = { showQQGroupSheet = false }
                                 )
-                                Column {
-                                    Text(stringResource(R.string.setting_page_about))
-                                    Text(
-                                        text = stringResource(R.string.setting_page_about_desc),
-                                        color = LocalContentColor.current.copy(alpha = 0.5f),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                IconButton(
+                                    onClick = {
+                                        context.openUrl("https://discord.gg/9weBqxe5c4")
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = DiscordIcon,
+                                        contentDescription = "Discord",
+                                        tint = MaterialTheme.colorScheme.secondary
                                     )
                                 }
                             }
-                            var showQQGroupSheet by remember { mutableStateOf(false) }
-                            IconButton(
-                                onClick = { showQQGroupSheet = true }
-                            ) {
-                                Icon(
-                                    imageVector = TencentQQIcon,
-                                    contentDescription = "QQ",
-                                    tint = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                            QQGroupBottomSheet(
-                                visible = showQQGroupSheet,
-                                onDismiss = { showQQGroupSheet = false }
-                            )
-                            IconButton(
-                                onClick = {
-                                    context.openUrl("https://discord.gg/9weBqxe5c4")
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = DiscordIcon,
-                                    contentDescription = "Discord",
-                                    tint = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                        }
-                    }
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_about)) },
+                    )
                     item(
                         onClick = { navController.navigate(Screen.QuickStart) },
                         leadingContent = { CardGroupIcon(HugeIcons.Rocket01, containerColor = containerColor, contentColor = contentColor) },
@@ -446,15 +435,21 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                             context.openUrl(docUrl)
                         },
-                        leadingContent = { CardGroupIcon(HugeIcons.Book01) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Book01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Log) },
-                        leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingDonate) },
+                        leadingContent = { CardGroupIcon(HugeIcons.InLove, containerColor = containerColor, contentColor = contentColor) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_donate_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_donate)) },
                     )
                     item(
                         onClick = {
@@ -467,7 +462,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
                             }
                         },
-                        leadingContent = { CardGroupIcon(HugeIcons.Share04) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Share04, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_share)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
                     )
