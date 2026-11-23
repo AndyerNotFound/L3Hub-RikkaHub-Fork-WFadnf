@@ -57,6 +57,6 @@ fun resolveBubbleStyle(
         text = colorScheme.onSurface,
         borderWidth = (overrides.borderWidth ?: 0.8f).dp,
         radius = (overrides.cornerRadius ?: 16f).dp,
-        blurRadius = (overrides.blurSigma ?: 14f) * BLUR_SIGMA_TO_DP_SCALE * 1.dp,
+        blurRadius = ((overrides.blurSigma ?: 14f) * BLUR_SIGMA_TO_DP_SCALE).dp,
     )
 }
