@@ -42,9 +42,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.math.roundToInt
@@ -81,13 +78,15 @@ import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -112,11 +111,11 @@ fun ProviderConfigure(
     ) {
         provider.description()
 
-        RoundedColumn {
+        AppSettingsCard {
             // 账号类提供商的接口由登录方式决定，换成自填地址的类型会丢掉凭据
             val typeSwitchable = if (allowTypeSwitch) provider as? ProviderSetting.ApiKey else null
             if (typeSwitchable != null) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         typeSwitchable?.let { current ->
                             ConnectedChoiceButtons(
@@ -130,7 +129,7 @@ fun ProviderConfigure(
                     }
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = provider.enabled,
                 onCheckedChange = { onEdit(provider.copyProvider(enabled = it)) },
                 headline = stringResource(R.string.setting_provider_page_enable),
@@ -301,7 +300,7 @@ private fun textFieldItem(
     visible: Boolean = true,
 ) {
     if (visible) {
-        ItemContainer {
+        AppSettingsRow {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -357,14 +356,14 @@ private fun apiKeyItem(
     onValueChange: (apiKey: String, disabledApiKeys: List<String>, apiKeyLabels: Map<String, String>) -> Unit,
 ) {
     if (visible) {
-        ItemContainer {
+        AppSettingsRow {
             Column {
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_page_api_key))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(stringResource(R.string.setting_provider_page_api_key_multi_desc))
                             }
                         }
@@ -492,7 +491,7 @@ private fun ProviderConfigureOpenAI(
     val toaster = LocalToaster.current
     val responseAPIWarning = stringResource(R.string.setting_provider_page_response_api_warning)
 
-    RoundedColumn {
+    AppSettingsCard {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -522,8 +521,8 @@ private fun ProviderConfigureOpenAI(
         )
     }
 
-    RoundedColumn {
-        SaltSwitchRow(
+    AppSettingsCard {
+        AppSwitchRow(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
@@ -533,7 +532,7 @@ private fun ProviderConfigureOpenAI(
             },
             headline = stringResource(R.string.setting_provider_page_response_api),
         )
-        SaltSwitchRow(
+        AppSwitchRow(
             checked = provider.includeHistoryReasoning,
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) },
             headline = stringResource(R.string.setting_provider_page_include_history_reasoning),
@@ -565,7 +564,7 @@ private fun ProviderConfigureAccount(
     val status = loginStatus[provider.id]
     val credential = provider.credential
 
-    RoundedColumn {
+    AppSettingsCard {
         nameItem(provider, onEdit)
     }
 
@@ -579,22 +578,22 @@ private fun ProviderConfigureAccount(
     }
     val deviceCode = status as? AccountLoginStatus.DeviceCode
 
-    SaltGroup(title = stringResource(R.string.setting_provider_page_account)) {
+    AppSettingsGroup(title = stringResource(R.string.setting_provider_page_account)) {
         if (accountState == AccountCardState.SignedIn) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item),
+                        .heightIn(min = 56.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SaltIconBadge(HugeIcons.UserCircle)
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    AppIconBadge(HugeIcons.UserCircle)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 if (plan != null) {
                                     Text(plan)
                                 }
@@ -605,20 +604,20 @@ private fun ProviderConfigureAccount(
             }
         }
         if (accountState == AccountCardState.SignedIn) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(onClick = { scope.launch { accountManager.logout(provider.id) } }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SaltIconBadge(
+                    AppIconBadge(
                         icon = HugeIcons.Logout03,
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     )
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_page_sign_out))
                     }
@@ -626,11 +625,11 @@ private fun ProviderConfigureAccount(
             }
         }
         if (accountState == AccountCardState.DeviceCode) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(
                             onClick = {
                                 deviceCode?.let { code ->
@@ -641,7 +640,7 @@ private fun ProviderConfigureAccount(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_page_device_code_hint))
                         Text(
@@ -650,8 +649,8 @@ private fun ProviderConfigureAccount(
                             fontFamily = JetbrainsMono,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(stringResource(R.string.setting_provider_page_device_code_reopen))
                             }
                         }
@@ -660,28 +659,28 @@ private fun ProviderConfigureAccount(
             }
         }
         if (accountState == AccountCardState.DeviceCode) {
-            SaltIconRow(
+            AppIconRow(
                 icon = HugeIcons.Cancel01,
                 headline = stringResource(R.string.cancel),
                 onClick = { accountManager.cancelLogin(provider.id) },
             )
         }
         if (accountState == AccountCardState.Authorizing) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(onClick = { accountManager.cancelLogin(provider.id) }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_page_waiting_authorization))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc))
                             }
                         }
@@ -690,21 +689,21 @@ private fun ProviderConfigureAccount(
             }
         }
         if (accountState == AccountCardState.SignedOut) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(onClick = { accountManager.startLogin(provider.id, context) }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SaltIconBadge(HugeIcons.Login03)
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    AppIconBadge(HugeIcons.Login03)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 val failure = status as? AccountLoginStatus.Failed
                                 if (failure != null) {
                                     Text(failure.message, color = MaterialTheme.colorScheme.error)
@@ -735,37 +734,37 @@ private fun ProviderConfigureAccount(
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
     val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
-    SaltGroup(title = stringResource(R.string.setting_provider_page_usage)) {
+    AppSettingsGroup(title = stringResource(R.string.setting_provider_page_usage)) {
         when {
-            result == null -> ItemContainer {
+            result == null -> AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                        Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_provider_page_usage_loading))
                         }
                     }
                 }
 
-            limits == null -> ItemContainer {
+            limits == null -> AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        SaltIconBadge(HugeIcons.DashboardSpeed02)
-                        Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                        AppIconBadge(HugeIcons.DashboardSpeed02)
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_provider_page_usage_failed))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(
                                         text = result.exceptionOrNull()?.message.orEmpty(),
                                         color = MaterialTheme.colorScheme.error,
@@ -776,21 +775,21 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                     }
                 }
 
-            limits.windows.isEmpty() -> SaltIconRow(
+            limits.windows.isEmpty() -> AppIconRow(
                     icon = HugeIcons.DashboardSpeed02,
                     headline = stringResource(R.string.setting_provider_page_usage_none),
                 )
 
             else -> limits.windows.forEach { window ->
                 val reached = limits.limitReached || window.usedPercent >= 100
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.Top) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(window.longLabel())
                                 Spacer(modifier = Modifier.height(2.dp))
-                                CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                    ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                         val resetsAt = window.resetsAt
                                         if (resetsAt != null) {
                                             val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
@@ -823,7 +822,7 @@ private fun ProviderConfigureClaude(
     provider: ProviderSetting.Claude,
     onEdit: (provider: ProviderSetting) -> Unit
 ) {
-    RoundedColumn {
+    AppSettingsCard {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -839,14 +838,14 @@ private fun ProviderConfigureClaude(
         )
     }
 
-    RoundedColumn {
-        SaltSwitchRow(
+    AppSettingsCard {
+        AppSwitchRow(
             checked = provider.promptCaching,
             onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
             headline = stringResource(R.string.setting_provider_page_claude_prompt_caching),
         )
         if (provider.promptCaching) {
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -904,7 +903,7 @@ private fun ProviderConfigureGoogle(
     }
     val useServiceAccount = provider.vertexAI && provider.useServiceAccount
 
-    RoundedColumn {
+    AppSettingsCard {
         nameItem(provider, onEdit)
         apiKeyItem(
             providerId = provider.id,
@@ -932,41 +931,41 @@ private fun ProviderConfigureGoogle(
         )
     }
 
-    RoundedColumn {
-        SaltSwitchRow(
+    AppSettingsCard {
+        AppSwitchRow(
             checked = provider.vertexAI,
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
             headline = stringResource(R.string.setting_provider_page_vertex_ai),
         )
         // 两条互斥：都注册、靠 visible 交叉收放，切换时一条收下去另一条才拉出来
         if (provider.vertexAI) {
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = provider.useServiceAccount,
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
                 headline = stringResource(R.string.setting_provider_page_use_service_account),
             )
         }
         if (!provider.vertexAI || useServiceAccount) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable { onEdit(provider.copy(useInteractionsApi = !provider.useInteractionsApi)) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Interactions API (Beta)")
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 if (useServiceAccount) {
                                     Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent")
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                    Spacer(modifier = Modifier.width(8.dp))
                     AppSwitch(
                         checked = provider.useInteractionsApi,
                         onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
@@ -977,12 +976,12 @@ private fun ProviderConfigureGoogle(
     }
 
     MotionExpandCollapse(visible = useServiceAccount) {
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

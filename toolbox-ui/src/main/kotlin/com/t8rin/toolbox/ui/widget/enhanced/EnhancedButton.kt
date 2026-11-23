@@ -67,6 +67,11 @@ fun EnhancedButton(
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant(onTopOf = containerColor),
     shape: Shape = AutoCircleShape(),
     pressedShape: Shape = ButtonDefaults.pressedShape,
+    // 描边宽度：缺省读 ToolboxSettings.borderWidth，传入后按调用点宽度画（描边按钮一族要自己那一圈）
+    borderWidth: Dp? = null,
+    // 禁用态配色：Unspecified 沿用引擎默认（onSurface 12% / DisabledAlpha）；文本按钮要全透明底
+    disabledContainerColor: Color = Color.Unspecified,
+    disabledContentColor: Color = Color.Unspecified,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     isShadowClip: Boolean = containerColor.alpha != 1f,
@@ -130,7 +135,7 @@ fun EnhancedButton(
                     .materialShadow(
                         shape = animatedShape,
                         elevation = animateDpAsState(
-                            if (settingsState.borderWidth > 0.dp || !enabled) 0.dp else 0.5.dp
+                            if ((borderWidth ?: settingsState.borderWidth) > 0.dp || !enabled) 0.dp else 0.5.dp
                         ).value,
                         enabled = LocalToolboxSettings.current.drawButtonShadows,
                         isClipped = isShadowClip
@@ -139,16 +144,18 @@ fun EnhancedButton(
                 colors = ButtonDefaults.buttonColors(
                     contentColor = animateColorAsState(
                         if (enabled) contentColor
+                        else if (disabledContentColor.isSpecified) disabledContentColor
                         else MaterialTheme.colorScheme.onSurface.copy(DisabledAlpha)
                     ).value,
                     containerColor = animateColorAsState(
                         if (enabled) containerColor
+                        else if (disabledContainerColor.isSpecified) disabledContainerColor
                         else MaterialTheme.colorScheme.onSurface.copy(0.12f)
                     ).value
                 ),
                 enabled = true,
                 border = BorderStroke(
-                    width = settingsState.borderWidth,
+                    width = borderWidth ?: settingsState.borderWidth,
                     color = borderColor
                 ),
                 contentPadding = contentPadding,

@@ -9,11 +9,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.RoundedColumn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -99,11 +99,11 @@ fun S3Tab(
             },
         )
 
-        RoundedColumn {
+        AppSettingsCard {
             s3ConnectionItems(config = s3Config, onUpdate = ::updateS3Config)
         }
 
-        RoundedColumn {
+        AppSettingsCard {
             backupContentItem(
                 options = S3Config.BackupItem.entries,
                 selected = s3Config.items,

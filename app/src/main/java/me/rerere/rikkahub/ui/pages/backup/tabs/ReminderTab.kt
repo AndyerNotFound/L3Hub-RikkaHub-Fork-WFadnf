@@ -20,16 +20,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackupReminderConfig
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
@@ -49,19 +49,19 @@ fun ReminderTab(vm: BackupVM) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        RoundedColumn {
-            SaltSwitchRow(
+        AppSettingsCard {
+            AppSwitchRow(
                 checked = config.enabled,
                 onCheckedChange = { updateConfig(config.copy(enabled = it)) },
                 headline = stringResource(R.string.backup_page_reminder_enable),
             )
 
             if (config.enabled) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -100,7 +100,7 @@ fun ReminderTab(vm: BackupVM) {
                     }
                 }
 
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Clock01,
                     headline = if (config.lastBackupTime == 0L) {
                         stringResource(R.string.backup_page_reminder_no_record)

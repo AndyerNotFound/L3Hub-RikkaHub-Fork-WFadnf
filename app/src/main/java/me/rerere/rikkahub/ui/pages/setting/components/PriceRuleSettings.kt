@@ -36,9 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.util.Locale
 import me.rerere.ai.provider.MAX_PRICE_RULE_EXPRESSION_LENGTH
 import me.rerere.ai.provider.PriceRule
@@ -49,6 +46,8 @@ import me.rerere.ai.provider.priceRuleExpressionErrorPosition
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
@@ -89,9 +88,9 @@ internal fun PriceRuleSettings(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
         } else {
-            RoundedColumn {
+            AppSettingsCard {
                 rules.forEachIndexed { index, rule ->
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(verticalAlignment = Alignment.Top) {
                                 Column(modifier = Modifier.weight(1f)) {
@@ -102,8 +101,8 @@ internal fun PriceRuleSettings(
                                         )
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                             Text(
                                                 text = priceRuleSummary(rule),
                                                 maxLines = 2,

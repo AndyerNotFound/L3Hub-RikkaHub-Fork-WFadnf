@@ -30,7 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults

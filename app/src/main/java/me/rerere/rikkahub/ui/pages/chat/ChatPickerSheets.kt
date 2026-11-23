@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,9 +33,9 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.ui.components.SaltModalSheet
 
 @Composable
@@ -179,10 +178,10 @@ internal fun TerminalWorkspacePickerSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // 外层已有 16dp 横向边距（标题和分组共用），RoundedColumn 不再补，否则叠成 32dp
-            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+            // 外层已有 16dp 横向边距（标题和分组共用）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
+            AppSettingsCard {
                 workspaces.forEach { workspace ->
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.ComputerTerminal01,
                         headline = workspace.name,
                         supporting = workspace.workspaceDir(),

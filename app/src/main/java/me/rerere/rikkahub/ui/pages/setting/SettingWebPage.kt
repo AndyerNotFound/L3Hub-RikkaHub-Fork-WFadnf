@@ -21,7 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,10 +48,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.Item
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Play
@@ -60,11 +56,13 @@ import me.rerere.hugeicons.stroke.StopCircle
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppNavItem
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ssh.SshServerManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
@@ -239,22 +237,18 @@ fun SettingWebPage() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                RoundedColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                ) {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_page_web_server_port))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_port_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_page_web_server_port_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             TextField(
                                 value = portText,
@@ -282,17 +276,17 @@ fun SettingWebPage() {
                             )
                         }
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_page_web_server_localhost_only))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(
                                 checked = settings.webServerLocalhostOnly,
@@ -308,17 +302,17 @@ fun SettingWebPage() {
                             )
                         }
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_page_web_server_jwt_enable))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(
                                 checked = settings.webServerJwtEnabled,
@@ -333,17 +327,17 @@ fun SettingWebPage() {
                             )
                         }
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_page_web_server_password))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_password_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_page_web_server_password_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             TextField(
                                 value = accessPasswordText,
@@ -391,18 +385,18 @@ fun SettingWebPage() {
                     val mdnsUrl = serverState.hostname?.let { "http://$it:$port" }
                     val localUrl = "http://localhost:$port"
                     if (serverState.isRunning && !serverState.localhostOnly) {
-                        Item(
+                        AppNavItem(
                             onClick = { copyUrl(lanUrl) },
                             text = stringResource(R.string.setting_page_web_server_lan_address),
                             sub = lanUrl,
                         )
                     }
                     if (serverState.isRunning && !serverState.localhostOnly && mdnsUrl != null) {
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .heightIn(min = 56.dp)
                                     .clickable(onClick = { mdnsUrl?.let { copyUrl(it) } }),
                                 verticalAlignment = Alignment.Top,
                             ) {
@@ -412,8 +406,8 @@ fun SettingWebPage() {
                                     mdnsUrl?.let { url ->
                                         Text(
                                             text = url,
-                                            color = SaltTheme.colors.subText,
-                                            style = SaltTheme.textStyles.sub,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                            style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
                                 }
@@ -421,17 +415,17 @@ fun SettingWebPage() {
                         }
                     }
                     if (serverState.isRunning) {
-                        Item(
+                        AppNavItem(
                             onClick = { copyUrl(localUrl) },
                             text = stringResource(R.string.setting_page_web_server_local_address),
                             sub = localUrl,
                         )
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -450,11 +444,11 @@ fun SettingWebPage() {
                         }
                     }
                     if (serverState.error != null) {
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item),
+                                    .heightIn(min = 56.dp),
                                 verticalAlignment = Alignment.Top,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
@@ -475,16 +469,12 @@ fun SettingWebPage() {
             }
 
             item {
-                RoundedColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                ) {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -502,7 +492,7 @@ fun SettingWebPage() {
                             }
                         }
                     }
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = settings.sshServerEnabled,
                         onCheckedChange = { checked ->
                             when {
@@ -533,17 +523,17 @@ fun SettingWebPage() {
                         headline = stringResource(R.string.setting_page_ssh_enable),
                         supporting = stringResource(R.string.setting_page_ssh_enable_desc),
                     )
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_page_ssh_port))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_ssh_port_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_page_ssh_port_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             TextField(
                                 value = sshPortText,
@@ -571,7 +561,7 @@ fun SettingWebPage() {
                             )
                         }
                     }
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = settings.sshServerAllowLan,
                         onCheckedChange = { checked ->
                             scope.launch {
@@ -582,11 +572,11 @@ fun SettingWebPage() {
                         supporting = stringResource(R.string.setting_page_ssh_allow_lan_desc),
                         enabled = !sshRunning,
                     )
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { copyUrl(settings.webServerAccessPassword) }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -599,7 +589,7 @@ fun SettingWebPage() {
                                         settings.webServerAccessPassword
                                     } else {
                                         "•".repeat(settings.webServerAccessPassword.length.coerceAtMost(16))
-                                    }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = { tokenVisible = !tokenVisible }) {
                                 Icon(
@@ -609,16 +599,16 @@ fun SettingWebPage() {
                             }
                         }
                     }
-                    Item(
+                    AppNavItem(
                         onClick = { copyUrl(sshExampleCommand) },
                         text = stringResource(R.string.setting_page_ssh_example),
                         sub = sshExampleCommand,
                     )
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -637,11 +627,11 @@ fun SettingWebPage() {
                         }
                     }
                     if (sshError != null) {
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item),
+                                    .heightIn(min = 56.dp),
                                 verticalAlignment = Alignment.Top,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {

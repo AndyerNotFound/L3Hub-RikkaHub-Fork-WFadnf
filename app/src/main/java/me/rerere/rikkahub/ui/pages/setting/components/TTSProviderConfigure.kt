@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -25,14 +26,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.tts.provider.TTSProviderSetting
 import me.rerere.ui.components.OutlinedNumberInput
@@ -48,15 +48,15 @@ fun TTSProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
     ) {
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_tts_page_provider_type))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_tts_page_provider_type_description))
                                 }
                             }
@@ -174,14 +174,14 @@ fun TTSProviderConfigure(
             }
 
             // Name
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_tts_page_name))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_tts_page_name_description))
                                 }
                             }
@@ -200,7 +200,7 @@ fun TTSProviderConfigure(
             }
         }
 
-        RoundedColumn {
+        AppSettingsCard {
             when (setting) {
                 is TTSProviderSetting.OpenAI -> openAITTSItems(setting, onValueChange)
                 is TTSProviderSetting.Gemini -> geminiTTSItems(setting, onValueChange)
@@ -226,14 +226,14 @@ private fun openAITTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -252,14 +252,14 @@ private fun openAITTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -278,14 +278,14 @@ private fun openAITTSItems(
     }
 
     // Model
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -306,14 +306,14 @@ private fun openAITTSItems(
     // Voice
     val voices = listOf("alloy", "echo", "fable", "onyx", "nova", "shimmer")
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -340,14 +340,14 @@ private fun deepSeekTTSItems(
     setting: TTSProviderSetting.DeepSeek,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -364,14 +364,14 @@ private fun deepSeekTTSItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -389,14 +389,14 @@ private fun deepSeekTTSItems(
     }
 
     val voices = listOf("stella", "tide")
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -415,14 +415,14 @@ private fun deepSeekTTSItems(
     }
 
     val formats = listOf("wav", "pcm")
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_format))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_format_desc))
                         }
                     }
@@ -440,7 +440,7 @@ private fun deepSeekTTSItems(
         }
     }
 
-    SaltSwitchRow(
+    AppSwitchRow(
         checked = setting.filterMarkdown,
         onCheckedChange = { onValueChange(setting.copy(filterMarkdown = it)) },
         headline = stringResource(R.string.setting_tts_page_filter_markdown),
@@ -455,14 +455,14 @@ private fun miMoTTSItems(
 ) {
     // MiMo 配置均为自由输入 默认值只是占位
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -481,14 +481,14 @@ private fun miMoTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -507,14 +507,14 @@ private fun miMoTTSItems(
     }
 
     // Model
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -545,14 +545,14 @@ private fun miMoTTSItems(
         "Dean"
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -581,14 +581,14 @@ private fun miniMaxTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -606,14 +606,14 @@ private fun miniMaxTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -632,14 +632,14 @@ private fun miniMaxTTSItems(
     }
 
     // Model
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -672,14 +672,14 @@ private fun miniMaxTTSItems(
         "cartoon_pig"
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice_id))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_id_description))
                         }
                     }
@@ -701,14 +701,14 @@ private fun miniMaxTTSItems(
     }
 
     // Speed
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_speed))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_speed_description))
                         }
                     }
@@ -735,14 +735,14 @@ private fun geminiTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -761,14 +761,14 @@ private fun geminiTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -787,14 +787,14 @@ private fun geminiTTSItems(
     }
 
     // Model
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -813,14 +813,14 @@ private fun geminiTTSItems(
     }
 
     // Voice Name
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice_name))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_name_description))
                         }
                     }
@@ -845,14 +845,14 @@ private fun systemTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // Speech Rate
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_speech_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_speech_rate_description))
                         }
                     }
@@ -873,14 +873,14 @@ private fun systemTTSItems(
     }
 
     // Pitch
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_pitch))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_pitch_description))
                         }
                     }
@@ -907,14 +907,14 @@ private fun qwenTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -933,14 +933,14 @@ private fun qwenTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -964,14 +964,14 @@ private fun qwenTTSItems(
         "qwen-audio-3.0-tts-plus",
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -1011,14 +1011,14 @@ private fun qwenTTSItems(
         else -> emptyList()
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -1042,14 +1042,14 @@ private fun qwenTTSItems(
     // Audio Format
     val formats = listOf("wav", "mp3", "pcm", "opus")
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_audio_format))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_audio_format_desc))
                         }
                     }
@@ -1071,14 +1071,14 @@ private fun qwenTTSItems(
     // Sample Rate
     val sampleRates = listOf(8000, 16000, 22050, 24000, 44100, 48000)
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_sample_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_sample_rate_desc))
                         }
                     }
@@ -1104,14 +1104,14 @@ private fun groqTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -1130,14 +1130,14 @@ private fun groqTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -1156,14 +1156,14 @@ private fun groqTTSItems(
     }
 
     // Model
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -1184,14 +1184,14 @@ private fun groqTTSItems(
     // Voice
     val voices = listOf("austin", "natalie", "kailin")
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -1219,14 +1219,14 @@ private fun xAITTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -1245,14 +1245,14 @@ private fun xAITTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -1279,14 +1279,14 @@ private fun xAITTSItems(
         "leo" to "Leo"
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -1331,7 +1331,7 @@ private fun xAITTSItems(
         "bn" to "Bengali"
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -1361,14 +1361,14 @@ private fun elevenLabsTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -1387,14 +1387,14 @@ private fun elevenLabsTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -1419,14 +1419,14 @@ private fun elevenLabsTTSItems(
         "eleven_flash_v2_5" to "Eleven Flash v2.5"
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -1449,14 +1449,14 @@ private fun elevenLabsTTSItems(
     }
 
     // Voice ID
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -1475,14 +1475,14 @@ private fun elevenLabsTTSItems(
     }
 
     // Stability
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_stability))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_stability_description))
                         }
                     }
@@ -1501,14 +1501,14 @@ private fun elevenLabsTTSItems(
     }
 
     // Similarity Boost
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_similarity_boost))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_similarity_boost_description))
                         }
                     }
@@ -1533,14 +1533,14 @@ private fun fishAudioTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_api_key_description))
                         }
                     }
@@ -1559,14 +1559,14 @@ private fun fishAudioTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -1592,14 +1592,14 @@ private fun fishAudioTTSItems(
         "s1" to R.string.setting_tts_page_fish_model_s1
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -1622,14 +1622,14 @@ private fun fishAudioTTSItems(
     }
 
     // Voice ID (reference_id)
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice_id))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_id_description))
                         }
                     }
@@ -1648,14 +1648,14 @@ private fun fishAudioTTSItems(
     }
 
     // Temperature
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_temperature))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_temperature_description))
                         }
                     }
@@ -1674,14 +1674,14 @@ private fun fishAudioTTSItems(
     }
 
     // Speed
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_speed))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_fish_audio_speed_description))
                         }
                     }
@@ -1706,14 +1706,14 @@ private fun stepTTSItems(
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
     // API Key
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_step_api_key_description))
                         }
                     }
@@ -1732,14 +1732,14 @@ private fun stepTTSItems(
     }
 
     // Base URL
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_base_url_description))
                         }
                     }
@@ -1765,14 +1765,14 @@ private fun stepTTSItems(
         "step-tts-2" to R.string.setting_tts_page_step_model_step_tts_2,
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_model_description))
                         }
                     }
@@ -1831,14 +1831,14 @@ private fun stepTTSItems(
         "qingniandaxuesheng" to R.string.setting_tts_page_step_voice_qingniandaxuesheng,
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_voice_description))
                         }
                     }
@@ -1863,14 +1863,14 @@ private fun stepTTSItems(
     // Response Format
     val formats = listOf("mp3", "wav", "pcm", "opus", "flac")
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_response_format))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_step_response_format_description))
                         }
                     }
@@ -1892,14 +1892,14 @@ private fun stepTTSItems(
     }
 
     // Speed
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_speed))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_fish_audio_speed_description))
                         }
                     }
@@ -1920,14 +1920,14 @@ private fun stepTTSItems(
     }
 
     // Volume
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_volume))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_step_volume_description))
                         }
                     }
@@ -1950,14 +1950,14 @@ private fun stepTTSItems(
     // Sample Rate
     val sampleRates = listOf(8000, 16000, 22050, 24000)
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_sample_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_step_sample_rate_description))
                         }
                     }
@@ -1978,14 +1978,14 @@ private fun stepTTSItems(
     }
 
     // Instruction (仅 stepaudio-2.5-tts 生效)
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_instruction))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_step_instruction_description))
                         }
                     }
@@ -2014,14 +2014,14 @@ private fun volcengineTTSItems(
     setting: TTSProviderSetting.Volcengine,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_volcengine_api_key_description))
                         }
                     }
@@ -2046,7 +2046,7 @@ private fun volcengineTTSItems(
             )
         }
     }
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -2063,14 +2063,14 @@ private fun volcengineTTSItems(
             )
         }
     }
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_resource_id))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_volcengine_resource_id_description))
                         }
                     }
@@ -2085,14 +2085,14 @@ private fun volcengineTTSItems(
             )
         }
     }
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_voice_id))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_volcengine_voice_id_description))
                         }
                     }
@@ -2107,14 +2107,14 @@ private fun volcengineTTSItems(
             )
         }
     }
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_tts_page_speed))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_tts_page_volcengine_speed_description))
                         }
                     }

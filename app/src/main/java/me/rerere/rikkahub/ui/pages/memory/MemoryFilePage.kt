@@ -22,7 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,9 +54,8 @@ import me.rerere.rikkahub.data.repository.MemoryWriteResult
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -284,10 +283,10 @@ private fun MemoryFileDetail(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(innerPadding)
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             .padding(bottom = 16.dp),
     ) {
-        RoundedColumn {
+        AppSettingsCard {
             OverlineRow(
                 overline = stringResource(R.string.memory_file_page_last_updated),
                 value = Instant.ofEpochMilli(file.updatedAt).toLocalDateTime(),
@@ -305,13 +304,13 @@ private fun MemoryFileDetail(
                 )
             }
             if (file.body.isNotBlank()) {
-                ItemContainer {
+                AppSettingsRow {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         // 和上面几行的小标题保持一致
                         Text(
                             text = stringResource(R.string.memory_file_page_details),
-                            color = SaltTheme.colors.subText,
-                            style = SaltTheme.textStyles.sub,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                         SelectableContent {
                             MarkdownBlock(
@@ -370,8 +369,8 @@ private fun MemoryFileEditor(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        // 外层已有 16dp 横向边距（上面的提示文字也在里面），RoundedColumn 不再补，否则叠成 32dp
-        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+        // 外层已有 16dp 横向边距（上面的提示文字也在里面）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
+        AppSettingsCard {
             // 只有编辑已有文件时才有路径
             val editingPath = path
             if (editingPath != null) {
@@ -443,7 +442,7 @@ private fun MemoryFileEditor(
                 )
             }
         }
-        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+        AppSettingsCard {
             FormFieldRow(headline = stringResource(R.string.memory_file_page_details)) {
                 OutlinedTextField(
                     value = body,
@@ -461,22 +460,22 @@ private fun MemoryFileEditor(
 // 一行「小标题 + 取值」，对应旧版列表项的小标题与正文
 @Composable
 private fun OverlineRow(overline: String, value: String) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
-            Text(text = overline, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+            Text(text = overline, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(2.dp))
             Text(text = value)
         }
     }
 }
 
-// 表单项：标题 + 内容区，内距由 Salt 的 ItemContainer 给
+// 表单项：标题 + 内容区，内距由 AppSettingsRow 给
 @Composable
 private fun FormFieldRow(
     headline: String,
     content: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Text(text = headline)
             Spacer(Modifier.height(8.dp))

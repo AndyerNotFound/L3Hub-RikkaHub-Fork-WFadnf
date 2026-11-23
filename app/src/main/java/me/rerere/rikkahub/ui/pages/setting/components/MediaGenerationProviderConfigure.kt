@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -23,9 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
@@ -33,9 +31,11 @@ import me.rerere.mediagen.model.MediaGenerationModel
 import me.rerere.mediagen.model.MediaKind
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.style.IconButton
 
 val MediaGenerationProviderSetting.typeName: String
@@ -78,23 +78,23 @@ fun MediaGenerationProviderBasicConfigure(
     ConfigureColumn(modifier) {
         // 先窄化，lambda 体里要用 Aliyun 的 workspaceId；只在 visible 里做 is 判断带不出 smart cast
         val aliyun = setting as? MediaGenerationProviderSetting.Aliyun
-        RoundedColumn {
+        AppSettingsCard {
             // 类型在新建时选定，之后不能改
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item),
+                        .heightIn(min = 56.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_media_page_provider_type))
                     }
-                    Text(text = setting.typeName, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                    Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -111,7 +111,7 @@ fun MediaGenerationProviderBasicConfigure(
                 }
             }
 
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -128,7 +128,7 @@ fun MediaGenerationProviderBasicConfigure(
                 }
             }
 
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -146,14 +146,14 @@ fun MediaGenerationProviderBasicConfigure(
             }
 
             if (aliyun != null) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.Top) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.setting_media_page_workspace_id))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                    ProvideTextStyle(SaltTheme.textStyles.sub) {
+                                CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                         Text(
                                             stringResource(
                                                 R.string.setting_media_page_workspace_id_desc,
@@ -195,9 +195,9 @@ fun MediaGenerationProviderModelsConfigure(
     }
 
     ConfigureColumn(modifier) {
-        RoundedColumn {
+        AppSettingsCard {
             models.forEach { model ->
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -232,7 +232,7 @@ fun MediaGenerationProviderModelsConfigure(
                 }
             }
 
-            SaltIconRow(
+            AppIconRow(
                 icon = HugeIcons.Add01,
                 headline = stringResource(R.string.setting_media_page_add_model),
                 supporting = stringResource(R.string.setting_media_page_models_desc),

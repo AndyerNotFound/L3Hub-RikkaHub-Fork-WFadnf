@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup

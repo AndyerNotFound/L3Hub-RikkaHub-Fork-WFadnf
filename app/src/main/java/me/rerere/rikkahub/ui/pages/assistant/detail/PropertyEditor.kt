@@ -18,8 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,6 +28,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -82,9 +82,9 @@ fun CustomHeaders(headers: List<CustomHeader>, onUpdate: (List<CustomHeader>) ->
             },
         )
 
-        RoundedColumn {
+        AppSettingsCard {
             headers.forEachIndexed { index, header ->
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         var headerName by remember(header.name) { mutableStateOf(header.name) }
                         var headerValue by remember(header.value) { mutableStateOf(header.value) }
@@ -162,9 +162,9 @@ fun CustomBodies(customBodies: List<CustomBody>, onUpdate: (List<CustomBody>) ->
             },
         )
 
-        RoundedColumn {
+        AppSettingsCard {
             customBodies.forEachIndexed { index, body ->
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         var bodyKey by remember(body.key) { mutableStateOf(body.key) }
                         var bodyValueString by remember(body.value) {

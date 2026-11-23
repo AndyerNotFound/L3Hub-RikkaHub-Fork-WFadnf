@@ -22,10 +22,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import me.rerere.rikkahub.ui.style.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,14 +42,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
@@ -59,10 +57,12 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.overridesFor
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.SaltGlassStyles
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -159,15 +159,15 @@ fun SettingPreferencesMessageStylePage(
         ) {
             // 样式选择
             item {
-                RoundedColumn {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Column {
                             Text(stringResource(R.string.message_style_page_style_title))
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.message_style_page_style_desc),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = LocalContentColor.current.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                             Spacer(Modifier.height(8.dp))
                             ConnectedChoiceButtons(
@@ -196,8 +196,8 @@ fun SettingPreferencesMessageStylePage(
 
             // 布局开关
             item {
-                RoundedColumn {
-                    SaltSwitchRow(
+                AppSettingsCard {
+                    AppSwitchRow(
                         checked = customizeCards,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(customizeThinkingToolCards = it))
@@ -212,8 +212,8 @@ fun SettingPreferencesMessageStylePage(
             if (style != ChatMessageBackgroundStyle.DEFAULT) {
                 // 角色分段
                 item {
-                    RoundedColumn {
-                        ItemContainer {
+                    AppSettingsCard {
+                        AppSettingsRow {
                             Column {
                                 Text(stringResource(R.string.message_style_page_target_title))
                                 Spacer(Modifier.height(8.dp))
@@ -266,12 +266,12 @@ fun SettingPreferencesMessageStylePage(
                 }
             } else {
                 item {
-                    RoundedColumn {
-                        ItemContainer {
+                    AppSettingsCard {
+                        AppSettingsRow {
                             Text(
                                 text = stringResource(R.string.message_style_page_default_hint),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = LocalContentColor.current.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
@@ -495,7 +495,7 @@ private fun StyleParamsGroup(
         onOverridesChange(overrides.transform())
     }
 
-    RoundedColumn {
+    AppSettingsCard {
         if (style == ChatMessageBackgroundStyle.FROSTED) {
             val blurSigma = (overrides.blurSigma ?: 14f).roundToInt().coerceIn(0, 30)
             // 模糊半径只在全局特效 BLUR 档下生效：玻璃档走光学折射，关闭档没有模糊
@@ -517,8 +517,8 @@ private fun StyleParamsGroup(
             if (!blurEnabled) {
                 Text(
                     text = stringResource(R.string.message_style_page_blur_hint),
-                    color = SaltTheme.colors.subText,
-                    style = SaltTheme.textStyles.sub,
+                    color = LocalContentColor.current.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                 )
             }
@@ -585,7 +585,7 @@ private fun ParamSliderRow(
     valueText: String,
     child: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = label, modifier = Modifier.weight(1f))

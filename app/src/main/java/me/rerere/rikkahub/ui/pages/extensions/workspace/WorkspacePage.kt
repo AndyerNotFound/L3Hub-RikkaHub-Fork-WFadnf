@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -43,9 +46,6 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -114,12 +114,12 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {
-        // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留底部
-        SaltGroup(
+        // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里只留底部
+        AppSettingsGroup(
             title = stringResource(R.string.workspace_page_create),
             modifier = Modifier.padding(bottom = 24.dp),
         ) {
-            SaltIconRow(
+            AppIconRow(
                 icon = HugeIcons.FolderCode,
                 headline = stringResource(R.string.workspace_page_type_local),
                 supporting = stringResource(R.string.workspace_page_type_local_desc),
@@ -128,7 +128,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
                     showAddDialog = true
                 },
             )
-            SaltIconRow(
+            AppIconRow(
                 icon = HugeIcons.CloudServer,
                 headline = stringResource(R.string.workspace_page_type_ssh),
                 supporting = stringResource(R.string.workspace_page_type_ssh_desc),
@@ -201,7 +201,7 @@ private fun WorkspaceItem(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
+            AppIconBadge(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
             Column(
                 modifier = Modifier
                     .weight(1f)

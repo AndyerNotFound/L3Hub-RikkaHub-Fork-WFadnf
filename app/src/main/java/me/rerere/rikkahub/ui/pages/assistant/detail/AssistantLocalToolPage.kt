@@ -20,7 +20,12 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,9 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Calendar03
@@ -64,9 +66,6 @@ import me.rerere.rikkahub.phoneuse.PhoneUseManager
 import me.rerere.rikkahub.phoneuse.isFloatingChatWindowOn
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionInfo
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -198,7 +197,7 @@ private fun AssistantLocalToolContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        RoundedColumn {
+        AppSettingsCard {
             LocalToolSwitchRow(
                 checked = LocalToolOption.JavascriptEngine in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.JavascriptEngine, it) },
@@ -283,7 +282,7 @@ private fun AssistantLocalToolContent(
             // 开了派发工具，或者它自己是子代理（子代理会话会自动拿到派发工具）时，
             // 这个范围都可能生效
             if (assistant.localTools.contains(LocalToolOption.SubAgent) || assistant.isSubAgent) {
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Flowchart01,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -412,7 +411,7 @@ private fun LocalToolSwitchRow(
     @StringRes title: Int,
     @StringRes description: Int,
 ) {
-    SaltSwitchRow(
+    AppSwitchRow(
         checked = checked,
         onCheckedChange = onCheckedChange,
         headline = stringResource(title),
@@ -433,7 +432,7 @@ private fun LocalToolSwitchRow(
 
 /**
  * 屏幕使用那行的说明要在服务没开时补一行错误，说明位得吃可组合内容，
- * 所以这一行自己拼 ItemContainer：SaltIconBadge + 标题/说明 + AppSwitch。
+ * 所以这一行自己拼 AppSettingsRow：AppIconBadge + 标题/说明 + AppSwitch。
  */
 @Composable
 private fun PhoneUseSwitchRow(
@@ -443,15 +442,15 @@ private fun PhoneUseSwitchRow(
     @StringRes title: Int,
     supporting: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SaltTheme.dimens.item)
+                .heightIn(min = 56.dp)
                 .clickable { onCheckedChange(!checked) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(
+            AppIconBadge(
                 icon = icon,
                 containerColor = if (checked) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -464,13 +463,13 @@ private fun PhoneUseSwitchRow(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
-            Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+            Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = stringResource(title))
                 Spacer(modifier = Modifier.height(2.dp))
                 supporting()
             }
-            Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+            Spacer(modifier = Modifier.width(8.dp))
             AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
         }
     }

@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.style.IconButton
 
 /**

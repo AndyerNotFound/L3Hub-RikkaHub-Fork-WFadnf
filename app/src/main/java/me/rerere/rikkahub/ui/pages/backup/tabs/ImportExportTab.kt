@@ -31,7 +31,7 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.RestoreOptions
 import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.sync.importer.DeepSeekImportResult
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BACKUP_FORMAT_FULL
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -333,11 +333,11 @@ fun ImportExportTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SaltGroup(
+        AppSettingsGroup(
             title = stringResource(R.string.backup_page_local_backup_export),
         ) {
             backupContentItem(
@@ -414,7 +414,7 @@ fun ImportExportTab(
             )
         }
 
-        SaltGroup(
+        AppSettingsGroup(
             title = stringResource(R.string.backup_page_format),
         ) {
             BackupActionRow(
@@ -437,7 +437,7 @@ fun ImportExportTab(
             )
         }
 
-        SaltGroup(
+        AppSettingsGroup(
             title = stringResource(R.string.backup_page_import_from_other_app),
         ) {
             BackupActionRow(

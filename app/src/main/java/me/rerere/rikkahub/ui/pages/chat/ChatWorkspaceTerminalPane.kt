@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +38,7 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalReadine
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionManager
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalTabContent
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalTabsState
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import org.koin.compose.koinInject

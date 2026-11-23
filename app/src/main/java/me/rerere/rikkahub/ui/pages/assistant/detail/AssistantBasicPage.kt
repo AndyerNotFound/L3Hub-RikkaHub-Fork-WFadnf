@@ -16,7 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -40,9 +43,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
@@ -58,7 +58,6 @@ import me.rerere.rikkahub.ui.components.ai.WorkspaceSelectSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
@@ -175,8 +174,8 @@ internal fun AssistantBasicContent(
             )
         }
 
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Column {
                     Text(text = stringResource(R.string.assistant_page_name))
                     Spacer(modifier = Modifier.height(8.dp))
@@ -194,7 +193,7 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.isSubAgent,
                 onCheckedChange = {
                     onUpdate(
@@ -208,7 +207,7 @@ internal fun AssistantBasicContent(
             )
             // 计划模式和执行权限都只对工作区工具有意义，没绑工作区就不显示，免得纯聊天助手看到一堆无用开关
             if (assistant.allWorkspaceIds.isNotEmpty()) {
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = assistant.planMode,
                     onCheckedChange = { onUpdate(assistant.copy(planMode = it)) },
                     headline = stringResource(R.string.assistant_page_plan_mode),
@@ -216,14 +215,14 @@ internal fun AssistantBasicContent(
                 )
             }
             if (assistant.allWorkspaceIds.isNotEmpty()) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Text(text = stringResource(R.string.assistant_page_execution_permission))
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.assistant_page_execution_permission_desc),
-                            color = SaltTheme.colors.subText,
-                            style = SaltTheme.textStyles.sub,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -245,7 +244,7 @@ internal fun AssistantBasicContent(
                 }
             }
             // 只影响多轮引导的重复频率：清单提醒按内容变化走，不看这个间隔
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -253,8 +252,8 @@ internal fun AssistantBasicContent(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_guidance_interval_desc),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Text(
@@ -278,13 +277,13 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.enableNotification,
                 onCheckedChange = { onUpdate(assistant.copy(enableNotification = it)) },
                 headline = stringResource(R.string.assistant_page_enable_notification),
                 supporting = stringResource(R.string.assistant_page_enable_notification_desc),
             )
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Text(text = stringResource(R.string.assistant_page_tags))
                     Spacer(modifier = Modifier.height(8.dp))
@@ -297,14 +296,14 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Text(text = stringResource(R.string.assistant_page_workspace))
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.assistant_page_workspace_desc),
-                        color = SaltTheme.colors.subText,
-                        style = SaltTheme.textStyles.sub,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     val selectedWorkspaceIds = assistant.allWorkspaceIds.map { it.toString() }.toSet()
@@ -325,7 +324,7 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.useAssistantAvatar,
                 onCheckedChange = {
                     onUpdate(
@@ -339,14 +338,14 @@ internal fun AssistantBasicContent(
             )
         }
 
-        RoundedColumn {
+        AppSettingsCard {
             modelSettingItem(
                 icon = HugeIcons.BubbleChat,
                 title = R.string.assistant_page_chat_model,
                 description = R.string.assistant_page_chat_model_desc,
                 state = modelListState,
             )
-            ItemContainer {
+            AppSettingsRow {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.assistant_page_thinking_budget),
@@ -361,7 +360,7 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.streamOutput,
                 onCheckedChange = {
                     onUpdate(
@@ -375,8 +374,8 @@ internal fun AssistantBasicContent(
             )
         }
 
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -384,8 +383,8 @@ internal fun AssistantBasicContent(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_temperature_warning),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Switch(
@@ -428,7 +427,7 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -436,8 +435,8 @@ internal fun AssistantBasicContent(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_top_p_warning),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Switch(
@@ -480,7 +479,7 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -488,8 +487,8 @@ internal fun AssistantBasicContent(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_top_k_warning),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Switch(
@@ -532,14 +531,14 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Text(text = stringResource(R.string.assistant_page_context_message_limit))
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.assistant_page_context_message_limit_desc),
-                        color = SaltTheme.colors.subText,
-                        style = SaltTheme.textStyles.sub,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     var contextMessageLimitInput by remember(
@@ -610,14 +609,14 @@ internal fun AssistantBasicContent(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Text(text = stringResource(R.string.assistant_page_max_tokens))
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.assistant_page_max_tokens_desc),
-                        color = SaltTheme.colors.subText,
-                        style = SaltTheme.textStyles.sub,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -650,8 +649,8 @@ internal fun AssistantBasicContent(
             }
         }
 
-        RoundedColumn {
-            SaltSwitchRow(
+        AppSettingsCard {
+            AppSwitchRow(
                 checked = assistant.useGradientBackground,
                 onCheckedChange = {
                     onUpdate(
@@ -665,14 +664,14 @@ internal fun AssistantBasicContent(
             )
 
             if (!assistant.useGradientBackground) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Text(text = stringResource(R.string.assistant_page_chat_background))
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.assistant_page_chat_background_desc),
-                            color = SaltTheme.colors.subText,
-                            style = SaltTheme.textStyles.sub,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         BackgroundPicker(
@@ -696,7 +695,7 @@ internal fun AssistantBasicContent(
 
             val backgroundOpacity = assistant.backgroundOpacity.coerceIn(0f, 1f)
             if (!assistant.useGradientBackground && assistant.background != null) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.Top) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -704,8 +703,8 @@ internal fun AssistantBasicContent(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.assistant_page_background_opacity_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             Text(
@@ -735,7 +734,7 @@ internal fun AssistantBasicContent(
                 }
             }
             if (!assistant.useGradientBackground && assistant.background != null) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.Top) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -743,8 +742,8 @@ internal fun AssistantBasicContent(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.assistant_page_background_blur_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             Text(

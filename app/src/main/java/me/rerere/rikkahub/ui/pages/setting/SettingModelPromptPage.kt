@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,9 +35,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -51,7 +49,9 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.SaltModalSheet
 
@@ -69,7 +69,7 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             // 只有翻译能单独设思考强度，所以自成一组
-            RoundedColumn {
+            AppSettingsCard {
                 promptItem(
                     slot = PromptSlot.TRANSLATION,
                     settings = settings,
@@ -77,11 +77,11 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                     iconContentColor = contentColor,
                     onClick = { editing = it },
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -101,7 +101,7 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
         item {
             val containerColor = MaterialTheme.colorScheme.secondaryContainer
             val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            RoundedColumn {
+            AppSettingsCard {
                 PromptSlot.entries.fastForEach { slot ->
                     if (slot != PromptSlot.TRANSLATION) {
                         promptItem(
@@ -189,15 +189,15 @@ private fun promptItem(
     onClick: (PromptSlot) -> Unit,
 ) {
     val prompt = slot.get(settings)
-    ItemContainer {
+    AppSettingsRow {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SaltTheme.dimens.item)
+                .heightIn(min = 56.dp)
                 .clickable(onClick = { onClick(slot) }),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(slot.icon, containerColor = iconContainerColor, contentColor = iconContentColor)
+            AppIconBadge(slot.icon, containerColor = iconContainerColor, contentColor = iconContentColor)
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = stringResource(slot.title))
@@ -205,8 +205,8 @@ private fun promptItem(
                 Text(
                     // 提示词里换行很多，压成一行才看得到实际内容
                     text = remember(prompt) { prompt.trim().replace(Whitespace, " ") },
-                    color = SaltTheme.colors.subText,
-                    style = SaltTheme.textStyles.sub,
+                    color = LocalContentColor.current.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

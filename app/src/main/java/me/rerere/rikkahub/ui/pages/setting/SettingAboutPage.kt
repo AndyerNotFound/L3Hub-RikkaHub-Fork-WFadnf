@@ -39,7 +39,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.center
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toOffset
-import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
@@ -51,7 +50,8 @@ import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.drawAppLogo
 import me.rerere.rikkahub.ui.components.ui.logoMorphShape
 import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
@@ -117,7 +117,7 @@ fun SettingAboutPage() {
         ) { onBurst ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+                // 横向内距由 AppSettingsCard 自带（12dp），这里不再补
                 contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -183,8 +183,8 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.primaryContainer
                     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    RoundedColumn {
-                        SaltIconRow(
+                    AppSettingsCard {
+                        AppIconRow(
                             icon = HugeIcons.Code,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -192,7 +192,7 @@ fun SettingAboutPage() {
                             supporting = "${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE}",
                             onLongClick = { navController.navigate(Screen.Debug) },
                         )
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.SmartPhone01,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -205,8 +205,8 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.secondaryContainer
                     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    RoundedColumn {
-                        SaltIconRow(
+                    AppSettingsCard {
+                        AppIconRow(
                             icon = HugeIcons.Github,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -214,7 +214,7 @@ fun SettingAboutPage() {
                             supporting = "re-ovo (RE) · https://github.com/re-ovo",
                             onClick = { context.openUrl("https://github.com/re-ovo") },
                         )
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.Earth,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -222,7 +222,7 @@ fun SettingAboutPage() {
                             supporting = "RikkaHub · https://rikka-ai.com",
                             onClick = { context.openUrl("https://rikka-ai.com") },
                         )
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.InLove,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -245,8 +245,8 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    RoundedColumn {
-                        SaltIconRow(
+                    AppSettingsCard {
+                        AppIconRow(
                             icon = HugeIcons.Earth,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -254,7 +254,7 @@ fun SettingAboutPage() {
                             supporting = "https://github.com/rikkahub/rikkahub",
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub") },
                         )
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.Github,
                             containerColor = containerColor,
                             contentColor = contentColor,
@@ -262,7 +262,7 @@ fun SettingAboutPage() {
                             supporting = "https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf",
                             onClick = { context.openUrl("https://github.com/AndyerNotFound/L3Hub-RikkaHub-Fork-WFadnf") },
                         )
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.File02,
                             containerColor = containerColor,
                             contentColor = contentColor,

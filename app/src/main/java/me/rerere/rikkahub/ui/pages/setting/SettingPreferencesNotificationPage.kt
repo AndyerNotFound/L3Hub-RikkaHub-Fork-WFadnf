@@ -22,7 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,22 +44,20 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.Item
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.time.Instant
 import kotlin.math.roundToInt
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppNavItem
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -150,15 +148,15 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                // 横向内距由 AppSettingsCard 自带（12dp 横向外距），这里只留全宽模式的刘海安全区
                 .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Play 版由商店负责更新，不提供更新提醒
             if (BuildConfig.UPDATE_CHECK_ENABLED && !BuildConfig.IS_PLAY_STORE) {
-                RoundedColumn {
-                    Item(
+                AppSettingsCard {
+                    AppNavItem(
                         onClick = {
                             selectedUpdatePauseDays = UPDATE_PAUSE_DAY_OPTIONS.first()
                             showUpdatePauseDialog = true
@@ -178,8 +176,8 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
             
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_preferences_notification_background_generation)) {
-                SaltSwitchRow(
+            AppSettingsGroup(title = stringResource(R.string.setting_page_preferences_notification_background_generation)) {
+                AppSwitchRow(
                     checked = displaySetting.enableNotificationOnMessageGeneration,
                     onCheckedChange = {
                         if (it && !permissionState.allPermissionsGranted) {
@@ -191,7 +189,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     supporting = stringResource(R.string.setting_display_page_notification_message_generated_desc),
                 )
                 if (displaySetting.enableNotificationOnMessageGeneration) {
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = displaySetting.enableLiveUpdateNotification,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
@@ -200,7 +198,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         supporting = stringResource(R.string.setting_display_page_live_update_notification_desc),
                     )
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.enableFloatingChatWindow,
                     onCheckedChange = {
                         if (it && !canDrawOverlays) requestOverlayPermission()
@@ -210,11 +208,11 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     supporting = stringResource(R.string.setting_page_preferences_notification_floating_window_desc),
                 )
                 if (displaySetting.enableFloatingChatWindow) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { showFloatingIconPicker = true }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -234,14 +232,14 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.floating_bubble_icon_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.floating_bubble_icon_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.floating_bubble_icon_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         }
                     }
                 }
                 if (displaySetting.enableFloatingChatWindow) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -264,7 +262,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     }
                 }
                 if (displaySetting.enableFloatingChatWindow) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -287,7 +285,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     }
                 }
                 if (displaySetting.enableFloatingChatWindow) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -320,17 +318,17 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     }
                 }
                 if (displaySetting.enableFloatingChatWindow && !canDrawOverlays) {
-                    Item(
+                    AppNavItem(
                         onClick = ::requestOverlayPermission,
                         text = stringResource(R.string.setting_page_preferences_notification_overlay_permission),
                         sub = stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc),
                     )
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = {
                                 if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()
                         }),
@@ -345,7 +343,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                                     } else {
                                         R.string.setting_page_preferences_notification_battery_optimization_desc
                                     }
-                                ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                ), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                         if (!ignoringBatteryOptimizations) {
                             Icon(HugeIcons.ArrowRight01, contentDescription = null)

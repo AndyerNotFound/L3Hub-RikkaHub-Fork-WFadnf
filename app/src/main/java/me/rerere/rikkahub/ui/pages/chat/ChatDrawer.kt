@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.DropdownMenu
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle

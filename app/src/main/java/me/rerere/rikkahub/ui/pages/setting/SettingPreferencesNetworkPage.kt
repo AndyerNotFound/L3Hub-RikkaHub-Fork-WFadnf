@@ -22,7 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,10 +46,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.Item
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.security.cert.CertificateFactory
@@ -65,12 +61,14 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppNavItem
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.remote.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -316,13 +314,13 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                // 横向内距由 AppSettingsCard 自带（12dp 横向外距），这里只留全宽模式的刘海安全区
                 .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = settings.networkSetting.enableAutoRetry,
                     onCheckedChange = { enabled ->
                         updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
@@ -331,7 +329,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                     supporting = stringResource(R.string.setting_page_preferences_network_auto_retry_desc),
                 )
                 if (settings.networkSetting.enableAutoRetry) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -339,7 +337,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_page_preferences_network_retry_count))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -354,7 +352,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                     }
                 }
                 if (settings.networkSetting.enableAutoRetry) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -362,7 +360,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -378,7 +376,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                     }
                 }
                 if (settings.networkSetting.enableAutoRetry) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -386,7 +384,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -401,8 +399,8 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_preferences_network_user_agent)) {
-                ItemContainer {
+            AppSettingsGroup(title = stringResource(R.string.setting_page_preferences_network_user_agent)) {
+                AppSettingsRow {
                     Column {
                         OutlinedTextField(
                             value = userAgent,
@@ -430,8 +428,8 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_preferences_network_proxy)) {
-                Item(
+            AppSettingsGroup(title = stringResource(R.string.setting_page_preferences_network_proxy)) {
+                AppNavItem(
                     onClick = {
                         proxyUrlDraft = proxyUrl
                         proxyUsernameDraft = proxyUsername
@@ -448,11 +446,11 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                         proxyUrl
                     },
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -472,19 +470,19 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_network_ca_title)) {
+            AppSettingsGroup(title = stringResource(R.string.setting_network_ca_title)) {
                 settings.customCaCertificates.forEachIndexed { index, pem ->
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = certificateLabel(pem, index))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_network_ca_installed), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_network_ca_installed), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(
                                 onClick = {
@@ -503,7 +501,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                         }
                     }
                 }
-                Item(
+                AppNavItem(
                     onClick = { caImporter.launch("*/*") },
                     text = stringResource(R.string.setting_network_ca_import),
                     sub = stringResource(R.string.setting_network_ca_import_desc),

@@ -27,7 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.DropdownMenu
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults

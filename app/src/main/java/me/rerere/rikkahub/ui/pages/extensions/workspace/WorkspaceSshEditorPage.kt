@@ -55,14 +55,13 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedButton
@@ -119,7 +118,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
@@ -127,7 +126,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_basic)) {
+                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_basic)) {
                     FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_name)) {
                         OutlinedTextField(
                             enabled = editable,
@@ -142,7 +141,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_connection)) {
+                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_connection)) {
                     FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_host)) {
                         OutlinedTextField(
                             enabled = editable,
@@ -179,9 +178,9 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_auth)) {
+                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_auth)) {
                     if (state.savedCredentialsLost) {
-                        SaltIconRow(
+                        AppIconRow(
                             icon = HugeIcons.AlertCircle,
                             headline = stringResource(R.string.workspace_ssh_editor_credentials_lost),
                             supporting = stringResource(R.string.workspace_ssh_editor_credentials_lost_desc),
@@ -267,7 +266,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_working_dir)) {
+                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_working_dir)) {
                     val homeDir = state.probeResult?.homeDir?.takeIf { it != state.remoteDir }
                     FormFieldRow(
                         headline = stringResource(R.string.workspace_ssh_editor_remote_dir),
@@ -296,15 +295,15 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                SaltGroup(title = stringResource(R.string.workspace_ssh_editor_security)) {
-                    // 指纹用等宽字体多行显示，SaltIconRow 只吃纯文本，这一行自己拼
-                    ItemContainer {
+                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_security)) {
+                    // 指纹用等宽字体多行显示，AppIconRow 只吃纯文本，这一行自己拼
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SaltIconBadge(HugeIcons.FingerPrint)
-                            Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                            AppIconBadge(HugeIcons.FingerPrint)
+                            Spacer(Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.workspace_ssh_editor_host_key))
                                 Spacer(Modifier.height(2.dp))
@@ -312,15 +311,15 @@ fun WorkspaceSshEditorPage(id: String?) {
                                 if (hostKey == null) {
                                     Text(
                                         text = stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed),
-                                        color = SaltTheme.colors.subText,
-                                        style = SaltTheme.textStyles.sub,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        style = MaterialTheme.typography.bodySmall,
                                     )
                                 } else {
                                     Text(
                                         text = "${hostKey.type}\n${hostKey.fingerprint}",
                                         fontFamily = FontFamily.Monospace,
-                                        color = SaltTheme.colors.subText,
-                                        style = SaltTheme.textStyles.sub,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
                             }
@@ -383,7 +382,7 @@ fun WorkspaceSshEditorPage(id: String?) {
     }
 }
 
-// 表单项：标题行（可带说明与右侧控件）+ 内容区，内距由 Salt 的 ItemContainer 给
+// 表单项：标题行（可带说明与右侧控件）+ 内容区，内距由 AppSettingsRow 给
 @Composable
 private fun FormFieldRow(
     headline: String,
@@ -391,7 +390,7 @@ private fun FormFieldRow(
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -400,8 +399,8 @@ private fun FormFieldRow(
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = supporting,
-                            color = SaltTheme.colors.subText,
-                            style = SaltTheme.textStyles.sub,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
@@ -467,8 +466,8 @@ private fun ProbeSection(
             )
         }
         state.probeResult?.let { result ->
-            SaltGroup(title = stringResource(R.string.workspace_ssh_editor_connected)) {
-                SaltIconRow(
+            AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_connected)) {
+                AppIconRow(
                     icon = HugeIcons.CloudServer,
                     headline = stringResource(R.string.workspace_ssh_editor_shell),
                     supporting = result.shell,
@@ -492,7 +491,7 @@ private fun ProbeSection(
                         else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
                     }
                 }
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Folder01,
                     headline = stringResource(R.string.workspace_ssh_editor_working_dir),
                     supporting = remoteDirText,

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,9 +25,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
@@ -46,9 +42,12 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 
@@ -94,7 +93,7 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             )
 
             // 导航条的位置留在列表的内边距里，内容可以滚到它下面
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留纵向
+            // 横向内距由 AppSettingsCard 自带（12dp），这里只留纵向
             val contentPadding = PaddingValues(
                 top = 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
@@ -161,7 +160,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         item {
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            RoundedColumn {
+            AppSettingsCard {
                 modelSettingItem(
                     icon = HugeIcons.BubbleChat,
                     title = R.string.setting_model_page_chat_model,
@@ -176,7 +175,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             // 标题和聊天建议都由快速模型生成，相关的选项跟它放在一组
-            RoundedColumn {
+            AppSettingsCard {
                 modelSettingItem(
                     icon = HugeIcons.Zap,
                     title = R.string.setting_model_page_fast_model,
@@ -185,11 +184,11 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -204,14 +203,14 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                         )
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = settings.enableAutoTitle,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableAutoTitle = it) }
                     },
                     headline = stringResource(R.string.setting_model_page_enable_auto_title),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = settings.enableSuggestion,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableSuggestion = it) }
@@ -224,7 +223,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             // 没设置时用快速模型，配色和它保持一致
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-            RoundedColumn {
+            AppSettingsCard {
                 // 不设置时跟着快速模型走，所以要能清掉
                 modelSettingItem(
                     icon = HugeIcons.Brain02,
@@ -239,11 +238,11 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 )
                 // 没设置时推理强度也跟着快速模型
                 if (memoryModel.currentModel != null) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item),
+                                .heightIn(min = 56.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -269,7 +268,7 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 ?.takeIf { it.type == ModelType.CHAT }
                 ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
                 ?.let { R.string.setting_model_page_ocr_model_missing }
-            RoundedColumn {
+            AppSettingsCard {
                 modelSettingItem(
                     icon = HugeIcons.Translate,
                     title = R.string.setting_model_page_translate_model,

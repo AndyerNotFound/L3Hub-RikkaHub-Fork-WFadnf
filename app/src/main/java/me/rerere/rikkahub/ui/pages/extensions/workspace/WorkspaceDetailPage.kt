@@ -72,11 +72,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.ItemOuterTip
-import com.moriafly.salt.ui.ItemOuterTitle
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import coil3.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -118,10 +113,14 @@ import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTip
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTitle
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -451,19 +450,19 @@ private fun WorkspaceBasicPage(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+        // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            SaltGroup(title = stringResource(R.string.workspace_detail_workspace_info)) {
-                SaltIconRow(
+            AppSettingsGroup(title = stringResource(R.string.workspace_detail_workspace_info)) {
+                AppIconRow(
                     icon = HugeIcons.Tag01,
                     headline = stringResource(R.string.workspace_detail_name),
                     supporting = workspace?.name ?: stringResource(R.string.workspace_detail_loading),
                 )
                 if (hasRootfs) {
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.ComputerTerminal01,
                         headline = stringResource(R.string.workspace_detail_shell_status),
                         trailing = { ShellStatusBadge(shellStatus) },
@@ -479,20 +478,20 @@ private fun WorkspaceBasicPage(
         }
         if (hasRootfs) {
             item {
-                SaltGroup(title = stringResource(R.string.workspace_detail_enable_shell)) {
-                    // 图标 + 说明 + 整宽按钮：SaltIconRow 只吃纯文本，这一项自己拼
-                    ItemContainer {
+                AppSettingsGroup(title = stringResource(R.string.workspace_detail_enable_shell)) {
+                    // 图标 + 说明 + 整宽按钮：AppIconRow 只吃纯文本，这一项自己拼
+                    AppSettingsRow {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                SaltIconBadge(HugeIcons.Bash)
-                                Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                                AppIconBadge(HugeIcons.Bash)
+                                Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.workspace_detail_area_rootfs))
                                     Spacer(Modifier.height(2.dp))
                                     Text(
                                         text = stringResource(R.string.workspace_detail_enable_shell_desc),
-                                        color = SaltTheme.colors.subText,
-                                        style = SaltTheme.textStyles.sub,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
                             }
@@ -513,7 +512,7 @@ private fun WorkspaceBasicPage(
                             installProgress?.let { RootfsProgress(it) }
                         }
                     }
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = workspace?.shellCompatibilityMode ?: false,
                         onCheckedChange = onShellCompatibilityModeChange,
                         enabled = workspace != null,
@@ -547,23 +546,23 @@ private fun SshConnectionCard(
     onEdit: () -> Unit,
 ) {
     val settings = workspace.sshSettings()
-    SaltGroup(title = stringResource(R.string.workspace_detail_ssh_connection)) {
-        SaltIconRow(
+    AppSettingsGroup(title = stringResource(R.string.workspace_detail_ssh_connection)) {
+        AppIconRow(
             icon = HugeIcons.CloudServer,
             headline = stringResource(R.string.workspace_detail_ssh_address),
             supporting = settings?.let { "${it.username}@${it.host}:${it.port}" }
                 ?: stringResource(R.string.workspace_detail_ssh_config_missing),
         )
-        SaltIconRow(
+        AppIconRow(
             icon = HugeIcons.Folder01,
             headline = stringResource(R.string.workspace_detail_ssh_remote_dir),
             supporting = settings?.remoteDir ?: "-",
         )
-        // 指纹用等宽字体多行显示，SaltIconRow 只吃纯文本，这一行自己拼
-        ItemContainer {
+        // 指纹用等宽字体多行显示，AppIconRow 只吃纯文本，这一行自己拼
+        AppSettingsRow {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SaltIconBadge(HugeIcons.FingerPrint)
-                Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                AppIconBadge(HugeIcons.FingerPrint)
+                Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = stringResource(R.string.workspace_detail_ssh_host_key))
                     Spacer(Modifier.height(2.dp))
@@ -571,14 +570,14 @@ private fun SshConnectionCard(
                     Text(
                         text = hostKey?.let { "${it.type}\n${it.fingerprint}" }
                             ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
-                        color = SaltTheme.colors.subText,
-                        style = SaltTheme.textStyles.sub,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
                         fontFamily = if (hostKey != null) FontFamily.Monospace else null,
                     )
                 }
             }
         }
-        SaltIconRow(
+        AppIconRow(
             icon = HugeIcons.PencilEdit01,
             headline = stringResource(R.string.workspace_detail_ssh_edit),
             supporting = stringResource(R.string.workspace_detail_ssh_edit_desc),
@@ -626,12 +625,12 @@ private fun WorkspaceToolApprovalCard(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        ItemOuterTitle(text = stringResource(R.string.workspace_detail_tool_approval))
-        ItemOuterTip(text = stringResource(R.string.workspace_detail_tool_approval_desc))
-        ItemOuterTip(text = stringResource(R.string.workspace_detail_tool_approval_mode_hint))
-        RoundedColumn {
+        AppSettingsGroupTitle(stringResource(R.string.workspace_detail_tool_approval))
+        AppSettingsGroupTip(stringResource(R.string.workspace_detail_tool_approval_desc))
+        AppSettingsGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
+        AppSettingsCard {
             tools.forEach { (toolName, label, icon) ->
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = resolveWorkspaceToolApproval(toolName, overrides),
                     onCheckedChange = { onToolApprovalChange(toolName, it) },
                     enabled = switchesEnabled,
@@ -1087,14 +1086,14 @@ private fun WorkspaceFileItem(
                     }
                 }
 
-                entry.isDirectory -> SaltIconBadge(
+                entry.isDirectory -> AppIconBadge(
                     icon = HugeIcons.Folder01,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
                 // 选中时整行换成 secondaryContainer，图标底色跟着换一档，不然会融进背景
-                else -> SaltIconBadge(
+                else -> AppIconBadge(
                     icon = HugeIcons.File02,
                     containerColor = if (selected) {
                         MaterialTheme.colorScheme.surfaceBright

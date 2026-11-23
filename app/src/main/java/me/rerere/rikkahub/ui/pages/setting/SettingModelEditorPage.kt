@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -46,9 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.ai.provider.BuiltInTools
@@ -74,6 +72,8 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -614,7 +614,7 @@ private fun ModelOcrHelperSetting(
         ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
         ?.let { R.string.setting_model_page_ocr_model_missing }
 
-    RoundedColumn {
+    AppSettingsCard {
         modelSettingItem(
             icon = HugeIcons.ScanText,
             title = R.string.setting_provider_page_ocr_helper_model,
@@ -686,7 +686,7 @@ private fun ModelOtherOptions(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        RoundedColumn {
+        AppSettingsCard {
             PricingItem(
                 label = R.string.setting_provider_page_price_input,
                 value = model.pricing.input,
@@ -756,11 +756,11 @@ private fun PricingItem(
     modelKey: Any,
     onValueChange: (Double) -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SaltTheme.dimens.item),
+                .heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1115,25 +1115,25 @@ private fun BuiltInToolsSettings(
             )
         )
 
-        RoundedColumn {
+        AppSettingsCard {
             availableTools.fastForEach { (tool, info) ->
                 val (title, description) = info
                 val checked = tool in tools
                 val toggle = { enabled: Boolean ->
                     onUpdateTools(if (enabled) tools + tool else tools - tool)
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = { toggle(!checked) }),
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = title)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            Text(text = description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                         Switch(checked = checked, onCheckedChange = toggle)
                     }

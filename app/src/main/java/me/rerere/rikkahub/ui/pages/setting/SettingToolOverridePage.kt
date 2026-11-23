@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,9 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,8 +65,10 @@ import me.rerere.rikkahub.data.ai.tools.decodeToolOverrideParameters
 import me.rerere.rikkahub.data.ai.tools.encodeToolOverrideParameters
 import me.rerere.rikkahub.data.model.ToolOverride
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.JsonTree
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.Button
 import me.rerere.rikkahub.ui.style.Switch
@@ -138,7 +138,7 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp）
+            // 横向内距由 AppSettingsCard 自带（12dp）
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
@@ -146,8 +146,8 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item("intro") {
-                RoundedColumn {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Column {
                             Text(
                                 text = stringResource(R.string.tool_override_page_intro),
@@ -191,20 +191,20 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                         item(group.name) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 ToolGroupHeader(group)
-                                RoundedColumn {
+                                AppSettingsCard {
                                     entries.forEach { entry ->
                                         val toolOverride = overrides[entry.name]
                                         val description = toolOverride?.description ?: entry.description
                                         val overlineText = entry.groupDetail
-                                        ItemContainer {
+                                        AppSettingsRow {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .heightIn(min = SaltTheme.dimens.item)
+                                                    .heightIn(min = 56.dp)
                                                     .clickable(onClick = { selectedName = entry.name }),
                                                 verticalAlignment = Alignment.Top,
                                             ) {
-                                                SaltIconBadge(
+                                                AppIconBadge(
                                                     icon = group.icon(),
                                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -215,8 +215,8 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                                                     if (overlineText != null) {
                                                         Text(
                                                             text = overlineText,
-                                                            color = SaltTheme.colors.subText,
-                                                            style = SaltTheme.textStyles.sub,
+                                                            color = LocalContentColor.current.copy(alpha = 0.5f),
+                                                            style = MaterialTheme.typography.bodySmall,
                                                         )
                                                         Spacer(modifier = Modifier.height(2.dp))
                                                     }
@@ -228,8 +228,8 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                                                     Spacer(modifier = Modifier.height(2.dp))
                                                     Text(
                                                         text = description.ifBlank { noDescriptionText },
-                                                        color = SaltTheme.colors.subText,
-                                                        style = SaltTheme.textStyles.sub,
+                                                        color = LocalContentColor.current.copy(alpha = 0.5f),
+                                                        style = MaterialTheme.typography.bodySmall,
                                                         maxLines = 2,
                                                         overflow = TextOverflow.Ellipsis,
                                                     )

@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,8 +24,6 @@ import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -47,15 +47,15 @@ fun ExtensionsPage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                SaltGroup(title = stringResource(R.string.extensions_page_section_extensions)) {
-                    SaltIconRow(
+                AppSettingsGroup(title = stringResource(R.string.extensions_page_section_extensions)) {
+                    AppIconRow(
                         icon = HugeIcons.Zap,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -63,7 +63,7 @@ fun ExtensionsPage() {
                         supporting = stringResource(R.string.extensions_page_quick_messages_desc),
                         onClick = { navController.navigate(Screen.QuickMessages) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Book03,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -71,7 +71,7 @@ fun ExtensionsPage() {
                         supporting = stringResource(R.string.extensions_page_prompts_desc),
                         onClick = { navController.navigate(Screen.Prompts) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Puzzle,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -79,7 +79,7 @@ fun ExtensionsPage() {
                         supporting = stringResource(R.string.extensions_page_agent_skills_desc),
                         onClick = { navController.navigate(Screen.Skills) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Folder01,
                         containerColor = containerColor,
                         contentColor = contentColor,

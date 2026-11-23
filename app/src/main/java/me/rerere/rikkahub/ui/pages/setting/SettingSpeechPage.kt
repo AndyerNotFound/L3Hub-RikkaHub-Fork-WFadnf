@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -73,6 +72,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.motionColorAsState

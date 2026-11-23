@@ -34,7 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -65,9 +65,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,10 +81,13 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.export.PaletteSerializer
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.glassAssistChipColors
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.ColorProbeState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.DEFAULT_PALETTE_ID
@@ -203,8 +203,8 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("dynamicColor") {
-                RoundedColumn {
-                    SaltSwitchRow(
+                AppSettingsCard {
+                    AppSwitchRow(
                         checked = settings.dynamicColor,
                         onCheckedChange = { enabled ->
                             vm.updateSettings { it.copy(dynamicColor = enabled) }
@@ -227,8 +227,8 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("enablePalette") {
-                RoundedColumn {
-                    SaltSwitchRow(
+                AppSettingsCard {
+                    AppSwitchRow(
                         checked = palette.enabled,
                         onCheckedChange = { enabled ->
                             updatePalette {
@@ -264,13 +264,13 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("presets") {
-                RoundedColumn {
+                AppSettingsCard {
                     PalettePresets.forEach { preset ->
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .heightIn(min = 56.dp)
                                     .clickable(onClick = { updatePalette { it.copy(presetId = preset.id) } }),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -303,7 +303,7 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                 // 文案先在组合作用域外取好，下面两项直接引用
                 val lightTitle = stringResource(R.string.setting_palette_page_light_palette)
                 val darkTitle = stringResource(R.string.setting_palette_page_dark_palette)
-                RoundedColumn {
+                AppSettingsCard {
                     paletteSideItem(
                         colors = lightColors,
                         headline = lightTitle,
@@ -318,12 +318,12 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("transfer") {
-                RoundedColumn {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { exportLauncher.launch(PaletteSerializer.getExportFileName(settings.palette)) }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -332,15 +332,15 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_palette_page_export))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_export_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_palette_page_export_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = {
                                     val json = PaletteSerializer.exportToJson(settings.palette)
                                     scope.launch {
@@ -359,15 +359,15 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_palette_page_copy))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_copy_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_palette_page_copy_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { importLauncher.launch(arrayOf("application/json")) }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -376,7 +376,7 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_palette_page_import))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_import_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_palette_page_import_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -384,12 +384,12 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("probe") {
-                RoundedColumn {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { ColorProbeState.enabled = true }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -398,7 +398,7 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_palette_page_probe))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_probe_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_palette_page_probe_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -406,12 +406,12 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("reset") {
-                RoundedColumn {
-                    ItemContainer {
+                AppSettingsCard {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable(onClick = { showResetDialog = true }),
                             verticalAlignment = Alignment.Top,
                         ) {
@@ -420,7 +420,7 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_palette_page_reset))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_reset_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_palette_page_reset_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -480,11 +480,11 @@ private fun paletteSideItem(
     headline: String,
     onClick: () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SaltTheme.dimens.item)
+                .heightIn(min = 56.dp)
                 .clickable(onClick = onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -495,8 +495,8 @@ private fun paletteSideItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.setting_palette_page_custom_desc),
-                    color = SaltTheme.colors.subText,
-                    style = SaltTheme.textStyles.sub,
+                    color = LocalContentColor.current.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
             Icon(HugeIcons.PencilEdit01, contentDescription = stringResource(R.string.edit))

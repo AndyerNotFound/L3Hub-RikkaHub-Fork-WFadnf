@@ -43,6 +43,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTip
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTitle
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.hugeicons.HugeIcons
@@ -57,13 +63,6 @@ import me.rerere.rikkahub.data.model.InvalidStorageMountPathException
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.data.model.normalizeStorageMountPath
 import me.rerere.rikkahub.data.model.sharedStorageRoot
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.ItemOuterTip
-import com.moriafly.salt.ui.ItemOuterTitle
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.io.File
 
 @Composable
@@ -85,11 +84,11 @@ internal fun WorkspaceStorageMountCard(
     var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        ItemOuterTitle(text = stringResource(R.string.workspace_detail_storage_title))
-        ItemOuterTip(text = stringResource(R.string.workspace_detail_storage_desc))
-        RoundedColumn {
+        AppSettingsGroupTitle(stringResource(R.string.workspace_detail_storage_title))
+        AppSettingsGroupTip(stringResource(R.string.workspace_detail_storage_desc))
+        AppSettingsCard {
             if (!hasPermission) {
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Alert02,
                     headline = stringResource(R.string.workspace_detail_storage_permission_missing),
                     supporting = stringResource(R.string.workspace_detail_storage_permission_missing_desc),
@@ -97,17 +96,17 @@ internal fun WorkspaceStorageMountCard(
                 )
             }
             mounts.forEachIndexed { index, mount ->
-                // 路径用等宽字体、最多两行，SaltIconRow 只吃纯文本，这一行自己拼
-                ItemContainer {
+                // 路径用等宽字体、最多两行，AppIconRow 只吃纯文本，这一行自己拼
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable { editingIndex = index },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        SaltIconBadge(HugeIcons.FolderLinks)
-                        Spacer(Modifier.width(SaltTheme.dimens.subPadding))
+                        AppIconBadge(HugeIcons.FolderLinks)
+                        Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = mount.path,
@@ -124,14 +123,14 @@ internal fun WorkspaceStorageMountCard(
                                         R.string.workspace_detail_storage_needs_approval
                                     }
                                 ),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
                 }
             }
-            SaltIconRow(
+            AppIconRow(
                 icon = HugeIcons.FolderAdd,
                 headline = stringResource(R.string.workspace_detail_storage_add),
                 onClick = if (workspace != null) {

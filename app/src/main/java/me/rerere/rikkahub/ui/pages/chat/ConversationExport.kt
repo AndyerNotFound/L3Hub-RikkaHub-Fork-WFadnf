@@ -7,7 +7,6 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.RowScope
-import com.moriafly.salt.ui.RoundedColumn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ButtonDefaults
@@ -20,9 +19,10 @@ import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import java.io.File
 import me.rerere.hugeicons.HugeIcons
@@ -37,7 +37,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -284,16 +283,16 @@ fun ChatExportSheet(
                 )
             }
 
-            // 外层已有 16dp 横向边距（标题和按钮共用），RoundedColumn 不再补，否则叠成 32dp
-            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
-                SaltSwitchRow(
+            // 外层已有 16dp 横向边距（标题和按钮共用）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = exportOptions.includeReasoning,
                     onCheckedChange = { exportOptions = exportOptions.copy(includeReasoning = it) },
                     headline = stringResource(R.string.chat_page_export_include_reasoning),
                 )
                 // 只有导出图片时用得上
                 if (format == ChatExportFormat.Image) {
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = exportOptions.expandReasoning,
                         onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
                         headline = stringResource(R.string.chat_page_export_image_expand_reasoning),

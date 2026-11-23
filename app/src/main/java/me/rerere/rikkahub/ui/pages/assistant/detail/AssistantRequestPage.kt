@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -22,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf

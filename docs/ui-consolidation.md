@@ -18,8 +18,8 @@ architecture contract, not a verification report. Build and test results belong 
 | Departure marker | `ui/navigation/NavTransitions.kt` | The only entry decorator marks an entry that is leaving and already popped. It reads the back stack and never writes navigation state. |
 | Motion parameters | `ui/theme/MotionSpecs.kt` | Use the active MD3 motion scheme and existing animation settings; do not add isolated timing tables. |
 | Expand/collapse motion | `ui/modifier/MotionBlur.kt` | Enter and exit use matching parameters. Do not build another blur pipeline for the same behavior. |
-| MD3/Miuix component routing | `ui/style/StyledComponents.kt` | Shared visual components live in `ui.style`, not in the terminal UI package. |
-| Settings groups | `ui/components/ui/CardGroup.kt` | Conditional items stay registered and use `visible` or `optionGroup(visible = ...)`. |
+| MD3/ImageToolbox component routing | `ui/style/StyledComponents.kt` | Shared visual components live in `ui.style` and route to the ImageToolbox `toolbox-ui` engine, not to raw Material3 calls. |
+| Settings groups | `ui/components/ui/AppSettingsList.kt` | Conditional items stay registered and use `visible` or `optionGroup(visible = ...)`. |
 | Chat send decisions | `ui/pages/chat/ChatSendActions.kt` | Send, interject, no-answer, edit, and compression confirmation share one acceptance path. |
 | Chat pane state | `ui/pages/chat/ChatPaneHost.kt` | Pane opening, selection, and closing have one owner. |
 | Chat input fields | `ui/components/ai/ChatInputFields.kt` | Full-screen editing remains shared; completion and ordinary input keep their existing behavior. |
@@ -69,12 +69,14 @@ architecture contract, not a verification report. Build and test results belong 
 - Disabling animations snaps supported transitions and disables motion blur. A new hard-coded `tween` must not bypass
   that setting.
 - Do not replace the established page spring with a tween merely to make specifications look uniform.
-- Native and Miuix `CardGroup` containers keep their distinct geometry. Shared item content must not erase that
+- Native and ImageToolbox `AppSettingsList` containers keep their distinct geometry. Shared item content must not erase that
   difference.
 - `CardGroup` content is deliberately not a composable lambda. Changing that registration model breaks recomposition.
 - A conditional `item`, `switchItem`, or `formItem` is never wrapped in `if`; mutually exclusive states use mutually
   exclusive `visible` values.
-- `AppSwitch` performs style routing once through `ui.style`. Button shadow remains disabled for Miuix.
+- `AppSwitch` performs style routing once through `ui.style` and reads switch variants from the ImageToolbox engine
+  (`ToolboxSettingsBridge.switchType`). Button, container, app-bar, FAB, switch, and slider shadows are driven by the
+  `toolTheme.draw*Shadows` settings, not by hard-coded flags.
 
 ## Draft and editor invariants
 
@@ -96,6 +98,6 @@ Automated checks:
 3. The repository CI workflow for compilation and the complete configured unit-test set.
 
 Device acceptance remains necessary for predictive back, repeated back presses, drawer and child gestures, first
-message sending, streaming follow-scroll, floating-bar focus behavior, quota/details overlays, native and Miuix
-`CardGroup` transitions, model draft editing, and landscape panes. Do not describe these as verified until they have
+message sending, streaming follow-scroll, floating-bar focus behavior, quota/details overlays, ImageToolbox-styled
+`AppSettingsList` transitions, model draft editing, and landscape panes. Do not describe these as verified until they have
 actually been exercised on a device.

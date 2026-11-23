@@ -32,7 +32,8 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -79,7 +80,6 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ExportDialog
@@ -317,7 +317,7 @@ private fun ModeInjectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            SaltIconBadge(
+            AppIconBadge(
                 icon = HugeIcons.MagicWand01,
                 containerColor = if (injection.enabled) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -712,7 +712,7 @@ private fun LorebookCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            SaltIconBadge(
+            AppIconBadge(
                 icon = HugeIcons.Book01,
                 containerColor = if (book.enabled) {
                     MaterialTheme.colorScheme.tertiaryContainer

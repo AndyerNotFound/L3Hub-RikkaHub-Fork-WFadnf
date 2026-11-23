@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus

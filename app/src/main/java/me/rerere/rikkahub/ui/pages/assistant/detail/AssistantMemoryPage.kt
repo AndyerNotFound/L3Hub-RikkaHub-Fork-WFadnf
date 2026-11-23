@@ -26,7 +26,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,9 +56,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.addJsonObject
@@ -93,8 +94,6 @@ import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -387,8 +386,8 @@ private fun MemorySettingsTab(
     ) {
         val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
         val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-        RoundedColumn {
-            SaltSwitchRow(
+        AppSettingsCard {
+            AppSwitchRow(
                 checked = assistant.enableMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -400,7 +399,7 @@ private fun MemorySettingsTab(
                 headline = stringResource(R.string.assistant_page_memory),
                 supporting = stringResource(R.string.assistant_page_memory_desc),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.enableMemoryWrite,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -413,7 +412,7 @@ private fun MemorySettingsTab(
                 headline = stringResource(R.string.assistant_page_memory_write),
                 supporting = stringResource(R.string.assistant_page_memory_write_desc),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.useGlobalMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -426,7 +425,7 @@ private fun MemorySettingsTab(
                 headline = stringResource(R.string.assistant_page_global_memory),
                 supporting = stringResource(R.string.assistant_page_global_memory_desc),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.autoConsolidateMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -450,7 +449,7 @@ private fun MemorySettingsTab(
                 onClear = { onUpdateAssistant(assistant.copy(dreamingModelId = null)) },
                 clearContentDescription = R.string.assistant_page_dreaming_model_follow_global,
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.enableRecentChatsReference,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -464,8 +463,8 @@ private fun MemorySettingsTab(
             )
         }
 
-        RoundedColumn {
-            SaltSwitchRow(
+        AppSettingsCard {
+            AppSwitchRow(
                 checked = assistant.autoCompress,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -478,7 +477,7 @@ private fun MemorySettingsTab(
                 supporting = stringResource(R.string.assistant_page_memory_auto_compress_desc),
             )
             if (assistant.autoCompress) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -486,8 +485,8 @@ private fun MemorySettingsTab(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             ValuePill(text = "${(assistant.autoCompressRatio * 100).roundToInt()}%")
@@ -509,11 +508,11 @@ private fun MemorySettingsTab(
                 }
             }
             if (assistant.autoCompress) {
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable { showAutoCompressThresholdDialog = true },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -522,8 +521,8 @@ private fun MemorySettingsTab(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Text(
@@ -536,8 +535,8 @@ private fun MemorySettingsTab(
             }
         }
 
-        RoundedColumn {
-            SaltSwitchRow(
+        AppSettingsCard {
+            AppSwitchRow(
                 checked = assistant.enableTimeReminder,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -550,11 +549,11 @@ private fun MemorySettingsTab(
                 supporting = stringResource(R.string.assistant_page_time_reminder_desc),
             )
             if (assistant.enableTimeReminder) {
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable {
                                 timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
                                 showTimeReminderIntervalDialog = true
@@ -566,8 +565,8 @@ private fun MemorySettingsTab(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_time_reminder_interval_desc),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         Text(
@@ -651,15 +650,15 @@ private fun MemoryFilesTab(
         }
 
         memoryGroups.fastForEach { (directory, files) ->
-            SaltGroup(
+            AppSettingsGroup(
                 title = memorySectionTitle(directory),
             ) {
                 files.fastForEach { memory ->
-                    ItemContainer {
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = SaltTheme.dimens.item)
+                                .heightIn(min = 56.dp)
                                 .clickable { onOpenMemory(memory.path) },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -676,8 +675,8 @@ private fun MemoryFilesTab(
                                             text = memory.description,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            color = SaltTheme.colors.subText,
-                                            style = SaltTheme.textStyles.sub,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                            style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
                                     Text(
@@ -734,12 +733,12 @@ private fun MemoryConsolidationSection(
     onOrganize: () -> Unit,
 ) {
     val lastRun = status.lastRun
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item),
+                    .heightIn(min = 56.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -748,8 +747,8 @@ private fun MemoryConsolidationSection(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = memoryConsolidationSummary(status),
-                            color = SaltTheme.colors.subText,
-                            style = SaltTheme.textStyles.sub,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                         // 整理中画一条进度条，整理完的对话数写在上面那行
                         status.roundProgress?.let { fraction ->

@@ -27,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -52,9 +51,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -71,13 +67,14 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
@@ -90,6 +87,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.label
 import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.toast.ToastType
@@ -377,7 +375,7 @@ private fun MediaUploadS3Tab(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），卡片以外的控件自己补
+            // 横向内距由 AppSettingsCard 自带（12dp），卡片以外的控件自己补
             .padding(top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -419,7 +417,7 @@ private fun MediaUploadS3Tab(
         )
 
         if (type == AssetStorageType.S3) {
-            RoundedColumn {
+            AppSettingsCard {
                 s3ConnectionItems(
                     config = config,
                     onUpdate = {
@@ -476,13 +474,13 @@ private fun MediaUploadS3Tab(
             }
         }
 
-RoundedColumn {
+AppSettingsCard {
     if (testing) {
-        ItemContainer {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item),
+                    .heightIn(min = 56.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -496,7 +494,7 @@ RoundedColumn {
             }
         }
     } else {
-        SaltIconRow(
+        AppIconRow(
             icon = HugeIcons.Connect,
             headline = stringResource(R.string.backup_page_test_connection),
             onClick = {

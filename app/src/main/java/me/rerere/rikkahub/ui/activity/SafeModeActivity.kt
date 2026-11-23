@@ -47,10 +47,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.rikkahub.R
@@ -141,18 +140,18 @@ class SafeModeActivity : ComponentActivity() {
                                 // 外层已有 16dp 横向边距，标题跟卡片内的文字对齐
                                 Text(
                                     text = "Oversized data",
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
                                 )
-                                // 同上：横向内距由外层 Column 提供，RoundedColumn 不再补，否则叠成 32dp
-                                RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+                                // 同上：外层已有 16dp 横向边距；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
+                                AppSettingsCard {
                                     largeFields.forEach { (key, chars) ->
-                                        ItemContainer {
+                                        AppSettingsRow {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .heightIn(min = SaltTheme.dimens.item),
+                                                    .heightIn(min = 56.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
                                                 Column(modifier = Modifier.weight(1f)) {
@@ -160,8 +159,8 @@ class SafeModeActivity : ComponentActivity() {
                                                     Spacer(modifier = Modifier.height(2.dp))
                                                     Text(
                                                         text = "%.1f million characters".format(chars / 1_000_000f),
-                                                        color = SaltTheme.colors.subText,
-                                                        style = SaltTheme.textStyles.sub,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                                        style = MaterialTheme.typography.bodySmall,
                                                     )
                                                 }
                                                 FilledTonalButton(

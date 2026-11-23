@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -39,6 +38,7 @@ import me.rerere.rikkahub.ui.pages.backup.tabs.ReminderTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.S3Tab
 import me.rerere.rikkahub.ui.pages.backup.tabs.VersionSyncTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.WebDavTab
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 

@@ -20,8 +20,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
@@ -29,6 +27,8 @@ import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupFileInfo
@@ -114,7 +114,7 @@ fun WebDavTab(
             },
         )
 
-        RoundedColumn {
+        AppSettingsCard {
             WebDavFormItem(headline = stringResource(R.string.backup_page_webdav_server_address)) {
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
@@ -162,7 +162,7 @@ fun WebDavTab(
             }
         }
 
-        RoundedColumn {
+        AppSettingsCard {
             backupContentItem(
                 options = WebDavConfig.BackupItem.entries,
                 selected = webDavConfig.items,
@@ -248,7 +248,7 @@ private fun WebDavFormItem(
     headline: String,
     content: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Text(text = headline)
             Spacer(modifier = Modifier.height(8.dp))

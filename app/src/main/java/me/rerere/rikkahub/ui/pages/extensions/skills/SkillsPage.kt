@@ -17,9 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -46,8 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Alert01
@@ -67,14 +63,17 @@ import me.rerere.rikkahub.data.skills.SkillValidationException
 import me.rerere.rikkahub.data.skills.SkillValidator
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.style.FloatingActionButton
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -341,13 +340,13 @@ private fun InvalidSkillDirsGroup(
         // 外层列表已有 16dp 横向边距，标题跟卡片内的文字对齐
         Text(
             text = stringResource(R.string.skills_page_invalid_dirs_title),
-            color = SaltTheme.colors.subText,
-            style = SaltTheme.textStyles.sub,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
         )
-        RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
+        AppSettingsCard {
             dirs.forEach { dir ->
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Alert01,
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -390,7 +389,7 @@ private fun SkillCard(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = if (skill.builtin) 16.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(HugeIcons.Puzzle)
+            AppIconBadge(HugeIcons.Puzzle)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -467,19 +466,19 @@ private fun SkillImportSheet(
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
-            // 外层已有 16dp 横向边距（标题也在里面），RoundedColumn 不再补，否则叠成 32dp
-            RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
-                SaltIconRow(
+            // 外层已有 16dp 横向边距（标题也在里面）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
+            AppSettingsCard {
+                AppIconRow(
                     icon = HugeIcons.Add01,
                     headline = stringResource(R.string.skills_page_add_manually),
                     onClick = onAddManually,
                 )
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.FileImport,
                     headline = stringResource(R.string.skills_page_import_from_file),
                     onClick = onImportFromFile,
                 )
-                SaltIconRow(
+                AppIconRow(
                     icon = HugeIcons.Download01,
                     headline = stringResource(R.string.skills_page_import_from_github),
                     onClick = onImportFromGitHub,

@@ -45,9 +45,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Clock01
@@ -58,10 +55,12 @@ import me.rerere.hugeicons.stroke.FileZip
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapseHorizontal
@@ -89,12 +88,12 @@ internal fun BackupActionIcon(
             CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
         }
     } else {
-        SaltIconBadge(icon)
+        AppIconBadge(icon)
     }
 }
 
-// 图标会随进度变化的行：Salt 的 SaltIconRow 只吃固定 ImageVector，
-// 这里用 ItemContainer 手搓同一套行布局，好让开头的图标能在进度圈和图标之间切换
+// 图标会随进度变化的行：AppIconRow 只吃固定 ImageVector，
+// 这里用 AppSettingsRow 手搓同一套行布局，好让开头的图标能在进度圈和图标之间切换
 @Composable
 internal fun BackupActionRow(
     icon: ImageVector,
@@ -105,11 +104,11 @@ internal fun BackupActionRow(
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    ItemContainer(modifier = modifier) {
+    AppSettingsRow {
         Row(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .heightIn(min = SaltTheme.dimens.item)
+                .heightIn(min = 56.dp)
                 .then(
                     if (onClick != null) {
                         Modifier.clickable(onClick = onClick)
@@ -120,12 +119,12 @@ internal fun BackupActionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BackupActionIcon(icon = icon, loading = loading)
-            Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+            Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = headline)
                 supporting?.let {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = it, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                    Text(text = it, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                 }
             }
             trailing?.invoke()
@@ -141,7 +140,7 @@ internal fun <T> backupContentItem(
     onChange: (List<T>) -> Unit,
     label: @Composable (T) -> String,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Text(text = stringResource(R.string.backup_page_backup_items))
             Spacer(modifier = Modifier.height(8.dp))
@@ -183,12 +182,12 @@ internal fun RemoteBackupStatus(
         UiState.Idle, is UiState.Error -> "-"
     }
 
-    RoundedColumn {
-        SaltIconRow(
+    AppSettingsCard {
+        AppIconRow(
             icon = HugeIcons.Clock01,
             headline = lastBackupText,
         )
-        SaltIconRow(
+        AppIconRow(
             icon = HugeIcons.CloudDownload,
             headline = stringResource(R.string.backup_page_restore),
             supporting = "${stringResource(R.string.backup_page_files)}: $fileCount",
@@ -222,7 +221,7 @@ internal fun RemoteBackupLayout(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置；横向内距交给 Salt 的 RoundedColumn
+                // 底部留出悬浮工具栏的位置；横向内距交给 AppSettingsCard
                 .padding(top = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,
@@ -325,7 +324,7 @@ internal fun <T> BackupFilesSheet(
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState()),
                         ) {
-                            RoundedColumn {
+                            AppSettingsCard {
                                 files.forEach { file ->
                                     val fileInfo = info(file)
                                     BackupFileItem(
@@ -377,7 +376,7 @@ private fun BackupFileItem(
     onDelete: () -> Unit,
     onRestore: () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -385,7 +384,7 @@ private fun BackupFileItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                SaltIconBadge(HugeIcons.FileZip)
+                AppIconBadge(HugeIcons.FileZip)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -393,8 +392,8 @@ private fun BackupFileItem(
                     Text(text = info.name)
                     Text(
                         text = "${info.lastModified.toLocalDateTime()} · ${info.size.fileSizeToString()}",
-                        color = SaltTheme.colors.subText,
-                        style = SaltTheme.textStyles.sub,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }

@@ -10,9 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,7 +43,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.style.TextButton
@@ -200,7 +200,7 @@ private fun QuickMessageCard(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(HugeIcons.Zap)
+            AppIconBadge(HugeIcons.Zap)
             Column(
                 modifier = Modifier
                     .weight(1f)

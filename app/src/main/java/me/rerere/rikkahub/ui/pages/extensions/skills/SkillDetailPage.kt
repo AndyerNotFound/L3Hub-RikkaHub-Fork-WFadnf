@@ -20,9 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FloatingActionButton
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -58,7 +59,6 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderOpen
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -244,7 +244,7 @@ private fun FileItem(
             .padding(start = 16.dp + TreeIndent * depth, end = if (deletable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SaltIconBadge(HugeIcons.File02)
+        AppIconBadge(HugeIcons.File02)
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -302,7 +302,7 @@ private fun DirItem(
                 .padding(start = 16.dp + TreeIndent * depth, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SaltIconBadge(
+            AppIconBadge(
                 icon = if (expanded) HugeIcons.FolderOpen else HugeIcons.Folder01,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,

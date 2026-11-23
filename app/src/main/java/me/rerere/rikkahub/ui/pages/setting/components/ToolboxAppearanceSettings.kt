@@ -30,8 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import com.t8rin.dynamic.theme.ColorBlindType
 import com.t8rin.dynamic.theme.PaletteStyle as ToolboxPaletteStyle
 import com.t8rin.toolbox.ui.model.IconShape
@@ -42,9 +40,10 @@ import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ThemeColorTuple
 import me.rerere.rikkahub.data.datastore.ToolThemeSetting
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.theme.ToolboxIconShapes
 
 /**
@@ -70,13 +69,13 @@ fun ToolboxAppearanceSettings(
         modifier = Modifier.padding(horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_title)) {
+        AppSettingsGroup(title = stringResource(R.string.setting_theme_page_engine_title)) {
             if (dynamicColor) {
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -89,14 +88,14 @@ fun ToolboxAppearanceSettings(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_theme_page_engine_style_title))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_style_desc))
                                 }
                             }
@@ -116,12 +115,12 @@ fun ToolboxAppearanceSettings(
                     )
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_contrast_desc))
                                 }
                             }
@@ -141,14 +140,14 @@ fun ToolboxAppearanceSettings(
                     )
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_theme_page_engine_color_blind_title))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_color_blind_desc))
                                 }
                             }
@@ -166,7 +165,7 @@ fun ToolboxAppearanceSettings(
                     )
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.isInvertThemeColors,
                 onCheckedChange = { onChange(toolTheme.copy(isInvertThemeColors = it)) },
                 headline = stringResource(R.string.setting_theme_page_engine_invert_title),
@@ -174,13 +173,13 @@ fun ToolboxAppearanceSettings(
             )
         }
 
-        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_icon_shape_title)) {
-            ItemContainer {
+        AppSettingsGroup(title = stringResource(R.string.setting_theme_page_engine_icon_shape_title)) {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_icon_shape_desc))
                                 }
                             }
@@ -195,13 +194,13 @@ fun ToolboxAppearanceSettings(
             }
         }
 
-        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_border_width_title)) {
-            ItemContainer {
+        AppSettingsGroup(title = stringResource(R.string.setting_theme_page_engine_border_width_title)) {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_border_width_desc))
                                 }
                             }
@@ -222,46 +221,46 @@ fun ToolboxAppearanceSettings(
             }
         }
 
-        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_shadows_title)) {
-            SaltSwitchRow(
+        AppSettingsGroup(title = stringResource(R.string.setting_theme_page_engine_shadows_title)) {
+            AppSwitchRow(
                 checked = toolTheme.drawContainerShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawContainerShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_container),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.drawAppBarShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawAppBarShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_app_bar),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.drawButtonShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawButtonShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_button),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.drawFabShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawFabShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_fab),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.drawSwitchShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawSwitchShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_switch),
             )
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = toolTheme.drawSliderShadows,
                 onCheckedChange = { onChange(toolTheme.copy(drawSliderShadows = it)) },
                 headline = stringResource(R.string.setting_theme_shadow_slider),
             )
         }
 
-        SaltGroup(title = stringResource(R.string.setting_theme_page_engine_primary_title)) {
-            ItemContainer {
+        AppSettingsGroup(title = stringResource(R.string.setting_theme_page_engine_primary_title)) {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_theme_page_engine_primary_desc))
                                 }
                             }
@@ -285,11 +284,11 @@ fun ToolboxAppearanceSettings(
                 }
             }
             // 有主色时这一行才可点：点一下清掉，颜色回到当前主题的配色
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .then(
                             (if (toolTheme.appColorTuple != null) {
                                     { onChange(toolTheme.copy(appColorTuple = null)) }

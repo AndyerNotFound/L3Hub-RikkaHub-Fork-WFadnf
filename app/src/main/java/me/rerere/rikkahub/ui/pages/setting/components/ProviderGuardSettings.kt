@@ -50,9 +50,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -81,6 +78,8 @@ import me.rerere.rikkahub.data.ai.ProviderWindowUsage
 import me.rerere.rikkahub.data.ai.formatGuardDuration
 import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
@@ -234,19 +233,19 @@ private fun ProviderGateStatusCard(
 ) {
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item),
+                    .heightIn(min = 56.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_provider_guard_status))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 val minuteText = if (status != null) {
                                     stringResource(
@@ -297,8 +296,8 @@ private fun ProviderRateLimitCard(
     onAddWindow: () -> Unit,
     onEditWindow: (ProviderQuotaWindow) -> Unit,
 ) {
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -331,14 +330,14 @@ private fun ProviderRateLimitCard(
                 }
             }
         }
-        ItemContainer {
+        AppSettingsRow {
             Column {
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_provider_guard_windows))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(
                                     text = stringResource(R.string.setting_provider_guard_windows_desc),
                                     style = MaterialTheme.typography.bodySmall,
@@ -530,19 +529,19 @@ private fun ProviderLockCard(
     onAddLock: () -> Unit,
     onEditLock: (ProviderLockSchedule) -> Unit,
 ) {
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item),
+                    .heightIn(min = 56.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_provider_guard_locks))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(
                                 text = stringResource(R.string.setting_provider_guard_locks_desc),
                                 style = MaterialTheme.typography.bodySmall,
@@ -553,11 +552,11 @@ private fun ProviderLockCard(
             }
         }
         if (guard.locks.isEmpty()) {
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item),
+                        .heightIn(min = 56.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -571,19 +570,19 @@ private fun ProviderLockCard(
             }
         }
         guard.locks.forEach { lock ->
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item)
+                        .heightIn(min = 56.dp)
                         .clickable(onClick = { onEditLock(lock) }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(lockSummary(lock))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(lockSupportingText(lock), style = MaterialTheme.typography.bodySmall)
                             }
                         }
@@ -619,11 +618,11 @@ private fun ProviderLockCard(
                 }
             }
         }
-        ItemContainer {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item)
+                    .heightIn(min = 56.dp)
                     .clickable(onClick = onAddLock),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -703,20 +702,20 @@ private fun ProviderQuotaRefreshCard(
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val options = listOf(0, 30, 60, 120, 300, 900, 1800, 3600)
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item)
+                    .heightIn(min = 56.dp)
                     .clickable(onClick = { showDialog = true }),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_provider_guard_refresh))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(
                                 text = stringResource(R.string.setting_provider_guard_refresh_desc) +
                                     " · " + intervalLabel(context, guard.quotaRefreshSeconds),
@@ -795,20 +794,20 @@ private fun ProviderRequestOverrideCard(
     val updateOverride: (RequestOverride) -> Unit = { newOverride ->
         onGuardChange(guard.copy(requestOverride = newOverride))
     }
-    RoundedColumn {
-        ItemContainer {
+    AppSettingsCard {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item)
+                    .heightIn(min = 56.dp)
                     .clickable { updateOverride(requestOverride.copy(enabled = !requestOverride.enabled)) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_provider_guard_override))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(
                                 text = stringResource(R.string.setting_provider_guard_override_desc),
                                 style = MaterialTheme.typography.bodySmall,
@@ -816,7 +815,7 @@ private fun ProviderRequestOverrideCard(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.width(SaltTheme.dimens.subPadding))
+                Spacer(modifier = Modifier.width(8.dp))
                 AppSwitch(
                     checked = requestOverride.enabled,
                     onCheckedChange = { enabled -> updateOverride(requestOverride.copy(enabled = enabled)) },
@@ -824,7 +823,7 @@ private fun ProviderRequestOverrideCard(
             }
         }
         if (requestOverride.enabled) {
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(

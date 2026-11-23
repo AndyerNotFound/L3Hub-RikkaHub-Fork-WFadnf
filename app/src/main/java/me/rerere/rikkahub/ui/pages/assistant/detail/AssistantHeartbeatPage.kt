@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -26,9 +29,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock01
@@ -40,7 +40,6 @@ import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
@@ -92,8 +91,8 @@ fun AssistantHeartbeatPage(id: String) {
                 .padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = heartbeat.enabled,
                     onCheckedChange = { enabled -> update { it.copy(enabled = enabled) } },
                     headline = stringResource(R.string.heartbeat_page_enable_title),
@@ -101,8 +100,8 @@ fun AssistantHeartbeatPage(id: String) {
                 )
             }
 
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -110,8 +109,8 @@ fun AssistantHeartbeatPage(id: String) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.heartbeat_page_interval_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             ValuePill(text = "${heartbeat.intervalMinutes} min")
@@ -127,7 +126,7 @@ fun AssistantHeartbeatPage(id: String) {
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -135,8 +134,8 @@ fun AssistantHeartbeatPage(id: String) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.heartbeat_page_hours_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             ValuePill(text = "%02d:00 - %02d:00".format(heartbeat.startHour, heartbeat.endHour))
@@ -174,8 +173,8 @@ fun AssistantHeartbeatPage(id: String) {
                 }
             }
 
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -183,8 +182,8 @@ fun AssistantHeartbeatPage(id: String) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.heartbeat_page_prompt_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         }
@@ -203,7 +202,7 @@ fun AssistantHeartbeatPage(id: String) {
 
             val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
             val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-            RoundedColumn {
+            AppSettingsCard {
                 modelSettingItem(
                     icon = HugeIcons.Clock01,
                     title = R.string.heartbeat_page_model_title,

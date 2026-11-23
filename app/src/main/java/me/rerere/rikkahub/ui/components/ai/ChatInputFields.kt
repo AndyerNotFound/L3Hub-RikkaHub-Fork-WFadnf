@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -81,6 +80,7 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents

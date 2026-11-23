@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.style
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,14 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonElevation
@@ -21,6 +30,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButtonShapes
@@ -32,6 +42,7 @@ import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -41,12 +52,20 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
 import com.t8rin.toolbox.ui.theme.outlineVariant
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedButton
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedCheckbox
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedFloatingActionButton
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedIconButton
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedRadioButton
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedSwitch
 import com.t8rin.toolbox.ui.widget.enhanced.EnhancedTopAppBar
+import com.t8rin.toolbox.ui.widget.enhanced.EnhancedTopAppBarType
+import com.t8rin.toolbox.ui.widget.modifier.drawHorizontalStroke
 import com.t8rin.toolbox.ui.widget.modifier.container
 import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
 
@@ -113,12 +132,10 @@ fun Button(
 }
 
 /**
- * 保留 Material 转发。
- *
- * [EnhancedButton] 没有 disabledContainerColor 这类入口：禁用时它自己铺一层 onSurface 12%
- * 的底色。填充按钮本来就是这个禁用色，文本按钮不是——文本按钮禁用时应当全透明。换过去会让
- * 每个加载中的「取消」「确定」多出一块灰底。需要底色的文本按钮另有专门实现
- * （ui/components/ui/shadow/ShadowButtons.kt），不必在这里兼着。
+ * 文本按钮的身份是透明底 + 主色字。引擎的禁用态会强制铺 onSurface 12% 的灰底，文本按钮
+ * 禁用时应当全透明，所以禁用底色显式传 Transparent 压掉；描边宽度与颜色取调用点的
+ * BorderStroke（不传即无描边、宽度锁 0，不吃全局描边设置）。elevation 无引擎入口，
+ * 文本按钮本就无阴影，忽略。
  */
 @Composable
 fun TextButton(
@@ -133,26 +150,27 @@ fun TextButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    androidx.compose.material3.TextButton(
+    EnhancedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        borderColor = (border?.brush as? SolidColor)?.value ?: Color.Transparent,
+        borderWidth = border?.width ?: 0.dp,
+        disabledContainerColor = Color.Transparent,
+        disabledContentColor = colors.disabledContentColor,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
         content = content,
     )
 }
 
 /**
- * 保留 Material 转发。
- *
- * 描边是描边按钮的全部身份，而 [EnhancedButton] 的描边宽度只从 ToolboxSettings.borderWidth 读，
- * 调用点给的 `border.width` 会被忽略。设置里那一档默认是 0，换过去等于把描边按钮变成文字按钮。
- * 宽度接进设置之后依然不能换：那是全局一项，描边按钮要的是自己那一圈。
+ * 描边是描边按钮的全部身份：宽度与颜色都取调用点的 BorderStroke（不传走 M3 默认，
+ * enabled/disabled 各有各的档），不再吃全局描边设置。禁用底色取 M3 defaults（透明）
+ * 压掉引擎的灰底；contentColor 的禁用档由 M3 defaults 给。
  */
 @Composable
 fun OutlinedButton(
@@ -167,16 +185,20 @@ fun OutlinedButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    androidx.compose.material3.OutlinedButton(
+    val resolvedBorder = border ?: ButtonDefaults.outlinedButtonBorder(enabled)
+    EnhancedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        containerColor = colors.containerColor,
+        contentColor = colors.contentColor,
+        borderColor = (resolvedBorder.brush as? SolidColor)?.value ?: Color.Transparent,
+        borderWidth = resolvedBorder.width,
+        disabledContainerColor = colors.disabledContainerColor,
+        disabledContentColor = colors.disabledContentColor,
         shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
         content = content,
     )
 }
@@ -490,6 +512,166 @@ fun TopAppBar(
     )
 }
 
+/**
+ * expressive 弹性大标题走引擎的 LargeFlexible 档：折叠语义与 Large 一致，展开高度由 M3 定，
+ * 描边与阴影按设置画，配色原样透传。40 个页面调用点只换 import，参数一字不动。
+ */
+@Composable
+fun LargeFlexibleTopAppBar(
+    title: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+    windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+) {
+    EnhancedTopAppBar(
+        title = title,
+        modifier = modifier,
+        navigationIcon = navigationIcon,
+        actions = actions,
+        windowInsets = windowInsets,
+        colors = colors,
+        scrollBehavior = scrollBehavior,
+        type = EnhancedTopAppBarType.LargeFlexible,
+    )
+}
+
+/**
+ * 带副标题的弹性大标题（M3 expressive 的 subtitle 重载）。引擎没有 subtitle 档，
+ * 直接用 M3 的 subtitle 版本铺布局，观感补齐引擎的两件事：描边按设置画
+ * （[drawHorizontalStroke]），形状随全局轮廓设置走。
+ */
+@Composable
+fun LargeFlexibleTopAppBar(
+    title: @Composable () -> Unit,
+    subtitle: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+    windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+) {
+    androidx.compose.material3.LargeFlexibleTopAppBar(
+        title = title,
+        subtitle = subtitle,
+        modifier = modifier.drawHorizontalStroke(enabled = true),
+        navigationIcon = navigationIcon,
+        actions = actions,
+        windowInsets = windowInsets,
+        colors = colors,
+        scrollBehavior = scrollBehavior,
+    )
+}
+
+/**
+ * 菜单走引擎的 [EnhancedDropdownMenu]：单一实现在 ui 模块的 `me.rerere.ui.style.DropdownMenu`
+ * （ui 模块不能反向依赖 app），这里只做转发。DropdownMenuItem 等 item 依旧从 material3
+ * 直接取，菜单容器只在 ui 模块那份里换内核。
+ */
+@Composable
+fun DropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    offset: DpOffset = DpOffset(0.dp, 0.dp),
+    scrollState: ScrollState = rememberScrollState(),
+    properties: PopupProperties = PopupProperties(focusable = true),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    me.rerere.ui.style.DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        offset = offset,
+        scrollState = scrollState,
+        properties = properties,
+        content = content,
+    )
+}
+
+/**
+ * FAB 走引擎的 [EnhancedFloatingActionButton]：形状由引擎按 FAB 类型与轮廓设置画，
+ * M3 的 shape 参数不再透传（当前调用点无人传）；elevation 由引擎的 drawFabShadows 决定。
+ * 阴影开关默认关闭时观感与 M3 一致。
+ */
+@Composable
+fun FloatingActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = FloatingActionButtonDefaults.containerColor,
+    contentColor: Color = contentColorFor(containerColor),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    EnhancedFloatingActionButton(
+        onClick = onClick,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
+        content = { content() },
+    )
+}
+
+@Composable
+fun ExtendedFloatingActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = FloatingActionButtonDefaults.containerColor,
+    contentColor: Color = contentColorFor(containerColor),
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    EnhancedFloatingActionButton(
+        onClick = onClick,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
+        content = content,
+    )
+}
+
+/**
+ * 表达式版弹性 FAB（M3 expressive 的 text/icon/expanded 重载）。图标常驻，
+ * 文字随 [expanded] 横向收放，观感走引擎的 [EnhancedFloatingActionButton]。
+ */
+@Composable
+fun ExtendedFloatingActionButton(
+    text: @Composable () -> Unit,
+    icon: @Composable () -> Unit,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = FloatingActionButtonDefaults.containerColor,
+    contentColor: Color = contentColorFor(containerColor),
+    interactionSource: MutableInteractionSource? = null,
+) {
+    EnhancedFloatingActionButton(
+        onClick = onClick,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
+        content = {
+            icon()
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandHorizontally() + fadeIn(),
+                exit = shrinkHorizontally() + fadeOut(),
+            ) {
+                Row {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    text()
+                }
+            }
+        },
+    )
+}
+
 @Composable
 fun HorizontalDivider(
     modifier: Modifier = Modifier,
@@ -506,19 +688,34 @@ fun Switch(
     modifier: Modifier = Modifier,
     thumbContent: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
-    // 未选中的轨道走玻璃底；关闭模糊特效时 glassSwitchColors 交回 M3 默认配色
+    // 未选中的轨道走玻璃底；关闭模糊特效时 glassSwitchColors 交回 M3 默认配色。
+    // 引擎按 switchType 八档自绘：MaterialYou/Compose/Pixel/Fluent/HyperOS/OneUI 都吃
+    // 这份 SwitchColors，Cupertino/LiquidGlass 用自己的配色档
     colors: SwitchColors = glassSwitchColors(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    androidx.compose.material3.Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        thumbContent = thumbContent,
-        enabled = enabled,
-        colors = colors,
-        interactionSource = interactionSource,
-    )
+    // thumbContent 是「选中态在拇指上画图标」，引擎只收 ImageVector 收不回 Composable；
+    // 当前没有调用点用到，仅留兜底转发
+    if (thumbContent != null) {
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            thumbContent = thumbContent,
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+        )
+    } else {
+        EnhancedSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+        )
+    }
 }
 
 @Composable
@@ -530,7 +727,7 @@ fun Checkbox(
     colors: CheckboxColors = CheckboxDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    androidx.compose.material3.Checkbox(
+    EnhancedCheckbox(
         checked = checked,
         onCheckedChange = onCheckedChange,
         modifier = modifier,
@@ -549,7 +746,7 @@ fun RadioButton(
     colors: RadioButtonColors = RadioButtonDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    androidx.compose.material3.RadioButton(
+    EnhancedRadioButton(
         selected = selected,
         onClick = onClick,
         modifier = modifier,

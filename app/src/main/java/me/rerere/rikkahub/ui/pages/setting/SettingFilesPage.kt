@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -60,9 +59,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
@@ -79,10 +75,13 @@ import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -256,7 +255,7 @@ private fun CleanFilesSheet(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp）
+            // 横向内距由 AppSettingsCard 自带（12dp）
             .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -271,27 +270,29 @@ private fun CleanFilesSheet(
             )
         }
 
-        RoundedColumn(modifier = Modifier.selectableGroup()) {
-            CleanRange.entries.forEach { range ->
-                val selected = selectedRange == range
-                ItemContainer {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
-                            .clickable(onClick = { onRangeSelected(range) })
-                            .then(Modifier.semantics {
-                                role = Role.RadioButton
-                                this.selected = selected
-                        }),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected, onClick = null)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = range.days?.let {
-                                    stringResource(R.string.setting_files_page_clean_older_than_days, it)
-                                } ?: stringResource(R.string.setting_files_page_clean_all))
+        Box(modifier = Modifier.selectableGroup()) {
+            AppSettingsCard {
+                CleanRange.entries.forEach { range ->
+                    val selected = selectedRange == range
+                    AppSettingsRow {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .clickable(onClick = { onRangeSelected(range) })
+                                .then(Modifier.semantics {
+                                    role = Role.RadioButton
+                                    this.selected = selected
+                            }),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = selected, onClick = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = range.days?.let {
+                                        stringResource(R.string.setting_files_page_clean_older_than_days, it)
+                                    } ?: stringResource(R.string.setting_files_page_clean_all))
+                            }
                         }
                     }
                 }

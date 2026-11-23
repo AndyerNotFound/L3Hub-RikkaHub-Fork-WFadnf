@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,8 +45,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
@@ -75,10 +74,12 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppNavItem
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltNavItem
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.permission.LocalNetworkPermissionCard
@@ -127,7 +128,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距交给 Salt 的 RoundedColumn（16dp）；这里再补一层会变成 32dp
+            // 横向内距由 AppSettingsCard 自带（12dp）；这里再补一层会叠成双层内距
             contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -233,8 +234,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             item("generalSettings") {
                 var colorMode by rememberColorMode()
-                SaltGroup(title = stringResource(R.string.setting_page_general_settings)) {
-                    ItemContainer {
+                AppSettingsGroup(title = stringResource(R.string.setting_page_general_settings)) {
+                    AppSettingsRow {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -243,8 +244,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Icon(
                                     imageVector = colorMode.icon(),
                                     contentDescription = null,
-                                    modifier = Modifier.size(SaltTheme.dimens.itemIcon),
-                                    tint = SaltTheme.colors.text,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(stringResource(R.string.setting_page_color_mode))
                             }
@@ -272,19 +273,19 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                         }
                     }
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Settings03,
                         text = stringResource(R.string.setting_page_preferences),
                         onClick = { navController.navigate(Screen.SettingPreferences) },
                         sub = stringResource(R.string.setting_page_preferences_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.LookTop,
                         text = stringResource(R.string.setting_page_assistant),
                         onClick = { navController.navigate(Screen.Assistant) },
                         sub = stringResource(R.string.setting_page_assistant_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Package,
                         text = stringResource(R.string.setting_page_extensions),
                         onClick = { navController.navigate(Screen.Extensions) },
@@ -294,50 +295,50 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             }
 
             item("modelServices") {
-                SaltGroup(title = stringResource(R.string.setting_page_model_and_services)) {
-                    SaltNavItem(
+                AppSettingsGroup(title = stringResource(R.string.setting_page_model_and_services)) {
+                    AppNavItem(
                         icon = HugeIcons.AiMagic,
                         text = stringResource(R.string.setting_page_default_model),
                         onClick = { navController.navigate(Screen.SettingModels) },
                         sub = stringResource(R.string.setting_page_default_model_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Brain02,
                         text = stringResource(R.string.setting_page_providers),
                         onClick = { navController.navigate(Screen.SettingProvider) },
                         sub = stringResource(R.string.setting_page_providers_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.GlobalSearch,
                         text = stringResource(R.string.setting_page_search_service),
                         onClick = { navController.navigate(Screen.SettingSearch) },
                         sub = stringResource(R.string.setting_page_search_service_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Megaphone01,
                         text = stringResource(R.string.setting_page_tts_service),
                         onClick = { navController.navigate(Screen.SettingSpeech) },
                         sub = stringResource(R.string.setting_page_tts_service_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Image02,
                         text = stringResource(R.string.setting_page_media),
                         onClick = { navController.navigate(Screen.SettingMedia) },
                         sub = stringResource(R.string.setting_page_media_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.McpServer,
                         text = stringResource(R.string.setting_page_mcp),
                         onClick = { navController.navigate(Screen.SettingMcp) },
                         sub = stringResource(R.string.setting_page_mcp_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Tools,
                         text = stringResource(R.string.setting_page_tool_override),
                         onClick = { navController.navigate(Screen.ToolOverrides) },
                         sub = stringResource(R.string.setting_page_tool_override_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.ServerStack01,
                         text = stringResource(R.string.setting_page_web_server),
                         onClick = { navController.navigate(Screen.SettingWeb) },
@@ -350,14 +351,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
-                SaltGroup(title = stringResource(R.string.setting_page_data_settings)) {
-                    SaltNavItem(
+                AppSettingsGroup(title = stringResource(R.string.setting_page_data_settings)) {
+                    AppNavItem(
                         icon = HugeIcons.Database02,
                         text = stringResource(R.string.setting_page_data_backup),
                         onClick = { navController.navigate(Screen.Backup) },
                         sub = stringResource(R.string.setting_page_data_backup_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.ImageUpload,
                         text = stringResource(R.string.setting_page_chat_storage),
                         onClick = { navController.navigate(Screen.SettingFiles) },
@@ -381,10 +382,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                SaltGroup(title = stringResource(R.string.setting_page_about)) {
-                    // 这一行右侧要放两个社交按钮，Salt 的 Item 装不下自定义右侧内容，
-                    // 用 ItemContainer 自己拼一行（内外距仍由 Salt 的 RoundedColumn 给）
-                    ItemContainer {
+                AppSettingsGroup(title = stringResource(R.string.setting_page_about)) {
+                    // 这一行右侧要放两个社交按钮，AppNavItem 装不下自定义右侧内容，
+                    // 用 AppSettingsRow 自己拼一行（内外距仍由 AppSettingsCard 给）
+                    AppSettingsRow {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -399,14 +400,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Icon(
                                     imageVector = HugeIcons.Clapping01,
                                     contentDescription = null,
-                                    modifier = Modifier.size(SaltTheme.dimens.itemIcon),
-                                    tint = SaltTheme.colors.text,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Column {
                                     Text(stringResource(R.string.setting_page_about))
                                     Text(
                                         text = stringResource(R.string.setting_page_about_desc),
-                                        color = SaltTheme.colors.subText,
+                                        color = LocalContentColor.current.copy(alpha = 0.5f),
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
                                 }
@@ -438,7 +439,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                         }
                     }
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Book01,
                         text = stringResource(R.string.setting_page_documentation),
                         sub = stringResource(R.string.setting_page_documentation_desc),
@@ -451,13 +452,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             context.openUrl(docUrl)
                         },
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Bookshelf01,
                         text = stringResource(R.string.setting_page_request_logs),
                         onClick = { navController.navigate(Screen.Log) },
                         sub = stringResource(R.string.setting_page_request_logs_desc),
                     )
-                    SaltNavItem(
+                    AppNavItem(
                         icon = HugeIcons.Share04,
                         text = stringResource(R.string.setting_page_share),
                         sub = stringResource(R.string.setting_page_share_desc),

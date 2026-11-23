@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -50,9 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -83,17 +80,20 @@ import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSlider
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
@@ -187,26 +187,26 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                // 横向内距由 AppSettingsCard 自带（12dp），这里只留全宽模式的刘海安全区
                 .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 屏幕方向：点一下从四个模式里选
             var showDisplayModeDialog by remember { mutableStateOf(false) }
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = { showDisplayModeDialog = true }),
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = stringResource(R.string.setting_display_page_display_mode_title))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = displaySetting.displayMode.description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            Text(text = displaySetting.displayMode.description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                         ValuePill(displaySetting.displayMode.label)
                     }
@@ -223,21 +223,21 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_message_display_settings)) {
-                SaltSwitchRow(
+            AppSettingsGroup(title = stringResource(R.string.setting_page_message_display_settings)) {
+                AppSwitchRow(
                     checked = displaySetting.showUserAvatar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
                     headline = stringResource(R.string.setting_display_page_show_user_avatar_title),
                     supporting = stringResource(R.string.setting_display_page_show_user_avatar_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showAssistantBubble,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showAssistantBubble = it)) },
                     headline = stringResource(R.string.setting_display_page_show_assistant_bubble_title),
                     supporting = stringResource(R.string.setting_display_page_show_assistant_bubble_desc),
                 )
                 if (displaySetting.showAssistantBubble) {
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = displaySetting.splitAssistantBubbleByParagraph,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
@@ -246,7 +246,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         supporting = stringResource(R.string.setting_display_page_split_assistant_bubble_desc),
                     )
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -254,7 +254,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_empty_slogan_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -269,7 +269,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -293,26 +293,26 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = displaySetting.showModelIcon,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelIcon = it)) },
                     headline = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
                     supporting = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showModelName,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelName = it)) },
                     headline = stringResource(R.string.setting_display_page_show_model_name_title),
                     supporting = stringResource(R.string.setting_display_page_show_model_name_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.buttonShadow,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(buttonShadow = it)) },
                     headline = stringResource(R.string.setting_display_page_button_shadow_title),
                     supporting = stringResource(R.string.setting_display_page_button_shadow_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.hideCompletedTodoCard,
                     onCheckedChange = {
                         updateDisplaySetting(displaySetting.copy(hideCompletedTodoCard = it))
@@ -320,43 +320,43 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     headline = stringResource(R.string.setting_display_page_hide_completed_todo_title),
                     supporting = stringResource(R.string.setting_display_page_hide_completed_todo_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showDateTimeInMessage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
                     headline = stringResource(R.string.setting_display_page_show_datetime_in_message_title),
                     supporting = stringResource(R.string.setting_display_page_show_datetime_in_message_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.useL3HubReasoningStyle,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(useL3HubReasoningStyle = it)) },
                     headline = stringResource(R.string.setting_display_page_use_l3hub_reasoning_title),
                     supporting = stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showTokenUsage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
                     headline = stringResource(R.string.setting_display_page_show_token_usage_title),
                     supporting = stringResource(R.string.setting_display_page_show_token_usage_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showQuotaBar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showQuotaBar = it)) },
                     headline = stringResource(R.string.setting_display_page_quota_bar_title),
                     supporting = stringResource(R.string.setting_display_page_quota_bar_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.binaryUnits,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(binaryUnits = it)) },
                     headline = stringResource(R.string.setting_display_page_binary_units_title),
                     supporting = stringResource(R.string.setting_display_page_binary_units_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.usagePieChart,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(usagePieChart = it)) },
                     headline = stringResource(R.string.setting_display_page_usage_pie_title),
                     supporting = stringResource(R.string.setting_display_page_usage_pie_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.contextMeterStyle != ContextMeterStyle.OFF,
                     onCheckedChange = { enabled ->
                         updateDisplaySetting(
@@ -370,14 +370,14 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = displaySetting.showToolCallOutput,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showToolCallOutput = it)) },
                     headline = stringResource(R.string.setting_display_page_show_tool_call_output_title),
                     supporting = stringResource(R.string.setting_display_page_show_tool_call_output_desc),
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -385,7 +385,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -398,7 +398,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -409,7 +409,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Text(text = stringResource(
                                         R.string.setting_display_page_input_padding_desc,
                                         displaySetting.inputPadding,
-                                    ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -424,7 +424,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         )
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.disableAnimations,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(disableAnimations = it)) },
                     headline = stringResource(R.string.setting_display_page_disable_animations_title),
@@ -433,11 +433,11 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 // 关掉动效以后这一项没有意义，跟着开关一起收起
                 if (!displaySetting.disableAnimations) {
                     AnimationSpeed.entries.forEach { speed ->
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item)
+                                    .heightIn(min = 56.dp)
                                     .clickable(onClick = {
                                         updateDisplaySetting(displaySetting.copy(animationSpeed = speed))
                                 }),
@@ -446,7 +446,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = speed.label)
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = speed.description, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = speed.description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                                 RadioButton(
                                     selected = displaySetting.animationSpeed == speed,
@@ -456,31 +456,31 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         }
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showThinkingContent,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
                     headline = stringResource(R.string.setting_display_page_show_thinking_content_title),
                     supporting = stringResource(R.string.setting_display_page_show_thinking_content_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.autoCloseThinking,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoCloseThinking = it)) },
                     headline = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
                     supporting = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showThinkingSummary,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingSummary = it)) },
                     headline = stringResource(R.string.setting_display_page_show_thinking_summary_title),
                     supporting = stringResource(R.string.setting_display_page_show_thinking_summary_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.enableLatexRendering,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableLatexRendering = it)) },
                     headline = stringResource(R.string.setting_display_page_enable_latex_rendering_title),
                     supporting = stringResource(R.string.setting_display_page_enable_latex_rendering_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.enableQuoteHighlight,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = it)) },
                     headline = stringResource(R.string.setting_display_page_enable_quote_highlight_title),
@@ -493,8 +493,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
             // 整张卡也跟着「关闭动效」收放：if 掉的话一帧消失，卡片圆角却还在缓动
             MotionExpandCollapse(visible = !displaySetting.disableAnimations) {
                 val motionBlur = displaySetting.motionBlur
-                SaltGroup(title = stringResource(R.string.setting_display_page_motion_blur_title)) {
-                    SaltSwitchRow(
+                AppSettingsGroup(title = stringResource(R.string.setting_display_page_motion_blur_title)) {
+                    AppSwitchRow(
                         checked = motionBlur.enabled,
                         onCheckedChange = {
                             updateDisplaySetting(
@@ -507,7 +507,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         supporting = stringResource(R.string.setting_display_page_motion_blur_desc),
                     )
                     if (motionBlur.enabled) {
-                        SaltSwitchRow(
+                        AppSwitchRow(
                             checked = motionBlur.scrollBlur,
                             onCheckedChange = {
                                 updateDisplaySetting(
@@ -519,7 +519,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             headline = stringResource(R.string.setting_display_page_motion_blur_scroll_switch),
                             supporting = stringResource(R.string.setting_display_page_motion_blur_scroll_desc),
                         )
-                        ItemContainer {
+                        AppSettingsRow {
                             Column {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -530,7 +530,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                         Text(text = stringResource(
                                                 R.string.setting_display_page_motion_blur_radius_desc,
                                                 motionBlur.radius,
-                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -548,7 +548,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 )
                             }
                         }
-                        ItemContainer {
+                        AppSettingsRow {
                             Column {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -559,7 +559,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                         Text(text = stringResource(
                                                 R.string.setting_display_page_motion_blur_duration_desc,
                                                 motionBlur.durationMillis,
-                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -579,7 +579,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 )
                             }
                         }
-                        ItemContainer {
+                        AppSettingsRow {
                             Column {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -590,7 +590,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                         Text(text = stringResource(
                                                 R.string.setting_display_page_motion_blur_travel_desc,
                                                 motionBlur.travel,
-                                            ), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -612,8 +612,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_display_page_floating_bar_title)) {
-                SaltSwitchRow(
+            AppSettingsGroup(title = stringResource(R.string.setting_display_page_floating_bar_title)) {
+                AppSwitchRow(
                     checked = displaySetting.enableFloatingBar,
                     onCheckedChange = { enabled ->
                         updateDisplaySetting(
@@ -632,7 +632,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supporting = stringResource(R.string.setting_display_page_floating_bar_desc),
                 )
                 if (displaySetting.enableFloatingBar) {
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = displaySetting.floatingBarAutoHide,
                         onCheckedChange = { autoHide ->
                             updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
@@ -642,7 +642,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     )
                 }
                 if (displaySetting.enableFloatingBar) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -650,7 +650,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_display_page_floating_bar_size_title))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                                 ValuePill(FloatingBarSizing.percentLabel(draftFloatingBarScale))
                             }
@@ -672,7 +672,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
                 displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
                     if (displaySetting.enableFloatingBar) {
-                        SaltIconRow(
+                        AppIconRow(
                             icon = barItem.icon,
                             headline = barItem.label(),
                             supporting = stringResource(
@@ -725,7 +725,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
                 if (displaySetting.enableFloatingBar &&
                     displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Add01,
                         headline = stringResource(R.string.setting_display_page_floating_bar_add_slot),
                         supporting = stringResource(
@@ -741,8 +741,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -786,18 +786,18 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         }
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.fontApplyGlobal,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fontApplyGlobal = it)) },
                     headline = stringResource(R.string.setting_display_page_font_global_title),
                     supporting = stringResource(R.string.setting_display_page_font_global_desc),
                     enabled = displaySetting.chatFontFamily != ChatFontFamily.DEFAULT,
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }),
                         verticalAlignment = Alignment.Top,
                     ) {
@@ -808,7 +808,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                     stringResource(R.string.setting_display_page_custom_font_not_imported)
                                 } else {
                                     stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
-                                }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                }, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                         IconButton(
                             onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }
@@ -825,18 +825,18 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 // 已导入字体回退链：每款一行，可上移调整优先级、单独删除（删除后链自动收拢）
                 if (customFontPaths.isNotEmpty()) {
                     customFontPaths.forEachIndexed { index, path ->
-                        ItemContainer {
+                        AppSettingsRow {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = SaltTheme.dimens.item),
+                                    .heightIn(min = 56.dp),
                                 verticalAlignment = Alignment.Top,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = customFontNames.getOrNull(index)?.takeIf { it.isNotBlank() }
                                             ?: stringResource(R.string.setting_display_page_custom_font_fallback_name, index + 1))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                                 Row {
                                     if (index > 0) {
@@ -869,7 +869,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         }
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -877,7 +877,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_ui_scale_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_ui_scale_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_ui_scale_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             ValuePill("${(displaySetting.uiScale * 100).roundToInt()}%")
                         }
@@ -895,7 +895,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -936,20 +936,20 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_code_display_settings)) {
-                SaltSwitchRow(
+            AppSettingsGroup(title = stringResource(R.string.setting_page_code_display_settings)) {
+                AppSwitchRow(
                     checked = displaySetting.codeBlockAutoWrap,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },
                     headline = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
                     supporting = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.codeBlockAutoCollapse,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it)) },
                     headline = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
                     supporting = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.showLineNumbers,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showLineNumbers = it)) },
                     headline = stringResource(R.string.setting_display_page_show_line_numbers_title),
@@ -1029,9 +1029,9 @@ private fun FloatingBarAddSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            RoundedColumn {
+            AppSettingsCard {
                 available.forEach { barItem ->
-                    SaltIconRow(
+                    AppIconRow(
                         icon = barItem.icon,
                         headline = barItem.label(),
                         onClick = { onAdd(barItem) },

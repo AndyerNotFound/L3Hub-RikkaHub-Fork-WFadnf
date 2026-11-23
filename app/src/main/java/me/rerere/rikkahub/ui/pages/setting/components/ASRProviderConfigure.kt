@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -19,12 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.ui.components.OutlinedNumberInput
 import me.rerere.ui.components.SelectTextField
 
@@ -48,36 +48,36 @@ fun ASRProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.verticalScroll(rememberScrollState())
     ) {
-        RoundedColumn {
+        AppSettingsCard {
             // 类型在新建时选定，之后不能改
-            ItemContainer {
+            AppSettingsRow {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = SaltTheme.dimens.item),
+                        .heightIn(min = 56.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.setting_asr_configure_provider_type))
                         Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                            ProvideTextStyle(SaltTheme.textStyles.sub) {
+                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                 Text(stringResource(R.string.setting_asr_configure_provider_type_desc))
                             }
                         }
                     }
-                    Text(text = setting.typeName, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                    Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            ItemContainer {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.setting_asr_configure_name))
                             Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                                ProvideTextStyle(SaltTheme.textStyles.sub) {
+                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                                     Text(stringResource(R.string.setting_asr_configure_name_desc))
                                 }
                             }
@@ -94,7 +94,7 @@ fun ASRProviderConfigure(
             }
         }
 
-        RoundedColumn {
+        AppSettingsCard {
             when (setting) {
                 is ASRProviderSetting.OpenAIRealtime -> openAIRealtimeASRItems(setting, onValueChange)
                 is ASRProviderSetting.DashScope -> dashScopeASRItems(setting, onValueChange)
@@ -112,14 +112,14 @@ private fun openAIRealtimeASRItems(
     setting: ASRProviderSetting.OpenAIRealtime,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_openai_api_key_desc))
                         }
                     }
@@ -135,14 +135,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_websocket_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_openai_websocket_desc))
                         }
                     }
@@ -158,14 +158,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_model_desc))
                         }
                     }
@@ -181,14 +181,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_language))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_language_iso_desc))
                         }
                     }
@@ -204,14 +204,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_prompt))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_prompt_desc))
                         }
                     }
@@ -228,14 +228,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_vad_threshold))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_vad_desc))
                         }
                     }
@@ -255,14 +255,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_prefix_padding))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_prefix_padding_desc))
                         }
                     }
@@ -282,14 +282,14 @@ private fun openAIRealtimeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_silence_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_silence_duration_desc))
                         }
                     }
@@ -315,14 +315,14 @@ private fun dashScopeASRItems(
     setting: ASRProviderSetting.DashScope,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_dashscope_api_key_desc))
                         }
                     }
@@ -338,14 +338,14 @@ private fun dashScopeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_websocket_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_dashscope_websocket_desc))
                         }
                     }
@@ -361,14 +361,14 @@ private fun dashScopeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_model_desc))
                         }
                     }
@@ -384,14 +384,14 @@ private fun dashScopeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_language))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_language_iso_desc))
                         }
                     }
@@ -407,14 +407,14 @@ private fun dashScopeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_vad_threshold))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_dashscope_vad_desc))
                         }
                     }
@@ -434,14 +434,14 @@ private fun dashScopeASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_silence_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_silence_duration_desc))
                         }
                     }
@@ -467,14 +467,14 @@ private fun volcengineASRItems(
     setting: ASRProviderSetting.Volcengine,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_volcengine_api_key_desc))
                         }
                     }
@@ -490,14 +490,14 @@ private fun volcengineASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_websocket_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_volcengine_websocket_desc))
                         }
                     }
@@ -513,14 +513,14 @@ private fun volcengineASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_resource_id))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_resource_id_desc))
                         }
                     }
@@ -536,14 +536,14 @@ private fun volcengineASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_language))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_language_code_desc))
                         }
                     }
@@ -558,14 +558,14 @@ private fun volcengineASRItems(
             )
         }
     }
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_page_asr_silence_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_page_asr_silence_duration_desc))
                         }
                     }
@@ -590,14 +590,14 @@ private fun miMoASRItems(
     setting: ASRProviderSetting.MiMo,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_api_key_desc))
                         }
                     }
@@ -613,14 +613,14 @@ private fun miMoASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_base_url_desc))
                         }
                     }
@@ -636,14 +636,14 @@ private fun miMoASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_model_desc))
                         }
                     }
@@ -659,14 +659,14 @@ private fun miMoASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_language))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_language_desc))
                         }
                     }
@@ -682,14 +682,14 @@ private fun miMoASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_sample_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_sample_rate_desc))
                         }
                     }
@@ -709,14 +709,14 @@ private fun miMoASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_segment_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_mimo_segment_desc))
                         }
                     }
@@ -742,14 +742,14 @@ private fun deepSeekASRItems(
     setting: ASRProviderSetting.DeepSeek,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_deepseek_api_key_desc))
                         }
                     }
@@ -765,14 +765,14 @@ private fun deepSeekASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_deepseek_base_url_desc))
                         }
                     }
@@ -788,14 +788,14 @@ private fun deepSeekASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_sample_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_deepseek_sample_rate_desc))
                         }
                     }
@@ -813,14 +813,14 @@ private fun deepSeekASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_segment_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_deepseek_segment_desc))
                         }
                     }
@@ -846,14 +846,14 @@ private fun stepASRItems(
     setting: ASRProviderSetting.Step,
     onValueChange: (ASRProviderSetting) -> Unit
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_api_key))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_api_key_desc))
                         }
                     }
@@ -869,14 +869,14 @@ private fun stepASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_base_url))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_base_url_desc))
                         }
                     }
@@ -892,14 +892,14 @@ private fun stepASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_model))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_model_desc))
                         }
                     }
@@ -915,14 +915,14 @@ private fun stepASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_language))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_language_desc))
                         }
                     }
@@ -938,14 +938,14 @@ private fun stepASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_sample_rate))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_sample_rate_desc))
                         }
                     }
@@ -965,14 +965,14 @@ private fun stepASRItems(
         }
     }
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_segment_duration))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_segment_desc))
                         }
                     }
@@ -992,28 +992,28 @@ private fun stepASRItems(
         }
     }
 
-    SaltSwitchRow(
+    AppSwitchRow(
         checked = setting.enableItn,
         onCheckedChange = { onValueChange(setting.copy(enableItn = it)) },
         headline = stringResource(R.string.setting_asr_configure_step_itn),
         supporting = stringResource(R.string.setting_asr_configure_step_itn_desc),
     )
 
-    SaltSwitchRow(
+    AppSwitchRow(
         checked = setting.enableTimestamp,
         onCheckedChange = { onValueChange(setting.copy(enableTimestamp = it)) },
         headline = stringResource(R.string.setting_asr_configure_step_timestamp),
         supporting = stringResource(R.string.setting_asr_configure_step_timestamp_desc),
     )
 
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.setting_asr_configure_step_hotwords))
                     Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides SaltTheme.colors.subText) {
-                        ProvideTextStyle(SaltTheme.textStyles.sub) {
+                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
                             Text(stringResource(R.string.setting_asr_configure_step_hotwords_desc))
                         }
                     }

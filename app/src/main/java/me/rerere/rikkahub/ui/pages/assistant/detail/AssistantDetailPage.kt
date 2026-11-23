@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.RoundedColumn
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clock01
@@ -57,7 +56,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Tag as DataTag
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltIconRow
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.TopAppBar
@@ -128,8 +128,8 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                RoundedColumn {
-                    SaltIconRow(
+                AppSettingsCard {
+                    AppIconRow(
                         icon = HugeIcons.Settings03,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -137,7 +137,7 @@ fun AssistantDetailPage(id: String) {
                         supporting = stringResource(R.string.assistant_detail_basic_desc),
                         onClick = { navController.navigate(Screen.AssistantBasic(id)) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Message02,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -151,8 +151,8 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                RoundedColumn {
-                    SaltIconRow(
+                AppSettingsCard {
+                    AppIconRow(
                         icon = HugeIcons.Puzzle,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -160,7 +160,7 @@ fun AssistantDetailPage(id: String) {
                         supporting = stringResource(R.string.assistant_detail_extensions_desc),
                         onClick = { navController.navigate(Screen.AssistantInjections(id)) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Brain02,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -168,7 +168,7 @@ fun AssistantDetailPage(id: String) {
                         supporting = stringResource(R.string.assistant_detail_memory_desc),
                         onClick = { navController.navigate(Screen.AssistantMemory(id)) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.McpServer,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -176,7 +176,7 @@ fun AssistantDetailPage(id: String) {
                         supporting = stringResource(R.string.assistant_detail_mcp_desc),
                         onClick = { navController.navigate(Screen.AssistantMcp(id)) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Wrench01,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -184,7 +184,7 @@ fun AssistantDetailPage(id: String) {
                         supporting = stringResource(R.string.assistant_detail_local_tools_desc),
                         onClick = { navController.navigate(Screen.AssistantLocalTool(id)) },
                     )
-                    SaltIconRow(
+                    AppIconRow(
                         icon = HugeIcons.Clock01,
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -196,8 +196,8 @@ fun AssistantDetailPage(id: String) {
             }
 
             item {
-                RoundedColumn {
-                    SaltIconRow(
+                AppSettingsCard {
+                    AppIconRow(
                         icon = HugeIcons.Code,
                         headline = stringResource(R.string.assistant_page_tab_request),
                         supporting = stringResource(R.string.assistant_detail_request_desc),

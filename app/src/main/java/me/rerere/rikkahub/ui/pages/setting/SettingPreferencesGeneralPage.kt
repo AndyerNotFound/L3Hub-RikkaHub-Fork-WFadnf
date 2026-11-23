@@ -18,7 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -38,9 +38,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
@@ -52,15 +49,18 @@ import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSlider
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -97,7 +97,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里只留全宽模式的刘海安全区
+                // 横向内距由 AppSettingsCard 自带（12dp），这里只留全宽模式的刘海安全区
                 .adaptiveHorizontalPadding(0.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -106,12 +106,12 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             var nicknameDraft by remember(displaySetting.userNickname) {
                 mutableStateOf(displaySetting.userNickname)
             }
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = {
                                 nicknameDraft = displaySetting.userNickname
                                 showNicknameDialog = true
@@ -134,7 +134,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                     stringResource(R.string.user_default_name)
                             })
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = stringResource(R.string.setting_page_profile_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            Text(text = stringResource(R.string.setting_page_profile_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -172,12 +172,12 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
 
             var languageTag by remember { mutableStateOf(AppLanguage.currentTag(context)) }
             var showLanguageDialog by remember { mutableStateOf(false) }
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = SaltTheme.dimens.item)
+                            .heightIn(min = 56.dp)
                             .clickable(onClick = { showLanguageDialog = true }),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -211,20 +211,20 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 "create_new_conversation_on_start",
                 true
             )
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = createNewConversationOnStart,
                     onCheckedChange = { createNewConversationOnStart = it },
                     headline = stringResource(R.string.setting_display_page_create_new_conversation_on_start_title),
                     supporting = stringResource(R.string.setting_display_page_create_new_conversation_on_start_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.sendOnEnter,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(sendOnEnter = it)) },
                     headline = stringResource(R.string.setting_display_page_send_on_enter_title),
                     supporting = stringResource(R.string.setting_display_page_send_on_enter_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = settings.enableMessageQueue,
                     onCheckedChange = { enabled ->
                         vm.updateSettings { it.copy(enableMessageQueue = enabled) }
@@ -234,22 +234,22 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
             }
 
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = displaySetting.showMessageJumper,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showMessageJumper = it)) },
                     headline = stringResource(R.string.setting_display_page_show_message_jumper_title),
                     supporting = stringResource(R.string.setting_display_page_show_message_jumper_desc),
                 )
                 if (displaySetting.showMessageJumper) {
-                    SaltSwitchRow(
+                    AppSwitchRow(
                         checked = displaySetting.messageJumperOnLeft,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it)) },
                         headline = stringResource(R.string.setting_display_page_message_jumper_position_title),
                         supporting = stringResource(R.string.setting_display_page_message_jumper_position_desc),
                     )
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.enableAutoScroll,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableAutoScroll = it)) },
                     headline = stringResource(R.string.setting_display_page_enable_auto_scroll_title),
@@ -257,8 +257,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
             }
 
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -266,7 +266,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_background_effect_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_background_effect_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_background_effect_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -294,7 +294,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     }
                 }
                 if (displaySetting.effectiveBackgroundEffect == BackgroundEffectType.BLUR) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -302,7 +302,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_display_page_blur_opacity_title))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_blur_opacity_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_display_page_blur_opacity_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                                 ValuePill("${(displaySetting.blurOpacity * 100).roundToInt()}%")
                             }
@@ -319,7 +319,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     }
                 }
                 if (displaySetting.effectiveBackgroundEffect == BackgroundEffectType.GLASS) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -327,7 +327,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_display_page_glass_opacity_title))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_glass_opacity_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_display_page_glass_opacity_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                                 ValuePill("${(displaySetting.glassOpacity * 100).roundToInt()}%")
                             }
@@ -343,13 +343,13 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         }
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.fullWidthComponents,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fullWidthComponents = it)) },
                     headline = stringResource(R.string.setting_display_page_full_width_title),
                     supporting = stringResource(R.string.setting_display_page_full_width_desc),
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -357,7 +357,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_input_layout_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_input_layout_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_input_layout_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -378,7 +378,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         }
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.enableMessageGenerationHapticEffect,
                     onCheckedChange = {
                         updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
@@ -386,7 +386,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     headline = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title),
                     supporting = stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc),
                 )
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -394,7 +394,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_haptics_strength_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_haptics_strength_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_haptics_strength_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -417,7 +417,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     }
                 }
                 // 轮廓：形状类型 / 边角大小 / 按压轮廓的节流，取自 ImageToolbox 的「布局」分组
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -425,7 +425,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_corner_style_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_corner_style_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_corner_style_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -445,7 +445,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         }
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -453,7 +453,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_corner_scale_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_corner_scale_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_corner_scale_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             ValuePill("${(displaySetting.cornerScale * 100).roundToInt()}%")
                         }
@@ -467,7 +467,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -475,7 +475,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_corner_throttle_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_corner_throttle_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_corner_throttle_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             ValuePill("${displaySetting.cornerAnimThrottle} ms")
                         }
@@ -489,7 +489,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         )
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -497,7 +497,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_switch_type_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_switch_type_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_switch_type_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -517,7 +517,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         }
                     }
                 }
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -525,7 +525,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_display_page_slider_type_title))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_slider_type_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_display_page_slider_type_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -547,21 +547,21 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = displaySetting.skipCropImage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(skipCropImage = it)) },
                     headline = stringResource(R.string.setting_display_page_skip_crop_image_title),
                     supporting = stringResource(R.string.setting_display_page_skip_crop_image_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.pasteLongTextAsFile,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(pasteLongTextAsFile = it)) },
                     headline = stringResource(R.string.setting_display_page_paste_long_text_as_file_title),
                     supporting = stringResource(R.string.setting_display_page_paste_long_text_as_file_desc),
                 )
                 if (displaySetting.pasteLongTextAsFile) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -584,15 +584,15 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            RoundedColumn {
-                SaltSwitchRow(
+            AppSettingsCard {
+                AppSwitchRow(
                     checked = displaySetting.enableVolumeKeyScroll,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableVolumeKeyScroll = it)) },
                     headline = stringResource(R.string.setting_display_page_volume_key_scroll_title),
                     supporting = stringResource(R.string.setting_display_page_volume_key_scroll_desc),
                 )
                 if (displaySetting.enableVolumeKeyScroll) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -617,8 +617,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            RoundedColumn {
-                ItemContainer {
+            AppSettingsCard {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -628,8 +628,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.setting_page_agent_desc),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = LocalContentColor.current.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             ValuePill("${settings.subAgentMaxParallel}")
@@ -646,8 +646,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            SaltGroup(title = stringResource(R.string.setting_page_tts_settings)) {
-                ItemContainer {
+            AppSettingsGroup(title = stringResource(R.string.setting_page_tts_settings)) {
+                AppSettingsRow {
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -655,7 +655,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = stringResource(R.string.setting_tts_page_default_playback_speed))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_tts_page_default_playback_speed_description), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                Text(text = stringResource(R.string.setting_tts_page_default_playback_speed_description), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                             }
                             ValuePill("x${"%.1f".format(ttsPlaybackSpeed)}")
                         }
@@ -676,25 +676,25 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         )
                     }
                 }
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.ttsOnlyReadQuoted,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(ttsOnlyReadQuoted = it)) },
                     headline = stringResource(R.string.setting_display_page_tts_only_read_quoted_title),
                     supporting = stringResource(R.string.setting_display_page_tts_only_read_quoted_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.ttsOnlyReadOutsideBrackets,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(ttsOnlyReadOutsideBrackets = it)) },
                     headline = stringResource(R.string.setting_display_page_tts_read_outside_brackets_title),
                     supporting = stringResource(R.string.setting_display_page_tts_read_outside_brackets_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.autoPlayTTSAfterGeneration,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoPlayTTSAfterGeneration = it)) },
                     headline = stringResource(R.string.setting_display_page_auto_play_tts_title),
                     supporting = stringResource(R.string.setting_display_page_auto_play_tts_desc),
                 )
-                SaltSwitchRow(
+                AppSwitchRow(
                     checked = displaySetting.voiceModeListenWhileReplying,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(voiceModeListenWhileReplying = it)) },
                     headline = stringResource(R.string.setting_display_page_voice_listen_while_replying_title),
@@ -702,8 +702,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
             }
 
-            SaltGroup(title = stringResource(R.string.setting_app_lock_title)) {
-                SaltSwitchRow(
+            AppSettingsGroup(title = stringResource(R.string.setting_app_lock_title)) {
+                AppSwitchRow(
                     checked = settings.appLockEnabled,
                     onCheckedChange = { enabled ->
                         if (enabled && !context.hasDeviceCredential()) {
@@ -716,7 +716,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supporting = stringResource(R.string.setting_app_lock_desc),
                 )
                 if (settings.appLockEnabled) {
-                    ItemContainer {
+                    AppSettingsRow {
                         Column {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -724,7 +724,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = stringResource(R.string.setting_app_lock_timeout))
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_app_lock_timeout_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                                    Text(text = stringResource(R.string.setting_app_lock_timeout_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))

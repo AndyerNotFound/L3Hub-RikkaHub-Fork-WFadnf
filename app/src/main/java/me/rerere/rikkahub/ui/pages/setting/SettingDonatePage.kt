@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -37,13 +37,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Sponsor
 import me.rerere.rikkahub.data.remote.SponsorAPI
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.onError
@@ -99,12 +99,12 @@ fun SettingDonatePage() {
 @Composable
 private fun DonateMethodsCard() {
     val context = LocalContext.current
-    SaltGroup(title = stringResource(R.string.donate_page_donation_methods), modifier = Modifier.fillMaxWidth()) {
-        ItemContainer {
+    AppSettingsGroup(title = stringResource(R.string.donate_page_donation_methods), modifier = Modifier.fillMaxWidth()) {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item)
+                    .heightIn(min = 56.dp)
                     .clickable(onClick = { context.openUrl("https://ko-fi.com/reovodev") }),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -117,15 +117,15 @@ private fun DonateMethodsCard() {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Kofi")
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = stringResource(R.string.donate_page_kofi_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                    Text(text = stringResource(R.string.donate_page_kofi_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        ItemContainer {
+        AppSettingsRow {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = SaltTheme.dimens.item)
+                    .heightIn(min = 56.dp)
                     .clickable(onClick = { context.openUrl("https://afdian.com/a/reovo") }),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -137,7 +137,7 @@ private fun DonateMethodsCard() {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "爱发电")
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = stringResource(R.string.donate_page_afdian_desc), color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                    Text(text = stringResource(R.string.donate_page_afdian_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

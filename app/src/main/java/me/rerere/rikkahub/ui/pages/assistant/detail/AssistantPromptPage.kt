@@ -22,7 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,9 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.RoundedColumn
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -80,7 +80,6 @@ import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ItemAction
-import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TextArea
@@ -160,8 +159,8 @@ private fun AssistantPromptContent(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     val systemPromptValue = rememberTextFieldState(
                         initialText = assistant.systemPrompt,
@@ -209,7 +208,7 @@ private fun AssistantPromptContent(
                     }
                 }
             }
-            SaltSwitchRow(
+            AppSwitchRow(
                 checked = assistant.allowConversationSystemPrompt,
                 onCheckedChange = {
                     onUpdate(
@@ -223,8 +222,8 @@ private fun AssistantPromptContent(
             )
         }
 
-        RoundedColumn {
-            ItemContainer {
+        AppSettingsCard {
+            AppSettingsRow {
                 Column {
                     Row(verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -232,8 +231,8 @@ private fun AssistantPromptContent(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(R.string.assistant_page_message_template_desc),
-                                color = SaltTheme.colors.subText,
-                                style = SaltTheme.textStyles.sub,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
                             )
                             Text(buildAnnotatedString {
                                 append(stringResource(R.string.assistant_page_template_variables_label))
@@ -261,7 +260,7 @@ private fun AssistantPromptContent(
                                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
                                     append("{{ date }}")
                                 }
-                            }, color = SaltTheme.colors.subText, style = SaltTheme.textStyles.sub)
+                            }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
                         }
                         IconButton(
                             onClick = {
@@ -389,9 +388,9 @@ private fun AssistantPromptContent(
                 )
             },
         )
-        RoundedColumn {
+        AppSettingsCard {
             assistant.presetMessages.fastForEachIndexed { index, presetMessage ->
-                ItemContainer {
+                AppSettingsRow {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -472,7 +471,7 @@ private fun AssistantPromptContent(
             },
         )
         var expandedIds by remember { mutableStateOf(emptySet<Uuid>()) }
-        RoundedColumn {
+        AppSettingsCard {
             ReorderableColumn(
                 list = assistant.regexes,
                 onSettle = { fromIndex, toIndex ->
@@ -520,9 +519,9 @@ private fun AssistantRegexCard(
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    ItemContainer(modifier = modifier.fillMaxWidth()) {
+    AppSettingsRow {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .padding(vertical = 8.dp)
                 .motionContentSize()
                 .motionBlurOnToggle(expanded),

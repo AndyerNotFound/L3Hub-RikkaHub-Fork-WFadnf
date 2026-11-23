@@ -71,8 +71,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.Item
-import com.moriafly.salt.ui.RoundedColumn
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -95,6 +93,8 @@ import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.AppNavItem
+
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.account.preserveCredential
 import me.rerere.rikkahub.data.datastore.removeProvider
@@ -504,7 +504,7 @@ private fun SettingProviderConfigPage(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置；横向内距交给 Salt 的 RoundedColumn（自带 16dp）
+                // 底部留出悬浮工具栏的位置；横向内距由 AppSettingsCard 自带（12dp 横向外距）
                 .padding(top = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -516,13 +516,13 @@ private fun SettingProviderConfigPage(
                 },
             )
 
-            RoundedColumn {
-                Item(
+            AppSettingsCard {
+                AppNavItem(
                     onClick = { showGroupDialog = true },
                     text = stringResource(R.string.setting_provider_group_title),
                     sub = group ?: stringResource(R.string.setting_provider_group_none),
                 )
-                Item(
+                AppNavItem(
                     onClick = {
                         proxyInput = proxyUrl.orEmpty()
                         proxyUsername = proxyHost?.let { settings.providerProxyUsernames[it] }.orEmpty()

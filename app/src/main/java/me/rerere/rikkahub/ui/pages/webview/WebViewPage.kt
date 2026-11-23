@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -34,6 +33,7 @@ import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono

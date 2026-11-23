@@ -1,7 +1,6 @@
 package me.rerere.ui.sketch
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
@@ -14,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick02
+import me.rerere.ui.style.DropdownMenu
 
 /**
  * 画笔按钮：显示当前的画笔，点开可以换一种。正在用别的工具时点它是切回画笔。

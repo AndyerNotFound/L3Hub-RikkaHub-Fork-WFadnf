@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset

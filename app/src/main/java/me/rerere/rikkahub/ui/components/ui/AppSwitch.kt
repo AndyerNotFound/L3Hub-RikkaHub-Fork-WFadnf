@@ -6,17 +6,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.ui.style.Switch
-import me.rerere.rikkahub.ui.components.ui.switch.SwitchByType
-import me.rerere.rikkahub.ui.theme.LocalSwitchType
 import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 
 /**
- * 跟随"按钮阴影"设置的开关，并按「开关类型」分发到对应实现。
+ * 跟随「按钮阴影」设置的开关。
  *
- * [SwitchType.MATERIAL_YOU]（默认）不接管，走 M3 的 `Switch`，与改动前完全一致。
- * 其余七档用 `ui/components/ui/switch` 里从 ImageToolbox 搬过来的自绘实现。
+ * 开关样式统一由 `ui.style.Switch` 里的 ImageToolbox 引擎按 switchType 八档分发
+ * （Bridge 与旧 LocalSwitchType 读的是同一个设置来源），本文件的 MATERIAL_YOU 接管
+ * 与 switch/SwitchByType 的双轨实现就此退场。
  */
 @Composable
 fun AppSwitch(
@@ -26,7 +24,6 @@ fun AppSwitch(
     enabled: Boolean = true,
 ) {
     val useShadow = LocalButtonShadow.current && enabled
-    val switchType = LocalSwitchType.current
     val shadowedModifier = if (useShadow) {
         modifier.shadow(
             elevation = 1.dp,
@@ -38,20 +35,10 @@ fun AppSwitch(
     } else {
         modifier
     }
-    if (switchType == SwitchType.MATERIAL_YOU) {
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            modifier = shadowedModifier,
-        )
-    } else {
-        SwitchByType(
-            switchType = switchType,
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = shadowedModifier,
-            enabled = enabled,
-        )
-    }
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        modifier = shadowedModifier,
+    )
 }

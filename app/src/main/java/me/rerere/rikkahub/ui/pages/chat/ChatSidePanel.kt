@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +53,7 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec

@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
@@ -28,10 +27,10 @@ import me.rerere.rikkahub.ui.style.IconButton
 /**
  * S3 连接信息的表单项，备份和媒体上传的配置共用。
  *
- * 普通 Composable：调用方在外面套 `RoundedColumn { s3ConnectionItems(...) }`，
+ * 普通 Composable：调用方在外面套 `AppSettingsCard { s3ConnectionItems(...) }`，
  * 每一行自带 Salt 的内距。
  *
- * @param modifier 作用在整列上，分组的外距由调用方的 RoundedColumn 提供
+ * @param modifier 作用在整列上，分组的外距由调用方的 AppSettingsCard 提供
  */
 @Composable
 fun s3ConnectionItems(
@@ -86,7 +85,7 @@ fun s3ConnectionItems(
                 singleLine = true
             )
         }
-        SaltSwitchRow(
+        AppSwitchRow(
             checked = config.pathStyle,
             onCheckedChange = { onUpdate(config.copy(pathStyle = it)) },
             headline = stringResource(R.string.backup_page_s3_path_style),
@@ -110,7 +109,7 @@ private fun S3TextFieldRow(
     headline: String,
     content: @Composable () -> Unit,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column {
             Text(text = headline)
             Spacer(Modifier.height(8.dp))

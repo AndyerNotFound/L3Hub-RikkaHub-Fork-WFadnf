@@ -23,8 +23,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileExport
@@ -34,7 +32,8 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
-import me.rerere.rikkahub.ui.components.ui.SaltGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.VersionSyncVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
@@ -79,11 +78,11 @@ fun VersionSyncTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 Salt 的 RoundedColumn（自带 16dp），这里不再补
+            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SaltGroup(
+        AppSettingsGroup(
             title = stringResource(R.string.backup_page_version_sync_peer_title),
         ) {
             BackupActionRow(
@@ -112,7 +111,7 @@ fun VersionSyncTab(
             )
         }
 
-        SaltGroup(
+        AppSettingsGroup(
             title = stringResource(R.string.backup_page_version_sync),
         ) {
             BackupActionRow(
@@ -132,7 +131,7 @@ fun VersionSyncTab(
             // 同步进行中时把进度条接在下面
             val state = working
             if (state != null) {
-                ItemContainer {
+                AppSettingsRow {
                     Column {
                         val progress = state.progress
                         Text(
@@ -153,11 +152,11 @@ fun VersionSyncTab(
                     }
                 }
             }
-            ItemContainer {
+            AppSettingsRow {
                 Text(
                     text = stringResource(R.string.backup_page_version_sync_merge_note),
-                    color = SaltTheme.colors.subText,
-                    style = SaltTheme.textStyles.sub,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }

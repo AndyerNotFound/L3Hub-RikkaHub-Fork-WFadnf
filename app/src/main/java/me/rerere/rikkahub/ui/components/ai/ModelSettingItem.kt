@@ -13,16 +13,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.moriafly.salt.ui.ItemContainer
-import com.moriafly.salt.ui.SaltTheme
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.SaltIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 
 /**
  * 「默认模型」页里那种模型选项：图标、用途说明，下面一颗显示当前模型的胶囊按钮。
  *
  * 全 app 需要选模型的地方都走这里，省得每个页面各拼一份、样式各长一样。
- * 以前走旧 DSL 的 formItem，现在自己拼 Salt 的 [ItemContainer]：标题行 + 内容区。
+ * 以前走旧 DSL 的 formItem，现在自己拼 [AppSettingsRow]：标题行 + 内容区。
  */
 @Composable
 fun modelSettingItem(
@@ -39,7 +38,7 @@ fun modelSettingItem(
     // 传 id 不传字符串：调用方要在这里拼 res 名，省得每个调用点各写一份
     @StringRes warning: Int? = null,
 ) {
-    ItemContainer {
+    AppSettingsRow {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 // 和旧 formItem 一致：带说明文字时，两侧内容靠上对齐
@@ -50,7 +49,7 @@ fun modelSettingItem(
                 },
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                SaltIconBadge(
+                AppIconBadge(
                     icon = icon,
                     containerColor = iconContainerColor ?: MaterialTheme.colorScheme.primaryContainer,
                     contentColor = iconContentColor ?: MaterialTheme.colorScheme.onPrimaryContainer,
@@ -65,8 +64,8 @@ fun modelSettingItem(
                             description?.let {
                                 Text(
                                     text = stringResource(it),
-                                    color = SaltTheme.colors.subText,
-                                    style = SaltTheme.textStyles.sub,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                             warning?.let {

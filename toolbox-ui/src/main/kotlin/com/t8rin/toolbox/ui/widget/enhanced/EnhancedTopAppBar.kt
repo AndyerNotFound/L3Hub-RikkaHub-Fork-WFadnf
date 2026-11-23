@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
@@ -112,12 +113,28 @@ fun EnhancedTopAppBar(
                     scrollBehavior = scrollBehavior
                 )
             }
+
+            EnhancedTopAppBarType.LargeFlexible -> {
+                // expressive 弹性大标题：与 Large 同一折叠语义，展开高度由 M3 自己定，
+                // 引擎只接管描边与配色
+                LargeFlexibleTopAppBar(
+                    title = title,
+                    modifier = modifier.drawHorizontalStroke(
+                        enabled = drawHorizontalStroke
+                    ),
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    windowInsets = windowInsets,
+                    colors = colors,
+                    scrollBehavior = scrollBehavior
+                )
+            }
         }
     }
 }
 
 enum class EnhancedTopAppBarType {
-    Center, Normal, Medium, Large
+    Center, Normal, Medium, Large, LargeFlexible
 }
 
 object EnhancedTopAppBarDefaults {
