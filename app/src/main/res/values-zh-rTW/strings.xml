@@ -2402,7 +2402,7 @@
   <string name="setting_display_page_animation_speed_fast_desc">相同距離，用更短的時間走完</string>
   <string name="setting_display_page_animation_speed_gentle">柔和</string>
   <string name="setting_display_page_animation_speed_gentle_desc">較慢，尾韻更長</string>
-  <string name="setting_display_page_animation_speed_system_desc">跟隨 Kelivo 動效規格（進入 300 毫秒 / 退出 240 毫秒）</string>
+  <string name="setting_display_page_animation_speed_system_desc">使用 Material 的空間曲線</string>
   <string name="setting_mcp_page_needs_oauth">需要 OAuth 授權</string>
   <string name="setting_mcp_page_authorize_oauth">使用 OAuth 授權</string>
   <string name="setting_mcp_page_authorizing_hint">授權中，請在瀏覽器中完成…</string>

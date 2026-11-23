@@ -110,54 +110,9 @@ private object GentleMotionScheme : MotionScheme {
     override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 420)
 }
 
-/**
- * Kelivo 档：规格层换肤后 SYSTEM（默认档）用的那一套。
- *
- * 数值全部来自 Kelivo 源码调研（docs/kelivo-design-spec.md B.1 / B.2）与已拍板决策
- * （docs/kelivo-migration-plan.md 决策 1）：
- *
- * | 用途 | 时长 | 曲线 |
- * |---|---|---|
- * | 页面 / 大块位移进入（defaultSpatial） | 300ms | [EaseOutCubicEasing] |
- * | 按压反馈（fastSpatial） | 200ms | [EaseOutCubicEasing] |
- * | 展开 / 收起上限（slowSpatial） | 260ms | [EaseOutCubicEasing] |
- * | 对话框（defaultEffects，进出对称） | 200ms | [EaseOutCubicEasing] |
- * | 按压底色（fastEffects） | 160ms | [EaseOutCubicEasing] |
- * | 退出 / 收起（slowEffects） | 240ms | [EaseInCubicEasing] |
- *
- * 注意 [MotionScheme] 的六个口子**没有方向**：同一口子进出同参。Kelivo 的页面进退是非对称的
- * （进 300 / 退 240），那一对走下面的 [rememberKelivoEnterSpec] / [rememberKelivoExitSpec]，
- * 调用点分别取用；把退出参数塞进 slowEffects 只是给「收起」一个更快的落点，不是页面退场。
- */
-private object KelivoMotionScheme : MotionScheme {
-    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 300, easing = EaseOutCubicEasing)
-
-    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 200, easing = EaseOutCubicEasing)
-
-    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 260, easing = EaseOutCubicEasing)
-
-    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 200, easing = EaseOutCubicEasing)
-
-    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 160, easing = EaseOutCubicEasing)
-
-    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> =
-        tween(durationMillis = 240, easing = EaseInCubicEasing)
-}
-
-/**
- * 当前档位对应的 MotionScheme：SYSTEM 用 Kelivo 那一套，其余两档用上面那两套。
- *
- * SYSTEM 这一格原本是 `MotionScheme.expressive()`（弹簧，落位有回弹）。规格层换肤后它换成
- * [KelivoMotionScheme]：Kelivo 的位移没有过冲，用 tween + easeOutCubic 才拍得平。
- * 「快 / 缓」两档不动，仍是各自的弹簧档。
- */
+/** 当前档位对应的 MotionScheme：SYSTEM 用 Material 的 expressive，其余两档用上面那两套。 */
 fun motionSchemeOf(speed: AnimationSpeed): MotionScheme = when (speed) {
-    AnimationSpeed.SYSTEM -> KelivoMotionScheme
+    AnimationSpeed.SYSTEM -> MotionScheme.expressive()
     AnimationSpeed.FAST -> FastMotionScheme
     AnimationSpeed.GENTLE -> GentleMotionScheme
 }
@@ -229,10 +184,7 @@ fun slideDurationMillis(): Int = when (LocalAnimationSpeed.current) {
 //                     rememberFastSpatialSpec / rememberSizeSpec / rememberOffsetSpec /
 //                     rememberFastOffsetSpec / rememberColorSpec / rememberSlideSpec
 //   2. 固定节奏    —— 手感已经定死、不跟三档走的动画：rememberFixedSpec(duration, easing)；
-//                     协程里 animateTo 用 fixedMotionSpec(enabled, duration, easing)。
-//                     换肤后 Kelivo 那一套也归这一层：rememberKelivoEnterSpec /
-//                     rememberKelivoExitSpec / rememberKelivoPressSpec /
-//                     rememberKelivoExpandSpec / rememberKelivoDialogSpec（页面进退成对取）
+//                     协程里 animateTo 用 fixedMotionSpec(enabled, duration, easing)
 //   3. 状态动画    —— animate*AsState 的统一替代：motionFloatAsState / motionFastFloatAsState /
 //                     motionDpAsState / motionColorAsState；容器高度用 Modifier.motionContentSize()
 //   4. 组合过渡    —— 整块内容的进出场：rememberRevealEnter / rememberRevealExit（含横向）、
@@ -393,60 +345,6 @@ fun <T> rememberFixedSpec(
     durationMillis: Int,
     easing: Easing = FastOutSlowInEasing,
 ): FiniteAnimationSpec<T> = fixedMotionSpec(LocalAnimationsEnabled.current, durationMillis, easing)
-
-// ---------------------------------------------------------------------------
-// Kelivo 固定节奏（docs/kelivo-design-spec.md B.1 / B.3，docs/kelivo-migration-plan.md 决策 1）
-//
-// 这五条的时长已经定死，不跟「动画速度」三档走（Kelivo 自己也不跟系统档）：它们是换肤的
-// 目标手感本身。仍然接「关闭动效」这一道闸——关掉时全部 snap。
-//
-// 页面进退是**非对称**的一对，必须成对使用：进入取 [rememberKelivoEnterSpec]、
-// 退出取 [rememberKelivoExitSpec]。只取一个，或者两边都取进入那一条，画面就会「进得慢、
-// 退得也慢」或者「进得慢、退得快到看不见」——两种都不像 Kelivo。
-// ---------------------------------------------------------------------------
-
-/** 页面 / 整块面板进入的时长（ms）。 */
-const val KELIVO_ENTER_MILLIS = 300
-
-/** 页面 / 整块面板退出的时长（ms）。比进入短 60ms：Kelivo 的「快出慢进」。 */
-const val KELIVO_EXIT_MILLIS = 240
-
-/** 按压反馈（缩放 / 换色）的时长（ms），Kelivo 的常用档是 200。 */
-const val KELIVO_PRESS_MILLIS = 200
-
-/** 展开 / 收起的上限时长（ms）；Kelivo 的常用档是 220–260。 */
-const val KELIVO_EXPAND_MILLIS = 260
-
-/** 对话框进出的时长（ms），进出同长（对称）。 */
-const val KELIVO_DIALOG_MILLIS = 200
-
-/** 对话框进场的起始缩放：0.98 → 1.0，只缩这一点，别用 M3 默认的 0.8。 */
-const val KELIVO_DIALOG_SCALE_FROM = 0.98f
-
-/** 页面 / 面板进入：300ms easeOutCubic。与 [rememberKelivoExitSpec] 成对使用。 */
-@Composable
-fun <T> rememberKelivoEnterSpec(): FiniteAnimationSpec<T> =
-    rememberFixedSpec(KELIVO_ENTER_MILLIS, EaseOutCubicEasing)
-
-/** 页面 / 面板退出：240ms easeInCubic（[rememberKelivoEnterSpec] 的镜像）。 */
-@Composable
-fun <T> rememberKelivoExitSpec(): FiniteAnimationSpec<T> =
-    rememberFixedSpec(KELIVO_EXIT_MILLIS, EaseInCubicEasing)
-
-/** 按压反馈：200ms easeOutCubic。列表行只用它换色，卡片再叠 0.98 的缩放。 */
-@Composable
-fun <T> rememberKelivoPressSpec(): FiniteAnimationSpec<T> =
-    rememberFixedSpec(KELIVO_PRESS_MILLIS, EaseOutCubicEasing)
-
-/** 展开 / 收起：260ms easeOutCubic。 */
-@Composable
-fun <T> rememberKelivoExpandSpec(): FiniteAnimationSpec<T> =
-    rememberFixedSpec(KELIVO_EXPAND_MILLIS, EaseOutCubicEasing)
-
-/** 对话框：200ms easeOutCubic，进出同一条（Kelivo 的对话框只设了 transitionDuration，退场同长）。 */
-@Composable
-fun <T> rememberKelivoDialogSpec(): FiniteAnimationSpec<T> =
-    rememberFixedSpec(KELIVO_DIALOG_MILLIS, EaseOutCubicEasing)
 
 /**
  * `Modifier.animateContentSize` 的统一入口。

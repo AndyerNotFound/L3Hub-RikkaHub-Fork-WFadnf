@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import com.t8rin.dynamic.theme.ColorTuple
 import com.t8rin.dynamic.theme.animateAllColors
 import com.t8rin.dynamic.theme.rememberAppColorTuple
@@ -62,7 +61,7 @@ fun rememberToolboxColorScheme(
         darkTheme = darkTheme,
     )
 
-    val engineScheme = rememberColorScheme(
+    return rememberColorScheme(
         isDarkTheme = darkTheme,
         // AMOLED 由引擎压黑（含强调色的降调），外层不要再叠一次 amoledSurface
         amoledMode = darkTheme && amoledDark,
@@ -73,75 +72,8 @@ fun rememberToolboxColorScheme(
         isInvertColors = toolTheme.isInvertThemeColors,
         colorBlindType = toolTheme.colorBlindType,
         dynamicColorsOverride = null,
-    )
-
-    // 五档容器覆盖发生在 animateAllColors 之前：换主题/拖对比度时，这五格跟其余角色一起渐变。
-    // 放到动画之后的话它们会一帧跳过去，与整套配色的过渡脱节。
-    // AMOLED 那一档不覆盖：引擎已经把整片表面压成纯黑，这里盖回灰阶就等于把 AMOLED 关掉。
-    val kelivoScheme = if (darkTheme && amoledDark) {
-        engineScheme
-    } else {
-        engineScheme.withKelivoSurfaceLadder(darkTheme)
-    }
-
-    return kelivoScheme.animateAllColors(tween(300))
+    ).animateAllColors(tween(300))
 }
-
-// ---------------------------------------------------------------------------
-// Kelivo legacy 表面色阶（docs/kelivo-design-spec.md A.1.3 / A.1.4 实算值）
-//
-// 引擎那套 surfaceContainer* 是 M3 的固定音调阶梯，与 Kelivo 默认（legacy，非分层）的长相
-// 不一样：Kelivo 明色是「往上加白」的微差（0/+2/+3/+7/−11 相对页面），暗色是 3%→4.5%→6%→9%
-// 的白叠加。差值太小，M3 阶梯表达不出来，所以在这里按实算值逐格覆盖。
-//
-// 只在「主题引擎算出来的那一份」上覆盖：调色板（palette.enabled）那条路是逐角色指定，
-// 绕过引擎，也不走这个函数（见文件顶部取舍第 1 条）。
-// ---------------------------------------------------------------------------
-
-/** Kelivo legacy 的五档容器（A.1.3）。顺序：Lowest / Low / Container / High / Highest。 */
-private val KelivoSurfaceLight = listOf(
-    Color(0xFFFDFDFD),
-    Color(0xFFFBFBFB),
-    Color(0xFFFAFAFA),
-    Color(0xFFFEFEFE),
-    Color(0xFFECECEC),
-)
-
-private val KelivoSurfaceDark = listOf(
-    Color(0xFF0D0D0E),
-    Color(0xFF19191A),
-    Color(0xFF1C1C1D),
-    Color(0xFF202021),
-    Color(0xFF272728),
-)
-
-/** 按深浅换成 Kelivo 的五档容器。surfaceFill（= Highest）与卡片色由调用点自己的角色取用。 */
-private fun ColorScheme.withKelivoSurfaceLadder(dark: Boolean): ColorScheme {
-    val ladder = if (dark) KelivoSurfaceDark else KelivoSurfaceLight
-    return copy(
-        surfaceContainerLowest = ladder[0],
-        surfaceContainerLow = ladder[1],
-        surfaceContainer = ladder[2],
-        surfaceContainerHigh = ladder[3],
-        surfaceContainerHighest = ladder[4],
-    )
-}
-
-/**
- * Kelivo 的 hairline（A.1.4）：明 6% 黑、暗 8% 白，分割线与卡片描边用。
- *
- * 为什么没有回灌进 [ColorScheme]：引擎给的两格语义与 Kelivo 对不上。
- * `outline` 在 14 处被当「弱化图标/文字色」整值使用，`outlineVariant` 在 46 处被当描边基色
- * 再乘 0.35–0.5 的 alpha；把任一格改成 6% 黑，前一类会淡到看不见，后一类会掉到 1–3%。
- * Kelivo 的 hairline 是**独立**语义 token（`AppSemanticColors.hairline`），不是 M3 outline 的别名。
- * 这里先只给出值，等阶段 2 的 SectionCard / 分组描边落地时由那一层消费。
- */
-val KelivoHairlineLight = Color(0x0F000000)
-
-val KelivoHairlineDark = Color(0x14FFFFFF)
-
-/** 取当前深浅下的 Kelivo hairline。 */
-fun kelivoHairline(dark: Boolean): Color = if (dark) KelivoHairlineDark else KelivoHairlineLight
 
 /** 反过来：把一套已经算好的配色拆回种子色。容器色与状态色不参与推导，丢了不影响风格。 */
 private fun ColorScheme.toColorTuple(): ColorTuple = ColorTuple(

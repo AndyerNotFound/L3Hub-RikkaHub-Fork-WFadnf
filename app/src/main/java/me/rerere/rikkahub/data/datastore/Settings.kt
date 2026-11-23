@@ -221,7 +221,7 @@ enum class DisplayMode {
 /** 页面/列表过渡的速度手感，只在没关动效时生效。 */
 @Serializable
 enum class AnimationSpeed {
-    /** 跟随 Kelivo 动效规格（进入 300ms / 退出 240ms，easeOutCubic / easeInCubic） */
+    /** 跟随 Material 的 expressive 曲线 */
     SYSTEM,
 
     /** 收紧：同样的位移用更短的时间走完 */

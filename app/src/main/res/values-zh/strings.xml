@@ -1117,15 +1117,6 @@
   <string name="palette_name_sunset">落日橙</string>
   <string name="palette_name_rose">玫瑰红</string>
   <string name="palette_name_monochrome">单色灰</string>
-  <string name="palette_name_kelivo">Kelivo 默认</string>
-  <string name="palette_name_kelivo_blue">Kelivo 蓝</string>
-  <string name="palette_name_kelivo_green">Kelivo 绿</string>
-  <string name="palette_name_kelivo_purple">Kelivo 紫</string>
-  <string name="palette_name_kelivo_yellow">Kelivo 黄</string>
-  <string name="palette_name_kelivo_smoky_rose">Kelivo 烟玫瑰</string>
-  <string name="palette_name_kelivo_terracotta">Kelivo 陶土</string>
-  <string name="palette_name_kelivo_monochrome">Kelivo 单色</string>
-  <string name="palette_name_kelivo_doc">Kelivo 文档绿</string>
   <string name="palette_group_main">主色</string>
   <string name="palette_group_accent">辅色与第三色</string>
   <string name="palette_group_surface">表面与背景</string>
@@ -2605,7 +2596,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_animation_speed_fast_desc">同样距离，用更短的时间走完</string>
   <string name="setting_display_page_animation_speed_gentle">柔和</string>
   <string name="setting_display_page_animation_speed_gentle_desc">更慢，收尾更长</string>
-  <string name="setting_display_page_animation_speed_system_desc">跟随 Kelivo 动效规格（进入 300 毫秒 / 退出 240 毫秒）</string>
+  <string name="setting_display_page_animation_speed_system_desc">使用 Material 空间曲线</string>
   <string name="setting_mcp_page_needs_oauth">需要 OAuth 授权</string>
   <string name="setting_mcp_page_authorize_oauth">使用 OAuth 授权</string>
   <string name="setting_mcp_page_authorizing_hint">正在授权，请在浏览器中完成…</string>
