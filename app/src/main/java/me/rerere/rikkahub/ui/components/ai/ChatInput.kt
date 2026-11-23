@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -8,6 +10,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -71,6 +75,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
@@ -128,6 +133,7 @@ import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
@@ -614,7 +620,25 @@ fun ChatInput(
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                if (assistant.planMode) {
+                                // 内容行（plan 提示 / 语音 / 附件 / 编辑横幅）的出现与收起：
+                                // 旧的向下滑走、新的从下方滑入，fade+scale 一起收，ImageToolbox 同款曲线，
+                                // 进出同参同档；卡片整体高度由外层 motionContentSize 负责，这里只做行内动效
+                                val rowSlideSpec = rememberSlideSpec<IntOffset>()
+                                val rowScaleSpec = rememberSlideSpec<Float>()
+                                val rowFadeSpec = rememberEffectsSpec<Float>()
+                                val rowEnter: EnterTransition =
+                                    slideInVertically(rowSlideSpec) { it / 2 } +
+                                        fadeIn(rowFadeSpec) +
+                                        scaleIn(rowScaleSpec, initialScale = 0.96f)
+                                val rowExit: ExitTransition =
+                                    slideOutVertically(rowSlideSpec) { it / 2 } +
+                                        fadeOut(rowFadeSpec) +
+                                        scaleOut(rowScaleSpec, targetScale = 0.96f)
+                                AnimatedVisibility(
+                                    visible = assistant.planMode,
+                                    enter = rowEnter,
+                                    exit = rowExit,
+                                ) {
                                     Text(
                                         text = stringResource(R.string.chat_input_plan_mode_hint),
                                         style = MaterialTheme.typography.labelSmall,
@@ -625,22 +649,36 @@ fun ChatInput(
                                             .padding(horizontal = 4.dp, vertical = 2.dp),
                                     )
                                 }
-                                if (voiceState.phase != VoicePhase.Off) {
-                                    VoiceModeRow(
-                                        state = voiceState,
-                                        onStop = onStopVoiceMode,
-                                        onRetry = { onStartVoiceMode?.invoke() },
-                                    )
-                                    androidx.compose.material3.HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    )
+                                AnimatedVisibility(
+                                    visible = voiceState.phase != VoicePhase.Off,
+                                    enter = rowEnter,
+                                    exit = rowExit,
+                                ) {
+                                    Column {
+                                        VoiceModeRow(
+                                            state = voiceState,
+                                            onStop = onStopVoiceMode,
+                                            onRetry = { onStartVoiceMode?.invoke() },
+                                        )
+                                        androidx.compose.material3.HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                        )
+                                    }
                                 }
-                                if (state.messageContent.isNotEmpty()) {
+                                AnimatedVisibility(
+                                    visible = state.messageContent.isNotEmpty(),
+                                    enter = rowEnter,
+                                    exit = rowExit,
+                                ) {
                                     MediaFileInputRow(state = state)
                                 }
                                 // 必须在 TextInputRow 外面：单行布局的按钮以 TextInputRow 整体高度居中，
                                 // 提示条排在 TextField 之前会把按钮顶到输入框上部
-                                if (state.isEditing()) {
+                                AnimatedVisibility(
+                                    visible = state.isEditing(),
+                                    enter = rowEnter,
+                                    exit = rowExit,
+                                ) {
                                     EditingBanner(
                                         state = state,
                                         shape = innerShape,
