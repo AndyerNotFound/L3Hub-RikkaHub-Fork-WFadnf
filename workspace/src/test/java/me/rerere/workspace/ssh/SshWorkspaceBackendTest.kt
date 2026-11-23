@@ -372,8 +372,8 @@ class SshWorkspaceBackendTest {
         val pidFile = File("/tmp/rikkahub/background/bg-kill.pid")
         try {
             val pid = pidFile.readText().trim()
-            assertTrue(pid.isNotEmpty() && pid.all { it.isDigit() }, "pid file must contain a pid")
-            assertEquals(0, runHost("kill -0 $pid").exitValue(), "process must be running after start")
+            assertTrue("pid file must contain a pid", pid.isNotEmpty() && pid.all { it.isDigit() })
+            assertEquals("process must be running after start", 0, runHost("kill -0 $pid").exitValue())
 
             command.kill()
             assertEquals(-1, command.waitFor())
