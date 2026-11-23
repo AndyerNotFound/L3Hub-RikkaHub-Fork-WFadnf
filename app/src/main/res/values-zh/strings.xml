@@ -3083,8 +3083,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="message_style_page_customize_thinking">思考链卡片单独定制</string>
   <string name="message_style_page_customize_thinking_desc">为思考链卡片单独套一套样式</string>
   <string name="message_style_page_target_title">编辑目标</string>
-  <string name="message_style_page_light">浅色</string>
-  <string name="message_style_page_dark">深色</string>
   <string name="message_style_page_role_user">用户</string>
   <string name="message_style_page_role_assistant">助手</string>
   <string name="message_style_page_role_thinking">思考链</string>
@@ -3092,16 +3090,14 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="message_style_page_preview_thinking">思考中…</string>
   <string name="message_style_page_preview_assistant">助手回复</string>
   <string name="message_style_page_blur">模糊半径</string>
-  <string name="message_style_page_background_color">背景色</string>
   <string name="message_style_page_background_opacity">背景透明度</string>
-  <string name="message_style_page_border_color">边框色</string>
   <string name="message_style_page_border_opacity">边框透明度</string>
   <string name="message_style_page_border_width">边框宽度</string>
-  <string name="message_style_page_text_color">文字色</string>
   <string name="message_style_page_corner_radius">圆角</string>
   <string name="message_style_page_reset">恢复默认</string>
   <string name="message_style_page_reset_confirm">恢复全部消息样式自定义？</string>
   <string name="message_style_page_cancel">取消</string>
   <string name="message_style_page_default_hint">默认样式沿用主题配色，不提供参数调节；选择毛玻璃或实色后即可定制。</string>
 
+  <string name="message_style_page_blur_hint">模糊半径仅在全局特效为「模糊」时生效，请到 偏好设置 → 通用 切换。</string>
 </resources>

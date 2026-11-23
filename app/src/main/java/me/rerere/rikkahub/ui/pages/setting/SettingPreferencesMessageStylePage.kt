@@ -3,6 +3,9 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,11 +33,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,28 +47,28 @@ import com.moriafly.salt.ui.ItemContainer
 import com.moriafly.salt.ui.RoundedColumn
 import com.moriafly.salt.ui.SaltTheme
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.BubbleChat
-import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
+import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.overridesFor
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
 
-/** 消息样式设置页：气泡背景三档 + 明暗/角色分别定制。 */
+/** 消息样式设置页：气泡背景三档，按角色分别定制。 */
 @Composable
 fun SettingPreferencesMessageStylePage(
     embedded: Boolean = false,
@@ -75,8 +76,6 @@ fun SettingPreferencesMessageStylePage(
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
-    val isDark = LocalDarkMode.current
-    var editingDark by remember { mutableStateOf(isDark) }
     var editingTarget by remember { mutableStateOf(ChatBubbleStyleTarget.ASSISTANT) }
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -207,28 +206,13 @@ fun SettingPreferencesMessageStylePage(
             }
 
             if (style != ChatMessageBackgroundStyle.DEFAULT) {
-                // 明暗 + 角色分段
+                // 角色分段
                 item {
                     RoundedColumn {
                         ItemContainer {
                             Column {
                                 Text(stringResource(R.string.message_style_page_target_title))
                                 Spacer(Modifier.height(8.dp))
-                                ConnectedChoiceButtons(
-                                    options = listOf(false, true),
-                                    selected = editingDark,
-                                    onSelect = { editingDark = it },
-                                ) { item, selected ->
-                                    ConnectedChoiceLabel(
-                                        text = if (item) {
-                                            stringResource(R.string.message_style_page_dark)
-                                        } else {
-                                            stringResource(R.string.message_style_page_light)
-                                        },
-                                        selected = selected,
-                                    )
-                                }
-                                Spacer(Modifier.height(12.dp))
                                 ConnectedChoiceButtons(
                                     options = if (customizeCards) {
                                         ChatBubbleStyleTarget.entries
@@ -262,7 +246,6 @@ fun SettingPreferencesMessageStylePage(
                 item {
                     MessageStylePreview(
                         style = style,
-                        editingDark = editingDark,
                         editingTarget = target,
                         customizeCards = customizeCards,
                         displaySetting = displaySetting,
@@ -274,7 +257,6 @@ fun SettingPreferencesMessageStylePage(
                     StyleParamsGroup(
                         style = style,
                         overrides = overrides,
-                        editingDark = editingDark,
                         onOverridesChange = ::updateOverrides,
                     )
                 }
@@ -338,7 +320,6 @@ fun SettingPreferencesMessageStylePage(
 @Composable
 private fun MessageStylePreview(
     style: ChatMessageBackgroundStyle,
-    editingDark: Boolean,
     editingTarget: ChatBubbleStyleTarget,
     customizeCards: Boolean,
     displaySetting: DisplaySetting,
@@ -347,20 +328,17 @@ private fun MessageStylePreview(
     val isDark = LocalDarkMode.current
     val userResolved = resolveBubbleStyle(
         colorScheme = cs,
-        isDark = editingDark,
         style = style,
         overrides = displaySetting.userChatBubbleStyleOverrides,
     )
     val assistantResolved = resolveBubbleStyle(
-    colorScheme = cs,
-    isDark = editingDark,
-    style = style,
-    overrides = displaySetting.assistantChatBubbleStyleOverrides,
+        colorScheme = cs,
+        style = style,
+        overrides = displaySetting.assistantChatBubbleStyleOverrides,
     )
     val cardResolved = if (customizeCards) {
         resolveBubbleStyle(
             colorScheme = cs,
-            isDark = editingDark,
             style = style,
             overrides = displaySetting.thinkingToolCardStyleOverrides,
         )
@@ -368,22 +346,49 @@ private fun MessageStylePreview(
         assistantResolved
     }
     val dim = style != ChatMessageBackgroundStyle.DEFAULT
+    // 预览用编辑目标的模糊半径模糊背景，调滑杆时能看到强度变化
+    val previewBlur = when (editingTarget) {
+        ChatBubbleStyleTarget.USER -> userResolved.blurRadius
+        ChatBubbleStyleTarget.ASSISTANT -> assistantResolved.blurRadius
+        ChatBubbleStyleTarget.THINKING_TOOL_CARD -> cardResolved.blurRadius
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        cs.surfaceContainerLow,
-                        cs.surfaceContainerHigh,
-                    ),
-                ),
-            )
             .border(1.dp, cs.outlineVariant.copy(alpha = if (isDark) 0.12f else 0.10f), RoundedCornerShape(16.dp)),
     ) {
+        // 被模糊的背景层（渐变 + 光斑），模拟毛玻璃的观感
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            cs.surfaceContainerLow,
+                            cs.surfaceContainerHigh,
+                        ),
+                    ),
+                )
+                .blur(previewBlur, BlurredEdgeTreatment.Unbounded),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = 36.dp, y = 24.dp)
+                    .size(56.dp)
+                    .background(cs.primary.copy(alpha = 0.30f), CircleShape),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = -24.dp, y = -16.dp)
+                    .size(72.dp)
+                    .background(cs.tertiary.copy(alpha = 0.22f), CircleShape),
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -444,18 +449,16 @@ private fun PreviewBubble(
     }
 }
 
-/** 参数组：模糊、背景、边框、文字、圆角。 */
+/** 参数组：模糊、透明度、边框、圆角。 */
 @Composable
 private fun StyleParamsGroup(
     style: ChatMessageBackgroundStyle,
     overrides: ChatBubbleStyleOverrides,
-    editingDark: Boolean,
     onOverridesChange: (ChatBubbleStyleOverrides) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val resolved = resolveBubbleStyle(
         colorScheme = cs,
-        isDark = editingDark,
         style = style,
         overrides = overrides,
     )
@@ -470,27 +473,32 @@ private fun StyleParamsGroup(
 
     RoundedColumn {
         if (style == ChatMessageBackgroundStyle.FROSTED) {
+            val blurSigma = (overrides.blurSigma ?: 14f).roundToInt().coerceIn(0, 30)
+            // 模糊半径只在全局特效 BLUR 档下生效：玻璃档走光学折射，关闭档没有模糊
+            val blurEnabled =
+                LocalSettings.current.displaySetting.effectiveBackgroundEffect ==
+                    BackgroundEffectType.BLUR
             ParamSliderRow(
                 label = stringResource(R.string.message_style_page_blur),
-                valueText = resolved.blurRadius.value.roundToInt().toString(),
+                valueText = blurSigma.toString(),
                 child = {
                     NumberSlider(
-                        value = resolved.blurRadius.value.roundToInt().coerceIn(0, 30),
+                        value = blurSigma,
                         onValueChange = { update { copy(blurSigma = it.toFloat()) } },
                         valueRange = 0..30,
+                        enabled = blurEnabled,
                     )
                 },
             )
+            if (!blurEnabled) {
+                Text(
+                    text = stringResource(R.string.message_style_page_blur_hint),
+                    color = SaltTheme.colors.subText,
+                    style = SaltTheme.textStyles.sub,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                )
+            }
         }
-        ParamColorRow(
-            label = stringResource(R.string.message_style_page_background_color),
-            color = resolved.background.copy(alpha = 1f),
-            onPicked = { argb ->
-                update {
-                    if (editingDark) copy(backgroundArgbDark = argb) else copy(backgroundArgbLight = argb)
-                }
-            },
-        )
         ParamSliderRow(
             label = stringResource(R.string.message_style_page_background_opacity),
             valueText = "${(opacity * 100).roundToInt()}%",
@@ -508,15 +516,6 @@ private fun StyleParamsGroup(
                     },
                     valueRange = 0..100,
                 )
-            },
-        )
-        ParamColorRow(
-            label = stringResource(R.string.message_style_page_border_color),
-            color = resolved.border.copy(alpha = 1f),
-            onPicked = { argb ->
-                update {
-                    if (editingDark) copy(borderArgbDark = argb) else copy(borderArgbLight = argb)
-                }
             },
         )
         ParamSliderRow(
@@ -539,15 +538,6 @@ private fun StyleParamsGroup(
                     onValueChange = { update { copy(borderWidth = it / 10f) } },
                     valueRange = 0..30,
                 )
-            },
-        )
-        ParamColorRow(
-            label = stringResource(R.string.message_style_page_text_color),
-            color = resolved.text.copy(alpha = 1f),
-            onPicked = { argb ->
-                update {
-                    if (editingDark) copy(textArgbDark = argb) else copy(textArgbLight = argb)
-                }
             },
         )
         ParamSliderRow(
@@ -580,60 +570,6 @@ private fun ParamSliderRow(
             Spacer(Modifier.height(6.dp))
             child()
         }
-    }
-}
-
-/** 取色行：点击弹色卡。 */
-@Composable
-private fun ParamColorRow(
-    label: String,
-    color: Color,
-    onPicked: (Int) -> Unit,
-) {
-    var showPicker by remember { mutableStateOf(false) }
-    ItemContainer {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .clickable { showPicker = true },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = label, modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .width(28.dp)
-                    .height(28.dp)
-                    .clip(CircleShape)
-                    .background(color)
-                    .border(
-                        width = 0.6.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        shape = CircleShape,
-                    ),
-            )
-        }
-    }
-    if (showPicker) {
-        AnimatedAlertDialog(
-            onDismissRequest = { showPicker = false },
-            confirmButton = {},
-            title = { Text(label) },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 420.dp),
-                ) {
-                    ColorPickerRow(
-                        color = color,
-                        onColorChange = {
-                            onPicked(it.toArgb())
-                            showPicker = false
-                        },
-                        scrollable = true,
-                    )
-                }
-            },
-        )
     }
 }
 

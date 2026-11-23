@@ -132,7 +132,6 @@ import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
-import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
@@ -716,7 +715,6 @@ private fun MessagePartsBlock(
                     ) {
                         resolveBubbleStyle(
                             colorScheme = MaterialTheme.colorScheme,
-                            isDark = LocalDarkMode.current,
                             style = chainStyleSetting.chatMessageBackgroundStyle,
                             overrides = chainStyleSetting.thinkingToolCardStyleOverrides,
                         )
@@ -1252,7 +1250,6 @@ private fun ChatMessageBubble(
     ) {
         resolveBubbleStyle(
             colorScheme = MaterialTheme.colorScheme,
-            isDark = LocalDarkMode.current,
             style = displaySetting.chatMessageBackgroundStyle,
             overrides = when (role) {
                 MessageRole.USER -> displaySetting.userChatBubbleStyleOverrides
