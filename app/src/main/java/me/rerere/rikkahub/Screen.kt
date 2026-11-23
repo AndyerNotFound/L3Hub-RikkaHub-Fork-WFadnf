@@ -156,6 +156,9 @@ sealed interface Screen {
     data object SettingDonate : Screen
 
     @Serializable
+    data object QuickStart : Screen
+
+    @Serializable
     data object SettingFiles : Screen
 
     @Serializable

@@ -37,6 +37,7 @@ import me.rerere.rikkahub.ui.pages.search.SearchPage
 import me.rerere.rikkahub.ui.pages.setting.ModelEditorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
+import me.rerere.rikkahub.ui.pages.quickstart.QuickStartPage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
@@ -161,6 +162,7 @@ fun ScreenContent(screen: Screen) {
         }
 
         Screen.SettingDonate -> { SettingDonatePage() }
+        Screen.QuickStart -> { QuickStartPage() }
         Screen.SettingFiles -> { SettingFilesPage() }
         Screen.SettingWeb -> { SettingWebPage() }
         Screen.Debug -> { DebugPage() }

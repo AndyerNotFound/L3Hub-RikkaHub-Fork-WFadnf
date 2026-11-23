@@ -117,6 +117,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.data.model.withConversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.ai.GenerationSpeed
@@ -130,6 +131,7 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.modifier.scrollMotionBlur
 import me.rerere.rikkahub.ui.style.IconButton
+import me.rerere.rikkahub.ui.pages.quickstart.QuickStartCard
 import me.rerere.rikkahub.ui.theme.ChatFontProvider
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
@@ -568,6 +570,11 @@ private fun ChatListNormal(
         }
     }
 
+    // 流式输出时会频繁重组，只在相关配置变了才重新查找模型
+    val needsSetup = remember(settings.init, settings.providers, settings.chatModelId, settings.assistants, conversation.assistantId, conversation.config) {
+        !settings.init && settings.getChatModelOf(conversation) == null
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize(),
@@ -876,6 +883,13 @@ private fun ChatListNormal(
                             )
                         }
                     }
+                }
+            }
+
+            // 没有可用模型就发不了消息，放在消息后面，空会话时在顶部、有消息时贴着输入框
+            if (needsSetup) {
+                item(key = "QuickStartCard") {
+                    QuickStartCard(modifier = Modifier.animateItem())
                 }
             }
 
