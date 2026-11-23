@@ -12,10 +12,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
@@ -36,7 +41,7 @@ import java.util.zip.ZipOutputStream
  *
  * 包内结构对齐 Kelivo 的 kelivo-backup v3 格式：
  * - manifest.json：format=kelivo-backup / formatVersion=3 / payloadKind=sqlite
- * - settings.json：业务偏好，本导出为空对象 {}
+ * - settings.json：业务偏好；provider/assistant 配置以 provider_configs_v1 / assistants_v1 形式携带，
  * - database/kelivo.db：按 Kelivo schema v5 从零建库（见 [KelivoSchemaV5]），
  *   只填充 conversation_rows / message_rows / message_part_rows，其余表留空
  * - upload/、images/ 等：消息附件，按 kelivo-file:/// 约定写进 part 的 uri
@@ -55,6 +60,7 @@ class KelivoExporter(
     private val conversationDao: ConversationDAO,
     private val messageNodeDao: MessageNodeDAO,
     private val filesManager: FilesManager,
+    private val settingsStore: SettingsStore,
 ) {
     private val filesDir: File get() = context.filesDir
 
@@ -67,7 +73,7 @@ class KelivoExporter(
         try {
             val dbFile = File(staging, "database").apply { mkdirs() }.resolve("kelivo.db")
             val stats = buildDatabase(dbFile, includeFiles)
-            val settingsFile = File(staging, "settings.json").apply { writeText("{}") }
+            val settingsFile = File(staging, "settings.json").apply { writeText(buildSettingsJson()) }
             val manifestFile = File(staging, "manifest.json").apply {
                 writeText(buildManifestJson(stats = stats, includeFiles = includeFiles, settingsFile = settingsFile, dbFile = dbFile))
             }
@@ -368,6 +374,173 @@ class KelivoExporter(
             }
         }
         .trim()
+
+    /**
+     * 生成 Kelivo 的 settings.json：把 L3Hub 的 provider 与 assistant 配置按官方
+     * 业务键（provider_configs_v1 / assistants_v1 / providers_order_v1）带进备份包，
+     * 恢复时由 Kelivo 的 BusinessSettingsRouter 路由进 provider_rows / assistant_rows。
+     * 无可导出的配置时保持空对象（Kelivo 接受 {}）。
+     */
+    private suspend fun buildSettingsJson(): String {
+        val settings = settingsStore.settingsFlow.first()
+        val providerConfigs = linkedMapOf<String, JsonObject>()
+        for (provider in settings.providers) {
+            toKelivoProvider(provider)?.let { providerConfigs[provider.id.toString()] = it }
+        }
+        val exportedProviderIds = providerConfigs.keys
+        val assistants = buildJsonArray {
+            for (assistant in settings.assistants) {
+                toKelivoAssistant(assistant, exportedProviderIds, settings.providers)?.let { add(it) }
+            }
+        }
+        val providerConfigsJson = buildJsonObject {
+            for ((key, config) in providerConfigs) put(key, config)
+        }
+        val order = buildJsonArray {
+            for (key in providerConfigs.keys) add(key)
+        }
+        return buildJsonObject {
+            if (providerConfigs.isNotEmpty()) {
+                put("provider_configs_v1", JsonPrimitive(providerConfigsJson.toString()))
+                put("providers_order_v1", JsonPrimitive(order.toString()))
+            }
+            if (assistants.isNotEmpty()) {
+                put("assistants_v1", JsonPrimitive(assistants.toString()))
+            }
+        }.toString()
+    }
+
+    /**
+     * OpenAI / Google / Claude 映射到 Kelivo 的 ProviderKind；账号类（OAuth 凭据）与
+     * 本地推理（LiteRT / GGUF / ONNX）没有对应类型，跳过。
+     */
+    private fun toKelivoProvider(provider: ProviderSetting): JsonObject? = when (provider) {
+        is ProviderSetting.OpenAI -> kelivoProviderConfig(
+            id = provider.id.toString(),
+            enabled = provider.enabled,
+            name = provider.name,
+            apiKey = provider.apiKey,
+            baseUrl = provider.baseUrl,
+            providerType = "openai",
+            chatPath = provider.chatCompletionsPath,
+            useResponseApi = provider.useResponseApi,
+            models = provider.models.map { it.modelId },
+            customHeaders = provider.customHeaders.map { it.name to it.value },
+        )
+        is ProviderSetting.Claude -> kelivoProviderConfig(
+            id = provider.id.toString(),
+            enabled = provider.enabled,
+            name = provider.name,
+            apiKey = provider.apiKey,
+            baseUrl = provider.baseUrl,
+            providerType = "claude",
+            chatPath = null,
+            useResponseApi = null,
+            models = provider.models.map { it.modelId },
+            customHeaders = provider.customHeaders.map { it.name to it.value },
+        )
+        is ProviderSetting.Google -> kelivoProviderConfig(
+            id = provider.id.toString(),
+            enabled = provider.enabled,
+            name = provider.name,
+            apiKey = provider.apiKey,
+            baseUrl = provider.baseUrl,
+            providerType = "google",
+            chatPath = null,
+            useResponseApi = null,
+            vertexAI = provider.vertexAI,
+            location = provider.location.takeIf { provider.vertexAI },
+            projectId = provider.projectId.takeIf { provider.vertexAI },
+            models = provider.models.map { it.modelId },
+            customHeaders = provider.customHeaders.map { it.name to it.value },
+        )
+        else -> null
+    }
+
+    private fun kelivoProviderConfig(
+        id: String,
+        enabled: Boolean,
+        name: String,
+        apiKey: String,
+        baseUrl: String,
+        providerType: String,
+        chatPath: String?,
+        useResponseApi: Boolean?,
+        vertexAI: Boolean? = null,
+        location: String? = null,
+        projectId: String? = null,
+        models: List<String>,
+        customHeaders: List<Pair<String, String>>,
+    ): JsonObject = buildJsonObject {
+        put("id", id)
+        put("enabled", enabled)
+        put("name", name)
+        put("apiKey", apiKey)
+        put("baseUrl", baseUrl)
+        put("providerType", providerType)
+        if (chatPath != null) put("chatPath", chatPath)
+        if (useResponseApi != null) put("useResponseApi", useResponseApi)
+        if (vertexAI != null) put("vertexAI", vertexAI)
+        if (location != null) put("location", location)
+        if (projectId != null) put("projectId", projectId)
+        put("models", buildJsonArray { models.forEach { add(it) } })
+        put("modelOverrides", buildJsonObject { })
+        put("customHeaders", buildJsonArray {
+            for ((name, value) in customHeaders) {
+                add(buildJsonObject { put("name", name); put("value", value) })
+            }
+        })
+        put("apiKeys", buildJsonArray { })
+        put("keyManagement", buildJsonObject { })
+    }
+
+    /**
+     * assistant 的模型引用（Uuid）反查 provider + Model.modelId（API 模型串）：
+     * chatModelProvider 指向导出的 provider key，chatModelId 落在该 provider 的 models 列表里；
+     * 引用已删除模型或被跳过的本地/账号类 provider 时留空，让 Kelivo 走全局默认。
+     */
+    private fun toKelivoAssistant(
+        assistant: Assistant,
+        exportedProviderIds: Set<String>,
+        providers: List<ProviderSetting>,
+    ): JsonObject? {
+        var chatModelProvider: String? = null
+        var chatModelId: String? = null
+        assistant.chatModelId?.let { modelId ->
+            for (provider in providers) {
+                val matched = provider.models.firstOrNull { it.id == modelId } ?: continue
+                val providerKey = provider.id.toString()
+                if (providerKey in exportedProviderIds) {
+                    chatModelProvider = providerKey
+                    chatModelId = matched.modelId
+                }
+                break
+            }
+        }
+        return buildJsonObject {
+            put("id", assistant.id.toString())
+            put("name", assistant.name)
+            assistant.temperature?.let { put("temperature", it) }
+            assistant.topP?.let { put("topP", it) }
+            assistant.maxTokens?.let { put("maxTokens", it) }
+            put("systemPrompt", assistant.systemPrompt)
+            put("streamOutput", assistant.streamOutput)
+            put("messageTemplate", assistant.messageTemplate)
+            put("allowConversationSystemPrompt", assistant.allowConversationSystemPrompt)
+            put("searchEnabled", assistant.enableWebSearch)
+            if (chatModelProvider != null) put("chatModelProvider", chatModelProvider)
+            if (chatModelId != null) put("chatModelId", chatModelId)
+            if (assistant.customHeaders.isNotEmpty()) {
+                put("customHeaders", buildJsonArray {
+                    for (header in assistant.customHeaders) {
+                        add(buildJsonObject { put("name", header.name); put("value", header.value) })
+                    }
+                })
+            }
+            if (assistant.background != null) put("background", assistant.background)
+            put("useGradientBackground", assistant.useGradientBackground)
+        }
+    }
 
     private fun buildManifestJson(
         stats: ExportStats,

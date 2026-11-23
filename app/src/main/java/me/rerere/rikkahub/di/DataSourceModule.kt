@@ -288,6 +288,7 @@ val dataSourceModule = module {
             conversationDao = get(),
             messageNodeDao = get(),
             filesManager = get(),
+            settingsStore = get(),
         )
     }
 
