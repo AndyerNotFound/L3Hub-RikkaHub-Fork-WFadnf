@@ -131,7 +131,7 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 - 用户在模型编辑页手改任一值 → `contextThresholdsAuto = false`，之后不再覆盖；页面上会出现「使用预设」按钮可以恢复
 - 主版本号从模型名里取（`claude-3-5-sonnet` 算 3 代、`qwen2.5-72b` 算 2 代），避免把旧型号误判成新代
 
-## SSH 工作区的两个修复（fork）
+## SSH 工作区修复（fork）
 
 ### 远程目录不可访问不再让"测试连接"整体失败
 
@@ -155,6 +155,29 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 - 打开编辑页时 `WorkspaceRepository.usableSavedSecrets()` 再校验一次并回写，顺手修好已经导入过的旧数据
 - 清掉后界面如实显示"未填写"，并提示"已保存的凭据不可用，请重新填写"
 - 保存时不再沿用解不开的密文；没有可用凭据时直接提示，不再去连服务器
+
+### SSH 工作区工具与内置工作区统一
+
+SSH 工作区原本只有读工具（列表 / 读文件 / shell），写文件工具（`workspace_write_file` /
+`workspace_edit_file` / `workspace_apply_patch`）和后台命令工具（`workspace_shell_output` /
+`workspace_shell_kill`）只在本地 PRoot 工作区有。现在把 SSH 工作区的 `fileWriteTools` 与
+`backgroundShell` 两个能力位翻成 true，两个工作区的 AI 工具集一致，app 侧 `WorkspaceTools`
+按能力位自动注册，无需改动：
+
+- 写文件直接走 SFTP（`writeText` / `writeAbsoluteText` 原本就有），覆盖写沿用现有实现
+- 后台命令在 `SshWorkspaceBackend.startBackgroundCommand` 实现，状态文件放远程
+  `/tmp/rikkahub/background/<taskId>.{log,pid,status}`（与本地 Rootfs 的目录约定对应）：
+  - 启动：用探测到的登录 shell 起 `setsid`（无则 `nohup`）子 shell 脱离会话运行；命令包在
+    `( eval ... )` 子 shell 里（命令里的 `exit` 只结束子 shell，包装进程不死，退出码照常落状态文件）；
+    退出码先写临时状态文件再 rename，等待方读到的永远是完整内容；pid 由内层 shell 的 `$$` 写入
+    （setsid fork 时外层 `$!` 不是组长）
+  - `waitFor`：一条阻塞 exec 轮询状态文件，进程连续 3 秒失联且无状态文件时报 -1；exec 异常时
+    退回 SFTP 读状态文件
+  - `readOutput` / `outputSize`：SFTP 按 `offset` 区间读日志，`RESUME` 模式让 skip 生效，
+    监控回调累计到长度后中断传输，缓冲超出部分按长度截断
+  - `kill`：先按进程组 TERM、宽限 3 秒后 KILL（`kill -TERM -pid` 在 dash/bash/GNU 通用，
+    不带 `--`）；组杀不可用时退回 `pkill -g`，再退回 `pkill -P` + 单进程
+- 单测用嵌入式 Mina SSHD 覆盖退出码 / 日志区间读 / 工作目录 / kill（含孙进程）
 
 ## 子代理（Sub-Agent，fork 新增）
 

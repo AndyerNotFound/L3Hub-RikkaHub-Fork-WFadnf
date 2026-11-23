@@ -28,8 +28,11 @@ enum class WorkspaceType(val capabilities: WorkspaceCapabilities) {
             rootfs = false,
             terminal = true,
             localFiles = false,
-            fileWriteTools = false,
-            backgroundShell = false,
+            // 文件写入走 SFTP 覆盖写, 写入中途断开可能留下残缺文件;
+            // 放开是为了让远程工作区与本地工作区提供同一套 AI 工具
+            fileWriteTools = true,
+            // 后台命令在远程脱离会话运行, 输出落日志文件, 由后端轮询退出状态
+            backgroundShell = true,
         )
     ),
 }

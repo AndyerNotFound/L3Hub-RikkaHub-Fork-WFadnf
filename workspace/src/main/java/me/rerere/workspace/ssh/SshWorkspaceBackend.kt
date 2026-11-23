@@ -233,6 +233,29 @@ class SshWorkspaceBackend(
         }
     }
 
+    override fun startBackgroundCommand(command: String, cwd: String, taskId: String): WorkspaceBackgroundCommand {
+        val workingDir = layout.absolutePath(WorkspaceStorageArea.FILES, cwd)
+        val logFile = "${SshBackgroundCommand.BACKGROUND_DIR}/$taskId.log"
+        val pidFile = "${SshBackgroundCommand.BACKGROUND_DIR}/$taskId.pid"
+        val statusFile = "${SshBackgroundCommand.BACKGROUND_DIR}/$taskId.status"
+        val shell = pool.use(id, config, retry = false) { connection ->
+            connection.ensureDir(workspaceDir)
+            // 命令经位置参数传入, 由登录 shell 执行, 与 executeCommand 保持一致;
+            // 内层 sh 也用探测到的 shell, 避免命令里的 bash 特性在回退的 /bin/sh 上失效
+            val remoteCommand = listOf(
+                "env", "CI=true", "NO_COLOR=1", "PAGER=cat",
+                connection.shell, "-l", "-c", BACKGROUND_START_SCRIPT,
+                "rikkahub", workingDir, command, logFile, statusFile, pidFile, connection.shell,
+            ).joinToString(" ") { it.shellQuote() }
+            val result = connection.exec(remoteCommand, START_TIMEOUT_MS)
+            if (result.exitCode != 0) {
+                error("Failed to start the background command: ${result.stderr.ifBlank { result.stdout }}")
+            }
+            connection.shell
+        }
+        return SshBackgroundCommand(pool, id, config, shell, logFile, pidFile, statusFile)
+    }
+
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
     fun openShell(columns: Int, rows: Int): SshShell =
         pool.openShell(id, config) { connection, onClose ->
@@ -263,6 +286,27 @@ class SshWorkspaceBackend(
 
     companion object {
         private const val SCAN_TIMEOUT_MS = 10_000L
+        private const val START_TIMEOUT_MS = 15_000L
+
+        /**
+         * 后台任务的启动脚本。位置参数: \$1=工作目录, \$2=命令, \$3=日志, \$4=状态文件, \$5=pid 文件, \$6=内层 shell。
+         *
+         * 先建目录并预创建日志文件 (起不来要当场失败, 不能等子进程去开重定向); 有 setsid 就脱离会话,
+         * 没有就退回 nohup。后台子 shell 先把自身的 $$ 写进 pid 文件 (setsid fork 过时外层 \$! 可能不是组长,
+         * 内层的 $$ 一定是真正的会话/进程组组长), 再在子 shell 里 eval 命令
+         * (命令里的 exit 只会结束这个子 shell, 包装进程不会一起退出), 输出写日志,
+         * 退出码先写临时状态文件再 rename, 这样等待方读到的状态文件一定是完整内容。
+         */
+        private const val BACKGROUND_START_SCRIPT = """cd -- "${'$'}1" || exit 1
+mkdir -p "${'$'}{5%/*}" 2>/dev/null || exit 1
+: > "${'$'}3" 2>/dev/null || { printf '%s\n' 'cannot create log file' >&2; exit 1; }
+if command -v setsid >/dev/null 2>&1; then
+  setsid "${'$'}6" -c 'printf "%s\n" "$$" > "${'$'}4"; ( eval "${'$'}1" ) > "${'$'}2" 2>&1; printf "%s\n" "${'$'}?" > "${'$'}3.tmp" && mv "${'$'}3.tmp" "${'$'}3"' bg "${'$'}2" "${'$'}3" "${'$'}4" "${'$'}5" </dev/null >/dev/null 2>&1 &
+else
+  nohup "${'$'}6" -c 'printf "%s\n" "$$" > "${'$'}4"; ( eval "${'$'}1" ) > "${'$'}2" 2>&1; printf "%s\n" "${'$'}?" > "${'$'}3.tmp" && mv "${'$'}3.tmp" "${'$'}3"' bg "${'$'}2" "${'$'}3" "${'$'}4" "${'$'}5" </dev/null >/dev/null 2>&1 &
+fi
+printf '%s\n' "${'$'}!" > "${'$'}5"
+"""
 
         /** 不需要连接即可得到的目录约定, 供界面展示路径使用 */
         fun layoutOf(remoteDir: String): WorkspaceLayout {

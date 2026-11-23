@@ -325,6 +325,105 @@ class SshWorkspaceBackendTest {
     }
 
     @Test
+    fun backgroundCommandCapturesOutputAndExitCode() {
+        val backend = backend()
+        val command = backend.startBackgroundCommand(
+            "printf 'line1\\nline2\\n'; exit 7",
+            cwd = "",
+            taskId = "bg-run",
+        )
+        try {
+            assertEquals(7, command.waitFor())
+            assertEquals("line1\nline2\n", File(command.logPath).readText())
+            val log = File(command.logPath)
+            assertEquals(log.length(), command.outputSize())
+            // 区间读取: 从头读前缀、从中间读、超范围返回空
+            assertEquals("line1", String(command.readOutput(0, 5)))
+            assertEquals("line1\nline2\n", String(command.readOutput(0, 1024)))
+            assertEquals("line2\n", String(command.readOutput(6, 100)))
+            assertEquals(0, command.readOutput(13, 100).size)
+            // 已经结束的命令再等一次仍然返回同一个退出码
+            assertEquals(7, command.waitFor())
+        } finally {
+            cleanupBackground("bg-run")
+        }
+    }
+
+    @Test
+    fun backgroundCommandRunsInWorkspaceDirectory() {
+        val backend = backend()
+        File(remoteDir, "sub").mkdirs()
+        val command = backend.startBackgroundCommand("pwd", cwd = "sub", taskId = "bg-pwd")
+        try {
+            assertEquals(0, command.waitFor())
+            assertEquals(
+                File(remoteDir, "sub").path,
+                File(File(command.logPath).readText().trim()).canonicalPath,
+            )
+        } finally {
+            cleanupBackground("bg-pwd")
+        }
+    }
+
+    @Test
+    fun backgroundCommandKillTerminatesProcess() {
+        val backend = backend()
+        val command = backend.startBackgroundCommand("sleep 60", cwd = "", taskId = "bg-kill")
+        val pidFile = File("/tmp/rikkahub/background/bg-kill.pid")
+        try {
+            val pid = pidFile.readText().trim()
+            assertTrue(pid.isNotEmpty() && pid.all { it.isDigit() }, "pid file must contain a pid")
+            assertEquals(0, runHost("kill -0 $pid").exitValue(), "process must be running after start")
+
+            command.kill()
+            assertEquals(-1, command.waitFor())
+            assertTrue(waitUntil(5_000) { runHost("kill -0 $pid").exitValue() != 0 })
+        } finally {
+            cleanupBackground("bg-kill")
+        }
+    }
+
+    @Test
+    fun backgroundCommandKillReachesChildProcessesWhenSetsidAvailable() {
+        val backend = backend()
+        val hasSetsid = backend.executeCommand("command -v setsid", "", 10_000, null).exitCode == 0
+        if (!hasSetsid) return  // 没有 setsid 时退回 nohup, 只保证监视的进程被终止
+
+        val childPidFile = "/tmp/rikkahub/background/bg-tree.child.pid"
+        val command = backend.startBackgroundCommand(
+            "sleep 60 & echo \$! > $childPidFile; wait",
+            cwd = "",
+            taskId = "bg-tree",
+        )
+        val pidFile = File("/tmp/rikkahub/background/bg-tree.pid")
+        try {
+            val pid = pidFile.readText().trim()
+            val childPid = File(childPidFile).readText().trim()
+            assertTrue(childPid.all { it.isDigit() })
+            assertEquals(0, runHost("kill -0 $pid").exitValue())
+            assertEquals(0, runHost("kill -0 $childPid").exitValue())
+
+            command.kill()
+            assertEquals(-1, command.waitFor())
+            assertTrue(waitUntil(5_000) {
+                runHost("kill -0 $childPid").exitValue() != 0
+            })
+        } finally {
+            cleanupBackground("bg-tree")
+            File(childPidFile).delete()
+        }
+    }
+
+    private fun cleanupBackground(taskId: String) {
+        File("/tmp/rikkahub/background").listFiles()?.forEach { file ->
+            if (file.name.startsWith("$taskId.")) file.delete()
+        }
+    }
+
+    private fun runHost(command: String): Process =
+        ProcessBuilder("/bin/sh", "-c", command).redirectErrorStream(true).start().apply { waitFor() }
+
+    @Test
     fun commandTimeout() {
         val backend = backend()
         val start = System.currentTimeMillis()
