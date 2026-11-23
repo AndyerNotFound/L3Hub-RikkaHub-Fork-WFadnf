@@ -493,20 +493,16 @@ jobs:
           if [ -n "$cert_release" ]; then echo "CERT_SHA256=$cert_release" >> "$GITHUB_ENV"; fi
 
       # Gradle 产出的文件名为 app-github-arm64-v8a-release.apk，下载后难以区分版本。
-      # 重命名与拷贝已在 Build 步骤完成（同一变体需构建两遍，滞后处理会被覆盖），此处仅补充 sha256。
+      # 重命名与拷贝已在 Build 步骤完成（同一变体需构建两遍，滞后处理会被覆盖）。
       - name: Collect APK
         run: |
           set -euo pipefail
-          for apk in dist/*.apk; do
-            ( cd dist && sha256sum "$(basename "$apk")" > "$(basename "$apk").sha256" )
-          done
           echo "产物：$TAG_FOR_NAME"
           ls -l dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.params.outputs.artifact }}
-          # 连同 .sha256 一并上传：手动触发仅出包时也可获取校验文件
           path: dist/*
           if-no-files-found: error
 
@@ -642,10 +638,6 @@ jobs:
                 echo '本版本来自旧预览通道：包名带 `.debug` 后缀，与正式版为独立应用，可同装；仅提供精简版。'
                 ;;
             esac
-            echo
-            for apk in dist/*.apk; do
-              printf '校验方式：`sha256sum -c %s.sha256`\n' "$(basename "$apk")"
-            done
             if [ -n "${CERT_SHA256:-}" ]; then
               echo
               echo '签名证书 SHA-256：`'"${CERT_SHA256}"'`'
@@ -669,7 +661,7 @@ jobs:
                 gh release delete-asset "$TAG" "$name" --yes
               fi
             done
-            gh release upload "$TAG" dist/*.apk dist/*.sha256 --clobber
+            gh release upload "$TAG" dist/*.apk --clobber
             # --draft=false：同名 release 停留于草稿状态时，仅修改说明会使其始终无法发布，而 job 显示为成功
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --prerelease="$IS_PRERELEASE" --draft=false
           else
@@ -679,7 +671,7 @@ jobs:
             fi
             # --verify-tag：tag 不存在时直接报错，而非以 GITHUB_SHA 现行创建，
             # 否则「手动触发 + tag 输入有误」会产生与代码无关的版本
-            gh release create "$TAG" dist/*.apk dist/*.sha256 \
+            gh release create "$TAG" dist/*.apk \
               --title "$TAG" --notes-file RELEASE_NOTES.md --verify-tag "${flags[@]}"
           fi
 
