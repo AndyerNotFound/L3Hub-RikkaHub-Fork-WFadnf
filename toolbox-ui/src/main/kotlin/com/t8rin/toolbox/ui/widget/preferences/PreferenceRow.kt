@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
+import com.t8rin.toolbox.ui.settings.copy
 import com.t8rin.toolbox.ui.utils.provider.ProvideContainerDefaults
 import com.t8rin.toolbox.ui.widget.enhanced.hapticsClickable
 import com.t8rin.toolbox.ui.widget.enhanced.rememberScrollAnchor
