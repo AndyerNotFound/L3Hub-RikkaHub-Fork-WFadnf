@@ -33,6 +33,7 @@ import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 
@@ -143,6 +144,8 @@ internal fun ChatSidePanes(
     requestPreviewState: RequestPreviewUiState,
     todos: List<TodoItem>,
     guidances: List<Guidance>,
+    pendingAskUser: List<AskUserPendingSummary> = emptyList(),
+    onOpenAskUserSheet: (String) -> Unit = {},
     hideCompletedTodoCard: Boolean,
     running: Boolean,
     inputState: ChatInputState,
@@ -193,6 +196,8 @@ internal fun ChatSidePanes(
             ChatSidePane.Status -> ConversationStatusPane(
                 todos = todos,
                 guidances = guidances,
+                pendingQuestions = pendingAskUser,
+                onPendingQuestionClick = onOpenAskUserSheet,
                 assistant = assistant,
                 hideCompletedTodos = hideCompletedTodoCard,
                 onTodosChange = vm::updateTodos,

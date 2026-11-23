@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.model.Guidance
 import me.rerere.rikkahub.data.model.TodoItem
 import me.rerere.rikkahub.data.model.TodoStatus
 import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
+import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 
 /**
@@ -38,6 +39,9 @@ internal fun ConversationStatusPane(
     onUpdateAssistant: (Assistant) -> Unit,
     onGuidanceToggleMode: (Guidance) -> Unit,
     onGuidanceRemove: (Guidance) -> Unit,
+    // 待回答的 ask_user 问题：点击重新打开抽屉
+    pendingQuestions: List<AskUserPendingSummary> = emptyList(),
+    onPendingQuestionClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     // 对话正在生成：清单进度条跟着输入区那张一起画成流动的波浪
     running: Boolean = false,
@@ -47,7 +51,7 @@ internal fun ConversationStatusPane(
         todos.isNotEmpty() && todos.all { it.status == TodoStatus.COMPLETED }
     val shownTodos = if (hideCompleted) emptyList() else todos
 
-    if (shownTodos.isEmpty() && guidances.isEmpty()) {
+    if (shownTodos.isEmpty() && guidances.isEmpty() && pendingQuestions.isEmpty()) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -93,6 +97,8 @@ internal fun ConversationStatusPane(
             guidances = guidances,
             onGuidanceToggleMode = onGuidanceToggleMode,
             onGuidanceRemove = onGuidanceRemove,
+            pendingQuestions = pendingQuestions,
+            onPendingQuestionClick = onPendingQuestionClick,
             running = running,
             modifier = Modifier.fillMaxWidth(),
         )

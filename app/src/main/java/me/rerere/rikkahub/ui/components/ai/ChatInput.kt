@@ -109,6 +109,7 @@ import me.rerere.rikkahub.service.InboxState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
+import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
@@ -184,6 +185,9 @@ fun ChatInput(
     onSendAsGuidance: () -> Unit = {},
     onGuidanceToggleMode: (Guidance) -> Unit = {},
     onGuidanceRemove: (Guidance) -> Unit = {},
+    // 待回答的 ask_user 问题：在任务清单卡里显示「需回答的问题」，点击重新打开抽屉
+    pendingAskUser: List<AskUserPendingSummary> = emptyList(),
+    onOpenAskUserSheet: (String) -> Unit = {},
     runningBackgroundTasks: Int = 0,
     onShowBackgroundTasks: () -> Unit = {},
     onStartVoiceMode: (() -> Unit)? = null,
@@ -478,7 +482,9 @@ fun ChatInput(
                 todos.isNotEmpty() && todos.all { it.status == TodoStatus.COMPLETED }
             val showTodoSection = todos.isNotEmpty() && !hideCompletedTodos
             // 清单和引导共用一张卡片、一次折叠：两样都在时只有一颗展开箭头
-            if (!LocalConversationStatusInSidePanel.current && (showTodoSection || visibleQueue.guidances.isNotEmpty())) {
+            if (!LocalConversationStatusInSidePanel.current &&
+                (showTodoSection || visibleQueue.guidances.isNotEmpty() || pendingAskUser.isNotEmpty())
+            ) {
                 ConversationTodoCard(
                     todos = if (showTodoSection) todos else emptyList(),
                     onTodosChange = onTodosChange,
@@ -501,6 +507,8 @@ fun ChatInput(
                     guidances = visibleQueue.guidances,
                     onGuidanceToggleMode = onGuidanceToggleMode,
                     onGuidanceRemove = onGuidanceRemove,
+                    pendingQuestions = pendingAskUser,
+                    onPendingQuestionClick = onOpenAskUserSheet,
                     running = loading,
                     modifier = Modifier
                         .fillMaxWidth()

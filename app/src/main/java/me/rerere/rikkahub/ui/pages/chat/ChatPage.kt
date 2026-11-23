@@ -91,6 +91,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.TodoItem
+import me.rerere.rikkahub.data.ai.tools.local.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.isContextLimitReached
 import me.rerere.rikkahub.data.model.lastContextTokens
@@ -108,6 +109,9 @@ import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
 import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
+import me.rerere.rikkahub.ui.components.message.AskUserSheet
+import me.rerere.rikkahub.ui.components.message.parseAskUserQuestions
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
@@ -479,6 +483,32 @@ private fun ChatPageContent(
         derivedStateOf { state.conversationState.value.messageNodes.map { it.id } }
     }
     val todos by remember(state.conversationState) { derivedStateOf { state.conversationState.value.todos } }
+
+    // 待回答的 ask_user 调用：抽屉关闭后显示在任务清单卡里，点击重新打开
+    val pendingAskUserTools by remember(state.conversationState) {
+        derivedStateOf {
+            state.conversationState.value.currentMessages
+                .flatMap { it.getTools() }
+                .filter { it.isPending && it.toolName == ASK_USER_TOOL_NAME }
+        }
+    }
+    val pendingAskUserSummaries by remember(pendingAskUserTools) {
+        derivedStateOf {
+            pendingAskUserTools.value.map { tool ->
+                AskUserPendingSummary(
+                    toolCallId = tool.toolCallId,
+                    title = tool.parseAskUserQuestions().firstOrNull()?.question ?: "...",
+                )
+            }
+        }
+    }
+    // 抽屉当前显示哪个调用；null 表示关闭。提交后工具不再 pending，抽屉自动收掉
+    var askUserSheetCallId by rememberSaveable { mutableStateOf<String?>(null) }
+    val askUserSheetTool = remember(pendingAskUserTools.value, askUserSheetCallId) {
+        pendingAskUserTools.value.firstOrNull { it.toolCallId == askUserSheetCallId }
+    }
+    val openAskUserSheet: (String) -> Unit = { askUserSheetCallId = it }
+
     val workspaceCwds by remember(state.conversationState) {
         derivedStateOf { state.conversationState.value.workspaceCwds }
     }
@@ -865,6 +895,8 @@ private fun ChatPageContent(
             chatModel = state.currentChatModel,
             todos = todos,
             onTodosChange = state.vm::updateTodos,
+            pendingAskUser = pendingAskUserSummaries,
+            onOpenAskUserSheet = openAskUserSheet,
             contextTokens = contextTokens,
             usageTokenSpeed = usageTokenSpeed,
             generationSpeed = generationSpeed,
@@ -1153,6 +1185,7 @@ private fun ChatPageContent(
                         onToolAnswer = { toolCallId, answer ->
                             state.vm.handleToolAnswer(toolCallId, answer)
                         },
+                        onOpenAskUserSheet = openAskUserSheet,
                         onToggleFavorite = { node ->
                             state.vm.toggleMessageFavorite(node)
                         },
@@ -1276,6 +1309,8 @@ private fun ChatPageContent(
                 requestPreviewState = requestPreviewState,
                 todos = todos,
                 guidances = messageQueue.guidances,
+                pendingAskUser = pendingAskUserSummaries,
+                onOpenAskUserSheet = openAskUserSheet,
                 hideCompletedTodoCard = state.setting.displaySetting.hideCompletedTodoCard,
                 running = state.loadingJob != null,
                 inputState = state.inputState,
@@ -1432,6 +1467,16 @@ private fun ChatPageContent(
                 state.vm.setChatModel(model)
             }
         }
+
+        // ask_user 问答抽屉：作答与任务清单提示的入口都汇到这里
+        AskUserSheet(
+            tool = askUserSheetTool,
+            onDismissRequest = { askUserSheetCallId = null },
+            onSubmit = { toolCallId, answer ->
+                askUserSheetCallId = null
+                state.vm.handleToolAnswer(toolCallId, answer)
+            },
+        )
     }
 }
 

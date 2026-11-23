@@ -281,6 +281,17 @@
   <string name="chat_message_tool_search_results_count">%1$d results</string>
   <string name="chat_message_tool_search_web">Search web: %1$s</string>
   <string name="chat_message_tool_submit">Submit</string>
+  <string name="ask_user_pending_todo">Questions need answering</string>
+  <string name="ask_user_question_answer">Answer</string>
+  <string name="ask_user_question_count">Question %1$d of %2$d</string>
+  <string name="ask_user_question_custom_hint">Type your answer…</string>
+  <string name="ask_user_question_next">Next</string>
+  <string name="ask_user_question_previous">Previous</string>
+  <string name="ask_user_question_skip">Skip</string>
+  <string name="ask_user_question_skipped">Skipped</string>
+  <string name="ask_user_question_submit">Submit</string>
+  <string name="ask_user_question_title">Answer Questions</string>
+  <string name="ask_user_question_unskip">Unskip</string>
   <string name="chat_page_cancel">Cancel</string>
   <string name="chat_page_check_fast_model_settings">Check fast model settings</string>
   <string name="chat_page_clear_all_errors">Clear all</string>

@@ -51,6 +51,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Zap
+import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Refresh01
@@ -107,10 +108,13 @@ internal fun ConversationTodoCard(
     guidances: List<Guidance> = emptyList(),
     onGuidanceToggleMode: (Guidance) -> Unit = {},
     onGuidanceRemove: (Guidance) -> Unit = {},
+    // 待回答的 ask_user 问题：抽屉关闭后在这里显示「需回答的问题」，点击重新打开抽屉
+    pendingQuestions: List<AskUserPendingSummary> = emptyList(),
+    onPendingQuestionClick: (String) -> Unit = {},
     // 对话正在生成：清单进度条画成流动的波浪，停下来后落成静态直条
     running: Boolean = false,
 ) {
-    if (todos.isEmpty() && guidances.isEmpty()) return
+    if (todos.isEmpty() && guidances.isEmpty() && pendingQuestions.isEmpty()) return
     var expanded by remember(initiallyExpanded) { mutableStateOf(initiallyExpanded) }
     // 正在输入新任务时整张卡片不折叠，否则手指一划输入框就没了
     var adding by remember { mutableStateOf(false) }
@@ -201,6 +205,40 @@ internal fun ConversationTodoCard(
                     },
                     trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 )
+            }
+            // 待回答的问题：折叠时也可见，点击重新打开抽屉
+            if (pendingQuestions.isNotEmpty()) {
+                pendingQuestions.forEach { pending ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPendingQuestionClick(pending.toolCallId) }
+                            .padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.BubbleChatQuestion,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.ask_user_pending_todo),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = pending.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
             MotionExpandCollapse(visible = expanded) {
                 Column(

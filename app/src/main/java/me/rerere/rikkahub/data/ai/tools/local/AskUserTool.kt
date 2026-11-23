@@ -13,10 +13,11 @@ internal fun buildAskUserTool(): Tool = Tool(
     name = ASK_USER_TOOL_NAME,
     description = """
         Ask the user one or more questions when you need clarification, additional information, or confirmation.
-        Each question can optionally provide a list of suggested options for the user to choose from.
-        The user may provide a free-text answer for every question, including single and multi selection questions.
-        For multi selection questions, custom text can be combined with selected options.
-        The answers will be returned as a JSON object mapping question IDs to the user's responses.
+        Each question may carry a short header, a list of suggested options (each with a label and optional description) and a multi_select flag.
+        If you recommend one option, put it first and append "(Recommended)" to its label.
+        The user may also type a free-text answer (custom) for every question, including single and multi selection questions.
+        Answers are returned as a JSON object: {"answers":[{"id":"<question id>","selected":["<option label>"],"custom":"<free text>"}]}.
+        An answer item with empty selected and no custom means the user skipped that question: continue without it, do not ask it again, and do not treat the skip as permission.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -29,36 +30,42 @@ internal fun buildAskUserTool(): Tool = Tool(
                         put("properties", buildJsonObject {
                             put("id", buildJsonObject {
                                 put("type", "string")
-                                put("description", "Unique identifier for this question")
+                                put("description", "Stable id for this question; echoed in the answer")
                             })
                             put("question", buildJsonObject {
                                 put("type", "string")
                                 put("description", "The question text to display to the user")
                             })
+                            put("header", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Optional short heading for the question, such as \"Confirm\" or \"Choose Mode\"")
+                            })
                             put("options", buildJsonObject {
                                 put("type", "array")
                                 put(
                                     "description",
-                                    "Optional list of suggested options for the user to choose from"
+                                    "Optional choices to show the user. If you recommend one, put it first and append \"(Recommended)\" to that label"
                                 )
                                 put("items", buildJsonObject {
-                                    put("type", "string")
+                                    put("type", "object")
+                                    put("properties", buildJsonObject {
+                                        put("label", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "Short user-facing option label")
+                                        })
+                                        put("description", buildJsonObject {
+                                            put("type", "string")
+                                            put("description", "One sentence explaining the tradeoff or impact")
+                                        })
+                                    })
+                                    put("required", buildJsonArray {
+                                        add("label")
+                                    })
                                 })
                             })
-                            put("selection_type", buildJsonObject {
-                                put("type", "string")
-                                put(
-                                    "enum",
-                                    buildJsonArray {
-                                        add("text")
-                                        add("single")
-                                        add("multi")
-                                    }
-                                )
-                                put(
-                                    "description",
-                                    "Answer type: text (free text input, default), single (select one option or enter custom text), multi (select options and/or enter custom text)"
-                                )
+                            put("multi_select", buildJsonObject {
+                                put("type", "boolean")
+                                put("description", "Whether the user may select more than one option. Defaults to false")
                             })
                         })
                         put("required", buildJsonArray {

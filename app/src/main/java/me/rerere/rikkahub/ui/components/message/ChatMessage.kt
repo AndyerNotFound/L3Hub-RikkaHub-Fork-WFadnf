@@ -180,6 +180,7 @@ fun ChatMessage(
     onClearTranslation: (UIMessage) -> Unit = {},
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onOpenAskUserSheet: ((toolCallId: String) -> Unit)? = null,
     hazeState: HazeState? = null,
     conversationId: Uuid? = null,
 ) {
@@ -416,6 +417,7 @@ fun ChatMessage(
                                 model = model,
                                 onToolApproval = onToolApproval,
                                 onToolAnswer = onToolAnswer,
+                                onOpenAskUserSheet = onOpenAskUserSheet,
                                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
                                 onUserMessageLongClick = onUserMessageLongClick,
                                 userMessageMenu = userMessageMenu,
@@ -586,6 +588,7 @@ private fun MessagePartsBlock(
     loading: Boolean,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onOpenAskUserSheet: ((toolCallId: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
     onUserMessageLongClick: (() -> Unit)? = null,
     userMessageMenu: (@Composable () -> Unit)? = null,
@@ -768,6 +771,7 @@ private fun MessagePartsBlock(
                                         assistant = assistant,
                                         onToolApproval = onToolApproval,
                                         onToolAnswer = onToolAnswer,
+                                        onOpenAskUserSheet = onOpenAskUserSheet,
                                     )
                                 }
                             }
