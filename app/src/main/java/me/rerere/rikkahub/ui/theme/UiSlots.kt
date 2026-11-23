@@ -236,7 +236,7 @@ data class UiSlotColors(
 fun uiSlotsFrom(scheme: ColorScheme): UiSlots = UiSlots(
     pageBackground = scheme.background,
     topBar = scheme.surfaceContainer,
-    card = scheme.surfaceContainerHighest,
+    card = scheme.surfaceContainer,
     listItem = scheme.surfaceBright,
     panel = scheme.surface,
     inputBar = scheme.surfaceContainerLow,

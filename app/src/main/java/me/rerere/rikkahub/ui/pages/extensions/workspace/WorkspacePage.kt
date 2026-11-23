@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -114,8 +113,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {
-        CardGroupTitle(stringResource(R.string.workspace_page_create))
-        CardGroup(
+        CardGroup(title = { Text(stringResource(R.string.workspace_page_create)) },
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),

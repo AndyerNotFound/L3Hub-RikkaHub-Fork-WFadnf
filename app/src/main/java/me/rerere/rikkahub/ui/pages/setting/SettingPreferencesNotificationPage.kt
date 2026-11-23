@@ -44,7 +44,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
 
@@ -173,8 +172,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_preferences_notification_background_generation))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_notification_background_generation)) }) {
                 switchItem(
                     checked = displaySetting.enableNotificationOnMessageGeneration,
                     onCheckedChange = {

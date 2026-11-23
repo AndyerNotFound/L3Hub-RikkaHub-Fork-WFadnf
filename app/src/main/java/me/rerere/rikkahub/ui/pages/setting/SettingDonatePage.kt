@@ -42,7 +42,6 @@ import me.rerere.rikkahub.data.model.Sponsor
 import me.rerere.rikkahub.data.remote.SponsorAPI
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.UiState
@@ -99,8 +98,7 @@ fun SettingDonatePage() {
 @Composable
 private fun DonateMethodsCard() {
     val context = LocalContext.current
-    CardGroupTitle(stringResource(R.string.donate_page_donation_methods))
-    CardGroup(modifier = Modifier.fillMaxWidth()) {
+    CardGroup(title = { Text(stringResource(R.string.donate_page_donation_methods)) }, modifier = Modifier.fillMaxWidth()) {
         // 两行都是「图标 + 标题 + 说明」的手拼行：图片 28dp 顶端对齐，用 formItem 保住原排布
         formItem {
             Row(

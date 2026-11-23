@@ -82,7 +82,6 @@ import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
@@ -550,8 +549,7 @@ private fun ProviderConfigureAccount(
     }
     val deviceCode = status as? AccountLoginStatus.DeviceCode
 
-    CardGroupTitle(stringResource(R.string.setting_provider_page_account))
-    CardGroup {
+    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
         if (accountState == AccountCardState.SignedIn) {
             item(
                 headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
@@ -635,8 +633,7 @@ private fun ProviderConfigureAccount(
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
     val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
-    CardGroupTitle(stringResource(R.string.setting_provider_page_usage))
-    CardGroup {
+    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_usage)) }) {
         when {
             result == null -> item(
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_loading)) },

@@ -43,7 +43,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupTip
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.hugeicons.HugeIcons
@@ -79,9 +78,8 @@ internal fun WorkspaceStorageMountCard(
     var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        CardGroupTitle(stringResource(R.string.workspace_detail_storage_title))
         CardGroupTip(stringResource(R.string.workspace_detail_storage_desc))
-        CardGroup {
+        CardGroup(title = { Text(stringResource(R.string.workspace_detail_storage_title)) }) {
             if (!hasPermission) {
                 item(
                     onClick = { context.openAllFilesAccessSettings() },

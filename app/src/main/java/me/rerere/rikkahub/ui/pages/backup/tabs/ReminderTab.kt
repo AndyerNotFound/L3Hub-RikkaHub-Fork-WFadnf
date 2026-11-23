@@ -43,7 +43,7 @@ fun ReminderTab(vm: BackupVM) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CardGroup {

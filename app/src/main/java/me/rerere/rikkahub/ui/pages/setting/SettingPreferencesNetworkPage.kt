@@ -57,7 +57,6 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.switchItem
 
 import me.rerere.rikkahub.data.datastore.NetworkSetting
@@ -367,8 +366,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_preferences_network_user_agent))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_network_user_agent)) }) {
                 formItem {
                     Column {
                         OutlinedTextField(
@@ -397,8 +395,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_preferences_network_proxy))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_network_proxy)) }) {
                 item(
                     onClick = {
                         proxyUrlDraft = proxyUrl
@@ -437,8 +434,7 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
             }
 
-            CardGroupTitle(stringResource(R.string.setting_network_ca_title))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_network_ca_title)) }) {
                 settings.customCaCertificates.forEachIndexed { index, pem ->
                     item(
                         headlineContent = { Text(text = certificateLabel(pem, index)) },

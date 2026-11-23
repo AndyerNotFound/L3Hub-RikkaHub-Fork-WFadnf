@@ -115,7 +115,6 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupTip
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -447,12 +446,11 @@ private fun WorkspaceBasicPage(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            CardGroupTitle(stringResource(R.string.workspace_detail_workspace_info))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.workspace_detail_workspace_info)) }) {
                 item(
                     leadingContent = { CardGroupIcon(HugeIcons.Tag01) },
                     headlineContent = { Text(stringResource(R.string.workspace_detail_name)) },
@@ -477,8 +475,7 @@ private fun WorkspaceBasicPage(
         }
         if (hasRootfs) {
             item {
-                CardGroupTitle(stringResource(R.string.workspace_detail_enable_shell))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_detail_enable_shell)) }) {
                     // 图标 + 说明 + 整宽按钮：这一项走 formItem，按钮单独占一行
                     formItem(
                         leadingContent = { CardGroupIcon(HugeIcons.Bash) },
@@ -534,8 +531,7 @@ private fun SshConnectionCard(
     onEdit: () -> Unit,
 ) {
     val settings = workspace.sshSettings()
-    CardGroupTitle(stringResource(R.string.workspace_detail_ssh_connection))
-    CardGroup {
+    CardGroup(title = { Text(stringResource(R.string.workspace_detail_ssh_connection)) }) {
         item(
             leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
             headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_address)) },
@@ -613,10 +609,9 @@ private fun WorkspaceToolApprovalCard(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        CardGroupTitle(stringResource(R.string.workspace_detail_tool_approval))
         CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_desc))
         CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
-        CardGroup {
+        CardGroup(title = { Text(stringResource(R.string.workspace_detail_tool_approval)) }) {
             tools.forEach { (toolName, label, icon) ->
                 switchItem(
                     checked = resolveWorkspaceToolApproval(toolName, overrides),

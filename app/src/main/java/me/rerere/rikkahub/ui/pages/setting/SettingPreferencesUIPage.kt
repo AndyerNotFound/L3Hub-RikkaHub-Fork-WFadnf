@@ -83,7 +83,6 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -213,8 +212,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_message_display_settings))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_message_display_settings)) }) {
                 switchItem(
                     checked = displaySetting.showUserAvatar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
@@ -443,8 +441,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
             // 整张卡也跟着「关闭动效」收放：if 掉的话一帧消失，卡片圆角却还在缓动
             MotionExpandCollapse(visible = !displaySetting.disableAnimations) {
                 val motionBlur = displaySetting.motionBlur
-                CardGroupTitle(stringResource(R.string.setting_display_page_motion_blur_title))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_display_page_motion_blur_title)) }) {
                     switchItem(
                         checked = motionBlur.enabled,
                         onCheckedChange = {
@@ -542,8 +539,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_display_page_floating_bar_title))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_display_page_floating_bar_title)) }) {
                 switchItem(
                     checked = displaySetting.enableFloatingBar,
                     onCheckedChange = { enabled ->
@@ -820,8 +816,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_code_display_settings))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_code_display_settings)) }) {
                 switchItem(
                     checked = displaySetting.codeBlockAutoWrap,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },

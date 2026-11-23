@@ -43,7 +43,6 @@ import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -521,8 +520,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            CardGroupTitle(stringResource(R.string.setting_page_tts_settings))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_page_tts_settings)) }) {
                 formItem(
                     headlineContent = { Text(text = stringResource(R.string.setting_tts_page_default_playback_speed)) },
                     supportingContent = { Text(stringResource(R.string.setting_tts_page_default_playback_speed_description)) },
@@ -571,8 +569,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
             }
 
-            CardGroupTitle(stringResource(R.string.setting_app_lock_title))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.setting_app_lock_title)) }) {
                 switchItem(
                     checked = settings.appLockEnabled,
                     onCheckedChange = { enabled ->

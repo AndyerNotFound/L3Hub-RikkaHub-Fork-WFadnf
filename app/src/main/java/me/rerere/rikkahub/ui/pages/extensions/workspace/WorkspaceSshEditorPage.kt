@@ -55,7 +55,6 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
@@ -124,8 +123,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_basic))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_basic)) }) {
                     FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_name)) },) {
                         OutlinedTextField(
                             enabled = editable,
@@ -140,8 +138,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_connection))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_connection)) }) {
                     FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host)) },) {
                         OutlinedTextField(
                             enabled = editable,
@@ -178,8 +175,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_auth))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_auth)) }) {
                     if (state.savedCredentialsLost) {
                         item(
                             leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
@@ -267,8 +263,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_working_dir))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_working_dir)) }) {
                     val homeDir = state.probeResult?.homeDir?.takeIf { it != state.remoteDir }
                     FormFieldRow(
                         headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir)) },
@@ -297,8 +292,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_security))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_security)) }) {
                     // 指纹用等宽字体多行显示，这一项走 formItem
                     formItem(
                         leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
@@ -445,8 +439,7 @@ private fun ProbeSection(
             )
         }
         state.probeResult?.let { result ->
-            CardGroupTitle(stringResource(R.string.workspace_ssh_editor_connected))
-            CardGroup {
+            CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_connected)) }) {
                 item(
                     leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
                     headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_shell)) },

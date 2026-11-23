@@ -33,7 +33,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.VersionSyncVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
@@ -79,11 +78,10 @@ fun VersionSyncTab(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CardGroupTitle(stringResource(R.string.backup_page_version_sync_peer_title))
-        CardGroup {
+        CardGroup(title = { Text(stringResource(R.string.backup_page_version_sync_peer_title)) }) {
             BackupActionRow(
                 icon = HugeIcons.SmartPhone01,
                 loading = detecting,
@@ -110,8 +108,7 @@ fun VersionSyncTab(
             )
         }
 
-        CardGroupTitle(stringResource(R.string.backup_page_version_sync))
-        CardGroup {
+        CardGroup(title = { Text(stringResource(R.string.backup_page_version_sync)) }) {
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = working?.direction == SyncDirection.PULL,

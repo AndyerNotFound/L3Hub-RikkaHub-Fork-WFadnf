@@ -77,7 +77,6 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -234,8 +233,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             item("generalSettings") {
                 var colorMode by rememberColorMode()
-                CardGroupTitle(stringResource(R.string.setting_page_general_settings))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_page_general_settings)) }) {
                     formItem(
                         leadingContent = { CardGroupIcon(colorMode.icon()) },
                         headlineContent = { Text(stringResource(R.string.setting_page_color_mode)) },
@@ -285,8 +283,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             }
 
             item("modelServices") {
-                CardGroupTitle(stringResource(R.string.setting_page_model_and_services))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_page_model_and_services)) }) {
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
                         leadingContent = { CardGroupIcon(HugeIcons.AiMagic) },
@@ -342,8 +339,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
-                CardGroupTitle(stringResource(R.string.setting_page_data_settings))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_page_data_settings)) }) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },
                         leadingContent = { CardGroupIcon(HugeIcons.Database02) },
@@ -378,8 +374,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                CardGroupTitle(stringResource(R.string.setting_page_about))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_page_about)) }) {
                     // 这一行右侧要放两个社交按钮，普通导航行装不下两个尾部按钮，
                     // 用 formItem 自己拼一行
                     formItem {

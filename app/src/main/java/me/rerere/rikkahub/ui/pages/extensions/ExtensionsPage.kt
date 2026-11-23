@@ -22,7 +22,6 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -51,8 +50,7 @@ fun ExtensionsPage() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                CardGroupTitle(stringResource(R.string.extensions_page_section_extensions))
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.extensions_page_section_extensions)) }) {
                     item(
                         onClick = { navController.navigate(Screen.QuickMessages) },
                         leadingContent = { CardGroupIcon(HugeIcons.Zap) },

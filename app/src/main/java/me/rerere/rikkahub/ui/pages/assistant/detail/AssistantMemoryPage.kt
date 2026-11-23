@@ -23,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -619,8 +618,7 @@ private fun MemoryFilesTab(
         }
 
         memoryGroups.fastForEach { (directory, files) ->
-            CardGroupTitle(memorySectionTitle(directory))
-            CardGroup {
+            CardGroup(title = { Text(memorySectionTitle(directory)) }) {
                 files.fastForEach { memory ->
                     item(
                         onClick = { onOpenMemory(memory.path) },
