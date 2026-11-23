@@ -11,11 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,14 +56,16 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.overridesFor
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.SaltGlassStyles
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
@@ -156,41 +155,34 @@ fun SettingPreferencesMessageStylePage(
                 .fillMaxSize()
                 .padding(contentPadding)
                 .adaptiveHorizontalPadding(0.dp),
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 样式选择
             item {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Column {
-                            Text(stringResource(R.string.message_style_page_style_title))
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(R.string.message_style_page_style_desc),
-                                color = LocalContentColor.current.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            ConnectedChoiceButtons(
-                                options = ChatMessageBackgroundStyle.entries,
-                                selected = style,
-                                onSelect = {
-                                    updateDisplaySetting(displaySetting.copy(chatMessageBackgroundStyle = it))
+                CardGroup {
+                    formItem(
+                        headlineContent = { Text(text = stringResource(R.string.message_style_page_style_title)) },
+                        supportingContent = { Text(stringResource(R.string.message_style_page_style_desc)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = ChatMessageBackgroundStyle.entries,
+                            selected = style,
+                            onSelect = {
+                                updateDisplaySetting(displaySetting.copy(chatMessageBackgroundStyle = it))
+                            },
+                        ) { item, selected ->
+                            ConnectedChoiceLabel(
+                                text = when (item) {
+                                    ChatMessageBackgroundStyle.DEFAULT ->
+                                        stringResource(R.string.message_style_page_style_default)
+                                    ChatMessageBackgroundStyle.FROSTED ->
+                                        stringResource(R.string.message_style_page_style_frosted)
+                                    ChatMessageBackgroundStyle.SOLID ->
+                                        stringResource(R.string.message_style_page_style_solid)
                                 },
-                            ) { item, selected ->
-                                ConnectedChoiceLabel(
-                                    text = when (item) {
-                                        ChatMessageBackgroundStyle.DEFAULT ->
-                                            stringResource(R.string.message_style_page_style_default)
-                                        ChatMessageBackgroundStyle.FROSTED ->
-                                            stringResource(R.string.message_style_page_style_frosted)
-                                        ChatMessageBackgroundStyle.SOLID ->
-                                            stringResource(R.string.message_style_page_style_solid)
-                                    },
-                                    selected = selected,
-                                )
-                            }
+                                selected = selected,
+                            )
                         }
                     }
                 }
@@ -198,15 +190,15 @@ fun SettingPreferencesMessageStylePage(
 
             // 布局开关
             item {
-                AppSettingsCard {
-                    AppSwitchRow(
+                CardGroup {
+                    switchItem(
                         checked = customizeCards,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(customizeThinkingToolCards = it))
                         },
-                        headline = stringResource(R.string.message_style_page_customize_thinking),
-                        supporting = stringResource(R.string.message_style_page_customize_thinking_desc),
-                        icon = HugeIcons.BubbleChat,
+                        leadingContent = { CardGroupIcon(HugeIcons.BubbleChat) },
+                        supportingContent = { Text(stringResource(R.string.message_style_page_customize_thinking_desc)) },
+                        headlineContent = { Text(stringResource(R.string.message_style_page_customize_thinking)) },
                     )
                 }
             }
@@ -214,35 +206,33 @@ fun SettingPreferencesMessageStylePage(
             if (style != ChatMessageBackgroundStyle.DEFAULT) {
                 // 角色分段
                 item {
-                    AppSettingsCard {
-                        AppSettingsRow {
-                            Column {
-                                Text(stringResource(R.string.message_style_page_target_title))
-                                Spacer(Modifier.height(8.dp))
-                                ConnectedChoiceButtons(
-                                    options = if (customizeCards) {
-                                        ChatBubbleStyleTarget.entries
-                                    } else {
-                                        listOf(
-                                            ChatBubbleStyleTarget.USER,
-                                            ChatBubbleStyleTarget.ASSISTANT,
-                                        )
-                                    },
-                                    selected = target,
-                                    onSelect = { editingTarget = it },
-                                ) { item, selected ->
-                                    ConnectedChoiceLabel(
-                                        text = when (item) {
-                                            ChatBubbleStyleTarget.USER ->
-                                                stringResource(R.string.message_style_page_role_user)
-                                            ChatBubbleStyleTarget.ASSISTANT ->
-                                                stringResource(R.string.message_style_page_role_assistant)
-                                            ChatBubbleStyleTarget.THINKING_TOOL_CARD ->
-                                                stringResource(R.string.message_style_page_role_thinking)
-                                        },
-                                        selected = selected,
+                    CardGroup {
+                        formItem(
+                            headlineContent = { Text(text = stringResource(R.string.message_style_page_target_title)) },
+                        ) {
+                            ConnectedChoiceButtons(
+                                options = if (customizeCards) {
+                                    ChatBubbleStyleTarget.entries
+                                } else {
+                                    listOf(
+                                        ChatBubbleStyleTarget.USER,
+                                        ChatBubbleStyleTarget.ASSISTANT,
                                     )
-                                }
+                                },
+                                selected = target,
+                                onSelect = { editingTarget = it },
+                            ) { item, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (item) {
+                                        ChatBubbleStyleTarget.USER ->
+                                            stringResource(R.string.message_style_page_role_user)
+                                        ChatBubbleStyleTarget.ASSISTANT ->
+                                            stringResource(R.string.message_style_page_role_assistant)
+                                        ChatBubbleStyleTarget.THINKING_TOOL_CARD ->
+                                            stringResource(R.string.message_style_page_role_thinking)
+                                    },
+                                    selected = selected,
+                                )
                             }
                         }
                     }
@@ -268,8 +258,8 @@ fun SettingPreferencesMessageStylePage(
                 }
             } else {
                 item {
-                    AppSettingsCard {
-                        AppSettingsRow {
+                    CardGroup {
+                        formItem {
                             Text(
                                 text = stringResource(R.string.message_style_page_default_hint),
                                 color = LocalContentColor.current.copy(alpha = 0.5f),
@@ -497,14 +487,16 @@ private fun StyleParamsGroup(
         onOverridesChange(overrides.transform())
     }
 
-    AppSettingsCard {
+    val blurSigma = (overrides.blurSigma ?: 14f).roundToInt().coerceIn(0, 30)
+    // 模糊半径只在全局特效 BLUR 档下生效：玻璃档走光学折射，关闭档没有模糊
+    // 组合读取放在 CardGroup 外面：DSL 体不是组合作用域
+    val blurEnabled =
+        LocalSettings.current.displaySetting.effectiveBackgroundEffect ==
+            BackgroundEffectType.BLUR
+
+    CardGroup {
         if (style == ChatMessageBackgroundStyle.FROSTED) {
-            val blurSigma = (overrides.blurSigma ?: 14f).roundToInt().coerceIn(0, 30)
-            // 模糊半径只在全局特效 BLUR 档下生效：玻璃档走光学折射，关闭档没有模糊
-            val blurEnabled =
-                LocalSettings.current.displaySetting.effectiveBackgroundEffect ==
-                    BackgroundEffectType.BLUR
-            ParamSliderRow(
+            paramSliderRow(
                 label = stringResource(R.string.message_style_page_blur),
                 valueText = blurSigma.toString(),
                 child = {
@@ -517,15 +509,16 @@ private fun StyleParamsGroup(
                 },
             )
             if (!blurEnabled) {
-                Text(
-                    text = stringResource(R.string.message_style_page_blur_hint),
-                    color = LocalContentColor.current.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                )
+                formItem {
+                    Text(
+                        text = stringResource(R.string.message_style_page_blur_hint),
+                        color = LocalContentColor.current.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
-        ParamSliderRow(
+        paramSliderRow(
             label = stringResource(R.string.message_style_page_background_opacity),
             valueText = "${(opacity * 100).roundToInt()}%",
             child = {
@@ -544,7 +537,7 @@ private fun StyleParamsGroup(
                 )
             },
         )
-        ParamSliderRow(
+        paramSliderRow(
             label = stringResource(R.string.message_style_page_border_opacity),
             valueText = "${(resolved.border.alpha * 100).roundToInt()}%",
             child = {
@@ -555,7 +548,7 @@ private fun StyleParamsGroup(
                 )
             },
         )
-        ParamSliderRow(
+        paramSliderRow(
             label = stringResource(R.string.message_style_page_border_width),
             valueText = resolved.borderWidth.value.toString(),
             child = {
@@ -566,7 +559,7 @@ private fun StyleParamsGroup(
                 )
             },
         )
-        ParamSliderRow(
+        paramSliderRow(
             label = stringResource(R.string.message_style_page_corner_radius),
             valueText = resolved.radius.value.roundToInt().toString(),
             child = {
@@ -580,35 +573,14 @@ private fun StyleParamsGroup(
     }
 }
 
-/** 参数行：左标题右数值，下面放滑杆。 */
-@Composable
-private fun ParamSliderRow(
+/** 参数行：标题在左、取值在右，下面放滑杆。 */
+private fun CardGroupScope.paramSliderRow(
     label: String,
     valueText: String,
     child: @Composable () -> Unit,
+) = formItem(
+    headlineContent = { Text(text = label) },
+    trailingContent = { CardGroupValue(valueText) },
 ) {
-    AppSettingsRow {
-        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = label, modifier = Modifier.weight(1f))
-                ValuePill(valueText)
-            }
-            Spacer(Modifier.height(6.dp))
-            child()
-        }
-    }
-}
-
-/** 数值胶囊。 */
-@Composable
-private fun ValuePill(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
+    child()
 }

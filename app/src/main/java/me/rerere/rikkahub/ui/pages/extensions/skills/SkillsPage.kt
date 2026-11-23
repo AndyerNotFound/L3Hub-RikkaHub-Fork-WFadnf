@@ -63,9 +63,8 @@ import me.rerere.rikkahub.data.skills.SkillValidationException
 import me.rerere.rikkahub.data.skills.SkillValidator
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -344,15 +343,19 @@ private fun InvalidSkillDirsGroup(
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
         )
-        AppSettingsCard {
+        CardGroup {
             dirs.forEach { dir ->
-                AppIconRow(
-                    icon = HugeIcons.Alert01,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    headline = dir.dirName,
-                    supporting = invalidSkillReasonText(dir.reason),
-                    trailing = {
+                item(
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.Alert01,
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    },
+                    headlineContent = { Text(dir.dirName) },
+                    supportingContent = { Text(invalidSkillReasonText(dir.reason)) },
+                    trailingContent = {
                         ItemActionMenu(
                             actions = listOf(
                                 ItemAction(
@@ -389,7 +392,7 @@ private fun SkillCard(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = if (skill.builtin) 16.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppIconBadge(HugeIcons.Puzzle)
+            CardGroupIcon(HugeIcons.Puzzle)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -466,22 +469,21 @@ private fun SkillImportSheet(
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
-            // 外层已有 16dp 横向边距（标题也在里面）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
-            AppSettingsCard {
-                AppIconRow(
-                    icon = HugeIcons.Add01,
-                    headline = stringResource(R.string.skills_page_add_manually),
+            CardGroup {
+                item(
                     onClick = onAddManually,
+                    leadingContent = { CardGroupIcon(HugeIcons.Add01) },
+                    headlineContent = { Text(stringResource(R.string.skills_page_add_manually)) },
                 )
-                AppIconRow(
-                    icon = HugeIcons.FileImport,
-                    headline = stringResource(R.string.skills_page_import_from_file),
+                item(
                     onClick = onImportFromFile,
+                    leadingContent = { CardGroupIcon(HugeIcons.FileImport) },
+                    headlineContent = { Text(stringResource(R.string.skills_page_import_from_file)) },
                 )
-                AppIconRow(
-                    icon = HugeIcons.Download01,
-                    headline = stringResource(R.string.skills_page_import_from_github),
+                item(
                     onClick = onImportFromGitHub,
+                    leadingContent = { CardGroupIcon(HugeIcons.Download01) },
+                    headlineContent = { Text(stringResource(R.string.skills_page_import_from_github)) },
                 )
             }
         }

@@ -5,9 +5,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -86,13 +86,12 @@ fun Toaster(
                 }
                 AnimatedVisibility(
                     visibleState = item.visibleState,
-                    // 进出同参同向：从上方滑进来，就沿原路向上滑回去
                     enter = slideInVertically(motionScheme.defaultSpatialSpec()) { -it } +
                         expandVertically(motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Top) +
                         fadeIn(motionScheme.defaultEffectsSpec()),
-                    exit = slideOutVertically(motionScheme.defaultSpatialSpec()) { -it } +
-                        shrinkVertically(motionScheme.defaultSpatialSpec(), shrinkTowards = Alignment.Top) +
-                        fadeOut(motionScheme.defaultEffectsSpec()),
+                    exit = shrinkVertically(motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Top) +
+                        scaleOut(motionScheme.fastEffectsSpec(), targetScale = 0.9f) +
+                        fadeOut(motionScheme.fastEffectsSpec()),
                 ) {
                     ToastContent(
                         item = item,

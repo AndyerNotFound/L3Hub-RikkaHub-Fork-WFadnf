@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -72,10 +69,10 @@ import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
@@ -84,6 +81,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.rememberNumberDraft
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
@@ -305,7 +303,7 @@ private fun ModelSettingsPagerForm(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(vertical = 16.dp)
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
                         ModelIdentityFields(
@@ -324,7 +322,7 @@ private fun ModelSettingsPagerForm(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(vertical = 16.dp),
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         ModelAdvancedOptions(model, onModelChange, parentProvider)
@@ -337,7 +335,7 @@ private fun ModelSettingsPagerForm(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(vertical = 16.dp),
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         ModelOtherOptions(model, onModelChange)
@@ -614,19 +612,23 @@ private fun ModelOcrHelperSetting(
         ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
         ?.let { R.string.setting_model_page_ocr_model_missing }
 
-    AppSettingsCard {
-        modelSettingItem(
-            icon = HugeIcons.ScanText,
-            title = R.string.setting_provider_page_ocr_helper_model,
-            description = R.string.setting_provider_page_ocr_helper_model_desc,
-            state = state,
-            iconContainerColor = containerColor,
-            iconContentColor = contentColor,
-            placeholder = R.string.setting_provider_page_ocr_helper_model_follow_global,
-            onClear = { onModelChange(model.copy(ocrModelId = null)) },
-            clearContentDescription = R.string.setting_provider_page_ocr_helper_model_follow_global,
-            warning = warning,
-        )
+    CardGroup {
+        // modelSettingItem 内部还是旧版行容器（在 components/ai 里，那份文件不在本次范围内）；
+        // 用无标题的 formItem 把它当整块自定义内容放进分组
+        formItem {
+            modelSettingItem(
+                icon = HugeIcons.ScanText,
+                title = R.string.setting_provider_page_ocr_helper_model,
+                description = R.string.setting_provider_page_ocr_helper_model_desc,
+                state = state,
+                iconContainerColor = containerColor,
+                iconContentColor = contentColor,
+                placeholder = R.string.setting_provider_page_ocr_helper_model_follow_global,
+                onClear = { onModelChange(model.copy(ocrModelId = null)) },
+                clearContentDescription = R.string.setting_provider_page_ocr_helper_model_follow_global,
+                warning = warning,
+            )
+        }
     }
     ModelListSheet(state = state) {
         onModelChange(model.copy(ocrModelId = it.id))
@@ -686,43 +688,43 @@ private fun ModelOtherOptions(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        AppSettingsCard {
-            PricingItem(
+        CardGroup {
+            pricingItem(
                 label = R.string.setting_provider_page_price_input,
                 value = model.pricing.input,
                 modelKey = model.id,
                 unit = unit,
                 onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(input = it))) },
             )
-            PricingItem(
+            pricingItem(
                 label = R.string.setting_provider_page_price_output,
                 value = model.pricing.output,
                 modelKey = model.id,
                 unit = unit,
                 onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(output = it))) },
             )
-            PricingItem(
+            pricingItem(
                 label = R.string.setting_provider_page_price_cache_hit,
                 value = model.pricing.cacheHit,
                 modelKey = model.id,
                 unit = unit,
                 onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheHit = it))) },
             )
-            PricingItem(
+            pricingItem(
                 label = R.string.setting_provider_page_price_cache_write,
                 value = model.pricing.cacheWrite,
                 modelKey = model.id,
                 unit = unit,
                 onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheWrite = it))) },
             )
-            PricingItem(
+            pricingItem(
                 label = R.string.setting_provider_page_price_cache_read,
                 value = model.pricing.cacheRead,
                 modelKey = model.id,
                 unit = unit,
                 onValueChange = { onModelChange(model.copy(pricing = model.pricing.copy(cacheRead = it))) },
             )
-            PricingItem(
+            pricingItem(
                 label = R.string.setting_provider_page_price_per_call,
                 value = model.pricing.perCall,
                 modelKey = model.id,
@@ -748,29 +750,19 @@ private fun ModelOtherOptions(
     }
 }
 
-@Composable
-private fun PricingItem(
+/** 单价一行：标题在左，输入框挂在尾部 */
+private fun CardGroupScope.pricingItem(
     @StringRes label: Int,
     value: Double,
     unit: String,
     modelKey: Any,
     onValueChange: (Double) -> Unit,
-) {
-    AppSettingsRow {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(label))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            PricingInput(value = value, unit = unit, modelKey = modelKey, onValueChange = onValueChange)
-        }
-    }
-}
+) = item(
+    headlineContent = { Text(text = stringResource(label)) },
+    trailingContent = {
+        PricingInput(value = value, unit = unit, modelKey = modelKey, onValueChange = onValueChange)
+    },
+)
 
 @Composable
 private fun ModelTypeSelector(
@@ -1086,7 +1078,7 @@ private fun BuiltInToolsSettings(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -1115,29 +1107,19 @@ private fun BuiltInToolsSettings(
             )
         )
 
-        AppSettingsCard {
+        CardGroup {
             availableTools.fastForEach { (tool, info) ->
                 val (title, description) = info
                 val checked = tool in tools
                 val toggle = { enabled: Boolean ->
                     onUpdateTools(if (enabled) tools + tool else tools - tool)
                 }
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable(onClick = { toggle(!checked) }),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = title)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                        }
-                        Switch(checked = checked, onCheckedChange = toggle)
-                    }
-                }
+                switchItem(
+                    checked = checked,
+                    onCheckedChange = toggle,
+                    supportingContent = { Text(text = description) },
+                    headlineContent = { Text(text = title) },
+                )
             }
         }
     }

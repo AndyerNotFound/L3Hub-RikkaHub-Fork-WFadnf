@@ -56,8 +56,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Tag as DataTag
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.TopAppBar
@@ -113,8 +113,9 @@ fun AssistantDetailPage(id: String) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = listState,
-            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 AssistantHeader(
@@ -128,22 +129,30 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                AppSettingsCard {
-                    AppIconRow(
-                        icon = HugeIcons.Settings03,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_basic),
-                        supporting = stringResource(R.string.assistant_detail_basic_desc),
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.AssistantBasic(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Settings03,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_basic)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_basic_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Message02,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_prompt),
-                        supporting = stringResource(R.string.assistant_detail_prompt_desc),
+                    item(
                         onClick = { navController.navigate(Screen.AssistantPrompt(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Message02,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_prompt)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_prompt_desc)) },
                     )
                 }
             }
@@ -151,57 +160,77 @@ fun AssistantDetailPage(id: String) {
             item {
                 val containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                AppSettingsCard {
-                    AppIconRow(
-                        icon = HugeIcons.Puzzle,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_extensions),
-                        supporting = stringResource(R.string.assistant_detail_extensions_desc),
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.AssistantInjections(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Puzzle,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_extensions)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_extensions_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Brain02,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_memory),
-                        supporting = stringResource(R.string.assistant_detail_memory_desc),
+                    item(
                         onClick = { navController.navigate(Screen.AssistantMemory(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Brain02,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_memory)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_memory_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.McpServer,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_mcp),
-                        supporting = stringResource(R.string.assistant_detail_mcp_desc),
+                    item(
                         onClick = { navController.navigate(Screen.AssistantMcp(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.McpServer,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_mcp)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_mcp_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Wrench01,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_local_tools),
-                        supporting = stringResource(R.string.assistant_detail_local_tools_desc),
+                    item(
                         onClick = { navController.navigate(Screen.AssistantLocalTool(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Wrench01,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_local_tools)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_local_tools_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Clock01,
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        headline = stringResource(R.string.assistant_page_tab_heartbeat),
-                        supporting = stringResource(R.string.assistant_detail_heartbeat_desc),
+                    item(
                         onClick = { navController.navigate(Screen.AssistantHeartbeat(id)) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Clock01,
+                                containerColor = containerColor,
+                                contentColor = contentColor,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_heartbeat)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_heartbeat_desc)) },
                     )
                 }
             }
 
             item {
-                AppSettingsCard {
-                    AppIconRow(
-                        icon = HugeIcons.Code,
-                        headline = stringResource(R.string.assistant_page_tab_request),
-                        supporting = stringResource(R.string.assistant_detail_request_desc),
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.AssistantRequest(id)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Code) },
+                        headlineContent = { Text(stringResource(R.string.assistant_page_tab_request)) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_request_desc)) },
                     )
                 }
             }

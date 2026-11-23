@@ -137,7 +137,6 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         plain(THEME_ID, Settings::themeId) { copy(themeId = it) },
         json(CUSTOM_THEMES, Settings::customThemes) { copy(customThemes = it) },
         json(PALETTE, Settings::palette) { copy(palette = it) },
-        json(TOOL_THEME, Settings::toolTheme) { copy(toolTheme = it) },
         json(DISPLAY_SETTING, Settings::displaySetting) { copy(displaySetting = it) },
         json(NETWORK_SETTING, Settings::networkSetting) { copy(networkSetting = it) },
         plain(DEVELOPER_MODE, Settings::developerMode) { copy(developerMode = it) },

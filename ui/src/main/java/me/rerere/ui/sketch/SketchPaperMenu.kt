@@ -1,7 +1,7 @@
 package me.rerere.ui.sketch
 
 import androidx.compose.foundation.layout.Box
-import me.rerere.ui.style.DropdownMenu
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon

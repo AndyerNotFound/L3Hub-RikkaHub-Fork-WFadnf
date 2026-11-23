@@ -33,8 +33,8 @@ android {
         manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
-        versionCode = 364
-        versionName = "L.3.3.0.10"
+        versionCode = 365
+        versionName = "L.3.3.0.11"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -261,7 +261,6 @@ dependencies {
     // Haze (background blur and glass)
     implementation(libs.haze)
     implementation(libs.capsule)
-    implementation(libs.backdrop)
     implementation(libs.squircle.shape)
     implementation(libs.haze.blur)
     implementation(libs.haze.blur.material3)
@@ -375,8 +374,6 @@ dependencies {
     implementation(project(":common"))
     implementation(project(":material3"))
     implementation(project(":ui"))
-    // 弹层引擎与 ToolboxSettings 接口：主题层要提供 LocalToolboxSettings 实现
-    implementation(project(":toolbox-ui"))
     implementation(project(":workspace"))
     implementation(project(":terminal"))
     implementation(project(":oauth"))

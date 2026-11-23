@@ -80,16 +80,16 @@ import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSlider
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -187,30 +187,20 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距由 AppSettingsCard 自带（12dp），这里只留全宽模式的刘海安全区
-                .adaptiveHorizontalPadding(0.dp)
+                // 横向内距 16dp；全宽模式下改为只让出刘海安全区
+                .adaptiveHorizontalPadding(16.dp)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 屏幕方向：点一下从四个模式里选
             var showDisplayModeDialog by remember { mutableStateOf(false) }
-            AppSettingsCard {
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable(onClick = { showDisplayModeDialog = true }),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.setting_display_page_display_mode_title))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = displaySetting.displayMode.description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                        }
-                        ValuePill(displaySetting.displayMode.label)
-                    }
-                }
+            CardGroup {
+                item(
+                    onClick = { showDisplayModeDialog = true },
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_display_mode_title)) },
+                    supportingContent = { Text(displaySetting.displayMode.description) },
+                    trailingContent = { CardGroupValue(displaySetting.displayMode.label) },
+                )
             }
             if (showDisplayModeDialog) {
                 DisplayModePickerDialog(
@@ -223,268 +213,228 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 )
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_page_message_display_settings)) {
-                AppSwitchRow(
+            CardGroupTitle(stringResource(R.string.setting_page_message_display_settings))
+            CardGroup {
+                switchItem(
                     checked = displaySetting.showUserAvatar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_user_avatar_title),
-                    supporting = stringResource(R.string.setting_display_page_show_user_avatar_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showAssistantBubble,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showAssistantBubble = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_assistant_bubble_title),
-                    supporting = stringResource(R.string.setting_display_page_show_assistant_bubble_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                 )
                 if (displaySetting.showAssistantBubble) {
-                    AppSwitchRow(
+                    switchItem(
                         checked = displaySetting.splitAssistantBubbleByParagraph,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
                         },
-                        headline = stringResource(R.string.setting_display_page_split_assistant_bubble_title),
-                        supporting = stringResource(R.string.setting_display_page_split_assistant_bubble_desc),
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_title)) },
                     )
                 }
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_empty_slogan_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = displaySetting.emptyChatSlogan,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(emptyChatSlogan = it))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(stringResource(R.string.chat_empty_default_slogan)) },
-                            singleLine = true,
-                        )
-                    }
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_empty_slogan_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_desc)) },
+                ) {
+                    OutlinedTextField(
+                        value = displaySetting.emptyChatSlogan,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(emptyChatSlogan = it))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.chat_empty_default_slogan)) },
+                        singleLine = true,
+                    )
                 }
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_bubble_opacity_title))
-                            }
-                            ValuePill("${(displaySetting.bubbleOpacity * 100).roundToInt()}%")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AppSlider(
-                            value = displaySetting.bubbleOpacity,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
-                            },
-                            valueRange = 0f..1.0f,
-                            steps = 19,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_bubble_opacity_title)) },
+                    trailingContent = { CardGroupValue("${(displaySetting.bubbleOpacity * 100).roundToInt()}%") },
+                ) {
+                    AppSlider(
+                        value = displaySetting.bubbleOpacity,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
+                        },
+                        valueRange = 0f..1.0f,
+                        steps = 19,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 
-            AppSettingsCard {
-                AppSwitchRow(
+            CardGroup {
+                switchItem(
                     checked = displaySetting.showModelIcon,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelIcon = it)) },
-                    headline = stringResource(R.string.setting_display_page_chat_list_model_icon_title),
-                    supporting = stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showModelName,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelName = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_model_name_title),
-                    supporting = stringResource(R.string.setting_display_page_show_model_name_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.buttonShadow,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(buttonShadow = it)) },
-                    headline = stringResource(R.string.setting_display_page_button_shadow_title),
-                    supporting = stringResource(R.string.setting_display_page_button_shadow_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_button_shadow_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_button_shadow_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.hideCompletedTodoCard,
                     onCheckedChange = {
                         updateDisplaySetting(displaySetting.copy(hideCompletedTodoCard = it))
                     },
-                    headline = stringResource(R.string.setting_display_page_hide_completed_todo_title),
-                    supporting = stringResource(R.string.setting_display_page_hide_completed_todo_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_hide_completed_todo_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showDateTimeInMessage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_datetime_in_message_title),
-                    supporting = stringResource(R.string.setting_display_page_show_datetime_in_message_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.useL3HubReasoningStyle,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(useL3HubReasoningStyle = it)) },
-                    headline = stringResource(R.string.setting_display_page_use_l3hub_reasoning_title),
-                    supporting = stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_use_l3hub_reasoning_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showTokenUsage,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_token_usage_title),
-                    supporting = stringResource(R.string.setting_display_page_show_token_usage_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showQuotaBar,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showQuotaBar = it)) },
-                    headline = stringResource(R.string.setting_display_page_quota_bar_title),
-                    supporting = stringResource(R.string.setting_display_page_quota_bar_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_quota_bar_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_quota_bar_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.binaryUnits,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(binaryUnits = it)) },
-                    headline = stringResource(R.string.setting_display_page_binary_units_title),
-                    supporting = stringResource(R.string.setting_display_page_binary_units_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_binary_units_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_binary_units_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.usagePieChart,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(usagePieChart = it)) },
-                    headline = stringResource(R.string.setting_display_page_usage_pie_title),
-                    supporting = stringResource(R.string.setting_display_page_usage_pie_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_usage_pie_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_usage_pie_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.contextMeterStyle != ContextMeterStyle.OFF,
                     onCheckedChange = { enabled ->
-                        updateDisplaySetting(
-                            displaySetting.copy(
-                                contextMeterStyle = if (enabled) ContextMeterStyle.BAR else ContextMeterStyle.OFF
-                            )
+                    updateDisplaySetting(
+                        displaySetting.copy(
+                            contextMeterStyle = if (enabled) ContextMeterStyle.BAR else ContextMeterStyle.OFF
                         )
-                    },
-                    headline = stringResource(R.string.setting_display_page_context_meter_switch_title),
-                    supporting = stringResource(R.string.setting_display_page_context_meter_switch_desc),
+                    )
+                },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_context_meter_switch_title)) },
                 )
             }
 
-            AppSettingsCard {
-                AppSwitchRow(
+            CardGroup {
+                switchItem(
                     checked = displaySetting.showToolCallOutput,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showToolCallOutput = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_tool_call_output_title),
-                    supporting = stringResource(R.string.setting_display_page_show_tool_call_output_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_tool_call_output_title)) },
                 )
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        NumberSlider(
-                            value = displaySetting.uiCornerRadius,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(uiCornerRadius = it))
-                            },
-                            valueRange = 0..32,
-                        )
-                    }
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_ui_corner_radius_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_ui_corner_radius_desc, displaySetting.uiCornerRadius)) },
+                ) {
+                    NumberSlider(
+                        value = displaySetting.uiCornerRadius,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(uiCornerRadius = it))
+                        },
+                        valueRange = 0..32,
+                    )
                 }
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_input_padding_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(
-                                        R.string.setting_display_page_input_padding_desc,
-                                        displaySetting.inputPadding,
-                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AppSlider(
-                            value = displaySetting.inputPadding.toFloat(),
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
-                            },
-                            valueRange = 0f..16f,
-                            steps = 15,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_input_padding_title)) },
+                    supportingContent = {
+                        Text(text = stringResource(
+                                R.string.setting_display_page_input_padding_desc,
+                                displaySetting.inputPadding,
+                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                    },
+                ) {
+                    AppSlider(
+                        value = displaySetting.inputPadding.toFloat(),
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(inputPadding = it.roundToInt()))
+                        },
+                        valueRange = 0f..16f,
+                        steps = 15,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.disableAnimations,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(disableAnimations = it)) },
-                    headline = stringResource(R.string.setting_display_page_disable_animations_title),
-                    supporting = stringResource(R.string.setting_display_page_disable_animations_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_disable_animations_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_disable_animations_title)) },
                 )
                 // 关掉动效以后这一项没有意义，跟着开关一起收起
                 if (!displaySetting.disableAnimations) {
                     AnimationSpeed.entries.forEach { speed ->
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp)
-                                    .clickable(onClick = {
-                                        updateDisplaySetting(displaySetting.copy(animationSpeed = speed))
-                                }),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = speed.label)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = speed.description, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
+                        item(
+                            onClick = {
+                                    updateDisplaySetting(displaySetting.copy(animationSpeed = speed))
+                            },
+                            headlineContent = { Text(text = speed.label) },
+                            supportingContent = { Text(speed.description) },
+                            trailingContent = {
                                 RadioButton(
                                     selected = displaySetting.animationSpeed == speed,
                                     onClick = null,
                                 )
-                            }
-                        }
+                            },
+                        )
                     }
                 }
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showThinkingContent,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_thinking_content_title),
-                    supporting = stringResource(R.string.setting_display_page_show_thinking_content_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.autoCloseThinking,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoCloseThinking = it)) },
-                    headline = stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
-                    supporting = stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showThinkingSummary,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingSummary = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_thinking_summary_title),
-                    supporting = stringResource(R.string.setting_display_page_show_thinking_summary_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_summary_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_summary_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.enableLatexRendering,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableLatexRendering = it)) },
-                    headline = stringResource(R.string.setting_display_page_enable_latex_rendering_title),
-                    supporting = stringResource(R.string.setting_display_page_enable_latex_rendering_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.enableQuoteHighlight,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = it)) },
-                    headline = stringResource(R.string.setting_display_page_enable_quote_highlight_title),
-                    supporting = stringResource(R.string.setting_display_page_enable_quote_highlight_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_enable_quote_highlight_title)) },
                 )
             }
 
@@ -493,8 +443,9 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
             // 整张卡也跟着「关闭动效」收放：if 掉的话一帧消失，卡片圆角却还在缓动
             MotionExpandCollapse(visible = !displaySetting.disableAnimations) {
                 val motionBlur = displaySetting.motionBlur
-                AppSettingsGroup(title = stringResource(R.string.setting_display_page_motion_blur_title)) {
-                    AppSwitchRow(
+                CardGroupTitle(stringResource(R.string.setting_display_page_motion_blur_title))
+                CardGroup {
+                    switchItem(
                         checked = motionBlur.enabled,
                         onCheckedChange = {
                             updateDisplaySetting(
@@ -503,11 +454,11 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 )
                             )
                         },
-                        headline = stringResource(R.string.setting_display_page_motion_blur_switch),
-                        supporting = stringResource(R.string.setting_display_page_motion_blur_desc),
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_switch)) },
                     )
                     if (motionBlur.enabled) {
-                        AppSwitchRow(
+                        switchItem(
                             checked = motionBlur.scrollBlur,
                             onCheckedChange = {
                                 updateDisplaySetting(
@@ -516,170 +467,141 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                     )
                                 )
                             },
-                            headline = stringResource(R.string.setting_display_page_motion_blur_scroll_switch),
-                            supporting = stringResource(R.string.setting_display_page_motion_blur_scroll_desc),
+                            supportingContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_desc)) },
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_motion_blur_scroll_switch)) },
                         )
-                        AppSettingsRow {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_radius_title))
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = stringResource(
-                                                R.string.setting_display_page_motion_blur_radius_desc,
-                                                motionBlur.radius,
-                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                NumberSlider(
-                                    value = motionBlur.radius,
-                                    onValueChange = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(
-                                                motionBlur = displaySetting.motionBlur.copy(radius = it)
-                                            )
+                        formItem(
+                            headlineContent = { Text(text = stringResource(R.string.setting_display_page_motion_blur_radius_title)) },
+                            supportingContent = {
+                                Text(text = stringResource(
+                                        R.string.setting_display_page_motion_blur_radius_desc,
+                                        motionBlur.radius,
+                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.radius,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(radius = it)
                                         )
-                                    },
-                                    valueRange = 0..12,
-                                    suffix = "dp",
-                                )
-                            }
+                                    )
+                                },
+                                valueRange = 0..12,
+                                suffix = "dp",
+                            )
                         }
-                        AppSettingsRow {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_duration_title))
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = stringResource(
-                                                R.string.setting_display_page_motion_blur_duration_desc,
-                                                motionBlur.durationMillis,
-                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                NumberSlider(
-                                    value = motionBlur.durationMillis,
-                                    onValueChange = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(
-                                                motionBlur = displaySetting.motionBlur.copy(durationMillis = it)
-                                            )
+                        formItem(
+                            headlineContent = { Text(text = stringResource(R.string.setting_display_page_motion_blur_duration_title)) },
+                            supportingContent = {
+                                Text(text = stringResource(
+                                        R.string.setting_display_page_motion_blur_duration_desc,
+                                        motionBlur.durationMillis,
+                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.durationMillis,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(durationMillis = it)
                                         )
-                                    },
-                                    valueRange = 80..600,
-                                    suffix = "ms",
-                                    // 跨度过大，轨道上不画刻度
-                                    steps = 0,
-                                )
-                            }
+                                    )
+                                },
+                                valueRange = 80..600,
+                                suffix = "ms",
+                                // 跨度过大，轨道上不画刻度
+                                steps = 0,
+                            )
                         }
-                        AppSettingsRow {
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = stringResource(R.string.setting_display_page_motion_blur_travel_title))
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(text = stringResource(
-                                                R.string.setting_display_page_motion_blur_travel_desc,
-                                                motionBlur.travel,
-                                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                NumberSlider(
-                                    value = motionBlur.travel,
-                                    onValueChange = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(
-                                                motionBlur = displaySetting.motionBlur.copy(travel = it)
-                                            )
+                        formItem(
+                            headlineContent = { Text(text = stringResource(R.string.setting_display_page_motion_blur_travel_title)) },
+                            supportingContent = {
+                                Text(text = stringResource(
+                                        R.string.setting_display_page_motion_blur_travel_desc,
+                                        motionBlur.travel,
+                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                            },
+                        ) {
+                            NumberSlider(
+                                value = motionBlur.travel,
+                                onValueChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            motionBlur = displaySetting.motionBlur.copy(travel = it)
                                         )
-                                    },
-                                    valueRange = 8..64,
-                                    suffix = "dp",
-                                )
-                            }
+                                    )
+                                },
+                                valueRange = 8..64,
+                                suffix = "dp",
+                            )
                         }
                     }
                 }
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_display_page_floating_bar_title)) {
-                AppSwitchRow(
+            CardGroupTitle(stringResource(R.string.setting_display_page_floating_bar_title))
+            CardGroup {
+                switchItem(
                     checked = displaySetting.enableFloatingBar,
                     onCheckedChange = { enabled ->
-                        updateDisplaySetting(
-                            displaySetting.copy(
-                                enableFloatingBar = enabled,
+                    updateDisplaySetting(
+                        displaySetting.copy(
+                            enableFloatingBar = enabled,
 
-                                floatingBarItems = if (enabled && displaySetting.floatingBarItems.isEmpty()) {
-                                    DEFAULT_FLOATING_BAR_ITEMS
-                                } else {
-                                    displaySetting.floatingBarItems
-                                },
-                            )
+                            floatingBarItems = if (enabled && displaySetting.floatingBarItems.isEmpty()) {
+                                DEFAULT_FLOATING_BAR_ITEMS
+                            } else {
+                                displaySetting.floatingBarItems
+                            },
                         )
-                    },
-                    headline = stringResource(R.string.setting_display_page_floating_bar_switch),
-                    supporting = stringResource(R.string.setting_display_page_floating_bar_desc),
+                    )
+                },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
                 )
                 if (displaySetting.enableFloatingBar) {
-                    AppSwitchRow(
+                    switchItem(
                         checked = displaySetting.floatingBarAutoHide,
                         onCheckedChange = { autoHide ->
-                            updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
-                        },
-                        headline = stringResource(R.string.setting_display_page_floating_bar_auto_hide_title),
-                        supporting = stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc),
+                        updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
+                    },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_title)) },
                     )
                 }
                 if (displaySetting.enableFloatingBar) {
-                    AppSettingsRow {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_title))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_floating_bar_size_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
-                                ValuePill(FloatingBarSizing.percentLabel(draftFloatingBarScale))
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            PercentNumberSlider(
-                                value = draftFloatingBarScale,
-                                onValueChange = { ratio ->
-                                    draftFloatingBarScale = FloatingBarSizing.clampScale(ratio)
-                                },
-                                onValueChangeFinished = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(floatingBarScale = draftFloatingBarScale)
-                                    )
-                                },
-                                valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
-                            )
-                        }
+                    formItem(
+                        headlineContent = { Text(text = stringResource(R.string.setting_display_page_floating_bar_size_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_desc)) },
+                        trailingContent = { CardGroupValue(FloatingBarSizing.percentLabel(draftFloatingBarScale)) },
+                    ) {
+                        PercentNumberSlider(
+                            value = draftFloatingBarScale,
+                            onValueChange = { ratio ->
+                                draftFloatingBarScale = FloatingBarSizing.clampScale(ratio)
+                            },
+                            onValueChangeFinished = {
+                                updateDisplaySetting(
+                                    displaySetting.copy(floatingBarScale = draftFloatingBarScale)
+                                )
+                            },
+                            valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
+                        )
                     }
                 }
                 displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
                     if (displaySetting.enableFloatingBar) {
-                        AppIconRow(
-                            icon = barItem.icon,
-                            headline = barItem.label(),
-                            supporting = stringResource(
-                                R.string.setting_display_page_floating_bar_slot,
-                                index + 1,
-                            ),
-                            trailing = {
+                        item(
+                            leadingContent = { CardGroupIcon(barItem.icon) },
+                            headlineContent = { Text(barItem.label()) },
+                            supportingContent = { Text(stringResource(
+                            R.string.setting_display_page_floating_bar_slot,
+                            index + 1,
+                        )) },
+                            trailingContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (index > 0) {
                                         IconButton(onClick = { moveFloatingBarItem(index, index - 1) }) {
@@ -725,91 +647,77 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                 }
                 if (displaySetting.enableFloatingBar &&
                     displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
-                    AppIconRow(
-                        icon = HugeIcons.Add01,
-                        headline = stringResource(R.string.setting_display_page_floating_bar_add_slot),
-                        supporting = stringResource(
-                            R.string.setting_display_page_floating_bar_slots_count,
-                            displaySetting.floatingBarItems.size,
-                            MAX_FLOATING_BAR_ITEMS,
-                        ),
+                    item(
                         onClick = { showFloatingBarAddSheet = true },
-                        trailing = {
+                        leadingContent = { CardGroupIcon(HugeIcons.Add01) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_add_slot)) },
+                        supportingContent = { Text(stringResource(
+                        R.string.setting_display_page_floating_bar_slots_count,
+                        displaySetting.floatingBarItems.size,
+                        MAX_FLOATING_BAR_ITEMS,
+                    )) },
+                        trailingContent = {
                             Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         },
                     )
                 }
             }
 
-            AppSettingsCard {
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_chat_font_family_title))
+            CardGroup {
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_chat_font_family_title)) },
+                ) {
+                    ConnectedChoiceButtons(
+                        options = ChatFontFamily.entries,
+                        selected = displaySetting.chatFontFamily,
+                        onSelect = { family ->
+                            if (family == ChatFontFamily.CUSTOM &&
+                                displaySetting.chatCustomFontPaths.isEmpty() &&
+                                displaySetting.chatCustomFontPath.isBlank()
+                            ) {
+                                fontPickerLauncher.launch(CustomFontMimeTypesUI)
+                            } else {
+                                updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
                             }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ConnectedChoiceButtons(
-                            options = ChatFontFamily.entries,
-                            selected = displaySetting.chatFontFamily,
-                            onSelect = { family ->
-                                if (family == ChatFontFamily.CUSTOM &&
-                                    displaySetting.chatCustomFontPaths.isEmpty() &&
-                                    displaySetting.chatCustomFontPath.isBlank()
-                                ) {
-                                    fontPickerLauncher.launch(CustomFontMimeTypesUI)
-                                } else {
-                                    updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
-                                }
-                            },
-                            minHeight = 64.dp,
-                        ) { family, _ ->
-                            // 每个按钮用对应的字体写一个样字
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Aa",
-                                    fontFamily = family.toFontFamilyUI(chatFontFamily),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    text = family.labelUI(),
-                                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            }
+                        },
+                        minHeight = 64.dp,
+                    ) { family, _ ->
+                        // 每个按钮用对应的字体写一个样字
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Aa",
+                                fontFamily = family.toFontFamilyUI(chatFontFamily),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = family.labelUI(),
+                                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
                         }
                     }
                 }
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.fontApplyGlobal,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fontApplyGlobal = it)) },
-                    headline = stringResource(R.string.setting_display_page_font_global_title),
-                    supporting = stringResource(R.string.setting_display_page_font_global_desc),
                     enabled = displaySetting.chatFontFamily != ChatFontFamily.DEFAULT,
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_font_global_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_font_global_title)) },
                 )
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable(onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.setting_display_page_custom_font_title))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = if (customFontPaths.isEmpty()) {
-                                    stringResource(R.string.setting_display_page_custom_font_not_imported)
-                                } else {
-                                    stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
-                                }, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                        }
+                item(
+                    onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) },
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_custom_font_title)) },
+                    supportingContent = {
+                        Text(text = if (customFontPaths.isEmpty()) {
+                                stringResource(R.string.setting_display_page_custom_font_not_imported)
+                            } else {
+                                stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
+                            }, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                    },
+                    trailingContent = {
                         IconButton(
                             onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) }
                         ) {
@@ -820,24 +728,18 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 )
                             )
                         }
-                    }
-                }
+                    },
+                )
                 // 已导入字体回退链：每款一行，可上移调整优先级、单独删除（删除后链自动收拢）
                 if (customFontPaths.isNotEmpty()) {
                     customFontPaths.forEachIndexed { index, path ->
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = customFontNames.getOrNull(index)?.takeIf { it.isNotBlank() }
-                                            ?: stringResource(R.string.setting_display_page_custom_font_fallback_name, index + 1))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
+                        item(
+                            headlineContent = {
+                                Text(text = customFontNames.getOrNull(index)?.takeIf { it.isNotBlank() }
+                                        ?: stringResource(R.string.setting_display_page_custom_font_fallback_name, index + 1))
+                            },
+                            supportingContent = { Text(stringResource(R.string.setting_display_page_custom_font_chain_position, index + 1)) },
+                            trailingContent = {
                                 Row {
                                     if (index > 0) {
                                         IconButton(
@@ -865,95 +767,78 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                         )
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_ui_scale_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_display_page_ui_scale_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                            ValuePill("${(displaySetting.uiScale * 100).roundToInt()}%")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AppSlider(
-                            value = displaySetting.uiScale,
-                            onValueChange = { ratio ->
-                                // 5% 一档：0.5、0.55 … 2.0
-                                val snapped = (ratio * 20f).roundToInt() / 20f
-                                updateDisplaySetting(displaySetting.copy(uiScale = snapped))
                             },
-                            valueRange = 0.5f..2f,
-                            steps = 29,
-                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_display_page_font_size_title))
-                            }
-                            ValuePill("${(displaySetting.fontSizeRatio * 100).toInt()}%")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AppSlider(
-                            value = displaySetting.fontSizeRatio,
-                            onValueChange = { ratio ->
-                                val snapped = (ratio * 20f).roundToInt() / 20f
-                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = snapped))
-                            },
-                            valueRange = 0.5f..2f,
-                            steps = 29,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        // 预览放在凹下去的底色里，和设置项本身区分开
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                        ) {
-                            MarkdownBlock(
-                                content = stringResource(R.string.setting_display_page_font_size_preview),
-                                modifier = Modifier.padding(12.dp),
-                                style = LocalTextStyle.current.copy(
-                                    fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                                    lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                    fontFamily = chatFontFamily
-                                )
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_ui_scale_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_ui_scale_desc)) },
+                    trailingContent = { CardGroupValue("${(displaySetting.uiScale * 100).roundToInt()}%") },
+                ) {
+                    AppSlider(
+                        value = displaySetting.uiScale,
+                        onValueChange = { ratio ->
+                            // 5% 一档：0.5、0.55 … 2.0
+                            val snapped = (ratio * 20f).roundToInt() / 20f
+                            updateDisplaySetting(displaySetting.copy(uiScale = snapped))
+                        },
+                        valueRange = 0.5f..2f,
+                        steps = 29,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                formItem(
+                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_font_size_title)) },
+                    trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
+                ) {
+                    AppSlider(
+                        value = displaySetting.fontSizeRatio,
+                        onValueChange = { ratio ->
+                            val snapped = (ratio * 20f).roundToInt() / 20f
+                            updateDisplaySetting(displaySetting.copy(fontSizeRatio = snapped))
+                        },
+                        valueRange = 0.5f..2f,
+                        steps = 29,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                    ) {
+                        MarkdownBlock(
+                            content = stringResource(R.string.setting_display_page_font_size_preview),
+                            modifier = Modifier.padding(12.dp),
+                            style = LocalTextStyle.current.copy(
+                                fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
+                                lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+                                fontFamily = chatFontFamily
                             )
-                        }
+                        )
                     }
                 }
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_page_code_display_settings)) {
-                AppSwitchRow(
+            CardGroupTitle(stringResource(R.string.setting_page_code_display_settings))
+            CardGroup {
+                switchItem(
                     checked = displaySetting.codeBlockAutoWrap,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },
-                    headline = stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
-                    supporting = stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.codeBlockAutoCollapse,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it)) },
-                    headline = stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
-                    supporting = stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = displaySetting.showLineNumbers,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(showLineNumbers = it)) },
-                    headline = stringResource(R.string.setting_display_page_show_line_numbers_title),
-                    supporting = stringResource(R.string.setting_display_page_show_line_numbers_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_title)) },
                 )
             }
 
@@ -1029,12 +914,12 @@ private fun FloatingBarAddSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AppSettingsCard {
+            CardGroup {
                 available.forEach { barItem ->
-                    AppIconRow(
-                        icon = barItem.icon,
-                        headline = barItem.label(),
+                    item(
                         onClick = { onAdd(barItem) },
+                        leadingContent = { CardGroupIcon(barItem.icon) },
+                        headlineContent = { Text(barItem.label()) },
                     )
                 }
             }
@@ -1249,23 +1134,4 @@ private fun DisplayModePickerDialog(
     )
 }
 
-/** 行右侧的取值小标签，胶囊观感与迁移前的取值标签一致。 */
-@Composable
-private fun ValuePill(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            maxLines = 1,
-        )
-    }
-}
+

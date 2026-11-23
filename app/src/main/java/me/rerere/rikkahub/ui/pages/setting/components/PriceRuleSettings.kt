@@ -46,9 +46,8 @@ import me.rerere.ai.provider.priceRuleExpressionErrorPosition
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
@@ -88,63 +87,52 @@ internal fun PriceRuleSettings(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
         } else {
-            AppSettingsCard {
+            CardGroup {
                 rules.forEachIndexed { index, rule ->
-                    AppSettingsRow {
-                        Column {
-                            Row(verticalAlignment = Alignment.Top) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        stringResource(
-                                            R.string.setting_provider_page_price_rule_title,
-                                            index + 1,
-                                        )
+                    formItem(
+                        headlineContent = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_provider_page_price_rule_title,
+                                    index + 1,
+                                )
+                            )
+                        },
+                        supportingContent = { Text(text = priceRuleSummary(rule), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        trailingContent = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                AppSwitch(
+                                    checked = rule.enabled,
+                                    onCheckedChange = { enabled ->
+                                        onRulesChange(rules.replacedAt(index, rule.copy(enabled = enabled)))
+                                    },
+                                )
+                                IconButton(onClick = {
+                                    onRulesChange(rules.removedAt(index))
+                                }) {
+                                    Icon(
+                                        imageVector = HugeIcons.Delete01,
+                                        contentDescription = stringResource(
+                                            R.string.setting_provider_page_price_rule_delete
+                                        ),
+                                        tint = MaterialTheme.colorScheme.error,
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                            Text(
-                                                text = priceRuleSummary(rule),
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    AppSwitch(
-                                        checked = rule.enabled,
-                                        onCheckedChange = { enabled ->
-                                            onRulesChange(rules.replacedAt(index, rule.copy(enabled = enabled)))
-                                        },
-                                    )
-                                    IconButton(onClick = {
-                                        onRulesChange(rules.removedAt(index))
-                                    }) {
-                                        Icon(
-                                            imageVector = HugeIcons.Delete01,
-                                            contentDescription = stringResource(
-                                                R.string.setting_provider_page_price_rule_delete
-                                            ),
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            PriceRuleForm(
-                                rule = rule,
-                                modelKey = modelKey,
-                                unit = unit,
-                                perCallUnit = perCallUnit,
-                                onUpdate = { updated ->
-                                    onRulesChange(rules.replacedAt(index, updated))
-                                },
-                            )
-                        }
+                        },
+                    ) {
+                        PriceRuleForm(
+                            rule = rule,
+                            modelKey = modelKey,
+                            unit = unit,
+                            perCallUnit = perCallUnit,
+                            onUpdate = { updated ->
+                                onRulesChange(rules.replacedAt(index, updated))
+                            },
+                        )
                     }
                 }
             }

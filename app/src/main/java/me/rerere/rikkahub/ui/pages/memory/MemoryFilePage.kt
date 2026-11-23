@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,8 +52,8 @@ import me.rerere.rikkahub.data.repository.MemoryWriteResult
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -283,41 +281,36 @@ private fun MemoryFileDetail(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(innerPadding)
-            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            .padding(horizontal = 16.dp)
             .padding(bottom = 16.dp),
     ) {
-        AppSettingsCard {
-            OverlineRow(
+        CardGroup {
+            overlineItem(
                 overline = stringResource(R.string.memory_file_page_last_updated),
                 value = Instant.ofEpochMilli(file.updatedAt).toLocalDateTime(),
             )
             if (file.description.isNotEmpty()) {
-                OverlineRow(
+                overlineItem(
                     overline = stringResource(R.string.memory_file_page_summary),
                     value = file.description,
                 )
             }
             if (file.aliases.isNotEmpty()) {
-                OverlineRow(
+                overlineItem(
                     overline = stringResource(R.string.memory_file_page_aliases),
                     value = file.aliases.joinToString(", "),
                 )
             }
             if (file.body.isNotBlank()) {
-                AppSettingsRow {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // 和上面几行的小标题保持一致
-                        Text(
-                            text = stringResource(R.string.memory_file_page_details),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodySmall,
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.memory_file_page_details)) },
+                ) {
+                    SelectableContent {
+                        MarkdownBlock(
+                            content = file.displayBody,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        SelectableContent {
-                            MarkdownBlock(
-                                content = file.displayBody,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
                     }
                 }
             }
@@ -369,12 +362,12 @@ private fun MemoryFileEditor(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        // 外层已有 16dp 横向边距（上面的提示文字也在里面）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
-        AppSettingsCard {
+        // 外层已有 16dp 横向边距（上面的提示文字也在里面），CardGroup 不带外距
+        CardGroup {
             // 只有编辑已有文件时才有路径
             val editingPath = path
             if (editingPath != null) {
-                FormFieldRow(headline = stringResource(R.string.memory_file_page_path)) {
+                formFieldItem(headline = stringResource(R.string.memory_file_page_path)) {
                     OutlinedTextField(
                         value = editingPath,
                         onValueChange = onPathChange,
@@ -385,7 +378,7 @@ private fun MemoryFileEditor(
                     )
                 }
             }
-            FormFieldRow(headline = stringResource(R.string.memory_file_page_title)) {
+            formFieldItem(headline = stringResource(R.string.memory_file_page_title)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
@@ -394,14 +387,14 @@ private fun MemoryFileEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            FormFieldRow(headline = stringResource(R.string.memory_file_page_summary)) {
+            formFieldItem(headline = stringResource(R.string.memory_file_page_summary)) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = onDescriptionChange,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            FormFieldRow(headline = stringResource(R.string.memory_file_page_aliases)) {
+            formFieldItem(headline = stringResource(R.string.memory_file_page_aliases)) {
                 val addAlias = {
                     onAliasesChange(aliases.withAlias(aliasInput))
                     onAliasInputChange("")
@@ -442,8 +435,8 @@ private fun MemoryFileEditor(
                 )
             }
         }
-        AppSettingsCard {
-            FormFieldRow(headline = stringResource(R.string.memory_file_page_details)) {
+        CardGroup {
+            formFieldItem(headline = stringResource(R.string.memory_file_page_details)) {
                 OutlinedTextField(
                     value = body,
                     onValueChange = onBodyChange,
@@ -457,31 +450,20 @@ private fun MemoryFileEditor(
     }
 }
 
-// 一行「小标题 + 取值」，对应旧版列表项的小标题与正文
-@Composable
-private fun OverlineRow(overline: String, value: String) {
-    AppSettingsRow {
-        Column {
-            Text(text = overline, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(2.dp))
-            Text(text = value)
-        }
-    }
-}
+// 一行「小标题 + 取值」：小标题走 ListItem 的 overline 位
+private fun CardGroupScope.overlineItem(overline: String, value: String) = item(
+    overlineContent = { Text(overline) },
+    headlineContent = { Text(value) },
+)
 
-// 表单项：标题 + 内容区，内距由 AppSettingsRow 给
-@Composable
-private fun FormFieldRow(
+// 表单项：标题 + 内容区，内距由 formItem 给
+private fun CardGroupScope.formFieldItem(
     headline: String,
     content: @Composable () -> Unit,
+) = formItem(
+    headlineContent = { Text(headline) },
 ) {
-    AppSettingsRow {
-        Column {
-            Text(text = headline)
-            Spacer(Modifier.height(8.dp))
-            content()
-        }
-    }
+    content()
 }
 
 // 把输入框里的 [input] 加进别名；空的或者已经有了就不加

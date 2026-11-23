@@ -12,9 +12,7 @@ import me.rerere.rikkahub.ui.theme.LocalButtonShadow
 /**
  * 跟随「按钮阴影」设置的开关。
  *
- * 开关样式统一由 `ui.style.Switch` 里的 ImageToolbox 引擎按 switchType 八档分发
- * （Bridge 与旧 LocalSwitchType 读的是同一个设置来源），本文件的 MATERIAL_YOU 接管
- * 与 switch/SwitchByType 的双轨实现就此退场。
+ * 开关样式统一由 `ui.style.Switch` 提供（material3 原生实现，未选中轨道带玻璃配色）。
  */
 @Composable
 fun AppSwitch(

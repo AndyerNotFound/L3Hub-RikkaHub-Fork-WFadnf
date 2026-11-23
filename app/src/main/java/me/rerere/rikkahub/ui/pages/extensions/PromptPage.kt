@@ -32,7 +32,7 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -317,7 +317,7 @@ private fun ModeInjectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            AppIconBadge(
+            CardGroupIcon(
                 icon = HugeIcons.MagicWand01,
                 containerColor = if (injection.enabled) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -712,7 +712,7 @@ private fun LorebookCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 停用的条目图标褪成中性色
-            AppIconBadge(
+            CardGroupIcon(
                 icon = HugeIcons.Book01,
                 containerColor = if (book.enabled) {
                     MaterialTheme.colorScheme.tertiaryContainer

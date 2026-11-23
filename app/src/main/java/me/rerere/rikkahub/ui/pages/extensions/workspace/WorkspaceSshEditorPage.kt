@@ -5,11 +5,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -55,11 +52,10 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
@@ -119,15 +115,17 @@ fun WorkspaceSshEditorPage(id: String?) {
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
-            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
             contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
                 top = innerPadding.calculateTopPadding() + 8.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_basic)) {
+                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_basic))
+                CardGroup {
                     FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_name)) {
                         OutlinedTextField(
                             enabled = editable,
@@ -142,7 +140,8 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_connection)) {
+                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_connection))
+                CardGroup {
                     FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_host)) {
                         OutlinedTextField(
                             enabled = editable,
@@ -179,12 +178,13 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_auth)) {
+                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_auth))
+                CardGroup {
                     if (state.savedCredentialsLost) {
-                        AppIconRow(
-                            icon = HugeIcons.AlertCircle,
-                            headline = stringResource(R.string.workspace_ssh_editor_credentials_lost),
-                            supporting = stringResource(R.string.workspace_ssh_editor_credentials_lost_desc),
+                        item(
+                            leadingContent = { CardGroupIcon(HugeIcons.AlertCircle) },
+                            headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost)) },
+                            supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc)) },
                         )
                     }
                     FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_auth_method)) {
@@ -267,7 +267,8 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_working_dir)) {
+                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_working_dir))
+                CardGroup {
                     val homeDir = state.probeResult?.homeDir?.takeIf { it != state.remoteDir }
                     FormFieldRow(
                         headline = stringResource(R.string.workspace_ssh_editor_remote_dir),
@@ -296,34 +297,27 @@ fun WorkspaceSshEditorPage(id: String?) {
             }
 
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_security)) {
-                    // 指纹用等宽字体多行显示，AppIconRow 只吃纯文本，这一行自己拼
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AppIconBadge(HugeIcons.FingerPrint)
-                            Spacer(Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.workspace_ssh_editor_host_key))
-                                Spacer(Modifier.height(2.dp))
-                                val hostKey = state.hostKey
-                                if (hostKey == null) {
-                                    Text(
-                                        text = stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                } else {
-                                    Text(
-                                        text = "${hostKey.type}\n${hostKey.fingerprint}",
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                            }
+                CardGroupTitle(stringResource(R.string.workspace_ssh_editor_security))
+                CardGroup {
+                    // 指纹用等宽字体多行显示，这一项走 formItem
+                    formItem(
+                        leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
+                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host_key)) },
+                    ) {
+                        val hostKey = state.hostKey
+                        if (hostKey == null) {
+                            Text(
+                                text = stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else {
+                            Text(
+                                text = "${hostKey.type}\n${hostKey.fingerprint}",
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
                 }
@@ -383,33 +377,24 @@ fun WorkspaceSshEditorPage(id: String?) {
     }
 }
 
-// 表单项：标题行（可带说明与右侧控件）+ 内容区，内距由 AppSettingsRow 给
+// 表单项：标题行（可带说明与右侧控件）+ 内容区，形状与内距交给 CardGroup
 @Composable
-private fun FormFieldRow(
+private fun CardGroupScope.FormFieldRow(
     headline: String,
     supporting: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    AppSettingsRow {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = headline)
-                    if (supporting != null) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = supporting,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-                trailing?.invoke()
-            }
-            Spacer(Modifier.height(8.dp))
-            content()
-        }
+    formItem(
+        headlineContent = { Text(text = headline) },
+        supportingContent = if (supporting != null) {
+            { Text(text = supporting) }
+        } else {
+            null
+        },
+        trailingContent = trailing,
+    ) {
+        content()
     }
 }
 
@@ -449,8 +434,6 @@ private fun ProbeSection(
             enabled = !state.busy,
             modifier = Modifier
                 .fillMaxWidth()
-                // LazyColumn 的横向内距交给了 Salt 的分组，这个按钮自己补回来
-                .padding(horizontal = 16.dp),
         ) {
             if (state.testing) {
                 LoadingIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
@@ -467,11 +450,12 @@ private fun ProbeSection(
             )
         }
         state.probeResult?.let { result ->
-            AppSettingsGroup(title = stringResource(R.string.workspace_ssh_editor_connected)) {
-                AppIconRow(
-                    icon = HugeIcons.CloudServer,
-                    headline = stringResource(R.string.workspace_ssh_editor_shell),
-                    supporting = result.shell,
+            CardGroupTitle(stringResource(R.string.workspace_ssh_editor_connected))
+            CardGroup {
+                item(
+                    leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
+                    headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_shell)) },
+                    supportingContent = { Text(result.shell) },
                 )
                 val remoteDirText = when {
                     state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
@@ -492,10 +476,10 @@ private fun ProbeSection(
                         else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
                     }
                 }
-                AppIconRow(
-                    icon = HugeIcons.Folder01,
-                    headline = stringResource(R.string.workspace_ssh_editor_working_dir),
-                    supporting = remoteDirText,
+                item(
+                    leadingContent = { CardGroupIcon(HugeIcons.Folder01) },
+                    headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_working_dir)) },
+                    supportingContent = { Text(remoteDirText) },
                 )
             }
         }

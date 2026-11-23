@@ -75,8 +75,7 @@ import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -255,8 +254,8 @@ private fun CleanFilesSheet(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            // 横向内距由 AppSettingsCard 自带（12dp）
-            .padding(bottom = 16.dp),
+            // 横向 16dp 由这里给：CardGroup 自身不带外距
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column(
@@ -271,10 +270,11 @@ private fun CleanFilesSheet(
         }
 
         Box(modifier = Modifier.selectableGroup()) {
-            AppSettingsCard {
+            CardGroup {
                 CleanRange.entries.forEach { range ->
                     val selected = selectedRange == range
-                    AppSettingsRow {
+                    // 单选行：整行可点 + role/selected 语义原样保留，用 formItem 装手拼的 Row
+                    formItem {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

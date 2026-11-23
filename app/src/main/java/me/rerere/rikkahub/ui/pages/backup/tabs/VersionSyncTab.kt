@@ -32,9 +32,8 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.VersionSyncVM
 import me.rerere.rikkahub.ui.pages.backup.components.BackupActionIcon
@@ -79,13 +78,12 @@ fun VersionSyncTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
-            .padding(vertical = 16.dp),
+            // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        AppSettingsGroup(
-            title = stringResource(R.string.backup_page_version_sync_peer_title),
-        ) {
+        CardGroupTitle(stringResource(R.string.backup_page_version_sync_peer_title))
+        CardGroup {
             BackupActionRow(
                 icon = HugeIcons.SmartPhone01,
                 loading = detecting,
@@ -112,9 +110,8 @@ fun VersionSyncTab(
             )
         }
 
-        AppSettingsGroup(
-            title = stringResource(R.string.backup_page_version_sync),
-        ) {
+        CardGroupTitle(stringResource(R.string.backup_page_version_sync))
+        CardGroup {
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = working?.direction == SyncDirection.PULL,
@@ -132,34 +129,36 @@ fun VersionSyncTab(
             // 同步进行中时把进度条接在下面
             val state = working
             if (state != null) {
-                AppSettingsRow {
-                    Column {
-                        val progress = state.progress
+                formItem(
+                    headlineContent = {
                         Text(
-                            text = syncPhaseText(context, state.direction, progress),
+                            text = syncPhaseText(context, state.direction, state.progress),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        val fraction = progress?.let(::progressFraction)
-                        if (fraction == null) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                            )
-                        } else {
-                            LinearProgressIndicator(
-                                progress = { fraction },
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            )
-                        }
+                    },
+                ) {
+                    val fraction = state.progress?.let(::progressFraction)
+                    if (fraction == null) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
-            AppSettingsRow {
-                Text(
-                    text = stringResource(R.string.backup_page_version_sync_merge_note),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+            item(
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.backup_page_version_sync_merge_note),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+            )
         }
     }
 

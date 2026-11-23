@@ -65,9 +65,9 @@ import me.rerere.rikkahub.data.ai.tools.decodeToolOverrideParameters
 import me.rerere.rikkahub.data.ai.tools.encodeToolOverrideParameters
 import me.rerere.rikkahub.data.model.ToolOverride
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.Button
@@ -138,23 +138,23 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距由 AppSettingsCard 自带（12dp）
+            // 横向内距 16dp，组间距 16dp
             contentPadding = PaddingValues(
+                start = 16.dp,
                 top = innerPadding.calculateTopPadding() + 8.dp,
+                end = 16.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("intro") {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.tool_override_page_intro),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                CardGroup {
+                    formItem {
+                        Text(
+                            text = stringResource(R.string.tool_override_page_intro),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -191,54 +191,38 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
                         item(group.name) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 ToolGroupHeader(group)
-                                AppSettingsCard {
+                                // stringResource 得在 CardGroup 外面取，CardGroup 的内容不是 @Composable
+                                val noDescriptionText = stringResource(R.string.tool_override_detail_no_description)
+                                val overriddenText = stringResource(R.string.tool_override_overridden)
+                                CardGroup {
                                     entries.forEach { entry ->
                                         val toolOverride = overrides[entry.name]
                                         val description = toolOverride?.description ?: entry.description
                                         val overlineText = entry.groupDetail
-                                        AppSettingsRow {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .heightIn(min = 56.dp)
-                                                    .clickable(onClick = { selectedName = entry.name }),
-                                                verticalAlignment = Alignment.Top,
-                                            ) {
-                                                AppIconBadge(
-                                                    icon = group.icon(),
-                                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        item(
+                                            onClick = { selectedName = entry.name },
+                                            overlineContent = if (overlineText != null) {
+                                                { Text(overlineText) }
+                                            } else null,
+                                            leadingContent = { CardGroupIcon(icon = group.icon()) },
+                                            headlineContent = {
+                                                Text(
+                                                    text = entry.name,
+                                                    fontFamily = JetbrainsMono,
+                                                    fontWeight = FontWeight.Medium,
                                                 )
-                                                Spacer(modifier = Modifier.width(16.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    val noDescriptionText = stringResource(R.string.tool_override_detail_no_description)
-                                                    if (overlineText != null) {
-                                                        Text(
-                                                            text = overlineText,
-                                                            color = LocalContentColor.current.copy(alpha = 0.5f),
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                        )
-                                                        Spacer(modifier = Modifier.height(2.dp))
-                                                    }
-                                                    Text(
-                                                        text = entry.name,
-                                                        fontFamily = JetbrainsMono,
-                                                        fontWeight = FontWeight.Medium,
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = description.ifBlank { noDescriptionText },
-                                                        color = LocalContentColor.current.copy(alpha = 0.5f),
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        maxLines = 2,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
-                                                if (toolOverride != null) {
-                                                    ValuePill(text = stringResource(R.string.tool_override_overridden))
-                                                }
-                                            }
-                                        }
+                                            },
+                                            supportingContent = {
+                                                Text(
+                                                    text = description.ifBlank { noDescriptionText },
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            },
+                                            trailingContent = if (toolOverride != null) {
+                                                { CardGroupValue(overriddenText) }
+                                            } else null,
+                                        )
                                     }
                                 }
                             }

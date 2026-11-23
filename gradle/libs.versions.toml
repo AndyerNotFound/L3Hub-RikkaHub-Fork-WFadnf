@@ -48,15 +48,7 @@ haze = "2.1.0"
 # 形状体系：连续圆角（Smooth）与超椭圆（Squircle），版本与 ImageToolbox 对齐
 capsule = "2.1.3"
 squircle-shape = "5.4.0"
-# toolbox-ui 阶段 2：阴影 gadget（shadow-gadgets / ComposeShadowsPlus）与不可变集合
-shadow-gadgets = "2.5.0"
-compose-shadows-plus = "1.0.4"
-kotlinx-collections-immutable = "0.5.2"
-# toolbox-ui 阶段 3：deceleration fling 预设（EnhancedFlingBehavior）与渐隐边缘/跑马灯绘制
-flinger = "2.1.0"
-fading-edges = "1.0.4"
 # 液态玻璃开关：blur / lens / highlight 这套绘制，同属 kyant0
-backdrop = "2.0.1"
 uiautomator = "2.4.0"
 benchmarkMacroJunit4 = "1.5.0"
 baselineprofile = "1.5.0"
@@ -73,9 +65,6 @@ bouncycastle = "1.86"
 apache-sshd = "2.20.1"
 diffutils = "4.18"
 snakeyaml = "2.7"
-# toolbox-ui：ImageToolbox 前端移植
-material-kolor = "5.0.1"
-palette = "1.1.0"
 # SaltUI：设置行 / 多档 Sheet / 折叠头 / 自适应窗口这一套交互（Moriafly，Apache-2.0，Maven Central）
 saltui = "3.0.0"
 
@@ -115,8 +104,6 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material = { group = "androidx.compose.material", name = "material" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
-androidx-palette-ktx = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
-material-kolor = { group = "com.materialkolor", name = "material-kolor", version.ref = "material-kolor" }
 saltui = { module = "io.github.moriafly:salt-ui", version.ref = "saltui" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
@@ -178,14 +165,8 @@ haze-blur-material3 = { module = "dev.chrisbanes.haze:haze-blur-material3", vers
 haze-glass = { module = "dev.chrisbanes.haze:haze-glass", version.ref = "haze" }
 haze-glass-material3 = { module = "dev.chrisbanes.haze:haze-glass-material3", version.ref = "haze" }
 capsule = { module = "io.github.kyant0:capsule", version.ref = "capsule" }
-backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 squircle-shape = { group = "com.stoyanvuchev", name = "squircle-shape-android", version.ref = "squircle-shape" }
-flinger = { module = "com.github.iamjosephmj:flinger", version.ref = "flinger" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlin-coroutines-core" }
-fading-edges = { module = "com.github.t8rin:ComposeFadingEdges", version.ref = "fading-edges" }
-shadow-gadgets = { module = "com.github.zed-alpha.shadow-gadgets:compose", version.ref = "shadow-gadgets" }
-compose-shadows-plus = { module = "com.github.GIGAMOLE:ComposeShadowsPlus", version.ref = "compose-shadows-plus" }
-kotlinx-collections-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "kotlinx-collections-immutable" }
 androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacroJunit4" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }

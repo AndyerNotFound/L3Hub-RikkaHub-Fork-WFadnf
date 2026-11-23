@@ -4,10 +4,8 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
@@ -18,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -42,11 +39,10 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
@@ -93,9 +89,11 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             )
 
             // 导航条的位置留在列表的内边距里，内容可以滚到它下面
-            // 横向内距由 AppSettingsCard 自带（12dp），这里只留纵向
+            // 横向 16dp 与上游一致：CardGroup 自身不带外距
             val contentPadding = PaddingValues(
+                start = 16.dp,
                 top = 8.dp,
+                end = 16.dp,
                 bottom = innerPadding.calculateBottomPadding() + 16.dp,
             )
             HorizontalPager(
@@ -160,40 +158,39 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
         item {
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            AppSettingsCard {
-                modelSettingItem(
-                    icon = HugeIcons.BubbleChat,
-                    title = R.string.setting_model_page_chat_model,
-                    description = R.string.setting_model_page_chat_model_desc,
-                    state = chatModel,
-                    iconContainerColor = containerColor,
-                    iconContentColor = contentColor,
-                )
+            CardGroup {
+                // modelSettingItem 内部还是旧版行容器（在 components/ai 里，那份文件不在本次范围内）
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.BubbleChat,
+                        title = R.string.setting_model_page_chat_model,
+                        description = R.string.setting_model_page_chat_model_desc,
+                        state = chatModel,
+                        iconContainerColor = containerColor,
+                        iconContentColor = contentColor,
+                    )
+                }
             }
         }
         item {
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             // 标题和聊天建议都由快速模型生成，相关的选项跟它放在一组
-            AppSettingsCard {
-                modelSettingItem(
-                    icon = HugeIcons.Zap,
-                    title = R.string.setting_model_page_fast_model,
-                    description = R.string.setting_model_page_fast_model_desc,
-                    state = fastModel,
-                    iconContainerColor = containerColor,
-                    iconContentColor = contentColor,
-                )
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.assistant_page_thinking_budget))
-                        }
+            CardGroup {
+                // modelSettingItem 内部还是旧版行容器（在 components/ai 里，那份文件不在本次范围内）
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.Zap,
+                        title = R.string.setting_model_page_fast_model,
+                        description = R.string.setting_model_page_fast_model_desc,
+                        state = fastModel,
+                        iconContainerColor = containerColor,
+                        iconContentColor = contentColor,
+                    )
+                }
+                item(
+                    headlineContent = { Text(text = stringResource(R.string.assistant_page_thinking_budget)) },
+                    trailingContent = {
                         ReasoningButton(
                             reasoningLevel = settings.fastModelReasoningLevel,
                             onUpdateReasoningLevel = {
@@ -201,21 +198,21 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                             },
                             useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
-                    }
-                }
-                AppSwitchRow(
+                    },
+                )
+                switchItem(
                     checked = settings.enableAutoTitle,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableAutoTitle = it) }
                     },
-                    headline = stringResource(R.string.setting_model_page_enable_auto_title),
+                    headlineContent = { Text(text = stringResource(R.string.setting_model_page_enable_auto_title)) },
                 )
-                AppSwitchRow(
+                switchItem(
                     checked = settings.enableSuggestion,
                     onCheckedChange = {
                         vm.updateSettings { latest -> latest.copy(enableSuggestion = it) }
                     },
-                    headline = stringResource(R.string.setting_model_page_enable_suggestion),
+                    headlineContent = { Text(text = stringResource(R.string.setting_model_page_enable_suggestion)) },
                 )
             }
         }
@@ -223,31 +220,27 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             // 没设置时用快速模型，配色和它保持一致
             val containerColor = MaterialTheme.colorScheme.tertiaryContainer
             val contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-            AppSettingsCard {
+            CardGroup {
                 // 不设置时跟着快速模型走，所以要能清掉
-                modelSettingItem(
-                    icon = HugeIcons.Brain02,
-                    title = R.string.setting_model_page_memory_model,
-                    description = R.string.setting_model_page_memory_model_desc,
-                    state = memoryModel,
-                    iconContainerColor = containerColor,
-                    iconContentColor = contentColor,
-                    placeholder = R.string.setting_model_page_memory_model_follow_fast,
-                    onClear = { vm.updateSettings { latest -> latest.copy(memoryModelId = null) } },
-                    clearContentDescription = R.string.setting_model_page_memory_model_follow_fast,
-                )
+                // modelSettingItem 内部还是旧版行容器（在 components/ai 里，那份文件不在本次范围内）
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.Brain02,
+                        title = R.string.setting_model_page_memory_model,
+                        description = R.string.setting_model_page_memory_model_desc,
+                        state = memoryModel,
+                        iconContainerColor = containerColor,
+                        iconContentColor = contentColor,
+                        placeholder = R.string.setting_model_page_memory_model_follow_fast,
+                        onClear = { vm.updateSettings { latest -> latest.copy(memoryModelId = null) } },
+                        clearContentDescription = R.string.setting_model_page_memory_model_follow_fast,
+                    )
+                }
                 // 没设置时推理强度也跟着快速模型
                 if (memoryModel.currentModel != null) {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.assistant_page_thinking_budget))
-                            }
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.assistant_page_thinking_budget)) },
+                        trailingContent = {
                             ReasoningButton(
                                 reasoningLevel = settings.memoryModelReasoningLevel,
                                 onUpdateReasoningLevel = {
@@ -255,8 +248,8 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                                 },
                                 useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                             )
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }
@@ -268,24 +261,29 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 ?.takeIf { it.type == ModelType.CHAT }
                 ?.takeUnless { it.inputModalities.contains(Modality.IMAGE) }
                 ?.let { R.string.setting_model_page_ocr_model_missing }
-            AppSettingsCard {
-                modelSettingItem(
-                    icon = HugeIcons.Translate,
-                    title = R.string.setting_model_page_translate_model,
-                    description = R.string.setting_model_page_translate_model_desc,
-                    state = translateModel,
-                    iconContainerColor = containerColor,
-                    iconContentColor = contentColor,
-                )
-                modelSettingItem(
-                    icon = HugeIcons.ScanText,
-                    title = R.string.setting_model_page_ocr_model,
-                    description = R.string.setting_model_page_ocr_model_desc,
-                    state = ocrModel,
-                    iconContainerColor = containerColor,
-                    iconContentColor = contentColor,
-                    warning = ocrWarning,
-                )
+            CardGroup {
+                // modelSettingItem 内部还是旧版行容器（在 components/ai 里，那份文件不在本次范围内）
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.Translate,
+                        title = R.string.setting_model_page_translate_model,
+                        description = R.string.setting_model_page_translate_model_desc,
+                        state = translateModel,
+                        iconContainerColor = containerColor,
+                        iconContentColor = contentColor,
+                    )
+                }
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.ScanText,
+                        title = R.string.setting_model_page_ocr_model,
+                        description = R.string.setting_model_page_ocr_model_desc,
+                        state = ocrModel,
+                        iconContainerColor = containerColor,
+                        iconContentColor = contentColor,
+                        warning = ocrWarning,
+                    )
+                }
             }
         }
     }

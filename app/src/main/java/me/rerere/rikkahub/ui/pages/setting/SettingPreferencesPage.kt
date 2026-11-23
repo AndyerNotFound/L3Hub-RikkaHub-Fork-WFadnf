@@ -23,8 +23,8 @@ import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -57,61 +57,83 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距由 AppSettingsCard 自带（12dp）
-            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
+            // 横向 16dp：CardGroup 自身不带外距
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item("preferences") {
-                val containerColor = MaterialTheme.colorScheme.primaryContainer
-                val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                AppSettingsCard {
-                    AppIconRow(
-                        icon = HugeIcons.Settings03,
-                        headline = stringResource(R.string.setting_page_preferences_general),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_general_desc),
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesGeneral) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.Settings03,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_general)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_general_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Sun01,
-                        headline = stringResource(R.string.setting_page_preferences_theme),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_theme_desc),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesTheme) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.Sun01,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_theme)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_theme_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.PaintBoard,
-                        headline = stringResource(R.string.setting_page_preferences_ui),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_ui_desc),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesUI) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.PaintBoard,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_ui)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.Notification01,
-                        headline = stringResource(R.string.setting_page_preferences_notification),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_notification_desc),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.Notification01,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.CloudServer,
-                        headline = stringResource(R.string.setting_page_preferences_network),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_network_desc),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.CloudServer,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
                     )
-                    AppIconRow(
-                        icon = HugeIcons.BubbleChat,
-                        headline = stringResource(R.string.setting_page_preferences_message_style),
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                        supporting = stringResource(R.string.setting_page_preferences_message_style_desc),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesMessageStyle) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                HugeIcons.BubbleChat,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_message_style)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_message_style_desc)) },
                     )
                 }
             }

@@ -93,7 +93,6 @@ import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.AppNavItem
 
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.account.preserveCredential
@@ -103,8 +102,8 @@ import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ProviderQuotaText
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
@@ -505,8 +504,8 @@ private fun SettingProviderConfigPage(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置；横向内距由 AppSettingsCard 自带（12dp 横向外距）
-                .padding(top = 16.dp, bottom = 128.dp),
+                // 底部留出悬浮工具栏的位置；横向内距 16dp
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ProviderConfigure(
@@ -517,21 +516,21 @@ private fun SettingProviderConfigPage(
                 },
             )
 
-            AppSettingsCard {
-                AppNavItem(
+            CardGroup {
+                item(
                     onClick = { showGroupDialog = true },
-                    text = stringResource(R.string.setting_provider_group_title),
-                    sub = group ?: stringResource(R.string.setting_provider_group_none),
+                    headlineContent = { Text(stringResource(R.string.setting_provider_group_title)) },
+                    supportingContent = { Text(group ?: stringResource(R.string.setting_provider_group_none)) },
                 )
-                AppNavItem(
+                item(
                     onClick = {
                         proxyInput = proxyUrl.orEmpty()
                         proxyUsername = proxyHost?.let { settings.providerProxyUsernames[it] }.orEmpty()
                         proxyPassword = proxyHost?.let { settings.providerProxyPasswords[it] }.orEmpty()
                         showProxyDialog = true
                     },
-                    text = stringResource(R.string.setting_provider_proxy_title),
-                    sub = proxyUrl ?: stringResource(R.string.setting_provider_proxy_desc_short),
+                    headlineContent = { Text(stringResource(R.string.setting_provider_proxy_title)) },
+                    supportingContent = { Text(proxyUrl ?: stringResource(R.string.setting_provider_proxy_desc_short)) },
                 )
             }
 

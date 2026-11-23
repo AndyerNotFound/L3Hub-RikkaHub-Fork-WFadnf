@@ -1,23 +1,16 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -49,9 +42,9 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.SaltModalSheet
 
@@ -69,7 +62,7 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
             val containerColor = MaterialTheme.colorScheme.primaryContainer
             val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             // 只有翻译能单独设思考强度，所以自成一组
-            AppSettingsCard {
+            CardGroup {
                 promptItem(
                     slot = PromptSlot.TRANSLATION,
                     settings = settings,
@@ -77,16 +70,9 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                     iconContentColor = contentColor,
                     onClick = { editing = it },
                 )
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.assistant_page_thinking_budget))
-                        }
+                item(
+                    headlineContent = { Text(text = stringResource(R.string.assistant_page_thinking_budget)) },
+                    trailingContent = {
                         ReasoningButton(
                             reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
                             onUpdateReasoningLevel = {
@@ -94,14 +80,14 @@ internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPaddin
                             },
                             useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
                         )
-                    }
-                }
+                    },
+                )
             }
         }
         item {
             val containerColor = MaterialTheme.colorScheme.secondaryContainer
             val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            AppSettingsCard {
+            CardGroup {
                 PromptSlot.entries.fastForEach { slot ->
                     if (slot != PromptSlot.TRANSLATION) {
                         promptItem(
@@ -180,8 +166,7 @@ private enum class PromptSlot(
 private val Whitespace = Regex("\\s+")
 
 // 一项提示词：标题下面预览当前内容，点击后编辑
-@Composable
-private fun promptItem(
+private fun CardGroupScope.promptItem(
     slot: PromptSlot,
     settings: Settings,
     iconContainerColor: Color,
@@ -189,35 +174,32 @@ private fun promptItem(
     onClick: (PromptSlot) -> Unit,
 ) {
     val prompt = slot.get(settings)
-    AppSettingsRow {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .clickable(onClick = { onClick(slot) }),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AppIconBadge(slot.icon, containerColor = iconContainerColor, contentColor = iconContentColor)
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(slot.title))
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    // 提示词里换行很多，压成一行才看得到实际内容
-                    text = remember(prompt) { prompt.trim().replace(Whitespace, " ") },
-                    color = LocalContentColor.current.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+    item(
+        onClick = { onClick(slot) },
+        leadingContent = {
+            CardGroupIcon(
+                slot.icon,
+                containerColor = iconContainerColor,
+                contentColor = iconContentColor,
+            )
+        },
+        headlineContent = { Text(text = stringResource(slot.title)) },
+        supportingContent = {
+            Text(
+                // 提示词里换行很多，压成一行才看得到实际内容
+                text = remember(prompt) { prompt.trim().replace(Whitespace, " ") },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        trailingContent = {
             Icon(
                 HugeIcons.ArrowRight01,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )
-        }
-    }
+        },
+    )
 }
 
 @Composable

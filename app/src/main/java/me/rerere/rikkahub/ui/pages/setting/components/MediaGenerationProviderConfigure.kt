@@ -31,9 +31,8 @@ import me.rerere.mediagen.model.MediaGenerationModel
 import me.rerere.mediagen.model.MediaKind
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.style.IconButton
@@ -78,101 +77,65 @@ fun MediaGenerationProviderBasicConfigure(
     ConfigureColumn(modifier) {
         // 先窄化，lambda 体里要用 Aliyun 的 workspaceId；只在 visible 里做 is 判断带不出 smart cast
         val aliyun = setting as? MediaGenerationProviderSetting.Aliyun
-        AppSettingsCard {
+        CardGroup {
             // 类型在新建时选定，之后不能改
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_media_page_provider_type))
-                    }
-                    Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                }
+            item(
+                headlineContent = { Text(stringResource(R.string.setting_media_page_provider_type)) },
+                trailingContent = { Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall) },
+            )
+
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_media_page_provider_name)) },
+            ) {
+                OutlinedTextField(
+                    value = setting.name,
+                    onValueChange = { onValueChange(setting.copyProvider(name = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
 
-            AppSettingsRow {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.setting_media_page_provider_name))
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = setting.name,
-                        onValueChange = { onValueChange(setting.copyProvider(name = it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                }
+            formItem(
+                headlineContent = { Text("API Key") },
+            ) {
+                OutlinedTextField(
+                    value = setting.apiKey,
+                    onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
 
-            AppSettingsRow {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("API Key")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = setting.apiKey,
-                        onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                }
-            }
-
-            AppSettingsRow {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Base URL")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = setting.baseUrl,
-                        onValueChange = { onValueChange(setting.copyProvider(baseUrl = it.trim())) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                }
+            formItem(
+                headlineContent = { Text("Base URL") },
+            ) {
+                OutlinedTextField(
+                    value = setting.baseUrl,
+                    onValueChange = { onValueChange(setting.copyProvider(baseUrl = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
 
             if (aliyun != null) {
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.setting_media_page_workspace_id))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                        Text(
-                                            stringResource(
-                                                R.string.setting_media_page_workspace_id_desc,
-                                                MediaGenerationProviderSetting.Aliyun.WORKSPACE_PLACEHOLDER,
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (aliyun != null) {
-                            OutlinedTextField(
-                                value = aliyun.workspaceId,
-                                onValueChange = { onValueChange(aliyun.copy(workspaceId = it.trim())) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.setting_media_page_workspace_id)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                R.string.setting_media_page_workspace_id_desc,
+                                MediaGenerationProviderSetting.Aliyun.WORKSPACE_PLACEHOLDER,
                             )
-                        }
+                        )
+                    },
+                ) {
+                    if (aliyun != null) {
+                        OutlinedTextField(
+                            value = aliyun.workspaceId,
+                            onValueChange = { onValueChange(aliyun.copy(workspaceId = it.trim())) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
                     }
                 }
             }
@@ -195,50 +158,47 @@ fun MediaGenerationProviderModelsConfigure(
     }
 
     ConfigureColumn(modifier) {
-        AppSettingsCard {
+        CardGroup {
             models.forEach { model ->
-                AppSettingsRow {
-                    Column {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            OutlinedTextField(
-                                value = model.modelId,
-                                onValueChange = { value ->
-                                    updateModels(models.map { if (it.id == model.id) model.copy(modelId = value.trim()) else it })
-                                },
-                                modifier = Modifier.weight(1f),
-                                placeholder = { Text(stringResource(R.string.setting_media_page_model_id)) },
-                                singleLine = true
-                            )
-                            IconButton(onClick = { updateModels(models.filter { it.id != model.id }) }) {
-                                Icon(HugeIcons.Delete01, stringResource(R.string.delete))
-                            }
+                formItem {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = model.modelId,
+                            onValueChange = { value ->
+                                updateModels(models.map { if (it.id == model.id) model.copy(modelId = value.trim()) else it })
+                            },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.setting_media_page_model_id)) },
+                            singleLine = true
+                        )
+                        IconButton(onClick = { updateModels(models.filter { it.id != model.id }) }) {
+                            Icon(HugeIcons.Delete01, stringResource(R.string.delete))
                         }
-                        // 只支持一种类型的厂商不需要选择
-                        if (kinds.size > 1) {
-                            ConnectedChoiceButtons(
-                                options = kinds,
-                                selected = model.kind,
-                                onSelect = { kind ->
-                                    updateModels(models.map { if (it.id == model.id) model.copy(kind = kind) else it })
-                                },
-                            ) { kind, selected ->
-                                ConnectedChoiceLabel(text = kind.label, selected = selected)
-                            }
+                    }
+                    if (kinds.size > 1) {
+                        ConnectedChoiceButtons(
+                            options = kinds,
+                            selected = model.kind,
+                            onSelect = { kind ->
+                                updateModels(models.map { if (it.id == model.id) model.copy(kind = kind) else it })
+                            },
+                        ) { kind, selected ->
+                            ConnectedChoiceLabel(text = kind.label, selected = selected)
                         }
                     }
                 }
             }
 
-            AppIconRow(
-                icon = HugeIcons.Add01,
-                headline = stringResource(R.string.setting_media_page_add_model),
-                supporting = stringResource(R.string.setting_media_page_models_desc),
+            item(
                 onClick = if (kinds.isNotEmpty()) {
                     { updateModels(models + MediaGenerationModel(modelId = "", kind = kinds.first())) }
                 } else null,
+                leadingContent = { CardGroupIcon(HugeIcons.Add01) },
+                headlineContent = { Text(stringResource(R.string.setting_media_page_add_model)) },
+                supportingContent = { Text(stringResource(R.string.setting_media_page_models_desc)) },
             )
         }
     }

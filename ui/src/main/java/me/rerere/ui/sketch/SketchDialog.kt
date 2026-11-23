@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
@@ -50,8 +52,6 @@ import me.rerere.hugeicons.stroke.Redo
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.hugeicons.stroke.Undo
 import me.rerere.ui.R
-import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.AnimatedDialog
 
 /**
  * 全屏的画板：用手指或触控笔画一张草图，确认后得到一张图片。
@@ -93,7 +93,7 @@ fun SketchDialog(
         if (state.isBlank) onDismiss() else confirmDiscard = true
     }
 
-    AnimatedDialog(
+    Dialog(
         onDismissRequest = { close() },
         properties = DialogProperties(
             dismissOnClickOutside = false,
@@ -161,7 +161,7 @@ fun SketchDialog(
     }
 
     if (confirmDiscard) {
-        AnimatedAlertDialog(
+        AlertDialog(
             onDismissRequest = { confirmDiscard = false },
             title = { Text(stringResource(R.string.sketch_dialog_discard_title)) },
             text = { Text(stringResource(R.string.sketch_dialog_discard_message)) },

@@ -10,10 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -115,28 +114,27 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {
-        // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里只留底部
-        AppSettingsGroup(
-            title = stringResource(R.string.workspace_page_create),
-            modifier = Modifier.padding(bottom = 24.dp),
+        CardGroupTitle(stringResource(R.string.workspace_page_create))
+        CardGroup(
+            modifier = Modifier.padding(horizontal = 16.dp, bottom = 24.dp),
         ) {
-            AppIconRow(
-                icon = HugeIcons.FolderCode,
-                headline = stringResource(R.string.workspace_page_type_local),
-                supporting = stringResource(R.string.workspace_page_type_local_desc),
+            item(
                 onClick = {
                     showTypeSheet = false
                     showAddDialog = true
                 },
+                leadingContent = { CardGroupIcon(HugeIcons.FolderCode) },
+                headlineContent = { Text(stringResource(R.string.workspace_page_type_local)) },
+                supportingContent = { Text(stringResource(R.string.workspace_page_type_local_desc)) },
             )
-            AppIconRow(
-                icon = HugeIcons.CloudServer,
-                headline = stringResource(R.string.workspace_page_type_ssh),
-                supporting = stringResource(R.string.workspace_page_type_ssh_desc),
+            item(
                 onClick = {
                     showTypeSheet = false
                     navController.navigate(Screen.WorkspaceSshEditor())
                 },
+                leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
+                headlineContent = { Text(stringResource(R.string.workspace_page_type_ssh)) },
+                supportingContent = { Text(stringResource(R.string.workspace_page_type_ssh_desc)) },
             )
         }
     }
@@ -202,7 +200,7 @@ private fun WorkspaceItem(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppIconBadge(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
+            CardGroupIcon(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
             Column(
                 modifier = Modifier
                     .weight(1f)

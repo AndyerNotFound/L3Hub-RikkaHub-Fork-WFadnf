@@ -65,7 +65,6 @@ jobs:
             :document:testDebugUnitTest \
             :speech:testDebugUnitTest \
             :ui:testDebugUnitTest \
-            :toolbox-ui:compileDebugKotlin \
             :common:testDebugUnitTest \
             :oauth:testDebugUnitTest \
             :mediagen:testDebugUnitTest \

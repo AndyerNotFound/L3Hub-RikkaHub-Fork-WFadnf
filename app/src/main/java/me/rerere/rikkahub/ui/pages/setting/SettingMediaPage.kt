@@ -67,10 +67,9 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.remote.RemoteFileStore
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.PagerTab
@@ -375,7 +374,7 @@ private fun MediaUploadS3Tab(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            // 横向内距由 AppSettingsCard 自带（12dp），卡片以外的控件自己补
+            // 横向内距由各块自己补：CardGroup 不带外距；卡片以外的控件保持原样
             .padding(top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -417,7 +416,8 @@ private fun MediaUploadS3Tab(
         )
 
         if (type == AssetStorageType.S3) {
-            AppSettingsCard {
+            // S3 表单项来自 S3ConfigItems.kt（共用组件），CardGroup 作用域扩展
+            CardGroup {
                 s3ConnectionItems(
                     config = config,
                     onUpdate = {
@@ -474,50 +474,51 @@ private fun MediaUploadS3Tab(
             }
         }
 
-AppSettingsCard {
-    if (testing) {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+        CardGroup(modifier = Modifier.padding(horizontal = 16.dp)) {
+            if (testing) {
+                // 测连接期间原地显示进度：形状跟着 CardGroup 走，内容仍是一行
+                formItem {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(text = stringResource(R.string.backup_page_test_connection))
+                    }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(text = stringResource(R.string.backup_page_test_connection))
+            } else {
+                item(
+                    onClick = {
+                        scope.launch {
+                            testing = true
+                            remoteFileStore.testConnection()
+                                .onSuccess {
+                                    toaster.show(
+                                        context.getString(R.string.backup_page_connection_success),
+                                        type = ToastType.Success
+                                    )
+                                }
+                                .onFailure {
+                                    toaster.show(
+                                        context.getString(R.string.backup_page_connection_failed, it.message ?: ""),
+                                        type = ToastType.Error
+                                    )
+                                }
+                            testing = false
+                        }
+                    },
+                    leadingContent = { CardGroupIcon(HugeIcons.Connect) },
+                    headlineContent = { Text(stringResource(R.string.backup_page_test_connection)) },
+                )
             }
         }
-    } else {
-        AppIconRow(
-            icon = HugeIcons.Connect,
-            headline = stringResource(R.string.backup_page_test_connection),
-            onClick = {
-                scope.launch {
-                    testing = true
-                    remoteFileStore.testConnection()
-                        .onSuccess {
-                            toaster.show(
-                                context.getString(R.string.backup_page_connection_success),
-                                type = ToastType.Success
-                            )
-                        }
-                        .onFailure {
-                            toaster.show(
-                                context.getString(R.string.backup_page_connection_failed, it.message ?: ""),
-                                type = ToastType.Error
-                            )
-                        }
-                    testing = false
-                }
-            },
-        )
-    }
-}
     }
 }

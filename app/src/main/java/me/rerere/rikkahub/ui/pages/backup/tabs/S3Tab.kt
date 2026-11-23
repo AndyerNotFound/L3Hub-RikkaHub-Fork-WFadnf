@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.s3ConnectionItems
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -99,11 +99,11 @@ fun S3Tab(
             },
         )
 
-        AppSettingsCard {
+        CardGroup {
             s3ConnectionItems(config = s3Config, onUpdate = ::updateS3Config)
         }
 
-        AppSettingsCard {
+        CardGroup {
             backupContentItem(
                 options = S3Config.BackupItem.entries,
                 selected = s3Config.items,

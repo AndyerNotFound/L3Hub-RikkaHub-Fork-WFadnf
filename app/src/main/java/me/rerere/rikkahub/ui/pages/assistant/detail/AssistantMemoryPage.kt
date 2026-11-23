@@ -11,30 +11,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
@@ -381,13 +376,14 @@ private fun MemorySettingsTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
         val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-        AppSettingsCard {
-            AppSwitchRow(
+        CardGroup {
+            switchItem(
                 checked = assistant.enableMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -396,10 +392,10 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                headline = stringResource(R.string.assistant_page_memory),
-                supporting = stringResource(R.string.assistant_page_memory_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_desc)) },
             )
-            AppSwitchRow(
+            switchItem(
                 checked = assistant.enableMemoryWrite,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -409,10 +405,10 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                headline = stringResource(R.string.assistant_page_memory_write),
-                supporting = stringResource(R.string.assistant_page_memory_write_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_write)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_write_desc)) },
             )
-            AppSwitchRow(
+            switchItem(
                 checked = assistant.useGlobalMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -422,10 +418,10 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                headline = stringResource(R.string.assistant_page_global_memory),
-                supporting = stringResource(R.string.assistant_page_global_memory_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_global_memory)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_global_memory_desc)) },
             )
-            AppSwitchRow(
+            switchItem(
                 checked = assistant.autoConsolidateMemory,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -435,21 +431,25 @@ private fun MemorySettingsTab(
                     )
                 },
                 enabled = assistant.enableMemory,
-                headline = stringResource(R.string.assistant_page_memory_auto_dream),
-                supporting = stringResource(R.string.assistant_page_memory_auto_dream_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_dream_desc)) },
             )
-            modelSettingItem(
-                icon = HugeIcons.Brain02,
-                title = R.string.assistant_page_dreaming_model,
-                description = R.string.assistant_page_dreaming_model_desc,
-                state = dreamingModelState,
-                iconContainerColor = modelIconContainer,
-                iconContentColor = modelIconContent,
-                placeholder = R.string.assistant_page_dreaming_model_follow_global,
-                onClear = { onUpdateAssistant(assistant.copy(dreamingModelId = null)) },
-                clearContentDescription = R.string.assistant_page_dreaming_model_follow_global,
-            )
-            AppSwitchRow(
+            // modelSettingItem 是整块自定义行（图标 + 标题 + 右侧胶囊），
+            // 用无标题的 formItem 把它放进分组
+            formItem {
+                modelSettingItem(
+                    icon = HugeIcons.Brain02,
+                    title = R.string.assistant_page_dreaming_model,
+                    description = R.string.assistant_page_dreaming_model_desc,
+                    state = dreamingModelState,
+                    iconContainerColor = modelIconContainer,
+                    iconContentColor = modelIconContent,
+                    placeholder = R.string.assistant_page_dreaming_model_follow_global,
+                    onClear = { onUpdateAssistant(assistant.copy(dreamingModelId = null)) },
+                    clearContentDescription = R.string.assistant_page_dreaming_model_follow_global,
+                )
+            }
+            switchItem(
                 checked = assistant.enableRecentChatsReference,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -458,13 +458,13 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                headline = stringResource(R.string.assistant_page_recent_chats),
-                supporting = stringResource(R.string.assistant_page_recent_chats_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_recent_chats)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
             )
         }
 
-        AppSettingsCard {
-            AppSwitchRow(
+        CardGroup {
+            switchItem(
                 checked = assistant.autoCompress,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -473,70 +473,49 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                headline = stringResource(R.string.assistant_page_memory_auto_compress),
-                supporting = stringResource(R.string.assistant_page_memory_auto_compress_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_desc)) },
             )
             if (assistant.autoCompress) {
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.assistant_page_memory_auto_compress_ratio))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            ValuePill(text = "${(assistant.autoCompressRatio * 100).roundToInt()}%")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AppSlider(
-                            value = assistant.autoCompressRatio,
-                            onValueChange = { value ->
-                                // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
-                                onUpdateAssistant(
-                                    assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
-                                )
-                            },
-                            valueRange = AUTO_COMPRESS_RATIO_RANGE,
-                            steps = 8,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc))
+                    },
+                    trailingContent = {
+                        CardGroupValue("${(assistant.autoCompressRatio * 100).roundToInt()}%")
+                    },
+                ) {
+                    AppSlider(
+                        value = assistant.autoCompressRatio,
+                        onValueChange = { value ->
+                            // 按 5% 取整，避免浮点误差存成 0.79999995 之类的值
+                            onUpdateAssistant(
+                                assistant.copy(autoCompressRatio = (value * 20).roundToInt() / 20f)
+                            )
+                        },
+                        valueRange = AUTO_COMPRESS_RATIO_RANGE,
+                        steps = 8,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
             if (assistant.autoCompress) {
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable { showAutoCompressThresholdDialog = true },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Text(
-                            text = assistant.autoCompressThreshold.name,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
+                item(
+                    onClick = { showAutoCompressThresholdDialog = true },
+                    headlineContent = {
+                        Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold_desc))
+                    },
+                    trailingContent = { CardGroupValue(assistant.autoCompressThreshold.name) },
+                )
             }
         }
 
-        AppSettingsCard {
-            AppSwitchRow(
+        CardGroup {
+            switchItem(
                 checked = assistant.enableTimeReminder,
                 onCheckedChange = {
                     onUpdateAssistant(
@@ -545,40 +524,28 @@ private fun MemorySettingsTab(
                         )
                     )
                 },
-                headline = stringResource(R.string.assistant_page_time_reminder),
-                supporting = stringResource(R.string.assistant_page_time_reminder_desc),
+                headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },
             )
             if (assistant.enableTimeReminder) {
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable {
-                                timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
-                                showTimeReminderIntervalDialog = true
-                            },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.assistant_page_time_reminder_interval))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(R.string.assistant_page_time_reminder_interval_desc),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Text(
-                            text = stringResource(
+                item(
+                    onClick = {
+                        timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
+                        showTimeReminderIntervalDialog = true
+                    },
+                    headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.assistant_page_time_reminder_interval_desc))
+                    },
+                    trailingContent = {
+                        CardGroupValue(
+                            stringResource(
                                 R.string.assistant_page_time_reminder_interval_value,
                                 assistant.timeReminderIntervalMinutes
-                            ),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            )
                         )
-                    }
-                }
+                    },
+                )
             }
         }
     }
@@ -603,8 +570,9 @@ private fun MemoryFilesTab(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (consolidation != null) {
                 MemoryConsolidationSection(
@@ -639,8 +607,9 @@ private fun MemoryFilesTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (consolidation != null) {
             MemoryConsolidationSection(
@@ -650,45 +619,38 @@ private fun MemoryFilesTab(
         }
 
         memoryGroups.fastForEach { (directory, files) ->
-            AppSettingsGroup(
-                title = memorySectionTitle(directory),
-            ) {
+            CardGroupTitle(memorySectionTitle(directory))
+            CardGroup {
                 files.fastForEach { memory ->
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable { onOpenMemory(memory.path) },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = memory.title,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    if (memory.description.isNotEmpty()) {
-                                        Text(
-                                            text = memory.description,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
-                                    }
+                    item(
+                        onClick = { onOpenMemory(memory.path) },
+                        headlineContent = {
+                            Text(
+                                text = memory.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        supportingContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                if (memory.description.isNotEmpty()) {
                                     Text(
-                                        text = stringResource(
-                                            R.string.assistant_page_memory_updated_at,
-                                            relativeTimeOf(memory.updatedAt),
-                                        ),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.outline,
+                                        text = memory.description,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
+                                Text(
+                                    text = stringResource(
+                                        R.string.assistant_page_memory_updated_at,
+                                        relativeTimeOf(memory.updatedAt),
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
                             }
+                        },
+                        trailingContent = {
                             ItemActionMenu(
                                 actions = listOf(
                                     ItemAction(
@@ -699,8 +661,8 @@ private fun MemoryFilesTab(
                                     ),
                                 )
                             )
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }
@@ -733,32 +695,22 @@ private fun MemoryConsolidationSection(
     onOrganize: () -> Unit,
 ) {
     val lastRun = status.lastRun
-    AppSettingsCard {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.memory_dream_title))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = memoryConsolidationSummary(status),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodySmall,
+    CardGroup {
+        item(
+            headlineContent = { Text(stringResource(R.string.memory_dream_title)) },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(memoryConsolidationSummary(status))
+                    // 整理中画一条进度条，整理完的对话数写在上面那行
+                    status.roundProgress?.let { fraction ->
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        // 整理中画一条进度条，整理完的对话数写在上面那行
-                        status.roundProgress?.let { fraction ->
-                            LinearProgressIndicator(
-                                progress = { fraction },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
                     }
                 }
+            },
+            trailingContent = {
                 if (status.running) {
                     ContainedLoadingIndicator(modifier = Modifier.size(32.dp))
                 } else {
@@ -774,8 +726,8 @@ private fun MemoryConsolidationSection(
                         )
                     }
                 }
-            }
-        }
+            },
+        )
     }
 }
 
@@ -816,20 +768,3 @@ private fun relativeTimeOf(time: Long): String = DateUtils.getRelativeTimeSpanSt
     DateUtils.MINUTE_IN_MILLIS,
     DateUtils.FORMAT_ABBREV_MONTH,
 ).toString()
-
-// 标题行右侧的取值小标签，保持旧版胶囊观感；等宽数字，拖动滑块时宽度不跳
-@Composable
-private fun ValuePill(text: String) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            maxLines = 1,
-        )
-    }
-}

@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -200,7 +200,7 @@ private fun QuickMessageCard(
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppIconBadge(HugeIcons.Zap)
+            CardGroupIcon(HugeIcons.Zap)
             Column(
                 modifier = Modifier
                     .weight(1f)

@@ -1,16 +1,14 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.t8rin.toolbox.ui.widget.enhanced.EnhancedSlider
 
 /**
- * 滑杆样式统一由 ImageToolbox 的 [EnhancedSlider] 按 sliderType 四档分发
- * （Bridge 与旧 LocalSliderType 读的是同一个设置来源），M3 接管与
- * slider/SliderByType 的双轨实现就此退场。
+ * 滑杆统一入口，内部实现为 material3 原生 Slider（对齐上游 rikkahub 的用法）。
  *
- * 只收单值滑杆的参数：本项目没有区间滑杆（源工程的 `*RangeSlider` 也没搬）。
+ * 只收单值滑杆的参数：本项目没有区间滑杆。
  */
 @Composable
 fun AppSlider(
@@ -23,7 +21,7 @@ fun AppSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors? = null,
 ) {
-    EnhancedSlider(
+    androidx.compose.material3.Slider(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
@@ -31,6 +29,6 @@ fun AppSlider(
         valueRange = valueRange,
         steps = steps,
         onValueChangeFinished = onValueChangeFinished,
-        colors = colors,
+        colors = colors ?: SliderDefaults.colors(),
     )
 }

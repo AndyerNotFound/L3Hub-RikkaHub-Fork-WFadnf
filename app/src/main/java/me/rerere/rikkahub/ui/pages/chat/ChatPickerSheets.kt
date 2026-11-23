@@ -33,8 +33,8 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
 import me.rerere.rikkahub.ui.components.ai.SearchMode
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.ui.components.SaltModalSheet
 
@@ -178,14 +178,14 @@ internal fun TerminalWorkspacePickerSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // 外层已有 16dp 横向边距（标题和分组共用）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
-            AppSettingsCard {
+            // 外层已有 16dp 横向边距（标题和分组共用），CardGroup 不带外距
+            CardGroup {
                 workspaces.forEach { workspace ->
-                    AppIconRow(
-                        icon = HugeIcons.ComputerTerminal01,
-                        headline = workspace.name,
-                        supporting = workspace.workspaceDir(),
+                    item(
                         onClick = { onSelect(workspace.id) },
+                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
+                        headlineContent = { Text(workspace.name) },
+                        supportingContent = { Text(workspace.workspaceDir()) },
                     )
                 }
             }

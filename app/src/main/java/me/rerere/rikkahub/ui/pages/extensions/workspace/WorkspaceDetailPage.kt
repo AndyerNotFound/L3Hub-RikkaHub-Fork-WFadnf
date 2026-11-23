@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -113,14 +112,10 @@ import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTip
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTitle
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupTip
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -130,6 +125,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.assistant.detail.labelRes
@@ -450,22 +446,25 @@ private fun WorkspaceBasicPage(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
-        contentPadding = PaddingValues(vertical = 16.dp),
+        // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            AppSettingsGroup(title = stringResource(R.string.workspace_detail_workspace_info)) {
-                AppIconRow(
-                    icon = HugeIcons.Tag01,
-                    headline = stringResource(R.string.workspace_detail_name),
-                    supporting = workspace?.name ?: stringResource(R.string.workspace_detail_loading),
+            CardGroupTitle(stringResource(R.string.workspace_detail_workspace_info))
+            CardGroup {
+                item(
+                    leadingContent = { CardGroupIcon(HugeIcons.Tag01) },
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_name)) },
+                    supportingContent = {
+                        Text(workspace?.name ?: stringResource(R.string.workspace_detail_loading))
+                    },
                 )
                 if (hasRootfs) {
-                    AppIconRow(
-                        icon = HugeIcons.ComputerTerminal01,
-                        headline = stringResource(R.string.workspace_detail_shell_status),
-                        trailing = { ShellStatusBadge(shellStatus) },
+                    item(
+                        leadingContent = { CardGroupIcon(HugeIcons.ComputerTerminal01) },
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_shell_status)) },
+                        trailingContent = { ShellStatusBadge(shellStatus) },
                     )
                 }
             }
@@ -478,47 +477,36 @@ private fun WorkspaceBasicPage(
         }
         if (hasRootfs) {
             item {
-                AppSettingsGroup(title = stringResource(R.string.workspace_detail_enable_shell)) {
-                    // 图标 + 说明 + 整宽按钮：AppIconRow 只吃纯文本，这一项自己拼
-                    AppSettingsRow {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIconBadge(HugeIcons.Bash)
-                                Spacer(Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.workspace_detail_area_rootfs))
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        text = stringResource(R.string.workspace_detail_enable_shell_desc),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = onInstallRootfs,
-                                enabled = workspace != null && !installing,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(
-                                    imageVector = HugeIcons.Bash,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                                )
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text(installButtonText)
-                            }
-                            installProgress?.let { RootfsProgress(it) }
+                CardGroupTitle(stringResource(R.string.workspace_detail_enable_shell))
+                CardGroup {
+                    // 图标 + 说明 + 整宽按钮：这一项走 formItem，按钮单独占一行
+                    formItem(
+                        leadingContent = { CardGroupIcon(HugeIcons.Bash) },
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_area_rootfs)) },
+                        supportingContent = { Text(stringResource(R.string.workspace_detail_enable_shell_desc)) },
+                    ) {
+                        Button(
+                            onClick = onInstallRootfs,
+                            enabled = workspace != null && !installing,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Bash,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(installButtonText)
                         }
+                        installProgress?.let { RootfsProgress(it) }
                     }
-                    AppSwitchRow(
+                    switchItem(
                         checked = workspace?.shellCompatibilityMode ?: false,
                         onCheckedChange = onShellCompatibilityModeChange,
                         enabled = workspace != null,
-                        headline = stringResource(R.string.workspace_detail_compatibility_mode),
-                        supporting = stringResource(R.string.workspace_detail_compatibility_mode_desc),
-                        icon = HugeIcons.Wrench01,
+                        supportingContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode_desc)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Wrench01) },
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode)) },
                     )
                 }
             }
@@ -546,42 +534,42 @@ private fun SshConnectionCard(
     onEdit: () -> Unit,
 ) {
     val settings = workspace.sshSettings()
-    AppSettingsGroup(title = stringResource(R.string.workspace_detail_ssh_connection)) {
-        AppIconRow(
-            icon = HugeIcons.CloudServer,
-            headline = stringResource(R.string.workspace_detail_ssh_address),
-            supporting = settings?.let { "${it.username}@${it.host}:${it.port}" }
-                ?: stringResource(R.string.workspace_detail_ssh_config_missing),
+    CardGroupTitle(stringResource(R.string.workspace_detail_ssh_connection))
+    CardGroup {
+        item(
+            leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_address)) },
+            supportingContent = {
+                Text(
+                    settings?.let { "${it.username}@${it.host}:${it.port}" }
+                        ?: stringResource(R.string.workspace_detail_ssh_config_missing)
+                )
+            },
         )
-        AppIconRow(
-            icon = HugeIcons.Folder01,
-            headline = stringResource(R.string.workspace_detail_ssh_remote_dir),
-            supporting = settings?.remoteDir ?: "-",
+        item(
+            leadingContent = { CardGroupIcon(HugeIcons.Folder01) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_remote_dir)) },
+            supportingContent = { Text(settings?.remoteDir ?: "-") },
         )
-        // 指纹用等宽字体多行显示，AppIconRow 只吃纯文本，这一行自己拼
-        AppSettingsRow {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIconBadge(HugeIcons.FingerPrint)
-                Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = stringResource(R.string.workspace_detail_ssh_host_key))
-                    Spacer(Modifier.height(2.dp))
-                    val hostKey = settings?.hostKey
-                    Text(
-                        text = hostKey?.let { "${it.type}\n${it.fingerprint}" }
-                            ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = if (hostKey != null) FontFamily.Monospace else null,
-                    )
-                }
-            }
+        // 指纹用等宽字体多行显示，这一项走 formItem
+        formItem(
+            leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_host_key)) },
+        ) {
+            val hostKey = settings?.hostKey
+            Text(
+                text = hostKey?.let { "${it.type}\n${it.fingerprint}" }
+                    ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = if (hostKey != null) FontFamily.Monospace else null,
+            )
         }
-        AppIconRow(
-            icon = HugeIcons.PencilEdit01,
-            headline = stringResource(R.string.workspace_detail_ssh_edit),
-            supporting = stringResource(R.string.workspace_detail_ssh_edit_desc),
+        item(
             onClick = onEdit,
+            leadingContent = { CardGroupIcon(HugeIcons.PencilEdit01) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_edit)) },
+            supportingContent = { Text(stringResource(R.string.workspace_detail_ssh_edit_desc)) },
         )
     }
 }
@@ -625,18 +613,18 @@ private fun WorkspaceToolApprovalCard(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        AppSettingsGroupTitle(stringResource(R.string.workspace_detail_tool_approval))
-        AppSettingsGroupTip(stringResource(R.string.workspace_detail_tool_approval_desc))
-        AppSettingsGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
-        AppSettingsCard {
+        CardGroupTitle(stringResource(R.string.workspace_detail_tool_approval))
+        CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_desc))
+        CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
+        CardGroup {
             tools.forEach { (toolName, label, icon) ->
-                AppSwitchRow(
+                switchItem(
                     checked = resolveWorkspaceToolApproval(toolName, overrides),
                     onCheckedChange = { onToolApprovalChange(toolName, it) },
                     enabled = switchesEnabled,
-                    headline = label,
-                    supporting = toolName,
-                    icon = icon,
+                    supportingContent = { Text(toolName) },
+                    leadingContent = { CardGroupIcon(icon) },
+                    headlineContent = { Text(label) },
                 )
             }
         }
@@ -1086,14 +1074,14 @@ private fun WorkspaceFileItem(
                     }
                 }
 
-                entry.isDirectory -> AppIconBadge(
+                entry.isDirectory -> CardGroupIcon(
                     icon = HugeIcons.Folder01,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
                 // 选中时整行换成 secondaryContainer，图标底色跟着换一档，不然会融进背景
-                else -> AppIconBadge(
+                else -> CardGroupIcon(
                     icon = HugeIcons.File02,
                     containerColor = if (selected) {
                         MaterialTheme.colorScheme.surfaceBright

@@ -20,7 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -244,7 +244,7 @@ private fun FileItem(
             .padding(start = 16.dp + TreeIndent * depth, end = if (deletable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIconBadge(HugeIcons.File02)
+        CardGroupIcon(HugeIcons.File02)
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -302,7 +302,7 @@ private fun DirItem(
                 .padding(start = 16.dp + TreeIndent * depth, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppIconBadge(
+            CardGroupIcon(
                 icon = if (expanded) HugeIcons.FolderOpen else HugeIcons.Folder01,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,

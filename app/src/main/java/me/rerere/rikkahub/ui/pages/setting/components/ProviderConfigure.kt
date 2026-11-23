@@ -78,15 +78,14 @@ import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.style.IconButton
@@ -111,28 +110,26 @@ fun ProviderConfigure(
     ) {
         provider.description()
 
-        AppSettingsCard {
+        CardGroup {
             // 账号类提供商的接口由登录方式决定，换成自填地址的类型会丢掉凭据
             val typeSwitchable = if (allowTypeSwitch) provider as? ProviderSetting.ApiKey else null
             if (typeSwitchable != null) {
-                AppSettingsRow {
-                    Column {
-                        typeSwitchable?.let { current ->
-                            ConnectedChoiceButtons(
-                                options = ProviderSetting.Types,
-                                selected = current::class,
-                                onSelect = { onEdit(current.convertTo(it)) },
-                            ) { type, selected ->
-                                ConnectedChoiceLabel(text = type.simpleName ?: "", selected = selected)
-                            }
+                formItem {
+                    typeSwitchable?.let { current ->
+                        ConnectedChoiceButtons(
+                            options = ProviderSetting.Types,
+                            selected = current::class,
+                            onSelect = { onEdit(current.convertTo(it)) },
+                        ) { type, selected ->
+                            ConnectedChoiceLabel(text = type.simpleName ?: "", selected = selected)
                         }
                     }
                 }
             }
-            AppSwitchRow(
+            switchItem(
                 checked = provider.enabled,
                 onCheckedChange = { onEdit(provider.copyProvider(enabled = it)) },
-                headline = stringResource(R.string.setting_provider_page_enable),
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_enable)) },
             )
         }
 
@@ -284,8 +281,7 @@ private val OFFICIAL_PROVIDER_HOSTS = setOf(
 )
 
 // 标题在上、输入框在下的表单项；secret 为 true 时默认遮住内容，右侧是显示/隐藏按钮
-@Composable
-private fun textFieldItem(
+private fun CardGroupScope.textFieldItem(
     @StringRes label: Int,
     value: String,
     onValueChange: (String) -> Unit,
@@ -300,44 +296,36 @@ private fun textFieldItem(
     visible: Boolean = true,
 ) {
     if (visible) {
-        AppSettingsRow {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(label))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                // 明文开关是本项自己的局部状态，与条目的 visible 无关，另起名字免得遮住参数
-                var showValue by remember { mutableStateOf(false) }
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = enabled,
-                    isError = isError,
-                    minLines = minLines,
-                    maxLines = maxLines,
-                    textStyle = if (monospace) {
-                        MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
-                    } else LocalTextStyle.current,
-                    supportingText = supportingText,
-                    visualTransformation = if (secret && !showValue) PasswordVisualTransformation() else VisualTransformation.None,
-                    trailingIcon = if (secret) {
-                        {
-                            IconButton(onClick = { showValue = !showValue }) {
-                                Icon(if (showValue) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
-                            }
+        formItem(
+            headlineContent = { Text(stringResource(label)) },
+        ) {
+            var showValue by remember { mutableStateOf(false) }
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+                isError = isError,
+                minLines = minLines,
+                maxLines = maxLines,
+                textStyle = if (monospace) {
+                    MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono)
+                } else LocalTextStyle.current,
+                supportingText = supportingText,
+                visualTransformation = if (secret && !showValue) PasswordVisualTransformation() else VisualTransformation.None,
+                trailingIcon = if (secret) {
+                    {
+                        IconButton(onClick = { showValue = !showValue }) {
+                            Icon(if (showValue) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
                         }
-                    } else trailingIcon,
-                )
-            }
+                    }
+                } else trailingIcon,
+            )
         }
     }
 }
 
-@Composable
-internal fun nameItem(
+internal fun CardGroupScope.nameItem(
     provider: ProviderSetting,
     onEdit: (ProviderSetting) -> Unit,
 ) = textFieldItem(
@@ -346,8 +334,7 @@ internal fun nameItem(
     onValueChange = { onEdit(provider.copyProvider(name = it)) },
 )
 
-@Composable
-private fun apiKeyItem(
+private fun CardGroupScope.apiKeyItem(
     providerId: Uuid,
     apiKey: String,
     disabledApiKeys: List<String>,
@@ -356,127 +343,112 @@ private fun apiKeyItem(
     onValueChange: (apiKey: String, disabledApiKeys: List<String>, apiKeyLabels: Map<String, String>) -> Unit,
 ) {
     if (visible) {
-        AppSettingsRow {
-            Column {
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_api_key))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                Text(stringResource(R.string.setting_provider_page_api_key_multi_desc))
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                val keys = remember(providerId) {
-                    apiKey.split(Regex("[\\n,]"))
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() }
-                        .ifEmpty { listOf("") }
-                        .toMutableStateList()
-                }
-                // 关掉的 Key 存在 provider 上，按内容匹配而不是按位置，改 Key 文本也不会错位
-                var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
-                // 标签按 Key 文本索引，改 Key 文本时跟着搬过去；删 Key 时一起清掉
-                var labels by remember(providerId, apiKeyLabels) { mutableStateOf(apiKeyLabels) }
-
-                fun emit() {
-                    val liveKeys = keys.map { it.trim() }.filter { it.isNotBlank() }
-                    onValueChange(
-                        liveKeys.joinToString("\n"),
-                        disabled,
-                        labels.filterKeys { it in liveKeys },
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    keys.forEachIndexed { index, key ->
-                        var keyShown by remember(providerId, index) { mutableStateOf(false) }
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            OutlinedTextField(
-                                value = key,
-                                onValueChange = { text ->
-                                    val oldKey = keys[index]
-                                    if (oldKey != text) {
-                                        labels[oldKey]?.let { label ->
-                                            labels = labels - oldKey + (text.trim() to label)
-                                        }
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_api_key)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_page_api_key_multi_desc)) },
+        ) {
+            val keys = remember(providerId) {
+                apiKey.split(Regex("[\\n,]"))
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .ifEmpty { listOf("") }
+                    .toMutableStateList()
+            }
+            var disabled by remember(providerId, disabledApiKeys) { mutableStateOf(disabledApiKeys) }
+            var labels by remember(providerId, apiKeyLabels) { mutableStateOf(apiKeyLabels) }
+            fun emit() {
+                val liveKeys = keys.map { it.trim() }.filter { it.isNotBlank() }
+                onValueChange(
+                    liveKeys.joinToString("\n"),
+                    disabled,
+                    labels.filterKeys { it in liveKeys },
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                keys.forEachIndexed { index, key ->
+                    var keyShown by remember(providerId, index) { mutableStateOf(false) }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = key,
+                            onValueChange = { text ->
+                                val oldKey = keys[index]
+                                if (oldKey != text) {
+                                    labels[oldKey]?.let { label ->
+                                        labels = labels - oldKey + (text.trim() to label)
                                     }
-                                    keys[index] = text
-                                    emit()
-                                },
-                                modifier = Modifier.weight(1f),
-                                label = {
-                                    Text(
-                                        stringResource(
-                                            R.string.setting_provider_page_api_key_number,
-                                            index + 1,
-                                        )
+                                }
+                                keys[index] = text
+                                emit()
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_provider_page_api_key_number,
+                                        index + 1,
                                     )
-                                },
-                                singleLine = true,
-                                visualTransformation = if (keyShown) {
-                                    VisualTransformation.None
-                                } else {
-                                    PasswordVisualTransformation()
-                                },
-                                trailingIcon = {
-                                    IconButton(onClick = { keyShown = !keyShown }) {
-                                        Icon(
-                                            imageVector = if (keyShown) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                            )
-                            if (key.isNotBlank()) {
-                                Switch(
-                                    checked = key !in disabled,
-                                    onCheckedChange = { enabled ->
-                                        disabled = if (enabled) disabled - key else disabled + key
-                                        emit()
-                                    },
                                 )
-                            }
-                            if (keys.size > 1) {
-                                IconButton(
-                                    onClick = {
-                                        val removed = keys[index]
-                                        keys.removeAt(index)
-                                        if (removed.isNotBlank()) disabled = disabled - removed
-                                        emit()
-                                    }
-                                ) {
+                            },
+                            singleLine = true,
+                            visualTransformation = if (keyShown) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { keyShown = !keyShown }) {
                                     Icon(
-                                        imageVector = HugeIcons.Delete01,
+                                        imageVector = if (keyShown) HugeIcons.ViewOff else HugeIcons.View,
                                         contentDescription = null,
                                     )
                                 }
-                            }
-                        }
+                            },
+                        )
                         if (key.isNotBlank()) {
-                            OutlinedTextField(
-                                value = labels[key].orEmpty(),
-                                onValueChange = { label ->
-                                    labels = if (label.isBlank()) labels - key else labels + (key to label)
+                            Switch(
+                                checked = key !in disabled,
+                                onCheckedChange = { enabled ->
+                                    disabled = if (enabled) disabled - key else disabled + key
                                     emit()
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
-                                singleLine = true,
                             )
                         }
+                        if (keys.size > 1) {
+                            IconButton(
+                                onClick = {
+                                    val removed = keys[index]
+                                    keys.removeAt(index)
+                                    if (removed.isNotBlank()) disabled = disabled - removed
+                                    emit()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Delete01,
+                                    contentDescription = null,
+                                )
+                            }
                         }
                     }
-                    TextButton(onClick = { keys.add("") }) {
-                        Text(stringResource(R.string.setting_provider_page_api_key_add))
+                    if (key.isNotBlank()) {
+                        OutlinedTextField(
+                            value = labels[key].orEmpty(),
+                            onValueChange = { label ->
+                                labels = if (label.isBlank()) labels - key else labels + (key to label)
+                                emit()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.setting_provider_page_api_key_label)) },
+                            singleLine = true,
+                        )
                     }
+                    }
+                }
+                TextButton(onClick = { keys.add("") }) {
+                    Text(stringResource(R.string.setting_provider_page_api_key_add))
                 }
             }
         }
@@ -491,7 +463,7 @@ private fun ProviderConfigureOpenAI(
     val toaster = LocalToaster.current
     val responseAPIWarning = stringResource(R.string.setting_provider_page_response_api_warning)
 
-    AppSettingsCard {
+    CardGroup {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -521,8 +493,8 @@ private fun ProviderConfigureOpenAI(
         )
     }
 
-    AppSettingsCard {
-        AppSwitchRow(
+    CardGroup {
+        switchItem(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
@@ -530,12 +502,12 @@ private fun ProviderConfigureOpenAI(
                     toaster.show(message = responseAPIWarning, type = ToastType.Warning)
                 }
             },
-            headline = stringResource(R.string.setting_provider_page_response_api),
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_response_api)) },
         )
-        AppSwitchRow(
+        switchItem(
             checked = provider.includeHistoryReasoning,
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) },
-            headline = stringResource(R.string.setting_provider_page_include_history_reasoning),
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_include_history_reasoning)) },
         )
     }
 }
@@ -564,7 +536,7 @@ private fun ProviderConfigureAccount(
     val status = loginStatus[provider.id]
     val credential = provider.credential
 
-    AppSettingsCard {
+    CardGroup {
         nameItem(provider, onEdit)
     }
 
@@ -578,142 +550,71 @@ private fun ProviderConfigureAccount(
     }
     val deviceCode = status as? AccountLoginStatus.DeviceCode
 
-    AppSettingsGroup(title = stringResource(R.string.setting_provider_page_account)) {
+    CardGroupTitle(stringResource(R.string.setting_provider_page_account))
+    CardGroup {
         if (accountState == AccountCardState.SignedIn) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppIconBadge(HugeIcons.UserCircle)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                if (plan != null) {
-                                    Text(plan)
-                                }
-                            }
-                        }
+            item(
+                headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
+                supportingContent = {
+                    if (plan != null) {
+                        Text(plan)
                     }
-                }
-            }
+                },
+                leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
+            )
         }
         if (accountState == AccountCardState.SignedIn) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(onClick = { scope.launch { accountManager.logout(provider.id) } }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppIconBadge(
-                        icon = HugeIcons.Logout03,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_sign_out))
-                    }
-                }
-            }
+            item(
+                onClick = { scope.launch { accountManager.logout(provider.id) } },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
+                leadingContent = { CardGroupIcon(icon = HugeIcons.Logout03, containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) },
+            )
         }
         if (accountState == AccountCardState.DeviceCode) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(
-                            onClick = {
-                                deviceCode?.let { code ->
-                                    CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
-                                }
-                            },
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_device_code_hint))
-                        Text(
-                            text = deviceCode?.userCode.orEmpty(),
-                            style = MaterialTheme.typography.headlineSmallEmphasized,
-                            fontFamily = JetbrainsMono,
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                Text(stringResource(R.string.setting_provider_page_device_code_reopen))
-                            }
-                        }
+            item(
+                onClick = {
+                    deviceCode?.let { code ->
+                        CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
                     }
-                }
-            }
+                },,
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
+                supportingContent = {
+                    Text(text = deviceCode?.userCode.orEmpty(), style = MaterialTheme.typography.headlineSmallEmphasized, fontFamily = JetbrainsMono)
+                    Text(stringResource(R.string.setting_provider_page_device_code_reopen))
+                },
+                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+            )
         }
         if (accountState == AccountCardState.DeviceCode) {
-            AppIconRow(
-                icon = HugeIcons.Cancel01,
-                headline = stringResource(R.string.cancel),
+            item(
                 onClick = { accountManager.cancelLogin(provider.id) },
+                leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
+                headlineContent = { Text(stringResource(R.string.cancel)) },
             )
         }
         if (accountState == AccountCardState.Authorizing) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(onClick = { accountManager.cancelLogin(provider.id) }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_waiting_authorization))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc))
-                            }
-                        }
-                    }
-                }
-            }
+            item(
+                onClick = { accountManager.cancelLogin(provider.id) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
+                supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
+                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+            )
         }
         if (accountState == AccountCardState.SignedOut) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(onClick = { accountManager.startLogin(provider.id, context) }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppIconBadge(HugeIcons.Login03)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                val failure = status as? AccountLoginStatus.Failed
-                                if (failure != null) {
-                                    Text(failure.message, color = MaterialTheme.colorScheme.error)
-                                }
-                            }
+            item(
+                onClick = { accountManager.startLogin(provider.id, context) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
+                supportingContent = {
+                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
+                        val failure = status as? AccountLoginStatus.Failed
+                        if (failure != null) {
+                            Text(failure.message, color = MaterialTheme.colorScheme.error)
                         }
                     }
-                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                }
-            }
+                },
+                leadingContent = { CardGroupIcon(HugeIcons.Login03) },
+                trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+            )
         }
     }
 
@@ -734,83 +635,51 @@ private fun ProviderConfigureAccount(
 private fun AccountUsage(provider: ProviderSetting.Account) {
     val result = rememberProviderQuota(provider)
     val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
-    AppSettingsGroup(title = stringResource(R.string.setting_provider_page_usage)) {
+    CardGroupTitle(stringResource(R.string.setting_provider_page_usage))
+    CardGroup {
         when {
-            result == null -> AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ContainedLoadingIndicator(modifier = Modifier.size(40.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.setting_provider_page_usage_loading))
-                        }
-                    }
-                }
+            result == null -> item(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_loading)) },
+                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
+            )
 
-            limits == null -> AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AppIconBadge(HugeIcons.DashboardSpeed02)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.setting_provider_page_usage_failed))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                                ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                    Text(
-                                        text = result.exceptionOrNull()?.message.orEmpty(),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            limits == null -> item(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_failed)) },
+                supportingContent = { Text(text = result.exceptionOrNull()?.message.orEmpty(), color = MaterialTheme.colorScheme.error) },
+                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
+            )
 
-            limits.windows.isEmpty() -> AppIconRow(
-                    icon = HugeIcons.DashboardSpeed02,
-                    headline = stringResource(R.string.setting_provider_page_usage_none),
-                )
+            limits.windows.isEmpty() -> item(
+                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_none)) },
+            )
 
             else -> limits.windows.forEach { window ->
                 val reached = limits.limitReached || window.usedPercent >= 100
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(window.longLabel())
-                                Spacer(modifier = Modifier.height(2.dp))
-                                CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                        val resetsAt = window.resetsAt
-                                        if (resetsAt != null) {
-                                            val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
-                                            Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
-                                        }
-                                    }
-                                }
+                formItem(
+                    headlineContent = { Text(window.longLabel()) },
+                    supportingContent = {
+                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
+                            val resetsAt = window.resetsAt
+                            if (resetsAt != null) {
+                                val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
+                                Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
                             }
-                            Text(
-                                text = "${window.usedPercent.roundToInt()}%",
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                                color = if (reached) MaterialTheme.colorScheme.error else Color.Unspecified,
-                            )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearWavyProgressIndicator(
-                            progress = { (window.usedPercent / 100).toFloat().coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = if (reached) MaterialTheme.colorScheme.error else ProgressIndicatorDefaults.linearColor,
+                    },
+                    trailingContent = {
+                        Text(
+                            text = "${window.usedPercent.roundToInt()}%",
+                            style = MaterialTheme.typography.titleMediumEmphasized,
+                            color = if (reached) MaterialTheme.colorScheme.error else Color.Unspecified,
                         )
-                    }
+                    },
+                ) {
+                    LinearWavyProgressIndicator(
+                        progress = { (window.usedPercent / 100).toFloat().coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = if (reached) MaterialTheme.colorScheme.error else ProgressIndicatorDefaults.linearColor,
+                    )
                 }
             }
         }
@@ -822,7 +691,7 @@ private fun ProviderConfigureClaude(
     provider: ProviderSetting.Claude,
     onEdit: (provider: ProviderSetting) -> Unit
 ) {
-    AppSettingsCard {
+    CardGroup {
         nameItem(provider, onEdit)
         apiKeyItem(provider.id, provider.apiKey, provider.disabledApiKeys, provider.apiKeyLabels) { apiKey, disabledKeys, labels ->
             onEdit(provider.copy(apiKey = apiKey, disabledApiKeys = disabledKeys, apiKeyLabels = labels))
@@ -838,34 +707,28 @@ private fun ProviderConfigureClaude(
         )
     }
 
-    AppSettingsCard {
-        AppSwitchRow(
+    CardGroup {
+        switchItem(
             checked = provider.promptCaching,
             onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
-            headline = stringResource(R.string.setting_provider_page_claude_prompt_caching),
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_caching)) },
         )
         if (provider.promptCaching) {
-            AppSettingsRow {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl))
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ConnectedChoiceButtons(
-                        options = ClaudePromptCacheTtl.entries,
-                        selected = provider.promptCacheTtl,
-                        onSelect = { onEdit(provider.copy(promptCacheTtl = it)) },
-                    ) { ttl, selected ->
-                        ConnectedChoiceLabel(
-                            text = when (ttl) {
-                                ClaudePromptCacheTtl.FIVE_MINUTES -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_5m)
-                                ClaudePromptCacheTtl.ONE_HOUR -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_1h)
-                            },
-                            selected = selected,
-                        )
-                    }
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl)) },
+            ) {
+                ConnectedChoiceButtons(
+                    options = ClaudePromptCacheTtl.entries,
+                    selected = provider.promptCacheTtl,
+                    onSelect = { onEdit(provider.copy(promptCacheTtl = it)) },
+                ) { ttl, selected ->
+                    ConnectedChoiceLabel(
+                        text = when (ttl) {
+                            ClaudePromptCacheTtl.FIVE_MINUTES -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_5m)
+                            ClaudePromptCacheTtl.ONE_HOUR -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_1h)
+                        },
+                        selected = selected,
+                    )
                 }
             }
         }
@@ -903,7 +766,7 @@ private fun ProviderConfigureGoogle(
     }
     val useServiceAccount = provider.vertexAI && provider.useServiceAccount
 
-    AppSettingsCard {
+    CardGroup {
         nameItem(provider, onEdit)
         apiKeyItem(
             providerId = provider.id,
@@ -931,66 +794,46 @@ private fun ProviderConfigureGoogle(
         )
     }
 
-    AppSettingsCard {
-        AppSwitchRow(
+    CardGroup {
+        switchItem(
             checked = provider.vertexAI,
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
-            headline = stringResource(R.string.setting_provider_page_vertex_ai),
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_vertex_ai)) },
         )
         // 两条互斥：都注册、靠 visible 交叉收放，切换时一条收下去另一条才拉出来
         if (provider.vertexAI) {
-            AppSwitchRow(
+            switchItem(
                 checked = provider.useServiceAccount,
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
-                headline = stringResource(R.string.setting_provider_page_use_service_account),
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
             )
         }
         if (!provider.vertexAI || useServiceAccount) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable { onEdit(provider.copy(useInteractionsApi = !provider.useInteractionsApi)) },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Interactions API (Beta)")
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                if (useServiceAccount) {
-                                    Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent")
-                                }
-                            }
-                        }
+            item(
+                onClick = { onEdit(provider.copy(useInteractionsApi = !provider.useInteractionsApi)) },
+                headlineContent = { Text("Interactions API (Beta)") },
+                supportingContent = {
+                    if (useServiceAccount) {
+                        Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent")
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                },
+                trailingContent = {
                     AppSwitch(
                         checked = provider.useInteractionsApi,
                         onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
                     )
-                }
-            }
+                },
+            )
         }
     }
 
     MotionExpandCollapse(visible = useServiceAccount) {
-        AppSettingsCard {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_page_import_service_account_json))
-                    }
-                    Icon(HugeIcons.FileImport, contentDescription = null)
-                }
-            }
+        CardGroup {
+            item(
+                onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_import_service_account_json)) },
+                trailingContent = { Icon(HugeIcons.FileImport, contentDescription = null) },
+            )
             textFieldItem(
                 label = R.string.setting_provider_page_service_account_email,
                 value = provider.serviceAccountEmail,

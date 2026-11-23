@@ -20,12 +20,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
+import android.os.Build
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.core.view.WindowCompat
-import com.t8rin.toolbox.ui.settings.LocalToolboxSettings
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.CornerStyle
@@ -111,26 +114,30 @@ fun RikkahubTheme(
     }
     val amoledDarkMode by rememberAmoledDarkMode()
 
-    // 调色板：深浅两套各自生成；没启用时返回 null，交给下面的主题引擎
+    // 调色板：深浅两套各自生成；没启用时返回 null，落回预设/自定义主题
     val paletteScheme = remember(settings.palette, darkTheme) {
         settings.palette.generateColorScheme(darkTheme)
     }
 
-    // 配色：没启用调色板时由主题引擎（com.t8rin.dynamic.theme）算整套颜色。
-    // 调色板是「逐角色覆盖」，引擎只会从种子色往外推，推不出「这一格就是这个值」，
-    // 所以那一条原样走调色板、不经过引擎（取舍写在 ToolboxColorScheme.kt 顶部）。
-    // elvis 右侧是条件调用的 @Composable：调色板那一档连引擎的动画都不会跑。
-    val colorScheme = paletteScheme ?: rememberToolboxColorScheme(
-        settings = settings,
-        darkTheme = darkTheme,
-        amoledDark = amoledDarkMode,
-    )
+    // 配色：动态取色（Android 12+ 壁纸取色）优先，其次调色板（逐角色覆盖），
+    // 最后落回预设/自定义主题自带的整套配色（对齐上游 rikkahub 的管线）
+    val colorScheme = when {
+        settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        paletteScheme != null -> paletteScheme
+        else -> {
+            val theme = findThemeById(settings.themeId, settings.customThemes)
+                ?: findPresetTheme(settings.themeId)
+            theme.getColorScheme(dark = darkTheme)
+        }
+    }
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
-    // AMOLED：走引擎的那一条已经由引擎的 amoledMode 压过黑（连强调色一起降调），
-    // 这里只补调色板那一条，两处都压就叠了两次，黑上加黑、强调色也跟着二次变暗
+    // AMOLED：dark+AMOLED 时把大面积表面压纯黑（文字与强调色不动）
     val colorSchemeConverted = remember(darkTheme, amoledDarkMode, paletteScheme, colorScheme) {
-        if (paletteScheme != null && darkTheme && amoledDarkMode) {
+        if (darkTheme && amoledDarkMode) {
             colorScheme.amoledSurface()
         } else {
             colorScheme
@@ -151,17 +158,6 @@ fun RikkahubTheme(
     }
     val extendColors = if (darkTheme) ExtendDarkColors else ExtendLightColors
     val effectiveDark = darkTheme
-
-    // 从 ImageToolbox 端口过来的组件（Enhanced 弹窗 / 抽屉）读这一份设置视图。
-    // 深浅色与 AMOLED 用上面已经算好的结果传进去，桥接里不再重读一次 SharedPreferences；
-    // 其余字段要么映射到本项目的设置，要么给那边的默认值，逐条写在 ToolboxSettingsBridge 里
-    val toolboxSettings = remember(settings, effectiveDark, amoledDarkMode) {
-        ToolboxSettingsBridge(
-            settings = settings,
-            darkTheme = effectiveDark,
-            amoledDark = amoledDarkMode,
-        )
-    }
 
     // 更新状态栏图标颜色
     val view = LocalView.current
@@ -218,10 +214,6 @@ fun RikkahubTheme(
         LocalCornerStyle provides cornerStyle,
         LocalCornerScale provides cornerScale,
         LocalCornerThrottle provides settings.displaySetting.cornerAnimThrottle.coerceIn(0, 2000),
-        LocalSwitchType provides settings.displaySetting.switchType,
-        LocalSliderType provides settings.displaySetting.sliderType,
-        // 端口组件的设置视图（形状类型、开关/滑块样式、抽屉嵌套滚动…）：引擎只认这一个入口
-        LocalToolboxSettings provides toolboxSettings,
         LocalUiSlots provides uiSlots,
         LocalDarkMode provides effectiveDark,
         LocalExtendColors provides extendColors,

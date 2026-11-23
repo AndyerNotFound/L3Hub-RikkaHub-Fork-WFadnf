@@ -11,14 +11,11 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
@@ -43,12 +40,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTip
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroupTitle
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupTip
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.hugeicons.HugeIcons
@@ -84,60 +79,51 @@ internal fun WorkspaceStorageMountCard(
     var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        AppSettingsGroupTitle(stringResource(R.string.workspace_detail_storage_title))
-        AppSettingsGroupTip(stringResource(R.string.workspace_detail_storage_desc))
-        AppSettingsCard {
+        CardGroupTitle(stringResource(R.string.workspace_detail_storage_title))
+        CardGroupTip(stringResource(R.string.workspace_detail_storage_desc))
+        CardGroup {
             if (!hasPermission) {
-                AppIconRow(
-                    icon = HugeIcons.Alert02,
-                    headline = stringResource(R.string.workspace_detail_storage_permission_missing),
-                    supporting = stringResource(R.string.workspace_detail_storage_permission_missing_desc),
+                item(
                     onClick = { context.openAllFilesAccessSettings() },
+                    leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
+                    supportingContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc)) },
                 )
             }
             mounts.forEachIndexed { index, mount ->
-                // 路径用等宽字体、最多两行，AppIconRow 只吃纯文本，这一行自己拼
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable { editingIndex = index },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AppIconBadge(HugeIcons.FolderLinks)
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = mount.path,
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
+                // 路径用等宽字体、最多两行，点击整行进编辑
+                item(
+                    onClick = { editingIndex = index },
+                    leadingContent = { CardGroupIcon(HugeIcons.FolderLinks) },
+                    headlineContent = {
+                        Text(
+                            text = mount.path,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            stringResource(
+                                if (mount.writable) {
+                                    R.string.workspace_detail_storage_writable
+                                } else {
+                                    R.string.workspace_detail_storage_needs_approval
+                                }
                             )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(
-                                    if (mount.writable) {
-                                        R.string.workspace_detail_storage_writable
-                                    } else {
-                                        R.string.workspace_detail_storage_needs_approval
-                                    }
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
+                        )
+                    },
+                )
             }
-            AppIconRow(
-                icon = HugeIcons.FolderAdd,
-                headline = stringResource(R.string.workspace_detail_storage_add),
+            item(
                 onClick = if (workspace != null) {
                     { editingIndex = -1 }
                 } else {
                     null
                 },
+                leadingContent = { CardGroupIcon(HugeIcons.FolderAdd) },
+                headlineContent = { Text(stringResource(R.string.workspace_detail_storage_add)) },
             )
         }
     }

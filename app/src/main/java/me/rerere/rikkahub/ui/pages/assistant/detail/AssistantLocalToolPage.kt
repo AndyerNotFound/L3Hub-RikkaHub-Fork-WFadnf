@@ -6,25 +6,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -65,7 +60,6 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.phoneuse.PhoneUseManager
 import me.rerere.rikkahub.phoneuse.isFloatingChatWindowOn
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionInfo
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -193,61 +187,63 @@ private fun AssistantLocalToolContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(innerPadding)
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            .padding(horizontal = 16.dp)
             .padding(bottom = 16.dp)
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        AppSettingsCard {
-            LocalToolSwitchRow(
+        CardGroup {
+            localToolSwitchItem(
                 checked = LocalToolOption.JavascriptEngine in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.JavascriptEngine, it) },
                 icon = HugeIcons.JavaScript,
                 title = R.string.assistant_page_local_tools_javascript_engine_title,
                 description = R.string.assistant_page_local_tools_javascript_engine_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.TimeInfo in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.TimeInfo, it) },
                 icon = HugeIcons.Clock01,
                 title = R.string.assistant_page_local_tools_time_info_title,
                 description = R.string.assistant_page_local_tools_time_info_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.Clipboard in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.Clipboard, it) },
                 icon = HugeIcons.ClipboardPaste,
                 title = R.string.assistant_page_local_tools_clipboard_title,
                 description = R.string.assistant_page_local_tools_clipboard_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.Tts in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.Tts, it) },
                 icon = HugeIcons.VolumeHigh,
                 title = R.string.assistant_page_local_tools_tts_title,
                 description = R.string.assistant_page_local_tools_tts_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.AskUser in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.AskUser, it) },
                 icon = HugeIcons.MessageQuestion,
                 title = R.string.assistant_page_local_tools_ask_user_title,
                 description = R.string.assistant_page_local_tools_ask_user_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.ScreenTime in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.ScreenTime, it) },
                 icon = HugeIcons.SmartPhone01,
                 title = R.string.assistant_page_local_tools_screen_time_title,
                 description = R.string.assistant_page_local_tools_screen_time_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.Calendar in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.Calendar, it) },
                 icon = HugeIcons.Calendar03,
                 title = R.string.assistant_page_local_tools_calendar_title,
                 description = R.string.assistant_page_local_tools_calendar_desc,
             )
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.ChartDisplay in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.ChartDisplay, it) },
                 icon = HugeIcons.ChartLineData01,
@@ -256,7 +252,7 @@ private fun AssistantLocalToolContent(
             )
             // 只有 github 渠道的 Android 11 及以上才有
             if (PhoneUseManager.isSupported) {
-                PhoneUseSwitchRow(
+                phoneUseSwitchItem(
                     checked = LocalToolOption.PhoneUse in assistant.localTools,
                     onCheckedChange = { toggleLocalTool(LocalToolOption.PhoneUse, it) },
                     icon = HugeIcons.Tap01,
@@ -272,7 +268,7 @@ private fun AssistantLocalToolContent(
                     }
                 }
             }
-            LocalToolSwitchRow(
+            localToolSwitchItem(
                 checked = LocalToolOption.SubAgent in assistant.localTools,
                 onCheckedChange = { toggleLocalTool(LocalToolOption.SubAgent, it) },
                 icon = HugeIcons.Flowchart01,
@@ -282,32 +278,40 @@ private fun AssistantLocalToolContent(
             // 开了派发工具，或者它自己是子代理（子代理会话会自动拿到派发工具）时，
             // 这个范围都可能生效
             if (assistant.localTools.contains(LocalToolOption.SubAgent) || assistant.isSubAgent) {
-                AppIconRow(
-                    icon = HugeIcons.Flowchart01,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    headline = stringResource(R.string.assistant_page_allowed_sub_agents),
-                    supporting = when {
-                        subAgentCandidates.isEmpty() -> stringResource(
-                            R.string.assistant_page_allowed_sub_agents_empty
-                        )
-                        assistant.allowedSubAgentIds.isEmpty() -> stringResource(
-                            R.string.assistant_page_allowed_sub_agents_summary_all
-                        )
-                        allowedSubAgentCount == 0 -> stringResource(
-                            R.string.assistant_page_allowed_sub_agents_missing
-                        )
-                        else -> stringResource(
-                            R.string.assistant_page_allowed_sub_agents_summary_selected,
-                            allowedSubAgentCount,
-                        )
-                    },
+                item(
                     onClick = if (subAgentCandidates.isNotEmpty() || assistant.allowedSubAgentIds.isNotEmpty()) {
                         { showSubAgentPicker = true }
                     } else {
                         null
                     },
-                    trailing = {
+                    leadingContent = {
+                        CardGroupIcon(
+                            icon = HugeIcons.Flowchart01,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    },
+                    headlineContent = { Text(stringResource(R.string.assistant_page_allowed_sub_agents)) },
+                    supportingContent = {
+                        Text(
+                            when {
+                                subAgentCandidates.isEmpty() -> stringResource(
+                                    R.string.assistant_page_allowed_sub_agents_empty
+                                )
+                                assistant.allowedSubAgentIds.isEmpty() -> stringResource(
+                                    R.string.assistant_page_allowed_sub_agents_summary_all
+                                )
+                                allowedSubAgentCount == 0 -> stringResource(
+                                    R.string.assistant_page_allowed_sub_agents_missing
+                                )
+                                else -> stringResource(
+                                    R.string.assistant_page_allowed_sub_agents_summary_selected,
+                                    allowedSubAgentCount,
+                                )
+                            }
+                        )
+                    },
+                    trailingContent = {
                         Icon(
                             imageVector = HugeIcons.ArrowRight01,
                             contentDescription = null,
@@ -400,77 +404,69 @@ private fun SubAgentAllowlistDialog(
 }
 
 /**
- * 本地工具的开关行：图标底色跟着开关状态走（沿用旧版圆形底图标的配色），
- * 开关仍走 AppSwitch，「开关类型」可配置功能原样保留。
+ * 本地工具的开关项：图标底色跟着开关状态走（沿用旧版圆形底图标的配色），
+ * 开关仍走 switchItem，「开关类型」可配置功能原样保留。
  */
-@Composable
-private fun LocalToolSwitchRow(
+private fun CardGroupScope.localToolSwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector,
     @StringRes title: Int,
     @StringRes description: Int,
-) {
-    AppSwitchRow(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        headline = stringResource(title),
-        supporting = stringResource(description),
-        icon = icon,
-        containerColor = if (checked) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        contentColor = if (checked) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-    )
-}
+) = switchItem(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    leadingContent = {
+        CardGroupIcon(
+            icon = icon,
+            containerColor = if (checked) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+            contentColor = if (checked) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    },
+    headlineContent = { Text(stringResource(title)) },
+    supportingContent = { Text(stringResource(description)) },
+)
 
 /**
- * 屏幕使用那行的说明要在服务没开时补一行错误，说明位得吃可组合内容，
- * 所以这一行自己拼 AppSettingsRow：AppIconBadge + 标题/说明 + AppSwitch。
+ * 屏幕使用那项的说明要在服务没开时补一行错误，说明位得吃可组合内容，
+ * 所以说明整块由调用方给，行本身仍走 switchItem。
  */
-@Composable
-private fun PhoneUseSwitchRow(
+private fun CardGroupScope.phoneUseSwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector,
     @StringRes title: Int,
     supporting: @Composable () -> Unit,
-) {
-    AppSettingsRow {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .clickable { onCheckedChange(!checked) },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AppIconBadge(
-                icon = icon,
-                containerColor = if (checked) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                contentColor = if (checked) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(title))
-                Spacer(modifier = Modifier.height(2.dp))
-                supporting()
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
+) = switchItem(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    leadingContent = {
+        CardGroupIcon(
+            icon = icon,
+            containerColor = if (checked) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+            contentColor = if (checked) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    },
+    headlineContent = { Text(stringResource(title)) },
+    supportingContent = {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            supporting()
         }
-    }
-}
+    },
+)

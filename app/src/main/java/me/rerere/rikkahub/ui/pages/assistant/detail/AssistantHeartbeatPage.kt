@@ -2,28 +2,22 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -88,131 +82,105 @@ fun AssistantHeartbeatPage(id: String) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            AppSettingsCard {
-                AppSwitchRow(
+            CardGroup {
+                switchItem(
                     checked = heartbeat.enabled,
                     onCheckedChange = { enabled -> update { it.copy(enabled = enabled) } },
-                    headline = stringResource(R.string.heartbeat_page_enable_title),
-                    supporting = stringResource(R.string.heartbeat_page_enable_desc),
+                    headlineContent = { Text(stringResource(R.string.heartbeat_page_enable_title)) },
+                    supportingContent = { Text(stringResource(R.string.heartbeat_page_enable_desc)) },
                 )
             }
 
-            AppSettingsCard {
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.heartbeat_page_interval_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.heartbeat_page_interval_desc),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            ValuePill(text = "${heartbeat.intervalMinutes} min")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        NumberSlider(
-                            value = heartbeat.intervalMinutes,
-                            onValueChange = { value ->
-                                update { it.copy(intervalMinutes = value) }
-                            },
-                            valueRange = 5..720,
-                            suffix = "min",
-                        )
-                    }
+            CardGroup {
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.heartbeat_page_interval_title)) },
+                    supportingContent = { Text(stringResource(R.string.heartbeat_page_interval_desc)) },
+                    trailingContent = { CardGroupValue("${heartbeat.intervalMinutes} min") },
+                ) {
+                    NumberSlider(
+                        value = heartbeat.intervalMinutes,
+                        onValueChange = { value ->
+                            update { it.copy(intervalMinutes = value) }
+                        },
+                        valueRange = 5..720,
+                        suffix = "min",
+                    )
                 }
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.heartbeat_page_hours_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.heartbeat_page_hours_desc),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            ValuePill(text = "%02d:00 - %02d:00".format(heartbeat.startHour, heartbeat.endHour))
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                text = stringResource(R.string.heartbeat_page_hours_start),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            AppSlider(
-                                value = heartbeat.startHour.toFloat(),
-                                onValueChange = { value ->
-                                    update { it.copy(startHour = value.roundToInt().coerceIn(0, 23)) }
-                                },
-                                valueRange = 0f..23f,
-                                steps = 22,
-                            )
-                            Text(
-                                text = stringResource(R.string.heartbeat_page_hours_end),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            AppSlider(
-                                value = heartbeat.endHour.toFloat(),
-                                onValueChange = { value ->
-                                    update { it.copy(endHour = value.roundToInt().coerceIn(0, 23)) }
-                                },
-                                valueRange = 0f..23f,
-                                steps = 22,
-                            )
-                        }
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.heartbeat_page_hours_title)) },
+                    supportingContent = { Text(stringResource(R.string.heartbeat_page_hours_desc)) },
+                    trailingContent = {
+                        CardGroupValue("%02d:00 - %02d:00".format(heartbeat.startHour, heartbeat.endHour))
+                    },
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.heartbeat_page_hours_start),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        AppSlider(
+                            value = heartbeat.startHour.toFloat(),
+                            onValueChange = { value ->
+                                update { it.copy(startHour = value.roundToInt().coerceIn(0, 23)) }
+                            },
+                            valueRange = 0f..23f,
+                            steps = 22,
+                        )
+                        Text(
+                            text = stringResource(R.string.heartbeat_page_hours_end),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        AppSlider(
+                            value = heartbeat.endHour.toFloat(),
+                            onValueChange = { value ->
+                                update { it.copy(endHour = value.roundToInt().coerceIn(0, 23)) }
+                            },
+                            valueRange = 0f..23f,
+                            steps = 22,
+                        )
                     }
                 }
             }
 
-            AppSettingsCard {
-                AppSettingsRow {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.heartbeat_page_prompt_title))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.heartbeat_page_prompt_desc),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = heartbeat.prompt,
-                            onValueChange = { text -> update { it.copy(prompt = text) } },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(stringResource(R.string.heartbeat_page_prompt_placeholder)) },
-                            minLines = 2,
-                            maxLines = 6,
-                        )
-                    }
+            CardGroup {
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.heartbeat_page_prompt_title)) },
+                    supportingContent = { Text(stringResource(R.string.heartbeat_page_prompt_desc)) },
+                ) {
+                    OutlinedTextField(
+                        value = heartbeat.prompt,
+                        onValueChange = { text -> update { it.copy(prompt = text) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.heartbeat_page_prompt_placeholder)) },
+                        minLines = 2,
+                        maxLines = 6,
+                    )
                 }
             }
 
             val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
             val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
-            AppSettingsCard {
-                modelSettingItem(
-                    icon = HugeIcons.Clock01,
-                    title = R.string.heartbeat_page_model_title,
-                    state = modelState,
-                    iconContainerColor = modelIconContainer,
-                    iconContentColor = modelIconContent,
-                    placeholder = R.string.heartbeat_page_model_desc,
-                    onClear = { update { it.copy(modelId = null) } },
-                    clearContentDescription = R.string.heartbeat_page_model_clear,
-                )
+            CardGroup {
+                // modelSettingItem 是整块自定义行（图标 + 标题 + 右侧胶囊），
+                // 用无标题的 formItem 把它放进分组
+                formItem {
+                    modelSettingItem(
+                        icon = HugeIcons.Clock01,
+                        title = R.string.heartbeat_page_model_title,
+                        state = modelState,
+                        iconContainerColor = modelIconContainer,
+                        iconContentColor = modelIconContent,
+                        placeholder = R.string.heartbeat_page_model_desc,
+                        onClear = { update { it.copy(modelId = null) } },
+                        clearContentDescription = R.string.heartbeat_page_model_clear,
+                    )
+                }
             }
         }
     }
@@ -223,21 +191,4 @@ fun AssistantHeartbeatPage(id: String) {
             update { it.copy(modelId = model.id) }
         },
     )
-}
-
-// 标题行右侧的取值小标签，保持旧版胶囊观感；等宽数字，拖动滑块时宽度不跳
-@Composable
-private fun ValuePill(text: String) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
-            maxLines = 1,
-        )
-    }
 }

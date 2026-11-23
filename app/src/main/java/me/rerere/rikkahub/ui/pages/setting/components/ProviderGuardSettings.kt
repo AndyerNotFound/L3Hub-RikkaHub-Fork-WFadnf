@@ -78,9 +78,8 @@ import me.rerere.rikkahub.data.ai.ProviderWindowUsage
 import me.rerere.rikkahub.data.ai.formatGuardDuration
 import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.AppSwitch
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.WeekdayPickerDialog
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.components.ui.weekdayListLabel
@@ -233,58 +232,46 @@ private fun ProviderGateStatusCard(
 ) {
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
-    AppSettingsCard {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.setting_provider_guard_status))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                val minuteText = if (status != null) {
-                                    stringResource(
-                                        R.string.setting_provider_guard_status_minute,
-                                        status.rpmUsed,
-                                        status.tpmUsed.formatNumber(binaryUnits),
-                                    )
-                                } else {
-                                    "…"
-                                }
-                                Text(
-                                    text = minuteText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                Text(
-                                    text = when {
-                                        lockedUntil != null -> stringResource(
-                                            R.string.setting_provider_guard_lock_current,
-                                            formatGuardTime(context, lockedUntil),
-                                        )
-                                        nextLockAt != null -> stringResource(
-                                            R.string.setting_provider_guard_lock_next,
-                                            formatGuardTime(context, nextLockAt),
-                                        )
-                                        else -> stringResource(R.string.setting_provider_guard_lock_none)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (lockedUntil != null) {
-                                        MaterialTheme.colorScheme.error
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
-                            }
-                        }
+    CardGroup {
+        item(
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_status)) },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    val minuteText = if (status != null) {
+                        stringResource(
+                            R.string.setting_provider_guard_status_minute,
+                            status.rpmUsed,
+                            status.tpmUsed.formatNumber(binaryUnits),
+                        )
+                    } else {
+                        "…"
                     }
+                    Text(
+                        text = minuteText,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        text = when {
+                            lockedUntil != null -> stringResource(
+                                R.string.setting_provider_guard_lock_current,
+                                formatGuardTime(context, lockedUntil),
+                            )
+                            nextLockAt != null -> stringResource(
+                                R.string.setting_provider_guard_lock_next,
+                                formatGuardTime(context, nextLockAt),
+                            )
+                            else -> stringResource(R.string.setting_provider_guard_lock_none)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (lockedUntil != null) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
                 }
-            }
-        }
+            },
+        )
     }
 }
 
@@ -296,80 +283,60 @@ private fun ProviderRateLimitCard(
     onAddWindow: () -> Unit,
     onEditWindow: (ProviderQuotaWindow) -> Unit,
 ) {
-    AppSettingsCard {
-        AppSettingsRow {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_guard_rate_section))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RateField(
-                        label = stringResource(R.string.setting_provider_guard_rpm),
-                        value = guard.rpmLimit,
-                        onValueChange = { onGuardChange(guard.copy(rpmLimit = it)) },
-                    )
-                    Text(
-                        text = stringResource(R.string.setting_provider_guard_rpm_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.size(6.dp))
-                    RateField(
-                        label = stringResource(R.string.setting_provider_guard_tpm),
-                        value = guard.tpmLimit,
-                        onValueChange = { onGuardChange(guard.copy(tpmLimit = it)) },
-                    )
-                    Text(
-                        text = stringResource(R.string.setting_provider_guard_tpm_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+    CardGroup {
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_rate_section)) },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                RateField(
+                    label = stringResource(R.string.setting_provider_guard_rpm),
+                    value = guard.rpmLimit,
+                    onValueChange = { onGuardChange(guard.copy(rpmLimit = it)) },
+                )
+                Text(
+                    text = stringResource(R.string.setting_provider_guard_rpm_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(6.dp))
+                RateField(
+                    label = stringResource(R.string.setting_provider_guard_tpm),
+                    value = guard.tpmLimit,
+                    onValueChange = { onGuardChange(guard.copy(tpmLimit = it)) },
+                )
+                Text(
+                    text = stringResource(R.string.setting_provider_guard_tpm_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
-        AppSettingsRow {
-            Column {
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.setting_provider_guard_windows))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                Text(
-                                    text = stringResource(R.string.setting_provider_guard_windows_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                    }
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_windows)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_guard_windows_desc)) },
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (guard.windows.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.setting_provider_guard_window_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (guard.windows.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.setting_provider_guard_window_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    guard.windows.forEach { window ->
-                        WindowRow(
-                            window = window,
-                            usage = status?.windows?.firstOrNull { it.window.id == window.id },
-                            onClick = { onEditWindow(window) },
-                            onDelete = {
-                                onGuardChange(guard.copy(windows = guard.windows.filterNot { it.id == window.id }))
-                            },
-                        )
-                    }
-                    TextButton(onClick = onAddWindow) {
-                        Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.setting_provider_guard_window_add))
-                    }
+                guard.windows.forEach { window ->
+                    WindowRow(
+                        window = window,
+                        usage = status?.windows?.firstOrNull { it.window.id == window.id },
+                        onClick = { onEditWindow(window) },
+                        onDelete = {
+                            onGuardChange(guard.copy(windows = guard.windows.filterNot { it.id == window.id }))
+                        },
+                    )
+                }
+                TextButton(onClick = onAddWindow) {
+                    Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.setting_provider_guard_window_add))
                 }
             }
         }
@@ -529,64 +496,28 @@ private fun ProviderLockCard(
     onAddLock: () -> Unit,
     onEditLock: (ProviderLockSchedule) -> Unit,
 ) {
-    AppSettingsCard {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.setting_provider_guard_locks))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                            Text(
-                                text = stringResource(R.string.setting_provider_guard_locks_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    CardGroup {
+        item(
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_locks)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_guard_locks_desc)) },
+        )
         if (guard.locks.isEmpty()) {
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.setting_provider_guard_lock_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            item(
+                headlineContent = {
+                    Text(
+                        text = stringResource(R.string.setting_provider_guard_lock_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+            )
         }
         guard.locks.forEach { lock ->
-            AppSettingsRow {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(onClick = { onEditLock(lock) }),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(lockSummary(lock))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                            ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                                Text(lockSupportingText(lock), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+            item(
+                onClick = { onEditLock(lock) },
+                headlineContent = { Text(lockSummary(lock)) },
+                supportingContent = { Text(lockSupportingText(lock)) },
+                trailingContent = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -615,28 +546,21 @@ private fun ProviderLockCard(
                             )
                         }
                     }
-                }
-            }
+                },
+            )
         }
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clickable(onClick = onAddLock),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(stringResource(R.string.setting_provider_guard_lock_add))
-                    }
+        item(
+            onClick = { onAddLock },
+            headlineContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.setting_provider_guard_lock_add))
                 }
-            }
-        }
+            },
+        )
     }
 }
 
@@ -702,30 +626,18 @@ private fun ProviderQuotaRefreshCard(
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val options = listOf(0, 30, 60, 120, 300, 900, 1800, 3600)
-    AppSettingsCard {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clickable(onClick = { showDialog = true }),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.setting_provider_guard_refresh))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                            Text(
-                                text = stringResource(R.string.setting_provider_guard_refresh_desc) +
-                                    " · " + intervalLabel(context, guard.quotaRefreshSeconds),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    CardGroup {
+        item(
+            onClick = { showDialog = true },
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_refresh)) },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.setting_provider_guard_refresh_desc) +
+                        " · " + intervalLabel(context, guard.quotaRefreshSeconds),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+        )
     }
     if (showDialog) {
         AnimatedAlertDialog(
@@ -794,103 +706,85 @@ private fun ProviderRequestOverrideCard(
     val updateOverride: (RequestOverride) -> Unit = { newOverride ->
         onGuardChange(guard.copy(requestOverride = newOverride))
     }
-    AppSettingsCard {
-        AppSettingsRow {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clickable { updateOverride(requestOverride.copy(enabled = !requestOverride.enabled)) },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.setting_provider_guard_override))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    CompositionLocalProvider(LocalContentColor provides LocalContentColor.current.copy(alpha = 0.5f)) {
-                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                            Text(
-                                text = stringResource(R.string.setting_provider_guard_override_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
+    CardGroup {
+        item(
+            onClick = { updateOverride(requestOverride.copy(enabled = !requestOverride.enabled)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_guard_override)) },
+            supportingContent = { Text(stringResource(R.string.setting_provider_guard_override_desc)) },
+            trailingContent = {
                 AppSwitch(
                     checked = requestOverride.enabled,
                     onCheckedChange = { enabled -> updateOverride(requestOverride.copy(enabled = enabled)) },
                 )
-            }
-        }
+            },
+        )
         if (requestOverride.enabled) {
-            AppSettingsRow {
-                Column {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = curlText,
-                            onValueChange = { text ->
-                                curlText = text
-                                updateOverride(requestOverride.copy(curl = text))
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 140.dp),
-                            label = { Text("cURL") },
-                            placeholder = {
-                                Text("curl 'https://api.example.com/v1/chat/completions' \\\n  -H 'Authorization: Bearer {{apiKey}}' \\\n  -d '{\"model\":\"{{model}}\",\"messages\":{{messages}}}'")
-                            },
-                            minLines = 6,
-                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            formItem {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = curlText,
+                        onValueChange = { text ->
+                            curlText = text
+                            updateOverride(requestOverride.copy(curl = text))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 140.dp),
+                        label = { Text("cURL") },
+                        placeholder = {
+                            Text("curl 'https://api.example.com/v1/chat/completions' \\\n  -H 'Authorization: Bearer {{apiKey}}' \\\n  -d '{\"model\":\"{{model}}\",\"messages\":{{messages}}}'")
+                        },
+                        minLines = 6,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    )
+                    when {
+                        error != null -> Text(
+                            text = stringResource(R.string.setting_provider_guard_override_invalid, error),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
                         )
-                        when {
-                            error != null -> Text(
-                                text = stringResource(R.string.setting_provider_guard_override_invalid, error),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            requestOverride.curl.isNotBlank() -> Text(
-                                text = stringResource(R.string.setting_provider_guard_override_valid),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        val text = clipboard.getClipEntry()
-                                            ?.clipData
-                                            ?.getItemAt(0)
-                                            ?.coerceToText(context)
-                                            ?.toString()
-                                        if (!text.isNullOrBlank()) {
-                                            curlText = text
-                                            updateOverride(requestOverride.copy(enabled = true, curl = text))
-                                        }
-                                    }
-                                }
-                            ) {
-                                Text(stringResource(R.string.setting_provider_guard_override_import))
-                            }
-                            TextButton(
-                                onClick = {
-                                    curlText = ""
-                                    updateOverride(requestOverride.copy(curl = ""))
-                                }
-                            ) {
-                                Text(stringResource(R.string.setting_provider_guard_override_clear))
-                            }
-                        }
-                        Text(
-                            text = stringResource(
-                                R.string.setting_provider_guard_override_hint,
-                                requestOverride.variableHint(),
-                            ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        requestOverride.curl.isNotBlank() -> Text(
+                            text = stringResource(R.string.setting_provider_guard_override_valid),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    val text = clipboard.getClipEntry()
+                                        ?.clipData
+                                        ?.getItemAt(0)
+                                        ?.coerceToText(context)
+                                        ?.toString()
+                                    if (!text.isNullOrBlank()) {
+                                        curlText = text
+                                        updateOverride(requestOverride.copy(enabled = true, curl = text))
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(stringResource(R.string.setting_provider_guard_override_import))
+                        }
+                        TextButton(
+                            onClick = {
+                                curlText = ""
+                                updateOverride(requestOverride.copy(curl = ""))
+                            }
+                        ) {
+                            Text(stringResource(R.string.setting_provider_guard_override_clear))
+                        }
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.setting_provider_guard_override_hint,
+                            requestOverride.variableHint(),
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

@@ -31,8 +31,8 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.RestoreOptions
 import me.rerere.rikkahub.data.sync.RestoreStageResult
 import me.rerere.rikkahub.data.sync.importer.DeepSeekImportResult
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BACKUP_FORMAT_FULL
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -334,13 +334,12 @@ fun ImportExportTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向内距交给 AppSettingsCard（自带 12dp 外距），这里不再补
-            .padding(vertical = 16.dp),
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        AppSettingsGroup(
-            title = stringResource(R.string.backup_page_local_backup_export),
-        ) {
+        CardGroupTitle(stringResource(R.string.backup_page_local_backup_export))
+        CardGroup {
             backupContentItem(
                 options = WebDavConfig.BackupItem.entries,
                 selected = selectedBackupItems,
@@ -415,9 +414,8 @@ fun ImportExportTab(
             )
         }
 
-        AppSettingsGroup(
-            title = stringResource(R.string.backup_page_format),
-        ) {
+        CardGroupTitle(stringResource(R.string.backup_page_format))
+        CardGroup {
             BackupActionRow(
                 icon = HugeIcons.FileExport,
                 headline = stringResource(
@@ -438,9 +436,8 @@ fun ImportExportTab(
             )
         }
 
-        AppSettingsGroup(
-            title = stringResource(R.string.backup_page_import_from_other_app),
-        ) {
+        CardGroupTitle(stringResource(R.string.backup_page_import_from_other_app))
+        CardGroup {
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "markdown",

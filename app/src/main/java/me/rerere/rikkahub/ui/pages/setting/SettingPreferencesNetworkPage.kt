@@ -7,23 +7,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -63,9 +57,8 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.AppNavItem
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
+import me.rerere.rikkahub.ui.components.ui.switchItem
 
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.remote.toProxyOrNull
@@ -316,93 +309,67 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 横向内距由 AppSettingsCard 自带（12dp 横向外距），这里只留全宽模式的刘海安全区
+                // 全宽模式只留刘海安全区，普通模式补 16dp：CardGroup 自身不带外距
                 .adaptiveHorizontalPadding(0.dp)
-                .padding(vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            AppSettingsCard {
-                AppSwitchRow(
+            CardGroup {
+                switchItem(
                     checked = settings.networkSetting.enableAutoRetry,
                     onCheckedChange = { enabled ->
                         updateNetworkSetting { it.copy(enableAutoRetry = enabled) }
                     },
-                    headline = stringResource(R.string.setting_page_preferences_network_auto_retry),
-                    supporting = stringResource(R.string.setting_page_preferences_network_auto_retry_desc),
+                    supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc)) },
+                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_network_auto_retry)) },
                 )
                 if (settings.networkSetting.enableAutoRetry) {
-                    AppSettingsRow {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_count_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            NumberSlider(
-                                value = settings.networkSetting.retryMaxCount,
-                                onValueChange = { count ->
-                                    updateNetworkSetting { it.copy(retryMaxCount = count) }
-                                },
-                                valueRange = 0..64,
-                            )
-                        }
+                    formItem(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_count)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc)) },
+                    ) {
+                        NumberSlider(
+                            value = settings.networkSetting.retryMaxCount,
+                            onValueChange = { count ->
+                                updateNetworkSetting { it.copy(retryMaxCount = count) }
+                            },
+                            valueRange = 0..64,
+                        )
                     }
                 }
                 if (settings.networkSetting.enableAutoRetry) {
-                    AppSettingsRow {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            NumberSlider(
-                                value = settings.networkSetting.retryIntervalSeconds,
-                                onValueChange = { seconds ->
-                                    updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
-                                },
-                                valueRange = 1..60,
-                                suffix = "s",
-                            )
-                        }
+                    formItem(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc)) },
+                    ) {
+                        NumberSlider(
+                            value = settings.networkSetting.retryIntervalSeconds,
+                            onValueChange = { seconds ->
+                                updateNetworkSetting { it.copy(retryIntervalSeconds = seconds) }
+                            },
+                            valueRange = 1..60,
+                            suffix = "s",
+                        )
                     }
                 }
                 if (settings.networkSetting.enableAutoRetry) {
-                    AppSettingsRow {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            RetryErrorCodePicker(
-                                selected = settings.networkSetting.retryErrorCodes,
-                                onValueChange = { codes ->
-                                    updateNetworkSetting { it.copy(retryErrorCodes = codes) }
-                                },
-                            )
-                        }
+                    formItem(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc)) },
+                    ) {
+                        RetryErrorCodePicker(
+                            selected = settings.networkSetting.retryErrorCodes,
+                            onValueChange = { codes ->
+                                updateNetworkSetting { it.copy(retryErrorCodes = codes) }
+                            },
+                        )
                     }
                 }
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_page_preferences_network_user_agent)) {
-                AppSettingsRow {
+            CardGroupTitle(stringResource(R.string.setting_page_preferences_network_user_agent))
+            CardGroup {
+                formItem {
                     Column {
                         OutlinedTextField(
                             value = userAgent,
@@ -430,8 +397,9 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_page_preferences_network_proxy)) {
-                AppNavItem(
+            CardGroupTitle(stringResource(R.string.setting_page_preferences_network_proxy))
+            CardGroup {
+                item(
                     onClick = {
                         proxyUrlDraft = proxyUrl
                         proxyUsernameDraft = proxyUsername
@@ -439,25 +407,22 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                         proxyPasswordVisible = false
                         proxyDialogVisible = true
                     },
-                    text = stringResource(R.string.setting_page_config),
-                    sub = if (proxyUrl.isBlank()) {
-                        stringResource(
-                            R.string.setting_page_preferences_network_proxy_desc
+                    headlineContent = { Text(stringResource(R.string.setting_page_config)) },
+                    supportingContent = {
+                        Text(
+                            if (proxyUrl.isBlank()) {
+                                stringResource(
+                                    R.string.setting_page_preferences_network_proxy_desc
+                                )
+                            } else {
+                                proxyUrl
+                            }
                         )
-                    } else {
-                        proxyUrl
                     },
                 )
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.setting_provider_page_test_connection))
-                        }
+                item(
+                    headlineContent = { Text(text = stringResource(R.string.setting_provider_page_test_connection)) },
+                    trailingContent = {
                         FilledTonalButton(
                             onClick = ::testProxy,
                             enabled = proxyUrl.toProxyOrNull() != null && !proxyTesting,
@@ -468,24 +433,17 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                 Text(stringResource(R.string.setting_provider_page_test))
                             }
                         }
-                    }
-                }
+                    },
+                )
             }
 
-            AppSettingsGroup(title = stringResource(R.string.setting_network_ca_title)) {
+            CardGroupTitle(stringResource(R.string.setting_network_ca_title))
+            CardGroup {
                 settings.customCaCertificates.forEachIndexed { index, pem ->
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = certificateLabel(pem, index))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_network_ca_installed), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                    item(
+                        headlineContent = { Text(text = certificateLabel(pem, index)) },
+                        supportingContent = { Text(stringResource(R.string.setting_network_ca_installed)) },
+                        trailingContent = {
                             IconButton(
                                 onClick = {
                                     vm.updateSettings { latest ->
@@ -500,13 +458,13 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                                     contentDescription = null,
                                 )
                             }
-                        }
-                    }
+                        },
+                    )
                 }
-                AppNavItem(
+                item(
                     onClick = { caImporter.launch("*/*") },
-                    text = stringResource(R.string.setting_network_ca_import),
-                    sub = stringResource(R.string.setting_network_ca_import_desc),
+                    headlineContent = { Text(stringResource(R.string.setting_network_ca_import)) },
+                    supportingContent = { Text(stringResource(R.string.setting_network_ca_import_desc)) },
                 )
             }
 

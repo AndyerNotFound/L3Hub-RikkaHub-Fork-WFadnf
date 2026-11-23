@@ -19,8 +19,8 @@ import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
@@ -283,20 +283,22 @@ fun ChatExportSheet(
                 )
             }
 
-            // 外层已有 16dp 横向边距（标题和按钮共用）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
-            AppSettingsCard {
-                AppSwitchRow(
+            // 外层已有 16dp 横向边距（标题和按钮共用），CardGroup 不带外距
+            CardGroup {
+                switchItem(
                     checked = exportOptions.includeReasoning,
                     onCheckedChange = { exportOptions = exportOptions.copy(includeReasoning = it) },
-                    headline = stringResource(R.string.chat_page_export_include_reasoning),
+                    headlineContent = { Text(stringResource(R.string.chat_page_export_include_reasoning)) },
                 )
                 // 只有导出图片时用得上
                 if (format == ChatExportFormat.Image) {
-                    AppSwitchRow(
+                    switchItem(
                         checked = exportOptions.expandReasoning,
                         onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
-                        headline = stringResource(R.string.chat_page_export_image_expand_reasoning),
                         enabled = exportOptions.includeReasoning,
+                        headlineContent = {
+                            Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
+                        },
                     )
                 }
             }

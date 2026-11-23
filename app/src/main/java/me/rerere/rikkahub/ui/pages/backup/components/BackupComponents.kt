@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.offset
@@ -55,10 +52,9 @@ import me.rerere.hugeicons.stroke.FileZip
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
@@ -88,14 +84,12 @@ internal fun BackupActionIcon(
             CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
         }
     } else {
-        AppIconBadge(icon)
+        CardGroupIcon(icon)
     }
 }
 
-// 图标会随进度变化的行：AppIconRow 只吃固定 ImageVector，
-// 这里用 AppSettingsRow 手搓同一套行布局，好让开头的图标能在进度圈和图标之间切换
-@Composable
-internal fun BackupActionRow(
+// 图标会随进度变化的行：开头的图标能在进度圈和正常图标之间切换
+internal fun CardGroupScope.BackupActionRow(
     icon: ImageVector,
     headline: String,
     modifier: Modifier = Modifier,
@@ -103,61 +97,40 @@ internal fun BackupActionRow(
     supporting: String? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
-) {
-    AppSettingsRow {
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .then(
-                    if (onClick != null) {
-                        Modifier.clickable(onClick = onClick)
-                    } else {
-                        Modifier
-                    }
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BackupActionIcon(icon = icon, loading = loading)
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = headline)
-                supporting?.let {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = it, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            trailing?.invoke()
-        }
-    }
-}
+) = item(
+    onClick = onClick,
+    modifier = modifier,
+    leadingContent = { BackupActionIcon(icon = icon, loading = loading) },
+    headlineContent = { Text(text = headline) },
+    supportingContent = if (supporting != null) {
+        { Text(text = supporting) }
+    } else {
+        null
+    },
+    trailingContent = trailing,
+)
 
 // 「备份内容」多选项，本地、WebDAV、S3 共用
-@Composable
-internal fun <T> backupContentItem(
+internal fun <T> CardGroupScope.backupContentItem(
     options: List<T>,
     selected: List<T>,
     onChange: (List<T>) -> Unit,
     label: @Composable (T) -> String,
+) = formItem(
+    headlineContent = { Text(text = stringResource(R.string.backup_page_backup_items)) },
 ) {
-    AppSettingsRow {
-        Column {
-            Text(text = stringResource(R.string.backup_page_backup_items))
-            Spacer(modifier = Modifier.height(8.dp))
-            ConnectedMultiChoiceButtons(
-                options = options,
-                selected = selected,
-                onToggle = { option, checked ->
-                    onChange(if (checked) selected + option else selected - option)
-                },
-            ) { option, isSelected ->
-                ConnectedChoiceLabel(
-                    text = label(option),
-                    selected = isSelected,
-                    icon = HugeIcons.Tick01,
-                )
-            }
-        }
+    ConnectedMultiChoiceButtons(
+        options = options,
+        selected = selected,
+        onToggle = { option, checked ->
+            onChange(if (checked) selected + option else selected - option)
+        },
+    ) { option, isSelected ->
+        ConnectedChoiceLabel(
+            text = label(option),
+            selected = isSelected,
+            icon = HugeIcons.Tick01,
+        )
     }
 }
 
@@ -182,17 +155,17 @@ internal fun RemoteBackupStatus(
         UiState.Idle, is UiState.Error -> "-"
     }
 
-    AppSettingsCard {
-        AppIconRow(
-            icon = HugeIcons.Clock01,
-            headline = lastBackupText,
+    CardGroup {
+        item(
+            leadingContent = { CardGroupIcon(HugeIcons.Clock01) },
+            headlineContent = { Text(lastBackupText) },
         )
-        AppIconRow(
-            icon = HugeIcons.CloudDownload,
-            headline = stringResource(R.string.backup_page_restore),
-            supporting = "${stringResource(R.string.backup_page_files)}: $fileCount",
+        item(
             onClick = onShowFiles,
-            trailing = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+            leadingContent = { CardGroupIcon(HugeIcons.CloudDownload) },
+            headlineContent = { Text(stringResource(R.string.backup_page_restore)) },
+            supportingContent = { Text("${stringResource(R.string.backup_page_files)}: $fileCount") },
+            trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
         )
     }
 }
@@ -221,7 +194,8 @@ internal fun RemoteBackupLayout(
                     onCollapse = { expanded = false },
                 )
                 .verticalScroll(rememberScrollState())
-                // 底部留出悬浮工具栏的位置；横向内距交给 AppSettingsCard
+                // 底部留出悬浮工具栏的位置；横向 16dp 对齐上游，CardGroup 不带外距
+                .padding(horizontal = 16.dp)
                 .padding(top = 16.dp, bottom = 128.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,
@@ -322,9 +296,10 @@ internal fun <T> BackupFilesSheet(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .verticalScroll(rememberScrollState()),
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp),
                         ) {
-                            AppSettingsCard {
+                            CardGroup {
                                 files.forEach { file ->
                                     val fileInfo = info(file)
                                     BackupFileItem(
@@ -368,64 +343,46 @@ internal fun <T> BackupFilesSheet(
     }
 }
 
-@Composable
-private fun BackupFileItem(
+private fun CardGroupScope.BackupFileItem(
     info: BackupFileInfo,
     isRestoring: Boolean,
     enabled: Boolean,
     onDelete: () -> Unit,
     onRestore: () -> Unit,
+) = formItem(
+    leadingContent = { CardGroupIcon(HugeIcons.FileZip) },
+    headlineContent = { Text(text = info.name) },
+    supportingContent = {
+        Text(text = "${info.lastModified.toLocalDateTime()} · ${info.size.fileSizeToString()}")
+    },
 ) {
-    AppSettingsRow {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = onDelete,
+            enabled = enabled,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                AppIconBadge(HugeIcons.FileZip)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(text = info.name)
-                    Text(
-                        text = "${info.lastModified.toLocalDateTime()} · ${info.size.fileSizeToString()}",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+            Text(stringResource(R.string.backup_page_delete))
+        }
+        FilledTonalButton(
+            onClick = onRestore,
+            enabled = enabled,
+        ) {
+            if (isRestoring) {
+                CircularWavyProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = onDelete,
-                    enabled = enabled,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text(stringResource(R.string.backup_page_delete))
+            Text(
+                if (isRestoring) {
+                    stringResource(R.string.backup_page_restoring)
+                } else {
+                    stringResource(R.string.backup_page_restore_now)
                 }
-                FilledTonalButton(
-                    onClick = onRestore,
-                    enabled = enabled,
-                ) {
-                    if (isRestoring) {
-                        CircularWavyProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    }
-                    Text(
-                        if (isRestoring) {
-                            stringResource(R.string.backup_page_restoring)
-                        } else {
-                            stringResource(R.string.backup_page_restore_now)
-                        }
-                    )
-                }
-            }
+            )
         }
     }
 }

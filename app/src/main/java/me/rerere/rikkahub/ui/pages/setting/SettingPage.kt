@@ -74,10 +74,9 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppNavItem
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupTitle
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -128,8 +127,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // 横向内距由 AppSettingsCard 自带（12dp）；这里再补一层会叠成双层内距
-            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
+            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
+            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("profile") {
@@ -234,115 +233,106 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             item("generalSettings") {
                 var colorMode by rememberColorMode()
-                AppSettingsGroup(title = stringResource(R.string.setting_page_general_settings)) {
-                    AppSettingsRow {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            ) {
-                                Icon(
-                                    imageVector = colorMode.icon(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(stringResource(R.string.setting_page_color_mode))
-                            }
-                            ConnectedChoiceButtons(
-                                options = ColorMode.entries,
-                                selected = colorMode,
-                                onSelect = {
-                                    colorMode = it
-                                    navController.navigate(Screen.Setting) {
-                                        popUpTo(Screen.Setting) {
-                                            inclusive = true
-                                        }
+                CardGroupTitle(stringResource(R.string.setting_page_general_settings))
+                CardGroup {
+                    formItem(
+                        leadingContent = { CardGroupIcon(colorMode.icon()) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_color_mode)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = ColorMode.entries,
+                            selected = colorMode,
+                            onSelect = {
+                                colorMode = it
+                                navController.navigate(Screen.Setting) {
+                                    popUpTo(Screen.Setting) {
+                                        inclusive = true
                                     }
+                                }
+                            },
+                        ) { mode, selected ->
+                            ConnectedChoiceLabel(
+                                text = when (mode) {
+                                    ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
+                                    ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
+                                    ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
                                 },
-                            ) { mode, selected ->
-                                ConnectedChoiceLabel(
-                                    text = when (mode) {
-                                        ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
-                                        ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
-                                        ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
-                                    },
-                                    selected = selected,
-                                    icon = mode.icon(),
-                                )
-                            }
+                                selected = selected,
+                                icon = mode.icon(),
+                            )
                         }
                     }
-                    AppNavItem(
-                        icon = HugeIcons.Settings03,
-                        text = stringResource(R.string.setting_page_preferences),
+                    item(
                         onClick = { navController.navigate(Screen.SettingPreferences) },
-                        sub = stringResource(R.string.setting_page_preferences_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Settings03) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_preferences)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.LookTop,
-                        text = stringResource(R.string.setting_page_assistant),
+                    item(
                         onClick = { navController.navigate(Screen.Assistant) },
-                        sub = stringResource(R.string.setting_page_assistant_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.LookTop) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Package,
-                        text = stringResource(R.string.setting_page_extensions),
+                    item(
                         onClick = { navController.navigate(Screen.Extensions) },
-                        sub = stringResource(R.string.setting_page_extensions_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Package) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_extensions_desc)) },
                     )
                 }
             }
 
             item("modelServices") {
-                AppSettingsGroup(title = stringResource(R.string.setting_page_model_and_services)) {
-                    AppNavItem(
-                        icon = HugeIcons.AiMagic,
-                        text = stringResource(R.string.setting_page_default_model),
+                CardGroupTitle(stringResource(R.string.setting_page_model_and_services))
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.SettingModels) },
-                        sub = stringResource(R.string.setting_page_default_model_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.AiMagic) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Brain02,
-                        text = stringResource(R.string.setting_page_providers),
+                    item(
                         onClick = { navController.navigate(Screen.SettingProvider) },
-                        sub = stringResource(R.string.setting_page_providers_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Brain02) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.GlobalSearch,
-                        text = stringResource(R.string.setting_page_search_service),
+                    item(
                         onClick = { navController.navigate(Screen.SettingSearch) },
-                        sub = stringResource(R.string.setting_page_search_service_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.GlobalSearch) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Megaphone01,
-                        text = stringResource(R.string.setting_page_tts_service),
+                    item(
                         onClick = { navController.navigate(Screen.SettingSpeech) },
-                        sub = stringResource(R.string.setting_page_tts_service_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Megaphone01) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Image02,
-                        text = stringResource(R.string.setting_page_media),
+                    item(
                         onClick = { navController.navigate(Screen.SettingMedia) },
-                        sub = stringResource(R.string.setting_page_media_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Image02) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_media)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_media_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.McpServer,
-                        text = stringResource(R.string.setting_page_mcp),
+                    item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
-                        sub = stringResource(R.string.setting_page_mcp_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.McpServer) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Tools,
-                        text = stringResource(R.string.setting_page_tool_override),
+                    item(
                         onClick = { navController.navigate(Screen.ToolOverrides) },
-                        sub = stringResource(R.string.setting_page_tool_override_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Tools) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_tool_override)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_tool_override_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.ServerStack01,
-                        text = stringResource(R.string.setting_page_web_server),
+                    item(
                         onClick = { navController.navigate(Screen.SettingWeb) },
-                        sub = stringResource(R.string.setting_page_web_server_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
                     )
                 }
             }
@@ -351,24 +341,29 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
-                AppSettingsGroup(title = stringResource(R.string.setting_page_data_settings)) {
-                    AppNavItem(
-                        icon = HugeIcons.Database02,
-                        text = stringResource(R.string.setting_page_data_backup),
+                CardGroupTitle(stringResource(R.string.setting_page_data_settings))
+                CardGroup {
+                    item(
                         onClick = { navController.navigate(Screen.Backup) },
-                        sub = stringResource(R.string.setting_page_data_backup_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Database02) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.ImageUpload,
-                        text = stringResource(R.string.setting_page_chat_storage),
+                    item(
                         onClick = { navController.navigate(Screen.SettingFiles) },
-                        sub = if (storageState.first == -1) {
-                            stringResource(R.string.calculating)
-                        } else {
-                            stringResource(
-                                R.string.setting_page_chat_storage_desc,
-                                storageState.first,
-                                storageState.second / 1024 / 1024.0
+                        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_chat_storage)) },
+                        supportingContent = {
+                            Text(
+                                if (storageState.first == -1) {
+                                    stringResource(R.string.calculating)
+                                } else {
+                                    stringResource(
+                                        R.string.setting_page_chat_storage_desc,
+                                        storageState.first,
+                                        storageState.second / 1024 / 1024.0
+                                    )
+                                }
                             )
                         },
                     )
@@ -382,10 +377,11 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 val containerColor = MaterialTheme.colorScheme.primaryContainer
                 val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                AppSettingsGroup(title = stringResource(R.string.setting_page_about)) {
-                    // 这一行右侧要放两个社交按钮，AppNavItem 装不下自定义右侧内容，
-                    // 用 AppSettingsRow 自己拼一行（内外距仍由 AppSettingsCard 给）
-                    AppSettingsRow {
+                CardGroupTitle(stringResource(R.string.setting_page_about))
+                CardGroup {
+                    // 这一行右侧要放两个社交按钮，普通导航行装不下两个尾部按钮，
+                    // 用 formItem 自己拼一行
+                    formItem {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -439,10 +435,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                         }
                     }
-                    AppNavItem(
-                        icon = HugeIcons.Book01,
-                        text = stringResource(R.string.setting_page_documentation),
-                        sub = stringResource(R.string.setting_page_documentation_desc),
+                    item(
                         onClick = {
                             val docUrl = if (java.util.Locale.getDefault().language == "zh") {
                                 "https://docs.rikka-ai.com/zh/introduction"
@@ -451,17 +444,17 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                             }
                             context.openUrl(docUrl)
                         },
+                        leadingContent = { CardGroupIcon(HugeIcons.Book01) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Bookshelf01,
-                        text = stringResource(R.string.setting_page_request_logs),
+                    item(
                         onClick = { navController.navigate(Screen.Log) },
-                        sub = stringResource(R.string.setting_page_request_logs_desc),
+                        leadingContent = { CardGroupIcon(HugeIcons.Bookshelf01) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
                     )
-                    AppNavItem(
-                        icon = HugeIcons.Share04,
-                        text = stringResource(R.string.setting_page_share),
-                        sub = stringResource(R.string.setting_page_share_desc),
+                    item(
                         onClick = {
                             val intent = Intent(Intent.ACTION_SEND)
                             intent.type = "text/plain"
@@ -472,6 +465,9 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
                             }
                         },
+                        leadingContent = { CardGroupIcon(HugeIcons.Share04) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_share)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
                     )
                 }
             }

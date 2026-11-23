@@ -34,7 +34,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -81,12 +80,13 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.export.PaletteSerializer
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
 import me.rerere.rikkahub.ui.components.ui.glassAssistChipColors
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import me.rerere.rikkahub.ui.theme.ColorProbeState
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -199,18 +199,18 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
+            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("dynamicColor") {
-                AppSettingsCard {
-                    AppSwitchRow(
+                CardGroup {
+                    switchItem(
                         checked = settings.dynamicColor,
                         onCheckedChange = { enabled ->
                             vm.updateSettings { it.copy(dynamicColor = enabled) }
                         },
-                        headline = stringResource(R.string.setting_palette_page_follow_dynamic),
-                        supporting = stringResource(R.string.setting_palette_page_follow_dynamic_desc),
+                        supportingContent = { Text(stringResource(R.string.setting_palette_page_follow_dynamic_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_palette_page_follow_dynamic)) },
                     )
                 }
             }
@@ -221,22 +221,23 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                         text = stringResource(R.string.setting_palette_page_dynamic_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp),
+                        // 列已有 16dp 内距，补到 20dp
+                        modifier = Modifier.padding(horizontal = 4.dp),
                     )
                 }
             }
 
             item("enablePalette") {
-                AppSettingsCard {
-                    AppSwitchRow(
+                CardGroup {
+                    switchItem(
                         checked = palette.enabled,
                         onCheckedChange = { enabled ->
                             updatePalette {
                                 it.copy(presetId = if (enabled) it.presetId ?: DEFAULT_PALETTE_ID else null)
                             }
                         },
-                        headline = stringResource(R.string.setting_palette_page_enable),
-                        supporting = stringResource(R.string.setting_palette_page_enable_desc),
+                        supportingContent = { Text(stringResource(R.string.setting_palette_page_enable_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_palette_page_enable)) },
                     )
                 }
             }
@@ -264,22 +265,16 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("presets") {
-                AppSettingsCard {
+                CardGroup {
                     PalettePresets.forEach { preset ->
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp)
-                                    .clickable(onClick = { updatePalette { it.copy(presetId = preset.id) } }),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                val colors = remember(preset.id, darkMode) { preset.colors(darkMode) }
-                                PaletteStrip(colors)
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(preset.nameRes))
-                                }
+                        item(
+                            onClick = { updatePalette { it.copy(presetId = preset.id) } },
+                            // 色带按当前明暗取色，remember 只能待在组合作用域里
+                            leadingContent = {
+                                PaletteStrip(remember(preset.id, darkMode) { preset.colors(darkMode) })
+                            },
+                            headlineContent = { Text(text = stringResource(preset.nameRes)) },
+                            trailingContent = {
                                 if (palette.presetId == preset.id) {
                                     Icon(
                                         HugeIcons.Tick01,
@@ -287,8 +282,8 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
-                            }
-                        }
+                            },
+                        )
                     }
                 }
             }
@@ -303,7 +298,7 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                 // 文案先在组合作用域外取好，下面两项直接引用
                 val lightTitle = stringResource(R.string.setting_palette_page_light_palette)
                 val darkTitle = stringResource(R.string.setting_palette_page_dark_palette)
-                AppSettingsCard {
+                CardGroup {
                     paletteSideItem(
                         colors = lightColors,
                         headline = lightTitle,
@@ -318,112 +313,57 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
             }
 
             item("transfer") {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { exportLauncher.launch(PaletteSerializer.getExportFileName(settings.palette)) }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(HugeIcons.Download04, contentDescription = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_palette_page_export))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_export_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                CardGroup {
+                    item(
+                        onClick = { exportLauncher.launch(PaletteSerializer.getExportFileName(settings.palette)) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Download04) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_palette_page_export)) },
+                        supportingContent = { Text(text = stringResource(R.string.setting_palette_page_export_desc)) },
+                    )
+                    item(
+                        onClick = {
+                            val json = PaletteSerializer.exportToJson(settings.palette)
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipEntry(ClipData.newPlainText("palette", json))
+                                )
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.setting_palette_page_copied)
+                                )
                             }
-                        }
-                    }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = {
-                                    val json = PaletteSerializer.exportToJson(settings.palette)
-                                    scope.launch {
-                                        clipboard.setClipEntry(
-                                            ClipEntry(ClipData.newPlainText("palette", json))
-                                        )
-                                        snackbarHostState.showSnackbar(
-                                            context.getString(R.string.setting_palette_page_copied)
-                                        )
-                                    }
-                            }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(HugeIcons.Copy01, contentDescription = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_palette_page_copy))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_copy_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { importLauncher.launch(arrayOf("application/json")) }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(HugeIcons.Upload02, contentDescription = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_palette_page_import))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_import_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                        },
+                        leadingContent = { CardGroupIcon(HugeIcons.Copy01) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_palette_page_copy)) },
+                        supportingContent = { Text(text = stringResource(R.string.setting_palette_page_copy_desc)) },
+                    )
+                    item(
+                        onClick = { importLauncher.launch(arrayOf("application/json")) },
+                        leadingContent = { CardGroupIcon(HugeIcons.Upload02) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_palette_page_import)) },
+                        supportingContent = { Text(text = stringResource(R.string.setting_palette_page_import_desc)) },
+                    )
                 }
             }
 
             item("probe") {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { ColorProbeState.enabled = true }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(HugeIcons.PencilEdit01, contentDescription = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_palette_page_probe))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_probe_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                CardGroup {
+                    item(
+                        onClick = { ColorProbeState.enabled = true },
+                        leadingContent = { CardGroupIcon(HugeIcons.PencilEdit01) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_palette_page_probe)) },
+                        supportingContent = { Text(text = stringResource(R.string.setting_palette_page_probe_desc)) },
+                    )
                 }
             }
 
             item("reset") {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { showResetDialog = true }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(HugeIcons.Refresh01, contentDescription = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_palette_page_reset))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_palette_page_reset_desc), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                CardGroup {
+                    item(
+                        onClick = { showResetDialog = true },
+                        leadingContent = { CardGroupIcon(HugeIcons.Refresh01) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_palette_page_reset)) },
+                        supportingContent = { Text(text = stringResource(R.string.setting_palette_page_reset_desc)) },
+                    )
                 }
             }
         }
@@ -474,35 +414,19 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
 private fun PaletteSetting.effectiveColors(darkMode: Boolean): PaletteColors =
     colors(darkMode) ?: findPalettePreset(DEFAULT_PALETTE_ID).colors(darkMode)
 
-@Composable
-private fun paletteSideItem(
+private fun CardGroupScope.paletteSideItem(
     colors: PaletteColors,
     headline: String,
     onClick: () -> Unit,
-) {
-    AppSettingsRow {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .clickable(onClick = onClick),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PaletteStrip(colors)
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = headline)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.setting_palette_page_custom_desc),
-                    color = LocalContentColor.current.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Icon(HugeIcons.PencilEdit01, contentDescription = stringResource(R.string.edit))
-        }
-    }
-}
+) = item(
+    onClick = onClick,
+    leadingContent = { PaletteStrip(colors) },
+    headlineContent = { Text(text = headline) },
+    supportingContent = { Text(text = stringResource(R.string.setting_palette_page_custom_desc)) },
+    trailingContent = {
+        Icon(HugeIcons.PencilEdit01, contentDescription = stringResource(R.string.edit))
+    },
+)
 
 /** 界面真正读取 LocalUiSlots 的位置槽；其余槽组件直接读 colorScheme，单独设置不会生效。 */
 private val CONSUMED_SLOTS = setOf(
@@ -516,7 +440,8 @@ private fun PaletteSectionTitle(text: String) {
         text = text,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+        // 列已有 16dp 内距，这里补到 20dp（与 CardGroup 自带标题同一档）
+        modifier = Modifier.padding(start = 4.dp, end = 4.dp),
     )
 }
 

@@ -68,7 +68,6 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
-import me.rerere.rikkahub.ui.pages.setting.components.ToolboxAppearanceSettings
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -135,18 +134,6 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
                         )
                     }
                 }
-            }
-
-            // 主题引擎（阶段 5）：配色风格、对比度、色盲矫正、反色、图标形状、描边与阴影。
-            // 动态取色开着时大部分项不起作用，组件里自己会提示
-            item("toolboxAppearance") {
-                ToolboxAppearanceSettings(
-                    toolTheme = settings.toolTheme,
-                    dynamicColor = settings.dynamicColor,
-                    onChange = { updated ->
-                        vm.updateSettings { it.copy(toolTheme = updated) }
-                    },
-                )
             }
 
             if (!settings.dynamicColor) {

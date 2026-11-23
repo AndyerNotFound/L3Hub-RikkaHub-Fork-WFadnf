@@ -21,8 +21,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -58,17 +56,17 @@ import me.rerere.hugeicons.stroke.StopCircle
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.AppNavItem
-import me.rerere.rikkahub.ui.components.ui.AppSwitchRow
 
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ssh.SshServerManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
@@ -235,23 +233,16 @@ fun SettingWebPage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
+            // 横向 16dp 由这里给：CardGroup 自身不带外距
+            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_web_server_port))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_port_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                CardGroup {
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_port)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_port_desc)) },
+                        trailingContent = {
                             TextField(
                                 value = portText,
                                 onValueChange = { value ->
@@ -276,20 +267,12 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        }
-                    }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_localhost_only_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_localhost_only)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_localhost_only_desc)) },
+                        trailingContent = {
                             Switch(
                                 checked = settings.webServerLocalhostOnly,
                                 onCheckedChange = { checked ->
@@ -302,20 +285,12 @@ fun SettingWebPage() {
 
                                 enabled = !serverState.isRunning,
                             )
-                        }
-                    }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_jwt_enable_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_jwt_enable)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable_desc)) },
+                        trailingContent = {
                             Switch(
                                 checked = settings.webServerJwtEnabled,
                                 onCheckedChange = { checked ->
@@ -327,20 +302,12 @@ fun SettingWebPage() {
                                 },
                                 enabled = settings.webServerJwtEnabled || accessPasswordText.isNotBlank(),
                             )
-                        }
-                    }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_web_server_password))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_web_server_password_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_password)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_password_desc)) },
+                        trailingContent = {
                             TextField(
                                 value = accessPasswordText,
                                 onValueChange = { value ->
@@ -379,122 +346,79 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        }
-                    }
+                        },
+                    )
                     // 三个地址项始终注册，靠 visible 收放；端口和地址先算好，条件里不再取值
                     val port = serverState.port
                     val lanUrl = "http://${serverState.address ?: "localhost"}:$port"
                     val mdnsUrl = serverState.hostname?.let { "http://$it:$port" }
                     val localUrl = "http://localhost:$port"
                     if (serverState.isRunning && !serverState.localhostOnly) {
-                        AppNavItem(
+                        item(
                             onClick = { copyUrl(lanUrl) },
-                            text = stringResource(R.string.setting_page_web_server_lan_address),
-                            sub = lanUrl,
+                            headlineContent = { Text(stringResource(R.string.setting_page_web_server_lan_address)) },
+                            supportingContent = { Text(lanUrl) },
                         )
                     }
                     if (serverState.isRunning && !serverState.localhostOnly && mdnsUrl != null) {
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp)
-                                    .clickable(onClick = { mdnsUrl?.let { copyUrl(it) } }),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = stringResource(R.string.setting_page_web_server_mdns_address))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    mdnsUrl?.let { url ->
-                                        Text(
-                                            text = url,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
-                                    }
+                        item(
+                            onClick = { mdnsUrl?.let { copyUrl(it) } },
+                            headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_mdns_address)) },
+                            supportingContent = {
+                                mdnsUrl?.let { url ->
+                                    Text(
+                                        text = url,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
                                 }
-                            }
-                        }
-                    }
-                    if (serverState.isRunning) {
-                        AppNavItem(
-                            onClick = { copyUrl(localUrl) },
-                            text = stringResource(R.string.setting_page_web_server_local_address),
-                            sub = localUrl,
+                            },
                         )
                     }
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.setting_page_web_server_address_note),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.setting_page_web_server_address_note_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                    if (serverState.isRunning) {
+                        item(
+                            onClick = { copyUrl(localUrl) },
+                            headlineContent = { Text(stringResource(R.string.setting_page_web_server_local_address)) },
+                            supportingContent = { Text(localUrl) },
+                        )
                     }
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_web_server_address_note),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        supportingContent = { Text(text = stringResource(R.string.setting_page_web_server_address_note_desc), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    )
                     if (serverState.error != null) {
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.setting_page_web_server_error),
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = serverState.error ?: "",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
+                        item(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.setting_page_web_server_error),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            supportingContent = { Text(text = serverState.error ?: "", color = MaterialTheme.colorScheme.error) },
+                        )
                     }
                 }
             }
 
             item {
-                AppSettingsCard {
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.setting_page_ssh_title),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.setting_page_ssh_title_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                    AppSwitchRow(
+                CardGroup {
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_ssh_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        supportingContent = { Text(text = stringResource(R.string.setting_page_ssh_title_desc), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    )
+                    switchItem(
                         checked = settings.sshServerEnabled,
                         onCheckedChange = { checked ->
                             when {
@@ -522,21 +446,13 @@ fun SettingWebPage() {
                                 }
                             }
                         },
-                        headline = stringResource(R.string.setting_page_ssh_enable),
-                        supporting = stringResource(R.string.setting_page_ssh_enable_desc),
+                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_enable_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_enable)) },
                     )
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_ssh_port))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = stringResource(R.string.setting_page_ssh_port_desc), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                    item(
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_ssh_port)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_port_desc)) },
+                        trailingContent = {
                             TextField(
                                 value = sshPortText,
                                 onValueChange = { value ->
@@ -561,94 +477,65 @@ fun SettingWebPage() {
                                     disabledIndicatorColor = Color.Transparent
                                 )
                             )
-                        }
-                    }
-                    AppSwitchRow(
+                        },
+                    )
+                    switchItem(
                         checked = settings.sshServerAllowLan,
                         onCheckedChange = { checked ->
                             scope.launch {
                                 settingsStore.update { it.copy(sshServerAllowLan = checked) }
                             }
                         },
-                        headline = stringResource(R.string.setting_page_ssh_allow_lan),
-                        supporting = stringResource(R.string.setting_page_ssh_allow_lan_desc),
                         enabled = !sshRunning,
+                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_allow_lan_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_allow_lan)) },
                     )
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { copyUrl(settings.webServerAccessPassword) }),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(R.string.setting_page_ssh_token))
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(text = if (settings.webServerAccessPassword.isBlank()) {
-                                        stringResource(R.string.setting_page_ssh_token_empty)
-                                    } else if (tokenVisible) {
-                                        settings.webServerAccessPassword
-                                    } else {
-                                        "•".repeat(settings.webServerAccessPassword.length.coerceAtMost(16))
-                                    }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
-                            }
+                    item(
+                        onClick = { copyUrl(settings.webServerAccessPassword) },
+                        headlineContent = { Text(text = stringResource(R.string.setting_page_ssh_token)) },
+                        supportingContent = {
+                            Text(text = if (settings.webServerAccessPassword.isBlank()) {
+                                    stringResource(R.string.setting_page_ssh_token_empty)
+                                } else if (tokenVisible) {
+                                    settings.webServerAccessPassword
+                                } else {
+                                    "•".repeat(settings.webServerAccessPassword.length.coerceAtMost(16))
+                                }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                        },
+                        trailingContent = {
                             IconButton(onClick = { tokenVisible = !tokenVisible }) {
                                 Icon(
                                     imageVector = if (tokenVisible) HugeIcons.ViewOff else HugeIcons.View,
                                     contentDescription = null
                                 )
                             }
-                        }
-                    }
-                    AppNavItem(
-                        onClick = { copyUrl(sshExampleCommand) },
-                        text = stringResource(R.string.setting_page_ssh_example),
-                        sub = sshExampleCommand,
+                        },
                     )
-                    AppSettingsRow {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.setting_page_ssh_note),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = stringResource(R.string.setting_page_ssh_note_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                    item(
+                        onClick = { copyUrl(sshExampleCommand) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_example)) },
+                        supportingContent = { Text(sshExampleCommand) },
+                    )
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_ssh_note),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        supportingContent = { Text(text = stringResource(R.string.setting_page_ssh_note_desc), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    )
                     if (sshError != null) {
-                        AppSettingsRow {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.setting_page_web_server_error),
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = sshError ?: "",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
+                        item(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.setting_page_web_server_error),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            supportingContent = { Text(text = sshError ?: "", color = MaterialTheme.colorScheme.error) },
+                        )
                     }
                 }
             }

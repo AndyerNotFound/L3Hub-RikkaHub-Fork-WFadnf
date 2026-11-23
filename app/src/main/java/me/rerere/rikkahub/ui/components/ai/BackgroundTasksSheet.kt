@@ -8,15 +8,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -57,10 +53,8 @@ import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
-import me.rerere.rikkahub.ui.components.ui.AppIconBadge
-import me.rerere.rikkahub.ui.components.ui.AppIconRow
-import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
-import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.compose.koinInject
@@ -168,40 +162,31 @@ private fun TaskList(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
     ) {
-        // 外层已有 16dp 横向边距（标题也在里面）；AppSettingsCard 自带 12dp 外距，这张卡会再往里缩 12dp
-        AppSettingsCard {
+        // 外层已有 16dp 横向边距（标题也在里面），CardGroup 不带外距
+        CardGroup {
             // 最新启动的排在最前
             tasks.asReversed().forEach { task ->
-                // 命令用等宽字体单行显示，AppIconRow 只吃纯文本，这一行自己拼
-                AppSettingsRow {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .clickable { onSelect(task.id) },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TaskStatusIcon(task)
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = task.command.replace("\n", " ").trim(),
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = task.statusText(now),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        if (task.status == BackgroundShellStatus.RUNNING) {
+                item(
+                    onClick = { onSelect(task.id) },
+                    leadingContent = { TaskStatusIcon(task) },
+                    headlineContent = {
+                        // 命令用等宽字体单行显示
+                        Text(
+                            text = task.command.replace("\n", " ").trim(),
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    supportingContent = { Text(task.statusText(now)) },
+                    trailingContent = if (task.status == BackgroundShellStatus.RUNNING) {
+                        {
                             StopButton(stopping = task.id in stopping, onClick = { onStop(task.id) })
                         }
-                    }
-                }
+                    } else {
+                        null
+                    },
+                )
             }
         }
     }
@@ -282,7 +267,7 @@ private fun TaskStatusIcon(task: BackgroundShellTask) {
 
         else -> Triple(HugeIcons.Alert01, colors.errorContainer, colors.onErrorContainer)
     }
-    AppIconBadge(icon = icon, containerColor = container, contentColor = content)
+    CardGroupIcon(icon = icon, containerColor = container, contentColor = content)
 }
 
 @Composable
