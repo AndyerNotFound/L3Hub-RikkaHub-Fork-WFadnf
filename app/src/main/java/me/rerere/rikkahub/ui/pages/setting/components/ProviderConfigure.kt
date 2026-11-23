@@ -576,7 +576,7 @@ private fun ProviderConfigureAccount(
                     deviceCode?.let { code ->
                         CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
                     }
-                },,
+                },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
                 supportingContent = {
                     Text(text = deviceCode?.userCode.orEmpty(), style = MaterialTheme.typography.headlineSmallEmphasized, fontFamily = JetbrainsMono)
