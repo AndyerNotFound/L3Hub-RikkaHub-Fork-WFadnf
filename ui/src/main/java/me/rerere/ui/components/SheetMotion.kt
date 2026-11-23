@@ -71,6 +71,7 @@ fun SaltModalSheet(
             onDismissRequest = onDismissRequest,
             modifier = modifier,
             title = title,
+            actions = actions,
             properties = SheetProperties(
                 // 退场结束那一刻 Salt 会重建内容、清空几何并重新量一次。量出来的锚点一换，
                 // 进行中的偏移会按旧进度被映射回去，退场看着是「收完又弹回原位」；而此时

@@ -43,7 +43,7 @@ import me.rerere.ui.components.SaltModalSheet
  * - 选项纵向排列：单选 RadioButton / 多选 Checkbox；
  * - 每题可跳过（跳过 = 清空该题答案，提交后模型收到空 selected、无 custom，与 DeepSeek
  *   Harness 的 skip 语义一致）；全部跳过也允许提交，生成继续；
- * - 上一题 / 下一题逐题导航，标题栏右侧的「提交」常驻可用；
+ * - 上一题 / 下一题逐题导航，底部栏的「提交」常驻可用；
  * - 关闭抽屉不提交：调用方显示「需回答的问题」提示，点击重新打开。
  */
 @Composable
