@@ -54,8 +54,14 @@ class ToolboxSettingsBridge(
     override val shapesType: ShapeType
         get() = settings.displaySetting.let { shapeTypeOf(it.cornerStyle, it.cornerScale) }
 
-    /** 图标形状：设置里存的是位置键（见 [ToolboxIconShapes]），这里换成引擎的实例；null = 不带形状容器。 */
+    /**
+     * 图标形状：设置里存的是位置键（见 [ToolboxIconShapes]），这里换成引擎的实例。
+     * 选择器还没接到设置页，未设置（null）时给引擎的出厂默认（列表第 0 项 = Squircle，
+     * 对应 ImageToolbox 的 iconShape = 0）——不然图标容器整个不画，设置行少了那块
+     * 招牌底。接出选择器之后要区分「显式无」与「未设置」，再加一个键。
+     */
     override val iconShape: IconShape? get() = ToolboxIconShapes.resolve(toolTheme.iconShapeName)
+        ?: IconShape.entriesNoRandom.first()
 
     /** 组件描边宽度：0 表示不描边；引擎据此决定按钮/卡片要不要画那圈线。 */
     override val borderWidth: Dp get() = toolTheme.uiBorderWidthDp

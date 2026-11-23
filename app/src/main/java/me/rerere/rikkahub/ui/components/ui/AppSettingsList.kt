@@ -1,20 +1,22 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.t8rin.toolbox.ui.utils.provider.SafeLocalContainerColor
 import com.t8rin.toolbox.ui.widget.icon_shape.IconShapeContainer
 import com.t8rin.toolbox.ui.widget.modifier.ShapeDefaults
 import com.t8rin.toolbox.ui.widget.modifier.container
@@ -24,11 +26,10 @@ import com.t8rin.toolbox.ui.widget.preferences.PreferenceRow
 import com.t8rin.toolbox.ui.widget.preferences.PreferenceRowSwitch
 
 /**
- * ImageToolbox 观感的设置列表。行全部走引擎的 [PreferenceRow] / [PreferenceRowSwitch] /
- * [PreferenceItem]（按压形状动画、scrollAnchor、触感、图标形状联动都在引擎内），
- * 分组卡用 [container]（底色 surfaceContainerLow、形状随轮廓设置）。
- * 观感基准是源工程 `core/ui/widget/preferences` 与 `feature/settings` 的用法：
- * 行卡底色 surfaceContainerLow、组圆角 16dp、跳转行不带尾部箭头、禁用整行 alpha 0.5。
+ * ImageToolbox 观感的设置列表。结构对齐源工程：**每行一张独立卡**（行卡底色走引擎的
+ * [SafeLocalContainerColor]，组内行间隔 4dp，卡外距 12dp），分组标题在卡外；
+ * 行全部是引擎件（[PreferenceItem] / [PreferenceRow] / [PreferenceRowSwitch]）——
+ * 按压形状动画、scrollAnchor、触感、图标形状容器（跟随设置里的图标形状）都在引擎内。
  *
  * 与旧 Salt 列表的对应关系（调用点迁移表）：
  * - `RoundedColumn { … }` → [AppSettingsCard]
@@ -42,39 +43,33 @@ import com.t8rin.toolbox.ui.widget.preferences.PreferenceRowSwitch
  * - `SaltIconBadge(...)` → [AppIconBadge]
  * - `SaltTheme.colors.text/subText` → `colorScheme.onSurface / onSurface@50%`
  * - `SaltTheme.textStyles.sub` → [PreferenceItemDefaults.SubtitleFontStyle]
- * - `SaltTheme.dimens.item / itemIcon / subPadding` → 行高 56dp / 图标 20dp / 间距 16dp
- *
- * 分组卡自带 12dp 的横向外距，放在 `LazyColumn` 里时外层不要再补横向 padding，
- * 否则内外两圈会叠成 24dp。竖向间距仍由调用方（`verticalArrangement`）控制。
+ * - `SaltTheme.dimens.item / itemIcon / subPadding` → 行内边距 16dp / 图标 24dp / 间距 16dp
  */
 @Composable
 fun AppSettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .container(
-                shape = ShapeDefaults.default,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                resultPadding = 0.dp,
-                autoShadowElevation = 1.dp,
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         content = content,
     )
 }
 
 /**
- * 分组卡内的无底行容器：横向内距 16dp、纵向 8dp。
- *
- * 纵向 8dp 是 Salt `ItemContainer` 原本自带的呼吸（迁移时丢过：只搬了横向 16dp，结果
- * 手拼行的标题紧贴卡顶/上一行，而引擎行自带纵向内距，同卡两种密度）；补回来后两类行
- * 对齐。行高与点击由调用方（Row）自己决定。
+ * 行卡：手拼行（滑杆、输入等复杂内容）与引擎行同底同形。横向 16dp、纵向 8dp 是
+ * 卡内边距；卡外距 12dp 与引擎行的默认外距一致。
  */
 @Composable
 fun AppSettingsRow(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .container(
+                shape = ShapeDefaults.default,
+                color = SafeLocalContainerColor,
+                resultPadding = 0.dp,
+                autoShadowElevation = 1.dp,
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
         content = content,
     )
@@ -102,7 +97,7 @@ fun AppSettingsGroupTip(text: String) {
     )
 }
 
-/** 标题在分组外、行在分组卡里的完整区块。 */
+/** 标题在分组外、行在分组里的完整区块。 */
 @Composable
 fun AppSettingsGroup(
     title: String? = null,
@@ -116,10 +111,9 @@ fun AppSettingsGroup(
 }
 
 /**
- * 一行纯跳转的设置项：图标容器（可空，无图标即源工程的「标题 + 说明」行）+ 标题 + 说明，
- * 直接走 ImageToolbox 的 [PreferenceItem]。
- * 底色透明、阴影交给分组卡；尾部默认不带图标（源工程分组导航行的样子），调用点可用
- * [endIcon] 挂自己的图标。
+ * 一行纯跳转的设置项：图标形状容器（可空，无图标即源工程的「标题 + 说明」行）+ 标题 +
+ * 说明，直接走 ImageToolbox 的 [PreferenceItem]；卡底、阴影、外距全走引擎默认。
+ * 尾部默认不带图标（源工程分组导航行的样子），调用点可用 [endIcon] 挂自己的图标。
  */
 @Composable
 fun AppNavItem(
@@ -136,15 +130,16 @@ fun AppNavItem(
         subtitle = sub,
         startIcon = icon,
         endIcon = endIcon,
-        modifier = modifier,
-        containerColor = Color.Transparent,
-        autoShadowElevation = 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .then(modifier),
     )
 }
 
 /**
- * 圆形底色的图标行头：走引擎的 [IconShapeContainer]，容器形状跟随设置里的图标形状，
- * 底色/内容色缺省由引擎按主题与容器亮度算（淡 primaryContainer 系）。
+ * 圆形/形状底色的图标行头：走引擎的 [IconShapeContainer]，容器形状跟随设置里的
+ * 图标形状，尺寸与配色由引擎按主题算（淡 primaryContainer 系）。
  */
 @Composable
 fun AppIconBadge(
@@ -161,7 +156,6 @@ fun AppIconBadge(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
                 tint = contentColor.takeOrElse { LocalContentColor.current },
             )
         },
@@ -169,10 +163,11 @@ fun AppIconBadge(
 }
 
 /**
- * 带圆形底图标的一行（跳转 / 长按 / 尾部自定义控件）。
+ * 带图标形状容器的一行（跳转 / 长按 / 尾部自定义控件）。
  * 无尾部控件时走 [PreferenceItem]（支持 onLongClick），有尾部控件走 [PreferenceRow]
  * （endContent 收任意 Composable）；两条分支都是引擎行：16sp Medium 标题、12sp 50% 说明、
- * 按压形状动画、scrollAnchor 与触感。图标容器后 16dp 间距与源工程一致。
+ * 按压形状动画、scrollAnchor 与触感。applyHorizontalPadding 关掉，卡外距统一自己给
+ * 12dp（与 [PreferenceItem] 的默认外距一致），卡内边距交给引擎的 resultModifier。
  */
 @Composable
 fun AppIconRow(
@@ -193,19 +188,23 @@ fun AppIconRow(
             title = headline,
             subtitle = supporting,
             startIcon = icon,
-            modifier = modifier,
-            containerColor = Color.Transparent,
-            autoShadowElevation = 0.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .then(modifier),
         )
     } else {
         PreferenceRow(
-            modifier = modifier,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .then(modifier),
             title = headline,
             subtitle = supporting,
-            containerColor = Color.Unspecified,
-            drawContainer = false,
-            autoShadowElevation = 0.dp,
             onClick = onClick,
+            applyHorizontalPadding = false,
+            // 对齐源工程 startIcon 重载的做法：图标在场也保持全向 16dp 卡内边距
+            resultModifier = Modifier.padding(16.dp),
             startContent = {
                 AppIconBadge(
                     icon = icon,
@@ -219,6 +218,7 @@ fun AppIconRow(
         )
     }
 }
+
 /**
  * 带开关的一行：走引擎的 [PreferenceRowSwitch]（EnhancedSwitch 随 switchType 八档，
  * 选中态拇指画勾，液态玻璃档的底色取容器色），整行点击也切换开关；禁用整行 alpha 0.5
@@ -237,16 +237,18 @@ fun AppSwitchRow(
     contentColor: Color = Color.Unspecified,
 ) {
     PreferenceRowSwitch(
-        modifier = modifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .then(modifier),
         title = headline,
         subtitle = supporting,
         enabled = enabled,
         checked = checked,
         onClick = onCheckedChange,
-        containerColor = Color.Unspecified,
-        drawContainer = false,
-        autoShadowElevation = 0.dp,
-        drawStartIconContainer = false,
+        applyHorizontalPadding = false,
+        // 对齐源工程 startIcon 重载的做法：图标在场也保持全向 16dp 卡内边距
+        resultModifier = Modifier.padding(16.dp),
         startContent = icon?.let { ic ->
             {
                 AppIconBadge(
@@ -257,5 +259,6 @@ fun AppSwitchRow(
                 )
             }
         },
+        drawStartIconContainer = false,
     )
 }
