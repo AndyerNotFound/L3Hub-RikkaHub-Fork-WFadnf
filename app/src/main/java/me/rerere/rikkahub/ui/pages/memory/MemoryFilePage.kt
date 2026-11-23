@@ -451,12 +451,14 @@ private fun MemoryFileEditor(
 }
 
 // 一行「小标题 + 取值」：小标题走 ListItem 的 overline 位
+@Composable
 private fun CardGroupScope.overlineItem(overline: String, value: String) = item(
     overlineContent = { Text(overline) },
     headlineContent = { Text(value) },
 )
 
 // 表单项：标题 + 内容区，内距由 formItem 给
+@Composable
 private fun CardGroupScope.formFieldItem(
     headline: String,
     content: @Composable () -> Unit,

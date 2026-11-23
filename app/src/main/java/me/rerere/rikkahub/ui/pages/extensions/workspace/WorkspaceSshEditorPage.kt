@@ -379,6 +379,7 @@ fun WorkspaceSshEditorPage(id: String?) {
 
 // 表单项：标题行（可带说明与右侧控件）+ 内容区，形状与内距交给 CardGroup
 @Composable
+@Composable
 private fun CardGroupScope.FormFieldRow(
     headline: String,
     supporting: String? = null,

@@ -82,7 +82,6 @@ fun computeAIIconByName(name: String, availableIcons: List<String> = emptyList()
         PATTERN_SNOWFLAKE.containsMatchIn(lowerName) -> "snowflake.svg"
         PATTERN_SPARK.containsMatchIn(lowerName) -> "spark.svg"
         PATTERN_BAICHUAN.containsMatchIn(lowerName) -> "baichuan.svg"
-        PATTERN_SENSENOVA.containsMatchIn(lowerName) -> "sensenova.svg"
         PATTERN_SKYWORK.containsMatchIn(lowerName) -> "skywork.svg"
         PATTERN_TIANGONG.containsMatchIn(lowerName) -> "tiangong.svg"
         PATTERN_YUANBAO.containsMatchIn(lowerName) -> "yuanbao.svg"
@@ -234,7 +233,6 @@ private val PATTERN_GRANITE = Regex("granite|\\bibm\\b")
 private val PATTERN_SNOWFLAKE = Regex("snowflake|arctic")
 private val PATTERN_SPARK = Regex("spark|讯飞|iflytek")
 private val PATTERN_BAICHUAN = Regex("baichuan|百川")
-private val PATTERN_SENSENOVA = Regex("sensenova|商汤")
 private val PATTERN_SKYWORK = Regex("skywork|天工")
 private val PATTERN_TIANGONG = Regex("tiangong")
 private val PATTERN_YUANBAO = Regex("yuanbao|元宝")

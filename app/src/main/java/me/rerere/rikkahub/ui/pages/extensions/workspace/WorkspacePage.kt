@@ -116,7 +116,9 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
     ) {
         CardGroupTitle(stringResource(R.string.workspace_page_create))
         CardGroup(
-            modifier = Modifier.padding(horizontal = 16.dp, bottom = 24.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
         ) {
             item(
                 onClick = {

@@ -76,6 +76,8 @@ internal class ImageCropState(
     val preview: ImageBitmap,
     // 固定的宽高比，比如头像的 1:1；为空时可以自由裁剪，也可以选比例
     val lockedRatio: Float?,
+    // 源文件是不是动图：确认时由调用方决定保留源文件还是存成静态图
+    val animated: Boolean = false,
 ) {
     val sourceWidth: Int get() = source.width
     val sourceHeight: Int get() = source.height
@@ -303,6 +305,26 @@ internal class ImageCropState(
             offset = topLeft + (startOffset - startFrame.topLeft) * currentK
             scale = startScale * currentK
         }
+    }
+
+    /**
+     * 当前裁剪框在旋转后图片上的位置，用于保存动图的裁剪区域。
+     */
+    fun normalizedCrop(): NormalizedCrop {
+        val image = imageSize
+        val cropped = Rect(
+            left = (frame.left - offset.x) / scale,
+            top = (frame.top - offset.y) / scale,
+            right = (frame.right - offset.x) / scale,
+            bottom = (frame.bottom - offset.y) / scale,
+        ).intersect(Rect(Offset.Zero, image))
+        return NormalizedCrop(
+            left = (cropped.left / image.width).coerceIn(0f, 1f),
+            top = (cropped.top / image.height).coerceIn(0f, 1f),
+            width = (cropped.width / image.width).coerceIn(0f, 1f),
+            height = (cropped.height / image.height).coerceIn(0f, 1f),
+            rotation = quarterTurns,
+        )
     }
 
     /**
