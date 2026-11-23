@@ -63,13 +63,19 @@ fun AppSettingsCard(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
-/** 分组卡内的无底行容器：只负责横向内距，行高与点击由调用方（Row）自己决定。 */
+/**
+ * 分组卡内的无底行容器：横向内距 16dp、纵向 8dp。
+ *
+ * 纵向 8dp 是 Salt `ItemContainer` 原本自带的呼吸（迁移时丢过：只搬了横向 16dp，结果
+ * 手拼行的标题紧贴卡顶/上一行，而引擎行自带纵向内距，同卡两种密度）；补回来后两类行
+ * 对齐。行高与点击由调用方（Row）自己决定。
+ */
 @Composable
 fun AppSettingsRow(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         content = content,
     )
 }
