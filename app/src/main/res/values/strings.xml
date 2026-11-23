@@ -1163,6 +1163,15 @@
   <string name="palette_name_sunset">Sunset orange</string>
   <string name="palette_name_rose">Rose</string>
   <string name="palette_name_monochrome">Monochrome</string>
+  <string name="palette_name_kelivo">Kelivo default</string>
+  <string name="palette_name_kelivo_blue">Kelivo blue</string>
+  <string name="palette_name_kelivo_green">Kelivo green</string>
+  <string name="palette_name_kelivo_purple">Kelivo purple</string>
+  <string name="palette_name_kelivo_yellow">Kelivo yellow</string>
+  <string name="palette_name_kelivo_smoky_rose">Kelivo smoky rose</string>
+  <string name="palette_name_kelivo_terracotta">Kelivo terracotta</string>
+  <string name="palette_name_kelivo_monochrome">Kelivo monochrome</string>
+  <string name="palette_name_kelivo_doc">Kelivo doc green</string>
   <string name="palette_group_main">Primary</string>
   <string name="palette_group_accent">Secondary and tertiary</string>
   <string name="palette_group_surface">Surface and background</string>
@@ -2595,7 +2604,7 @@
   <string name="setting_display_page_animation_speed_fast_desc">Same distance, covered in less time</string>
   <string name="setting_display_page_animation_speed_gentle">Gentle</string>
   <string name="setting_display_page_animation_speed_gentle_desc">Slower, with a longer tail</string>
-  <string name="setting_display_page_animation_speed_system_desc">Uses the Material spatial curve</string>
+  <string name="setting_display_page_animation_speed_system_desc">Follows the Kelivo motion spec (enter 300 ms / exit 240 ms)</string>
   <string name="setting_mcp_page_needs_oauth">OAuth authorization required</string>
   <string name="setting_mcp_page_authorize_oauth">Authorize with OAuth</string>
   <string name="setting_mcp_page_authorizing_hint">Authorizing, finish in the browser…</string>
