@@ -5,6 +5,7 @@
   <string name="about_page_system">系统</string>
   <string name="about_page_title">关于</string>
   <string name="about_page_version">版本</string>
+  <string name="about_page_version_copied">已复制版本信息</string>
   <string name="about_page_website">官网</string>
   <string name="add">添加</string>
   <string name="app_name">L3Hub</string>

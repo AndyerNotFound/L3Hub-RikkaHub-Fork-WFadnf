@@ -32,10 +32,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.center
 import androidx.compose.ui.unit.dp
@@ -57,6 +59,7 @@ import me.rerere.rikkahub.ui.components.ui.drawAppLogo
 import me.rerere.rikkahub.ui.components.ui.logoMorphShape
 import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.motionFastFloatAsState
@@ -183,11 +186,20 @@ fun SettingAboutPage() {
                 item {
                     val containerColor = MaterialTheme.colorScheme.primaryContainer
                     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    val clipboard = LocalClipboardManager.current
+                    val toaster = LocalToaster.current
+                    val versionCopiedToast = stringResource(R.string.about_page_version_copied)
                     CardGroup {
                         item(
                             // 版本号长按进调试页：item 没有 onLongClick，跟上上游一样自己挂手势
+                            // 点按复制版本信息，给行一个明确的反馈
                             modifier = Modifier.combinedClickable(
-                                onClick = {},
+                                onClick = {
+                                    clipboard.setText(
+                                        AnnotatedString("${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE}"),
+                                    )
+                                    toaster.show(versionCopiedToast)
+                                },
                                 onLongClick = { navController.navigate(Screen.Debug) },
                             ),
                             leadingContent = {
