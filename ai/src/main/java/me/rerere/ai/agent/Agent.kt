@@ -102,6 +102,9 @@ sealed interface AgentFinishReason {
     /** [AgentHooks.shouldPause] 要求停下：工具都已经执行，模型还没有回复；再运行一次即可继续 */
     data object Paused : AgentFinishReason
 
+    /** 模型输出被截断且没写满配置的输出上限：上下文挤占输出，调用方应压缩历史后重试 */
+    data object Truncated : AgentFinishReason
+
     /** 达到 [AgentRequest.maxSteps]，最后一步调用的工具已经执行，但模型还没有回复 */
     data object StepLimitReached : AgentFinishReason
 }

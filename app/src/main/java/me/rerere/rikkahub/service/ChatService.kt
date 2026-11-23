@@ -1157,12 +1157,25 @@ class ChatService(
                             }
                         }
                     }
-                    if (finishReason != AgentFinishReason.Paused) break
+                    when (finishReason) {
+                        AgentFinishReason.Paused -> {
+                            afterCompression = compressor.compressMidTurn(session)
+                            // 压缩成功：检查点在末尾，新开一条回复；失败：接着刚才那条回复写
+                            target = replyTargetOf(session.state.value, regenerateNodeId = null)
+                            session.replyMessageId.value = target.continuedMessageId
+                        }
 
-                    afterCompression = compressor.compressMidTurn(session)
-                    // 压缩成功：检查点在末尾，新开一条回复；失败：接着刚才那条回复写
-                    target = replyTargetOf(session.state.value, regenerateNodeId = null)
-                    session.replyMessageId.value = target.continuedMessageId
+                        // 输出被上下文挤占截断：压缩历史后重试这一轮，模型从摘要继续写完
+                        AgentFinishReason.Truncated -> {
+                            // 压缩后新开的回复又被截断，或压缩失败：上下文没有可压的了，保留当前回复结束
+                            if (afterCompression || !compressor.compressMidTurn(session)) break
+                            afterCompression = true
+                            target = replyTargetOf(session.state.value, regenerateNodeId = null)
+                            session.replyMessageId.value = target.continuedMessageId
+                        }
+
+                        else -> break
+                    }
                 }
             } finally {
                 withContext(NonCancellable) {

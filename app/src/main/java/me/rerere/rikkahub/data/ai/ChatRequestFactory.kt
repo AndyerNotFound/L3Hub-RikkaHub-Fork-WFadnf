@@ -24,6 +24,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.priceUnitTokens
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.isTruncatedOutput
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.GUIDANCE_TOOL_NAME
@@ -608,19 +609,6 @@ internal fun UIMessage.compressionSummaryOrNull(): String? {
         .single()
         .toText()
         .trim()
-}
-
-/** 各家表示「输出没写完」的 finishReason：OpenAI length、Claude max_tokens、Gemini MAX_TOKENS、Responses incomplete */
-private val TRUNCATED_FINISH_REASONS = setOf(
-    "length",
-    "max_tokens",
-    "max_output_tokens",
-    "incomplete",
-)
-
-private fun String?.isTruncatedOutput(): Boolean {
-    val reason = this?.lowercase() ?: return false
-    return reason in TRUNCATED_FINISH_REASONS
 }
 
 /**

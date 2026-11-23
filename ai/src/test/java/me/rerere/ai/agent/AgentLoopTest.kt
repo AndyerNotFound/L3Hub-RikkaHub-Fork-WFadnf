@@ -73,6 +73,70 @@ class AgentLoopTest {
     }
 
     @Test
+    fun `truncated reply ends the run with Truncated reason`() = runTest {
+        provider.stream {
+            text("partial")
+            usage(prompt = 10_000, completion = 50)
+            emit(StreamChunk.Finish(finishReason = "max_tokens"))
+        }
+
+        val events = runToEnd()
+
+        val finished = events.finished()
+        assertEquals(AgentFinishReason.Truncated, finished.reason)
+        assertEquals(listOf("partial"), finished.message.texts())
+        assertEquals(1, provider.requests.size)
+    }
+
+    @Test
+    fun `reply cut off at the configured output limit completes normally`() = runTest {
+        val limited = object : AgentHooks by hooks {
+            override suspend fun prepareStep(messages: List<UIMessage>) = StepRequest(
+                messages,
+                TextGenerationParams(model = model, maxTokens = 200),
+            )
+        }
+        provider.stream {
+            text("partial")
+            usage(prompt = 1_000, completion = 190)
+            emit(StreamChunk.Finish(finishReason = "length"))
+        }
+
+        val finished = runToEnd(hooks = limited).finished()
+
+        assertEquals(AgentFinishReason.Completed, finished.reason)
+        assertEquals(listOf("partial"), finished.message.texts())
+    }
+
+    @Test
+    fun `truncated reply drops unexecuted tool calls`() = runTest {
+        provider.stream {
+            toolCall("call-1", "search", """{"q":"kotlin"""")
+            text("partial")
+            emit(StreamChunk.Finish(finishReason = "max_tokens"))
+        }
+
+        val finished = runToEnd(request(tools = listOf(tool("search")))).finished()
+
+        assertEquals(AgentFinishReason.Truncated, finished.reason)
+        assertTrue(finished.message.getTools().none { !it.isExecuted })
+    }
+
+    @Test
+    fun `non-stream truncated reply ends the run with Truncated reason`() = runTest {
+        provider.result(
+            message = assistant(UIMessagePart.Text("partial")),
+            usage = TokenUsage(promptTokens = 10_000, completionTokens = 50),
+            finishReason = "max_tokens",
+        )
+
+        val finished = runToEnd(request(stream = false)).finished()
+
+        assertEquals(AgentFinishReason.Truncated, finished.reason)
+        assertEquals(listOf("partial"), finished.message.texts())
+    }
+
+    @Test
     fun `reply without tool calls completes after one request`() = runTest {
         provider.stream {
             text("hello")
@@ -681,8 +745,14 @@ private class FakeProvider : Provider<ProviderSetting> {
         streams += block
     }
 
-    fun result(message: UIMessage, usage: TokenUsage? = null) {
-        results += TextGenerationResult(id = "result", model = "test-model", message = message, usage = usage)
+    fun result(message: UIMessage, usage: TokenUsage? = null, finishReason: String? = null) {
+        results += TextGenerationResult(
+            id = "result",
+            model = "test-model",
+            message = message,
+            usage = usage,
+            finishReason = finishReason,
+        )
     }
 
     override suspend fun listModels(providerSetting: ProviderSetting): List<Model> = emptyList()

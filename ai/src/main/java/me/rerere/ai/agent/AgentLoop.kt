@@ -16,6 +16,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.UsageCost
 import me.rerere.ai.provider.estimateCost
 import me.rerere.ai.ui.StreamChunkHandler
+import me.rerere.ai.ui.isTruncatedOutput
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -30,6 +31,9 @@ import kotlin.time.TimeSource
 private const val EMPTY_TOOL_OUTPUT = "(no output)"
 
 private class StreamChunkHandlingException(override val cause: Throwable) : RuntimeException(cause)
+
+/** 一步模型请求的输出：消息和它的 finishReason（截断检测用） */
+private data class StepResult(val message: UIMessage, val finishReason: String?)
 
 internal class AgentLoop(
     private val request: AgentRequest,
@@ -68,7 +72,8 @@ internal class AgentLoop(
             if (steps == request.maxSteps) return finish(AgentFinishReason.StepLimitReached)
             // 只在刚执行完工具时问：接着一条已经执行完的消息继续时不问，否则暂停之后再运行又会立刻暂停
             if (toolsExecuted && hooks.shouldPause(checkNotNull(message))) return finish(AgentFinishReason.Paused)
-            generateStep()
+            // 输出被截断时保留半截回复并结束本轮：调用方压缩历史后重试，模型从摘要继续写完
+            if (!generateStep()) return finish(AgentFinishReason.Truncated)
             steps++
         }
     }
@@ -96,7 +101,7 @@ internal class AgentLoop(
         findTool(part.toolName)?.needsApproval?.invoke(part.inputAsJson()) == true
     }.getOrDefault(true)
 
-    private suspend fun generateStep() {
+    private suspend fun generateStep(): Boolean {
         appendPendingParts()
         val current = message
         val step = hooks.prepareStep(if (current == null) history else history + current)
@@ -108,12 +113,23 @@ internal class AgentLoop(
                 modelId = params.model.id,
             )
         val stepAtMillis = System.currentTimeMillis()
-        val generated = if (request.stream) {
+        val output = if (request.stream) {
             stream(step.messages, params, base, stepAtMillis)
         } else {
             generate(step.messages, params, base, stepAtMillis)
         }
-        update(hooks.finishStep(generated, newPartsFrom = base.parts.size).copy(finishedAt = now()))
+        // 上下文挤占导致输出被截断（没写满配置的输出上限）：去掉未执行的工具调用——参数可能写到一半，
+        // 发给模型会被拒绝——保留已生成的正文，结束本轮。调用方把半截回复压进摘要后重新请求，
+        // 模型从摘要继续写完；压缩重试没有意义时（写满输出上限）按正常回复处理
+        if (output.finishReason.isTruncatedOutput() && !output.message.wroteToLimit(params)) {
+            val salvage = output.message.copy(
+                parts = output.message.parts.filterNot { part -> part is UIMessagePart.Tool && !part.isExecuted }
+            )
+            update(hooks.finishStep(salvage, newPartsFrom = base.parts.size).copy(finishedAt = now()))
+            return false
+        }
+        update(hooks.finishStep(output.message, newPartsFrom = base.parts.size).copy(finishedAt = now()))
+        return true
     }
 
     // 续写普通回复时最后一个 part 不是执行完的工具或通知，这时追加会把续写变成新的一轮
@@ -131,7 +147,7 @@ internal class AgentLoop(
         params: TextGenerationParams,
         base: UIMessage,
         atMillis: Long,
-    ): UIMessage {
+    ): StepResult {
         // 多轮工具调用共用同一条助手消息，消息上已有的 usage 和耗时来自之前的步骤。
         // 本步从清空的统计开始（merge 只适合同一次请求内的快照），再与之前的步骤累加。
         val stepStart = base.copy(usage = null, generationTimeMs = null)
@@ -165,12 +181,15 @@ internal class AgentLoop(
                         throw StreamChunkHandlingException(e)
                     }
                 }
-                attempt.withStepStats(
-                    stepBase = base,
-                    stepTime = firstChunk?.elapsedNow() ?: Duration.ZERO,
-                    params = params,
-                    atMillis = atMillis,
-                    includeCost = true,
+                StepResult(
+                    attempt.withStepStats(
+                        stepBase = base,
+                        stepTime = firstChunk?.elapsedNow() ?: Duration.ZERO,
+                        params = params,
+                        atMillis = atMillis,
+                        includeCost = true,
+                    ),
+                    handler.finishReason,
                 )
             }
         } catch (e: StreamChunkHandlingException) {
@@ -183,7 +202,7 @@ internal class AgentLoop(
         params: TextGenerationParams,
         base: UIMessage,
         atMillis: Long,
-    ): UIMessage {
+    ): StepResult {
         // 非流式拿不到首 token 时间，只能统计最后一次尝试的整个请求耗时
         var requestMark = TimeSource.Monotonic.markNow()
         val result = withRetry(request.retry, onRetry = { events.emit(AgentEvent.Retrying(it)) }) {
@@ -206,7 +225,7 @@ internal class AgentLoop(
             includeCost = true,
         )
         preview(generated, newPartsFrom = base.parts.size)
-        return generated
+        return StepResult(generated, result.finishReason)
     }
 
     // 连续的只读调用并发跑，写操作仍按顺序；中途取消时已完成的结果都会写回
@@ -355,3 +374,10 @@ private fun UIMessage.withStepStats(
 }
 
 private fun now() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+
+/** 输出是否写满配置的输出上限：写满说明是输出上限截断（压缩重试还会截断），不值得恢复 */
+private fun UIMessage.wroteToLimit(params: TextGenerationParams): Boolean {
+    val maxTokens = params.maxTokens ?: return false
+    val completion = lastRequestUsage()?.completionTokens ?: return false
+    return completion.toLong() * 10 >= maxTokens.toLong() * 9
+}

@@ -55,6 +55,10 @@ import kotlin.time.Clock
  * 事件应按 Provider 产生的顺序交给同一实例处理。
  */
 class StreamChunkHandler(private val model: Model? = null) {
+    /** 最后一次响应流结束时的 finishReason；截断检测用，收到 Finish 前为 null */
+    var finishReason: String? = null
+        private set
+
     // Map 的值是对应 part 在当前助手消息 parts 列表中的下标。
     private val textPartIndexes = mutableMapOf<String, Int>()
     private val reasoningPartIndexes = mutableMapOf<String, Int>()
@@ -318,6 +322,7 @@ class StreamChunkHandler(private val model: Model? = null) {
             is StreamChunk.Finish -> copy(
                 finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             ).finishReasoning().also {
+                finishReason = chunk.finishReason
                 // Finish 同时结束尚未显式结束的 reasoning，并释放本次响应流的索引状态。
                 textPartIndexes.clear()
                 reasoningPartIndexes.clear()
