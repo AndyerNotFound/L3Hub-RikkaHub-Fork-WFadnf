@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
 import me.rerere.workspace.WorkspaceBackend
+import me.rerere.workspace.WorkspaceBackgroundCommand
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceConfig
 import me.rerere.workspace.WorkspaceFileEntry
