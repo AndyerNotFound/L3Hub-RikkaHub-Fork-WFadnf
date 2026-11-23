@@ -170,7 +170,7 @@ internal fun createShellTool(
             return@Tool listOf(UIMessagePart.Text(task.toJson().toString()))
         }
         if (detached || runInBackground) {
-            // 日志目录与 ShellChangeScan 用同一套展开规则：Termux 上 /tmp 属于 shell 用户且被
+            // 日志目录沿用 $TMPDIR / $HOME/tmp 展开规则：Termux 上 /tmp 属于 shell 用户且被
             // SELinux 挡住，应用硬写会让整条命令在重定向那一步就失败，而且失败是静默的。
             val log = "\${TMPDIR:-\$HOME/tmp}/l3hub-job-${System.currentTimeMillis()}.log"
             val quoted = command.replace("'", "'\\''")
@@ -209,21 +209,12 @@ internal fun createShellTool(
                 )
             )
         } else {
-            // 只能用 shell 改文件的工作区（SSH）没有文件快照，跑完扫一份本轮改过的路径给聊天页
-            // TODO(l3hub): 只对 supportsFileWrite=false 的工作区扫；本地工作区用 shell 改文件（git commit、格式化）
-            //  目前不会出「已修改文件」卡片，等快照能覆盖这类改动再打开
-            val scan = if (target.supportsFileWrite) null else ShellChangeScan.create(target.layout.workspaceDir)
             val result = workspaceRepository.executeCommand(
                 target.id,
-                scan?.wrap(command) ?: command,
+                command,
                 cwd,
                 timeoutMillis,
             )
-            val changed = scan?.collect { collectCommand ->
-                runCatching {
-                    workspaceRepository.executeCommand(target.id, collectCommand, "", SHELL_SCAN_TIMEOUT_MILLIS)
-                }.getOrNull()?.stdout
-            }.orEmpty()
             listOf(
                 UIMessagePart.Text(
                     buildJsonObject {
@@ -233,7 +224,6 @@ internal fun createShellTool(
                         put("timedOut", result.timedOut)
                         if (result.truncated) put("truncated", true)
                         put("workspace", target.name)
-                        putEditedFiles(changed.map { editedFileJson(it.path, it.created) })
                     }.toString()
                 )
             )

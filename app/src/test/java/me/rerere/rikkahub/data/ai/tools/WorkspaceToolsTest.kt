@@ -125,30 +125,4 @@ class WorkspaceToolsTest {
         assertFalse(target.needsApproval("workspace_git"))
     }
 
-    @Test
-    fun `shell change scan keeps the command and its exit code`() {
-        val scan = ShellChangeScan.create("/root/projects", token = "t")
-        val wrapped = scan.wrap("echo hi")
-        assertTrue(wrapped.contains("\necho hi\n"))
-        assertTrue(wrapped.trimEnd().endsWith("exit \$__l3hub_rc"))
-    }
-
-    @Test
-    fun `blank command is not wrapped`() {
-        assertEquals("  ", ShellChangeScan.create("/root/projects", token = "t").wrap("  "))
-    }
-
-    @Test
-    fun `shell change scan parses paths and creation flag`() {
-        val output = listOf(
-            "mark\t1700000100",
-            "file\t1700000101\t1700000101\t/root/projects/new.kt",
-            "file\t0\t1700000200\t/root/projects/old.kt",
-            "garbage",
-        ).joinToString("\n")
-        val files = parseShellChangeScan(output)
-        assertEquals(listOf("/root/projects/new.kt", "/root/projects/old.kt"), files.map { it.path })
-        assertEquals(true, files[0].created)
-        assertNull(files[1].created)
-    }
 }

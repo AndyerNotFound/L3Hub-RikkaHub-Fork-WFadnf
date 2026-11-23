@@ -76,8 +76,7 @@
    - 显示条件：`!message.parts.isEmptyUIMessage() && !joinedToPrevious`（同一角色连续时只有组首显示头像行）。各自还受 `showModelIcon` / `showModelName` / `showUserAvatar` 开关控制。
 2. **气泡本体**（见 2.2~2.3）。
 3. **操作行**（仅助手消息，见 2.5）。
-4. **文件变更卡**（`EditedFilesList`，见 3.5）。
-5. **统计行**（`ChatMessageNerdLine`，见 2.6）。
+4. **统计行**（`ChatMessageNerdLine`，见 2.6）。
 
 消息间距（`ChatList.kt`）：同角色相邻 `MESSAGE_GAP_JOINED = 2dp`，角色切换 `MESSAGE_GAP_ROLE_CHANGE = 16dp`；列表 `contentPadding` = 水平 `adaptiveHorizontalPaddingValue(16dp)`，垂直 `16dp`，额外顶部 `innerPadding.top`、底部 `32dp + innerPadding.bottom`；`verticalArrangement = spacedBy(0dp)`。
 
@@ -217,14 +216,7 @@
 - 三个状态：`Collapsed`（收起）、`Preview`（生成中展开时只给 100dp 预览）、`Expanded`。
 - 行为：生成中若 `showThinkingContent` 开，自动进入预览并贴底滚动；生成结束后按 `autoCloseThinking` 决定收起或保持展开；断在半路的段显示为失败态（进度条转 `error`）。
 
-### 3.5 文件变更卡（`EditedFilesList` / 编辑文件卡片）
-- 容器：`Surface`，`fillMaxWidth()`，圆角 `MaterialTheme.shapes.large`，底色 `surfaceContainerLow`。
-- 头部行（可点折叠）：`padding h12 v10`，`spacedBy(8dp)`：`HugeIcons.File02` 16dp tint `primary` →「文件变更」（`chat_message_edited_files_title`，`labelLarge`，`onSurfaceVariant`）→「%1$d 个文件」（`chat_message_edited_files_count`，`labelMedium`，`primary`）→ 尾部 16dp `ArrowUp01`/`ArrowDown01`，`onSurfaceVariant`。
-- 展开体：内边距 `start 8dp / end 8dp / bottom 8dp`，行间距 `2dp`；路径树按 `EDITED_PATH_INDENT = 20dp` 缩进，目录用 `ArrowRight01`/`ArrowDown01` 折叠。
-- 底部（有可撤销目标时）：「撤销本轮修改」（`workspace_revert_turn`，`labelMedium`，前置 `Refresh01` 14dp），点开确认框：标题同文案，`workspace_revert_confirm` 说明，确认「撤销」（`workspace_revert_confirm_action`），成功/失败 toast：`workspace_revert_done` / `workspace_revert_nothing` / `workspace_revert_failed`。
-- 显示条件：该消息含文件变更部件；横屏三栏且是最后一条时这一行收进右栏（`LocalTurnChangesInSidePanel`），消息下方不再渲染。
-
-### 3.6 子代理卡片
+### 3.5 子代理卡片
 两种情况，代码里是两套东西：
 1. **派发调用 `dispatch_sub_agent`**（`SUB_AGENT_TOOL_NAME`，`data/ai/tools/local/SubAgentTool.kt`）：`ToolUIRegistry` 里没有为它注册渲染器（注册表见 `ToolUI.kt:121-141`），所以它走默认渲染：图标 `HugeIcons.Tools` 16dp，标题「调用工具 dispatch_sub_agent」（`chat_message_tool_call_generic`）。「推测」：产品上想要的「子代理卡片」若指这一步，需要新增渲染器，当前代码没有。
 2. **子代理回传通知卡**（`ChatMessageSubAgentNotice`，`isSubAgentNotice` 的消息）：
@@ -233,14 +225,14 @@
    - 默认收起。长按菜单两项：编辑（弹「编辑子代理结果」`chat_message_sub_agent_notice_edit_title` 对话框，输入框 `heightIn(min = 120dp, max = 320dp)`，确认「确定」`common_confirm`，取消「取消」`cancel`）、删除。
    - 外层 Column `spacedBy(6dp)`。
 
-### 3.7 图片生成卡片
+### 3.6 图片生成卡片
 代码里**没有**独立的「图片生成」卡片渲染器：`BuiltInTools.ImageGeneration` 只是模型能力枚举（`ai/src/main/java/me/rerere/ai/provider/Model.kt:88`），`ToolUIRegistry` 中也没有图片生成渲染器。生图结果以 `UIMessagePart.Image` 出现：
 - 在消息正文里：`ZoomableAsyncImage`，高 `72dp`，圆角 `shapes.large`；URL 未就绪时占位 `size(72dp)` + `surfaceVariant` + shimmer。
 - 在工具输出里：折叠头展开后的 `LazyRow`，每张高 `64dp`。
 - 折叠头文本仍是「调用工具 %1$s」（`chat_message_tool_call_generic`）。
 「推测」：若原型需要独立的生图卡片（标题/尺寸/进度/重试），需要新增渲染器，现有代码没有对应尺寸与文案可抄。
 
-### 3.8 其它步内卡片（同套折叠头）
+### 3.7 其它步内卡片（同套折叠头）
 - 服务端工具：图标运行中 `DotLoading(size = 10dp)`，否则 `HugeIcons.Tools` 16dp（`onSurfaceVariant alpha 0.7`）；标题「调用工具 %1$s」`titleSmall` `secondary`，`maxLines = 2`。
 - 运行时通知（`notice`）：`Notification01` 16dp；标题 `notice.title`；展开显示正文 `bodySmall` 等宽字体，`onSurfaceVariant`。
 - 应用注入的引导：`Notification01`，标题「引导」（`guidance_tool_label`），正文 `bodySmall` `onSurfaceVariant`。
@@ -386,4 +378,4 @@
 - 主题里 `adaptiveShape` / `adaptiveCornerRadius` / `appButtonShadow` / `chatInputHaze` 的具体实现（取色、模糊半径、阴影参数）在 `ui/theme/` 与 `ui/components/ai/ChatInputHaze.kt`，本次未读，只写调用点与传入值。
 - `LocalUiSlots.userBubble` / `aiBubble` / `inputBar` / `pageBackground` 的具体色值（由 UI 槽位/主题决定），只记 token 名。
 - 回复建议（`ChatSuggestionsColumn`）、对话地图、导出表、任务树/右栏等页面级浮层只提了入口，未逐项展开。
-- 图片生成的独立卡片：代码中不存在，见 3.7 的说明。
+- 图片生成的独立卡片：代码中不存在，见 3.6 的说明。

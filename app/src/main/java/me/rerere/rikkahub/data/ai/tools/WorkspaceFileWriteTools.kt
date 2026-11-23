@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.ai.tools
 
-import android.util.Log
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -17,20 +16,13 @@ import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.workspace.ApplyOutcome
 import me.rerere.rikkahub.data.workspace.UnifiedDiff
-import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspacePaths
-import kotlin.uuid.Uuid
-
-private const val TAG = "WorkspaceTools"
-private const val MAX_SNAPSHOT_FILE_BYTES = 4L * 1024 * 1024
 
 internal fun createWriteFileTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
-    snapshots: WorkspaceSnapshotStore?,
-    conversationId: Uuid?,
 ) = Tool(
     name = "workspace_write_file",
     description = """
@@ -71,33 +63,9 @@ internal fun createWriteFileTool(
         val path = params.writePath("path", target.layout)
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
-        // 写之前先看文件在不在: 既是快照的判据, 也是「已修改文件」里的新建标记
-        val existingSize = runCatching { workspaceRepository.absoluteFileSize(target.id, path) }.getOrNull()
-        // 覆盖前留一份原内容，供聊天页撤销这一轮的修改
-        var snapshotTurn: String? = null
-        if (snapshots != null && conversationId != null) {
-            val original = if (existingSize != null && existingSize <= MAX_SNAPSHOT_FILE_BYTES) {
-                runCatching { workspaceRepository.readTextInRootfs(target.id, path) }.getOrNull()
-            } else {
-                null
-            }
-            if (existingSize == null || original != null) {
-                val (area, relative) = resolveStorageArea(target.layout, path)
-                snapshotTurn = runCatching {
-                    snapshots.capture(conversationId, target.id, path, area, relative, original)
-                }.onFailure { Log.w(TAG, "snapshot capture failed: $path", it) }
-                    .getOrNull()
-            }
-        }
         val entry = workspaceRepository.writeAbsoluteText(target.id, path, text, overwrite)
-        // 快照可能写不出来（SSH 工作区根本不做快照），所以另带一份仅路径的清单给聊天页
         val payload = buildJsonObject {
             entry.toJson().forEach { (key, value) -> put(key, value) }
-            putEditedFiles(listOf(editedFileJson(entry.path, created = existingSize == null)))
-            if (snapshotTurn != null) {
-                put("snapshotTurn", snapshotTurn)
-                put("conversationId", conversationId.toString())
-            }
         }.toString()
         listOf(UIMessagePart.Text(payload))
     },
@@ -106,8 +74,6 @@ internal fun createWriteFileTool(
 internal fun createEditFileTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
-    snapshots: WorkspaceSnapshotStore?,
-    conversationId: Uuid?,
 ) = Tool(
     name = "workspace_edit_file",
     description = """
@@ -158,15 +124,6 @@ internal fun createEditFileTool(
         require(oldText.isNotEmpty()) { "old_text must not be empty" }
 
         val original = workspaceRepository.readTextInRootfs(target.id, path)
-        // 改之前留一份原内容，供聊天页撤销这一轮的修改
-        var snapshotTurn: String? = null
-        if (snapshots != null && conversationId != null) {
-            val (area, relative) = resolveStorageArea(target.layout, path)
-            snapshotTurn = runCatching {
-                snapshots.capture(conversationId, target.id, path, area, relative, original)
-            }.onFailure { Log.w(TAG, "snapshot capture failed: $path", it) }
-                .getOrNull()
-        }
         // 逐级尝试 exact -> line_trimmed -> block_anchor 替换器, 见 TextReplacers.kt
         val result = try {
             replaceText(original, oldText, newText, replaceAll)
@@ -184,11 +141,6 @@ internal fun createEditFileTool(
                     put("sizeBytes", entry.sizeBytes)
                     put("updatedAt", entry.updatedAt)
                     put("workspace", target.name)
-                    putEditedFiles(listOf(editedFileJson(entry.path)))
-                    snapshotTurn?.let {
-                        put("snapshotTurn", it)
-                        put("conversationId", conversationId.toString())
-                    }
                 }.toString(),
                 // diff 存入 metadata 供 UI 渲染 diff view, 不会随工具结果发送给 API
                 metadata = diff?.let { d -> DiffMetadata(diff = d).toMetadata() },
@@ -200,8 +152,6 @@ internal fun createEditFileTool(
 internal fun createApplyPatchTool(
     targets: List<WorkspaceTarget>,
     workspaceRepository: WorkspaceRepository,
-    snapshots: WorkspaceSnapshotStore?,
-    conversationId: Uuid?,
 ) = Tool(
     name = "workspace_apply_patch",
     description = """
@@ -246,8 +196,6 @@ internal fun createApplyPatchTool(
         val result = applyUnifiedPatch(
             target = target,
             workspaceRepository = workspaceRepository,
-            snapshots = snapshots,
-            conversationId = conversationId,
             patchText = patchText,
             dryRun = dryRun,
         )
@@ -268,8 +216,6 @@ private data class PlannedPatchWrite(
 private suspend fun applyUnifiedPatch(
     target: WorkspaceTarget,
     workspaceRepository: WorkspaceRepository,
-    snapshots: WorkspaceSnapshotStore?,
-    conversationId: Uuid?,
     patchText: String,
     dryRun: Boolean,
 ): JsonObject {
@@ -368,23 +314,8 @@ private suspend fun applyUnifiedPatch(
         }
     }
 
-    var snapshotTurn: String? = null
     if (!dryRun) {
         writes.forEach { write ->
-            if (snapshots != null && conversationId != null) {
-                val (area, relative) = resolveStorageArea(target.layout, write.absolutePath)
-                snapshotTurn = runCatching {
-                    snapshots.capture(
-                        conversationId = conversationId,
-                        workspaceId = target.id,
-                        absolutePath = write.absolutePath,
-                        area = area,
-                        relativePath = relative,
-                        original = write.original,
-                    )
-                }.onFailure { Log.w(TAG, "snapshot capture failed: ${write.absolutePath}", it) }
-                    .getOrNull() ?: snapshotTurn
-            }
             val content = write.content
             if (content == null) {
                 val (area, relative) = resolveStorageArea(target.layout, write.absolutePath)
@@ -412,13 +343,6 @@ private suspend fun applyUnifiedPatch(
         })
         if (skipped.isNotEmpty()) {
             put("skipped", buildJsonArray { skipped.forEach { add(it) } })
-        }
-        if (!dryRun) {
-            putEditedFiles(writes.map { write -> editedFileJson(write.displayPath, created = write.original == null) })
-        }
-        if (snapshotTurn != null && conversationId != null) {
-            put("snapshotTurn", snapshotTurn)
-            put("conversationId", conversationId.toString())
         }
     }
 }

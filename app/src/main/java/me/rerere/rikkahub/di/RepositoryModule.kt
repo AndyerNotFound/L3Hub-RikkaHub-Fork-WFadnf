@@ -16,7 +16,6 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.skills.SkillManager
-import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
@@ -99,12 +98,6 @@ val repositoryModule = module {
 
     single {
         WorkspaceRepository(get(), get(), get(), get(), get(), get(), get())
-    }
-
-    // AI 改文件前的原内容快照，用来撤销某一轮的修改
-    single {
-        val context: Context = get()
-        WorkspaceSnapshotStore(context, get(), get())
     }
 
     // 流式生成的草稿：独立文件，不进数据库；进程被杀后打开会话时从这里补回写到一半的内容

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.tools
 import android.util.Log
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -11,15 +10,12 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.data.workspace.WorkspaceSnapshotStore
 import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.workspace.WorkspaceCapabilities
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspacePaths
-import me.rerere.workspace.WorkspaceShellStatus
-import org.koin.java.KoinJavaComponent.getKoin
 import kotlin.uuid.Uuid
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
@@ -100,14 +96,11 @@ suspend fun createWorkspaceTools(
         add(createGlobTool(targets, workspaceRepository, cwds))
         add(createGrepTool(targets, workspaceRepository, cwds))
         add(createRepoMapTool(targets, workspaceRepository, cwds))
-        val snapshots = conversationId?.let {
-            runCatching { getKoin().get<WorkspaceSnapshotStore>() }.getOrNull()
-        }
         // 计划模式和「只读」档位只放只读工具：写文件、跑测试这类有副作用的工具直接不注册
         if (targets.any { it.supportsFileWrite } && !readOnly) {
-            add(createWriteFileTool(targets, workspaceRepository, snapshots, conversationId))
-            add(createEditFileTool(targets, workspaceRepository, snapshots, conversationId))
-            add(createApplyPatchTool(targets, workspaceRepository, snapshots, conversationId))
+            add(createWriteFileTool(targets, workspaceRepository))
+            add(createEditFileTool(targets, workspaceRepository))
+            add(createApplyPatchTool(targets, workspaceRepository))
         }
         add(createGitTool(targets, workspaceRepository, readOnly))
         if (!readOnly) add(createTestTool(targets, workspaceRepository))
@@ -162,9 +155,9 @@ fun createWorkspaceCatalogTools(
         add(createGlobTool(targets, workspaceRepository))
         add(createGrepTool(targets, workspaceRepository))
         add(createRepoMapTool(targets, workspaceRepository))
-        add(createWriteFileTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
-        add(createEditFileTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
-        add(createApplyPatchTool(targets, workspaceRepository, snapshots = null, conversationId = conversationId))
+        add(createWriteFileTool(targets, workspaceRepository))
+        add(createEditFileTool(targets, workspaceRepository))
+        add(createApplyPatchTool(targets, workspaceRepository))
         add(createGitTool(targets, workspaceRepository, readOnly = false))
         add(createTestTool(targets, workspaceRepository))
         add(
@@ -272,17 +265,6 @@ internal fun WorkspaceTarget.requiresWriteApproval(name: String, outsideWritable
         ExecutionPermission.READ_ONLY -> true
         ExecutionPermission.APPROVAL -> needsApproval(name) || outsideWritableRoots
     }
-
-internal fun JsonObjectBuilder.putEditedFiles(files: List<JsonObject>) {
-    if (files.isEmpty()) return
-    put("editedFiles", buildJsonArray { files.forEach { add(it) } })
-}
-
-/** 单条「已修改文件」记录, [created] 为 null 表示拿不到创建时间, 不确定是不是本轮新建的 */
-internal fun editedFileJson(path: String, created: Boolean? = null): JsonObject = buildJsonObject {
-    put("path", path)
-    if (created != null) put("created", created)
-}
 
 internal fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull

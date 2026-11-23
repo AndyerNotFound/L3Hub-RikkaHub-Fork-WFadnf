@@ -109,8 +109,6 @@ import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
-import me.rerere.rikkahub.ui.components.message.LocalTurnChangesInSidePanel
-import me.rerere.rikkahub.ui.components.message.editedFilesIn
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
@@ -501,13 +499,6 @@ private fun ChatPageContent(
             state.conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }?.id
         }
     }
-    val turnEditedFiles by remember(state.conversationState) {
-        derivedStateOf {
-            state.conversationState.value.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
-                ?.let { editedFilesIn(it.parts) }
-                .orEmpty()
-        }
-    }
 
     // 新消息入场的跟踪器放在这一层：空会话时 ChatList 还没挂载，
     // 放在列表里的话首条消息会被当成「打开会话时已经存在」而跳过动画。
@@ -723,8 +714,6 @@ private fun ChatPageContent(
             ChatSidePane.TaskTree -> showTaskTree = true
             ChatSidePane.ModelPicker -> chatModelListState.open()
             ChatSidePane.BackgroundTasks -> showBackgroundTasks = true
-            // 本轮改动在竖屏是消息下面那一行，没有对应的弹层
-            ChatSidePane.Changes -> Unit
             // 清单与引导在竖屏还是输入区上方那张卡片
             ChatSidePane.Status -> Unit
         }
@@ -755,17 +744,6 @@ private fun ChatPageContent(
         } else {
             showFilesSheet = false
         }
-    }
-
-    // 本轮改动：横屏收进右栏。一轮里第一次改文件时把标签页开出来，但不抢当前看板
-    var lastAutoOpenedTurn by remember { mutableStateOf<Uuid?>(null) }
-    LaunchedEffect(state.threePane, lastAssistantMessageId, turnEditedFiles) {
-        if (!state.threePane || turnEditedFiles.isEmpty()) return@LaunchedEffect
-        val turnId = lastAssistantMessageId ?: return@LaunchedEffect
-        // 同一轮不重复开：用户手动关掉「本轮改动」以后别再弹回来
-        if (lastAutoOpenedTurn == turnId) return@LaunchedEffect
-        lastAutoOpenedTurn = turnId
-        paneTabs.ensureOpen(ChatSidePane.Changes)
     }
 
     // 清单与引导：横屏收进右栏，出现时把标签页开出来，不抢当前看板
@@ -988,8 +966,6 @@ private fun ChatPageContent(
             animateGradient = state.loadingJob == null,
         )
         // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
-        CompositionLocalProvider(
-            LocalTurnChangesInSidePanel provides state.threePane,
             // 横屏时清单与引导收进右栏，输入区不再重复渲染
             LocalConversationStatusInSidePanel provides state.threePane,
         ) {
@@ -1298,7 +1274,6 @@ private fun ChatPageContent(
                 contextTokens = contextTokens,
                 messageCount = state.messageCount,
                 requestPreviewState = requestPreviewState,
-                turnHasChanges = turnEditedFiles.isNotEmpty(),
                 todos = todos,
                 guidances = messageQueue.guidances,
                 hideCompletedTodoCard = state.setting.displaySetting.hideCompletedTodoCard,

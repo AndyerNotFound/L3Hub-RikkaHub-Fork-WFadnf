@@ -1,33 +1,25 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import kotlin.uuid.Uuid
-import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
-import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
@@ -41,7 +33,6 @@ import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.ModelListContent
 import me.rerere.rikkahub.ui.components.ai.ModelListState
 import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
-import me.rerere.rikkahub.ui.components.message.EditedFilesList
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 
@@ -150,7 +141,6 @@ internal fun ChatSidePanes(
     contextTokens: Int?,
     messageCount: Int,
     requestPreviewState: RequestPreviewUiState,
-    turnHasChanges: Boolean,
     todos: List<TodoItem>,
     guidances: List<Guidance>,
     hideCompletedTodoCard: Boolean,
@@ -213,15 +203,6 @@ internal fun ChatSidePanes(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            ChatSidePane.Changes -> TurnChangesPane(
-                parts = conversationState.value.currentMessages
-                    .lastOrNull { it.role == MessageRole.ASSISTANT }?.parts.orEmpty(),
-                assistant = assistant,
-                conversationId = conversationId,
-                hasChanges = turnHasChanges,
-                modifier = Modifier.fillMaxSize(),
-            )
-
             ChatSidePane.Usage -> Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -278,43 +259,5 @@ internal fun ChatSidePanes(
                     .padding(bottom = 16.dp),
             )
         }
-    }
-}
-
-/** 右栏的「本轮改动」标签页：和消息下面那一行同源，只是换了个位置 */
-@Composable
-private fun TurnChangesPane(
-    parts: List<UIMessagePart>,
-    assistant: Assistant,
-    conversationId: Uuid,
-    hasChanges: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    if (!hasChanges) {
-        Box(
-            modifier = modifier.padding(24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(R.string.chat_page_turn_changes_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        return
-    }
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 4.dp, bottom = 16.dp),
-    ) {
-        EditedFilesList(
-            parts = parts,
-            assistant = assistant,
-            conversationId = conversationId,
-            isLastMessage = true,
-            initiallyExpanded = true,
-        )
     }
 }
