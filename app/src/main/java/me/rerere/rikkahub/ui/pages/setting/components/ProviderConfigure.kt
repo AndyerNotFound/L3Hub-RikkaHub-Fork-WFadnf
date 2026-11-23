@@ -575,7 +575,7 @@ private fun ProviderConfigureAccount(
                     Text(
                         text = deviceCode?.userCode.orEmpty(),
                         style = MaterialTheme.typography.headlineSmallEmphasized,
-                        fontFamily = JetBrainsMono,
+                        fontFamily = JetbrainsMono,
                     )
                 },
                 leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
