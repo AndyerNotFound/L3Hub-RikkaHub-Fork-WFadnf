@@ -1572,6 +1572,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_theme_page_delete_theme_title">删除主题</string>
   <string name="setting_theme_page_delete_theme_message">确定要删除此主题吗？</string>
   <string name="setting_page_preferences">偏好设置</string>
+  <string name="setting_page_agent_title">代理</string>
+  <string name="setting_page_agent_desc">同一时刻最多并行运行的子代理数（1–8）；达到上限时新的派发会被拒绝。</string>
   <string name="setting_page_preferences_desc">主题、通知、界面和常规设置</string>
   <string name="setting_page_preferences_theme">主题</string>
   <string name="setting_page_preferences_theme_desc">动态配色、主题、AMOLED深色模式</string>

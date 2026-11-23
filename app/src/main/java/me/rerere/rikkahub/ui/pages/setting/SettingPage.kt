@@ -75,6 +75,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.SaltGroup
 import me.rerere.rikkahub.ui.components.ui.SaltNavItem
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -268,6 +269,32 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                     icon = mode.icon(),
                                 )
                             }
+                        }
+                    }
+                    ItemContainer {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = stringResource(R.string.setting_page_agent_title))
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.setting_page_agent_desc),
+                                        color = SaltTheme.colors.subText,
+                                        style = SaltTheme.textStyles.sub,
+                                    )
+                                }
+                                Text(text = "${settings.subAgentMaxParallel}")
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            NumberSlider(
+                                value = settings.subAgentMaxParallel,
+                                onValueChange = { value ->
+                                    vm.updateSettings { it.copy(subAgentMaxParallel = value) }
+                                },
+                                valueRange = 1..8,
+                            )
                         }
                     }
                     SaltNavItem(

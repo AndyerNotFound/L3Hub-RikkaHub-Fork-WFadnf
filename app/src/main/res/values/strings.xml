@@ -1004,6 +1004,8 @@
   <string name="setting_page_display_setting">Display Settings</string>
   <string name="setting_page_display_setting_desc">Manage display settings</string>
   <string name="setting_page_preferences">Preferences</string>
+  <string name="setting_page_agent_title">Agent</string>
+  <string name="setting_page_agent_desc">Maximum number of sub-agents running in parallel (1–8). Further dispatches are refused while at the limit.</string>
   <string name="setting_page_preferences_desc">Theme, notifications, UI and general settings</string>
   <string name="setting_page_preferences_theme">Theme</string>
   <string name="setting_page_preferences_theme_desc">Dynamic color, theme, AMOLED dark mode</string>

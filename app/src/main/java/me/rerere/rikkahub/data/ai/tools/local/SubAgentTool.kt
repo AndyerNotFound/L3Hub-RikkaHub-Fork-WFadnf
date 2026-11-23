@@ -19,6 +19,7 @@ import kotlin.uuid.Uuid
 
 const val SUB_AGENT_TOOL_NAME = "dispatch_sub_agent"
 const val SUB_AGENT_AWAIT_TOOL_NAME = "await_sub_agent"
+const val SUB_AGENT_LIST_TOOL_NAME = "list_agents"
 
 internal fun buildSubAgentTool(
     conversationId: Uuid,
@@ -158,5 +159,27 @@ internal fun buildSubAgentAwaitTool(
             }
         }
         listOf(UIMessagePart.Text(result))
+    },
+)
+
+internal fun buildSubAgentListTool(
+    conversationId: Uuid,
+    runner: SubAgentRunner,
+): Tool = Tool(
+    name = SUB_AGENT_LIST_TOOL_NAME,
+    description = """
+        List this conversation's sub-agent tree and current parallelism usage: every sub-agent dispatched from it (and their children), with name, state (running / completed / failed), and task title.
+        Reports parallelism as running/limit so you can see how many more you may dispatch before the configured maximum stops new ones.
+        Sub-agent results are delivered back automatically when they finish; there is no need to poll — use this tool to orient yourself before dispatching more.
+    """.trimIndent(),
+    systemPrompt = { _, _ ->
+        """
+        ## Listing sub-agents
+        Before dispatching several sub-agents, call list_agents once to see how many are already running and how close you are to the parallelism limit.
+        """.trimIndent()
+    },
+    parameters = {},
+    execute = { _ ->
+        listOf(UIMessagePart.Text(runner.listTree(conversationId)))
     },
 )

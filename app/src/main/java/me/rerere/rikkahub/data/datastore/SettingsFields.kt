@@ -193,6 +193,7 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
 
         // 助手
         uuid(SELECT_ASSISTANT, Settings::assistantId) { copy(assistantId = it) },
+        plain(SUB_AGENT_MAX_PARALLEL, Settings::subAgentMaxParallel) { copy(subAgentMaxParallel = it) },
         json(ASSISTANTS, Settings::assistants) { copy(assistants = it) },
         json(ASSISTANT_TAGS, Settings::assistantTags) { copy(assistantTags = it) },
 

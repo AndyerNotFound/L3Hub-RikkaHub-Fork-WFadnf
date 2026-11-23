@@ -90,6 +90,14 @@ class SubAgentRunner(
             return "Sub-agent nesting is limited to three generations (main -> child -> grandchild), and this conversation is already the deepest one. Finish the task here instead of dispatching it again."
         }
 
+        // 并行上限：同一时刻 running 的直接子代理数不能超过设置值（1..8，默认 3）
+        val maxParallel = settings.subAgentMaxParallel.coerceIn(1, 8)
+        val running = conversationRepository.getChildConversationSummaries(parentConversationId)
+            .count { it.subAgentState == SUB_AGENT_STATE_RUNNING }
+        if (running >= maxParallel) {
+            return "Sub-agent parallelism is at its limit ($running/$maxParallel running). Wait for one to finish before dispatching another."
+        }
+
         val child = Conversation(
             assistantId = candidate.id,
             title = task.trim().lineSequence().firstOrNull()?.take(40)?.ifBlank { "Sub-agent task" }
@@ -213,6 +221,39 @@ class SubAgentRunner(
 
     private fun waitTimeout(timeoutSeconds: Int): Duration =
         timeoutSeconds.coerceIn(MIN_WAIT_TIMEOUT_SECONDS, MAX_WAIT_TIMEOUT_SECONDS).seconds
+
+    /**
+     * 列出这条会话的整棵子代理树（与任务树同深度上限），供 list_agents 工具使用。
+     * 每行一个成员，缩进表示层数；同时报告并行容量，让模型派发前先看一眼。
+     */
+    suspend fun listTree(parentConversationId: Uuid): String {
+        val settings = settingsStore.awaitLoaded()
+        val maxParallel = settings.subAgentMaxParallel.coerceIn(1, 8)
+        val names = settings.assistants.associate { it.id to subAgentLabel(it) }
+        val lines = mutableListOf<String>()
+        var running = 0
+
+        suspend fun walk(id: Uuid, depth: Int) {
+            conversationRepository.getChildConversationSummaries(id).forEach { child ->
+                if (depth > 0) running += if (child.subAgentState == SUB_AGENT_STATE_RUNNING) 1 else 0
+                val name = names[child.assistantId] ?: child.id.toString()
+                val state = child.subAgentState ?: "inactive"
+                val task = child.subAgentTask?.trim()?.take(60).orEmpty()
+                val indent = "  ".repeat(depth)
+                lines += if (task.isEmpty()) {
+                    "$indent- $name ($state)"
+                } else {
+                    "$indent- $name ($state) — $task"
+                }
+                if (depth < 6) walk(child.id, depth + 1)
+            }
+        }
+        walk(parentConversationId, 1)
+        if (lines.isEmpty()) {
+            return "No sub-agents have been dispatched from this conversation. Parallelism: $running/$maxParallel."
+        }
+        return "${lines.size} sub-agent(s) in this tree; parallelism: $running/$maxParallel running.\n" + lines.joinToString("\n")
+    }
 
     private suspend fun markFailed(chatService: ChatService, conversationId: Uuid) {
         runCatching {

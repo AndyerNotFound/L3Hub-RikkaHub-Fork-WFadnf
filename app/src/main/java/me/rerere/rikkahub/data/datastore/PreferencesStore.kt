@@ -146,6 +146,7 @@ class SettingsStore internal constructor(
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
+        val SUB_AGENT_MAX_PARALLEL = intPreferencesKey("sub_agent_max_parallel")
         val ASSISTANTS = stringPreferencesKey("assistants")
         val ASSISTANT_TAGS = stringPreferencesKey("assistant_tags")
 

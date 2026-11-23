@@ -94,6 +94,7 @@ class LocalTools(
             if (subAgents.isNotEmpty()) {
                 tools.add(buildSubAgentTool(conversationId, subAgents, subAgentRunner))
                 tools.add(buildSubAgentAwaitTool(conversationId, subAgentRunner))
+                tools.add(buildSubAgentListTool(conversationId, subAgentRunner))
             }
         }
         // 不支持的渠道和系统版本上，之前在别处开过（比如导入的备份）也不提供
@@ -124,6 +125,9 @@ class LocalTools(
         }
         if (SUB_AGENT_AWAIT_TOOL_NAME !in names) {
             tools.add(buildSubAgentAwaitTool(conversationId, subAgentRunner))
+        }
+        if (SUB_AGENT_LIST_TOOL_NAME !in names) {
+            tools.add(buildSubAgentListTool(conversationId, subAgentRunner))
         }
         return tools
     }
