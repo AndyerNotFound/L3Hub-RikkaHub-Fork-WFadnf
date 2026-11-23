@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import me.rerere.rikkahub.ui.components.ui.AppIconBadge
 import me.rerere.rikkahub.ui.components.ui.AppIconRow
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
 import me.rerere.rikkahub.ui.style.FloatingActionButton
 import androidx.compose.material3.Icon

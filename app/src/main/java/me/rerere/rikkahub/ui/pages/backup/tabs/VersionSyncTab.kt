@@ -32,6 +32,7 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.RestoreItem
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
+import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.AppSettingsGroup
 import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.context.LocalToaster

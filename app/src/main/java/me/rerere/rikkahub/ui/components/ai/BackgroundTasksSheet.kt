@@ -58,6 +58,7 @@ import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.ui.AppIconBadge
+import me.rerere.rikkahub.ui.components.ui.AppIconRow
 import me.rerere.rikkahub.ui.components.ui.AppSettingsCard
 import me.rerere.rikkahub.ui.components.ui.AppSettingsRow
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
