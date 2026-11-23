@@ -378,7 +378,6 @@ fun WorkspaceSshEditorPage(id: String?) {
 }
 
 // 表单项：标题行（可带说明与右侧控件）+ 内容区，形状与内距交给 CardGroup
-@Composable
 private fun CardGroupScope.FormFieldRow(
     headlineContent: @Composable () -> Unit,
     supportingContent: (@Composable () -> Unit)? = null,
@@ -453,29 +452,32 @@ private fun ProbeSection(
                     headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_shell)) },
                     supportingContent = { Text(result.shell) },
                 )
-                val remoteDirText = when {
-                    state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
-                        stringResource(R.string.workspace_ssh_editor_home_dir, result.homeDir)
-
-                    result.remoteDirExists -> state.remoteDir
-                    else -> when (result.remoteDirIssue) {
-                        SshRemoteDirIssue.PERMISSION_DENIED -> stringResource(
-                            R.string.workspace_ssh_editor_dir_denied,
-                            state.remoteDir,
-                        )
-
-                        SshRemoteDirIssue.NOT_A_DIRECTORY -> stringResource(
-                            R.string.workspace_ssh_editor_dir_not_directory,
-                            state.remoteDir,
-                        )
-
-                        else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
-                    }
-                }
                 item(
                     leadingContent = { CardGroupIcon(HugeIcons.Folder01) },
                     headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_working_dir)) },
-                    supportingContent = { Text(remoteDirText) },
+                    supportingContent = {
+                        Text(
+                            when {
+                                state.remoteDir.isBlank() || state.remoteDir == result.homeDir ->
+                                    stringResource(R.string.workspace_ssh_editor_home_dir, result.homeDir)
+
+                                result.remoteDirExists -> state.remoteDir
+                                else -> when (result.remoteDirIssue) {
+                                    SshRemoteDirIssue.PERMISSION_DENIED -> stringResource(
+                                        R.string.workspace_ssh_editor_dir_denied,
+                                        state.remoteDir,
+                                    )
+
+                                    SshRemoteDirIssue.NOT_A_DIRECTORY -> stringResource(
+                                        R.string.workspace_ssh_editor_dir_not_directory,
+                                        state.remoteDir,
+                                    )
+
+                                    else -> stringResource(R.string.workspace_ssh_editor_dir_missing, state.remoteDir)
+                                }
+                            }
+                        )
+                    },
                 )
             }
         }
