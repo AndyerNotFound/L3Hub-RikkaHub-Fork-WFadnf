@@ -32,6 +32,7 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.ListItemDefaults
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -89,6 +91,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -892,12 +895,13 @@ private fun LorebookEditSheet(
                         }
                         onEdit(book.copy(entries = entries))
                     },
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) { _, entry, isDragging ->
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) { index, entry, isDragging ->
                     key(entry.id) {
                         ReorderableItem {
                             RegexInjectionEntryCard(
                                 entry = entry,
+                                shape = cardGroupItemShape(index, book.entries.size),
                                 modifier = longPressReorder(
                                     isDragging = isDragging,
                                     enabled = book.entries.size > 1,
@@ -941,6 +945,7 @@ private fun LorebookEditSheet(
 @Composable
 private fun RegexInjectionEntryCard(
     entry: PromptInjection.RegexInjection,
+    shape: Shape,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -948,8 +953,7 @@ private fun RegexInjectionEntryCard(
     Surface(
         onClick = onEdit,
         modifier = modifier.fillMaxWidth(),
-        // 原来按首尾/中间算分段圆角，现在统一用 Salt 的大圆角
-        shape = MaterialTheme.shapes.large,
+        shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(

@@ -113,9 +113,8 @@ fun AssistantDetailPage(id: String) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = listState,
-            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
             contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 AssistantHeader(

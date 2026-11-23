@@ -119,7 +119,7 @@ fun SettingAboutPage() {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
                     val interactionSource = remember { MutableInteractionSource() }

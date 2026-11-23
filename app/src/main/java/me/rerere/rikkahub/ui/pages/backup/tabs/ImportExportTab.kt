@@ -320,8 +320,7 @@ fun ImportExportTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CardGroup(title = { Text(stringResource(R.string.backup_page_local_backup_export)) }) {

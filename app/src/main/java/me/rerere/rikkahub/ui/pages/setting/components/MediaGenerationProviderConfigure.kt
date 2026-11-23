@@ -4,22 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -33,9 +27,9 @@ import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
-import me.rerere.rikkahub.ui.style.IconButton
 
 val MediaGenerationProviderSetting.typeName: String
     @Composable get() = when (this) {
@@ -75,13 +69,11 @@ fun MediaGenerationProviderBasicConfigure(
     onValueChange: (MediaGenerationProviderSetting) -> Unit
 ) {
     ConfigureColumn(modifier) {
-        // 先窄化，lambda 体里要用 Aliyun 的 workspaceId；只在 visible 里做 is 判断带不出 smart cast
-        val aliyun = setting as? MediaGenerationProviderSetting.Aliyun
         CardGroup {
             // 类型在新建时选定，之后不能改
             item(
                 headlineContent = { Text(stringResource(R.string.setting_media_page_provider_type)) },
-                trailingContent = { Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall) },
+                trailingContent = { CardGroupValue(setting.typeName) },
             )
 
             formItem(
@@ -95,9 +87,7 @@ fun MediaGenerationProviderBasicConfigure(
                 )
             }
 
-            formItem(
-                headlineContent = { Text("API Key") },
-            ) {
+            formItem(headlineContent = { Text("API Key") }) {
                 OutlinedTextField(
                     value = setting.apiKey,
                     onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
@@ -106,9 +96,7 @@ fun MediaGenerationProviderBasicConfigure(
                 )
             }
 
-            formItem(
-                headlineContent = { Text("Base URL") },
-            ) {
+            formItem(headlineContent = { Text("Base URL") }) {
                 OutlinedTextField(
                     value = setting.baseUrl,
                     onValueChange = { onValueChange(setting.copyProvider(baseUrl = it.trim())) },
@@ -117,7 +105,7 @@ fun MediaGenerationProviderBasicConfigure(
                 )
             }
 
-            if (aliyun != null) {
+            if (setting is MediaGenerationProviderSetting.Aliyun) {
                 formItem(
                     headlineContent = { Text(stringResource(R.string.setting_media_page_workspace_id)) },
                     supportingContent = {
@@ -127,16 +115,14 @@ fun MediaGenerationProviderBasicConfigure(
                                 MediaGenerationProviderSetting.Aliyun.WORKSPACE_PLACEHOLDER,
                             )
                         )
-                    },
-                ) {
-                    if (aliyun != null) {
-                        OutlinedTextField(
-                            value = aliyun.workspaceId,
-                            onValueChange = { onValueChange(aliyun.copy(workspaceId = it.trim())) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
                     }
+                ) {
+                    OutlinedTextField(
+                        value = setting.workspaceId,
+                        onValueChange = { onValueChange(setting.copy(workspaceId = it.trim())) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
                 }
             }
         }
@@ -178,6 +164,7 @@ fun MediaGenerationProviderModelsConfigure(
                             Icon(HugeIcons.Delete01, stringResource(R.string.delete))
                         }
                     }
+                    // 只支持一种类型的厂商不需要选择
                     if (kinds.size > 1) {
                         ConnectedChoiceButtons(
                             options = kinds,
@@ -196,9 +183,9 @@ fun MediaGenerationProviderModelsConfigure(
                 onClick = if (kinds.isNotEmpty()) {
                     { updateModels(models + MediaGenerationModel(modelId = "", kind = kinds.first())) }
                 } else null,
-                leadingContent = { CardGroupIcon(HugeIcons.Add01) },
                 headlineContent = { Text(stringResource(R.string.setting_media_page_add_model)) },
                 supportingContent = { Text(stringResource(R.string.setting_media_page_models_desc)) },
+                leadingContent = { CardGroupIcon(HugeIcons.Add01) },
             )
         }
     }

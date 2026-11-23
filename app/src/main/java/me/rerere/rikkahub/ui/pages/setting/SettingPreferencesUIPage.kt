@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -367,7 +366,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         Text(text = stringResource(
                                 R.string.setting_display_page_input_padding_desc,
                                 displaySetting.inputPadding,
-                            ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                            ))
                     },
                 ) {
                     AppSlider(
@@ -473,7 +472,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Text(text = stringResource(
                                         R.string.setting_display_page_motion_blur_radius_desc,
                                         motionBlur.radius,
-                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                                    ))
                             },
                         ) {
                             NumberSlider(
@@ -495,7 +494,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Text(text = stringResource(
                                         R.string.setting_display_page_motion_blur_duration_desc,
                                         motionBlur.durationMillis,
-                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                                    ))
                             },
                         ) {
                             NumberSlider(
@@ -519,7 +518,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 Text(text = stringResource(
                                         R.string.setting_display_page_motion_blur_travel_desc,
                                         motionBlur.travel,
-                                    ), color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                                    ))
                             },
                         ) {
                             NumberSlider(
@@ -711,7 +710,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 stringResource(R.string.setting_display_page_custom_font_not_imported)
                             } else {
                                 stringResource(R.string.setting_display_page_custom_font_chain_desc, customFontPaths.size)
-                            }, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+                            })
                     },
                     trailingContent = {
                         IconButton(

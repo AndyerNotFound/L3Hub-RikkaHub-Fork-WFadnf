@@ -131,31 +131,25 @@ class SafeModeActivity : ComponentActivity() {
                         }
 
                         if (largeFields.isNotEmpty()) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                // 外层已有 16dp 横向边距，标题跟卡片内的文字对齐
-                                Text(
-                                    text = "Oversized data",
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
-                                )
-                                CardGroup {
-                                    largeFields.forEach { (key, chars) ->
-                                        item(
-                                            headlineContent = { Text(storedFieldLabel(key)) },
-                                            supportingContent = {
-                                                Text("%.1f million characters".format(chars / 1_000_000f))
-                                            },
-                                            trailingContent = {
-                                                FilledTonalButton(
-                                                    onClick = { pendingClearKey = key },
-                                                    enabled = !clearing,
-                                                ) {
-                                                    Text("Clear")
-                                                }
-                                            },
-                                        )
-                                    }
+                            CardGroup(
+                                modifier = Modifier.fillMaxWidth(),
+                                title = { Text("Oversized data") },
+                            ) {
+                                largeFields.forEach { (key, chars) ->
+                                    item(
+                                        headlineContent = { Text(storedFieldLabel(key)) },
+                                        supportingContent = {
+                                            Text("%.1f million characters".format(chars / 1_000_000f))
+                                        },
+                                        trailingContent = {
+                                            FilledTonalButton(
+                                                onClick = { pendingClearKey = key },
+                                                enabled = !clearing,
+                                            ) {
+                                                Text("Clear")
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         }

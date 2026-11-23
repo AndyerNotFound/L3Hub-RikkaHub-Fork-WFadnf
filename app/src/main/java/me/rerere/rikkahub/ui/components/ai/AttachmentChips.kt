@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,9 +50,8 @@ import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
-import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.ui.sketch.SketchDialog
+import me.rerere.rikkahub.ui.hooks.ChatInputState
 import org.koin.compose.koinInject
 
 @Composable

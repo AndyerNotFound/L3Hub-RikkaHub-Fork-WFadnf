@@ -10,8 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -34,7 +35,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus

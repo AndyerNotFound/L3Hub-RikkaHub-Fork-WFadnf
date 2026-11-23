@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
@@ -23,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.ui.components.OutlinedNumberInput
@@ -53,7 +52,7 @@ fun ASRProviderConfigure(
             item(
                 headlineContent = { Text(stringResource(R.string.setting_asr_configure_provider_type)) },
                 supportingContent = { Text(stringResource(R.string.setting_asr_configure_provider_type_desc)) },
-                trailingContent = { Text(text = setting.typeName, color = LocalContentColor.current.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall) },
+                trailingContent = { CardGroupValue(setting.typeName) },
             )
 
             formItem(

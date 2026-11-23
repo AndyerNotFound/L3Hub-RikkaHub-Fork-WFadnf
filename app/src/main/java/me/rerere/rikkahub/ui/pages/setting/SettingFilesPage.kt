@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -269,33 +268,25 @@ private fun CleanFilesSheet(
             )
         }
 
-        Box(modifier = Modifier.selectableGroup()) {
-            CardGroup {
-                CleanRange.entries.forEach { range ->
-                    val selected = selectedRange == range
-                    // 单选行：整行可点 + role/selected 语义原样保留，用 formItem 装手拼的 Row
-                    formItem {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .clickable(onClick = { onRangeSelected(range) })
-                                .then(Modifier.semantics {
-                                    role = Role.RadioButton
-                                    this.selected = selected
-                            }),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = selected, onClick = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = range.days?.let {
-                                        stringResource(R.string.setting_files_page_clean_older_than_days, it)
-                                    } ?: stringResource(R.string.setting_files_page_clean_all))
-                            }
-                        }
-                    }
-                }
+        CardGroup(modifier = Modifier.selectableGroup()) {
+            CleanRange.entries.forEach { range ->
+                val selected = selectedRange == range
+                item(
+                    onClick = { onRangeSelected(range) },
+                    modifier = Modifier.semantics {
+                        role = Role.RadioButton
+                        this.selected = selected
+                    },
+                    headlineContent = {
+                        Text(
+                            range.days?.let {
+                                stringResource(R.string.setting_files_page_clean_older_than_days, it)
+                            } ?: stringResource(R.string.setting_files_page_clean_all)
+                        )
+                    },
+                    // 点整行选中，单选圈自己不接收点击
+                    leadingContent = { RadioButton(selected = selected, onClick = null) },
+                )
             }
         }
 

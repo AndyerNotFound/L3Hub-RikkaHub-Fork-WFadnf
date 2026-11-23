@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -17,13 +18,9 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.sync.s3.S3Config
-import me.rerere.rikkahub.ui.style.IconButton
 
 /**
  * S3 连接信息的表单项，备份和媒体上传的配置共用。
- *
- * 分组里的几条 formItem，调用方在外面套 `CardGroup { s3ConnectionItems(...) }`，
- * 卡片底色、内距和分组外距都由分组提供。
  */
 fun CardGroupScope.s3ConnectionItems(
     config: S3Config,

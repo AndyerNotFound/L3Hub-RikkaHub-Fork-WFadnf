@@ -145,12 +145,11 @@ internal fun AssistantBasicContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(innerPadding)
-            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
             .padding(horizontal = 16.dp)
+            .padding(innerPadding)
             .padding(bottom = 16.dp)
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier

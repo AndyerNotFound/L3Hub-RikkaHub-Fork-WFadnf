@@ -375,9 +375,8 @@ private fun MemorySettingsTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         val modelIconContainer = MaterialTheme.colorScheme.tertiaryContainer
         val modelIconContent = MaterialTheme.colorScheme.onTertiaryContainer
@@ -537,11 +536,13 @@ private fun MemorySettingsTab(
                         Text(stringResource(R.string.assistant_page_time_reminder_interval_desc))
                     },
                     trailingContent = {
-                        CardGroupValue(
-                            stringResource(
+                        Text(
+                            text = stringResource(
                                 R.string.assistant_page_time_reminder_interval_value,
                                 assistant.timeReminderIntervalMinutes
-                            )
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     },
                 )
@@ -569,9 +570,8 @@ private fun MemoryFilesTab(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (consolidation != null) {
                 MemoryConsolidationSection(
@@ -579,11 +579,7 @@ private fun MemoryFilesTab(
                     onOrganize = onOrganizeMemory,
                 )
             }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
+            Box(modifier = Modifier.weight(1f)) {
                 ExtensionEmptyState(
                     message = stringResource(R.string.assistant_page_memory_empty),
                     description = stringResource(
@@ -606,9 +602,8 @@ private fun MemoryFilesTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 横向 16dp 对齐上游：CardGroup 自身不带外距，内距由列给
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (consolidation != null) {
             MemoryConsolidationSection(

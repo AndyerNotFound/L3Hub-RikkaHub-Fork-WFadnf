@@ -22,7 +22,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProgressIndicatorDefaults
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -78,7 +77,6 @@ import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
-import me.rerere.rikkahub.ui.components.ui.AppSwitch
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
@@ -553,11 +551,7 @@ private fun ProviderConfigureAccount(
         if (accountState == AccountCardState.SignedIn) {
             item(
                 headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
-                supportingContent = {
-                    if (plan != null) {
-                        Text(plan)
-                    }
-                },
+                supportingContent = plan?.let { { Text(it) } },
                 leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
             )
         }
@@ -575,10 +569,14 @@ private fun ProviderConfigureAccount(
                         CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
                     }
                 },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
-                supportingContent = {
-                    Text(text = deviceCode?.userCode.orEmpty(), style = MaterialTheme.typography.headlineSmallEmphasized, fontFamily = JetbrainsMono)
-                    Text(stringResource(R.string.setting_provider_page_device_code_reopen))
+                overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
+                supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
+                headlineContent = {
+                    Text(
+                        text = deviceCode?.userCode.orEmpty(),
+                        style = MaterialTheme.typography.headlineSmallEmphasized,
+                        fontFamily = JetBrainsMono,
+                    )
                 },
                 leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
             )
@@ -602,13 +600,8 @@ private fun ProviderConfigureAccount(
             item(
                 onClick = { accountManager.startLogin(provider.id, context) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
-                supportingContent = {
-                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                        val failure = status as? AccountLoginStatus.Failed
-                        if (failure != null) {
-                            Text(failure.message, color = MaterialTheme.colorScheme.error)
-                        }
-                    }
+                supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
+                    { Text(failed.message, color = MaterialTheme.colorScheme.error) }
                 },
                 leadingContent = { CardGroupIcon(HugeIcons.Login03) },
                 trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
@@ -655,13 +648,10 @@ private fun AccountUsage(provider: ProviderSetting.Account) {
                 val reached = limits.limitReached || window.usedPercent >= 100
                 formItem(
                     headlineContent = { Text(window.longLabel()) },
-                    supportingContent = {
-                        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-                            val resetsAt = window.resetsAt
-                            if (resetsAt != null) {
-                                val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
-                                Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
-                            }
+                    supportingContent = window.resetsAt?.let { resetsAt ->
+                        {
+                            val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
+                            Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
                         }
                     },
                     trailingContent = {
@@ -806,20 +796,13 @@ private fun ProviderConfigureGoogle(
             )
         }
         if (!provider.vertexAI || useServiceAccount) {
-            item(
-                onClick = { onEdit(provider.copy(useInteractionsApi = !provider.useInteractionsApi)) },
+            switchItem(
+                checked = provider.useInteractionsApi,
+                onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
                 headlineContent = { Text("Interactions API (Beta)") },
-                supportingContent = {
-                    if (useServiceAccount) {
-                        Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent")
-                    }
-                },
-                trailingContent = {
-                    AppSwitch(
-                        checked = provider.useInteractionsApi,
-                        onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
-                    )
-                },
+                supportingContent = if (useServiceAccount) {
+                    { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
+                } else null,
             )
         }
     }

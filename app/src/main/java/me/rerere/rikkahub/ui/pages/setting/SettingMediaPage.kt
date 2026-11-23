@@ -7,15 +7,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -374,14 +371,11 @@ private fun MediaUploadS3Tab(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            // 横向内距由各块自己补：CardGroup 不带外距；卡片以外的控件保持原样
-            .padding(top = 8.dp, bottom = 16.dp),
+            .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             AssetStorageType.entries.forEachIndexed { index, entry ->
                 SegmentedButton(
@@ -412,7 +406,7 @@ private fun MediaUploadS3Tab(
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 20.dp)
+            modifier = Modifier.padding(horizontal = 4.dp)
         )
 
         if (type == AssetStorageType.S3) {
@@ -428,7 +422,6 @@ private fun MediaUploadS3Tab(
             }
         } else {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedTextField(
@@ -474,29 +467,10 @@ private fun MediaUploadS3Tab(
             }
         }
 
-        CardGroup(modifier = Modifier.padding(horizontal = 16.dp)) {
-            if (testing) {
-                // 测连接期间原地显示进度：形状跟着 CardGroup 走，内容仍是一行
-                formItem {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier.size(40.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(text = stringResource(R.string.backup_page_test_connection))
-                    }
-                }
-            } else {
-                item(
-                    onClick = {
+        CardGroup {
+            item(
+                onClick = if (!testing) {
+                    {
                         scope.launch {
                             testing = true
                             remoteFileStore.testConnection()
@@ -514,11 +488,22 @@ private fun MediaUploadS3Tab(
                                 }
                             testing = false
                         }
-                    },
-                    leadingContent = { CardGroupIcon(HugeIcons.Connect) },
-                    headlineContent = { Text(stringResource(R.string.backup_page_test_connection)) },
-                )
-            }
+                    }
+                } else null,
+                headlineContent = { Text(stringResource(R.string.backup_page_test_connection)) },
+                leadingContent = {
+                    if (testing) {
+                        Box(
+                            modifier = Modifier.size(40.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    } else {
+                        CardGroupIcon(HugeIcons.Connect)
+                    }
+                },
+            )
         }
     }
 }

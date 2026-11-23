@@ -445,8 +445,7 @@ private fun WorkspaceBasicPage(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
@@ -547,20 +546,17 @@ private fun SshConnectionCard(
             headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_remote_dir)) },
             supportingContent = { Text(settings?.remoteDir ?: "-") },
         )
-        // 指纹用等宽字体多行显示，这一项走 formItem
-        formItem(
+        item(
             leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
             headlineContent = { Text(stringResource(R.string.workspace_detail_ssh_host_key)) },
-        ) {
-            val hostKey = settings?.hostKey
-            Text(
-                text = hostKey?.let { "${it.type}\n${it.fingerprint}" }
-                    ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = if (hostKey != null) FontFamily.Monospace else null,
-            )
-        }
+            supportingContent = {
+                val hostKey = settings?.hostKey
+                Text(
+                    text = hostKey?.let { "${it.type}\n${it.fingerprint}" } ?: stringResource(R.string.workspace_detail_ssh_host_key_unconfirmed),
+                    fontFamily = if (hostKey != null) FontFamily.Monospace else null,
+                )
+            },
+        )
         item(
             onClick = onEdit,
             leadingContent = { CardGroupIcon(HugeIcons.PencilEdit01) },
@@ -609,15 +605,31 @@ private fun WorkspaceToolApprovalCard(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_desc))
         CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
-        CardGroup(title = { Text(stringResource(R.string.workspace_detail_tool_approval)) }) {
+        CardGroup(
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.workspace_detail_tool_approval))
+                    Text(
+                        text = stringResource(R.string.workspace_detail_tool_approval_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+        ) {
             tools.forEach { (toolName, label, icon) ->
                 switchItem(
                     checked = resolveWorkspaceToolApproval(toolName, overrides),
                     onCheckedChange = { onToolApprovalChange(toolName, it) },
                     enabled = switchesEnabled,
-                    supportingContent = { Text(toolName) },
+                    supportingContent = {
+                        Text(
+                            text = toolName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                     leadingContent = { CardGroupIcon(icon) },
                     headlineContent = { Text(label) },
                 )

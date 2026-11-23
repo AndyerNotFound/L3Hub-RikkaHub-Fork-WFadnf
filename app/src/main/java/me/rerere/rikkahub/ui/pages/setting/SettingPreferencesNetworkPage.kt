@@ -416,6 +416,9 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                             }
                         )
                     },
+                    trailingContent = {
+                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                    },
                 )
                 item(
                     headlineContent = { Text(text = stringResource(R.string.setting_provider_page_test_connection)) },

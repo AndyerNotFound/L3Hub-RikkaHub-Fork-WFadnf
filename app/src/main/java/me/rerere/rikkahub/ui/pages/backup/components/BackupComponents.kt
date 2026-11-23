@@ -293,7 +293,9 @@ internal fun <T> BackupFilesSheet(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp),
+                                .padding(horizontal = 16.dp)
+                                // 对应上游 LazyColumn 的 contentPadding(bottom = 16.dp)
+                                .padding(bottom = 16.dp),
                         ) {
                             CardGroup {
                                 files.forEach { file ->

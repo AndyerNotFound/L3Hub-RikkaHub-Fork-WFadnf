@@ -42,8 +42,7 @@ fun ReminderTab(vm: BackupVM) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            // 水平 16dp 对齐上游设置页的 contentPadding，组内行距由 CardGroup 负责
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CardGroup {
@@ -58,10 +57,7 @@ fun ReminderTab(vm: BackupVM) {
                     headlineContent = { Text(stringResource(R.string.backup_page_reminder_interval)) },
                     trailingContent = {
                         CardGroupValue(
-                            stringResource(
-                                R.string.backup_page_reminder_interval_days,
-                                config.intervalDays,
-                            )
+                            stringResource(R.string.backup_page_reminder_interval_days, config.intervalDays)
                         )
                     },
                 ) {
@@ -76,7 +72,6 @@ fun ReminderTab(vm: BackupVM) {
                 }
 
                 item(
-                    leadingContent = { CardGroupIcon(HugeIcons.Clock01) },
                     headlineContent = {
                         Text(
                             if (config.lastBackupTime == 0L) {
@@ -89,6 +84,7 @@ fun ReminderTab(vm: BackupVM) {
                             }
                         )
                     },
+                    leadingContent = { CardGroupIcon(HugeIcons.Clock01) },
                 )
             }
         }

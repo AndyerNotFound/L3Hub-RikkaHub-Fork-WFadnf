@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.CardGroupTip
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
 import me.rerere.hugeicons.HugeIcons
@@ -77,53 +76,61 @@ internal fun WorkspaceStorageMountCard(
     // null: 不显示; -1: 新增; 其余: 编辑对应下标
     var editingIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        CardGroupTip(stringResource(R.string.workspace_detail_storage_desc))
-        CardGroup(title = { Text(stringResource(R.string.workspace_detail_storage_title)) }) {
-            if (!hasPermission) {
-                item(
-                    onClick = { context.openAllFilesAccessSettings() },
-                    leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
-                    supportingContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc)) },
+    CardGroup(
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.workspace_detail_storage_title))
+                Text(
+                    text = stringResource(R.string.workspace_detail_storage_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            mounts.forEachIndexed { index, mount ->
-                // 路径用等宽字体、最多两行，点击整行进编辑
-                item(
-                    onClick = { editingIndex = index },
-                    leadingContent = { CardGroupIcon(HugeIcons.FolderLinks) },
-                    headlineContent = {
-                        Text(
-                            text = mount.path,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                if (mount.writable) {
-                                    R.string.workspace_detail_storage_writable
-                                } else {
-                                    R.string.workspace_detail_storage_needs_approval
-                                }
-                            )
-                        )
-                    },
-                )
-            }
+        },
+    ) {
+        if (!hasPermission) {
             item(
-                onClick = if (workspace != null) {
-                    { editingIndex = -1 }
-                } else {
-                    null
-                },
-                leadingContent = { CardGroupIcon(HugeIcons.FolderAdd) },
-                headlineContent = { Text(stringResource(R.string.workspace_detail_storage_add)) },
+                onClick = { context.openAllFilesAccessSettings() },
+                leadingContent = { CardGroupIcon(HugeIcons.Alert02) },
+                headlineContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing)) },
+                supportingContent = { Text(stringResource(R.string.workspace_detail_storage_permission_missing_desc)) },
             )
         }
+        mounts.forEachIndexed { index, mount ->
+            // 路径用等宽字体、最多两行，点击整行进编辑
+            item(
+                onClick = { editingIndex = index },
+                leadingContent = { CardGroupIcon(HugeIcons.FolderLinks) },
+                headlineContent = {
+                    Text(
+                        text = mount.path,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (mount.writable) {
+                                R.string.workspace_detail_storage_writable
+                            } else {
+                                R.string.workspace_detail_storage_needs_approval
+                            }
+                        )
+                    )
+                },
+            )
+        }
+        item(
+            onClick = if (workspace != null) {
+                { editingIndex = -1 }
+            } else {
+                null
+            },
+            leadingContent = { CardGroupIcon(HugeIcons.FolderAdd) },
+            headlineContent = { Text(stringResource(R.string.workspace_detail_storage_add)) },
+        )
     }
 
     editingIndex?.let { index ->

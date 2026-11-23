@@ -293,27 +293,21 @@ fun WorkspaceSshEditorPage(id: String?) {
 
             item {
                 CardGroup(title = { Text(stringResource(R.string.workspace_ssh_editor_security)) }) {
-                    // 指纹用等宽字体多行显示，这一项走 formItem
-                    formItem(
+                    item(
                         leadingContent = { CardGroupIcon(HugeIcons.FingerPrint) },
                         headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host_key)) },
-                    ) {
-                        val hostKey = state.hostKey
-                        if (hostKey == null) {
-                            Text(
-                                text = stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        } else {
-                            Text(
-                                text = "${hostKey.type}\n${hostKey.fingerprint}",
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
+                        supportingContent = {
+                            val hostKey = state.hostKey
+                            if (hostKey == null) {
+                                Text(stringResource(R.string.workspace_ssh_editor_host_key_unconfirmed))
+                            } else {
+                                Text(
+                                    text = "${hostKey.type}\n${hostKey.fingerprint}",
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                            }
+                        },
+                    )
                 }
             }
 

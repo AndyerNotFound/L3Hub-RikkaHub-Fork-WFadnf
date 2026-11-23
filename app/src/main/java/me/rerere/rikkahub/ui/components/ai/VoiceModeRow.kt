@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,7 +21,6 @@ import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
-import me.rerere.rikkahub.ui.style.TextButton
 
 @Composable
 internal fun VoiceModeRow(

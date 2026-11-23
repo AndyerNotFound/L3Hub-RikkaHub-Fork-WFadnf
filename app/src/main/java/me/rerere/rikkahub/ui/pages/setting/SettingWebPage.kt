@@ -365,13 +365,7 @@ fun SettingWebPage() {
                             onClick = { mdnsUrl?.let { copyUrl(it) } },
                             headlineContent = { Text(text = stringResource(R.string.setting_page_web_server_mdns_address)) },
                             supportingContent = {
-                                mdnsUrl?.let { url ->
-                                    Text(
-                                        text = url,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
+                                mdnsUrl?.let { url -> Text(url) }
                             },
                         )
                     }
@@ -390,7 +384,13 @@ fun SettingWebPage() {
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         },
-                        supportingContent = { Text(text = stringResource(R.string.setting_page_web_server_address_note_desc), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        supportingContent = {
+                            Text(
+                                text = stringResource(R.string.setting_page_web_server_address_note_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                     )
                     if (serverState.error != null) {
                         item(

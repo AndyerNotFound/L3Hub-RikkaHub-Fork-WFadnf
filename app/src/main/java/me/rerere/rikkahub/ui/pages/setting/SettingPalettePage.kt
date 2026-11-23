@@ -260,12 +260,8 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                 )
             }
 
-            item("presetsTitle") {
-                PaletteSectionTitle(stringResource(R.string.setting_palette_page_presets))
-            }
-
             item("presets") {
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_palette_page_presets)) }) {
                     PalettePresets.forEach { preset ->
                         item(
                             onClick = { updatePalette { it.copy(presetId = preset.id) } },
@@ -288,17 +284,13 @@ fun SettingPalettePage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            item("customTitle") {
-                PaletteSectionTitle(stringResource(R.string.setting_palette_page_custom))
-            }
-
             item("customSides") {
                 val lightColors = remember(palette) { palette.effectiveColors(darkMode = false) }
                 val darkColors = remember(palette) { palette.effectiveColors(darkMode = true) }
                 // 文案先在组合作用域外取好，下面两项直接引用
                 val lightTitle = stringResource(R.string.setting_palette_page_light_palette)
                 val darkTitle = stringResource(R.string.setting_palette_page_dark_palette)
-                CardGroup {
+                CardGroup(title = { Text(stringResource(R.string.setting_palette_page_custom)) }) {
                     paletteSideItem(
                         colors = lightColors,
                         headline = lightTitle,
@@ -433,17 +425,6 @@ private val CONSUMED_SLOTS = setOf(
     UiSlot.PAGE_BACKGROUND, UiSlot.TOP_BAR, UiSlot.CARD, UiSlot.LIST_ITEM,
     UiSlot.INPUT_BAR, UiSlot.AI_BUBBLE, UiSlot.USER_BUBBLE,
 )
-
-@Composable
-private fun PaletteSectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        // 列已有 16dp 内距，这里补到 20dp（与 CardGroup 自带标题同一档）
-        modifier = Modifier.padding(start = 4.dp, end = 4.dp),
-    )
-}
 
 /** 五段色带：主色、辅色、第三色、错误色、表面变体色。 */
 @Composable

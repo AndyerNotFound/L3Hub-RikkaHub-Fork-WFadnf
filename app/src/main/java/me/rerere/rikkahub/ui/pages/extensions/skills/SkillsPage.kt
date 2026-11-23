@@ -335,40 +335,33 @@ private fun InvalidSkillDirsGroup(
     dirs: List<InvalidSkillDir>,
     onDelete: (InvalidSkillDir) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // 外层列表已有 16dp 横向边距，标题跟卡片内的文字对齐
-        Text(
-            text = stringResource(R.string.skills_page_invalid_dirs_title),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
-        )
-        CardGroup {
-            dirs.forEach { dir ->
-                item(
-                    leadingContent = {
-                        CardGroupIcon(
-                            icon = HugeIcons.Alert01,
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    CardGroup(title = { Text(stringResource(R.string.skills_page_invalid_dirs_title)) }) {
+        dirs.forEach { dir ->
+            item(
+                leadingContent = {
+                    CardGroupIcon(
+                        icon = HugeIcons.Alert01,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                },
+                headlineContent = {
+                    Text(dir.dirName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+                supportingContent = { Text(invalidSkillReasonText(dir.reason)) },
+                trailingContent = {
+                    ItemActionMenu(
+                        actions = listOf(
+                            ItemAction(
+                                text = stringResource(R.string.delete),
+                                icon = HugeIcons.Delete01,
+                                destructive = true,
+                                onClick = { onDelete(dir) },
+                            ),
                         )
-                    },
-                    headlineContent = { Text(dir.dirName) },
-                    supportingContent = { Text(invalidSkillReasonText(dir.reason)) },
-                    trailingContent = {
-                        ItemActionMenu(
-                            actions = listOf(
-                                ItemAction(
-                                    text = stringResource(R.string.delete),
-                                    icon = HugeIcons.Delete01,
-                                    destructive = true,
-                                    onClick = { onDelete(dir) },
-                                ),
-                            )
-                        )
-                    },
-                )
-            }
+                    )
+                },
+            )
         }
     }
 }
