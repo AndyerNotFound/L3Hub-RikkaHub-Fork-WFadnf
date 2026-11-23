@@ -42,6 +42,7 @@ fun ShareSheet(
         onDismissRequest = {
             state.dismiss()
         },
+        title = stringResource(R.string.share),
     ) {
         Column(
             modifier = Modifier

@@ -592,6 +592,7 @@ private fun QQGroupBottomSheet(visible: Boolean, onDismiss: () -> Unit) {
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.qq_group_title),
     ) {
         Column(
             modifier = Modifier

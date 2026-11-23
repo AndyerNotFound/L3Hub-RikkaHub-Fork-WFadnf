@@ -186,6 +186,7 @@ private fun UnifiedLogList(
         SaltModalSheet(
             visible = selectedLog != null,
             onDismissRequest = { selectedLog = null },
+            title = stringResource(R.string.request_detail_title),
         ) {
             RequestLogDetail(detail)
         }
@@ -325,13 +326,6 @@ private fun RequestLogDetail(log: LogEntry.RequestLog) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Text(
-                    text = "Request Details",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
 
             item {
                 DetailSection("Time", dateFormat.format(Date(log.timestamp)))

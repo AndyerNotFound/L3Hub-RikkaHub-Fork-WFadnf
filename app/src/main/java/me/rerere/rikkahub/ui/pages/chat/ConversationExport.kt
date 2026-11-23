@@ -242,6 +242,7 @@ fun ChatExportSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
+        title = stringResource(R.string.chat_page_export_format),
     ) {
         Column(
             modifier = Modifier
@@ -250,11 +251,6 @@ fun ChatExportSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(id = R.string.chat_page_export_format),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ConnectedChoiceButtons(

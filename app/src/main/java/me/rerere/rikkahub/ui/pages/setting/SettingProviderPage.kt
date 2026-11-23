@@ -661,6 +661,7 @@ private fun AddButton(
     SaltModalSheet(
         visible = showSheet,
         onDismissRequest = { showSheet = false },
+        title = stringResource(R.string.setting_provider_page_add_provider),
     ) {
         Column(
             modifier = Modifier
@@ -670,11 +671,6 @@ private fun AddButton(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.setting_provider_page_add_provider),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 templates.fastForEachIndexed { index, template ->
                     Surface(

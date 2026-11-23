@@ -962,6 +962,7 @@ private fun QuotaWindowSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = if (initial == null) stringResource(R.string.setting_provider_guard_window_add) else stringResource(R.string.setting_provider_guard_window_edit),
     ) {
         Column(
             modifier = Modifier
@@ -972,16 +973,6 @@ private fun QuotaWindowSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(
-                    if (initial == null) {
-                        R.string.setting_provider_guard_window_add
-                    } else {
-                        R.string.setting_provider_guard_window_edit
-                    }
-                ),
-                style = MaterialTheme.typography.titleLarge,
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1305,6 +1296,7 @@ private fun LockScheduleSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = if (initial == null) stringResource(R.string.setting_provider_guard_lock_add) else stringResource(R.string.setting_provider_guard_lock_edit),
     ) {
         Column(
             modifier = Modifier
@@ -1315,16 +1307,6 @@ private fun LockScheduleSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(
-                    if (initial == null) {
-                        R.string.setting_provider_guard_lock_add
-                    } else {
-                        R.string.setting_provider_guard_lock_edit
-                    }
-                ),
-                style = MaterialTheme.typography.titleLarge,
-            )
             PickerRow(
                 label = stringResource(R.string.setting_provider_guard_lock_start_date),
                 value = startDate.format(LOCK_DATE_FORMAT),

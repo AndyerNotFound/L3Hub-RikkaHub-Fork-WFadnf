@@ -460,6 +460,8 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     SaltModalSheet(
         visible = showResult,
         onDismissRequest = { showResult = false },
+        // 详情抽屉用调用的工具作标题：与折叠卡上的展示名一致
+        title = renderer.title(context),
         content = {
             if (outputUnparsable) {
                 DefaultToolPreview(context = context)

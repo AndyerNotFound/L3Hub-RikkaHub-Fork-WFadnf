@@ -88,6 +88,7 @@ internal fun FloatingBubbleIconPicker(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.select_icon_title),
     ) {
         if (showEmojiPicker) {
             EmojiPicker(

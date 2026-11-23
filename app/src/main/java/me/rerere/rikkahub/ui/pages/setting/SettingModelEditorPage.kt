@@ -1240,6 +1240,7 @@ private fun ProviderOverrideSettings(
                     showProviderConfig = false
                     editingProvider = null
                 },
+                title = stringResource(R.string.setting_provider_page_configure_provider_override),
             ) {
                 var internalProvider by remember(provider) { mutableStateOf(provider) }
 
@@ -1250,10 +1251,6 @@ private fun ProviderOverrideSettings(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.setting_provider_page_configure_provider_override),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
 
                     Column(
                         modifier = Modifier

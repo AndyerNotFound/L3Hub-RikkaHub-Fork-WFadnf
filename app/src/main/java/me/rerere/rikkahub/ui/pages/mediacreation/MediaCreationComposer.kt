@@ -685,16 +685,7 @@ private fun AssetPickerSheet(
     onDismiss: () -> Unit,
 ) {
     ComposerSheet(visible = visible, onDismiss = onDismiss) {
-        Text(
-            text = stringResource(
-                when (role) {
-                    ImageRole.FIRST_FRAME -> R.string.media_creation_page_add_first_frame_asset
-                    ImageRole.LAST_FRAME -> R.string.media_creation_page_add_last_frame_asset
-                    ImageRole.REFERENCE -> R.string.media_creation_page_add_reference_asset
-                }
-            ),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        title = stringResource(when (role) { ImageRole.FIRST_FRAME -> R.string.media_creation_page_add_first_frame_asset; ImageRole.LAST_FRAME -> R.string.media_creation_page_add_last_frame_asset; ImageRole.REFERENCE -> R.string.media_creation_page_add_reference_asset }),
 
         // 一行两个，放不下的换到下一行
         FlowRow(
@@ -773,10 +764,7 @@ private fun ModelSheet(
         .filter { it.second.isNotEmpty() }
 
     ComposerSheet(visible = visible, onDismiss = onDismiss) {
-        Text(
-            text = stringResource(R.string.media_creation_page_select_model),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        title = stringResource(R.string.media_creation_page_select_model),
 
         if (groups.isEmpty()) {
             Text(
@@ -1211,11 +1199,13 @@ private fun ToggleParam(
 private fun ComposerSheet(
     visible: Boolean,
     onDismiss: () -> Unit,
+    title: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = title,
     ) {
         Column(
             modifier = Modifier

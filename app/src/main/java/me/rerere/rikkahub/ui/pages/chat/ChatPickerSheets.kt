@@ -56,6 +56,7 @@ internal fun ChatFilesPickerSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.files_picker_title),
     ) {
         ChatFilesPickerContent(
             inputState = inputState,
@@ -169,6 +170,7 @@ internal fun TerminalWorkspacePickerSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.floating_bar_item_terminal),
     ) {
         Column(
             modifier = Modifier
@@ -177,11 +179,6 @@ internal fun TerminalWorkspacePickerSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.floating_bar_item_terminal),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
             // 外层已有 16dp 横向边距（标题和分组共用），RoundedColumn 不再补，否则叠成 32dp
             RoundedColumn(paddingValues = PaddingValues(horizontal = 0.dp, vertical = 0.dp)) {
                 workspaces.forEach { workspace ->

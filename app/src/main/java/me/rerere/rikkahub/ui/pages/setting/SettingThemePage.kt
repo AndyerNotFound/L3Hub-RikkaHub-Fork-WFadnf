@@ -408,6 +408,7 @@ private fun CustomThemeEditSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = if (theme == null) stringResource(R.string.setting_theme_page_create_theme) else stringResource(R.string.setting_theme_page_edit_theme),
     ) {
         Column(
             modifier = Modifier
@@ -415,11 +416,6 @@ private fun CustomThemeEditSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {
-            Text(
-                text = if (theme == null) stringResource(R.string.setting_theme_page_create_theme)
-                else stringResource(R.string.setting_theme_page_edit_theme),
-                style = MaterialTheme.typography.titleLarge,
-            )
 
             Spacer(Modifier.height(16.dp))
 

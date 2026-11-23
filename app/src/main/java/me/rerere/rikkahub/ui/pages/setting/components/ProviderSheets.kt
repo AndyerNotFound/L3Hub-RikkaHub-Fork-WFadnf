@@ -45,6 +45,7 @@ internal fun <T> ProviderTypeSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = title,
     ) {
         Column(
             modifier = Modifier
@@ -53,11 +54,6 @@ internal fun <T> ProviderTypeSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 types.fastForEachIndexed { index, type ->
                     val name = typeName(type)
@@ -110,6 +106,7 @@ internal fun <T> ProviderEditSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = title,
     ) {
         Column(
             modifier = Modifier
@@ -119,11 +116,6 @@ internal fun <T> ProviderEditSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
 
             content(current, { current = it }, Modifier.weight(1f))
 

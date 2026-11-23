@@ -356,6 +356,7 @@ private fun ToolOverrideSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = entry.name,
     ) {
         Column(
             modifier = Modifier
@@ -371,12 +372,6 @@ private fun ToolOverrideSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = entry.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontFamily = JetbrainsMono,
-                        modifier = Modifier.weight(1f),
-                    )
                     if (toolOverride != null) {
                         ValuePill(text = stringResource(R.string.tool_override_overridden))
                     }

@@ -574,6 +574,7 @@ private fun PaletteEditSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(if (darkMode) R.string.setting_palette_page_dark_palette else R.string.setting_palette_page_light_palette),
     ) {
         Column(
             modifier = Modifier
@@ -585,13 +586,6 @@ private fun PaletteEditSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(
-                        if (darkMode) R.string.setting_palette_page_dark_palette
-                        else R.string.setting_palette_page_light_palette
-                    ),
-                    style = MaterialTheme.typography.titleLarge,
-                )
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { colors = presetColors; slots = UiSlotColors() }) {
                     Text(stringResource(R.string.setting_palette_page_reset_side))

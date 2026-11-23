@@ -82,6 +82,7 @@ fun BackgroundTasksSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.background_tasks_title),
     ) {
         BackgroundTasksContent(
             tasks = tasks,

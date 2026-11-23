@@ -300,6 +300,7 @@ private fun AssistantPickerSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.safe_mode_assistants),
     ) {
         Column(
             modifier = Modifier
@@ -308,11 +309,6 @@ private fun AssistantPickerSheet(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.safe_mode_assistants),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
 
             if (settings.assistantTags.isNotEmpty()) {
                 LazyRow(

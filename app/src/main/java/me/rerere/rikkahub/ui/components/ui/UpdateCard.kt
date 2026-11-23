@@ -127,6 +127,7 @@ fun UpdateCard(vm: ChatVM) {
         SaltModalSheet(
             visible = showDetail,
             onDismissRequest = { showDetail = false },
+            title = stringResource(R.string.update_card_title),
         ) {
             Column(
                 modifier = Modifier

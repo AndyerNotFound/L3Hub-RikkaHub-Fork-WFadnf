@@ -286,6 +286,7 @@ private fun TestResultItem(
         SaltModalSheet(
             visible = showErrorSheet && errorState != null,
             onDismissRequest = { showErrorSheet = false },
+            title = stringResource(R.string.error_title_operation),
         ) {
             Column(
                 modifier = Modifier

@@ -933,6 +933,7 @@ private fun ModelPicker(
     SaltModalSheet(
         visible = showModal,
         onDismissRequest = { showModal = false },
+        title = stringResource(R.string.model_list_select_model),
     ) {
         var filterText by remember { mutableStateOf("") }
         val filteredModels = remoteModels.models.filterByKeywords(filterText)

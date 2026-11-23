@@ -1019,6 +1019,7 @@ private fun FloatingBarAddSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.setting_display_page_floating_bar_add_sheet_title),
     ) {
         Column(
             modifier = Modifier
@@ -1028,10 +1029,6 @@ private fun FloatingBarAddSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.setting_display_page_floating_bar_add_sheet_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
             RoundedColumn {
                 available.forEach { barItem ->
                     SaltIconRow(

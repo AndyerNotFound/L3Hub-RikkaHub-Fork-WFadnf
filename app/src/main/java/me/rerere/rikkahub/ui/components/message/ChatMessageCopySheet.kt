@@ -49,6 +49,7 @@ fun ChatMessageCopySheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
+        title = stringResource(R.string.select_and_copy),
         // 选字时要能上下滚，也常误触边缘：点外部与下拉都不关窗，只留内容里的 X 与返回键
         dismissible = false,
         dismissOnBackPress = true,

@@ -337,6 +337,7 @@ fun UIAvatar(
         onDismissRequest = {
             showEmojiPicker = false
         },
+        title = stringResource(R.string.avatar_pick_emoji),
     ) {
         EmojiPicker(
             onEmojiSelected = { emoji ->

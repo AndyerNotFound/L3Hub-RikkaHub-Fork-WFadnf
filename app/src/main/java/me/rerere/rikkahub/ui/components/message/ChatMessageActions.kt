@@ -293,6 +293,7 @@ fun ChatMessageActionsSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
+        title = stringResource(R.string.skills_page_more_actions),
     ) {
         ChatMessageActionList(
             message = message,

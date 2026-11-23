@@ -49,6 +49,7 @@ internal fun WorkspaceSelectSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.workspace_select),
     ) {
         Column(
             modifier = Modifier
@@ -57,11 +58,6 @@ internal fun WorkspaceSelectSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = stringResource(R.string.workspace_select),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(vertical = 8.dp),
-            )
             Text(
                 text = stringResource(R.string.workspace_multi_select_hint),
                 style = MaterialTheme.typography.bodySmall,

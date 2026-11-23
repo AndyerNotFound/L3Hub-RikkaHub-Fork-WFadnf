@@ -148,6 +148,7 @@ fun SettingFilesPage(
     SaltModalSheet(
         visible = showCleanSheet,
         onDismissRequest = { showCleanSheet = false },
+        title = stringResource(R.string.setting_files_page_clean_title),
     ) {
         CleanFilesSheet(
             selectedRange = selectedCleanRange,
@@ -263,10 +264,6 @@ private fun CleanFilesSheet(
             modifier = Modifier.padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = stringResource(R.string.setting_files_page_clean_title),
-                style = MaterialTheme.typography.headlineSmall,
-            )
             Text(
                 text = stringResource(R.string.setting_files_page_clean_range_description),
                 style = MaterialTheme.typography.bodyMedium,

@@ -96,6 +96,7 @@ fun WorkspaceCwdPickerSheet(
     SaltModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
+        title = stringResource(R.string.workspace_cwd_select_directory),
     ) {
         // 面板高度只看窗口、不看内容：目录数怎么变都不会重算锚点往上/往下跳
         Column(
@@ -106,10 +107,6 @@ fun WorkspaceCwdPickerSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = stringResource(R.string.workspace_cwd_select_directory),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            )
             Text(
                 text = stringResource(R.string.workspace_cwd_select_desc),
                 style = MaterialTheme.typography.bodyMedium,

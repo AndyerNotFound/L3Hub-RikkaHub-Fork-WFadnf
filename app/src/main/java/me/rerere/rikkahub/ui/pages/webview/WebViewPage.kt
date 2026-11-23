@@ -151,17 +151,13 @@ fun WebViewPage(url: String, contentId: String) {
     SaltModalSheet(
         visible = showConsoleSheet,
         onDismissRequest = { showConsoleSheet = false },
+        title = stringResource(R.string.console_logs_title),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Console Logs",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
 
             SelectionContainer {
                 LazyColumn {

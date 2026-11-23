@@ -488,6 +488,7 @@ fun ChatDrawerContent(
             showMoveToFolderSheet = false
             conversationToMoveFolder = null
         },
+        title = stringResource(R.string.chat_page_move_to_folder),
     ) {
         Column(
             modifier = Modifier
@@ -496,11 +497,6 @@ fun ChatDrawerContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.chat_page_move_to_folder),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
 
             // 移出文件夹（未归类）
             Surface(
@@ -647,6 +643,7 @@ fun ChatDrawerContent(
             showMoveToAssistantSheet = false
             conversationToMove = null
         },
+        title = stringResource(R.string.chat_page_move_to_assistant),
     ) {
         Column(
             modifier = Modifier
@@ -655,11 +652,6 @@ fun ChatDrawerContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.chat_page_move_to_assistant),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),

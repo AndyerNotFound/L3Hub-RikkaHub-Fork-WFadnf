@@ -114,6 +114,7 @@ fun McpPickerButton(
     SaltModalSheet(
         visible = showMcpPicker,
         onDismissRequest = { showMcpPicker = false },
+        title = stringResource(R.string.mcp_picker_title),
     ) {
         Column(
             modifier = Modifier.Companion
@@ -123,12 +124,6 @@ fun McpPickerButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = stringResource(id = R.string.mcp_picker_title),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold
-                )
-            )
             MotionExpandCollapse(
                 visible = loading,
             ) {

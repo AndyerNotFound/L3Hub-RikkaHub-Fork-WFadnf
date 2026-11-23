@@ -3134,4 +3134,12 @@
   <string name="setting_theme_page_engine_primary_title">Seed color</string>
   <string name="setting_theme_page_engine_primary_desc">Replaces the seed; every other role is derived from it. Clearing falls back to the current theme.</string>
   <string name="setting_theme_page_engine_primary_reset">Clear seed color</string>
+  <string name="assistant_page_new">New assistant</string>
+  <string name="console_logs_title">Console logs</string>
+  <string name="files_picker_title">Attachments</string>
+  <string name="json_value_title">JSON value</string>
+  <string name="qq_group_title">Join our community</string>
+  <string name="request_detail_title">Request details</string>
+  <string name="select_icon_title">Select icon</string>
+  <string name="update_card_title">Update</string>
 </resources>
