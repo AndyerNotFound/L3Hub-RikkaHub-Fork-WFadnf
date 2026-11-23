@@ -5,20 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// 发布时另出一版不带 LiteRT-LM 运行时的精简包：运行时整个 AAR 会随包带走，
-// 精简版把它连同直接引用它的那个文件一起去掉。
-// 用 Gradle 属性而不是 product flavor，变体名仍是 githubRelease，脚本与工作流不用跟着改。
-val noLitert = providers.gradleProperty("noLitert").map(String::toBoolean).getOrElse(false)
-
 android {
     namespace = "me.rerere.ai"
-
-    sourceSets {
-        getByName("main") {
-            // 直接引用 com.google.ai.edge.litertlm 的只有 LiteRTProvider，两份实现二选一
-            kotlin.srcDir(if (noLitert) "src/noLitert/java" else "src/withLitert/java")
-        }
-    }
 
     buildFeatures {
         // 请求体日志只在调试构建里打印，靠 BuildConfig.DEBUG 判断
@@ -48,11 +36,6 @@ android {
 
 dependencies {
     implementation(project(":common"))
-
-    // LiteRT-LM：本地模型推理运行时（随应用打包，精简版不带）
-    if (!noLitert) {
-        implementation(libs.litertlm.android)
-    }
 
     // Compose
     implementation(libs.androidx.core.ktx)

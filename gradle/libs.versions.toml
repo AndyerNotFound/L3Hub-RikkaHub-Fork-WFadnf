@@ -73,7 +73,6 @@ bouncycastle = "1.86"
 apache-sshd = "2.20.1"
 diffutils = "4.18"
 snakeyaml = "2.7"
-litertlm = "0.19.1"
 # toolbox-ui：ImageToolbox 前端移植
 material-kolor = "5.0.1"
 palette = "1.1.0"
@@ -169,7 +168,6 @@ modelcontextprotocol-kotlin-sdk = { module = "com.github.rikkahub.mcp-kotlin-sdk
 pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 diffutils = { module = "io.github.java-diff-utils:java-diff-utils", version.ref = "diffutils" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
-litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 floatingx-app = { group = "io.github.petterpx", name = "floatingx-app", version.ref = "floatingx" }
 floatingx-compose = { group = "io.github.petterpx", name = "floatingx-compose", version.ref = "floatingx" }

@@ -1092,18 +1092,12 @@ Canary 与正式版用 Secrets 里的 release key，Nightly 与旧预览用仓�
 versionCode 与正式版撞车不影响谁覆盖谁，只核对 `versionName`；固定 tag 的 Canary / Nightly
 不带版本号，连前缀也不核对。tag 解析不到（没推上去、浅克隆没拿到）会直接红。
 
-正式版出两个包，arm64-v8a，R8 已开：
+正式版出一个包，arm64-v8a，R8 已开：
 
-- `L3Hub-<tag>-arm64-v8a.apk`：完整版，含 LiteRT-LM 本地推理运行时
-- `L3Hub-<tag>-arm64-v8a-nolitert.apk`：精简版，不含 LiteRT-LM 运行时，设置里的本地模型入口
-  也一并隐藏；其余功能与完整版相同
+- `L3Hub-<tag>-arm64-v8a.apk`：正式版安装包，含全部功能
 
-两个包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖安装，应用数据保留。
-测试通道（Canary / Nightly / 旧预览）只出精简版。精简版由 Gradle 属性 `noLitert` 控制，
-`:ai` / `:app` 的 `build.gradle.kts` 都读它：`:ai` 不引入 `litertlm-android`，并把
-`LiteRTProvider` 的实现从 `src/withLitert` 换成 `src/noLitert` 下的占位版；`:app` 用它生成
-`BuildConfig.HAS_LITERT`，决定新建提供商时要不要列「LiteRT」。变体名仍是 `githubRelease` /
-`githubDebug`，工作流只是把同一个变体编一遍或两遍。
+各通道（正式版 / Canary / Nightly / 旧预览）都只产出一个 APK，不再区分含不含 LiteRT 的两个版本。
+变体名仍是 `githubRelease` / `githubDebug`，工作流对每个通道只编一遍。
 
 Release notes 由流程按「上一个 tag..本 tag」的提交自己生成——本仓库不走 PR，GitHub 自带的
 `--generate-notes` 只会给一行 Full Changelog。正式版取区间时用 `git describe --tags
@@ -1125,7 +1119,7 @@ Release notes 由流程按「上一个 tag..本 tag」的提交自己生成—�
 git tag -f Canary-Build && git push -f origin Canary-Build
 ```
 
-Canary 只出精简版，产物固定叫 `L3Hub-Canary-Build-arm64-v8a-nolitert.apk`，
+Canary 产物固定叫 `L3Hub-Canary-Build-arm64-v8a.apk`，
 每次构建还会删掉 release 上这次没产出的旧资产，下载列表里不会留着上一版的包。
 Release 说明的改动区间从上一版说明末尾 `<!-- canary:from=… head=… -->` 记下的那次构建算起，
 两次滚动构建之间只列真正新增的提交；同一提交重跑时沿用那次算出的起点，说明不会退化成空。
@@ -1138,7 +1132,7 @@ Nightly 用 `githubDebug` 变体，包名由 debug buildType 的 `applicationIdS
 可以同装；也与本地日常构建的 debug 包同包名同签名，CI 出的夜包能直接覆盖安装。
 
 - 触发：`schedule` 每天 19:00 UTC（北京时间次日 03:00）；也可以手动推 `Nightly-Build` tag
-- 出包：只出精简版，资产固定叫 `L3Hub-Nightly-Build-arm64-v8a-nolitert.apk`，
+- 出包：资产固定叫 `L3Hub-Nightly-Build-arm64-v8a.apk`，
   每夜覆盖同名资产
 - tag：构建成功后流程把远端 `Nightly-Build` 强推到当夜提交（`GITHUB_TOKEN` 推的 tag 不会
   再触发一轮 workflow），release 页面的源码快照与下一夜的改动区间都靠它

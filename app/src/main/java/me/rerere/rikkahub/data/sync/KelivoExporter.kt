@@ -412,8 +412,7 @@ class KelivoExporter(
     }
 
     /**
-     * OpenAI / Google / Claude 映射到 Kelivo 的 ProviderKind；账号类（OAuth 凭据）与
-     * 本地推理（LiteRT / GGUF / ONNX）没有对应类型，跳过。
+     * OpenAI / Google / Claude 映射到 Kelivo 的 ProviderKind；账号类（OAuth 凭据）没有对应类型，跳过。
      */
     private fun toKelivoProvider(provider: ProviderSetting): JsonObject? = when (provider) {
         is ProviderSetting.OpenAI -> kelivoProviderConfig(

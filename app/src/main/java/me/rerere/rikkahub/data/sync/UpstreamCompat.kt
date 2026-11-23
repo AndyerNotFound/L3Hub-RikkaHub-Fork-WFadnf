@@ -44,7 +44,7 @@ internal object UpstreamCompat {
 
     val NESTED_ATTACHMENT_FOLDERS = setOf(FileFolders.SKILLS, FileFolders.MEDIA_CREATION)
 
-    /** 原版 `ProviderSetting` 认识的类型；Fork 的 litert / gguf / onnx 会让整份设置解码失败 */
+    /** 原版 `ProviderSetting` 认识的类型；Fork 独有的类型会让整份设置解码失败 */
     private val PROVIDER_TYPES = setOf("openai", "google", "claude", "chatgpt", "grok")
 
     /** 原版 `ModelType` 的取值；OCR 模型原版没有，留着同样会让整份设置解码失败 */

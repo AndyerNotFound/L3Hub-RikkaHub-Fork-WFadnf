@@ -17,6 +17,10 @@ fun computeAIIconByName(name: String, availableIcons: List<String> = emptyList()
 
     val lowerName = name.lowercase()
     val result = when {
+        // 本地推理格式/运行时：LiteRT / llama.cpp(GGUF) / ONNX，图标来自图标库资产
+        PATTERN_LITERT.containsMatchIn(lowerName) -> "litert.svg"
+        PATTERN_LLAMACPP.containsMatchIn(lowerName) -> "llamacpp.svg"
+        PATTERN_ONNX.containsMatchIn(lowerName) -> "onnx.svg"
         PATTERN_OPENAI.containsMatchIn(lowerName) -> "openai.svg"
         PATTERN_GEMINI.containsMatchIn(lowerName) -> "gemini-color.svg"
         PATTERN_GOOGLE.containsMatchIn(lowerName) -> "google-color.svg"
@@ -153,6 +157,10 @@ private fun matchIconByAssetName(name: String, availableIcons: List<String>): St
 }
 
 private val PATTERN_RIKKAHUB = Regex("rikka|auto")
+// 本地推理的运行时/格式：匹配到就取图标库里对应的资产，放在厂商匹配之前
+private val PATTERN_LITERT = Regex("litert")
+private val PATTERN_LLAMACPP = Regex("gguf|llamacpp|llama\\.cpp")
+private val PATTERN_ONNX = Regex("onnx")
 private val PATTERN_OPENAI = Regex("(gpt|openai|o\\d)")
 private val PATTERN_GEMINI = Regex("(gemini|nano-banana)")
 private val PATTERN_GOOGLE = Regex("google")

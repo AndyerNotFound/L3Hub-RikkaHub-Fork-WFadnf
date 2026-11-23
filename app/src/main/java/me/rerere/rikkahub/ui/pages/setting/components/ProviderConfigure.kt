@@ -105,8 +105,6 @@ fun ProviderConfigure(
     modifier: Modifier = Modifier,
     allowTypeSwitch: Boolean = false,
     onEdit: (provider: ProviderSetting) -> Unit,
-    // 需要立刻写进设置的操作（比如 LiteRT 的模型文件已经落盘），默认与 onEdit 一致
-    onCommit: (provider: ProviderSetting) -> Unit = onEdit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -158,10 +156,6 @@ fun ProviderConfigure(
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_grok_disclaimer),
             )
-
-            is ProviderSetting.LiteRT -> ProviderConfigureLiteRT(provider, onEdit, onCommit)
-            is ProviderSetting.GGUF -> ProviderConfigureLocalServer(provider, onEdit)
-            is ProviderSetting.ONNX -> ProviderConfigureLocalServer(provider, onEdit)
         }
     }
 }

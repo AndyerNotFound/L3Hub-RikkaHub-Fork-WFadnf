@@ -108,7 +108,6 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
-import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
@@ -202,14 +201,13 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                         AutoAIIcon(
                             provider.name,
                             modifier = Modifier.size(22.dp),
-                            iconAsset = provider.localModelIconAsset(),
                         )
                         Text(text = provider.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
                 actions = {
-                    // 账号型提供商离开账号就没法用；LiteRT 的模型路径只在本机有效
-                    if (provider !is ProviderSetting.Account && provider !is ProviderSetting.LiteRT) {
+                    // 账号型提供商离开账号就没法用
+                    if (provider !is ProviderSetting.Account) {
                         val shareSheetState = rememberShareSheetState()
                         ShareSheet(shareSheetState)
                         IconButton(
@@ -515,11 +513,6 @@ private fun SettingProviderConfigPage(
                 allowTypeSwitch = true,
                 onEdit = {
                     internalProvider = it
-                },
-                // 模型的导入、选择、删除会直接动文件，设置不能只停在草稿里
-                onCommit = {
-                    internalProvider = it
-                    onEdit(it)
                 },
             )
 

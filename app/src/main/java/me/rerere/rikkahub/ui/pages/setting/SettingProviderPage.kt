@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.lockState
 import me.rerere.hugeicons.HugeIcons
@@ -70,7 +69,6 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Tick02
-import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
@@ -85,7 +83,6 @@ import me.rerere.rikkahub.ui.components.ui.QRCodeScannerDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
-import me.rerere.rikkahub.ui.components.ui.localModelIconAsset
 import me.rerere.rikkahub.ui.components.ui.longPressReorder
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
@@ -637,18 +634,6 @@ private fun AddButton(
             add(ProviderSetting.Claude())
             add(ProviderSetting.ChatGPT())
             add(ProviderSetting.Grok())
-            // 精简版不打包 LiteRT 运行时，新建列表里不出现这个类型
-            if (BuildConfig.HAS_LITERT) add(ProviderSetting.LiteRT())
-            add(
-                ProviderSetting.GGUF(
-                    models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
-                )
-            )
-            add(
-                ProviderSetting.ONNX(
-                    models = listOf(Model(modelId = "local-model", displayName = "本地模型", contextLength = 4096))
-                )
-            )
         }
     }
 
@@ -695,7 +680,6 @@ private fun AddButton(
                             AutoAIIcon(
                                 name = typeName,
                                 modifier = Modifier.size(40.dp),
-                                iconAsset = template.localModelIconAsset(),
                             )
                             Text(
                                 text = typeName,
@@ -737,7 +721,6 @@ private fun AddButton(
                                 AutoAIIcon(
                                     name = provider.name,
                                     modifier = Modifier.size(40.dp),
-                                    iconAsset = provider.localModelIconAsset(),
                                 )
                                 Text(
                                     text = provider.name,
@@ -762,9 +745,6 @@ private fun ProviderSetting.typeName(): String = when (this) {
     is ProviderSetting.Claude -> "Claude"
     is ProviderSetting.ChatGPT -> stringResource(R.string.setting_provider_page_type_subscription, "ChatGPT")
     is ProviderSetting.Grok -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
-    is ProviderSetting.LiteRT -> stringResource(R.string.setting_provider_page_type_litert)
-    is ProviderSetting.GGUF -> stringResource(R.string.setting_provider_page_type_gguf)
-    is ProviderSetting.ONNX -> stringResource(R.string.setting_provider_page_type_onnx)
 }
 
 // 分组标题：整行可点折叠，长按整行拖拽排序；未分组那一栏不能拖，它在列表末尾是固定位置
@@ -841,7 +821,6 @@ private fun ProviderItem(
             AutoAIIcon(
                 name = provider.name,
                 modifier = Modifier.size(40.dp),
-                iconAsset = provider.localModelIconAsset(),
             )
             Column(
                 modifier = Modifier.weight(1f),

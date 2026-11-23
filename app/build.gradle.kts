@@ -12,10 +12,6 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
-// 与 :ai 共用的开关：-PnoLitert=true 时不打包 LiteRT-LM 运行时，用于发布时的精简包。
-// 变体名不变（仍是 githubRelease），只有依赖、源码目录和这一个 BuildConfig 字段不同。
-val noLitert = providers.gradleProperty("noLitert").map(String::toBoolean).getOrElse(false)
-
 // 同一个变体出独立包名的构建：Canary 用 -PappIdSuffix=.canary。
 // 只改 applicationId（Manifest 里的 applicationId 占位符会跟着变），变体名与产物目录都不动，
 // 因此 CI 仍是 assembleGithubRelease。
@@ -40,8 +36,6 @@ android {
         versionCode = 364
         versionName = "L.3.3.0.10"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
-        // 精简版没有 LiteRT 运行时，设置里的本地模型入口按这个字段隐藏
-        buildConfigField("boolean", "HAS_LITERT", if (noLitert) "false" else "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

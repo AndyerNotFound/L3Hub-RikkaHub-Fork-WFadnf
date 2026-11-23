@@ -1319,14 +1319,9 @@ GPT OSS            65536       131072
 10.2 出包与产物
 ----------------------------------------------------------------
 
-- 正式版产物：L3Hub-<tag>-arm64-v8a.apk（含 LiteRT-LM 运行时）与
-  L3Hub-<tag>-arm64-v8a-nolitert.apk（不含），各附 .sha256。
-- 精简版：由 Gradle 属性 noLitert 控制：:ai 不引入 litertlm-android 并把
-  LiteRTProvider 换成占位实现，:app 生成 BuildConfig.HAS_LITERT，设置里的
-  本地模型入口一并隐藏。
-- 覆盖安装：两个包同包名、同版本号、同签名，只能装一个；换装另一个直接覆盖，
-  应用数据保留。
-- 测试通道：Canary / Nightly / 旧预览只出精简版。
+- 正式版产物：L3Hub-<tag>-arm64-v8a.apk，单包含全部功能，附 .sha256。
+- 产物形态：每个通道只产出一个 APK，不再区分含不含 LiteRT 的两个版本。
+- 测试通道：Canary / Nightly / 旧预览各出单包，功能与正式版一致。
 - 轮询通道资产：滚动 tag 的 Release 每次删掉本次未产出的旧资产，下载列表
   不留上一版的包。
 - 发布说明：按“上一个 tag..本 tag”的提交生成；正式版取区间时排除预发布 tag，
