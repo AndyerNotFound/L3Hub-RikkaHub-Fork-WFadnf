@@ -89,30 +89,24 @@ internal fun BackupActionIcon(
 }
 
 // 图标会随进度变化的行：开头的图标能在进度圈和正常图标之间切换
-@Composable
 internal fun CardGroupScope.BackupActionRow(
     icon: ImageVector,
-    headline: String,
+    headlineContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
-    supporting: String? = null,
+    supportingContent: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) = item(
     onClick = onClick,
     modifier = modifier,
     leadingContent = { BackupActionIcon(icon = icon, loading = loading) },
-    headlineContent = { Text(text = headline) },
-    supportingContent = if (supporting != null) {
-        { Text(text = supporting) }
-    } else {
-        null
-    },
+    headlineContent = headlineContent,
+    supportingContent = supportingContent,
     trailingContent = trailing,
 )
 
 // 「备份内容」多选项，本地、WebDAV、S3 共用
-@Composable
 internal fun <T> CardGroupScope.backupContentItem(
     options: List<T>,
     selected: List<T>,
@@ -345,7 +339,6 @@ internal fun <T> BackupFilesSheet(
     }
 }
 
-@Composable
 private fun CardGroupScope.BackupFileItem(
     info: BackupFileInfo,
     isRestoring: Boolean,

@@ -340,12 +340,12 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileExport,
                 loading = isExporting,
-                headline = stringResource(R.string.backup_page_local_backup_export),
-                supporting = if (isExporting) {
+                headlineContent = { Text(stringResource(R.string.backup_page_local_backup_export)) },
+                supportingContent = { Text(if (isExporting) {
                     stringResource(R.string.backup_page_exporting)
                 } else {
                     stringResource(R.string.backup_page_export_desc)
-                },
+                }) },
                 onClick = if (!isExporting) {
                     {
                         val timestamp = LocalDateTime.now()
@@ -359,12 +359,12 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "local",
-                headline = stringResource(R.string.backup_page_local_backup_import),
-                supporting = if (isRestoring && importType == "local") {
+                headlineContent = { Text(stringResource(R.string.backup_page_local_backup_import)) },
+                supportingContent = { Text(if (isRestoring && importType == "local") {
                     stringResource(R.string.backup_page_importing)
                 } else {
                     stringResource(R.string.backup_page_import_desc)
-                },
+                }) },
                 onClick = if (!isRestoring) {
                     {
                         showRestoreOptions = true
@@ -375,8 +375,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileExport,
                 loading = isExporting,
-                headline = stringResource(R.string.backup_page_upstream_export),
-                supporting = stringResource(R.string.backup_page_upstream_export_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_upstream_export)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_upstream_export_desc)) },
                 onClick = if (!isExporting) {
                     {
                         val timestamp = LocalDateTime.now()
@@ -389,8 +389,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileExport,
                 loading = isExporting,
-                headline = stringResource(R.string.backup_page_kelivo_export),
-                supporting = stringResource(R.string.backup_page_kelivo_export_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_kelivo_export)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_kelivo_export_desc)) },
                 onClick = if (!isExporting) {
                     {
                         val timestamp = LocalDateTime.now()
@@ -405,14 +405,14 @@ fun ImportExportTab(
         CardGroup {
             BackupActionRow(
                 icon = HugeIcons.FileExport,
-                headline = stringResource(
+                headlineContent = { Text(stringResource(
                     if (incremental) R.string.backup_page_format_incremental
                     else R.string.backup_page_format_full
-                ),
-                supporting = stringResource(
+                )) },
+                supportingContent = { Text(stringResource(
                     if (incremental) R.string.backup_page_format_incremental_desc
                     else R.string.backup_page_format_full_desc
-                ),
+                )) },
                 onClick = {
                     vm.updateSettings {
                         it.copy(
@@ -428,8 +428,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "markdown",
-                headline = stringResource(R.string.backup_page_import_from_markdown),
-                supporting = stringResource(R.string.backup_page_import_markdown_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_markdown)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_markdown_desc)) },
                 onClick = if (!isRestoring) {
                     {
                         importType = "markdown"
@@ -441,8 +441,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "xml",
-                headline = stringResource(R.string.backup_page_import_from_xml),
-                supporting = stringResource(R.string.backup_page_import_xml_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_xml)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_xml_desc)) },
                 onClick = if (!isRestoring) {
                     {
                         importType = "xml"
@@ -454,8 +454,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "deepseek",
-                headline = stringResource(R.string.backup_page_import_from_deepseek),
-                supporting = stringResource(R.string.backup_page_import_deepseek_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_deepseek)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_deepseek_desc)) },
                 onClick = if (!isRestoring) {
                     {
                         importType = "deepseek"
@@ -467,8 +467,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "chatbox",
-                headline = stringResource(R.string.backup_page_import_from_chatbox),
-                supporting = stringResource(R.string.backup_page_import_chatbox_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_chatbox)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_chatbox_desc)) },
                 onClick = if (!isRestoring) {
                     {
                         importType = "chatbox"
@@ -480,8 +480,8 @@ fun ImportExportTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = isRestoring && importType == "cherry",
-                headline = stringResource(R.string.backup_page_import_from_cherry_studio),
-                supporting = stringResource(R.string.backup_page_import_cherry_studio_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_import_from_cherry_studio)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_import_cherry_studio_desc)) },
                 onClick = if (!isRestoring) {
                     {
                         importType = "cherry"

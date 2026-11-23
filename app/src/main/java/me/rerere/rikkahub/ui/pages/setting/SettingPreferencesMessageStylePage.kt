@@ -498,8 +498,8 @@ private fun StyleParamsGroup(
     CardGroup {
         if (style == ChatMessageBackgroundStyle.FROSTED) {
             paramSliderRow(
-                label = stringResource(R.string.message_style_page_blur),
-                valueText = blurSigma.toString(),
+                headlineContent = { Text(stringResource(R.string.message_style_page_blur)) },
+                trailingContent = { CardGroupValue(blurSigma.toString()) },
                 child = {
                     NumberSlider(
                         value = blurSigma,
@@ -520,8 +520,8 @@ private fun StyleParamsGroup(
             }
         }
         paramSliderRow(
-            label = stringResource(R.string.message_style_page_background_opacity),
-            valueText = "${(opacity * 100).roundToInt()}%",
+            headlineContent = { Text(stringResource(R.string.message_style_page_background_opacity)) },
+            trailingContent = { CardGroupValue("${(opacity * 100).roundToInt()}%") },
             child = {
                 NumberSlider(
                     value = (opacity * 100).roundToInt().coerceIn(0, 100),
@@ -539,8 +539,8 @@ private fun StyleParamsGroup(
             },
         )
         paramSliderRow(
-            label = stringResource(R.string.message_style_page_border_opacity),
-            valueText = "${(resolved.border.alpha * 100).roundToInt()}%",
+            headlineContent = { Text(stringResource(R.string.message_style_page_border_opacity)) },
+            trailingContent = { CardGroupValue("${(resolved.border.alpha * 100).roundToInt()}%") },
             child = {
                 NumberSlider(
                     value = (resolved.border.alpha * 100).roundToInt().coerceIn(0, 100),
@@ -550,8 +550,8 @@ private fun StyleParamsGroup(
             },
         )
         paramSliderRow(
-            label = stringResource(R.string.message_style_page_border_width),
-            valueText = resolved.borderWidth.value.toString(),
+            headlineContent = { Text(stringResource(R.string.message_style_page_border_width)) },
+            trailingContent = { CardGroupValue(resolved.borderWidth.value.toString()) },
             child = {
                 NumberSlider(
                     value = (resolved.borderWidth.value * 10).roundToInt().coerceIn(0, 30),
@@ -561,8 +561,8 @@ private fun StyleParamsGroup(
             },
         )
         paramSliderRow(
-            label = stringResource(R.string.message_style_page_corner_radius),
-            valueText = resolved.radius.value.roundToInt().toString(),
+            headlineContent = { Text(stringResource(R.string.message_style_page_corner_radius)) },
+            trailingContent = { CardGroupValue(resolved.radius.value.roundToInt().toString()) },
             child = {
                 NumberSlider(
                     value = resolved.radius.value.roundToInt().coerceIn(0, 28),
@@ -575,14 +575,13 @@ private fun StyleParamsGroup(
 }
 
 /** 参数行：标题在左、取值在右，下面放滑杆。 */
-@Composable
 private fun CardGroupScope.paramSliderRow(
-    label: String,
-    valueText: String,
+    headlineContent: @Composable () -> Unit,
+    trailingContent: @Composable () -> Unit,
     child: @Composable () -> Unit,
 ) = formItem(
-    headlineContent = { Text(text = label) },
-    trailingContent = { CardGroupValue(valueText) },
+    headlineContent = headlineContent,
+    trailingContent = trailingContent,
 ) {
     child()
 }

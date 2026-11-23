@@ -287,19 +287,19 @@ private fun MemoryFileDetail(
     ) {
         CardGroup {
             overlineItem(
-                overline = stringResource(R.string.memory_file_page_last_updated),
-                value = Instant.ofEpochMilli(file.updatedAt).toLocalDateTime(),
+                overlineContent = { Text(stringResource(R.string.memory_file_page_last_updated)) },
+                headlineContent = { Text(Instant.ofEpochMilli(file.updatedAt).toLocalDateTime()) },
             )
             if (file.description.isNotEmpty()) {
                 overlineItem(
-                    overline = stringResource(R.string.memory_file_page_summary),
-                    value = file.description,
+                    overlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },
+                    headlineContent = { Text(file.description) },
                 )
             }
             if (file.aliases.isNotEmpty()) {
                 overlineItem(
-                    overline = stringResource(R.string.memory_file_page_aliases),
-                    value = file.aliases.joinToString(", "),
+                    overlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },
+                    headlineContent = { Text(file.aliases.joinToString(", ")) },
                 )
             }
             if (file.body.isNotBlank()) {
@@ -367,7 +367,7 @@ private fun MemoryFileEditor(
             // 只有编辑已有文件时才有路径
             val editingPath = path
             if (editingPath != null) {
-                formFieldItem(headline = stringResource(R.string.memory_file_page_path)) {
+                formFieldItem(headlineContent = { Text(stringResource(R.string.memory_file_page_path)) },) {
                     OutlinedTextField(
                         value = editingPath,
                         onValueChange = onPathChange,
@@ -378,7 +378,7 @@ private fun MemoryFileEditor(
                     )
                 }
             }
-            formFieldItem(headline = stringResource(R.string.memory_file_page_title)) {
+            formFieldItem(headlineContent = { Text(stringResource(R.string.memory_file_page_title)) },) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
@@ -387,14 +387,14 @@ private fun MemoryFileEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            formFieldItem(headline = stringResource(R.string.memory_file_page_summary)) {
+            formFieldItem(headlineContent = { Text(stringResource(R.string.memory_file_page_summary)) },) {
                 OutlinedTextField(
                     value = description,
                     onValueChange = onDescriptionChange,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            formFieldItem(headline = stringResource(R.string.memory_file_page_aliases)) {
+            formFieldItem(headlineContent = { Text(stringResource(R.string.memory_file_page_aliases)) },) {
                 val addAlias = {
                     onAliasesChange(aliases.withAlias(aliasInput))
                     onAliasInputChange("")
@@ -436,7 +436,7 @@ private fun MemoryFileEditor(
             }
         }
         CardGroup {
-            formFieldItem(headline = stringResource(R.string.memory_file_page_details)) {
+            formFieldItem(headlineContent = { Text(stringResource(R.string.memory_file_page_details)) },) {
                 OutlinedTextField(
                     value = body,
                     onValueChange = onBodyChange,
@@ -451,19 +451,20 @@ private fun MemoryFileEditor(
 }
 
 // 一行「小标题 + 取值」：小标题走 ListItem 的 overline 位
-@Composable
-private fun CardGroupScope.overlineItem(overline: String, value: String) = item(
-    overlineContent = { Text(overline) },
-    headlineContent = { Text(value) },
+private fun CardGroupScope.overlineItem(
+    overlineContent: @Composable () -> Unit,
+    headlineContent: @Composable () -> Unit,
+) = item(
+    overlineContent = overlineContent,
+    headlineContent = headlineContent,
 )
 
 // 表单项：标题 + 内容区，内距由 formItem 给
-@Composable
 private fun CardGroupScope.formFieldItem(
-    headline: String,
+    headlineContent: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) = formItem(
-    headlineContent = { Text(headline) },
+    headlineContent = headlineContent,
 ) {
     content()
 }

@@ -87,14 +87,14 @@ fun VersionSyncTab(
             BackupActionRow(
                 icon = HugeIcons.SmartPhone01,
                 loading = detecting,
-                headline = if (peer == null) {
+                headlineContent = { Text(if (peer == null) {
                     stringResource(R.string.backup_page_version_sync_absent)
                 } else if (peer.isPreview) {
                     stringResource(R.string.backup_page_version_sync_preview)
                 } else {
                     stringResource(R.string.backup_page_version_sync_release)
-                },
-                supporting = when {
+                }) },
+                supportingContent = { Text(when {
                     peer == null -> stringResource(R.string.backup_page_version_sync_absent_desc)
                     !peer.supported -> stringResource(R.string.backup_page_version_sync_unsupported)
                     peer.pendingRestore -> stringResource(R.string.backup_page_version_sync_peer_pending)
@@ -103,7 +103,7 @@ fun VersionSyncTab(
                         peer.versionName,
                         peer.schemaVersion,
                     )
-                },
+                }) },
                 onClick = if (detecting) null else onRefresh,
                 // 探测中时右侧换成进度圈
                 trailing = { BackupActionIcon(HugeIcons.Refresh, loading = detecting) },
@@ -115,15 +115,15 @@ fun VersionSyncTab(
             BackupActionRow(
                 icon = HugeIcons.FileImport,
                 loading = working?.direction == SyncDirection.PULL,
-                headline = stringResource(R.string.backup_page_version_sync_pull),
-                supporting = stringResource(R.string.backup_page_version_sync_pull_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_version_sync_pull)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_version_sync_pull_desc)) },
                 onClick = if (ready) onPull else null,
             )
             BackupActionRow(
                 icon = HugeIcons.FileExport,
                 loading = working?.direction == SyncDirection.PUSH,
-                headline = stringResource(R.string.backup_page_version_sync_push),
-                supporting = stringResource(R.string.backup_page_version_sync_push_desc),
+                headlineContent = { Text(stringResource(R.string.backup_page_version_sync_push)) },
+                supportingContent = { Text(stringResource(R.string.backup_page_version_sync_push_desc)) },
                 onClick = if (ready) onPush else null,
             )
             // 同步进行中时把进度条接在下面

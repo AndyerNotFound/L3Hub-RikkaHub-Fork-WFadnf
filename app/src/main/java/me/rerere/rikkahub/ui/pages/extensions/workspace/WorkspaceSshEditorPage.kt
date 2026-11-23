@@ -126,7 +126,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             item {
                 CardGroupTitle(stringResource(R.string.workspace_ssh_editor_basic))
                 CardGroup {
-                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_name)) {
+                    FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_name)) },) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.name,
@@ -142,7 +142,7 @@ fun WorkspaceSshEditorPage(id: String?) {
             item {
                 CardGroupTitle(stringResource(R.string.workspace_ssh_editor_connection))
                 CardGroup {
-                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_host)) {
+                    FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_host)) },) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.host,
@@ -153,7 +153,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         )
                     }
-                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_port)) {
+                    FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_port)) },) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.port,
@@ -165,7 +165,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }
-                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_username)) {
+                    FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_username)) },) {
                         OutlinedTextField(
                             enabled = editable,
                             value = state.username,
@@ -187,7 +187,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                             supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_credentials_lost_desc)) },
                         )
                     }
-                    FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_auth_method)) {
+                    FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_auth_method)) },) {
                         val options = listOf(
                             SshAuthType.PASSWORD to stringResource(R.string.workspace_ssh_editor_password),
                             SshAuthType.PRIVATE_KEY to stringResource(R.string.workspace_ssh_editor_private_key),
@@ -207,7 +207,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                         }
                     }
                     when (state.authType) {
-                        SshAuthType.PASSWORD -> FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_password)) {
+                        SshAuthType.PASSWORD -> FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_password)) },) {
                             SecretTextField(
                                 enabled = editable,
                                 value = state.password,
@@ -218,8 +218,8 @@ fun WorkspaceSshEditorPage(id: String?) {
 
                         SshAuthType.PRIVATE_KEY -> {
                             FormFieldRow(
-                                headline = stringResource(R.string.workspace_ssh_editor_private_key),
-                                supporting = stringResource(R.string.workspace_ssh_editor_private_key_desc),
+                                headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key)) },
+                                supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_private_key_desc)) },
                             ) {
                                 OutlinedTextField(
                                     enabled = editable,
@@ -253,7 +253,7 @@ fun WorkspaceSshEditorPage(id: String?) {
                                     Text(stringResource(R.string.workspace_ssh_editor_import_key))
                                 }
                             }
-                            FormFieldRow(headline = stringResource(R.string.workspace_ssh_editor_passphrase)) {
+                            FormFieldRow(headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_passphrase)) },) {
                                 SecretTextField(
                                     enabled = editable,
                                     value = state.passphrase,
@@ -271,8 +271,8 @@ fun WorkspaceSshEditorPage(id: String?) {
                 CardGroup {
                     val homeDir = state.probeResult?.homeDir?.takeIf { it != state.remoteDir }
                     FormFieldRow(
-                        headline = stringResource(R.string.workspace_ssh_editor_remote_dir),
-                        supporting = stringResource(R.string.workspace_ssh_editor_remote_dir_desc),
+                        headlineContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir)) },
+                        supportingContent = { Text(stringResource(R.string.workspace_ssh_editor_remote_dir_desc)) },
                         trailing = if (homeDir != null) {
                             {
                                 TextButton(onClick = { vm.update { it.copy(remoteDir = homeDir) } }) {
@@ -379,20 +379,15 @@ fun WorkspaceSshEditorPage(id: String?) {
 
 // 表单项：标题行（可带说明与右侧控件）+ 内容区，形状与内距交给 CardGroup
 @Composable
-@Composable
 private fun CardGroupScope.FormFieldRow(
-    headline: String,
-    supporting: String? = null,
+    headlineContent: @Composable () -> Unit,
+    supportingContent: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     formItem(
-        headlineContent = { Text(text = headline) },
-        supportingContent = if (supporting != null) {
-            { Text(text = supporting) }
-        } else {
-            null
-        },
+        headlineContent = headlineContent,
+        supportingContent = supportingContent,
         trailingContent = trailing,
     ) {
         content()
