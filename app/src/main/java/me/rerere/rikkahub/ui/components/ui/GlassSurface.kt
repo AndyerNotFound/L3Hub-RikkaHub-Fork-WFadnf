@@ -21,15 +21,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.hazeBlur
-import dev.chrisbanes.haze.blur.material3.Material3
-import dev.chrisbanes.haze.glass.GlassDefaults
 import dev.chrisbanes.haze.glass.GlassStyle
-import dev.chrisbanes.haze.glass.GlassStyleScope
-import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
-import dev.chrisbanes.haze.glass.material3.material3
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
@@ -147,9 +141,10 @@ fun Modifier.effectSurface(
             Modifier
                 .hazeBlur(
                     input = HazeInput.Sources(hazeState),
-                    style = HazeBlurStyle.Material3(containerColor = Color.Transparent) {
-                        blurRadius(radius)
-                    },
+                    style = SaltGlassStyles.blur(
+                        isDarkTheme = LocalDarkMode.current,
+                        radius = radius,
+                    ),
                 )
                 .background(tint)
         }
@@ -157,7 +152,6 @@ fun Modifier.effectSurface(
         else -> Modifier.hazeGlass(
             input = HazeInput.Sources(hazeState),
             style = rememberGlassSurfaceStyle(
-                containerColor = baseColor,
                 tint = tint,
                 shape = shape,
             ),
@@ -171,7 +165,6 @@ fun Modifier.effectSurface(
 /** 玻璃档的样式：和输入框共用一份参数，只有形状与着色不同。 */
 @Composable
 private fun rememberGlassSurfaceStyle(
-    containerColor: Color,
     tint: Color,
     shape: Shape,
 ): GlassStyle {
@@ -181,44 +174,14 @@ private fun rememberGlassSurfaceStyle(
         RectangleShape -> RoundedCornerShape(0.dp)
         else -> RoundedCornerShape(ComponentGlassBlurRadius)
     }
-    val baseStyle = GlassStyle.material3(
-        containerColor = containerColor,
-        tint = tint,
-    )
-    return remember(baseStyle, darkMode, glassShape) {
-        baseStyle.then {
-            appearanceResponse(dark = darkMode)
-            // Keep background text from competing with the content.
-            optics {
-                copy(
-                    blurRadius = OpticalSizeValue.Fixed(ComponentGlassBlurRadius),
-                    depth = OpticalSizeValue.Fixed(0.5f),
-                )
-            }
+    return remember(tint, darkMode, glassShape) {
+        SaltGlassStyles.regularSurface(darkMode).then {
             shape(glassShape)
+            tint(color = tint)
         }
     }
 }
 
-// Haze 按系统夜间模式选玻璃的明暗预设，应用内单独设置主题时会选错（深色主题下被提亮发白），
-// 所以按应用主题显式写入。深色数值对应库里 internal 的 GlassStyle.regularDark。
-private fun GlassStyleScope.appearanceResponse(dark: Boolean) {
-    if (dark) {
-        specularIntensity(0.38f)
-        edgeShadow(Color.Black.copy(alpha = 0.32f))
-        ambientResponse(0.08f)
-        contrast(0.08f)
-        whitePoint(-0.22f)
-        chromaMultiplier(1.1f)
-    } else {
-        specularIntensity(GlassDefaults.specularIntensity)
-        edgeShadow(GlassDefaults.edgeShadow)
-        ambientResponse(GlassDefaults.ambientResponse)
-        contrast(GlassDefaults.contrast)
-        whitePoint(GlassDefaults.whitePoint)
-        chromaMultiplier(GlassDefaults.chromaMultiplier)
-    }
-}
 
 /**
  * 毛玻璃底：半透明色 + hazeEffect。

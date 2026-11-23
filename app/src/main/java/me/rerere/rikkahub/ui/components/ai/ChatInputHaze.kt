@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.ui.components.ui.ComponentEffectBlurRadius
 import me.rerere.rikkahub.ui.components.ui.effectSurface
 
 /**
@@ -24,10 +26,13 @@ internal fun Modifier.chatInputHaze(
     shape: Shape,
     // 留空时按档位取滑杆：模糊读 blurOpacity，玻璃读 glassOpacity
     alpha: Float? = null,
+    // 消息样式可单独调模糊半径；默认跟全局特效一致
+    blurRadius: Dp = ComponentEffectBlurRadius,
 ): Modifier = effectSurface(
     shape = shape,
     baseColor = containerColor,
     hazeState = hazeState,
     tintAlpha = alpha,
+    blurRadius = blurRadius,
     displaySetting = displaySetting,
 )

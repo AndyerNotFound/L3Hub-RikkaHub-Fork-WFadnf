@@ -109,6 +109,7 @@ import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
@@ -120,7 +121,9 @@ import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
+import me.rerere.rikkahub.ui.components.ui.ComponentEffectBlurRadius
 import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
+import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
@@ -129,6 +132,7 @@ import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
@@ -703,8 +707,26 @@ private fun MessagePartsBlock(
                         maxOf(COLLAPSED_VISIBLE_STEPS, block.steps.size - firstPendingIndex)
                     }
                     val chainEffect = settings.displaySetting.effectiveBackgroundEffect
-                    val chainShape = adaptiveShape(20.dp)
-                    val chainBaseColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    val chainStyleSetting = settings.displaySetting
+                    // 思考链卡片单独套消息样式时用解析结果，否则跟现状走
+                    val chainResolved = if (
+                        chainStyleSetting.chatMessageBackgroundStyle !=
+                            ChatMessageBackgroundStyle.DEFAULT &&
+                            chainStyleSetting.customizeThinkingToolCards
+                    ) {
+                        resolveBubbleStyle(
+                            colorScheme = MaterialTheme.colorScheme,
+                            isDark = LocalDarkMode.current,
+                            style = chainStyleSetting.chatMessageBackgroundStyle,
+                            overrides = chainStyleSetting.thinkingToolCardStyleOverrides,
+                        )
+                    } else {
+                        null
+                    }
+                    val chainShape = chainResolved?.let { adaptiveShape(it.radius) }
+                        ?: adaptiveShape(20.dp)
+                    val chainBaseColor =
+                        chainResolved?.background ?: MaterialTheme.colorScheme.surfaceContainerHigh
                     // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明。
                     // 生成中步骤还在往这只卡片里加，尺寸每来一段就变一次，模糊要跟着重新采样，
                     // 这一段退回半透明底色，停止输出后恢复
@@ -723,6 +745,8 @@ private fun MessagePartsBlock(
                                             displaySetting = settings.displaySetting,
                                             containerColor = chainBaseColor,
                                             shape = chainShape,
+                                            blurRadius = chainResolved?.blurRadius
+                                                ?: ComponentEffectBlurRadius,
                                         )
                                 } else {
                                     Modifier
@@ -730,14 +754,22 @@ private fun MessagePartsBlock(
                             ),
                         steps = block.steps,
                         collapsedVisibleCount = collapsedVisibleCount,
-                        border = if (chainEffect == BackgroundEffectType.BLUR) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        border = if (chainResolved != null || chainEffect == BackgroundEffectType.BLUR) {
+                            BorderStroke(
+                                width = chainResolved?.borderWidth ?: 1.dp,
+                                color = chainResolved?.border
+                                    ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            )
                         } else {
                             null
                         },
                         cardColors = CardDefaults.cardColors(
                             containerColor = if (chainHasEffect) {
                                 Color.Transparent
+                            } else if (chainResolved != null) {
+                                // 消息样式开启时用解析结果的透明度（frosted 0.66 / solid 1.0），
+                                // 不再叠乘全局滑杆
+                                chainResolved.background
                             } else {
                                 chainBaseColor.copy(
                                     alpha = if (chainEffect == BackgroundEffectType.OFF) {
@@ -1213,7 +1245,24 @@ private fun ChatMessageBubble(
     val interactionSource = remember { MutableInteractionSource() }
     val pressProgress by animatePressProgress(interactionSource)
     val fullWidth = LocalFullWidthComponents.current
-    val radius = adaptiveCornerRadius(LocalSettings.current.displaySetting.uiCornerRadius.dp)
+    val displaySetting = LocalSettings.current.displaySetting
+    // 消息样式开启时（frosted / solid）用解析结果覆盖气泡参数；默认档保持现状
+    val resolvedStyle = if (
+        displaySetting.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT
+    ) {
+        resolveBubbleStyle(
+            colorScheme = MaterialTheme.colorScheme,
+            isDark = LocalDarkMode.current,
+            style = displaySetting.chatMessageBackgroundStyle,
+            overrides = when (role) {
+                MessageRole.USER -> displaySetting.userChatBubbleStyleOverrides
+                else -> displaySetting.assistantChatBubbleStyleOverrides
+            },
+        )
+    } else {
+        null
+    }
+    val radius = resolvedStyle?.radius ?: adaptiveCornerRadius(displaySetting.uiCornerRadius.dp)
     val corner = lerp(radius, minOf(radius, BubblePressedCorner), pressProgress)
     val tail = minOf(BubbleTailCorner, radius * 0.25f)
     // 接缝那一侧不能再留小尾巴，否则两条气泡之间会露一个豁口
@@ -1233,20 +1282,20 @@ private fun ChatMessageBubble(
             bottomStart = if (joinedToNext) join else corner,
         )
     }
-    val displaySetting = LocalSettings.current.displaySetting
     val effect = displaySetting.effectiveBackgroundEffect
     val useEffect = hazeState != null && effect != BackgroundEffectType.OFF && !streaming
     val hazeModifier = if (useEffect && hazeState != null) {
         Modifier.chatInputHaze(
             hazeState = hazeState,
             displaySetting = displaySetting,
-            containerColor = color,
+            containerColor = resolvedStyle?.background ?: color,
             shape = shape,
+            blurRadius = resolvedStyle?.blurRadius ?: ComponentEffectBlurRadius,
         )
     } else {
         Modifier
     }
-    val contentColor = contentColorFor(color)
+    val contentColor = resolvedStyle?.text ?: contentColorFor(color)
     Box(
         modifier = modifier
             // 全宽模式下气泡不再按内容收缩，左右边缘对齐父容器
@@ -1255,12 +1304,13 @@ private fun ChatMessageBubble(
             .clipDrawing(shape)
             .then(hazeModifier)
             // 特效开启时着色层由 chatInputHaze 叠在模糊之上，这里不再铺第二层
-            .then(if (useEffect) Modifier else Modifier.background(color))
+            .then(if (useEffect) Modifier else Modifier.background(resolvedStyle?.background ?: color))
             .then(
-                if (useEffect && effect == BackgroundEffectType.BLUR) {
+                if (resolvedStyle != null || (useEffect && effect == BackgroundEffectType.BLUR)) {
                     Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        width = resolvedStyle?.borderWidth ?: 1.dp,
+                        color = resolvedStyle?.border
+                            ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         shape = shape,
                     )
                 } else {

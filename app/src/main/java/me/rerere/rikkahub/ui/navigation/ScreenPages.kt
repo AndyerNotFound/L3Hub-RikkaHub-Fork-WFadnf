@@ -46,6 +46,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPalettePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesMessageStylePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
@@ -124,6 +125,7 @@ fun ScreenContent(screen: Screen) {
         Screen.SettingPreferencesTheme -> { SettingPreferencesThemePage() }
         Screen.SettingPreferencesNotification -> { SettingPreferencesNotificationPage() }
         Screen.SettingPreferencesGeneral -> { SettingPreferencesGeneralPage() }
+        Screen.SettingPreferencesMessageStyle -> { SettingPreferencesMessageStylePage() }
         Screen.SettingPreferencesUI -> { SettingPreferencesUIPage() }
         Screen.SettingPreferencesNetwork -> { SettingPreferencesNetworkPage() }
 

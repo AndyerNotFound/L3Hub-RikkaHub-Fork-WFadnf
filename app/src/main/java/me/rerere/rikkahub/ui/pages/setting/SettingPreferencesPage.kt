@@ -104,6 +104,14 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                         supporting = stringResource(R.string.setting_page_preferences_network_desc),
                         onClick = { navController.navigate(Screen.SettingPreferencesNetwork) },
                     )
+                    SaltIconRow(
+                        icon = HugeIcons.BubbleChat,
+                        headline = stringResource(R.string.setting_page_preferences_message_style),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        supporting = stringResource(R.string.setting_page_preferences_message_style_desc),
+                        onClick = { navController.navigate(Screen.SettingPreferencesMessageStyle) },
+                    )
                 }
             }
         }

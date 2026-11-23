@@ -454,6 +454,13 @@ data class DisplaySetting(
     val blurOpacity: Float = 0.45f,
     // 玻璃底（设置项/选项卡/按钮/顶栏图标）的透明度，0 = 全透明，1 = 原实色
     val glassOpacity: Float = 0.35f,
+    // 消息样式：气泡背景三档（默认 / 毛玻璃 / 实色），参数按明暗与角色分别覆盖
+    val chatMessageBackgroundStyle: ChatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
+    val userChatBubbleStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+    val assistantChatBubbleStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+    val thinkingToolCardStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+    // 思考链卡片是否单独套一套消息样式（默认跟助手气泡走同一套）
+    val customizeThinkingToolCards: Boolean = false,
     // 新对话界面中央的自定义标语
     val emptyChatSlogan: String = "",
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,

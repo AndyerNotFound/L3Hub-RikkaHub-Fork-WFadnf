@@ -106,6 +106,7 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingPreferencesTheme,
     is Screen.SettingPreferencesNotification,
     is Screen.SettingPreferencesGeneral,
+    is Screen.SettingPreferencesMessageStyle,
     is Screen.SettingPreferencesUI,
     is Screen.SettingPreferencesNetwork,
     is Screen.SettingTheme,

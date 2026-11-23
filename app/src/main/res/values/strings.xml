@@ -3142,4 +3142,37 @@
   <string name="request_detail_title">Request details</string>
   <string name="select_icon_title">Select icon</string>
   <string name="update_card_title">Update</string>
+
+  <string name="setting_page_preferences_message_style">Message Style</string>
+  <string name="setting_page_preferences_message_style_desc">Bubble background, blur and border customization</string>
+  <string name="message_style_page_title">Message Style</string>
+  <string name="message_style_page_style_title">Background Style</string>
+  <string name="message_style_page_style_desc">Frosted and solid styles accept per-role customization below.</string>
+  <string name="message_style_page_style_default">Default</string>
+  <string name="message_style_page_style_frosted">Frosted</string>
+  <string name="message_style_page_style_solid">Solid</string>
+  <string name="message_style_page_customize_thinking">Customize thinking cards separately</string>
+  <string name="message_style_page_customize_thinking_desc">Apply an independent style to the chain-of-thought cards</string>
+  <string name="message_style_page_target_title">Edit Target</string>
+  <string name="message_style_page_light">Light</string>
+  <string name="message_style_page_dark">Dark</string>
+  <string name="message_style_page_role_user">User</string>
+  <string name="message_style_page_role_assistant">Assistant</string>
+  <string name="message_style_page_role_thinking">Thinking</string>
+  <string name="message_style_page_preview_user">This is a user message</string>
+  <string name="message_style_page_preview_thinking">Thinking…</string>
+  <string name="message_style_page_preview_assistant">Assistant reply</string>
+  <string name="message_style_page_blur">Blur Radius</string>
+  <string name="message_style_page_background_color">Background Color</string>
+  <string name="message_style_page_background_opacity">Background Opacity</string>
+  <string name="message_style_page_border_color">Border Color</string>
+  <string name="message_style_page_border_opacity">Border Opacity</string>
+  <string name="message_style_page_border_width">Border Width</string>
+  <string name="message_style_page_text_color">Text Color</string>
+  <string name="message_style_page_corner_radius">Corner Radius</string>
+  <string name="message_style_page_reset">Reset</string>
+  <string name="message_style_page_reset_confirm">Reset all message style customizations?</string>
+  <string name="message_style_page_cancel">Cancel</string>
+  <string name="message_style_page_default_hint">The default style follows the theme colors and offers no parameters. Switch to frosted or solid to customize.</string>
+
 </resources>

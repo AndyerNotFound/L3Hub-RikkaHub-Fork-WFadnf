@@ -1,0 +1,648 @@
+package me.rerere.rikkahub.ui.pages.setting
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moriafly.salt.ui.ItemContainer
+import com.moriafly.salt.ui.RoundedColumn
+import com.moriafly.salt.ui.SaltTheme
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
+import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
+import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.overridesFor
+import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.NumberSlider
+import me.rerere.rikkahub.ui.components.ui.SaltSwitchRow
+import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
+import me.rerere.ui.components.AnimatedAlertDialog
+import org.koin.androidx.compose.koinViewModel
+import kotlin.math.roundToInt
+
+/** 消息样式设置页：气泡背景三档 + 明暗/角色分别定制。 */
+@Composable
+fun SettingPreferencesMessageStylePage(
+    embedded: Boolean = false,
+    vm: SettingVM = koinViewModel(),
+) {
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
+    var editingDark by remember { mutableStateOf(LocalDarkMode.current) }
+    var editingTarget by remember { mutableStateOf(ChatBubbleStyleTarget.ASSISTANT) }
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    fun updateDisplaySetting(setting: DisplaySetting) {
+        displaySetting = setting
+        vm.updateSettings { it.copy(displaySetting = setting) }
+    }
+
+    val style = displaySetting.chatMessageBackgroundStyle
+    val customizeCards = displaySetting.customizeThinkingToolCards
+    val target = if (
+        !customizeCards && editingTarget == ChatBubbleStyleTarget.THINKING_TOOL_CARD
+    ) {
+        ChatBubbleStyleTarget.ASSISTANT
+    } else {
+        editingTarget
+    }
+    val overrides = displaySetting.overridesFor(target)
+
+    fun updateOverrides(value: ChatBubbleStyleOverrides) {
+        updateDisplaySetting(
+            displaySetting.copy(
+                userChatBubbleStyleOverrides = if (target == ChatBubbleStyleTarget.USER) {
+                    value
+                } else {
+                    displaySetting.userChatBubbleStyleOverrides
+                },
+                assistantChatBubbleStyleOverrides = if (target == ChatBubbleStyleTarget.ASSISTANT) {
+                    value
+                } else {
+                    displaySetting.assistantChatBubbleStyleOverrides
+                },
+                thinkingToolCardStyleOverrides = if (target == ChatBubbleStyleTarget.THINKING_TOOL_CARD) {
+                    value
+                } else {
+                    displaySetting.thinkingToolCardStyleOverrides
+                },
+            ),
+        )
+    }
+
+    fun resetAll() {
+        updateDisplaySetting(
+            displaySetting.copy(
+                chatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
+                userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+                assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+                thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(),
+                customizeThinkingToolCards = false,
+            ),
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.message_style_page_title)) },
+                navigationIcon = { BackButton() },
+                actions = {
+                    IconButton(onClick = { showResetDialog = true }) {
+                        Icon(
+                            imageVector = HugeIcons.Refresh03,
+                            contentDescription = stringResource(R.string.message_style_page_reset),
+                        )
+                    }
+                },
+            )
+        },
+    ) { contentPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .adaptiveHorizontalPadding(0.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // 样式选择
+            item {
+                RoundedColumn {
+                    ItemContainer {
+                        Column {
+                            Text(stringResource(R.string.message_style_page_style_title))
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.message_style_page_style_desc),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            ConnectedChoiceButtons(
+                                options = ChatMessageBackgroundStyle.entries,
+                                selected = style,
+                                onSelect = {
+                                    updateDisplaySetting(displaySetting.copy(chatMessageBackgroundStyle = it))
+                                },
+                            ) { item, selected ->
+                                ConnectedChoiceLabel(
+                                    text = when (item) {
+                                        ChatMessageBackgroundStyle.DEFAULT ->
+                                            stringResource(R.string.message_style_page_style_default)
+                                        ChatMessageBackgroundStyle.FROSTED ->
+                                            stringResource(R.string.message_style_page_style_frosted)
+                                        ChatMessageBackgroundStyle.SOLID ->
+                                            stringResource(R.string.message_style_page_style_solid)
+                                    },
+                                    selected = selected,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 布局开关
+            item {
+                RoundedColumn {
+                    SaltSwitchRow(
+                        checked = customizeCards,
+                        onCheckedChange = {
+                            updateDisplaySetting(displaySetting.copy(customizeThinkingToolCards = it))
+                        },
+                        headline = stringResource(R.string.message_style_page_customize_thinking),
+                        supporting = stringResource(R.string.message_style_page_customize_thinking_desc),
+                        icon = HugeIcons.BubbleChat,
+                    )
+                }
+            }
+
+            if (style != ChatMessageBackgroundStyle.DEFAULT) {
+                // 明暗 + 角色分段
+                item {
+                    RoundedColumn {
+                        ItemContainer {
+                            Column {
+                                Text(stringResource(R.string.message_style_page_target_title))
+                                Spacer(Modifier.height(8.dp))
+                                ConnectedChoiceButtons(
+                                    options = listOf(false, true),
+                                    selected = editingDark,
+                                    onSelect = { editingDark = it },
+                                ) { item, selected ->
+                                    ConnectedChoiceLabel(
+                                        text = if (item) {
+                                            stringResource(R.string.message_style_page_dark)
+                                        } else {
+                                            stringResource(R.string.message_style_page_light)
+                                        },
+                                        selected = selected,
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                ConnectedChoiceButtons(
+                                    options = if (customizeCards) {
+                                        ChatBubbleStyleTarget.entries
+                                    } else {
+                                        listOf(
+                                            ChatBubbleStyleTarget.USER,
+                                            ChatBubbleStyleTarget.ASSISTANT,
+                                        )
+                                    },
+                                    selected = target,
+                                    onSelect = { editingTarget = it },
+                                ) { item, selected ->
+                                    ConnectedChoiceLabel(
+                                        text = when (item) {
+                                            ChatBubbleStyleTarget.USER ->
+                                                stringResource(R.string.message_style_page_role_user)
+                                            ChatBubbleStyleTarget.ASSISTANT ->
+                                                stringResource(R.string.message_style_page_role_assistant)
+                                            ChatBubbleStyleTarget.THINKING_TOOL_CARD ->
+                                                stringResource(R.string.message_style_page_role_thinking)
+                                        },
+                                        selected = selected,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 预览
+                item {
+                    MessageStylePreview(
+                        style = style,
+                        editingDark = editingDark,
+                        editingTarget = target,
+                        customizeCards = customizeCards,
+                        displaySetting = displaySetting,
+                    )
+                }
+
+                // 参数组
+                item {
+                    StyleParamsGroup(
+                        style = style,
+                        overrides = overrides,
+                        editingDark = editingDark,
+                        onOverridesChange = ::updateOverrides,
+                    )
+                }
+            } else {
+                item {
+                    RoundedColumn {
+                        ItemContainer {
+                            Text(
+                                text = stringResource(R.string.message_style_page_default_hint),
+                                color = SaltTheme.colors.subText,
+                                style = SaltTheme.textStyles.sub,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showResetDialog) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            confirmButton = {},
+            title = { Text(stringResource(R.string.message_style_page_reset_confirm)) },
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.message_style_page_cancel),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showResetDialog = false }
+                            .padding(vertical = 10.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Text(
+                        text = stringResource(R.string.message_style_page_reset),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable {
+                                showResetDialog = false
+                                resetAll()
+                            }
+                            .padding(vertical = 10.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            },
+        )
+    }
+}
+
+/** 预览面板：模拟聊天背景 + 用户/思考链/助手三个气泡，按当前编辑目标高亮。 */
+@Composable
+private fun MessageStylePreview(
+    style: ChatMessageBackgroundStyle,
+    editingDark: Boolean,
+    editingTarget: ChatBubbleStyleTarget,
+    customizeCards: Boolean,
+    displaySetting: DisplaySetting,
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = LocalDarkMode.current
+    val userResolved = resolveBubbleStyle(
+        colorScheme = cs,
+        isDark = editingDark,
+        style = style,
+        overrides = displaySetting.userChatBubbleStyleOverrides,
+    )
+    val assistantResolved = resolveBubbleStyle(
+    colorScheme = cs,
+    isDark = editingDark,
+    style = style,
+    overrides = displaySetting.assistantChatBubbleStyleOverrides,
+    )
+    val cardResolved = if (customizeCards) {
+        resolveBubbleStyle(
+            colorScheme = cs,
+            isDark = editingDark,
+            style = style,
+            overrides = displaySetting.thinkingToolCardStyleOverrides,
+        )
+    } else {
+        assistantResolved
+    }
+    val dim = style != ChatMessageBackgroundStyle.DEFAULT
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        cs.surfaceContainerLow,
+                        cs.surfaceContainerHigh,
+                    ),
+                ),
+            )
+            .border(1.dp, cs.outlineVariant.copy(alpha = if (isDark) 0.12f else 0.10f), RoundedCornerShape(16.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            PreviewBubble(
+                resolved = userResolved,
+                text = stringResource(R.string.message_style_page_preview_user),
+                modifier = Modifier.align(Alignment.End),
+                dimmed = dim && editingTarget != ChatBubbleStyleTarget.USER,
+            )
+            PreviewBubble(
+                resolved = cardResolved,
+                text = stringResource(R.string.message_style_page_preview_thinking),
+                dimmed = dim &&
+                    editingTarget != ChatBubbleStyleTarget.THINKING_TOOL_CARD &&
+                    editingTarget != ChatBubbleStyleTarget.ASSISTANT,
+                compact = true,
+            )
+            PreviewBubble(
+                resolved = assistantResolved,
+                text = stringResource(R.string.message_style_page_preview_assistant),
+                dimmed = dim && editingTarget != ChatBubbleStyleTarget.ASSISTANT,
+            )
+        }
+    }
+}
+
+/** 预览气泡：按解析结果画底色、边框、圆角与文字色。 */
+@Composable
+private fun PreviewBubble(
+    resolved: me.rerere.rikkahub.ui.components.ui.ResolvedBubbleStyle,
+    text: String,
+    modifier: Modifier = Modifier,
+    dimmed: Boolean,
+    compact: Boolean = false,
+) {
+    val shape = RoundedCornerShape(resolved.radius)
+    Box(
+        modifier = modifier
+            .widthIn(max = 240.dp)
+            .height(if (compact) 34.dp else 44.dp)
+            .alpha(if (dimmed) 0.45f else 1f)
+            .clip(shape)
+            .background(resolved.background)
+            .border(resolved.borderWidth, resolved.border, shape)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = text,
+            color = resolved.text,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** 参数组：模糊、背景、边框、文字、圆角。 */
+@Composable
+private fun StyleParamsGroup(
+    style: ChatMessageBackgroundStyle,
+    overrides: ChatBubbleStyleOverrides,
+    editingDark: Boolean,
+    onOverridesChange: (ChatBubbleStyleOverrides) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val resolved = resolveBubbleStyle(
+        colorScheme = cs,
+        isDark = editingDark,
+        style = style,
+        overrides = overrides,
+    )
+    val opacity = when (style) {
+        ChatMessageBackgroundStyle.FROSTED -> overrides.frostedOpacity ?: 0.66f
+        else -> overrides.solidOpacity ?: 1.0f
+    }
+
+    fun update(transform: ChatBubbleStyleOverrides.() -> ChatBubbleStyleOverrides) {
+        onOverridesChange(overrides.transform())
+    }
+
+    RoundedColumn {
+        if (style == ChatMessageBackgroundStyle.FROSTED) {
+            ParamSliderRow(
+                label = stringResource(R.string.message_style_page_blur),
+                valueText = resolved.blurRadius.value.roundToInt().toString(),
+                child = {
+                    NumberSlider(
+                        value = resolved.blurRadius.value.roundToInt().coerceIn(0, 30),
+                        onValueChange = { update { copy(blurSigma = it.toFloat()) } },
+                        valueRange = 0..30,
+                    )
+                },
+            )
+        }
+        ParamColorRow(
+            label = stringResource(R.string.message_style_page_background_color),
+            color = resolved.background.copy(alpha = 1f),
+            onPicked = { argb ->
+                update {
+                    if (editingDark) copy(backgroundArgbDark = argb) else copy(backgroundArgbLight = argb)
+                }
+            },
+        )
+        ParamSliderRow(
+            label = stringResource(R.string.message_style_page_background_opacity),
+            valueText = "${(opacity * 100).roundToInt()}%",
+            child = {
+                NumberSlider(
+                    value = (opacity * 100).roundToInt().coerceIn(0, 100),
+                    onValueChange = {
+                        update {
+                            if (style == ChatMessageBackgroundStyle.FROSTED) {
+                                copy(frostedOpacity = it / 100f)
+                            } else {
+                                copy(solidOpacity = it / 100f)
+                            }
+                        }
+                    },
+                    valueRange = 0..100,
+                )
+            },
+        )
+        ParamColorRow(
+            label = stringResource(R.string.message_style_page_border_color),
+            color = resolved.border.copy(alpha = 1f),
+            onPicked = { argb ->
+                update {
+                    if (editingDark) copy(borderArgbDark = argb) else copy(borderArgbLight = argb)
+                }
+            },
+        )
+        ParamSliderRow(
+            label = stringResource(R.string.message_style_page_border_opacity),
+            valueText = "${(resolved.border.alpha * 100).roundToInt()}%",
+            child = {
+                NumberSlider(
+                    value = (resolved.border.alpha * 100).roundToInt().coerceIn(0, 100),
+                    onValueChange = { update { copy(borderOpacity = it / 100f) } },
+                    valueRange = 0..100,
+                )
+            },
+        )
+        ParamSliderRow(
+            label = stringResource(R.string.message_style_page_border_width),
+            valueText = resolved.borderWidth.value.toString(),
+            child = {
+                NumberSlider(
+                    value = (resolved.borderWidth.value * 10).roundToInt().coerceIn(0, 30),
+                    onValueChange = { update { copy(borderWidth = it / 10f) } },
+                    valueRange = 0..30,
+                )
+            },
+        )
+        ParamColorRow(
+            label = stringResource(R.string.message_style_page_text_color),
+            color = resolved.text.copy(alpha = 1f),
+            onPicked = { argb ->
+                update {
+                    if (editingDark) copy(textArgbDark = argb) else copy(textArgbLight = argb)
+                }
+            },
+        )
+        ParamSliderRow(
+            label = stringResource(R.string.message_style_page_corner_radius),
+            valueText = resolved.radius.value.roundToInt().toString(),
+            child = {
+                NumberSlider(
+                    value = resolved.radius.value.roundToInt().coerceIn(0, 28),
+                    onValueChange = { update { copy(cornerRadius = it.toFloat()) } },
+                    valueRange = 0..28,
+                )
+            },
+        )
+    }
+}
+
+/** 参数行：左标题右数值，下面放滑杆。 */
+@Composable
+private fun ParamSliderRow(
+    label: String,
+    valueText: String,
+    child: @Composable () -> Unit,
+) {
+    ItemContainer {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = label, modifier = Modifier.weight(1f))
+                ValuePill(valueText)
+            }
+            Spacer(Modifier.height(6.dp))
+            child()
+        }
+    }
+}
+
+/** 取色行：点击弹色卡。 */
+@Composable
+private fun ParamColorRow(
+    label: String,
+    color: Color,
+    onPicked: (Int) -> Unit,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    ItemContainer {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .clickable { showPicker = true },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = label, modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .width(28.dp)
+                    .height(28.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .border(
+                        width = 0.6.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        shape = CircleShape,
+                    ),
+            )
+        }
+    }
+    if (showPicker) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {},
+            title = { Text(label) },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 420.dp),
+                ) {
+                    ColorPickerRow(
+                        color = color,
+                        onColorChange = {
+                            onPicked(it.toArgb())
+                            showPicker = false
+                        },
+                        scrollable = true,
+                    )
+                }
+            },
+        )
+    }
+}
+
+/** 数值胶囊。 */
+@Composable
+private fun ValuePill(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
