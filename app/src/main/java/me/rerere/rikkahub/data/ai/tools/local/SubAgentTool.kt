@@ -35,7 +35,7 @@ internal fun buildSubAgentTool(
     return Tool(
         name = SUB_AGENT_TOOL_NAME,
         description = """
-            Dispatch a self-contained task to a sub-agent. Sub-agents run in parallel in their own isolated context, so they do not consume this conversation's context.
+            Dispatch a self-contained task to a sub-agent. Sub-agents run in parallel in their own isolated context, so they do not consume this conversation's context. The sub-agent returns its result, not its intermediate steps.
             By default the call returns immediately. When the sub-agent finishes, its result is delivered back to this conversation automatically; do not poll for it and do not assume it has finished before the result arrives.
             Set wait=true only when you cannot continue without the result: the call then blocks until the sub-agent finishes its first round and returns that result directly, instead of delivering it later as a notice.
             Tool calls in one step run one after another, so use wait=true for at most one sub-agent per turn; dispatch the rest in background or their waits add up.
@@ -168,9 +168,10 @@ internal fun buildSubAgentListTool(
 ): Tool = Tool(
     name = SUB_AGENT_LIST_TOOL_NAME,
     description = """
-        List this conversation's sub-agent tree and current parallelism usage: every sub-agent dispatched from it (and their children), with name, state (running / completed / failed), and task title.
-        Reports parallelism as running/limit so you can see how many more you may dispatch before the configured maximum stops new ones.
-        Sub-agent results are delivered back automatically when they finish; there is no need to poll — use this tool to orient yourself before dispatching more.
+        List this conversation's sub-agent tree: every sub-agent dispatched from it and all reachable descendants, with name, state, and task title.
+        Shared capacity reports running/limit; do not spawn more agents when capacity is limited.
+        running means it is working; completed means its latest round finished; failed means it ended without a result. A completed or failed sub-agent may still be continued and start new rounds.
+        While you remain active, you will be notified when a direct child finishes; there is no need to keep checking its status. Use this tool to orient yourself before dispatching more.
     """.trimIndent(),
     systemPrompt = { _, _ ->
         """
