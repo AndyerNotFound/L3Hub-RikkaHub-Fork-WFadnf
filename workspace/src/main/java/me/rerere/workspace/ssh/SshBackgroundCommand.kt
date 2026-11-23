@@ -38,7 +38,7 @@ internal class SshBackgroundCommand(
             null
         }
         // exec 正常结束时 stdout 就是退出码; 连接断开时退回读状态文件
-        result?.stdout?.trim()?.toIntOrNull() ?: readStatusFile() ?: -1
+        return result?.stdout?.trim()?.toIntOrNull() ?: readStatusFile() ?: -1
     }
 
     override fun outputSize(): Long = pool.use(workspaceId, config, retry = true) { connection ->
