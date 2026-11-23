@@ -494,7 +494,7 @@ private fun ChatPageContent(
     }
     val pendingAskUserSummaries by remember(pendingAskUserTools) {
         derivedStateOf {
-            pendingAskUserTools.value.map { tool ->
+            pendingAskUserTools.map { tool ->
                 AskUserPendingSummary(
                     toolCallId = tool.toolCallId,
                     title = tool.parseAskUserQuestions().firstOrNull()?.question ?: "...",
@@ -504,8 +504,8 @@ private fun ChatPageContent(
     }
     // 抽屉当前显示哪个调用；null 表示关闭。提交后工具不再 pending，抽屉自动收掉
     var askUserSheetCallId by rememberSaveable { mutableStateOf<String?>(null) }
-    val askUserSheetTool = remember(pendingAskUserTools.value, askUserSheetCallId) {
-        pendingAskUserTools.value.firstOrNull { it.toolCallId == askUserSheetCallId }
+    val askUserSheetTool = remember(pendingAskUserTools, askUserSheetCallId) {
+        pendingAskUserTools.firstOrNull { it.toolCallId == askUserSheetCallId }
     }
     val openAskUserSheet: (String) -> Unit = { askUserSheetCallId = it }
 
@@ -997,8 +997,8 @@ private fun ChatPageContent(
             // 而它每帧推进会作为模糊源失效，把整屏模糊重算一遍
             animateGradient = state.loadingJob == null,
         )
-        // 横屏三栏：本轮改动那一行收进右栏，消息下面不再重复
-            // 横屏时清单与引导收进右栏，输入区不再重复渲染
+        // 横屏时清单与引导收进右栏，输入区不再重复渲染
+        CompositionLocalProvider(
             LocalConversationStatusInSidePanel provides state.threePane,
         ) {
         Row(modifier = Modifier.fillMaxSize()) {

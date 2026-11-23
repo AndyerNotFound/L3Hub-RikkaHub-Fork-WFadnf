@@ -30,7 +30,7 @@ internal data class AskUserOption(
 )
 
 /** 任务清单卡里「需回答的问题」提示行 */
-internal data class AskUserPendingSummary(
+data class AskUserPendingSummary(
     val toolCallId: String,
     val title: String,
 )

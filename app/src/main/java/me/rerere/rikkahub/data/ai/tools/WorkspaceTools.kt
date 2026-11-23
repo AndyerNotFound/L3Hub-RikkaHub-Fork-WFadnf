@@ -16,6 +16,7 @@ import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspacePaths
+import me.rerere.workspace.WorkspaceShellStatus
 import kotlin.uuid.Uuid
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(

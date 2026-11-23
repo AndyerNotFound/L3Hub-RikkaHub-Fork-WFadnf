@@ -179,7 +179,7 @@ internal fun buildSubAgentListTool(
         Before dispatching several sub-agents, call list_agents once to see how many are already running and how close you are to the parallelism limit.
         """.trimIndent()
     },
-    parameters = {},
+    parameters = { null },
     execute = { _ ->
         listOf(UIMessagePart.Text(runner.listTree(conversationId)))
     },
