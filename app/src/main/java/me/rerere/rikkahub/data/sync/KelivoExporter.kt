@@ -29,6 +29,7 @@ import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.workspace.HostPaths
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -53,7 +54,8 @@ import java.util.zip.ZipOutputStream
  *   user/assistant 角色（Kelivo 时间线投影只认这两种角色），system 消息跳过
  * - tool 角色的消息并入前一条 assistant 消息，转成 tool_call part
  *   （payload {id,name,arguments,content,metadata}，与 Kelivo 渲染器解析一致）
- * - 附件：file:// 引用直接取文件；content:// 读流落盘；找不到文件则跳过该 part
+ * - 附件：file:// 只认 app 私有目录里白名单内的真实文件；content:// 读流落盘到缓存；找不到或
+ *   不在白名单里则跳过该 part（见 [KelivoAttachmentPaths]）
  * - 时间戳统一为 epoch 微秒（Kelivo 的 MicrosecondDateTimeConverter）
  */
 class KelivoExporter(
@@ -64,9 +66,6 @@ class KelivoExporter(
     private val settingsStore: SettingsStore,
 ) {
     private val filesDir: File get() = context.filesDir
-
-    /** 附件放进 zip 时允许保留的顶层目录；其余目录一律并入 upload/ */
-    private val allowedRoots = setOf("upload", "images", "fonts", "avatars")
 
     suspend fun export(includeFiles: Boolean): File = withContext(Dispatchers.IO) {
         val archive = File.createTempFile("kelivo_backup_", ".zip", context.cacheDir)
@@ -94,7 +93,7 @@ class KelivoExporter(
         } finally {
             staging.deleteRecursively()
             // content:// 附件临时落盘的目录
-            File(context.cacheDir, "kelivo-backup-upload").deleteRecursively()
+            KelivoAttachmentPaths.cacheDirectory(context.cacheDir).deleteRecursively()
         }
     }
 
@@ -107,8 +106,8 @@ class KelivoExporter(
     private data class AttachmentEntry(val entryName: String, val file: File)
 
     private data class ResolvedAttachment(
-        val kelivoUri: String,
-        val entryName: String,
+        val folder: String,
+        val fileName: String,
         val file: File,
         val displayName: String,
     )
@@ -274,14 +273,12 @@ class KelivoExporter(
         attachmentIndex: MutableMap<String, AttachmentEntry>,
     ) {
         val resolved = resolveAttachment(url, displayName, mime) ?: return
-        if (includeFiles && attachmentIndex.putIfAbsent(resolved.entryName, AttachmentEntry(resolved.entryName, resolved.file)) == null) {
-            attachments += AttachmentEntry(resolved.entryName, resolved.file)
-        }
+        val entryName = registerAttachment(resolved, includeFiles, attachments, attachmentIndex) ?: return
         val payload = if (kind == "image") {
-            buildJsonObject { put("uri", resolved.kelivoUri) }.toString()
+            buildJsonObject { put("uri", KelivoAttachmentPaths.kelivoUri(entryName)) }.toString()
         } else {
             buildJsonObject {
-                put("uri", resolved.kelivoUri)
+                put("uri", KelivoAttachmentPaths.kelivoUri(entryName))
                 put("name", resolved.displayName)
                 if (mime != null) put("mime", mime)
             }.toString()
@@ -289,50 +286,134 @@ class KelivoExporter(
         insertPart(db, conversationId, revisionId, ordinal, kind, payload, micros)
     }
 
+    /**
+     * 登记一条待打包的附件，返回它在包里的条目名。
+     *
+     * 同一个文件被引用多次时共用一个条目；不同来源撞到同一个名字（两个子目录里的 `a.md` 都并入
+     * upload/）时按序号让开，避免后一条把前一条覆盖掉。名字让不开或不合规时返回 null，
+     * 调用方按附件缺失跳过——manifest 与 zip 用的是同一份列表，不会出现只有一侧有的条目。
+     */
+    private fun registerAttachment(
+        resolved: ResolvedAttachment,
+        includeFiles: Boolean,
+        attachments: MutableList<AttachmentEntry>,
+        attachmentIndex: MutableMap<String, AttachmentEntry>,
+    ): String? {
+        val baseName = KelivoAttachmentPaths.entryName(resolved.folder, resolved.fileName)
+        if (!includeFiles) return baseName.takeIf { KelivoAttachmentPaths.isSafeEntryName(it) }
+        val name = KelivoAttachmentPaths.entryNameFor(
+            folder = resolved.folder,
+            fileName = resolved.fileName,
+            source = resolved.file,
+            taken = { key -> attachmentIndex[key]?.file },
+        ) ?: return null
+        // 同一文件复用条目时只登记一次，否则 ZipOutputStream 会因同名条目终止整包。
+        if (name !in attachmentIndex) {
+            val entry = AttachmentEntry(name, resolved.file)
+            attachmentIndex[name] = entry
+            attachments += entry
+        }
+        return name
+    }
+
+    /**
+     * 一条附件引用的来源。
+     *
+     * 两条路径的边界不一样：
+     * - `file://` 必须落在 filesDir 的白名单目录里（[KelivoAttachmentPaths.sourceFile]），否则整条跳过；
+     * - `content://` 先按生成的名字落盘到缓存，再确认缓存里的这个文件解析得回缓存目录
+     *   （[KelivoAttachmentPaths.cacheTarget] 已做 containment）。DISPLAY_NAME 是不可信的展示串，
+     *   只用来生成清洗过的归档名和 part 的 `name`，不参与落盘路径。
+     *
+     * 拒绝的附件返回 null，调用方与「文件缺失」走同一条跳过路径，不影响整包导出。
+     */
     private suspend fun resolveAttachment(url: String, displayName: String?, mime: String?): ResolvedAttachment? {
         val uri = Uri.parse(url)
-        val source: File = when (uri.scheme) {
-            "file" -> uri.path?.let(::File)?.takeIf { it.isFile } ?: return null
-            "content" -> copyContentUri(uri, displayName) ?: return null
+        val source = when (uri.scheme) {
+            "file" -> resolveFileUri(uri.path, displayName) ?: return null
+            "content" -> resolveContentUri(uri, displayName, mime) ?: return null
             else -> return null
         }
-        val relativePath = if (source.path.startsWith(filesDir.path + File.separator)) {
-            source.relativeTo(filesDir).toString()
-        } else {
-            null
-        }
-        val folder = relativePath
-            ?.substringBefore('/', "")
-            ?.takeIf { it in allowedRoots }
-            ?: "upload"
-        val entryName = "$folder/${source.name}"
-        val resolvedName = displayName
-            ?: relativePath?.let { filesManager.getByRelativePath(it)?.displayName }
-            ?: source.name
         return ResolvedAttachment(
-            kelivoUri = "kelivo-file:///$folder/${source.name}",
-            entryName = entryName,
-            file = source,
-            displayName = resolvedName,
+            folder = source.folder,
+            fileName = source.fileName,
+            file = source.file,
+            displayName = KelivoAttachmentPaths.displayName(
+                source.displayName ?: displayName ?: source.file.name
+            ),
         )
     }
 
-    private fun copyContentUri(uri: Uri, displayName: String?): File? {
-        val name = displayName ?: runCatching {
+    /** `file://`：只认 filesDir 白名单目录里的真实文件，其余（含软链逃逸）返回 null */
+    private suspend fun resolveFileUri(path: String?, displayName: String?): SourceFile? {
+        val file = KelivoAttachmentPaths.sourceFile(filesDir, path) ?: return null
+        val relativePath = KelivoAttachmentPaths.relativePath(filesDir, file) ?: return null
+        return SourceFile(
+            file = file,
+            folder = KelivoAttachmentPaths.archiveFolder(relativePath),
+            fileName = KelivoAttachmentPaths.sanitizeSegment(file.name),
+            // 消息里的 fileName 是用户当初看到的名字；没有时退回 managed files 的记录，再退回磁盘名
+            displayName = displayName?.takeIf { it.isNotBlank() }
+                ?: filesManager.getByRelativePath(relativePath)?.displayName,
+        )
+    }
+
+    /** `content://`：落盘名是生成的，归档名用清洗过的展示名，展示名原样写进 part */
+    private fun resolveContentUri(uri: Uri, displayName: String?, mime: String?): SourceFile? {
+        val copied = copyContentUri(uri, displayName, mime) ?: return null
+        return SourceFile(
+            file = copied.file,
+            folder = KelivoAttachmentPaths.archiveFolder(null),
+            fileName = KelivoAttachmentPaths.sanitizeSegment(copied.displayName ?: copied.file.name),
+            displayName = copied.displayName,
+        )
+    }
+
+    private data class SourceFile(
+        val file: File,
+        val folder: String,
+        val fileName: String,
+        val displayName: String?,
+    )
+
+    /**
+     * `content://` 读流落盘。
+     *
+     * 落盘文件名由 [KelivoAttachmentPaths.cacheTarget] 生成，不用 DISPLAY_NAME：那个串由外部
+     * ContentProvider 给出，可以是 `../../datastore/settings.preferences_pb`，resolve 之后写穿缓存目录。
+     * DISPLAY_NAME 只作为展示名留在 part 的 `name` 字段，扩展名另取一份做归档用。
+     */
+    private fun copyContentUri(uri: Uri, displayName: String?, mime: String?): CopiedContent? {
+        val name = displayName?.takeIf { it.isNotBlank() } ?: runCatching {
             context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                 if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
             }
-        }.getOrNull() ?: "file"
-        val target = File(context.cacheDir, "kelivo-backup-upload").apply { mkdirs() }
-            .resolve(name)
-        return runCatching {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
+        }.getOrNull()
+        // token 由 uri 派生：同一条 uri 在会话里被引用多次时落在同一个缓存文件，
+        // 归档条目名也就稳定（与以前按 DISPLAY_NAME 去重的结果一致），不同 uri 不会互相覆盖
+        val target = KelivoAttachmentPaths.cacheTarget(
+            cacheDir = context.cacheDir,
+            displayName = name,
+            mimeType = mime,
+            token = KelivoAttachmentPaths.cacheToken(uri.toString()),
+        ) ?: return null
+        val copied = runCatching {
+            val input = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+            input.use {
+                target.outputStream().use { output -> it.copyTo(output) }
             }
             target.takeIf { it.isFile }
-        }.getOrNull()
+        }.getOrNull() ?: return null
+        // 落盘之后再看一眼 canonical path：目标必须解析回缓存目录之内
+        if (!HostPaths.contains(KelivoAttachmentPaths.cacheDirectory(context.cacheDir), copied)) {
+            runCatching { copied.delete() }
+            return null
+        }
+        return CopiedContent(file = copied, displayName = name)
     }
+
+    private data class CopiedContent(val file: File, val displayName: String?)
 
     private fun noticeText(part: UIMessagePart.Notice): String =
         if (part.title.isBlank()) part.text else part.title + "\n" + part.text
@@ -599,9 +680,21 @@ class KelivoExporter(
     }
 
     private fun addFileToZip(zip: ZipOutputStream, file: File, entryName: String) {
-        zip.putNextEntry(ZipEntry(entryName))
+        zip.putNextEntry(ZipEntry(requireSafeEntryName(entryName)))
         file.inputStream().use { input -> input.copyTo(zip) }
         zip.closeEntry()
+    }
+
+    /**
+     * 归档条目名最后一道校验：绝对路径、反斜杠、空段与 `..` 段一律拒绝。
+     *
+     * 名字本该在 [KelivoAttachmentPaths] 里就清洗干净，这里只防以后有人绕过那条路。
+     */
+    private fun requireSafeEntryName(entryName: String): String {
+        require(KelivoAttachmentPaths.isSafeEntryName(entryName)) {
+            "Unsafe backup entry name: $entryName"
+        }
+        return entryName
     }
 
     private fun appVersion(): String = runCatching {

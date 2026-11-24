@@ -1685,6 +1685,12 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_page_quota_variables">변수: %1$s. API 키는 위의 헤더와 함께 이 URL로 전송됩니다.</string>
   <string name="setting_provider_page_sign_in_with">%1$s(으)로 로그인</string>
   <string name="setting_provider_page_grok_disclaimer">Grok CLI처럼 로그인하여 SuperGrok 구독을 사용합니다. 실험적 기능: xAI는 언제든지 이를 변경하거나 제한할 수 있습니다.</string>
+  <string name="setting_provider_page_deepseek_disclaimer">API 키 대신 DeepSeek 플랫폼 계정으로 로그인합니다. 실험적 기능: DeepSeek이 언제든지 이를 변경하거나 제한할 수 있습니다.</string>
+  <string name="setting_provider_page_add_account">계정 추가</string>
+  <string name="setting_provider_page_sign_out_confirm">로그아웃하면 이 계정은 라우팅에서 제외됩니다. 언제든지 다시 로그인할 수 있습니다.</string>
+  <string name="setting_provider_page_account_disabled">사용 안 함</string>
+  <string name="setting_provider_page_type_account">%s 계정</string>
+  <string name="setting_provider_page_bonus_balance">보너스 잔액</string>
   <string name="setting_provider_page_device_code_hint">브라우저에서 이 코드를 확인하세요.</string>
   <string name="setting_provider_page_device_code_reopen">페이지를 다시 열려면 탭하세요</string>
   <string name="setting_provider_page_type_subscription">%s 구독</string>
@@ -2226,6 +2232,14 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_group_title">그룹</string>
   <string name="setting_provider_page_api_key_add">Key 추가</string>
   <string name="setting_provider_page_api_key_label">라벨</string>
+  <string name="setting_provider_page_model_key_group">Key 그룹</string>
+  <string name="model_key_group_all">모든 Key</string>
+  <string name="model_key_group_missing">Key 사용 불가</string>
+  <string name="setting_provider_page_model_account_group">계정 그룹</string>
+  <string name="model_account_group_all">모든 계정</string>
+  <string name="model_account_group_missing">계정 사용 불가</string>
+  <string name="model_key_group_empty">이 그룹에는 모델이 없습니다</string>
+  <string name="model_key_group_empty_desc">오른쪽 아래의 "사용 가능한 모델"에서 추가하세요. 여기서 추가한 모델은 이 Key만 사용합니다.</string>
   <string name="setting_provider_page_api_key_multi_desc">여러 Key를 추가할 수 있으며, 요청이 실패하면 자동으로 다음 Key로 전환합니다</string>
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_context_block">MAX에 도달하면 전송 차단</string>

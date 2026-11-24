@@ -140,6 +140,8 @@ fun ScreenContent(screen: Screen) {
             ModelEditorPage(
                 providerId = Uuid.parse(screen.providerId),
                 modelId = screen.modelId,
+                keyIndex = screen.keyIndex,
+                accountId = screen.accountId,
             )
         }
 

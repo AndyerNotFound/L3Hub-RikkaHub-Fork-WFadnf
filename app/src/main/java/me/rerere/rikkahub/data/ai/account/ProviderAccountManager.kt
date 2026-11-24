@@ -16,9 +16,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonObject
+import me.rerere.ai.provider.AccountBinding
 import me.rerere.ai.provider.AccountCredentialProvider
 import me.rerere.ai.provider.OAuthCredential
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.providers.deepseek.DeepSeekAccountPlatform
+import me.rerere.ai.provider.providers.deepseek.DeepSeekPlatformUser
 import me.rerere.common.http.await
 import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
 import me.rerere.oauth.OAuthHttpClient
@@ -37,6 +40,10 @@ private const val TAG = "ProviderAccountManager"
 // 与 Codex CLI 一致：access token 过期前 5 分钟内就刷新
 private const val TOKEN_REFRESH_LEEWAY_MS = 5 * 60_000L
 private val AUTHORIZATION_TIMEOUT = 5.minutes
+private const val DEEPSEEK_DEVICE_ID_KEY = "deepseek_account_device_id"
+
+// 被平台拒绝的账号先冷却这么久，期间路由到下一个账号
+private const val ACCOUNT_COOLDOWN_MS = 5 * 60_000L
 
 sealed interface AccountLoginStatus {
     data object Authorizing : AccountLoginStatus
@@ -64,6 +71,11 @@ class ProviderAccountManager(
         callbackPath = ChatGPTAuth.CALLBACK_PATH,
         redirectHost = ChatGPTAuth.CALLBACK_HOST,
     )
+
+    // DeepSeek 接受任意端口，用临时端口即可
+    private val deepSeekCallbackServer = OAuthLoopbackCallbackServer(port = 0)
+    // 401 之后临时不用的账号：bindingId -> 恢复时间（只在内存里，重启后重新尝试）
+    private val accountCooldowns = ConcurrentHashMap<Uuid, Long>()
     private val loginJobs = ConcurrentHashMap<Uuid, Job>()
     private val refreshLocks = ConcurrentHashMap<Uuid, Mutex>()
 
@@ -79,8 +91,9 @@ class ProviderAccountManager(
                 val credential = when (provider) {
                     is ProviderSetting.ChatGPT -> loginChatGPT(context.applicationContext)
                     is ProviderSetting.Grok -> loginGrok(providerId, context.applicationContext)
+                    is ProviderSetting.DeepSeekAccount -> loginDeepSeek(context.applicationContext)
                 }
-                persistCredential(providerId, credential)
+                persistLogin(providerId, credential)
                 setStatus(providerId, null)
             } catch (e: CancellationException) {
                 throw e
@@ -101,9 +114,36 @@ class ProviderAccountManager(
         setStatus(providerId, null)
     }
 
-    suspend fun logout(providerId: Uuid) {
+    /**
+     * 退出登录。[bindingId] 为空时退掉该提供商的全部账号。
+     */
+    suspend fun logout(providerId: Uuid, bindingId: Uuid? = null) {
         cancelLogin(providerId)
-        persistCredential(providerId, null)
+        val account = findAccount(providerId) ?: return
+        if (account !is ProviderSetting.DeepSeekAccount) {
+            persistCredential(providerId, null)
+            return
+        }
+        val removed = account.accounts.filter { bindingId == null || it.id == bindingId }
+        removed.forEach { accountCooldowns.remove(it.id) }
+        // 本地先退，再用捕获的 token 结束平台会话：远端失败不回滚本地状态
+        updateAccounts(providerId) { accounts ->
+            accounts.filterNot { bindingId == null || it.id == bindingId }
+        }
+        removed.forEach { binding ->
+            val token = binding.credential.accessToken
+            // 远端退登失败不回滚本地状态，但取消要照常抛出去，不能把协程的取消吞掉
+            withContext(Dispatchers.IO) {
+                try {
+                    DeepSeekAccountPlatform.logout(client, token)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // 只记异常类型：平台响应体可能回显账号 token，不能进日志
+                    Log.w(TAG, "DeepSeek sign-out: platform logout failed (${e.javaClass.simpleName})")
+                }
+            }
+        }
     }
 
     /**
@@ -113,7 +153,12 @@ class ProviderAccountManager(
     override suspend fun getCredential(
         setting: ProviderSetting.Account,
         rejectedAccessToken: String?,
+        preferredAccountId: Uuid?,
     ): OAuthCredential {
+        // DeepSeek 账号的 token 没有过期时间和刷新流程，被拒就清凭据
+        if (setting is ProviderSetting.DeepSeekAccount) {
+            return resolveDeepSeekCredential(setting, rejectedAccessToken, preferredAccountId)
+        }
         // 绝大多数请求的 token 都还有效，直接返回，不用切线程排队拿锁
         findAccount(setting.id)?.credential
             ?.takeUnless { it.needsRefresh(rejectedAccessToken) }
@@ -149,6 +194,9 @@ class ProviderAccountManager(
                         token = oauthClient.refreshToken(GrokAuth.refreshRequest(refreshToken)),
                         previous = credential,
                     )
+
+                    is ProviderSetting.DeepSeekAccount ->
+                        error("${latest.name}: DeepSeek account tokens cannot be refreshed")
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -164,6 +212,170 @@ class ProviderAccountManager(
             }
             refreshed
         }
+    }
+
+    /**
+     * DeepSeek 平台账号：PKCE 授权码 + 本机回环回调。
+     *
+     * 平台要求「换完凭证再给浏览器结果」：回调请求先挂起，兑换成功后把浏览器跳到平台完成页，
+     * 兑换失败则回一张说明失败原因的页面。授权页与完成页都留在平台的浏览器标签里。
+     */
+    private suspend fun loginDeepSeek(context: Context): OAuthCredential =
+        withContext(Dispatchers.IO) {
+            val pkce = oauthClient.generatePkce()
+            val state = oauthClient.generateState()
+            val session = deepSeekCallbackServer.openDeferredSession(context, state)
+            var authorizeId: String? = null
+            try {
+                val start = DeepSeekAccountPlatform.startSignIn(
+                    client = client,
+                    codeChallenge = pkce.challenge,
+                    state = state,
+                    redirectUri = session.redirectUri,
+                )
+                authorizeId = start.authorizeId
+                Log.i(TAG, "DeepSeek sign-in: authorize page requested, expires in ${start.expiresInSeconds}s")
+                withContext(Dispatchers.Main) {
+                    CustomTabsOAuthAuthorizationLauncher.launch(context, start.authorizeUrl)
+                }
+                val callback = session.awaitCallback(AUTHORIZATION_TIMEOUT)
+                if (callback == null) {
+                    session.respondPage(deepSeekPage(title = "授权超时", message = "请回到 L3Hub 重新登录。"))
+                    error("Authorization timed out")
+                }
+                Log.i(TAG, "DeepSeek sign-in: callback received, error=${callback.error}")
+                callback.error?.let { code ->
+                    val failure = listOfNotNull(code, callback.errorDescription).joinToString(": ")
+                    session.respondPage(deepSeekPage(title = "授权失败", message = failure))
+                    error(failure)
+                }
+                val code = callback.code
+                if (code == null) {
+                    session.respondPage(deepSeekPage(title = "授权失败", message = "没有返回授权码。"))
+                    error("No authorization code returned")
+                }
+                val result = DeepSeekAccountPlatform.exchange(
+                    client = client,
+                    code = code,
+                    codeVerifier = pkce.verifier,
+                    redirectUri = session.redirectUri,
+                    deviceId = deepSeekDeviceId(context),
+                )
+                Log.i(TAG, "DeepSeek sign-in: token exchanged")
+                // 浏览器落到平台完成页；平台没给完成页时退回自己的成功页
+                val completion = result.authorizedUrl
+                if (completion != null) {
+                    session.respondRedirect(completion)
+                } else {
+                    session.respondPage(deepSeekPage(title = "授权完成", message = "可以关闭此页面回到 L3Hub。"))
+                }
+                // 兑换时平台会带上用户资料，没带就单独查一次；查不到不影响登录，取消照常抛
+                val user = result.user ?: try {
+                    DeepSeekAccountPlatform.profile(client, result.token)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "DeepSeek sign-in: profile lookup failed (${e.javaClass.simpleName})")
+                    null
+                }
+                deepSeekCredential(result.token, user)
+            } catch (e: Exception) {
+                authorizeId?.let { id ->
+                    // 作废远端申请是收尾动作：NonCancellable 里跑，失败也不覆盖原始错误
+                    withContext(NonCancellable) {
+                        try {
+                            DeepSeekAccountPlatform.cancel(client, id, pkce.verifier)
+                        } catch (cleanup: Exception) {
+                            Log.w(TAG, "DeepSeek sign-in: remote cancel failed (${cleanup.javaClass.simpleName})")
+                        }
+                    }
+                }
+                throw e
+            } finally {
+                withContext(NonCancellable) { session.close() }
+            }
+        }
+
+    /**
+     * 失败页上的文字来自授权回调的 query（`error` / `error_description`），原样拼进 HTML 就是一个
+     * 注入点：回环端口上的任何请求都能把它写成脚本。这里统一转义，只当文本用。
+     */
+    private fun deepSeekPage(title: String, message: String): String = """
+        <!doctype html><html lang="zh-CN"><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>${title.escapeHtml()}</title>
+        <body style="font-family:sans-serif;padding:32px;line-height:1.6">
+        <h1 style="font-size:20px">${title.escapeHtml()}</h1><p>${message.escapeHtml()}</p>
+        </body></html>
+    """.trimIndent()
+
+    private fun String.escapeHtml(): String = this
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
+
+    /**
+     * 按列表顺序挑一个可用账号：被拒或冷却中的账号先跳过。
+     *
+     * 只有一个账号又被拒时清掉它，界面回到未登录；否则换下一个账号，
+     * OkHttp 的 401 重试会带着新凭据再发一次。
+     */
+    private suspend fun resolveDeepSeekCredential(
+        setting: ProviderSetting.DeepSeekAccount,
+        rejectedAccessToken: String?,
+        preferredAccountId: Uuid? = null,
+    ): OAuthCredential {
+        val latest = (findAccount(setting.id) as? ProviderSetting.DeepSeekAccount) ?: setting
+        val enabled = latest.accounts.filter { !it.disabled }
+        if (enabled.isEmpty()) error("${latest.name}: not signed in")
+
+        // 绑定了账号的模型只走那一个账号：被拒就冷却并报错，不偷偷换成别的账号，
+        // 否则同一条模型会在几个账号之间来回计费，用户看不出实际用的是谁
+        val bound = preferredAccountId?.let { id -> enabled.firstOrNull { it.id == id } }
+        val now = System.currentTimeMillis()
+        if (rejectedAccessToken != null) {
+            enabled.firstOrNull { it.credential.accessToken == rejectedAccessToken }?.let { rejected ->
+                accountCooldowns[rejected.id] = now + ACCOUNT_COOLDOWN_MS
+                if (bound != null) {
+                    error(
+                        "${latest.name}: ${rejected.label()} was rejected by the platform, " +
+                            "retry later or bind this model to another account"
+                    )
+                }
+                if (enabled.size == 1) {
+                    updateAccounts(latest.id) { accounts -> accounts.filterNot { it.id == rejected.id } }
+                    accountCooldowns.remove(rejected.id)
+                    error("${latest.name}: sign-in expired, please sign in again")
+                }
+            }
+        }
+        if (bound != null) return bound.credential
+        return (enabled.firstOrNull { (accountCooldowns[it.id] ?: 0L) <= now } ?: enabled.first()).credential
+    }
+
+    /** 界面上认人的名字：昵称优先，其次联系方式 */
+    private fun AccountBinding.label(): String =
+        credential.displayName ?: credential.email ?: id.toString().take(8)
+
+    private fun deepSeekCredential(token: String, user: DeepSeekPlatformUser?): OAuthCredential =
+        OAuthCredential(
+            accessToken = token,
+            // 没有刷新流程，也不带过期时间
+            expiresAt = 0L,
+            accountId = user?.id,
+            email = user?.contact,
+            displayName = user?.name,
+        )
+
+    /** 设备标识只用于兑换请求；首次登录生成后留在本地 */
+    private fun deepSeekDeviceId(context: Context): String {
+        val prefs = context.getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE)
+        prefs.getString(DEEPSEEK_DEVICE_ID_KEY, null)?.let { return it }
+        val id = Uuid.random().toString()
+        prefs.edit().putString(DEEPSEEK_DEVICE_ID_KEY, id).apply()
+        return id
     }
 
     private suspend fun loginChatGPT(context: Context): OAuthCredential =
@@ -236,6 +448,53 @@ class ProviderAccountManager(
         }
     }.onFailure { Log.w(TAG, "Failed to fetch Grok userinfo", it) }.getOrNull()
 
+    /** 登录成功后写回：多账号的提供商追加一份，单账号的提供商替换 */
+    private suspend fun persistLogin(providerId: Uuid, credential: OAuthCredential) {
+        settingsStore.update { old ->
+            old.copy(
+                providers = old.providers.map { provider ->
+                    when {
+                        provider.id != providerId -> provider
+                        provider is ProviderSetting.DeepSeekAccount -> provider.copy(
+                            // 同一账号重复登录就替换原来那份，避免攒重复条目
+                            accounts = provider.accounts.filterNot { existing ->
+                                credential.accountId != null && existing.credential.accountId == credential.accountId
+                            } + AccountBinding(credential = credential)
+                        )
+
+                        provider is ProviderSetting.Account -> provider.withCredential(credential)
+                        else -> provider
+                    }
+                }
+            )
+        }
+    }
+
+    /** 停用/启用某一份登录：停用后不参与路由，凭据保留 */
+    suspend fun setAccountDisabled(providerId: Uuid, bindingId: Uuid, disabled: Boolean) {
+        updateAccounts(providerId) { accounts ->
+            accounts.map { binding -> if (binding.id == bindingId) binding.copy(disabled = disabled) else binding }
+        }
+        if (!disabled) accountCooldowns.remove(bindingId)
+    }
+
+    private suspend fun updateAccounts(
+        providerId: Uuid,
+        transform: (List<AccountBinding>) -> List<AccountBinding>,
+    ) {
+        settingsStore.update { old ->
+            old.copy(
+                providers = old.providers.map { provider ->
+                    if (provider.id == providerId && provider is ProviderSetting.DeepSeekAccount) {
+                        provider.copy(accounts = transform(provider.accounts))
+                    } else {
+                        provider
+                    }
+                }
+            )
+        }
+    }
+
     private suspend fun persistCredential(providerId: Uuid, credential: OAuthCredential?) {
         settingsStore.update { old ->
             old.copy(
@@ -293,7 +552,7 @@ class ProviderAccountManager(
  */
 fun ProviderSetting.preserveCredential(latest: ProviderSetting): ProviderSetting =
     if (this is ProviderSetting.Account && latest is ProviderSetting.Account) {
-        withCredential(latest.credential)
+        withAccounts(latest.accounts)
     } else {
         this
     }

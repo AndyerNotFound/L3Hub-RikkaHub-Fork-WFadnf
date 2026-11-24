@@ -9,8 +9,24 @@ import kotlin.time.Instant
  * 按语义而不是按提供商分类型，界面按类型分别展示；新的提供商优先复用已有类型。
  */
 sealed interface ProviderQuota {
-    /** 余额。用户自定义查询（[QuotaQuery]）的结果都归到这里 */
-    data class Balance(val value: String) : ProviderQuota
+    /**
+     * 余额。用户自定义查询（[QuotaQuery]）的结果都归到这里。
+     *
+     * [secondary] 是同一次查询里的第二条余额（如 DeepSeek 账号的赠金），没有时为空、界面不显示。
+     */
+    data class Balance(
+        val value: String,
+        val secondary: String? = null,
+        /** 按账号拆开的余额，只有多账号的提供商给；界面在设置的用量卡里展开 */
+        val accounts: List<AccountBalance> = emptyList(),
+    ) : ProviderQuota
+
+    /** 单个账号的余额：主值是充值余额，[secondary] 是赠金 */
+    data class AccountBalance(
+        val label: String,
+        val value: String,
+        val secondary: String? = null,
+    )
 
     /** 订阅制的用量限制，按时间窗口统计已用比例 */
     data class UsageLimits(

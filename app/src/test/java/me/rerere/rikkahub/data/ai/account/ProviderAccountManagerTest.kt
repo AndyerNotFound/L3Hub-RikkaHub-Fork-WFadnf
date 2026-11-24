@@ -97,7 +97,7 @@ class ProviderAccountManagerTest {
         val store = createStore()
         val manager = ProviderAccountManager(store, appScope, client)
 
-        val caller = launch(Dispatchers.Default) { manager.getCredential(provider, rejectedAccessToken = null) }
+        val caller = launch(Dispatchers.Default) { manager.getCredential(provider, rejectedAccessToken = null, preferredAccountId = null) }
         assertTrue(withContext(Dispatchers.IO) { requestArrived.await(10, TimeUnit.SECONDS) })
         // 服务端已经收到刷新请求（旧 refresh token 作废），这时调用方被取消，比如停止生成
         caller.cancelAndJoin()
@@ -120,7 +120,7 @@ class ProviderAccountManagerTest {
         val manager = ProviderAccountManager(store, appScope, client)
 
         val caller = async(Dispatchers.Default) {
-            runCatching { manager.getCredential(provider, rejectedAccessToken = null) }
+            runCatching { manager.getCredential(provider, rejectedAccessToken = null, preferredAccountId = null) }
         }
         assertTrue(withContext(Dispatchers.IO) { requestArrived.await(10, TimeUnit.SECONDS) })
         manager.logout(provider.id)

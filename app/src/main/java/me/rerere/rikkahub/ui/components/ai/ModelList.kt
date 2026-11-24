@@ -496,7 +496,7 @@ internal fun ModelItem(
                             subtitle?.invoke()
                         }
                     }
-                    ModelTags(model = model)
+                    ModelTags(model = model, providerSetting = providerSetting)
                 }
             } else {
                 Row(
@@ -513,7 +513,7 @@ internal fun ModelItem(
                     ) {
                         ModelName(model = model)
                         subtitle?.invoke()
-                        ModelTags(model = model)
+                        ModelTags(model = model, providerSetting = providerSetting)
                     }
                 }
             }
@@ -548,7 +548,7 @@ private fun ModelIconBadge(model: Model, compact: Boolean) {
 }
 
 @Composable
-private fun ModelTags(model: Model) {
+private fun ModelTags(model: Model, providerSetting: ProviderSetting) {
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -557,6 +557,9 @@ private fun ModelTags(model: Model) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         ModelProviderOverrideTag(model = model)
+
+        // 同名模型按 Key 分组各有一条时，靠这个标签分清点的是哪一条
+        ModelKeyGroupTag(model = model, providerSetting = providerSetting)
 
         ModelTypeTag(model = model)
 

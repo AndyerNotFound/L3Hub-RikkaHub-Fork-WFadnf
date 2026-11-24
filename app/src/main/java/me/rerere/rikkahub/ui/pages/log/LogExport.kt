@@ -45,6 +45,7 @@ private val SENSITIVE_HEADERS = setOf(
     "proxy-authorization",
     "api-key",
     "x-api-key",
+    "x-dsh-auth-token",
     "x-goog-api-key",
     "cookie",
     "set-cookie",

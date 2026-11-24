@@ -256,6 +256,7 @@ val dataSourceModule = module {
             .addInterceptor(AIRequestInterceptor())
             .addInterceptor(HttpLoggingInterceptor().apply {
                 redactHeader("Proxy-Authorization")
+                redactHeader("x-dsh-auth-token")
                 level = HttpLoggingInterceptor.Level.HEADERS
             })
             .build()

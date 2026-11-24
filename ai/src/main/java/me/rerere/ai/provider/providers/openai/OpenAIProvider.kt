@@ -62,7 +62,7 @@ class OpenAIProvider(
 
     private val chatCompletionsAPI = ChatCompletionsAPI(client = client, keyRoulette = keyRoulette)
     private val responseAPI = ResponseAPI(client = client, keyRoulette = keyRoulette)
-    private val ocrAPI = DeepSeekOcrAPI(client = client, keyRoulette = keyRoulette)
+    private val ocrAPI = DeepSeekOcrAPI(client = client)
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
@@ -126,9 +126,14 @@ class OpenAIProvider(
         params: TextGenerationParams
     ): Flow<StreamChunk> = if (params.model.type == ModelType.OCR) {
         ocrAPI.streamText(
-            providerSetting = providerSetting,
+            baseUrl = providerSetting.baseUrl,
+            requestHeaders = providerSetting.mergeCustomHeaders(params.customHeaders),
+            sessionId = params.sessionId,
+            model = params.model,
             messages = messages,
-            params = params,
+            auth = {
+                header("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
+            },
         )
     } else if (providerSetting.useResponseApi) {
         responseAPI.streamText(
@@ -150,9 +155,14 @@ class OpenAIProvider(
         params: TextGenerationParams
     ): TextGenerationResult = if (params.model.type == ModelType.OCR) {
         ocrAPI.generateText(
-            providerSetting = providerSetting,
+            baseUrl = providerSetting.baseUrl,
+            requestHeaders = providerSetting.mergeCustomHeaders(params.customHeaders),
+            sessionId = params.sessionId,
+            model = params.model,
             messages = messages,
-            params = params,
+            auth = {
+                header("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
+            },
         )
     } else if (providerSetting.useResponseApi) {
         responseAPI.generateText(

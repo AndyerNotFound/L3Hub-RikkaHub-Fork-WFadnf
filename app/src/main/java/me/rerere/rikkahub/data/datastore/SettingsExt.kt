@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.datastore
 
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.availableKeys
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.tts.provider.TTSProviderSetting
@@ -78,6 +79,8 @@ fun Settings.getSelectedASRProvider(): ASRProviderSetting? {
  * 查找模型实际使用的提供商配置。
  *
  * 模型设置了 [Model.providerOverwrite] 时返回这份覆盖配置（不带模型列表），它不在 [providers] 里。
+ * 设置了 [Model.apiKeys] 时把 Key 收窄到那几把：同一提供商里同名模型按 Key 分组各存一条时，
+ * 各自只走自己的 Key，不会轮询到别的分组。
  *
  * @param checkOverwrite 为 false 时忽略覆盖配置，始终返回模型所属的提供商
  * @return 模型不属于 [providers] 里任何提供商时返回 null，即使它带有覆盖配置
@@ -88,7 +91,22 @@ fun Model.findProvider(providers: List<ProviderSetting>, checkOverwrite: Boolean
     if (checkOverwrite && providerOverwrite != null) {
         return providerOverwrite.copyProvider(models = emptyList())
     }
-    return provider
+    return provider.narrowToModelKeys(this)
+}
+
+/**
+ * 只把模型绑定的、且仍然存在并启用的 Key 交给请求层。
+ *
+ * 绑定的 Key 一个都不剩（Key 被删掉或全部停用）时退回提供商的全部可用 Key：
+ * 分组已经没了，模型还得能用。
+ */
+private fun ProviderSetting.narrowToModelKeys(model: Model): ProviderSetting {
+    if (model.apiKeys.isEmpty()) return this
+    val apiKeyProvider = this as? ProviderSetting.ApiKey ?: return this
+    val available = apiKeyProvider.availableKeys
+    val bound = available.filter { it in model.apiKeys }
+    if (bound.isEmpty() || bound.size == available.size) return this
+    return apiKeyProvider.withApiKey(bound.joinToString("\n"))
 }
 
 /** 模型所属的提供商，即模型列表里包含它的那个。 */

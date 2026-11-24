@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,11 @@ internal fun PricingInput(
     modifier: Modifier = Modifier.width(136.dp),
 ) {
     var text by remember(modelKey) { mutableStateOf(value.toPriceText()) }
+    // 外面改了这份价目（草稿被换、变价规则复制基础价）时跟上，输入框不能停在旧文本上：
+    // 界面上看着有价、落盘却是零，正是价格「被重置」的来源
+    LaunchedEffect(modelKey, value) {
+        if ((text.toDoubleOrNull() ?: 0.0) != value) text = value.toPriceText()
+    }
     OutlinedTextField(
         value = text,
         onValueChange = { input ->

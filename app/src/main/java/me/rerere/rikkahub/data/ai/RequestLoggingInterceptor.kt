@@ -16,7 +16,13 @@ class RequestLoggingInterceptor : Interceptor {
         val startTime = System.currentTimeMillis()
 
         val requestHeaders = request.headers.toMap()
-        val requestBody = request.body?.let { body ->
+        val requestBody = if (
+            request.url.host == "platform.deepseek.com" &&
+            request.url.encodedPath.startsWith("/auth-api/v0/dsh/")
+        ) {
+            // 授权兑换与取消请求带有 code / PKCE verifier，不收进可导出的请求日志。
+            "██"
+        } else request.body?.let { body ->
             val buffer = Buffer()
             body.writeTo(buffer)
             buffer.readUtf8()
@@ -64,7 +70,9 @@ class RequestLoggingInterceptor : Interceptor {
 
     private fun okhttp3.Headers.toMap(): Map<String, String> {
         return names().associateWith { name ->
-            if (name.equals("Proxy-Authorization", ignoreCase = true)) {
+            if (name.equals("Proxy-Authorization", ignoreCase = true) ||
+                name.equals("x-dsh-auth-token", ignoreCase = true)
+            ) {
                 "██"
             } else {
                 get(name) ?: ""

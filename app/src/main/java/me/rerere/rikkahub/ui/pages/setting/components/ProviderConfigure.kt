@@ -52,6 +52,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.provider.AccountBinding
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderQuota
 import me.rerere.ai.provider.ProviderSetting
@@ -65,11 +66,13 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Login03
 import me.rerere.hugeicons.stroke.Logout03
+import me.rerere.hugeicons.stroke.MoneyBag02
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.UserCircle
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
+import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.account.AccountLoginStatus
 import me.rerere.rikkahub.data.ai.account.ChatGPTAuth
@@ -78,6 +81,7 @@ import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
 import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
@@ -102,6 +106,8 @@ fun ProviderConfigure(
     modifier: Modifier = Modifier,
     allowTypeSwitch: Boolean = false,
     onEdit: (provider: ProviderSetting) -> Unit,
+    // 账号操作会立即落盘，先保存配置页的名称、启用状态等草稿。
+    onCommit: (provider: ProviderSetting) -> Unit = onEdit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -139,6 +145,7 @@ fun ProviderConfigure(
             is ProviderSetting.ChatGPT -> ProviderConfigureAccount(
                 provider = provider,
                 onEdit = onEdit,
+                onCommit = onCommit,
                 serviceName = "ChatGPT",
                 plan = provider.credential?.plan?.let { "ChatGPT ${ChatGPTAuth.planDisplayName(it)}" },
                 disclaimer = stringResource(R.string.setting_provider_page_chatgpt_disclaimer),
@@ -147,10 +154,21 @@ fun ProviderConfigure(
             is ProviderSetting.Grok -> ProviderConfigureAccount(
                 provider = provider,
                 onEdit = onEdit,
+                onCommit = onCommit,
                 serviceName = "Grok",
                 plan = null,
                 disclaimer = stringResource(R.string.setting_provider_page_grok_disclaimer),
             )
+
+            is ProviderSetting.DeepSeekAccount -> ProviderConfigureAccount(
+                provider = provider,
+                onEdit = onEdit,
+                onCommit = onCommit,
+                serviceName = "DeepSeek",
+                plan = null,
+                disclaimer = stringResource(R.string.setting_provider_page_deepseek_disclaimer),
+            )
+
         }
     }
 }
@@ -508,170 +526,6 @@ private fun ProviderConfigureOpenAI(
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) },
             headlineContent = { Text(stringResource(R.string.setting_provider_page_include_history_reasoning)) },
         )
-    }
-}
-
-// 账号卡片这一刻该露出哪一组：四组互斥，条目都常驻，靠 visible 收放
-private enum class AccountCardState {
-    SignedIn,
-    DeviceCode,
-    Authorizing,
-    SignedOut,
-}
-
-// 账号类提供商：登录状态、用量和说明
-@Composable
-private fun ProviderConfigureAccount(
-    provider: ProviderSetting.Account,
-    onEdit: (provider: ProviderSetting) -> Unit,
-    serviceName: String,
-    plan: String?,
-    disclaimer: String,
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val accountManager = koinInject<ProviderAccountManager>()
-    val loginStatus by accountManager.loginStatus.collectAsStateWithLifecycle()
-    val status = loginStatus[provider.id]
-    val credential = provider.credential
-
-    CardGroup {
-        nameItem(provider, onEdit)
-    }
-
-    // 登录态之间互斥，但每一组条目都始终注册、只靠 visible 收放：
-    // 状态切换时条目是展开/收起，而不是在收集阶段被删掉、整块瞬移
-    val accountState = when {
-        credential != null -> AccountCardState.SignedIn
-        status is AccountLoginStatus.DeviceCode -> AccountCardState.DeviceCode
-        status == AccountLoginStatus.Authorizing -> AccountCardState.Authorizing
-        else -> AccountCardState.SignedOut
-    }
-    val deviceCode = status as? AccountLoginStatus.DeviceCode
-
-    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_account)) }) {
-        if (accountState == AccountCardState.SignedIn) {
-            item(
-                headlineContent = { Text(credential?.email ?: stringResource(R.string.setting_provider_page_signed_in)) },
-                supportingContent = plan?.let { { Text(it) } },
-                leadingContent = { CardGroupIcon(HugeIcons.UserCircle) },
-            )
-        }
-        if (accountState == AccountCardState.SignedIn) {
-            item(
-                onClick = { scope.launch { accountManager.logout(provider.id) } },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_out)) },
-                leadingContent = { CardGroupIcon(icon = HugeIcons.Logout03, containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) },
-            )
-        }
-        if (accountState == AccountCardState.DeviceCode) {
-            item(
-                onClick = {
-                    deviceCode?.let { code ->
-                        CustomTabsOAuthAuthorizationLauncher.launch(context, code.verificationUrl)
-                    }
-                },
-                overlineContent = { Text(stringResource(R.string.setting_provider_page_device_code_hint)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_page_device_code_reopen)) },
-                headlineContent = {
-                    Text(
-                        text = deviceCode?.userCode.orEmpty(),
-                        style = MaterialTheme.typography.headlineSmallEmphasized,
-                        fontFamily = JetbrainsMono,
-                    )
-                },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-            )
-        }
-        if (accountState == AccountCardState.DeviceCode) {
-            item(
-                onClick = { accountManager.cancelLogin(provider.id) },
-                leadingContent = { CardGroupIcon(HugeIcons.Cancel01) },
-                headlineContent = { Text(stringResource(R.string.cancel)) },
-            )
-        }
-        if (accountState == AccountCardState.Authorizing) {
-            item(
-                onClick = { accountManager.cancelLogin(provider.id) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization)) },
-                supportingContent = { Text(stringResource(R.string.setting_provider_page_waiting_authorization_desc)) },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-            )
-        }
-        if (accountState == AccountCardState.SignedOut) {
-            item(
-                onClick = { accountManager.startLogin(provider.id, context) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_sign_in_with, serviceName)) },
-                supportingContent = (status as? AccountLoginStatus.Failed)?.let { failed ->
-                    { Text(failed.message, color = MaterialTheme.colorScheme.error) }
-                },
-                leadingContent = { CardGroupIcon(HugeIcons.Login03) },
-                trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
-            )
-        }
-    }
-
-    if (provider.supportsQuota) {
-        AccountUsage(provider)
-    }
-
-    Text(
-        text = disclaimer,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
-}
-
-// 订阅用量：每个窗口一条进度和重置时间
-@Composable
-private fun AccountUsage(provider: ProviderSetting.Account) {
-    val result = rememberProviderQuota(provider)
-    val limits = result?.getOrNull() as? ProviderQuota.UsageLimits
-    CardGroup(title = { Text(stringResource(R.string.setting_provider_page_usage)) }) {
-        when {
-            result == null -> item(
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_loading)) },
-                leadingContent = { ContainedLoadingIndicator(modifier = Modifier.size(40.dp)) },
-            )
-
-            limits == null -> item(
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_failed)) },
-                supportingContent = { Text(text = result.exceptionOrNull()?.message.orEmpty(), color = MaterialTheme.colorScheme.error) },
-                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
-            )
-
-            limits.windows.isEmpty() -> item(
-                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
-                headlineContent = { Text(stringResource(R.string.setting_provider_page_usage_none)) },
-            )
-
-            else -> limits.windows.forEach { window ->
-                val reached = limits.limitReached || window.usedPercent >= 100
-                formItem(
-                    headlineContent = { Text(window.longLabel()) },
-                    supportingContent = window.resetsAt?.let { resetsAt ->
-                        {
-                            val time = LocalDateTime.ofInstant(resetsAt.toJavaInstant(), ZoneId.systemDefault())
-                            Text(stringResource(R.string.setting_provider_page_usage_resets, time.toMessageTimeString()))
-                        }
-                    },
-                    trailingContent = {
-                        Text(
-                            text = "${window.usedPercent.roundToInt()}%",
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = if (reached) MaterialTheme.colorScheme.error else Color.Unspecified,
-                        )
-                    },
-                ) {
-                    LinearWavyProgressIndicator(
-                        progress = { (window.usedPercent / 100).toFloat().coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (reached) MaterialTheme.colorScheme.error else ProgressIndicatorDefaults.linearColor,
-                    )
-                }
-            }
-        }
     }
 }
 

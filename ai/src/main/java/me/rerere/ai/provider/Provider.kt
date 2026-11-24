@@ -17,6 +17,15 @@ import kotlin.uuid.Uuid
 interface Provider<T : ProviderSetting> {
     suspend fun listModels(providerSetting: T): List<Model>
 
+    /**
+     * 按某一份登录拉模型目录。
+     *
+     * 账号型提供商可能给不同的账号开不同的模型，模型页才能像多 Key 那样一页一账号各拉一份；
+     * 只有一份登录的提供商沿用整份目录即可。
+     */
+    suspend fun listModelsForAccount(providerSetting: T, accountId: Uuid): List<Model> =
+        listModels(providerSetting)
+
     /** 查询额度，见 [ProviderQuota]。不支持或没有开启时返回 null */
     suspend fun getQuota(providerSetting: T): ProviderQuota? = null
 

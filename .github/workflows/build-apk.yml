@@ -477,6 +477,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "产物：$TAG_FOR_NAME"
+          # 校验文件只记录文件名，下载到任意目录后都能运行 sha256sum -c。
+          (
+            cd dist
+            for apk in *.apk; do
+              sha256sum "$apk" > "$apk.sha256"
+            done
+          )
           ls -l dist
 
       - uses: actions/upload-artifact@v4
@@ -617,6 +624,11 @@ jobs:
               echo "<!-- ${key}:from=${prev_sha} head=${head} -->"
             fi
           } > RELEASE_NOTES.md
+          # 正式版有人工整理的用户说明时使用该文件；测试通道仍按提交自动生成。
+          curated_notes="docs/releases/${TAG}.md"
+          if [ "$CHANNEL" = "stable" ] && [ -f "$curated_notes" ]; then
+            cp "$curated_notes" RELEASE_NOTES.md
+          fi
           cat RELEASE_NOTES.md
 
           # 幂等处理：release 已存在（重跑或夜间覆盖）时覆盖资产并刷新说明，而非使整个 job 失败
@@ -630,7 +642,7 @@ jobs:
                 gh release delete-asset "$TAG" "$name" --yes
               fi
             done
-            gh release upload "$TAG" dist/*.apk --clobber
+            gh release upload "$TAG" dist/*.apk dist/*.apk.sha256 --clobber
             # --draft=false：同名 release 停留于草稿状态时，仅修改说明会使其始终无法发布，而 job 显示为成功
             gh release edit "$TAG" --notes-file RELEASE_NOTES.md --prerelease="$IS_PRERELEASE" --draft=false
           else
@@ -640,7 +652,7 @@ jobs:
             fi
             # --verify-tag：tag 不存在时直接报错，而非以 GITHUB_SHA 现行创建，
             # 否则「手动触发 + tag 输入有误」会产生与代码无关的版本
-            gh release create "$TAG" dist/*.apk \
+            gh release create "$TAG" dist/*.apk dist/*.apk.sha256 \
               --title "$TAG" --notes-file RELEASE_NOTES.md --verify-tag "${flags[@]}"
           fi
 

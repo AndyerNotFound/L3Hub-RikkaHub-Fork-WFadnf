@@ -634,6 +634,7 @@ private fun AddButton(
             add(ProviderSetting.Claude())
             add(ProviderSetting.ChatGPT())
             add(ProviderSetting.Grok())
+            add(ProviderSetting.DeepSeekAccount())
         }
     }
 
@@ -745,6 +746,7 @@ private fun ProviderSetting.typeName(): String = when (this) {
     is ProviderSetting.Claude -> "Claude"
     is ProviderSetting.ChatGPT -> stringResource(R.string.setting_provider_page_type_subscription, "ChatGPT")
     is ProviderSetting.Grok -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
+    is ProviderSetting.DeepSeekAccount -> stringResource(R.string.setting_provider_page_type_account, "DeepSeek")
 }
 
 // 分组标题：整行可点折叠，长按整行拖拽排序；未分组那一栏不能拖，它在列表末尾是固定位置

@@ -3,6 +3,7 @@ package me.rerere.ai.provider
 import android.content.Context
 import me.rerere.ai.provider.providers.chatgpt.ChatGPTProvider
 import me.rerere.ai.provider.providers.claude.ClaudeProvider
+import me.rerere.ai.provider.providers.deepseek.DeepSeekAccountProvider
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.provider.providers.grok.GrokProvider
 import me.rerere.ai.provider.providers.openai.OpenAIProvider
@@ -33,6 +34,7 @@ class ProviderManager private constructor(
         registerProvider(CLAUDE, KeyFailoverProvider(ClaudeProvider(client, context)))
         registerProvider(CHATGPT, ChatGPTProvider(client, accountCredentials))
         registerProvider(GROK, GrokProvider(client, accountCredentials))
+        registerProvider(DEEPSEEK_ACCOUNT, DeepSeekAccountProvider(client, accountCredentials))
 
         extensionProviders.forEach { (name, provider) ->
             registerProvider(name, provider)
@@ -56,6 +58,7 @@ class ProviderManager private constructor(
             is ProviderSetting.Claude -> getProvider(CLAUDE)
             is ProviderSetting.ChatGPT -> getProvider(CHATGPT)
             is ProviderSetting.Grok -> getProvider(GROK)
+            is ProviderSetting.DeepSeekAccount -> getProvider(DEEPSEEK_ACCOUNT)
         } as Provider<T>
     }
 
@@ -65,6 +68,7 @@ class ProviderManager private constructor(
         private const val CLAUDE = "claude"
         private const val CHATGPT = "chatgpt"
         private const val GROK = "grok"
+        private const val DEEPSEEK_ACCOUNT = "deepseek-account"
 
         val BUILT_IN_PROVIDER_TYPES: Set<String> = setOf(
             OPENAI,
@@ -72,6 +76,7 @@ class ProviderManager private constructor(
             CLAUDE,
             CHATGPT,
             GROK,
+            DEEPSEEK_ACCOUNT,
         )
     }
 }

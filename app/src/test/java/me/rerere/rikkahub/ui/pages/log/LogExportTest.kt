@@ -25,6 +25,7 @@ class LogExportTest {
         requestHeaders = mapOf(
             "X-Trace-Id" to "trace-1",
             "Authorization" to "Bearer sk-live-123",
+            "X-Dsh-Auth-Token" to "deepseek-test-credential",
         ),
         requestBody = "{\"model\":\"m\"}",
         responseCode = 200,
@@ -62,11 +63,13 @@ class LogExportTest {
     fun `credential headers are redacted in the file`() {
         val json = LogExport.toJson(listOf(requestLog))
         assertFalse(json.contains("sk-live-123"))
+        assertFalse(json.contains("deepseek-test-credential"))
         assertFalse(json.contains("session=abc"))
 
         val exported = JsonInstant.parseToJsonElement(json).jsonObject["logs"]!!.jsonArray.single().jsonObject
         val requestHeaders = exported["requestHeaders"]!!.jsonObject
         assertEquals("██", requestHeaders["Authorization"]!!.jsonPrimitive.content)
+        assertEquals("██", requestHeaders["X-Dsh-Auth-Token"]!!.jsonPrimitive.content)
         assertEquals("trace-1", requestHeaders["X-Trace-Id"]!!.jsonPrimitive.content)
 
         val responseHeaders = exported["responseHeaders"]!!.jsonObject

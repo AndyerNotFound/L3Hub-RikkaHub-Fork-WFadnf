@@ -1685,6 +1685,12 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_page_quota_variables">変数: %1$s。APIキーは上記のヘッダーとともにこのURLに送信されます。</string>
   <string name="setting_provider_page_sign_in_with">%1$s でサインイン</string>
   <string name="setting_provider_page_grok_disclaimer">Grok CLI と同様にサインインすることで、お使いの SuperGrok サブスクリプションを使用します。実験的機能: xAI はいつでもこれを変更または制限する可能性があります。</string>
+  <string name="setting_provider_page_deepseek_disclaimer">DeepSeek のプラットフォームアカウントでサインインします。API キーは不要です。実験的機能: DeepSeek はいつでもこれを変更または制限する可能性があります。</string>
+  <string name="setting_provider_page_add_account">アカウントを追加</string>
+  <string name="setting_provider_page_sign_out_confirm">サインアウトするとこのアカウントはルーティングから外れます。いつでも再ログインできます。</string>
+  <string name="setting_provider_page_account_disabled">無効</string>
+  <string name="setting_provider_page_type_account">%s アカウント</string>
+  <string name="setting_provider_page_bonus_balance">ボーナス残高</string>
   <string name="setting_provider_page_device_code_hint">ブラウザでこのコードを確認してください</string>
   <string name="setting_provider_page_device_code_reopen">タップしてページを再度開きます</string>
   <string name="setting_provider_page_type_subscription">%s サブスクリプション</string>
@@ -2226,6 +2232,14 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_provider_group_title">グループ</string>
   <string name="setting_provider_page_api_key_add">Key を追加</string>
   <string name="setting_provider_page_api_key_label">ラベル</string>
+  <string name="setting_provider_page_model_key_group">Key グループ</string>
+  <string name="model_key_group_all">すべての Key</string>
+  <string name="model_key_group_missing">Key は利用不可</string>
+  <string name="setting_provider_page_model_account_group">アカウントグループ</string>
+  <string name="model_account_group_all">すべてのアカウント</string>
+  <string name="model_account_group_missing">アカウントは利用不可</string>
+  <string name="model_key_group_empty">このグループにはモデルがありません</string>
+  <string name="model_key_group_empty_desc">右下の「利用可能なモデル」から追加してください。ここで追加したモデルはこの Key のみを使います。</string>
   <string name="setting_provider_page_api_key_multi_desc">複数の Key を追加でき、リクエストが失敗すると自動で次の Key に切り替わります</string>
   <string name="setting_provider_page_api_key_number">API Key %d</string>
   <string name="setting_provider_page_context_block">MAX 到達時に送信をブロック</string>

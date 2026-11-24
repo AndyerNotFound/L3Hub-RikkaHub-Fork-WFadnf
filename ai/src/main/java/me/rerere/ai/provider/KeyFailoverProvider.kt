@@ -17,14 +17,8 @@ class KeyFailoverProvider<T : ProviderSetting>(
 ) : Provider<T> by delegate {
     private val counter = AtomicInteger(0)
 
-    private fun keysOf(setting: ProviderSetting): List<String> {
-        val provider = setting as? ProviderSetting.ApiKey ?: return emptyList()
-        val disabled = provider.disabledApiKeys.toSet()
-        return provider.apiKey.split(Regex("[\\s,]+"))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && it !in disabled }
-            .distinct()
-    }
+    private fun keysOf(setting: ProviderSetting): List<String> =
+        (setting as? ProviderSetting.ApiKey)?.availableKeys.orEmpty()
 
     /**
      * 只剩一个可用 Key 时也要把它换回去：apiKey 里可能存着多行 Key，

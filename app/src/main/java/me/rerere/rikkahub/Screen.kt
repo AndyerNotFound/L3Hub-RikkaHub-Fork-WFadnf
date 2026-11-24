@@ -121,9 +121,14 @@ sealed interface Screen {
     @Serializable
     data object SettingModels : Screen
 
-    /** 模型编辑页：modelId 为 null 时是新建 */
+    /** 模型编辑页：modelId 为 null 时新建；只存 Key 下标，导航状态不保存密钥文本。 */
     @Serializable
-    data class ModelEditor(val providerId: String, val modelId: String? = null) : Screen
+    data class ModelEditor(
+        val providerId: String,
+        val modelId: String? = null,
+        val keyIndex: Int? = null,
+        val accountId: String? = null,
+    ) : Screen
 
     @Serializable
     data object SettingAbout : Screen

@@ -55,7 +55,10 @@ fun rememberProviderQuota(
     // 查询配置或登录的账号变了要重新查
     val cacheKey = "${providerSetting.id}," + when (providerSetting) {
         is ProviderSetting.ApiKey -> providerSetting.quotaQuery.hashCode()
-        is ProviderSetting.Account -> providerSetting.credential?.accountId
+        // 换账号、停用或退出后重新查；不把凭据文本放进缓存键。
+        is ProviderSetting.Account -> providerSetting.accounts.map {
+            Triple(it.id, it.disabled, it.credential.accountId)
+        }.hashCode()
     }
     val quota by produceState(
         initialValue = cache.getIfPresent(cacheKey)?.let { Result.success(it) },

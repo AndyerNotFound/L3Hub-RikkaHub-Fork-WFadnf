@@ -88,6 +88,37 @@ class ModelDraftStateTest {
     }
 
     @Test
+    fun `new model seeds from the requested key group`() {
+        val newKey = ModelDraftKey(providerId = "provider-1", modelId = null)
+        val seed = Model(apiKeys = listOf("sk-group"))
+
+        val state = (null as ModelDraftState?).reconcile(newKey, null, providerLoaded = true, seed = seed)
+
+        assertEquals(listOf("sk-group"), state.model.apiKeys)
+        assertTrue(state.locked)
+    }
+
+    @Test
+    fun `provider loading late realigns the seed`() {
+        // provider 还没读出来时解析不出分组，seed 是空的那一份
+        val newKey = ModelDraftKey(providerId = "provider-1", modelId = null)
+        val loading = (null as ModelDraftState?).reconcile(newKey, null, providerLoaded = false)
+        assertFalse(loading.locked)
+        assertTrue(loading.model.apiKeys.isEmpty())
+
+        // 还没加载完就敲进去的名称不能丢
+        val typed = loading.withModel(loading.model.copy(modelId = "gpt-5.2", displayName = "gpt-5.2"), lock = false)
+
+        // provider 出来之后 seed 才带上分组：解锁状态下补上分组，已输入内容保留
+        val seeded = Model(apiKeys = listOf("sk-group"))
+        val loaded = typed.reconcile(newKey, null, providerLoaded = true, seed = seeded)
+
+        assertEquals(listOf("sk-group"), loaded.model.apiKeys)
+        assertEquals("gpt-5.2", loaded.model.modelId)
+        assertTrue(loaded.locked)
+    }
+
+    @Test
     fun `new model starts empty and keeps what the user typed`() {
         val newKey = ModelDraftKey(providerId = "provider-1", modelId = null)
         val state = (null as ModelDraftState?).reconcile(newKey, null, providerLoaded = true)

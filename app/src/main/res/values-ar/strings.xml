@@ -1683,6 +1683,12 @@
   <string name="setting_provider_page_quota_variables">المتغيرات: %1$s. يُرسَل مفتاح API إلى عنوان URL هذا مع الترويسات أعلاه.</string>
   <string name="setting_provider_page_sign_in_with">تسجيل الدخول باستخدام %1$s</string>
   <string name="setting_provider_page_grok_disclaimer">يستخدم اشتراك SuperGrok الخاص بك عبر تسجيل الدخول كما في Grok CLI. ميزة تجريبية: قد تغيّر xAI هذا أو تقيّده في أي وقت.</string>
+  <string name="setting_provider_page_deepseek_disclaimer">يسجّل الدخول بحساب منصة DeepSeek بدل مفتاح API. ميزة تجريبية: قد تغيّر DeepSeek هذا أو تقيّده في أي وقت.</string>
+  <string name="setting_provider_page_add_account">إضافة حساب</string>
+  <string name="setting_provider_page_sign_out_confirm">بعد تسجيل الخروج لن يشارك هذا الحساب في التوجيه، ويمكنك تسجيل الدخول مرة أخرى في أي وقت.</string>
+  <string name="setting_provider_page_account_disabled">معطّل</string>
+  <string name="setting_provider_page_type_account">حساب %s</string>
+  <string name="setting_provider_page_bonus_balance">الرصيد الإضافي</string>
   <string name="setting_provider_page_device_code_hint">أكّد هذا الرمز في المتصفح</string>
   <string name="setting_provider_page_device_code_reopen">اضغط لفتح الصفحة مرة أخرى</string>
   <string name="setting_provider_page_type_subscription">اشتراك %s</string>
@@ -2224,6 +2230,14 @@
   <string name="setting_provider_group_title">المجموعة</string>
   <string name="setting_provider_page_api_key_add">إضافة مفتاح</string>
   <string name="setting_provider_page_api_key_label">التسمية</string>
+  <string name="setting_provider_page_model_key_group">مجموعة المفاتيح</string>
+  <string name="model_key_group_all">كل المفاتيح</string>
+  <string name="model_key_group_missing">المفتاح غير متاح</string>
+  <string name="setting_provider_page_model_account_group">مجموعة الحسابات</string>
+  <string name="model_account_group_all">كل الحسابات</string>
+  <string name="model_account_group_missing">الحساب غير متاح</string>
+  <string name="model_key_group_empty">لا توجد نماذج في هذه المجموعة</string>
+  <string name="model_key_group_empty_desc">أضف النماذج من «النماذج المتاحة»؛ النماذج المضافة هنا تستخدم هذا المفتاح فقط.</string>
   <string name="setting_provider_page_api_key_multi_desc">يمكن إضافة عدة مفاتيح؛ وعند فشل الطلب يُنتقل تلقائيًا إلى المفتاح التالي</string>
   <string name="setting_provider_page_api_key_number">مفتاح API %d</string>
   <string name="setting_provider_page_context_block">منع الإرسال عند MAX</string>

@@ -32,8 +32,6 @@ import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
-import me.rerere.rikkahub.ui.components.ui.Tag
-import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -41,6 +39,8 @@ import me.rerere.ui.components.RikkaConfirmDialog
 internal fun ModelCard(
     model: Model,
     modifier: Modifier = Modifier,
+    // 这一条模型绑的 Key / 账号分组名，不分组的提供商为 null
+    keyGroupLabel: String? = null,
     onDelete: () -> Unit,
     onOpenEditor: () -> Unit,
 ) {
@@ -84,14 +84,9 @@ internal fun ModelCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (model.providerOverwrite != null) {
-                        Tag(type = TagType.INFO) {
-                            Text(
-                                model.providerOverwrite?.javaClass?.simpleName ?: model.providerOverwrite?.name
-                                ?: "ProviderOverwrite"
-                            )
-                        }
-                    }
+                    // 同一个模型按分组各存一条时名称一模一样，靠这个标签区分
+                    keyGroupLabel?.let { ModelGroupLabelTag(label = it) }
+                    ModelOverwriteTag(model.providerOverwrite)
                     ModelTypeTag(model = model)
                     ModelModalityTag(model = model)
                     ModelAbilityTag(model = model)

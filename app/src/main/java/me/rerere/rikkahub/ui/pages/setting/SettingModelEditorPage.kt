@@ -21,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,16 +41,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
-import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.availableKeys
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -81,7 +79,6 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.rememberNumberDraft
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
-import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
@@ -98,56 +95,6 @@ import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 
-/** 模型编辑器草稿的稳定身份：只跟 provider / model 的身份走，settings 换了实例也不算换模型 */
-internal data class ModelDraftKey(
-    val providerId: String,
-    val modelId: String?,
-)
-
-/**
- * 模型编辑器里的草稿。
- *
- * settings 每写一次（余额、联网搜索、WebUI 工具、价目表）都会生成新的 ProviderSetting / Model 实例，
- * 所以不能拿实例本身当 remember 的键，否则用户正在改的草稿会被回灌成已保存值。
- * 纯状态里的 [locked] 表示已经对齐或已经编辑。页面在第一次编辑前不保存这份状态，
- * 让尚未完成的加载继续刷新表单；用户第一次调用 withModel 后才锁住草稿，之后外部写入不再回灌。
- * 重新进入编辑器是新的组合、状态为 null，于是又会读一次最新已保存值。
- */
-internal data class ModelDraftState(
-    val key: ModelDraftKey,
-    val model: Model,
-    val locked: Boolean = false,
-)
-
-/**
- * 对齐草稿：身份没变且已经锁住就原样返回；provider 还没从存储里读出来时先不锁，
- * 等它出来再拿已保存值对齐一次。
- */
-internal fun ModelDraftState?.reconcile(
-    key: ModelDraftKey,
-    saved: Model?,
-    providerLoaded: Boolean,
-): ModelDraftState = when {
-    this == null || this.key != key -> ModelDraftState(
-        key = key,
-        model = saved?.copy() ?: Model(),
-        locked = providerLoaded,
-    )
-
-    this.locked -> this
-    providerLoaded -> copy(model = saved?.copy() ?: model, locked = true)
-    else -> this
-}
-
-/**
- * 用户改了草稿：之后外部写入的已保存值不再回灌。
- *
- * [lock] 为 false 时不锁（provider 还没读出来，页面上是一张还没对上已保存值的空表单）：
- * 一旦 provider 出来就按已保存值重新对齐，免得把空草稿当成用户的编辑保存回去。
- */
-internal fun ModelDraftState.withModel(model: Model, lock: Boolean = true): ModelDraftState =
-    copy(model = model, locked = lock)
-
 /**
  * 模型编辑页：原来是模型列表卡片里的一个 ModalBottomSheet，改成独立页面后可以从卡片直接展开。
  * [modelId] 为 null 时是新建。
@@ -156,6 +103,10 @@ internal fun ModelDraftState.withModel(model: Model, lock: Boolean = true): Mode
 internal fun ModelEditorPage(
     providerId: Uuid,
     modelId: String? = null,
+    // 从某个 Key 分组页进来时带上分组下标，新建的模型默认只绑这一把 Key
+    keyIndex: Int? = null,
+    // 从某个账号分组页进来时带上账号 id，新建的模型默认绑这个账号
+    accountId: String? = null,
     vm: SettingVM = koinViewModel(),
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -169,9 +120,27 @@ internal fun ModelEditorPage(
     val key = remember(providerId, modelId) {
         ModelDraftKey(providerId = providerId.toString(), modelId = modelId)
     }
+    // 分组不放进 ModelDraftKey：它只决定新建时默认绑谁，换分组不该把已经改了一半的草稿重建
+    val groupKey = remember(provider, keyIndex) {
+        keyIndex?.let { index -> (provider as? ProviderSetting.ApiKey)?.availableKeys?.getOrNull(index) }
+    }
+    val groupAccountId = remember(accountId) {
+        accountId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+    }
+    val seed = remember(groupKey, groupAccountId) {
+        Model(
+            apiKeys = listOfNotNull(groupKey),
+            accountIds = listOfNotNull(groupAccountId),
+        )
+    }
     // 草稿只按身份记住：外部写 settings 换掉 provider / model 实例不会冲掉用户正在改的内容
     var stored by remember { mutableStateOf<ModelDraftState?>(null) }
-    val draftState = stored.reconcile(key = key, saved = saved, providerLoaded = provider != null)
+    val draftState = stored.reconcile(
+        key = key,
+        saved = saved,
+        providerLoaded = provider != null,
+        seed = seed,
+    )
     val draft = draftState.model
     val isEdit = saved != null
 
@@ -348,7 +317,8 @@ private fun ModelSettingsPagerForm(
                         tools = model.tools,
                         onUpdateTools = { tools ->
                             onModelChange(model.copy(tools = tools))
-                        }
+                        },
+                        parentProvider = parentProvider,
                     )
                 }
             }
@@ -444,7 +414,8 @@ private fun ModelSettingsWideForm(
                     tools = model.tools,
                     onUpdateTools = { tools ->
                         onModelChange(model.copy(tools = tools))
-                    }
+                    },
+                    parentProvider = parentProvider,
                 )
             }
         }
@@ -642,6 +613,18 @@ private fun ModelAdvancedOptions(
     onModelChange: (Model) -> Unit,
     parentProvider: ProviderSetting?,
 ) {
+    ModelKeyGroupSetting(
+        model = model,
+        onModelChange = onModelChange,
+        parentProvider = parentProvider,
+    )
+
+    ModelAccountGroupSetting(
+        model = model,
+        onModelChange = onModelChange,
+        parentProvider = parentProvider,
+    )
+
     // 覆盖配置是提供商的独立副本，账号凭据不能复制出去，账号型提供商不支持覆盖
     if (parentProvider !is ProviderSetting.Account) {
         ProviderOverrideSettings(
@@ -1070,62 +1053,6 @@ private fun contextThresholdSummary(value: Int?, binary: Boolean): String = when
 private const val KIB = 1024
 
 @Composable
-private fun BuiltInToolsSettings(
-    tools: Set<BuiltInTools>,
-    onUpdateTools: (Set<BuiltInTools>) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.setting_page_built_in_tools),
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Text(
-            text = stringResource(R.string.setting_page_built_in_tools_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        val availableTools = listOf(
-            BuiltInTools.Search to Pair(
-                stringResource(R.string.setting_page_built_in_tools_search),
-                stringResource(R.string.setting_page_built_in_tools_search_desc)
-            ),
-            BuiltInTools.UrlContext to Pair(
-                stringResource(R.string.setting_page_built_in_tools_url_context),
-                stringResource(R.string.setting_page_built_in_tools_url_context_desc)
-            ),
-            BuiltInTools.ImageGeneration to Pair(
-                stringResource(R.string.setting_page_built_in_tools_image_generation),
-                stringResource(R.string.setting_page_built_in_tools_image_generation_desc)
-            )
-        )
-
-        CardGroup {
-            availableTools.fastForEach { (tool, info) ->
-                val (title, description) = info
-                val checked = tool in tools
-                val toggle = { enabled: Boolean ->
-                    onUpdateTools(if (enabled) tools + tool else tools - tool)
-                }
-                switchItem(
-                    checked = checked,
-                    onCheckedChange = toggle,
-                    supportingContent = { Text(text = description) },
-                    headlineContent = { Text(text = title) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun ProviderOverrideSettings(
     providerOverride: ProviderSetting?,
     onUpdateProviderOverride: (ProviderSetting?) -> Unit,
@@ -1274,5 +1201,6 @@ private fun ProviderOverrideSettings(
         }
     }
 }
+// DeepSeek 账号也能用 OCR 工具端点，同样允许建 OCR 模型
 private fun ProviderSetting?.supportsOcrModels(): Boolean =
-    this == null || this is ProviderSetting.OpenAI
+    this == null || this is ProviderSetting.OpenAI || this is ProviderSetting.DeepSeekAccount

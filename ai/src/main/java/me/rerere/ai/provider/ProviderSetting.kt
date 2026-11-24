@@ -18,14 +18,24 @@ data class OAuthCredential(
     val accountId: String? = null,
     // 以下仅用于界面展示
     val email: String? = null,
+    val displayName: String? = null,
     val plan: String? = null,
 ) {
     override fun toString(): String =
         "OAuthCredential(accessToken=${accessToken.masked()}, refreshToken=${refreshToken?.masked()}, " +
-            "expiresAt=$expiresAt, accountId=$accountId, email=$email, plan=$plan)"
+            "expiresAt=$expiresAt, accountId=$accountId, email=$email, displayName=$displayName, plan=$plan)"
 
     private fun String.masked(): String = if (length <= 8) "***" else "${take(4)}***${takeLast(4)}"
 }
+
+/** 账号型提供商里的一份登录；多账号时按列表顺序路由 */
+@Serializable
+data class AccountBinding(
+    val id: Uuid = Uuid.random(),
+    val credential: OAuthCredential,
+    // 手动停用的账号不参与路由，凭据仍然保留
+    val disabled: Boolean = false,
+)
 
 @Serializable
 enum class ClaudePromptCacheTtl(val apiValue: String?) {
@@ -46,8 +56,59 @@ val ProviderSetting.supportsBuiltInSearch: Boolean
         is ProviderSetting.OpenAI -> useResponseApi
         is ProviderSetting.Google -> true
         is ProviderSetting.Claude -> true
+        // DeepSeek 账号走 Messages 协议，联网搜索是客户端工具，不是服务端内置工具
+        is ProviderSetting.DeepSeekAccount -> false
         is ProviderSetting.Account -> true
     }
+
+/**
+ * 当前提供商能不能真的发出这个内置工具。
+ *
+ * 界面按它决定模型编辑页列出哪些开关。列出来却发不出去的开关只会把功能弄坏：账号型提供商
+ * 走 Messages 协议，模型上留着 web_search 时请求里没有它，客户端搜索又会以为已经有服务端搜索。
+ */
+fun ProviderSetting.supportsBuiltInTool(tool: BuiltInTools): Boolean = when (tool) {
+    BuiltInTools.Search -> supportsBuiltInSearch
+    // 只有 Gemini 的接口认 urlContext，其余实现里这一项是空转
+    BuiltInTools.UrlContext -> this is ProviderSetting.Google
+    // image_generation 是 Responses 协议的服务端工具
+    BuiltInTools.ImageGeneration ->
+        this is ProviderSetting.ChatGPT || this is ProviderSetting.Grok ||
+            (this is ProviderSetting.OpenAI && useResponseApi)
+}
+
+/**
+ * 多 Key 文本框的分隔符：换行、逗号、空白都当作两个 Key 之间。
+ *
+ * 分组页、故障转移和配置页读的是同一份文本框，拆分规则必须一致，
+ * 否则分组页里的 Key 和请求实际用上的 Key 会对不上。
+ */
+private val API_KEY_SEPARATOR = Regex("[\\s,]+")
+
+/** 启用中的 Key，按文本框里的顺序去重；停用的 Key 不参与请求，也不单独分组 */
+val ProviderSetting.ApiKey.availableKeys: List<String>
+    get() {
+        val disabled = disabledApiKeys.toSet()
+        return apiKey.split(API_KEY_SEPARATOR)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it !in disabled }
+            .distinct()
+    }
+
+/** 这个 Key 的备注，没写过备注时返回 null */
+fun ProviderSetting.ApiKey.keyLabel(key: String): String? =
+    apiKeyLabels[key]?.trim()?.takeIf { it.isNotEmpty() }
+
+/**
+ * 掩码后的 Key：没有备注时用它给分组起一个能认人的名字。
+ *
+ * 短 Key 也要留住首尾，否则几把同样短的 Key 会撞出同一个名字。
+ */
+fun maskedKey(key: String): String = when {
+    key.length <= 4 -> "••••"
+    key.length <= 12 -> "${key.take(2)}••${key.takeLast(2)}"
+    else -> "${key.take(4)}••••${key.takeLast(4)}"
+}
 
 @Serializable
 sealed class ProviderSetting {
@@ -74,6 +135,29 @@ sealed class ProviderSetting {
         () -> Unit
 
     fun addModel(model: Model): ProviderSetting = copyProvider(models = models + model)
+
+    /**
+     * 从远端目录添加一条模型。
+     *
+     * 同一个分组（同一把 Key、同一个账号）里已经有这条就什么都不做：分页里点错一次不该多出
+     * 第二条空价目的副本。别的分组里有同一个模型时沿用那一条的价目与变价规则——用户填过的价格
+     * 不该因为重加一次就归零。
+     */
+    fun addCatalogModel(model: Model): ProviderSetting {
+        val sameGroup = models.any { existing ->
+            existing.modelId == model.modelId &&
+                existing.apiKeys == model.apiKeys &&
+                existing.accountIds == model.accountIds
+        }
+        if (sameGroup) return this
+        val priced = models.firstOrNull { it.modelId == model.modelId && it.pricing.isConfigured }
+        val entry = if (priced != null && !model.pricing.isConfigured) {
+            model.copy(pricing = priced.pricing)
+        } else {
+            model
+        }
+        return copyProvider(models = models + entry)
+    }
 
     fun editModel(model: Model): ProviderSetting =
         copyProvider(models = models.map { if (it.id == model.id) model.copy() else it })
@@ -278,8 +362,16 @@ sealed class ProviderSetting {
      */
     @Serializable
     sealed class Account : ProviderSetting() {
-        /** 未登录时为 null */
+        /** 未登录时为 null；多账号时是当前用于路由的那一个 */
         abstract val credential: OAuthCredential?
+
+        /** 已登录的账号，按路由优先级排序；单账号类型就是 0 或 1 个 */
+        open val accounts: List<AccountBinding>
+            get() = credential?.let { listOf(AccountBinding(id = id, credential = it)) } ?: emptyList()
+
+        /** 写回整份账号列表；单账号类型只保留第一个 */
+        open fun withAccounts(accounts: List<AccountBinding>): Account =
+            withCredential(accounts.firstOrNull()?.credential)
 
         abstract fun withCredential(credential: OAuthCredential?): Account
     }
@@ -340,6 +432,65 @@ sealed class ProviderSetting {
         override val guard: ProviderGuard = ProviderGuard(),
     ) : Account() {
         override fun withCredential(credential: OAuthCredential?): Account = copy(credential = credential)
+
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            customHeaders: List<CustomHeader>,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+            guard: ProviderGuard,
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                customHeaders = customHeaders,
+                builtIn = builtIn,
+                description = description,
+                shortDescription = shortDescription,
+                guard = guard,
+            )
+        }
+    }
+
+    /**
+     * DeepSeek 平台账号（浏览器登录）。
+     *
+     * 没有 baseUrl 和 apiKey：推理走 api.deepseek.com 的 Messages 端点，只带 `x-dsh-auth-token`；
+     * 模型目录、充值余额与赠金都由账号读取，地址不可改，凭据也不会被发往第三方。
+     */
+    @Serializable
+    @SerialName("deepseek-account")
+    data class DeepSeekAccount(
+        override val id: Uuid = Uuid.random(),
+        override val enabled: Boolean = true,
+        override val name: String = "DeepSeek",
+        override val models: List<Model> = emptyList(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {
+            Text("用 DeepSeek 平台账号登录，不需要 API Key。模型目录、充值余额与赠金都由账号读取，接口地址固定。")
+        },
+        @Transient override val shortDescription: @Composable (() -> Unit) = {
+            Text("账号登录 · 地址固定")
+        },
+        override val accounts: List<AccountBinding> = emptyList(),
+        override val guard: ProviderGuard = ProviderGuard(),
+    ) : Account() {
+        /** 路由用的账号：第一个未停用的 */
+        override val credential: OAuthCredential?
+            get() = accounts.firstOrNull { !it.disabled }?.credential
+
+        override fun withCredential(credential: OAuthCredential?): Account = copy(
+            accounts = credential?.let { listOf(AccountBinding(credential = it)) } ?: emptyList()
+        )
+
+        override fun withAccounts(accounts: List<AccountBinding>): Account = copy(accounts = accounts)
 
         override fun copyProvider(
             id: Uuid,
