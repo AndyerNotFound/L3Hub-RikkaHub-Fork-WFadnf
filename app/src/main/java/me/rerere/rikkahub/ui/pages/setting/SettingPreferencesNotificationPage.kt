@@ -49,6 +49,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.switchItem
 
 import me.rerere.rikkahub.data.datastore.DisplaySetting
@@ -210,99 +212,94 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window)) },
                 )
-                if (displaySetting.enableFloatingChatWindow) {
-                    item(
-                        onClick = { showFloatingIconPicker = true },
-                        leadingContent = {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                FloatingBubbleIconThumb(
-                                    icon = displaySetting.floatingBubbleIcon,
-                                    size = 20.dp,
-                                )
-                            }
+                animatedItem(
+                    visible = { displaySetting.enableFloatingChatWindow },
+                    onClick = { showFloatingIconPicker = true },
+                    leadingContent = {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            FloatingBubbleIconThumb(
+                                icon = displaySetting.floatingBubbleIcon,
+                                size = 20.dp,
+                            )
+                        }
+                    },
+                    headlineContent = { Text(text = stringResource(R.string.floating_bubble_icon_title)) },
+                    supportingContent = { Text(stringResource(R.string.floating_bubble_icon_desc)) },
+                    trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                )
+                animatedFormItem(
+                    visible = { displaySetting.enableFloatingChatWindow },
+                    headlineContent = { Text(text = stringResource(R.string.floating_panel_width)) },
+                    trailingContent = {
+                        CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelWidth))
+                    },
+                ) {
+                    PercentNumberSlider(
+                        value = draftPanelWidth,
+                        onValueChange = { draftPanelWidth = FloatingPanelSizing.clampWidthRatio(it) },
+                        onValueChangeFinished = {
+                            updateDisplaySetting(displaySetting.copy(floatingPanelWidthRatio = draftPanelWidth))
                         },
-                        headlineContent = { Text(text = stringResource(R.string.floating_bubble_icon_title)) },
-                        supportingContent = { Text(stringResource(R.string.floating_bubble_icon_desc)) },
-                        trailingContent = { Icon(HugeIcons.ArrowRight01, contentDescription = null) },
+                        valueRange = FloatingPanelSizing.MIN_WIDTH_RATIO..FloatingPanelSizing.MAX_WIDTH_RATIO,
                     )
                 }
-                if (displaySetting.enableFloatingChatWindow) {
-                    formItem(
-                        headlineContent = { Text(text = stringResource(R.string.floating_panel_width)) },
-                        trailingContent = {
-                            CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelWidth))
+                animatedFormItem(
+                    visible = { displaySetting.enableFloatingChatWindow },
+                    headlineContent = { Text(text = stringResource(R.string.floating_panel_height)) },
+                    trailingContent = {
+                        CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelHeight))
+                    },
+                ) {
+                    PercentNumberSlider(
+                        value = draftPanelHeight,
+                        onValueChange = { draftPanelHeight = FloatingPanelSizing.clampHeightRatio(it) },
+                        onValueChangeFinished = {
+                            updateDisplaySetting(displaySetting.copy(floatingPanelHeightRatio = draftPanelHeight))
                         },
-                    ) {
-                        PercentNumberSlider(
-                            value = draftPanelWidth,
-                            onValueChange = { draftPanelWidth = FloatingPanelSizing.clampWidthRatio(it) },
-                            onValueChangeFinished = {
-                                updateDisplaySetting(displaySetting.copy(floatingPanelWidthRatio = draftPanelWidth))
-                            },
-                            valueRange = FloatingPanelSizing.MIN_WIDTH_RATIO..FloatingPanelSizing.MAX_WIDTH_RATIO,
-                        )
-                    }
+                        valueRange = FloatingPanelSizing.MIN_HEIGHT_RATIO..FloatingPanelSizing.MAX_HEIGHT_RATIO,
+                    )
                 }
-                if (displaySetting.enableFloatingChatWindow) {
-                    formItem(
-                        headlineContent = { Text(text = stringResource(R.string.floating_panel_height)) },
-                        trailingContent = {
-                            CardGroupValue(FloatingPanelSizing.percentLabel(draftPanelHeight))
-                        },
-                    ) {
-                        PercentNumberSlider(
-                            value = draftPanelHeight,
-                            onValueChange = { draftPanelHeight = FloatingPanelSizing.clampHeightRatio(it) },
-                            onValueChangeFinished = {
-                                updateDisplaySetting(displaySetting.copy(floatingPanelHeightRatio = draftPanelHeight))
-                            },
-                            valueRange = FloatingPanelSizing.MIN_HEIGHT_RATIO..FloatingPanelSizing.MAX_HEIGHT_RATIO,
+                animatedFormItem(
+                    visible = { displaySetting.enableFloatingChatWindow },
+                    headlineContent = { Text(text = stringResource(R.string.floating_preview_height)) },
+                    trailingContent = {
+                        CardGroupValue(
+                            stringResource(R.string.floating_size_dp, draftPreviewHeight.roundToInt())
                         )
-                    }
-                }
-                if (displaySetting.enableFloatingChatWindow) {
-                    formItem(
-                        headlineContent = { Text(text = stringResource(R.string.floating_preview_height)) },
-                        trailingContent = {
-                            CardGroupValue(
-                                stringResource(R.string.floating_size_dp, draftPreviewHeight.roundToInt())
+                    },
+                ) {
+                    NumberSlider(
+                        value = draftPreviewHeight.roundToInt(),
+                        onValueChange = { draftPreviewHeight = it.toFloat() },
+                        onValueChangeFinished = {
+                            updateDisplaySetting(
+                                displaySetting.copy(
+                                    floatingPreviewMaxHeight =
+                                    FloatingPanelSizing.clampPreviewHeight(draftPreviewHeight.roundToInt()),
+                                )
                             )
                         },
-                    ) {
-                        NumberSlider(
-                            value = draftPreviewHeight.roundToInt(),
-                            onValueChange = { draftPreviewHeight = it.toFloat() },
-                            onValueChangeFinished = {
-                                updateDisplaySetting(
-                                    displaySetting.copy(
-                                        floatingPreviewMaxHeight =
-                                        FloatingPanelSizing.clampPreviewHeight(draftPreviewHeight.roundToInt()),
-                                    )
-                                )
-                            },
-                            valueRange = FloatingPanelSizing.MIN_PREVIEW_HEIGHT_DP..
-                                FloatingPanelSizing.MAX_PREVIEW_HEIGHT_DP,
-                            suffix = "dp",
-                            steps = 0,
-                        )
-                    }
-                }
-                if (displaySetting.enableFloatingChatWindow && !canDrawOverlays) {
-                    item(
-                        onClick = ::requestOverlayPermission,
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc)) },
-                        trailingContent = {
-                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                        },
+                        valueRange = FloatingPanelSizing.MIN_PREVIEW_HEIGHT_DP..
+                            FloatingPanelSizing.MAX_PREVIEW_HEIGHT_DP,
+                        suffix = "dp",
+                        steps = 0,
                     )
                 }
+                animatedItem(
+                    visible = { displaySetting.enableFloatingChatWindow && !canDrawOverlays },
+                    onClick = ::requestOverlayPermission,
+                    headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission)) },
+                    supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_overlay_permission_desc)) },
+                    trailingContent = {
+                        Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                    },
+                )
                 item(
                     onClick = {
                         if (!ignoringBatteryOptimizations) requestIgnoreBatteryOptimizations()

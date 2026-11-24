@@ -45,8 +45,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
+import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.ui.theme.motionContentSize
 
 private val CardGroupCorner = 20.dp
 private val CardGroupItemSpacing = 2.dp
@@ -64,6 +64,8 @@ private data class CardGroupItem(
     val colors: ListItemColors?,
     // 不为空时是表单项，标题行下方接这块内容
     val formContent: (@Composable ColumnScope.() -> Unit)? = null,
+    // 从属项：随开关出现/消失，渲染时这一项自己做尺寸收放，不牵动组内其它行
+    val animatedVisible: (() -> Boolean)? = null,
 )
 
 @DslMarker
@@ -81,6 +83,7 @@ interface CardGroupScope {
         trailingContent: (@Composable () -> Unit)? = null,
         colors: ListItemColors? = null,
         headlineContent: @Composable () -> Unit,
+        animatedVisible: (() -> Boolean)? = null,
     )
 
     // 表单项：标题行下方带一块自定义内容（输入框、滑块等），不传标题时整项都是自定义内容
@@ -90,6 +93,7 @@ interface CardGroupScope {
         supportingContent: (@Composable () -> Unit)? = null,
         leadingContent: (@Composable () -> Unit)? = null,
         trailingContent: (@Composable () -> Unit)? = null,
+        animatedVisible: (() -> Boolean)? = null,
         content: @Composable ColumnScope.() -> Unit,
     )
 }
@@ -107,6 +111,7 @@ private class CardGroupScopeImpl : CardGroupScope {
         trailingContent: (@Composable () -> Unit)?,
         colors: ListItemColors?,
         headlineContent: @Composable () -> Unit,
+        animatedVisible: (() -> Boolean)?,
     ) {
         items.add(
             CardGroupItem(
@@ -119,6 +124,7 @@ private class CardGroupScopeImpl : CardGroupScope {
                 leadingContent = leadingContent,
                 trailingContent = trailingContent,
                 colors = colors,
+                animatedVisible = animatedVisible,
             )
         )
     }
@@ -129,6 +135,7 @@ private class CardGroupScopeImpl : CardGroupScope {
         supportingContent: (@Composable () -> Unit)?,
         leadingContent: (@Composable () -> Unit)?,
         trailingContent: (@Composable () -> Unit)?,
+        animatedVisible: (() -> Boolean)?,
         content: @Composable ColumnScope.() -> Unit,
     ) {
         items.add(
@@ -142,6 +149,7 @@ private class CardGroupScopeImpl : CardGroupScope {
                 trailingContent = trailingContent,
                 colors = null,
                 formContent = content,
+                animatedVisible = animatedVisible,
             )
         )
     }
@@ -167,6 +175,48 @@ fun CardGroupScope.switchItem(
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     },
     headlineContent = headlineContent,
+)
+
+// 随开关出现的从属行：只有这一项自己做尺寸收放
+fun CardGroupScope.animatedItem(
+    visible: () -> Boolean,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    overlineContent: (@Composable () -> Unit)? = null,
+    supportingContent: (@Composable () -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    colors: ListItemColors? = null,
+    headlineContent: @Composable () -> Unit,
+) = item(
+    onClick = onClick,
+    modifier = modifier,
+    overlineContent = overlineContent,
+    supportingContent = supportingContent,
+    leadingContent = leadingContent,
+    trailingContent = trailingContent,
+    colors = colors,
+    headlineContent = headlineContent,
+    animatedVisible = visible,
+)
+
+// 随开关出现的从属表单项
+fun CardGroupScope.animatedFormItem(
+    visible: () -> Boolean,
+    modifier: Modifier = Modifier,
+    headlineContent: (@Composable () -> Unit)? = null,
+    supportingContent: (@Composable () -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) = formItem(
+    modifier = modifier,
+    headlineContent = headlineContent,
+    supportingContent = supportingContent,
+    leadingContent = leadingContent,
+    trailingContent = trailingContent,
+    animatedVisible = visible,
+    content = content,
 )
 
 // 分组里第 index 项的形状，给不方便走 CardGroup 的列表（比如可拖拽排序的）用
@@ -335,9 +385,9 @@ fun CardGroup(
     val scope = CardGroupScopeImpl()
     scope.content()
 
-    // 卡片高度跟着内容走：组内条目增减（从属项随开关出现/消失）时整卡平滑收放，
-    // 而不是一帧跳变。条目本身仍写普通 if，形状与间距由下面按可见项统一算。
-    Column(modifier = modifier.motionContentSize()) {
+    // 卡片高度不在这里做动画：整卡 animateContentSize 会把不相关的行一起拉伸。
+    // 需要收放的从属项由 animatedItem / animatedFormItem / animatedSwitchItem 自己处理。
+    Column(modifier = modifier) {
         if (title != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
                 ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
@@ -350,13 +400,28 @@ fun CardGroup(
         val count = scope.items.size
         scope.items.fastForEachIndexed { index, item ->
             val formContent = item.formContent
-            if (formContent != null) {
-                CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+            val visibleCheck = item.animatedVisible
+            if (visibleCheck == null) {
+                if (formContent != null) {
+                    CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+                } else {
+                    CardGroupListItem(item = item, count = count, index = index)
+                }
+                if (index != count - 1) {
+                    Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                }
             } else {
-                CardGroupListItem(item = item, count = count, index = index)
-            }
-            if (index != count - 1) {
-                Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                // 从属项：只有这一项自己做尺寸收放，组内其它行不动
+                MotionExpandCollapse(visible = visibleCheck()) {
+                    if (formContent != null) {
+                        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+                    } else {
+                        CardGroupListItem(item = item, count = count, index = index)
+                    }
+                    if (index != count - 1) {
+                        Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                    }
+                }
             }
         }
     }
