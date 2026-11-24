@@ -449,7 +449,11 @@ private fun DetailSection(
         Text(
             text = effectiveDescription.ifBlank { noDescription },
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (effectiveDescription.isBlank()) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
         if (effectiveInstructions.isNotBlank()) {
             Text(
@@ -667,7 +671,6 @@ private fun ToolSheetSection(
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
         )
         content()
     }

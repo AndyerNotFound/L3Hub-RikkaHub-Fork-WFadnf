@@ -113,7 +113,7 @@ fun ChatMessageCopySheet(
                     Text(
                         text = stringResource(R.string.no_text_content_to_copy),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }

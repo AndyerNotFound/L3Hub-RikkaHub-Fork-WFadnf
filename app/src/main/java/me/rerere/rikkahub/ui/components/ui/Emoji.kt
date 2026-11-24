@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -23,8 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -41,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +55,22 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.Emoji
 import me.rerere.rikkahub.utils.EmojiData
 import org.koin.compose.koinInject
+
+private data class EmojiTab(val icon: String, @StringRes val labelRes: Int)
+
+// Keys match the categories in the bundled emoji data.
+private val emojiTabs = mapOf(
+    "Smileys & Emotion" to EmojiTab("\uD83D\uDE03", R.string.emoji_category_smileys),
+    "People & Body" to EmojiTab("\uD83D\uDC64", R.string.emoji_category_people),
+    "Component" to EmojiTab("\uD83E\uDDF4", R.string.emoji_category_components),
+    "Animals & Nature" to EmojiTab("\uD83D\uDC3B", R.string.emoji_category_nature),
+    "Food & Drink" to EmojiTab("\uD83C\uDF5B", R.string.emoji_category_food),
+    "Travel & Places" to EmojiTab("\uD83C\uDF04", R.string.emoji_category_travel),
+    "Activities" to EmojiTab("\uD83C\uDFA3", R.string.emoji_category_activities),
+    "Objects" to EmojiTab("\uD83D\uDCBB", R.string.emoji_category_objects),
+    "Symbols" to EmojiTab("\uD83C\uDF00", R.string.emoji_category_symbols),
+    "Flags" to EmojiTab("\uD83D\uDEA9", R.string.emoji_category_flags),
+)
 
 @Preview
 @Composable
@@ -112,55 +128,27 @@ fun EmojiPicker(
                     )
                 }
 
-                // Category tabs
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                TopTabRow(
+                    selectedIndex = selectedCategoryIndex,
+                    modifier = Modifier.padding(bottom = 8.dp),
                 ) {
-                    items(data.categories.size) { index ->
-                        val category = data.categories[index]
-                        val isSelected = selectedCategoryIndex == index
-
-                        Card(
-                            modifier = Modifier
-                                .clickable {
-                                    selectedCategoryIndex = index
-                                    coroutineScope.launch {
-                                        lazyListState.animateScrollToItem(0)
-                                    }
+                    data.categories.forEachIndexed { index, category ->
+                        val tab = emojiTabs[category.name]
+                        TopTab(
+                            selected = selectedCategoryIndex == index,
+                            onClick = {
+                                selectedCategoryIndex = index
+                                coroutineScope.launch {
+                                    lazyListState.animateScrollToItem(0)
                                 }
-                                .clip(RoundedCornerShape(20.dp)),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                }
-                            )
+                            },
+                            label = if (tab == null) category.name else stringResource(tab.labelRes),
                         ) {
                             Text(
-                                text = when (category.name) {
-                                    "Smileys & Emotion" -> "\uD83D\uDE03"
-                                    "People & Body" -> "\uD83D\uDC64"
-                                    "Component" -> "\uD83E\uDDF4"
-                                    "Animals & Nature" -> "\uD83D\uDC3B"
-                                    "Food & Drink" -> "\uD83C\uDF5B"
-                                    "Travel & Places" -> "\uD83C\uDF04"
-                                    "Activities" -> "\uD83C\uDFA3"
-                                    "Objects" -> "\uD83D\uDCBB"
-                                    "Symbols" -> "\uD83C\uDF00"
-                                    "Flags" -> "\uD83D\uDEA9"
-                                    else -> category.name
-                                },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
+                                text = tab?.icon ?: "\uD83D\uDE03",
+                                modifier = Modifier.clearAndSetSemantics {},
+                                fontSize = 20.sp,
+                                maxLines = 1,
                             )
                         }
                     }

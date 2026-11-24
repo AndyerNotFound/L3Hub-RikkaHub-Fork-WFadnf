@@ -716,7 +716,6 @@ private fun AssetPickerSheet(
         Text(
             text = stringResource(R.string.media_creation_page_recent_outputs),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (recentOutputs.isEmpty()) {
             Text(
@@ -792,7 +791,6 @@ private fun ModelSheet(
                             Text(
                                 text = name,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

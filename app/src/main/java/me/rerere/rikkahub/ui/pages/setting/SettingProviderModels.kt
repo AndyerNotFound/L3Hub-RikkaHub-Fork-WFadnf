@@ -66,9 +66,11 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Alert01
+import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.hugeicons.stroke.UserCircle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
@@ -195,6 +197,7 @@ internal fun ModelList(
                     selectedKey = pageKey,
                     onSelect = { key -> selectedTab = tabs.indexOfFirst { it.key == key }.coerceAtLeast(0) },
                     modifier = Modifier.padding(top = 4.dp),
+                    groupIcon = if (keyGroups.isNotEmpty()) HugeIcons.Key01 else HugeIcons.UserCircle,
                 )
             }
 

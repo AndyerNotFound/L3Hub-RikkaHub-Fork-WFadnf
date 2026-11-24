@@ -144,7 +144,7 @@ fun UpdateCard(vm: ChatVM) {
                 Text(
                     text = Instant.parse(info.publishedAt).toJavaInstant().toLocalDateTime(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 MarkdownBlock(
                     content = info.changelog,

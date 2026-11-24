@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,28 +27,38 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.AiBrain01
+import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.CheckList
+import me.rerere.hugeicons.stroke.Clock01
+import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.GitFork
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.TopTab
+import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.style.DropdownMenu
@@ -68,16 +76,17 @@ import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 internal enum class ChatSidePane(
     // 标签页上的名字。看板自己不再画标题行，标题归标签条
     @StringRes val titleRes: Int,
+    val icon: ImageVector,
 ) {
-    Details(R.string.chat_page_details_button),
-    TaskTree(R.string.task_tree_title),
-    Status(R.string.chat_page_side_panel_status),
-    Usage(R.string.chat_message_usage_title),
-    Files(R.string.chat_page_side_panel_files),
-    Workspace(R.string.chat_page_side_panel_workspace),
-    Terminal(R.string.chat_page_side_panel_terminal),
-    ModelPicker(R.string.chat_page_side_panel_model),
-    BackgroundTasks(R.string.background_tasks_title),
+    Details(R.string.chat_page_details_button, HugeIcons.BubbleChat),
+    TaskTree(R.string.task_tree_title, HugeIcons.GitFork),
+    Status(R.string.chat_page_side_panel_status, HugeIcons.CheckList),
+    Usage(R.string.chat_message_usage_title, HugeIcons.ChartColumn),
+    Files(R.string.chat_page_side_panel_files, HugeIcons.File02),
+    Workspace(R.string.chat_page_side_panel_workspace, HugeIcons.Folder01),
+    Terminal(R.string.chat_page_side_panel_terminal, HugeIcons.ComputerTerminal01),
+    ModelPicker(R.string.chat_page_side_panel_model, HugeIcons.AiBrain01),
+    BackgroundTasks(R.string.background_tasks_title, HugeIcons.Clock01),
 }
 
 /**
@@ -172,7 +181,7 @@ internal fun ChatSidePanelColumn(
     }
 }
 
-/** 标签条：横向滚动的标签 + 末尾的「新建标签页」。样式和终端页的分页条一致 */
+/** 可关闭的顶部标签 + 末尾的「新建标签页」。 */
 @Composable
 private fun ChatSidePanelTabStrip(
     panes: List<ChatSidePane>,
@@ -190,46 +199,28 @@ private fun ChatSidePanelTabStrip(
             .padding(start = 8.dp, end = 4.dp, top = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SecondaryScrollableTabRow(
-            selectedTabIndex = selectedIndex,
+        TopTabRow(
+            selectedIndex = selectedIndex,
             modifier = Modifier.weight(1f),
-            edgePadding = 0.dp,
-            minTabWidth = 104.dp,
-            containerColor = Color.Transparent,
+            minTabWidth = 112.dp,
         ) {
             panes.forEach { pane ->
-                Tab(
-                    selected = pane == selected,
-                    onClick = { onSelect(pane) },
-                    modifier = Modifier
-                        .height(38.dp)
-                        .widthIn(min = 104.dp, max = 200.dp),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 14.dp, end = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = stringResource(pane.titleRes),
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        IconButton(
-                            onClick = { onClose(pane) },
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Cancel01,
-                                contentDescription = stringResource(R.string.chat_page_side_panel_close_tab),
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
-                    }
+                key(pane) {
+                    TopTab(
+                        selected = pane == selected,
+                        onClick = { onSelect(pane) },
+                        label = stringResource(pane.titleRes),
+                        icon = pane.icon,
+                        trailingAction = {
+                            IconButton(onClick = { onClose(pane) }, modifier = Modifier.size(48.dp)) {
+                                Icon(
+                                    imageVector = HugeIcons.Cancel01,
+                                    contentDescription = stringResource(R.string.chat_page_side_panel_close_tab),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        },
+                    )
                 }
             }
         }

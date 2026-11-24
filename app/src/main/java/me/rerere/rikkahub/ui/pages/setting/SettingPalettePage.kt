@@ -610,7 +610,6 @@ private fun PaletteEditSheet(
                                 Text(
                                     text = header,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(Modifier.weight(1f))
                                 Icon(
@@ -625,7 +624,6 @@ private fun PaletteEditSheet(
                             Text(
                                 text = header,
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
                             )
                     }

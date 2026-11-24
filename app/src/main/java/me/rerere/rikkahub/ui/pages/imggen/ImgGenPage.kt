@@ -833,7 +833,12 @@ private fun SettingsBottomSheet(
 
             FormItem(
                 label = { Text(stringResource(R.string.imggen_page_generation_count)) },
-                description = { Text(stringResource(R.string.imggen_page_generation_count_desc)) }
+                description = {
+                    Text(
+                        text = stringResource(R.string.imggen_page_generation_count_desc),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             ) {
                 OutlinedNumberInput(
                     value = numberOfImages,

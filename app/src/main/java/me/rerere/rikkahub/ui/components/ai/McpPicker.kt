@@ -135,7 +135,8 @@ fun McpPickerButton(
                     LinearWavyProgressIndicator()
                     Text(
                         text = stringResource(id = R.string.mcp_picker_syncing),
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

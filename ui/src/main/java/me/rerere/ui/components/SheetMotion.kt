@@ -2,6 +2,8 @@ package me.rerere.ui.components
 
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -87,7 +89,10 @@ fun SaltModalSheet(
                 detents = detents,
             ),
         ) {
-            content()
+            // Salt 和 M3 的 LocalContentColor 独立，M3 正文不能继承打开 Sheet 的组件颜色。
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                content()
+            }
         }
     }
 }

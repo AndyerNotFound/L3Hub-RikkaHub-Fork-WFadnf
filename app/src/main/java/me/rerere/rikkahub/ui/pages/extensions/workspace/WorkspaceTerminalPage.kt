@@ -19,20 +19,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,8 +52,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import kotlinx.coroutines.flow.flowOf
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.TopTab
+import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.ColorMode
@@ -172,65 +176,36 @@ private fun WorkspaceTerminalContent(
                 BackButton()
                 Box(modifier = Modifier.weight(1f)) {
                     if (selectedTab != null) {
-                        SecondaryScrollableTabRow(
-                            selectedTabIndex = selectedIndex,
-                            modifier = Modifier.fillMaxWidth(),
-                            edgePadding = 0.dp,
+                        TopTabRow(
+                            selectedIndex = selectedIndex,
                             minTabWidth = 160.dp,
-                            containerColor = MaterialTheme.colorScheme.surface,
                         ) {
                             state.tabs.forEach { tab ->
-                                val tabDescription = stringResource(
-                                    R.string.workspace_terminal_tab,
-                                    tab.number,
-                                )
-                                val tabTitle = tab.title ?: tabDescription
-                                val isSelected = selectedTab.id == tab.id
-                                Tab(
-                                    selected = isSelected,
-                                    onClick = { onSelectTab(tab.id) },
-                                    modifier = Modifier
-                                        .height(48.dp)
-                                        .widthIn(min = 160.dp, max = 240.dp)
-                                        .semantics {
-                                            contentDescription = tabTitle
+                                key(tab.id) {
+                                    val isSelected = selectedTab.id == tab.id
+                                    TopTab(
+                                        selected = isSelected,
+                                        onClick = { onSelectTab(tab.id) },
+                                        label = tab.title ?: stringResource(R.string.workspace_terminal_tab, tab.number),
+                                        icon = HugeIcons.ComputerTerminal01,
+                                        labelModifier = if (isSelected) {
+                                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                        } else {
+                                            Modifier
                                         },
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(start = 16.dp, end = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        Text(
-                                            text = tabTitle,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .then(
-                                                    if (isSelected) Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                                                    else Modifier,
-                                                ),
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = if (isSelected) TextOverflow.Clip else TextOverflow.Ellipsis,
-                                            style = MaterialTheme.typography.labelMedium,
-                                        )
-                                        val closeDescription = stringResource(
-                                            R.string.workspace_terminal_close_tab,
-                                            tab.number,
-                                        )
-                                        IconButton(
-                                            onClick = { onCloseTab(tab.id) },
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .semantics {
-                                                    contentDescription = closeDescription
-                                                },
-                                        ) {
-                                            Text(text = "×", fontSize = 18.sp)
-                                        }
-                                    }
+                                        labelOverflow = if (isSelected) TextOverflow.Clip else TextOverflow.Ellipsis,
+                                        trailingAction = {
+                                            IconButton(onClick = { onCloseTab(tab.id) }, modifier = Modifier.size(48.dp)) {
+                                                Icon(
+                                                    imageVector = HugeIcons.Cancel01,
+                                                    contentDescription = stringResource(
+                                                        R.string.workspace_terminal_close_tab, tab.number,
+                                                    ),
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         }

@@ -1,45 +1,17 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
-import kotlinx.coroutines.launch
-import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
-import me.rerere.rikkahub.ui.shape.withInterpolatableCorners
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 
 internal interface PagerTab {
     val icon: ImageVector
@@ -47,7 +19,9 @@ internal interface PagerTab {
         @Composable get
 }
 
-// 分页切换：可横向滚动的切换按钮，选中项带图标；tabs 的顺序要和 pager 的页一一对应
+private class TabRequest(val index: Int)
+
+// tabs 的顺序要和 pager 的页一一对应。
 @Composable
 internal fun PagerTabs(
     pagerState: PagerState,
@@ -55,80 +29,35 @@ internal fun PagerTabs(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
-    val scope = rememberCoroutineScope()
-    // 用 targetPage 而不是 currentPage，跨多页跳转时中间的按钮不会依次闪过
-    val selectedIndex = pagerState.targetPage
-    val requesters = remember(tabs) { tabs.map { BringIntoViewRequester() } }
-
-    // 滑动翻页后，把选中的按钮滚进可视范围
-    LaunchedEffect(selectedIndex) {
-        requesters[selectedIndex].bringIntoView()
+    var request by remember(pagerState) { mutableStateOf<TabRequest?>(null) }
+    val pending = request
+    val selectedIndex = pending?.index ?: pagerState.targetPage
+    LaunchedEffect(pagerState, pending) {
+        if (pending == null) return@LaunchedEffect
+        try {
+            pagerState.animateScrollToPage(pending.index)
+        } finally {
+            if (request === pending) request = null
+        }
     }
 
-    // 未选中的选项卡是玻璃底；选中态保持 ToggleButton 默认的 secondaryContainer
-    val tabContainerColor = glassColor(MaterialTheme.colorScheme.surfaceContainerHighest)
-    // 进出两个方向的位移与显隐用同一组曲线：收起就是展开的倒放，模糊也能跟着同一条时间线走
-    val motionScheme = MaterialTheme.motionScheme
-    // 三种状态使用同一主题轮廓族，避免固定 CircleShape 与自定义按下/选中形状互不支持 lerp。
-    val baseShapes = ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
-    val prototype = MaterialTheme.shapes.medium
-    val tabShapes = remember(baseShapes, prototype) {
-        baseShapes.withInterpolatableCorners(prototype)
+    // 点标签时直接伸向目标；滑动页面时则逐帧跟随 Pager（避免重组整排标签）。
+    val pagePosition = remember(pagerState) {
+        { pagerState.currentPage + pagerState.currentPageOffsetFraction }
     }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(contentPadding)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    TopTabRow(
+        selectedIndex = selectedIndex,
+        modifier = modifier,
+        contentPadding = contentPadding,
+        swipePosition = pagePosition.takeIf { pending == null && pagerState.isScrollInProgress },
     ) {
         tabs.fastForEachIndexed { index, tab ->
-            val selected = index == selectedIndex
-            ToggleButton(
-                checked = selected,
-                onCheckedChange = {
-                    if (!selected) scope.launch { pagerState.animateScrollToPage(index) }
-                },
-                modifier = Modifier
-                    .bringIntoViewRequester(requesters[index])
-                    // 模糊整块选项卡，而不只是展开的图标：底色（图标后面的「后景」）也跟着一起糊；
-                    // 收起时从清晰渐变推上去，不再一翻状态就糊满
-                    .motionBlurOnToggle(
-                        toggle = selected,
-                        maxRadius = 5.dp,
-                        animationSpec = motionScheme.fastSpatialSpec(),
-                    )
-                    .semantics { role = Role.Tab },
-                shapes = tabShapes,
-                colors = ToggleButtonDefaults.colors(
-                    containerColor = tabContainerColor,
-                ),
-            ) {
-                AnimatedVisibility(
-                    visible = selected,
-                    // Tab 指示条用 fast 档：比页面转场紧一级，跟手不拖
-                    enter = expandHorizontally(rememberFastSpatialSpec()) +
-                        fadeIn(rememberEffectsSpec()),
-                    exit = shrinkHorizontally(rememberFastSpatialSpec()) +
-                        fadeOut(rememberEffectsSpec()),
-                ) {
-                    Row {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
-                        )
-                        Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
-                    }
-                }
-                Text(
-                    text = tab.label,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
+            TopTab(
+                selected = index == selectedIndex,
+                onClick = { if (index != selectedIndex) request = TabRequest(index) },
+                label = tab.label,
+                icon = tab.icon,
+            )
         }
     }
 }

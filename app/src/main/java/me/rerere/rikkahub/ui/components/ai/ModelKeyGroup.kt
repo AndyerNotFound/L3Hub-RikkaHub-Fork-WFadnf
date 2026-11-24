@@ -1,27 +1,27 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.availableKeys
 import me.rerere.ai.provider.keyLabel
 import me.rerere.ai.provider.maskedKey
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.TopTab
+import me.rerere.rikkahub.ui.components.ui.TopTabRow
 
 /**
  * 模型列表里的一页：一把启用的 Key，或收「没有绑定 Key」的模型的那一页。
@@ -102,9 +102,9 @@ fun ModelKeyGroupTag(model: Model, providerSetting: ProviderSetting) {
 }
 
 /**
- * 横向滚动的 Key 分组条：一个分组一段，选中项高亮。
+ * Key/账号模型分组标签，空间不足时可横向滚动。
  *
- * [compact] 给模型选择窗口的右栏用，高度、字号和内边距都收一档。
+ * [compact] 给较窄的模型选择窗口右栏使用。
  */
 @Composable
 fun ModelKeyGroupStrip(
@@ -113,35 +113,23 @@ fun ModelKeyGroupStrip(
     onSelect: (String?) -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    groupIcon: ImageVector = HugeIcons.Key01,
 ) {
     if (groups.isEmpty()) return
     val selectedIndex = groups.indexOfFirst { it.key == selectedKey }.coerceAtLeast(0)
-    val tabHeight = if (compact) 34.dp else 40.dp
-    val minTabWidth = if (compact) 64.dp else 88.dp
-    SecondaryScrollableTabRow(
-        selectedTabIndex = selectedIndex,
-        modifier = modifier.fillMaxWidth(),
-        edgePadding = if (compact) 8.dp else 16.dp,
-        minTabWidth = minTabWidth,
-        containerColor = Color.Transparent,
+    TopTabRow(
+        selectedIndex = selectedIndex,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = if (compact) 8.dp else 16.dp),
+        minTabWidth = if (compact) 72.dp else 88.dp,
     ) {
-        groups.fastForEach { group ->
-            Tab(
-                selected = group.key == selectedKey,
-                onClick = { onSelect(group.key) },
-                modifier = Modifier
-                    .height(tabHeight)
-                    .widthIn(min = minTabWidth, max = 200.dp),
-            ) {
-                Text(
-                    text = group.name,
-                    style = if (compact) {
-                        MaterialTheme.typography.labelMedium
-                    } else {
-                        MaterialTheme.typography.labelLarge
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+        groups.forEachIndexed { index, group ->
+            key(group.key) {
+                TopTab(
+                    selected = index == selectedIndex,
+                    onClick = { onSelect(group.key) },
+                    label = group.name,
+                    icon = if (group.key == null) HugeIcons.Layers01 else groupIcon,
                 )
             }
         }

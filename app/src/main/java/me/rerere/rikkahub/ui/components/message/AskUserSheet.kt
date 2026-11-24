@@ -122,14 +122,13 @@ fun AskUserSheet(
                 Text(
                     text = stringResource(R.string.ask_user_question_count, currentIndex + 1, questions.size),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 current.header?.let { header ->
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = header,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),

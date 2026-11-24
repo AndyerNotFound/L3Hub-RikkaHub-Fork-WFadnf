@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -33,8 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -75,6 +71,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.TopTab
+import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -317,30 +315,18 @@ private fun FolderRow(
     selectedFolder: String,
     onFolderSelected: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    TopTabRow(
+        selectedIndex = folders.indexOf(selectedFolder),
+        modifier = Modifier.padding(vertical = 4.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
         folders.forEach { folder ->
-            val selected = selectedFolder == folder
-            ToggleButton(
-                checked = selected,
-                onCheckedChange = { if (!selected) onFolderSelected(folder) },
-                modifier = Modifier.semantics { role = Role.Tab },
-                colors = ToggleButtonDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ),
-            ) {
-                Text(
-                    text = folderDisplayName(folder),
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
+            TopTab(
+                selected = selectedFolder == folder,
+                onClick = { onFolderSelected(folder) },
+                label = folderDisplayName(folder),
+                icon = HugeIcons.FolderOpen,
+            )
         }
     }
 }
