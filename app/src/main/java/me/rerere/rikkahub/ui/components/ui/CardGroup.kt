@@ -423,35 +423,43 @@ fun CardGroup(
                 }
             }
         }
-        val count = scope.items.size
+        // 形状只按当前可见的条目算：收起的从属项不占名额，否则组内圆角会错位
+        val visibleCount = scope.items.count { it.animatedVisible?.invoke() != false }
+        val lastVisibleIndex = scope.items.indexOfLast { it.animatedVisible?.invoke() != false }
+        // 每个条目在「可见序列」里的位置，用于决定四角是外侧圆角还是内侧小圆角
+        var shapeIndex = 0
         scope.items.fastForEachIndexed { index, item ->
             val formContent = item.formContent
             val visibleCheck = item.animatedVisible
             if (visibleCheck == null) {
+                val slot = shapeIndex++
                 if (formContent != null) {
-                    CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+                    CardGroupFormItem(item = item, formContent = formContent, count = visibleCount, index = slot)
                 } else {
-                    CardGroupListItem(item = item, count = count, index = index)
+                    CardGroupListItem(item = item, count = visibleCount, index = slot)
                 }
-                if (index != count - 1) {
+                if (index != lastVisibleIndex) {
                     Spacer(modifier = Modifier.height(CardGroupItemSpacing))
                 }
             } else {
                 // 从属项：只有这一项自己做尺寸收放，组内其它行不动。
-                // 间距放在收放范围外面，展开后与普通条目之间才有同样的上下间隔。
+                // AnimatedVisibility 的内容会叠在同一个位置，间距必须放在它外面，
+                // 且只在可见时给，收起时不能留下空档。
+                val visible = visibleCheck()
+                val slot = if (visible) shapeIndex++ else shapeIndex
                 MotionExpandCollapse(
-                    visible = visibleCheck(),
+                    visible = visible,
                     maxBlurRadius = 0.dp,
                     enter = rememberRevealEnter(),
                     exit = rememberRevealExit(),
                 ) {
                     if (formContent != null) {
-                        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+                        CardGroupFormItem(item = item, formContent = formContent, count = visibleCount, index = slot)
                     } else {
-                        CardGroupListItem(item = item, count = count, index = index)
+                        CardGroupListItem(item = item, count = visibleCount, index = slot)
                     }
                 }
-                if (index != count - 1) {
+                if (visible && index != lastVisibleIndex) {
                     Spacer(modifier = Modifier.height(CardGroupItemSpacing))
                 }
             }
