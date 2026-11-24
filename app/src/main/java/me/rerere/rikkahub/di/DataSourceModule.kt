@@ -45,6 +45,7 @@ import me.rerere.rikkahub.data.sync.KelivoExporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.bridge.VersionSyncClient
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
+import me.rerere.rikkahub.extension.ExtensionRegistry
 import me.rerere.rikkahub.service.memoryDreamKeepAlive
 import me.rerere.search.SearchService
 import okhttp3.MediaType.Companion.toMediaType
@@ -278,7 +279,16 @@ val dataSourceModule = module {
     }
 
     single {
-        ProviderManager(client = get(), context = get(), accountCredentials = get<ProviderAccountManager>())
+        ExtensionRegistry().freeze(reservedProviderTypes = ProviderManager.BUILT_IN_PROVIDER_TYPES)
+    }
+
+    single {
+        ProviderManager(
+            client = get(),
+            context = get(),
+            accountCredentials = get<ProviderAccountManager>(),
+            extensionProviders = get<ExtensionRegistry>().providerSnapshot(),
+        )
     }
 
     single { BackupManager(context = get(), database = get(), settingsStore = get(), json = get()) }

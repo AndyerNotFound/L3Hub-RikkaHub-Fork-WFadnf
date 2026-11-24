@@ -378,6 +378,7 @@ dependencies {
     implementation(project(":terminal"))
     implementation(project(":oauth"))
     implementation(project(":syncproto"))
+    implementation(project(":extension-api"))
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     // Leak Canary
