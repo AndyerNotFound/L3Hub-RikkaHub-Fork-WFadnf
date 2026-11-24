@@ -1,11 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -357,48 +352,23 @@ private fun CardGroupListItem(
     count: Int,
     index: Int,
 ) {
-    val isFirst = index == 0
-    val isLast = index == count - 1
-
+    // 首尾圆角与按压形变交给 M3 官方的分段形状：它按 index/count 解析，
+    // 条目增减时自然跟着变，不用自己算四角
+    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
 
-    val topCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isFirst) CardGroupCorner else CardGroupInnerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isLast) CardGroupCorner else CardGroupInnerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
-
-    ListItem(
-        headlineContent = item.headlineContent ?: {},
-        modifier = item.modifier
-            .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(
-                    topStart = topCorner,
-                    topEnd = topCorner,
-                    bottomStart = bottomCorner,
-                    bottomEnd = bottomCorner,
-                )
-            )
-            .then(
-                if (item.onClick != null || item.onLongClick != null) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = item.onClick ?: {},
-                        onLongClick = item.onLongClick,
-                    )
-                } else Modifier
-            ),
+    SegmentedListItem(
+        shapes = shapes,
+        modifier = item.modifier.fillMaxWidth(),
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,
         leadingContent = item.leadingContent,
         trailingContent = item.trailingContent,
         colors = item.colors ?: CustomColors.listItemColors,
+        onClick = item.onClick ?: {},
+        onLongClick = item.onLongClick,
+        interactionSource = interactionSource,
+        content = item.headlineContent ?: {},
     )
 }
 
