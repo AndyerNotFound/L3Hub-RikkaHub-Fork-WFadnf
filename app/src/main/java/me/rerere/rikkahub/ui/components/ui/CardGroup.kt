@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -51,14 +54,9 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEachIndexed
-import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.ui.theme.rememberRevealEnter
-import me.rerere.rikkahub.ui.theme.rememberRevealExit
 
 private val CardGroupCorner = 20.dp
-private val CardGroupItemSpacing = 2.dp
 private val CardGroupInnerCorner = 4.dp
 
 private data class CardGroupItem(
@@ -368,21 +366,18 @@ private fun CardGroupListItem(
     val baseShapes = ListItemDefaults.segmentedShapes(index = index, count = count)
     val interactionSource = remember { MutableInteractionSource() }
 
-    // M3 的按压形变只在六个形状都是 CornerBasedShape 时启动。圆角风格选了平滑、超椭圆、
-    // 波浪这几种时，形状不是 CornerBasedShape，官方动画会整段跳过、变成硬切；
-    // 这里按同一个按压态自己插值圆角，保证这些风格下手感一致。
-    val shapes = if (baseShapes.hasCornerBasedShapes()) {
-        baseShapes
-    } else {
-        val pressed by interactionSource.collectIsPressedAsState()
-        val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-        val radius by animateFloatAsState(
-            targetValue = if (pressed) 1f else 0f,
-            animationSpec = spec,
-            label = "cardGroupPressShape",
-        )
-        baseShapes.morphedBy(radius)
-    }
+    // 按压形变自己驱动：M3 内部那套依赖形状全为 CornerBasedShape 且缓存键稳定，
+    // 我们的圆角风格（平滑/超椭圆/波浪）不满足时整段跳过，表现为硬切。
+    // 这里按同一个按压态与 FastSpatial 曲线插值圆角，六种状态形状统一成同一个值，
+    // 按下与松开都连续过渡，不依赖 M3 的分支判定。
+    val pressed by interactionSource.collectIsPressedAsState()
+    val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val pressProgress by animateFloatAsState(
+        targetValue = if (pressed) 1f else 0f,
+        animationSpec = spec,
+        label = "cardGroupPressShape",
+    )
+    val shapes = baseShapes.morphedBy(pressProgress)
 
     SegmentedListItem(
         shapes = shapes,
@@ -400,21 +395,19 @@ private fun CardGroupListItem(
 }
 
 // M3 只在六个形状全为 CornerBasedShape 时才做形变动画
-private fun ListItemShapes.hasCornerBasedShapes(): Boolean =
-    shape is CornerBasedShape &&
-        selectedShape is CornerBasedShape &&
-        pressedShape is CornerBasedShape &&
-        focusedShape is CornerBasedShape &&
-        hoveredShape is CornerBasedShape &&
-        draggedShape is CornerBasedShape
-
-// 非标准形状（平滑/超椭圆/波浪）的按压过渡：按进度在常态与按压态之间插值
+// 非标准形状（平滑/超椭圆/波浪）的按压过渡。
+// 关键：按下时 M3 取的是 pressedShape、常态取 shape，两者若不同就会瞬间跳过去（硬切）。
+// 所以这里把六个状态形状统一成同一个插值结果，由 progress 自己从常态过渡到按压态。
 @Composable
 private fun ListItemShapes.morphedBy(progress: Float): ListItemShapes {
-    if (progress <= 0f) return this
+    val morphed = if (progress <= 0f) shape else lerpShape(shape, pressedShape, progress)
     return copy(
-        shape = lerpShape(shape, pressedShape, progress),
-        selectedShape = lerpShape(selectedShape, pressedShape, progress),
+        shape = morphed,
+        selectedShape = morphed,
+        pressedShape = morphed,
+        focusedShape = morphed,
+        hoveredShape = morphed,
+        draggedShape = morphed,
     )
 }
 
@@ -479,44 +472,54 @@ fun CardGroup(
                 }
             }
         }
-        // 形状只按当前可见的条目算：收起的从属项不占名额，否则组内圆角会错位
+        // 与 M3 官方 SegmentedListItemWithExpansionSample 一致：
+        // 可见条目数与索引按「展开后的实际数量」算，从属项整块走 expandVertically/shrinkVertically，
+        // 圆角由 segmentedShapes(index, count) 自己解析，间距用 SegmentedGap。
         val visibleCount = scope.items.count { it.animatedVisible?.invoke() != false }
-        val lastVisibleIndex = scope.items.indexOfLast { it.animatedVisible?.invoke() != false }
-        // 每个条目在「可见序列」里的位置，用于决定四角是外侧圆角还是内侧小圆角
         var shapeIndex = 0
-        scope.items.fastForEachIndexed { index, item ->
-            val formContent = item.formContent
+        var i = 0
+        while (i < scope.items.size) {
+            val item = scope.items[i]
             val visibleCheck = item.animatedVisible
             if (visibleCheck == null) {
                 val slot = shapeIndex++
-                if (formContent != null) {
-                    CardGroupFormItem(item = item, formContent = formContent, count = visibleCount, index = slot)
+                if (item.formContent != null) {
+                    CardGroupFormItem(item = item, formContent = item.formContent, count = visibleCount, index = slot)
                 } else {
                     CardGroupListItem(item = item, count = visibleCount, index = slot)
                 }
-                if (index != lastVisibleIndex) {
-                    Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                if (shapeIndex < visibleCount) {
+                    Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
                 }
+                i++
             } else {
-                // 从属项：只有这一项自己做尺寸收放，组内其它行不动。
-                // AnimatedVisibility 的内容会叠在同一个位置，间距必须放在它外面，
-                // 且只在可见时给，收起时不能留下空档。
-                val visible = visibleCheck()
-                val slot = if (visible) shapeIndex++ else shapeIndex
-                MotionExpandCollapse(
-                    visible = visible,
-                    maxBlurRadius = 0.dp,
-                    enter = rememberRevealEnter(),
-                    exit = rememberRevealExit(),
-                ) {
-                    if (formContent != null) {
-                        CardGroupFormItem(item = item, formContent = formContent, count = visibleCount, index = slot)
-                    } else {
-                        CardGroupListItem(item = item, count = visibleCount, index = slot)
-                    }
+                // 收集连续的从属项，作为一整块收放：整块高度动画，条目自身不缩放，
+                // 展开后各条目的圆角与间距都与普通条目一致
+                val group = mutableListOf<CardGroupItem>()
+                while (i < scope.items.size && scope.items[i].animatedVisible != null) {
+                    group += scope.items[i]
+                    i++
                 }
-                if (visible && index != lastVisibleIndex) {
-                    Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                val visible = group.first().animatedVisible?.invoke() == true
+                // 先占位，展开后组内每个条目在可见序列里的位置要连续
+                val slots = group.map { if (visible) shapeIndex++ else shapeIndex }
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+                    exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+                ) {
+                    Column {
+                        group.forEachIndexed { gi, gItem ->
+                            if (gItem.formContent != null) {
+                                CardGroupFormItem(item = gItem, formContent = gItem.formContent, count = visibleCount, index = slots[gi])
+                            } else {
+                                CardGroupListItem(item = gItem, count = visibleCount, index = slots[gi])
+                            }
+                            if (slots[gi] < visibleCount - 1) {
+                                Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                            }
+                        }
+                    }
                 }
             }
         }

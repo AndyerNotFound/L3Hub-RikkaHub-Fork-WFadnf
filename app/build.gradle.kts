@@ -33,7 +33,7 @@ android {
         manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
-        versionCode = 391
+        versionCode = 392
         versionName = "L.3.3.1.1"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
