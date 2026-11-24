@@ -1,10 +1,12 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -48,5 +50,35 @@ fun SheetSlidePages(
         ) {
             second()
         }
+    }
+}
+
+/**
+ * 同一个面板内的多级页面栈。
+ *
+ * 与 [SheetSlidePages] 同一套动效：往下一级时新页从右侧进、旧页向左退，退回上一级沿原路
+ * 反向；[depthOf] 用来比较两页的层级，决定往哪个方向滑。
+ */
+@Composable
+fun <T> SheetSlideStackPages(
+    page: T,
+    depthOf: (T) -> Int,
+    modifier: Modifier = Modifier,
+    content: @Composable (T) -> Unit,
+) {
+    AnimatedContent(
+        targetState = page,
+        modifier = modifier.motionContentSize().clipToBounds(),
+        transitionSpec = {
+            val forward = depthOf(targetState) > depthOf(initialState)
+            val direction = if (forward) 1 else -1
+            slideInHorizontally(rememberSpatialSpec<IntOffset>()) { it * direction } +
+                fadeIn(rememberEffectsSpec<Float>()) togetherWith
+                slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { it * direction } +
+                fadeOut(rememberEffectsSpec<Float>())
+        },
+        label = "SheetSlideStackPages",
+    ) { current ->
+        content(current)
     }
 }

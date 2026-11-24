@@ -2,14 +2,10 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +84,7 @@ import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
+import me.rerere.rikkahub.ui.components.ui.SheetSlideStackPages
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -103,12 +100,12 @@ import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
 // 顺序决定切换方向：往后是进入下一级，往前是返回
-private enum class FilesPickerPage {
-    MAIN,
-    MCP,
-    EXTENSIONS,
-    SEARCH,
-    SEARCH_PROVIDER,
+private enum class FilesPickerPage(val depth: Int) {
+    MAIN(0),
+    MCP(1),
+    EXTENSIONS(1),
+    SEARCH(1),
+    SEARCH_PROVIDER(2),
 }
 
 private val FilesPickerPage.parent: FilesPickerPage
@@ -166,19 +163,9 @@ internal fun FilesPicker(
     BackHandler(enabled = page != FilesPickerPage.MAIN) {
         page = page.parent
     }
-    AnimatedContent(
-        targetState = page,
-        transitionSpec = {
-            // 进去从哪来、出来回哪去：退场沿进场那一侧反向运动
-            if (targetState > initialState) {
-                slideInHorizontally { it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
-            } else {
-                slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { -it } + fadeOut()
-            }
-        },
-        label = "FilesPickerPage"
+    SheetSlideStackPages(
+        page = page,
+        depthOf = { it.depth },
     ) { currentPage ->
         when (currentPage) {
             FilesPickerPage.MCP -> McpPickerPage(

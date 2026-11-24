@@ -38,6 +38,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.FloatingBubbleIcon
 import me.rerere.rikkahub.ui.components.ui.EmojiPicker
+import me.rerere.rikkahub.ui.components.ui.SheetSlidePages
 import me.rerere.rikkahub.ui.floating.BubbleIconContent
 import me.rerere.rikkahub.ui.floating.BubblePresets
 import me.rerere.rikkahub.ui.floating.bubblePresetIcon
@@ -90,60 +91,52 @@ internal fun FloatingBubbleIconPicker(
         onDismissRequest = onDismiss,
         title = stringResource(R.string.select_icon_title),
     ) {
-        if (showEmojiPicker) {
-            EmojiPicker(
-                onEmojiSelected = { emoji ->
-                    onSelect(FloatingBubbleIcon.Emoji(emoji.emoji))
-                    onDismiss()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.floating_bubble_icon_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    text = stringResource(R.string.floating_bubble_icon_preset),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+        SheetSlidePages(
+            showSecond = showEmojiPicker,
+            first = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    IconChoice(
-                        selected = current is FloatingBubbleIcon.AppLogo,
-                        label = stringResource(R.string.floating_bubble_icon_app_logo),
-                        onClick = {
-                            onSelect(FloatingBubbleIcon.AppLogo)
-                            onDismiss()
-                        },
+                    Text(
+                        text = stringResource(R.string.floating_bubble_icon_title),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.floating_bubble_icon_preset),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        BubbleIconPreview(FloatingBubbleIcon.AppLogo)
-                    }
-                    BubblePresets.forEach { preset ->
                         IconChoice(
-                            selected = current is FloatingBubbleIcon.Preset && current.name == preset.name,
-                            label = preset.name,
+                            selected = current is FloatingBubbleIcon.AppLogo,
+                            label = stringResource(R.string.floating_bubble_icon_app_logo),
                             onClick = {
-                                onSelect(FloatingBubbleIcon.Preset(preset.name))
+                                onSelect(FloatingBubbleIcon.AppLogo)
                                 onDismiss()
                             },
                         ) {
-                            BubbleIconPreview(FloatingBubbleIcon.Preset(preset.name))
+                            BubbleIconPreview(FloatingBubbleIcon.AppLogo)
                         }
-                    }
+                        BubblePresets.forEach { preset ->
+                            IconChoice(
+                                selected = current is FloatingBubbleIcon.Preset && current.name == preset.name,
+                                label = preset.name,
+                                onClick = {
+                                    onSelect(FloatingBubbleIcon.Preset(preset.name))
+                                    onDismiss()
+                                },
+                            ) {
+                                BubbleIconPreview(FloatingBubbleIcon.Preset(preset.name))
+                            }
+                        }
                 }
                 Text(
                     text = stringResource(R.string.floating_bubble_icon_custom),
@@ -170,9 +163,21 @@ internal fun FloatingBubbleIconPicker(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
+                    }
                 }
-            }
-        }
+            },
+            second = {
+                EmojiPicker(
+                    onEmojiSelected = { emoji ->
+                        onSelect(FloatingBubbleIcon.Emoji(emoji.emoji))
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                )
+            },
+        )
     }
 }
 

@@ -85,6 +85,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ColorPickerRow
 import me.rerere.rikkahub.ui.components.ui.glassAssistChipColors
+import me.rerere.rikkahub.ui.components.ui.SheetSlidePages
 import me.rerere.rikkahub.ui.components.ui.glassFilterChipColors
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -568,56 +569,65 @@ private fun PaletteEditSheet(
             }
 
             var advancedOpen by rememberSaveable { mutableStateOf(false) }
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                if (mode == 0) {
-                    UiSlot.entries.forEach { slot ->
-                        SlotColorRow(
-                            slot = slot,
-                            argb = effectiveSlots.get(slot).argbLong(),
-                            isCustom = slots.get(slot) != null,
-                            onClick = { editingSlot = slot },
-                        )
+            SheetSlidePages(
+                showSecond = mode != 0,
+                first = {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        UiSlot.entries.forEach { slot ->
+                            SlotColorRow(
+                                slot = slot,
+                                argb = effectiveSlots.get(slot).argbLong(),
+                                isCustom = slots.get(slot) != null,
+                                onClick = { editingSlot = slot },
+                            )
                     }
-                } else {
-                PaletteGroup.entries.forEach { group ->
-                    val roles = PaletteRole.entries.filter { it.group == group }
-                    if (roles.isEmpty()) return@forEach
-                    val header = stringResource(group.labelRes())
-                    if (group == PaletteGroup.ADVANCED) {
-                        // 这一组在本项目里几乎没人引用，收起来免得面板太长
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { advancedOpen = !advancedOpen }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                    }
+                },
+                second = {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                    PaletteGroup.entries.forEach { group ->
+                        val roles = PaletteRole.entries.filter { it.group == group }
+                        if (roles.isEmpty()) return@forEach
+                        val header = stringResource(group.labelRes())
+                        if (group == PaletteGroup.ADVANCED) {
+                            // 这一组在本项目里几乎没人引用，收起来免得面板太长
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { advancedOpen = !advancedOpen }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = header,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Icon(
+                                    imageVector = if (advancedOpen) HugeIcons.ArrowDown01 else HugeIcons.ArrowRight01,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            if (!advancedOpen) return@forEach
+                        } else {
                             Text(
                                 text = header,
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
                             )
-                            Spacer(Modifier.weight(1f))
-                            Icon(
-                                imageVector = if (advancedOpen) HugeIcons.ArrowDown01 else HugeIcons.ArrowRight01,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                        if (!advancedOpen) return@forEach
-                    } else {
-                        Text(
-                            text = header,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp),
-                        )
                     }
                     roles.forEach { role ->
                         PaletteColorRow(
@@ -627,8 +637,9 @@ private fun PaletteEditSheet(
                         )
                     }
                 }
-                }
-            }
+                    }
+                },
+            )
 
             Spacer(Modifier.height(12.dp))
 
