@@ -1,12 +1,9 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
@@ -50,12 +47,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.ui.theme.CustomColors
+import kotlin.math.roundToInt
 
 private val CardGroupCorner = 20.dp
 private val CardGroupInnerCorner = 4.dp
@@ -317,10 +317,12 @@ private fun CardGroupFormItem(
     formContent: @Composable ColumnScope.() -> Unit,
     count: Int,
     index: Int,
+    bottomOuter: Float,
 ) {
     Surface(
         modifier = item.modifier.fillMaxWidth(),
-        shape = cardGroupItemShape(index, count),
+        shape = cardGroupItemShape(index, count)
+            .morphedBottom(CornerSize(CardGroupCorner), bottomOuter),
         color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
@@ -362,13 +364,38 @@ private fun CardGroupEntry(
     item: CardGroupItem,
     count: Int,
     index: Int,
+    bottomOuter: Float,
 ) {
     val formContent = item.formContent
     if (formContent != null) {
-        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index, bottomOuter = bottomOuter)
     } else {
-        CardGroupListItem(item = item, count = count, index = index)
+        CardGroupListItem(item = item, count = count, index = index, bottomOuter = bottomOuter)
     }
+}
+
+// 遮罩裁剪：子内容按自然高度测量，容器只报出可见高度并裁掉溢出部分。
+// 行本身不被压缩，露出的过程就是它被逐渐揭开的过程。
+@Composable
+private fun MaskReveal(
+    progress: Float,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content, modifier = Modifier.clipToBounds()) { measurables, constraints ->
+        val placeable = measurables.first().measure(constraints.copy(minHeight = 0))
+        val height = (placeable.height * progress).roundToInt().coerceIn(0, placeable.height)
+        layout(placeable.width, height) {
+            placeable.place(0, 0)
+        }
+    }
+}
+
+// 把底角从当前值过渡到外侧大圆角，进度由收放共用
+@Composable
+private fun Shape.morphedBottom(outerBottom: CornerSize, progress: Float): Shape {
+    if (progress <= 0f || this !is CornerBasedShape) return this
+    val target = copy(bottomStart = outerBottom, bottomEnd = outerBottom)
+    return lerpShape(this, target, progress)
 }
 
 @Composable
@@ -376,9 +403,15 @@ private fun CardGroupListItem(
     item: CardGroupItem,
     count: Int,
     index: Int,
+    bottomOuter: Float,
 ) {
     // 首尾圆角交给 M3 官方的分段形状：它按 index/count 解析，条目增减时自然跟着变
     val baseShapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    // 收放时末项换了人，底角要跟着同一个进度过渡，不能瞬间跳。
+    // 外侧圆角就是主题里 large 那一档，和 segmentedShapes 内部取的是同一个令牌
+    val outerBottom = (MaterialTheme.shapes.large as? CornerBasedShape)?.bottomStart
+        ?: CornerSize(0.dp)
+    val bottomShapes = baseShapes.copy(shape = baseShapes.shape.morphedBottom(outerBottom, bottomOuter))
     val interactionSource = remember { MutableInteractionSource() }
 
     // 按压形变自己驱动：M3 内部那套依赖形状全为 CornerBasedShape 且缓存键稳定，
@@ -392,7 +425,7 @@ private fun CardGroupListItem(
         animationSpec = spec,
         label = "cardGroupPressShape",
     )
-    val shapes = baseShapes.morphedBy(pressProgress)
+    val shapes = bottomShapes.morphedBy(pressProgress)
 
     SegmentedListItem(
         shapes = shapes,
@@ -409,7 +442,6 @@ private fun CardGroupListItem(
     )
 }
 
-// M3 只在六个形状全为 CornerBasedShape 时才做形变动画
 // 非标准形状（平滑/超椭圆/波浪）的按压过渡。
 // 关键：按下时 M3 取的是 pressedShape、常态取 shape，两者若不同就会瞬间跳过去（硬切）。
 // 所以这里把六个状态形状统一成同一个插值结果，由 progress 自己从常态过渡到按压态。
@@ -487,46 +519,59 @@ fun CardGroup(
                 }
             }
         }
-        // 从属项各自独立收放，可见性互不牵连（同一组里可能各有各的条件）。
-        // 关键：动画期间仍按「可见」占形状名额与间距，收放结束才让出，
-        // 否则正在收起的那一项会瞬间被当成末项，圆角跳成大圆角再消失。
-        val transitionStates = remember { mutableMapOf<Int, MutableTransitionState<Boolean>>() }
-        val layoutVisible = BooleanArray(scope.items.size) { true }
-        scope.items.forEachIndexed { index, item ->
-            val check = item.animatedVisible ?: return@forEachIndexed
-            val state = transitionStates.getOrPut(index) { MutableTransitionState(check()) }
-            val visible = check()
-            if (state.targetState != visible) state.targetState = visible
-            layoutVisible[index] = state.currentState || state.targetState
-        }
-        val visibleCount = layoutVisible.count { it }
-        var shapeIndex = 0
-        scope.items.forEachIndexed { index, item ->
-            val slot = if (layoutVisible[index]) shapeIndex++ else -1
-            if (item.animatedVisible == null) {
-                if (slot >= 0) {
-                    CardGroupEntry(item = item, count = visibleCount, index = slot)
-                    if (slot < visibleCount - 1) {
-                        Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                    }
-                }
+        // 从属项走遮罩裁剪：行按自然高度排版，只露出可见的那一段。
+        // 高度变化带动下方内容让位，行本身不缩放，圆角与间距因此不会错位。
+        val itemCount = scope.items.size
+        val targets = ArrayList<Boolean>(itemCount)
+        val revealProgress = ArrayList<Float>(itemCount)
+        scope.items.forEach { item ->
+            val check = item.animatedVisible
+            if (check == null) {
+                targets += true
+                revealProgress += 1f
             } else {
-                AnimatedVisibility(
-                    visibleState = transitionStates.getValue(index),
-                    enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
-                    exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
-                ) {
-                    if (slot >= 0) {
-                        Column {
-                            CardGroupEntry(item = item, count = visibleCount, index = slot)
-                            if (slot < visibleCount - 1) {
-                                Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                            }
-                        }
+                val visible = check()
+                targets += visible
+                val progress by animateFloatAsState(
+                    targetValue = if (visible) 1f else 0f,
+                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>(),
+                    label = "cardGroupReveal",
+                )
+                revealProgress += progress
+            }
+        }
+        // 形状按「全部展开」的几何算，条目增减时位置不跳，圆角也就不会跟着变。
+        // 只有末项换了人这一种情况需要过渡，用 outerCorner 补上。
+        var targetSlot = 0
+        val targetSlots = IntArray(itemCount) { if (targets[it]) targetSlot++ else -1 }
+        val lastTargetSlot = targetSlot - 1
+        val outerCorners = ArrayList<Float>(itemCount)
+        scope.items.forEachIndexed { index, item ->
+            val isTargetLast = targets[index] && targetSlots[index] == lastTargetSlot
+            val isExpandedLast = index == itemCount - 1
+            val target = if (isTargetLast && !isExpandedLast) 1f else 0f
+            val outer by animateFloatAsState(
+                targetValue = target,
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>(),
+                label = "cardGroupOuterCorner",
+            )
+            outerCorners += outer
+        }
+        scope.items.forEachIndexed { index, item ->
+            // 间距跟着行一起进出：放在各自块里，收起时随遮罩一起被裁掉，不留空档
+            if (item.animatedVisible == null) {
+                if (index > 0) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                CardGroupEntry(item = item, count = itemCount, index = index, bottomOuter = outerCorners[index])
+            } else {
+                MaskReveal(progress = revealProgress[index]) {
+                    Column {
+                        if (index > 0) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                        CardGroupEntry(item = item, count = itemCount, index = index, bottomOuter = outerCorners[index])
                     }
                 }
             }
         }
+
     }
 }
 
