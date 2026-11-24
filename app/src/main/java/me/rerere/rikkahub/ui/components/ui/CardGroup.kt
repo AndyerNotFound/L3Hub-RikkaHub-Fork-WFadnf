@@ -419,9 +419,9 @@ private fun ListItemShapes.morphedBy(progress: Float): ListItemShapes {
 }
 
 @Composable
-private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape =
-    remember(from, to, fraction) {
-        return@remember object : Shape {
+private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape {
+    val shape: Shape = remember(from, to, fraction) {
+        object : Shape {
             override fun createOutline(
                 size: Size,
                 layoutDirection: LayoutDirection,
@@ -450,6 +450,8 @@ private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape =
             }
         }
     }
+    return shape
+}
 
 private fun lerpCorner(a: CornerRadius, b: CornerRadius, fraction: Float): CornerRadius =
     CornerRadius(
