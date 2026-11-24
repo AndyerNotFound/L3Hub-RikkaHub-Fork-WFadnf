@@ -1,5 +1,11 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -378,83 +384,100 @@ private fun ToolOverrideSheet(
                 }
             }
 
-            if (!editing) {
-                ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
-                    Text(
-                        text = effectiveDescription.ifBlank { noDescription },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (effectiveInstructions.isNotBlank()) {
-                        Text(
-                            text = stringResource(R.string.tool_override_detail_instructions),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        SelectionContainer {
-                            Text(
-                                text = effectiveInstructions,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = JetbrainsMono,
-                            )
-                        }
-                    }
-                }
-
-                ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
-                    if (effectiveParameters == null) {
-                        Text(
-                            text = noParameters,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            AnimatedContent(
+                targetState = editing,
+                transitionSpec = {
+                    // 进编辑从右侧滑入、详情向右滑出，返回沿原路反向；与文件选择器的页面切换同参同曲线
+                    if (targetState) {
+                        slideInHorizontally { it } + fadeIn() togetherWith
+                            slideOutHorizontally { it } + fadeOut()
                     } else {
-                        JsonTree(
-                            json = effectiveParameters,
-                            initialExpandLevel = 2,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        slideInHorizontally { -it } + fadeIn() togetherWith
+                            slideOutHorizontally { -it } + fadeOut()
                     }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (toolOverride != null) {
-                        TextButton(onClick = { confirmReset = true }) {
-                            Text(stringResource(R.string.tool_override_action_reset))
+                },
+                label = "ToolOverrideEditing",
+            ) { isEditing ->
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (!isEditing) {
+                        ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
+                            Text(
+                                text = effectiveDescription.ifBlank { noDescription },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (effectiveInstructions.isNotBlank()) {
+                                Text(
+                                    text = stringResource(R.string.tool_override_detail_instructions),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                SelectionContainer {
+                                    Text(
+                                        text = effectiveInstructions,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontFamily = JetbrainsMono,
+                                    )
+                                }
+                            }
                         }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
-                        Text(stringResource(R.string.tool_override_action_close))
-                    }
-                    Button(
-                        onClick = { editing = true },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Edit03,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
+
+                        ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
+                            if (effectiveParameters == null) {
+                                Text(
+                                    text = noParameters,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                JsonTree(
+                                    json = effectiveParameters,
+                                    initialExpandLevel = 2,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (toolOverride != null) {
+                                TextButton(onClick = { confirmReset = true }) {
+                                    Text(stringResource(R.string.tool_override_action_reset))
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
+                                Text(stringResource(R.string.tool_override_action_close))
+                            }
+                            Button(
+                                onClick = { editing = true },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Edit03,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.tool_override_action_edit))
+                            }
+                        }
+                    } else {
+                        ToolOverrideEditor(
+                            entry = entry,
+                            toolOverride = toolOverride,
+                            onCancel = { editing = false },
+                            onSave = {
+                                onSave(it)
+                                editing = false
+                            },
                         )
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.tool_override_action_edit))
                     }
                 }
-            } else {
-                ToolOverrideEditor(
-                    entry = entry,
-                    toolOverride = toolOverride,
-                    onCancel = { editing = false },
-                    onSave = {
-                        onSave(it)
-                        editing = false
-                    },
-                )
             }
         }
     }
