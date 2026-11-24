@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -36,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -248,27 +245,22 @@ fun SettingToolOverridePage(vm: SettingVM = koinViewModel()) {
     }
 
     // 收起动画期间 selected 已经是 null，用最后一份把退场演完
-    val sheetEntries = remember(catalog) {
-        ToolCatalogGroup.entries.flatMap { group -> catalog.filter { it.group == group } }
-    }
     var shownEntry by remember { mutableStateOf(selected) }
     LaunchedEffect(selected) { if (selected != null) shownEntry = selected }
     shownEntry?.let { entry ->
         ToolOverrideSheet(
             visible = selected != null,
-            entries = sheetEntries,
             entry = entry,
-            overrides = overrides,
-            onSave = { target, saved ->
-                saveOverride(target.name, saved)
+            toolOverride = overrides[entry.name],
+            onSave = { saved ->
+                saveOverride(entry.name, saved)
                 toaster.show(savedToast)
             },
-            onReset = { target ->
-                saveOverride(target.name, null)
+            onReset = {
+                saveOverride(entry.name, null)
                 toaster.show(resetToast)
             },
             onDismiss = { selectedName = null },
-            onSelect = { selectedName = it.name },
         )
     }
 }
@@ -322,57 +314,10 @@ private fun ToolCatalogGroup.icon(): ImageVector = when (this) {
 @Composable
 private fun ToolOverrideSheet(
     visible: Boolean,
-    entries: List<ToolCatalogEntry>,
-    entry: ToolCatalogEntry,
-    overrides: Map<String, ToolOverride>,
-    onSave: (ToolCatalogEntry, ToolOverride) -> Unit,
-    onReset: (ToolCatalogEntry) -> Unit,
-    onDismiss: () -> Unit,
-    onSelect: (ToolCatalogEntry) -> Unit,
-) {
-    val initialIndex = entries.indexOfFirst { it.name == entry.name }.coerceAtLeast(0)
-    val pagerState = rememberPagerState(initialPage = initialIndex) { entries.size }
-
-    // 滑动停在哪一页，选中态就落到哪个工具：列表高亮与保存目标都跟着当前页走
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            entries.getOrNull(page)?.let(onSelect)
-        }
-    }
-    LaunchedEffect(visible, entry.name) {
-        if (!visible) return@LaunchedEffect
-        val target = entries.indexOfFirst { it.name == entry.name }
-        if (target >= 0 && pagerState.currentPage != target) pagerState.scrollToPage(target)
-    }
-
-    SaltModalSheet(
-        visible = visible,
-        onDismissRequest = onDismiss,
-        title = entries.getOrElse(pagerState.currentPage) { entry }.name,
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth(),
-        ) { page ->
-            entries.getOrNull(page)?.let { pageEntry ->
-                ToolOverrideDetail(
-                    entry = pageEntry,
-                    toolOverride = overrides[pageEntry.name],
-                    onSave = onSave,
-                    onReset = onReset,
-                    onDismiss = onDismiss,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToolOverrideDetail(
     entry: ToolCatalogEntry,
     toolOverride: ToolOverride?,
-    onSave: (ToolCatalogEntry, ToolOverride) -> Unit,
-    onReset: (ToolCatalogEntry) -> Unit,
+    onSave: (ToolOverride) -> Unit,
+    onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var editing by remember(entry.name) { mutableStateOf(false) }
@@ -392,119 +337,125 @@ private fun ToolOverrideDetail(
             ?: entry.parameters
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    SaltModalSheet(
+        visible = visible,
+        onDismissRequest = onDismiss,
+        title = entry.name,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (toolOverride != null) {
+                        ValuePill(text = stringResource(R.string.tool_override_overridden))
+                    }
+                }
+                val groupLabel = entry.group.label()
+                Text(
+                    text = buildString {
+                        append(groupLabel)
+                        entry.groupDetail?.let { append(" · ").append(it) }
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (toolOverride != null) {
-                    ValuePill(text = stringResource(R.string.tool_override_overridden))
+                    Text(
+                        text = overriddenNote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
-            val groupLabel = entry.group.label()
-            Text(
-                text = buildString {
-                    append(groupLabel)
-                    entry.groupDetail?.let { append(" · ").append(it) }
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (toolOverride != null) {
-                Text(
-                    text = overriddenNote,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
 
-        if (!editing) {
-            ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
-                Text(
-                    text = effectiveDescription.ifBlank { noDescription },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (effectiveInstructions.isNotBlank()) {
+            if (!editing) {
+                ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
                     Text(
-                        text = stringResource(R.string.tool_override_detail_instructions),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = effectiveDescription.ifBlank { noDescription },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
-                    SelectionContainer {
+                    if (effectiveInstructions.isNotBlank()) {
                         Text(
-                            text = effectiveInstructions,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = JetbrainsMono,
+                            text = stringResource(R.string.tool_override_detail_instructions),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        SelectionContainer {
+                            Text(
+                                text = effectiveInstructions,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = JetbrainsMono,
+                            )
+                        }
+                    }
+                }
+
+                ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
+                    if (effectiveParameters == null) {
+                        Text(
+                            text = noParameters,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        JsonTree(
+                            json = effectiveParameters,
+                            initialExpandLevel = 2,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-            }
 
-            ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
-                if (effectiveParameters == null) {
-                    Text(
-                        text = noParameters,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    JsonTree(
-                        json = effectiveParameters,
-                        initialExpandLevel = 2,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (toolOverride != null) {
-                    TextButton(onClick = { confirmReset = true }) {
-                        Text(stringResource(R.string.tool_override_action_reset))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (toolOverride != null) {
+                        TextButton(onClick = { confirmReset = true }) {
+                            Text(stringResource(R.string.tool_override_action_reset))
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
+                        Text(stringResource(R.string.tool_override_action_close))
+                    }
+                    Button(
+                        onClick = { editing = true },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Edit03,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.tool_override_action_edit))
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
-                    Text(stringResource(R.string.tool_override_action_close))
-                }
-                Button(
-                    onClick = { editing = true },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Edit03,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.tool_override_action_edit))
-                }
+            } else {
+                ToolOverrideEditor(
+                    entry = entry,
+                    toolOverride = toolOverride,
+                    onCancel = { editing = false },
+                    onSave = {
+                        onSave(it)
+                        editing = false
+                    },
+                )
             }
-        } else {
-            ToolOverrideEditor(
-                entry = entry,
-                toolOverride = toolOverride,
-                onCancel = { editing = false },
-                onSave = {
-                    onSave(entry, it)
-                    editing = false
-                },
-            )
         }
     }
 
@@ -517,7 +468,7 @@ private fun ToolOverrideDetail(
                 TextButton(
                     onClick = {
                         confirmReset = false
-                        onReset(entry)
+                        onReset()
                     }
                 ) {
                     Text(stringResource(R.string.tool_override_action_reset))
@@ -531,6 +482,7 @@ private fun ToolOverrideDetail(
         )
     }
 }
+
 @Composable
 private fun ToolOverrideEditor(
     entry: ToolCatalogEntry,
