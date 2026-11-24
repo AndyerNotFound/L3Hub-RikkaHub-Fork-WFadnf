@@ -26,6 +26,11 @@ class SettingsLenientDecodeTest {
         // 在数组尾部插一条本仓库不认识的提供商，等价于别的分支写进来的数据
         val mixed = encoded.dropLast(1) + """,{"type":"test-unknown-provider","id":"4a1f3d1e-0000-0000-0000-000000000000"}]"""
 
-        assertEquals(providers, decodeListLenient<ProviderSetting>(mixed))
+        val decoded = decodeListLenient<ProviderSetting>(mixed)
+        // 只比较落盘字段；builtIn 和描述等 @Transient 字段不会参与序列化。
+        assertEquals(
+            JsonInstant.parseToJsonElement(encoded),
+            JsonInstant.parseToJsonElement(JsonInstant.encodeToString<List<ProviderSetting>>(decoded)),
+        )
     }
 }
