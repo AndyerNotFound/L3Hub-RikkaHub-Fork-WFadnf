@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -193,8 +194,8 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
                 )
-                if (displaySetting.enableNotificationOnMessageGeneration) {
-                    switchItem(
+                    animatedSwitchItem(
+                        visible = { displaySetting.enableNotificationOnMessageGeneration },
                         checked = displaySetting.enableLiveUpdateNotification,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
@@ -202,7 +203,6 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
                     )
-                }
                 switchItem(
                     checked = displaySetting.enableFloatingChatWindow,
                     onCheckedChange = {

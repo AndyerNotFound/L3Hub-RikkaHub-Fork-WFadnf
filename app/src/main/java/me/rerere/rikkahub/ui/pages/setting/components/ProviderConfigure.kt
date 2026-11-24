@@ -77,6 +77,8 @@ import me.rerere.rikkahub.data.ai.account.ProviderAccountManager
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.components.ai.longLabel
 import me.rerere.rikkahub.ui.components.ai.rememberProviderQuota
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
@@ -700,8 +702,8 @@ private fun ProviderConfigureClaude(
             onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
             headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_caching)) },
         )
-        if (provider.promptCaching) {
-            formItem(
+            animatedFormItem(
+                visible = { provider.promptCaching },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl)) },
             ) {
                 ConnectedChoiceButtons(
@@ -718,7 +720,6 @@ private fun ProviderConfigureClaude(
                     )
                 }
             }
-        }
     }
 }
 
@@ -788,15 +789,14 @@ private fun ProviderConfigureGoogle(
             headlineContent = { Text(stringResource(R.string.setting_provider_page_vertex_ai)) },
         )
         // 两条互斥：都注册、靠 visible 交叉收放，切换时一条收下去另一条才拉出来
-        if (provider.vertexAI) {
-            switchItem(
+            animatedSwitchItem(
+                visible = { provider.vertexAI },
                 checked = provider.useServiceAccount,
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
             )
-        }
-        if (!provider.vertexAI || useServiceAccount) {
-            switchItem(
+            animatedSwitchItem(
+                visible = { !provider.vertexAI || useServiceAccount },
                 checked = provider.useInteractionsApi,
                 onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
                 headlineContent = { Text("Interactions API (Beta)") },
@@ -804,7 +804,6 @@ private fun ProviderConfigureGoogle(
                     { Text("Vertex AI only supports the global, us and eu locations; other locations use generateContent") }
                 } else null,
             )
-        }
     }
 
     MotionExpandCollapse(visible = useServiceAccount) {

@@ -19,6 +19,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -291,8 +292,8 @@ fun ChatExportSheet(
                     headlineContent = { Text(stringResource(R.string.chat_page_export_include_reasoning)) },
                 )
                 // 只有导出图片时用得上
-                if (format == ChatExportFormat.Image) {
-                    switchItem(
+                    animatedSwitchItem(
+                        visible = { format == ChatExportFormat.Image },
                         checked = exportOptions.expandReasoning,
                         onCheckedChange = { exportOptions = exportOptions.copy(expandReasoning = it) },
                         enabled = exportOptions.includeReasoning,
@@ -300,7 +301,6 @@ fun ChatExportSheet(
                             Text(stringResource(R.string.chat_page_export_image_expand_reasoning))
                         },
                     )
-                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

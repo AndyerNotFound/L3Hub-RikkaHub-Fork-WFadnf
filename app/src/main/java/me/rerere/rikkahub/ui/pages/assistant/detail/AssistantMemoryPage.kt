@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
@@ -474,8 +476,8 @@ private fun MemorySettingsTab(
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_desc)) },
             )
-            if (assistant.autoCompress) {
-                formItem(
+                animatedFormItem(
+                    visible = { assistant.autoCompress },
                     headlineContent = { Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio)) },
                     supportingContent = {
                         Text(stringResource(R.string.assistant_page_memory_auto_compress_ratio_desc))
@@ -497,9 +499,8 @@ private fun MemorySettingsTab(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-            }
-            if (assistant.autoCompress) {
-                item(
+                animatedItem(
+                    visible = { assistant.autoCompress },
                     onClick = { showAutoCompressThresholdDialog = true },
                     headlineContent = {
                         Text(stringResource(R.string.assistant_page_memory_auto_compress_threshold))
@@ -509,7 +510,6 @@ private fun MemorySettingsTab(
                     },
                     trailingContent = { CardGroupValue(assistant.autoCompressThreshold.name) },
                 )
-            }
         }
 
         CardGroup {
@@ -525,8 +525,8 @@ private fun MemorySettingsTab(
                 headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },
             )
-            if (assistant.enableTimeReminder) {
-                item(
+                animatedItem(
+                    visible = { assistant.enableTimeReminder },
                     onClick = {
                         timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
                         showTimeReminderIntervalDialog = true
@@ -546,7 +546,6 @@ private fun MemorySettingsTab(
                         )
                     },
                 )
-            }
         }
     }
 }

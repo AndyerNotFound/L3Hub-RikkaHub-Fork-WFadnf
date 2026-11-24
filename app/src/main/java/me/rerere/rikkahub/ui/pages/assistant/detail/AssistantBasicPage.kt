@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
@@ -596,8 +597,8 @@ internal fun AssistantBasicContent(
                 supportingContent = { Text(stringResource(R.string.assistant_page_gradient_background_desc)) },
             )
 
-            if (!assistant.useGradientBackground) {
-                formItem(
+                animatedFormItem(
+                    visible = { !assistant.useGradientBackground },
                     headlineContent = { Text(stringResource(R.string.assistant_page_chat_background)) },
                     supportingContent = { Text(stringResource(R.string.assistant_page_chat_background_desc)) },
                 ) {
@@ -617,7 +618,6 @@ internal fun AssistantBasicContent(
                         }
                     )
                 }
-            }
 
             val backgroundOpacity = assistant.backgroundOpacity.coerceIn(0f, 1f)
             if (!assistant.useGradientBackground && assistant.background != null) {

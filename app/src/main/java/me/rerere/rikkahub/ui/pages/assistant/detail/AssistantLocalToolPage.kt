@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
@@ -276,8 +277,8 @@ private fun AssistantLocalToolContent(
             )
             // 开了派发工具，或者它自己是子代理（子代理会话会自动拿到派发工具）时，
             // 这个范围都可能生效
-            if (assistant.localTools.contains(LocalToolOption.SubAgent) || assistant.isSubAgent) {
-                item(
+                animatedItem(
+                    visible = { assistant.localTools.contains(LocalToolOption.SubAgent) || assistant.isSubAgent },
                     onClick = if (subAgentCandidates.isNotEmpty() || assistant.allowedSubAgentIds.isNotEmpty()) {
                         { showSubAgentPicker = true }
                     } else {
@@ -318,7 +319,6 @@ private fun AssistantLocalToolContent(
                         )
                     },
                 )
-            }
         }
     }
 

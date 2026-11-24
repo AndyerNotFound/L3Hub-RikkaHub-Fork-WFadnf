@@ -41,6 +41,8 @@ import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
@@ -220,14 +222,13 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_title)) },
                 )
-                if (displaySetting.showMessageJumper) {
-                    switchItem(
+                    animatedSwitchItem(
+                        visible = { displaySetting.showMessageJumper },
                         checked = displaySetting.messageJumperOnLeft,
                         onCheckedChange = { updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_title)) },
                     )
-                }
                 switchItem(
                     checked = displaySetting.enableAutoScroll,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableAutoScroll = it)) },
@@ -263,8 +264,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         )
                     }
                 }
-                if (displaySetting.effectiveBackgroundEffect == BackgroundEffectType.BLUR) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { displaySetting.effectiveBackgroundEffect == BackgroundEffectType.BLUR },
                         headlineContent = { Text(text = stringResource(R.string.setting_display_page_blur_opacity_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_blur_opacity_desc)) },
                         trailingContent = {
@@ -280,9 +281,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             steps = 19,
                         )
                     }
-                }
-                if (displaySetting.effectiveBackgroundEffect == BackgroundEffectType.GLASS) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { displaySetting.effectiveBackgroundEffect == BackgroundEffectType.GLASS },
                         headlineContent = { Text(text = stringResource(R.string.setting_display_page_glass_opacity_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_glass_opacity_desc)) },
                         trailingContent = {
@@ -298,7 +298,6 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             steps = 19,
                         )
                     }
-                }
                 switchItem(
                     checked = displaySetting.fullWidthComponents,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fullWidthComponents = it)) },
@@ -457,8 +456,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_title)) },
                 )
-                if (displaySetting.pasteLongTextAsFile) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { displaySetting.pasteLongTextAsFile },
                         headlineContent = { Text(text = stringResource(R.string.setting_display_page_paste_long_text_threshold_title)) },
                         trailingContent = {
                             CardGroupValue("${displaySetting.pasteLongTextThreshold}")
@@ -472,7 +471,6 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             valueRange = 100..10_000,
                         )
                     }
-                }
             }
 
             CardGroup {
@@ -482,8 +480,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_title)) },
                 )
-                if (displaySetting.enableVolumeKeyScroll) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { displaySetting.enableVolumeKeyScroll },
                         headlineContent = { Text(text = stringResource(R.string.setting_display_page_volume_key_scroll_ratio)) },
                         trailingContent = {
                             CardGroupValue("${(displaySetting.volumeKeyScrollRatio * 100).toInt()}%")
@@ -499,7 +497,6 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                }
             }
 
             CardGroup {
@@ -582,8 +579,8 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_app_lock_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_app_lock_switch)) },
                 )
-                if (settings.appLockEnabled) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { settings.appLockEnabled },
                         headlineContent = { Text(text = stringResource(R.string.setting_app_lock_timeout)) },
                         supportingContent = { Text(stringResource(R.string.setting_app_lock_timeout_desc)) },
                     ) {
@@ -604,7 +601,6 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             )
                         }
                     }
-                }
             }
 
         }

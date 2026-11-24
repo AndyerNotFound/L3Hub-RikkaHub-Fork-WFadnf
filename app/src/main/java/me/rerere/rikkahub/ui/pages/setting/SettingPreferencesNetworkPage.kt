@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
@@ -322,8 +323,8 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                     supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_page_preferences_network_auto_retry)) },
                 )
-                if (settings.networkSetting.enableAutoRetry) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { settings.networkSetting.enableAutoRetry },
                         headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_count)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_count_desc)) },
                     ) {
@@ -335,9 +336,8 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                             valueRange = 0..64,
                         )
                     }
-                }
-                if (settings.networkSetting.enableAutoRetry) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { settings.networkSetting.enableAutoRetry },
                         headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_interval)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_interval_desc)) },
                     ) {
@@ -350,9 +350,8 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                             suffix = "s",
                         )
                     }
-                }
-                if (settings.networkSetting.enableAutoRetry) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { settings.networkSetting.enableAutoRetry },
                         headlineContent = { Text(text = stringResource(R.string.setting_page_preferences_network_retry_codes)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_retry_codes_desc)) },
                     ) {
@@ -363,7 +362,6 @@ fun SettingPreferencesNetworkPage(embedded: Boolean = false, vm: SettingVM = koi
                             },
                         )
                     }
-                }
             }
 
             CardGroup(title = { Text(stringResource(R.string.setting_page_preferences_network_user_agent)) }) {

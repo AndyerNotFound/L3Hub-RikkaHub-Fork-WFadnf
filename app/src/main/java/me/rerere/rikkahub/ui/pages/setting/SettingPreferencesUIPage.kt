@@ -79,6 +79,9 @@ import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.ui.animatedFormItem
+import me.rerere.rikkahub.ui.components.ui.animatedItem
+import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
@@ -224,8 +227,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                 )
-                if (displaySetting.showAssistantBubble) {
-                    switchItem(
+                    animatedSwitchItem(
+                        visible = { displaySetting.showAssistantBubble },
                         checked = displaySetting.splitAssistantBubbleByParagraph,
                         onCheckedChange = {
                             updateDisplaySetting(displaySetting.copy(splitAssistantBubbleByParagraph = it))
@@ -233,7 +236,6 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         supportingContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_split_assistant_bubble_title)) },
                     )
-                }
                 formItem(
                     headlineContent = { Text(text = stringResource(R.string.setting_display_page_empty_slogan_title)) },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_empty_slogan_desc)) },
@@ -557,8 +559,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                     supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_switch)) },
                 )
-                if (displaySetting.enableFloatingBar) {
-                    switchItem(
+                    animatedSwitchItem(
+                        visible = { displaySetting.enableFloatingBar },
                         checked = displaySetting.floatingBarAutoHide,
                         onCheckedChange = { autoHide ->
                         updateDisplaySetting(displaySetting.copy(floatingBarAutoHide = autoHide))
@@ -566,9 +568,8 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                         supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_floating_bar_auto_hide_title)) },
                     )
-                }
-                if (displaySetting.enableFloatingBar) {
-                    formItem(
+                    animatedFormItem(
+                        visible = { displaySetting.enableFloatingBar },
                         headlineContent = { Text(text = stringResource(R.string.setting_display_page_floating_bar_size_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_floating_bar_size_desc)) },
                         trailingContent = { CardGroupValue(FloatingBarSizing.percentLabel(draftFloatingBarScale)) },
@@ -586,9 +587,7 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                             valueRange = FloatingBarSizing.MIN_SCALE..FloatingBarSizing.MAX_SCALE,
                         )
                     }
-                }
                 displaySetting.floatingBarItems.forEachIndexed { index, barItem ->
-                    if (displaySetting.enableFloatingBar) {
                         item(
                             leadingContent = { CardGroupIcon(barItem.icon) },
                             headlineContent = { Text(barItem.label()) },
@@ -638,7 +637,6 @@ fun SettingPreferencesUIPage(embedded: Boolean = false, vm: SettingVM = koinView
                                 }
                             },
                         )
-                    }
                 }
                 if (displaySetting.enableFloatingBar &&
                     displaySetting.floatingBarItems.size < MAX_FLOATING_BAR_ITEMS) {
