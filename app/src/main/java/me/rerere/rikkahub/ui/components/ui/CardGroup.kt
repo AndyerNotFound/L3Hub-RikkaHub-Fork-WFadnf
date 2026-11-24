@@ -521,52 +521,53 @@ fun CardGroup(
         }
         // 从属项走遮罩裁剪：行按自然高度排版，只露出可见的那一段。
         // 高度变化带动下方内容让位，行本身不缩放，圆角与间距因此不会错位。
-        val itemCount = scope.items.size
-        val targets = ArrayList<Boolean>(itemCount)
-        val revealProgress = ArrayList<Float>(itemCount)
-        scope.items.forEach { item ->
+        val items = scope.items
+        val progresses = ArrayList<Float>(items.size)
+        items.forEach { item ->
             val check = item.animatedVisible
             if (check == null) {
-                targets += true
-                revealProgress += 1f
+                progresses += 1f
             } else {
-                val visible = check()
-                targets += visible
+                val shown = check()
                 val progress by animateFloatAsState(
-                    targetValue = if (visible) 1f else 0f,
+                    targetValue = if (shown) 1f else 0f,
                     animationSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>(),
                     label = "cardGroupReveal",
                 )
-                revealProgress += progress
+                progresses += progress
             }
         }
-        // 形状按「全部展开」的几何算，条目增减时位置不跳，圆角也就不会跟着变。
-        // 只有末项换了人这一种情况需要过渡，用 outerCorner 补上。
-        var targetSlot = 0
-        val targetSlots = IntArray(itemCount) { if (targets[it]) targetSlot++ else -1 }
-        val lastTargetSlot = targetSlot - 1
-        val outerCorners = ArrayList<Float>(itemCount)
-        scope.items.forEachIndexed { index, item ->
-            val isTargetLast = targets[index] && targetSlots[index] == lastTargetSlot
-            val isExpandedLast = index == itemCount - 1
-            val target = if (isTargetLast && !isExpandedLast) 1f else 0f
-            val outer by animateFloatAsState(
-                targetValue = target,
-                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>(),
-                label = "cardGroupOuterCorner",
-            )
-            outerCorners += outer
+        // 收起的项不占形状名额，否则最后一项拿不到外侧大圆角、会变成方角。
+        // 收到一半的项仍算可见，等完全收起才让位。
+        val laidOut = BooleanArray(items.size) { items[it].animatedVisible == null || progresses[it] > 0f }
+        val visibleCount = laidOut.count { it }
+        var shapeIndex = 0
+        val slots = IntArray(items.size) { if (laidOut[it]) shapeIndex++ else -1 }
+        // 底角：末项由 segmentedShapes 自己给外侧圆角；若下方还有正在收起的项，
+        // 它自己会短暂顶替末项，这里按下方最小进度把底角补过去，收完那一刻不会硬跳
+        val belowMin = FloatArray(items.size)
+        var running = 1f
+        for (i in items.indices.reversed()) {
+            belowMin[i] = running
+            running = minOf(running, progresses[i])
         }
-        scope.items.forEachIndexed { index, item ->
-            // 间距跟着行一起进出：放在各自块里，收起时随遮罩一起被裁掉，不留空档
+        // 间距跟着行一起进出：放在各自块里，收起时随遮罩一起被裁掉，不留空档；
+        // 组首那一项前面不加，免得收起的项在顶上留下一道空隙
+        var rendered = 0
+        items.forEachIndexed { index, item ->
+            if (!laidOut[index]) return@forEachIndexed
+            val bottomOuter = 1f - belowMin[index]
+            val slot = slots[index]
+            val needsGap = rendered > 0
+            rendered++
             if (item.animatedVisible == null) {
-                if (index > 0) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                CardGroupEntry(item = item, count = itemCount, index = index, bottomOuter = outerCorners[index])
+                if (needsGap) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                CardGroupEntry(item = item, count = visibleCount, index = slot, bottomOuter = bottomOuter)
             } else {
-                MaskReveal(progress = revealProgress[index]) {
+                MaskReveal(progress = progresses[index]) {
                     Column {
-                        if (index > 0) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                        CardGroupEntry(item = item, count = itemCount, index = index, bottomOuter = outerCorners[index])
+                        if (needsGap) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                        CardGroupEntry(item = item, count = visibleCount, index = slot, bottomOuter = bottomOuter)
                     }
                 }
             }
