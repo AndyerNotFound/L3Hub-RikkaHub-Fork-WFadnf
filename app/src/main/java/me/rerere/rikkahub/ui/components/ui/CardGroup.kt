@@ -432,7 +432,7 @@ private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape {
                 if (fromOutline is Outline.Rounded && toOutline is Outline.Rounded) {
                     val a = fromOutline.roundRect
                     val b = toOutline.roundRect
-                    Outline.Rounded(
+                    return Outline.Rounded(
                         RoundRect(
                             left = a.left + (b.left - a.left) * fraction,
                             top = a.top + (b.top - a.top) * fraction,
@@ -444,9 +444,8 @@ private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape {
                             bottomLeftCornerRadius = lerpCorner(a.bottomLeftCornerRadius, b.bottomLeftCornerRadius, fraction),
                         )
                     )
-                } else {
-                    fromOutline
                 }
+                return fromOutline
             }
         }
     }
