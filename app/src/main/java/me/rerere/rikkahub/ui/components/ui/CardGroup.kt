@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.rememberRevealEnter
+import me.rerere.rikkahub.ui.theme.rememberRevealExit
 
 private val CardGroupCorner = 20.dp
 private val CardGroupItemSpacing = 2.dp
@@ -196,6 +198,30 @@ fun CardGroupScope.animatedItem(
     leadingContent = leadingContent,
     trailingContent = trailingContent,
     colors = colors,
+    headlineContent = headlineContent,
+    animatedVisible = visible,
+)
+
+// 随开关出现的从属开关项
+fun CardGroupScope.animatedSwitchItem(
+    visible: () -> Boolean,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    supportingContent: (@Composable () -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    headlineContent: @Composable () -> Unit,
+) = item(
+    onClick = if (enabled) {
+        { onCheckedChange(!checked) }
+    } else null,
+    modifier = modifier,
+    supportingContent = supportingContent,
+    leadingContent = leadingContent,
+    trailingContent = {
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    },
     headlineContent = headlineContent,
     animatedVisible = visible,
 )
@@ -411,16 +437,22 @@ fun CardGroup(
                     Spacer(modifier = Modifier.height(CardGroupItemSpacing))
                 }
             } else {
-                // 从属项：只有这一项自己做尺寸收放，组内其它行不动
-                MotionExpandCollapse(visible = visibleCheck()) {
+                // 从属项：只有这一项自己做尺寸收放，组内其它行不动。
+                // 间距放在收放范围外面，展开后与普通条目之间才有同样的上下间隔。
+                MotionExpandCollapse(
+                    visible = visibleCheck(),
+                    maxBlurRadius = 0.dp,
+                    enter = rememberRevealEnter(),
+                    exit = rememberRevealExit(),
+                ) {
                     if (formContent != null) {
                         CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
                     } else {
                         CardGroupListItem(item = item, count = count, index = index)
                     }
-                    if (index != count - 1) {
-                        Spacer(modifier = Modifier.height(CardGroupItemSpacing))
-                    }
+                }
+                if (index != count - 1) {
+                    Spacer(modifier = Modifier.height(CardGroupItemSpacing))
                 }
             }
         }
