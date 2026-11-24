@@ -33,8 +33,8 @@ android {
         manifestPlaceholders["appLabel"] = appLabel ?: "@string/app_name"
         minSdk = 26
         targetSdk = 37
-        versionCode = 372
-        versionName = "L.3.3.1.0"
+        versionCode = 373
+        versionName = "L.3.3.1.1"
         buildConfigField("boolean", "UPDATE_CHECK_ENABLED", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
