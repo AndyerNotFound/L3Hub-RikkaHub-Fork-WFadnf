@@ -46,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.motionContentSize
 
 private val CardGroupCorner = 20.dp
 private val CardGroupItemSpacing = 2.dp
@@ -334,7 +335,9 @@ fun CardGroup(
     val scope = CardGroupScopeImpl()
     scope.content()
 
-    Column(modifier = modifier) {
+    // 卡片高度跟着内容走：组内条目增减（从属项随开关出现/消失）时整卡平滑收放，
+    // 而不是一帧跳变。条目本身仍写普通 if，形状与间距由下面按可见项统一算。
+    Column(modifier = modifier.motionContentSize()) {
         if (title != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
                 ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
