@@ -300,7 +300,7 @@ fun ReasoningPicker(
                 }
             },
             second = {
-                modelContent { onDismissRequest() }
+                modelContent?.invoke { onDismissRequest() }
             },
         )
     }
