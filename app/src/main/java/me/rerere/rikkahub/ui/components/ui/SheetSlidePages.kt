@@ -66,16 +66,18 @@ fun <T> SheetSlideStackPages(
     modifier: Modifier = Modifier,
     content: @Composable (T) -> Unit,
 ) {
+    // transitionSpec 的 lambda 不是 @Composable 上下文，曲线要在外面先取好
+    val spatialSpec = rememberSpatialSpec<IntOffset>()
+    val effectsSpec = rememberEffectsSpec<Float>()
     AnimatedContent(
         targetState = page,
         modifier = modifier.motionContentSize().clipToBounds(),
         transitionSpec = {
-            val forward = depthOf(targetState) > depthOf(initialState)
-            val direction = if (forward) 1 else -1
-            slideInHorizontally(rememberSpatialSpec<IntOffset>()) { it * direction } +
-                fadeIn(rememberEffectsSpec<Float>()) togetherWith
-                slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { it * direction } +
-                fadeOut(rememberEffectsSpec<Float>())
+            val direction = if (depthOf(targetState) > depthOf(initialState)) 1 else -1
+            slideInHorizontally(spatialSpec) { it * direction } +
+                fadeIn(effectsSpec) togetherWith
+                slideOutHorizontally(spatialSpec) { it * direction } +
+                fadeOut(effectsSpec)
         },
         label = "SheetSlideStackPages",
     ) { current ->
