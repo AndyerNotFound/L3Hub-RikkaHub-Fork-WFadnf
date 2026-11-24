@@ -1,15 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.Density
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
@@ -30,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.LocalContentColor
@@ -40,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -317,12 +306,10 @@ private fun CardGroupFormItem(
     formContent: @Composable ColumnScope.() -> Unit,
     count: Int,
     index: Int,
-    bottomOuter: Float,
 ) {
     Surface(
         modifier = item.modifier.fillMaxWidth(),
-        shape = cardGroupItemShape(index, count)
-            .morphedBottom(CornerSize(CardGroupCorner), bottomOuter),
+        shape = cardGroupItemShape(index, count),
         color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
@@ -364,13 +351,12 @@ private fun CardGroupEntry(
     item: CardGroupItem,
     count: Int,
     index: Int,
-    bottomOuter: Float,
 ) {
     val formContent = item.formContent
     if (formContent != null) {
-        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index, bottomOuter = bottomOuter)
+        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
     } else {
-        CardGroupListItem(item = item, count = count, index = index, bottomOuter = bottomOuter)
+        CardGroupListItem(item = item, count = count, index = index)
     }
 }
 
@@ -390,45 +376,18 @@ private fun MaskReveal(
     }
 }
 
-// 把底角从当前值过渡到外侧大圆角，进度由收放共用
-@Composable
-private fun Shape.morphedBottom(outerBottom: CornerSize, progress: Float): Shape {
-    if (progress <= 0f || this !is CornerBasedShape) return this
-    val target = copy(bottomStart = outerBottom, bottomEnd = outerBottom)
-    return lerpShape(this, target, progress)
-}
-
 @Composable
 private fun CardGroupListItem(
     item: CardGroupItem,
     count: Int,
     index: Int,
-    bottomOuter: Float,
 ) {
-    // 首尾圆角交给 M3 官方的分段形状：它按 index/count 解析，条目增减时自然跟着变
-    val baseShapes = ListItemDefaults.segmentedShapes(index = index, count = count)
-    // 收放时末项换了人，底角要跟着同一个进度过渡，不能瞬间跳。
-    // 外侧圆角就是主题里 large 那一档，和 segmentedShapes 内部取的是同一个令牌
-    val outerBottom = (MaterialTheme.shapes.large as? CornerBasedShape)?.bottomStart
-        ?: CornerSize(0.dp)
-    val bottomShapes = baseShapes.copy(shape = baseShapes.shape.morphedBottom(outerBottom, bottomOuter))
+    // 首尾圆角与按压形变都交给 M3：segmentedShapes 按 index/count 解析，
+    // 按下时 shapeForInteraction 会对 CornerBasedShape 自己做形变动画
     val interactionSource = remember { MutableInteractionSource() }
 
-    // 按压形变自己驱动：M3 内部那套依赖形状全为 CornerBasedShape 且缓存键稳定，
-    // 我们的圆角风格（平滑/超椭圆/波浪）不满足时整段跳过，表现为硬切。
-    // 这里按同一个按压态与 FastSpatial 曲线插值圆角，六种状态形状统一成同一个值，
-    // 按下与松开都连续过渡，不依赖 M3 的分支判定。
-    val pressed by interactionSource.collectIsPressedAsState()
-    val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val pressProgress by animateFloatAsState(
-        targetValue = if (pressed) 1f else 0f,
-        animationSpec = spec,
-        label = "cardGroupPressShape",
-    )
-    val shapes = bottomShapes.morphedBy(pressProgress)
-
     SegmentedListItem(
-        shapes = shapes,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
         modifier = item.modifier.fillMaxWidth(),
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,
@@ -441,62 +400,6 @@ private fun CardGroupListItem(
         content = item.headlineContent ?: {},
     )
 }
-
-// 非标准形状（平滑/超椭圆/波浪）的按压过渡。
-// 关键：按下时 M3 取的是 pressedShape、常态取 shape，两者若不同就会瞬间跳过去（硬切）。
-// 所以这里把六个状态形状统一成同一个插值结果，由 progress 自己从常态过渡到按压态。
-@Composable
-private fun ListItemShapes.morphedBy(progress: Float): ListItemShapes {
-    val morphed = if (progress <= 0f) shape else lerpShape(shape, pressedShape, progress)
-    return copy(
-        shape = morphed,
-        selectedShape = morphed,
-        pressedShape = morphed,
-        focusedShape = morphed,
-        hoveredShape = morphed,
-        draggedShape = morphed,
-    )
-}
-
-@Composable
-private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape {
-    val shape: Shape = remember(from, to, fraction) {
-        object : Shape {
-            override fun createOutline(
-                size: Size,
-                layoutDirection: LayoutDirection,
-                density: Density,
-            ): Outline {
-                val fromOutline = from.createOutline(size, layoutDirection, density)
-                val toOutline = to.createOutline(size, layoutDirection, density)
-                if (fromOutline is Outline.Rounded && toOutline is Outline.Rounded) {
-                    val a = fromOutline.roundRect
-                    val b = toOutline.roundRect
-                    return Outline.Rounded(
-                        RoundRect(
-                            left = a.left + (b.left - a.left) * fraction,
-                            top = a.top + (b.top - a.top) * fraction,
-                            right = a.right + (b.right - a.right) * fraction,
-                            bottom = a.bottom + (b.bottom - a.bottom) * fraction,
-                            topLeftCornerRadius = lerpCorner(a.topLeftCornerRadius, b.topLeftCornerRadius, fraction),
-                            topRightCornerRadius = lerpCorner(a.topRightCornerRadius, b.topRightCornerRadius, fraction),
-                            bottomRightCornerRadius = lerpCorner(a.bottomRightCornerRadius, b.bottomRightCornerRadius, fraction),
-                            bottomLeftCornerRadius = lerpCorner(a.bottomLeftCornerRadius, b.bottomLeftCornerRadius, fraction),
-                        )
-                    )
-                }
-                return fromOutline
-            }
-        }
-    }
-    return shape
-}
-
-private fun lerpCorner(a: CornerRadius, b: CornerRadius, fraction: Float): CornerRadius =
-    CornerRadius(
-        x = a.x + (b.x - a.x) * fraction,
-        y = a.y + (b.y - a.y) * fraction,
-    )
 
 @Composable
 fun CardGroup(
@@ -520,7 +423,7 @@ fun CardGroup(
             }
         }
         // 从属项走遮罩裁剪：行按自然高度排版，只露出可见的那一段。
-        // 高度变化带动下方内容让位，行本身不缩放，圆角与间距因此不会错位。
+        // 行本身不缩放，高度变化自然带动下方让位，圆角与间距因此不会错位。
         val items = scope.items
         val progresses = ArrayList<Float>(items.size)
         items.forEach { item ->
@@ -537,37 +440,24 @@ fun CardGroup(
                 progresses += progress
             }
         }
-        // 收起的项不占形状名额，否则最后一项拿不到外侧大圆角、会变成方角。
-        // 收到一半的项仍算可见，等完全收起才让位。
+        // 高度归零的项才让出形状名额与间距；收到一半的仍占着，
+        // 否则末项会中途换人，圆角跳一下
         val laidOut = BooleanArray(items.size) { items[it].animatedVisible == null || progresses[it] > 0f }
         val visibleCount = laidOut.count { it }
         var shapeIndex = 0
-        val slots = IntArray(items.size) { if (laidOut[it]) shapeIndex++ else -1 }
-        // 底角：末项由 segmentedShapes 自己给外侧圆角；若下方还有正在收起的项，
-        // 它自己会短暂顶替末项，这里按下方最小进度把底角补过去，收完那一刻不会硬跳
-        val belowMin = FloatArray(items.size)
-        var running = 1f
-        for (i in items.indices.reversed()) {
-            belowMin[i] = running
-            running = minOf(running, progresses[i])
-        }
-        // 间距跟着行一起进出：放在各自块里，收起时随遮罩一起被裁掉，不留空档；
-        // 组首那一项前面不加，免得收起的项在顶上留下一道空隙
         var rendered = 0
         items.forEachIndexed { index, item ->
             if (!laidOut[index]) return@forEachIndexed
-            val bottomOuter = 1f - belowMin[index]
-            val slot = slots[index]
-            val needsGap = rendered > 0
-            rendered++
+            val slot = shapeIndex++
+            val needsGap = rendered++ > 0
             if (item.animatedVisible == null) {
                 if (needsGap) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                CardGroupEntry(item = item, count = visibleCount, index = slot, bottomOuter = bottomOuter)
+                CardGroupEntry(item = item, count = visibleCount, index = slot)
             } else {
                 MaskReveal(progress = progresses[index]) {
                     Column {
                         if (needsGap) Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                        CardGroupEntry(item = item, count = visibleCount, index = slot, bottomOuter = bottomOuter)
+                        CardGroupEntry(item = item, count = visibleCount, index = slot)
                     }
                 }
             }
