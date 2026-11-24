@@ -73,10 +73,11 @@ fun <T> SheetSlideStackPages(
         targetState = page,
         modifier = modifier.motionContentSize().clipToBounds(),
         transitionSpec = {
+            // 进场与退场方向相反：新页从一侧进，旧页朝另一侧退，与上游页面栈一致
             val direction = if (depthOf(targetState) > depthOf(initialState)) 1 else -1
             slideInHorizontally(spatialSpec) { it * direction } +
                 fadeIn(effectsSpec) togetherWith
-                slideOutHorizontally(spatialSpec) { it * direction } +
+                slideOutHorizontally(spatialSpec) { -it * direction } +
                 fadeOut(effectsSpec)
         },
         label = "SheetSlideStackPages",
