@@ -18,6 +18,7 @@ import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -1013,6 +1015,9 @@ private fun SendButton(
             .testTag("chat_send_button")
             .clip(shape)
             .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                // 图标用 tint 单独设色，不会更新 LocalContentColor；涟漪也要跟随按钮前景色。
+                indication = ripple(color = contentColor),
                 enabled = showStop || !empty,
                 onClick = onClick,
                 onLongClick = onLongClick,

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.theme
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -33,7 +34,12 @@ fun SaltThemeHost(
     val typography = MaterialTheme.typography
     val shapes = MaterialTheme.shapes
 
-    val configs = remember(isDark) { SaltConfigs.default(isDarkTheme = isDark) }
+    // SaltUI 3.0.0 默认用黑色 AlphaIndication，会覆盖外层 M3 的涟漪，深色下几乎不可见。
+    // 沿用 MaterialTheme 提供的 indication，让 Salt 组件和自定义 clickable 都保持 M3 点按反馈。
+    val indication = LocalIndication.current
+    val configs = remember(isDark, indication) {
+        SaltConfigs.default(isDarkTheme = isDark, indication = indication)
+    }
     val saltColors = remember(colorScheme, isDark) { colorScheme.toSaltColors(isDark) }
     val dynamicColors = remember(saltColors) {
         SaltDynamicColors(light = saltColors, dark = saltColors)
