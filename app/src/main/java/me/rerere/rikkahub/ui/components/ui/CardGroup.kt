@@ -1,5 +1,14 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
@@ -354,10 +363,25 @@ private fun CardGroupListItem(
     count: Int,
     index: Int,
 ) {
-    // 首尾圆角与按压形变交给 M3 官方的分段形状：它按 index/count 解析，
-    // 条目增减时自然跟着变，不用自己算四角
-    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    // 首尾圆角交给 M3 官方的分段形状：它按 index/count 解析，条目增减时自然跟着变
+    val baseShapes = ListItemDefaults.segmentedShapes(index = index, count = count)
     val interactionSource = remember { MutableInteractionSource() }
+
+    // M3 的按压形变只在六个形状都是 CornerBasedShape 时启动。圆角风格选了平滑、超椭圆、
+    // 波浪这几种时，形状不是 CornerBasedShape，官方动画会整段跳过、变成硬切；
+    // 这里按同一个按压态自己插值圆角，保证这些风格下手感一致。
+    val shapes = if (baseShapes.hasCornerBasedShapes()) {
+        baseShapes
+    } else {
+        val pressed by interactionSource.collectIsPressedAsState()
+        val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        val radius by animateFloatAsState(
+            targetValue = if (pressed) 1f else 0f,
+            animationSpec = spec,
+            label = "cardGroupPressShape",
+        )
+        baseShapes.morphedBy(radius)
+    }
 
     SegmentedListItem(
         shapes = shapes,
@@ -373,6 +397,64 @@ private fun CardGroupListItem(
         content = item.headlineContent ?: {},
     )
 }
+
+// M3 只在六个形状全为 CornerBasedShape 时才做形变动画
+private fun ListItemShapes.hasCornerBasedShapes(): Boolean =
+    shape is CornerBasedShape &&
+        selectedShape is CornerBasedShape &&
+        pressedShape is CornerBasedShape &&
+        focusedShape is CornerBasedShape &&
+        hoveredShape is CornerBasedShape &&
+        draggedShape is CornerBasedShape
+
+// 非标准形状（平滑/超椭圆/波浪）的按压过渡：按进度在常态与按压态之间插值
+@Composable
+private fun ListItemShapes.morphedBy(progress: Float): ListItemShapes {
+    if (progress <= 0f) return this
+    return copy(
+        shape = lerpShape(shape, pressedShape, progress),
+        selectedShape = lerpShape(selectedShape, pressedShape, progress),
+    )
+}
+
+@Composable
+private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape =
+    remember(from, to, fraction) {
+        object : Shape {
+            override fun createOutline(
+                size: Size,
+                layoutDirection: LayoutDirection,
+                density: Density,
+            ): Outline {
+                val fromOutline = from.createOutline(size, layoutDirection, density)
+                val toOutline = to.createOutline(size, layoutDirection, density)
+                if (fromOutline is Outline.Rounded && toOutline is Outline.Rounded) {
+                    val a = fromOutline.roundRect
+                    val b = toOutline.roundRect
+                    Outline.Rounded(
+                        RoundRect(
+                            left = a.left + (b.left - a.left) * fraction,
+                            top = a.top + (b.top - a.top) * fraction,
+                            right = a.right + (b.right - a.right) * fraction,
+                            bottom = a.bottom + (b.bottom - a.bottom) * fraction,
+                            topLeftCornerRadius = lerpCorner(a.topLeftCornerRadius, b.topLeftCornerRadius, fraction),
+                            topRightCornerRadius = lerpCorner(a.topRightCornerRadius, b.topRightCornerRadius, fraction),
+                            bottomRightCornerRadius = lerpCorner(a.bottomRightCornerRadius, b.bottomRightCornerRadius, fraction),
+                            bottomLeftCornerRadius = lerpCorner(a.bottomLeftCornerRadius, b.bottomLeftCornerRadius, fraction),
+                        )
+                    )
+                } else {
+                    fromOutline
+                }
+            }
+        }
+    }
+
+private fun lerpCorner(a: CornerRadius, b: CornerRadius, fraction: Float): CornerRadius =
+    CornerRadius(
+        x = a.x + (b.x - a.x) * fraction,
+        y = a.y + (b.y - a.y) * fraction,
+    )
 
 @Composable
 fun CardGroup(
