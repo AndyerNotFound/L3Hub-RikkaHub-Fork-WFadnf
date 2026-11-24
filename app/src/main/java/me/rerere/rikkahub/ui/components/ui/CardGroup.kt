@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
@@ -357,6 +358,20 @@ private fun CardGroupFormItem(
 }
 
 @Composable
+private fun CardGroupEntry(
+    item: CardGroupItem,
+    count: Int,
+    index: Int,
+) {
+    val formContent = item.formContent
+    if (formContent != null) {
+        CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)
+    } else {
+        CardGroupListItem(item = item, count = count, index = index)
+    }
+}
+
+@Composable
 private fun CardGroupListItem(
     item: CardGroupItem,
     count: Int,
@@ -472,50 +487,39 @@ fun CardGroup(
                 }
             }
         }
-        // 与 M3 官方 SegmentedListItemWithExpansionSample 一致：
-        // 可见条目数与索引按「展开后的实际数量」算，从属项整块走 expandVertically/shrinkVertically，
-        // 圆角由 segmentedShapes(index, count) 自己解析，间距用 SegmentedGap。
-        val visibleCount = scope.items.count { it.animatedVisible?.invoke() != false }
+        // 从属项各自独立收放，可见性互不牵连（同一组里可能各有各的条件）。
+        // 关键：动画期间仍按「可见」占形状名额与间距，收放结束才让出，
+        // 否则正在收起的那一项会瞬间被当成末项，圆角跳成大圆角再消失。
+        val transitionStates = remember { mutableMapOf<Int, MutableTransitionState<Boolean>>() }
+        val layoutVisible = BooleanArray(scope.items.size) { true }
+        scope.items.forEachIndexed { index, item ->
+            val check = item.animatedVisible ?: return@forEachIndexed
+            val state = transitionStates.getOrPut(index) { MutableTransitionState(check()) }
+            val visible = check()
+            if (state.targetState != visible) state.targetState = visible
+            layoutVisible[index] = state.currentState || state.targetState
+        }
+        val visibleCount = layoutVisible.count { it }
         var shapeIndex = 0
-        var i = 0
-        while (i < scope.items.size) {
-            val item = scope.items[i]
-            val visibleCheck = item.animatedVisible
-            if (visibleCheck == null) {
-                val slot = shapeIndex++
-                if (item.formContent != null) {
-                    CardGroupFormItem(item = item, formContent = item.formContent, count = visibleCount, index = slot)
-                } else {
-                    CardGroupListItem(item = item, count = visibleCount, index = slot)
+        scope.items.forEachIndexed { index, item ->
+            val slot = if (layoutVisible[index]) shapeIndex++ else -1
+            if (item.animatedVisible == null) {
+                if (slot >= 0) {
+                    CardGroupEntry(item = item, count = visibleCount, index = slot)
+                    if (slot < visibleCount - 1) {
+                        Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
+                    }
                 }
-                if (shapeIndex < visibleCount) {
-                    Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
-                }
-                i++
             } else {
-                // 收集连续的从属项，作为一整块收放：整块高度动画，条目自身不缩放，
-                // 展开后各条目的圆角与间距都与普通条目一致
-                val group = mutableListOf<CardGroupItem>()
-                while (i < scope.items.size && scope.items[i].animatedVisible != null) {
-                    group += scope.items[i]
-                    i++
-                }
-                val visible = group.first().animatedVisible?.invoke() == true
-                // 先占位，展开后组内每个条目在可见序列里的位置要连续
-                val slots = group.map { if (visible) shapeIndex++ else shapeIndex }
                 AnimatedVisibility(
-                    visible = visible,
+                    visibleState = transitionStates.getValue(index),
                     enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                     exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                 ) {
-                    Column {
-                        group.forEachIndexed { gi, gItem ->
-                            if (gItem.formContent != null) {
-                                CardGroupFormItem(item = gItem, formContent = gItem.formContent, count = visibleCount, index = slots[gi])
-                            } else {
-                                CardGroupListItem(item = gItem, count = visibleCount, index = slots[gi])
-                            }
-                            if (slots[gi] < visibleCount - 1) {
+                    if (slot >= 0) {
+                        Column {
+                            CardGroupEntry(item = item, count = visibleCount, index = slot)
+                            if (slot < visibleCount - 1) {
                                 Spacer(modifier = Modifier.height(ListItemDefaults.SegmentedGap))
                             }
                         }
