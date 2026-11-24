@@ -75,7 +75,7 @@ internal fun logSettingsError(message: String, error: Throwable? = null) {
  * 多态列表的宽松解码。
  *
  * 提供商、媒体生成、TTS、ASR 都是 sealed 的多态列表：只要有一条子类型不认识
- * （比如从别的分支写进来的 `deepseek-account`），整个字段就会抛 JsonDecodingException，
+ * （比如其他版本新增的提供商类型），整个字段就会抛 JsonDecodingException，
  * 而设置读不出来会让应用直接起不来。这里改成逐条解码，认不出的只丢那一条。
  */
 internal inline fun <reified T : Any> decodeListLenient(raw: String): List<T> {
