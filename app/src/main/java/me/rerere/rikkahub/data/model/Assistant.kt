@@ -1,7 +1,14 @@
 package me.rerere.rikkahub.data.model
 
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonTransformingSerializer
+import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.CustomBody
@@ -13,7 +20,9 @@ import me.rerere.rikkahub.utils.SimpleCache
 import java.util.concurrent.TimeUnit
 import kotlin.uuid.Uuid
 
-@Serializable
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+@Serializable(with = AssistantSerializer::class)
 data class Assistant(
     val id: Uuid = Uuid.random(),
     val chatModelId: Uuid? = null, // 如果为null, 使用全局默认模型
@@ -41,9 +50,7 @@ data class Assistant(
     val todoReminderInterval: Int = 1,
     // 关闭后这个助手不再发系统通知（生成完成 / 进度 / 压缩状态）
     val enableNotification: Boolean = true,
-    // 计划模式：只允许只读工具，写文件/执行命令/改仓库一律拒绝
-    val planMode: Boolean = false,
-    // 工作区工具的审批档位：只读 / 读写 / 审批 / 自动
+    // 工作区权限：只读权限 / 逐项确认 / 完全权限
     val executionPermission: ExecutionPermission = ExecutionPermission.APPROVAL,
     val enableMemory: Boolean = false,
     val enableMemoryWrite: Boolean = true, // 允许对话里的助手修改记忆; 关闭后只提供读取工具
@@ -95,23 +102,41 @@ data class Assistant(
         get() = workspaceId ?: workspaceIds.firstOrNull()
 }
 
+/** 设置和备份共用解码规则：旧计划模式优先，不能恢复到原来更宽的权限。 */
+@OptIn(ExperimentalSerializationApi::class)
+private object AssistantSerializer : JsonTransformingSerializer<Assistant>(Assistant.generatedSerializer()) {
+    override fun transformDeserialize(element: JsonElement): JsonElement {
+        val fields = element as? JsonObject ?: return element
+        val planMode = fields["planMode"]
+        val legacyReadWrite = fields["executionPermission"] == JsonPrimitive("READ_WRITE")
+        if (planMode == null && !legacyReadWrite) return fields
+
+        val migrated = when {
+            // 损坏的旧标记不能当作关闭计划模式处理。
+            planMode != null && (planMode as? JsonPrimitive)?.booleanOrNull != false -> ExecutionPermission.READ_ONLY
+            legacyReadWrite -> ExecutionPermission.APPROVAL
+            else -> null
+        }
+        return JsonObject(fields.toMutableMap().apply {
+            remove("planMode")
+            if (migrated != null) put("executionPermission", JsonPrimitive(migrated.name))
+        })
+    }
+}
+
 /**
  * 工作区工具的执行权限档位。
- *
- * 只影响「写文件 / 执行命令 / 改仓库 / 跑测试」，读类工具在任何档位下都能用。
+ * 工作区关闭的工具在所有档位下都不可用。
  */
 @Serializable
 enum class ExecutionPermission {
     /** 只读：只注册读类工具，shell 也只允许只读命令 */
     READ_ONLY,
 
-    /** 读写：写文件免审批，执行命令仍然要确认 */
-    READ_WRITE,
-
-    /** 审批：写操作和命令按工具默认值与工作区里的开关逐条确认（旧行为） */
+    /** 逐项确认：按工作区工具模式与原有防护决定是否确认 */
     APPROVAL,
 
-    /** 自动：全部放行，不再逐条确认 */
+    /** 完全权限：已启用的工作区工具不再逐条确认 */
     FULL,
 }
 

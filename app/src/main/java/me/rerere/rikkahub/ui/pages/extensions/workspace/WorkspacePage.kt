@@ -113,7 +113,13 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         visible = showTypeSheet,
         onDismissRequest = { showTypeSheet = false },
     ) {
-        CardGroup(title = { Text(stringResource(R.string.workspace_page_create)) },
+        CardGroup(
+            title = {
+                Text(
+                    text = stringResource(R.string.workspace_page_create),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            },
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),

@@ -21,20 +21,20 @@ import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspacePaths
 
 internal fun createWriteFileTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
 ) = Tool(
     name = "workspace_write_file",
     description = """
         Write a UTF-8 text file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use ${targets.first().layout.workspaceDir} for the workspace files area.
+        Use ${targets.layout.workspaceDir} for the workspace files area.
         ${targets.workspaceNote()}
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = true)
+                putPathProperty(targets.layout, required = true)
                 put("text", buildJsonObject {
                     put("type", "string")
                     put("description", "UTF-8 text content to write")
@@ -44,22 +44,17 @@ internal fun createWriteFileTool(
                     put("description", "Whether to overwrite an existing file. Defaults to true.")
                 })
             },
-            required = listOf("path", "text"),
+            required = targets.required("path", "text"),
         )
     },
-    needsApproval = { params ->
-        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
-        target == null || target.requiresWriteApproval(
-            name = "workspace_write_file",
-            outsideWritableRoots = params.jsonObject.pathOutsideWritableRoots(target.layout, "path"),
-        )
+    needsApproval = { args ->
+        targets.needsApproval(args) { target, params ->
+            target.requiresWriteApproval("workspace_write_file", params.pathOutsideWritableRoots(target.layout, "path"))
+        }
     },
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
-        require(target.supportsFileWrite) {
-            "Workspace '${target.name}' does not support file write tools"
-        }
+        val target = targets.resolveForExecution(params)
         val path = params.writePath("path", target.layout)
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
@@ -72,13 +67,13 @@ internal fun createWriteFileTool(
 )
 
 internal fun createEditFileTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
 ) = Tool(
     name = "workspace_edit_file",
     description = """
         Edit a UTF-8 text file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use ${targets.first().layout.workspaceDir} for the workspace files area.
+        Use ${targets.layout.workspaceDir} for the workspace files area.
         Provide old_text and new_text. By default old_text must occur exactly once; set replace_all=true to replace every occurrence.
         If no exact match is found, whitespace-tolerant line matching is attempted automatically.
         ${targets.workspaceNote()}
@@ -87,7 +82,7 @@ internal fun createEditFileTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = true)
+                putPathProperty(targets.layout, required = true)
                 put("old_text", buildJsonObject {
                     put("type", "string")
                     put("description", "Exact text to replace")
@@ -101,22 +96,17 @@ internal fun createEditFileTool(
                     put("description", "Whether to replace every occurrence. Defaults to false.")
                 })
             },
-            required = listOf("path", "old_text", "new_text"),
+            required = targets.required("path", "old_text", "new_text"),
         )
     },
-    needsApproval = { params ->
-        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
-        target == null || target.requiresWriteApproval(
-            name = "workspace_edit_file",
-            outsideWritableRoots = params.jsonObject.pathOutsideWritableRoots(target.layout, "path"),
-        )
+    needsApproval = { args ->
+        targets.needsApproval(args) { target, params ->
+            target.requiresWriteApproval("workspace_edit_file", params.pathOutsideWritableRoots(target.layout, "path"))
+        }
     },
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
-        require(target.supportsFileWrite) {
-            "Workspace '${target.name}' does not support file write tools"
-        }
+        val target = targets.resolveForExecution(params)
         val path = params.writePath("path", target.layout)
         val oldText = params.string("old_text") ?: error("old_text is required")
         val newText = params.string("new_text") ?: error("new_text is required")
@@ -150,12 +140,12 @@ internal fun createEditFileTool(
 )
 
 internal fun createApplyPatchTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
 ) = Tool(
     name = "workspace_apply_patch",
     description = """
-        Apply a unified diff to the assistant's bound workspace Rootfs. Paths in the patch are relative to the workspace files root (${targets.first().layout.workspaceDir});
+        Apply a unified diff to the assistant's bound workspace Rootfs. Paths in the patch are relative to the selected workspace files root (${targets.layout.workspaceDir});
         absolute paths inside Rootfs are accepted too. Supports multiple files and multiple hunks per file, new files (/dev/null old path) and deletions.
         Hunks are matched by context; a missing or ambiguous context rejects the whole patch and nothing is written, so always read the file before patching.
         Returns per-file added/removed counts and any conflicts with hunk index and line. Use dry_run=true to validate without writing.
@@ -174,23 +164,17 @@ internal fun createApplyPatchTool(
                     put("description", "Only validate and report, do not write files. Defaults to false.")
                 })
             },
-            required = listOf("patch"),
+            required = targets.required("patch"),
         )
     },
-    needsApproval = { params ->
-        val obj = params.jsonObject
-        val target = obj.resolveWorkspaceOrNull(targets)
-        target == null || target.requiresWriteApproval(
-            name = "workspace_apply_patch",
-            outsideWritableRoots = obj.patchOutsideWritableRoots(target.layout),
-        )
+    needsApproval = { args ->
+        targets.needsApproval(args) { target, params ->
+            target.requiresWriteApproval("workspace_apply_patch", params.patchOutsideWritableRoots(target.layout))
+        }
     },
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
-        require(target.supportsFileWrite) {
-            "Workspace '${target.name}' does not support file write tools"
-        }
+        val target = targets.resolveForExecution(params)
         val patchText = params.string("patch") ?: error("patch is required")
         val dryRun = params["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
         val result = applyUnifiedPatch(

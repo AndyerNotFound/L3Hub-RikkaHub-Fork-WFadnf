@@ -31,7 +31,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -69,7 +68,6 @@ import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.PaintBoard
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Video01
-import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -233,7 +231,7 @@ internal fun FilesPicker(
                 // 限制了上下文消息数就是滚动上下文，旧消息会自动移出，不需要压缩
                 val showCompress = assistant.contextMessageLimit <= 0
                 // 收起的项不占位置，后面的往前挪一格；圆角和设置页的卡片组同一套算法
-                val itemCount = 3 +
+                val itemCount = 2 +
                     (if (showWorkspace) cwdWorkspaces.size + 1 else 0) +
                     (if (showMcp) 1 else 0) +
                     (if (showCompress) 1 else 0)
@@ -247,7 +245,6 @@ internal fun FilesPicker(
                 val cwdIndexes = cwdWorkspaces.map { if (showWorkspace) itemIndex++ else hiddenShapeIndex }
                 val mcpIndex = if (showMcp) itemIndex++ else hiddenShapeIndex
                 val extensionsIndex = itemIndex++
-                val planModeIndex = itemIndex++
                 val compressIndex = if (showCompress) itemIndex++ else hiddenShapeIndex
                 Column(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
@@ -374,25 +371,6 @@ internal fun FilesPicker(
                         },
                     ) {
                         Text(stringResource(R.string.assistant_page_tab_extensions))
-                    }
-
-                    // Plan Mode Toggle
-                    SegmentedListItem(
-                        onClick = { onUpdateAssistant(assistant.copy(planMode = !assistant.planMode)) },
-                        shapes = ListItemDefaults.segmentedShapes(index = planModeIndex, count = itemCount),
-                        leadingContent = {
-                            Icon(
-                                imageVector = HugeIcons.View,
-                                contentDescription = null,
-                                tint = if (assistant.planMode) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    LocalContentColor.current
-                                },
-                            )
-                        },
-                    ) {
-                        Text(stringResource(R.string.assistant_page_plan_mode))
                     }
 
                     // Compress History Button

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -61,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -105,11 +107,10 @@ import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.WorkspaceFileWriteToolNames
-import me.rerere.rikkahub.data.ai.tools.resolveWorkspaceToolApproval
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
-import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
+import me.rerere.rikkahub.data.model.WorkspaceToolMode
+import me.rerere.rikkahub.data.model.toolMode
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -126,13 +127,12 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.pages.assistant.detail.labelRes
 import me.rerere.rikkahub.ui.style.Checkbox
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.theme.motionColorAsState
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -167,8 +167,6 @@ fun WorkspaceDetailPage(id: String) {
     val installProgress by vm.installProgress.collectAsStateWithLifecycle()
     val installError by vm.installError.collectAsStateWithLifecycle()
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
-    // 单工具审批开关只在「审批」档位生效，其它档位以助手档位为准
-    val executionPermission = LocalSettings.current.getCurrentAssistant().executionPermission
     val pagerState = rememberPagerState { WorkspaceDetailTab.entries.size }
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var showInstallDialog by remember { mutableStateOf(false) }
@@ -264,9 +262,8 @@ fun WorkspaceDetailPage(id: String) {
                     WorkspaceDetailTab.BASIC -> WorkspaceBasicPage(
                         workspace = state.workspace,
                         installProgress = installProgress,
-                        executionPermission = executionPermission,
                         onInstallRootfs = { showInstallDialog = true },
-                        onToolApprovalChange = vm::setToolApproval,
+                        onCycleToolMode = vm::cycleToolMode,
                         onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                         onStorageMountsChange = vm::setStorageMounts,
                         onEditSsh = { navController.navigate(Screen.WorkspaceSshEditor(id)) },
@@ -425,9 +422,8 @@ fun WorkspaceDetailPage(id: String) {
 private fun WorkspaceBasicPage(
     workspace: WorkspaceEntity?,
     installProgress: RootfsInstallProgress?,
-    executionPermission: ExecutionPermission,
     onInstallRootfs: () -> Unit,
-    onToolApprovalChange: (String, Boolean) -> Unit,
+    onCycleToolMode: (String) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
     onStorageMountsChange: (List<WorkspaceStorageMount>) -> Unit,
     onEditSsh: () -> Unit,
@@ -514,12 +510,8 @@ private fun WorkspaceBasicPage(
             }
         }
 
-        item {
-            WorkspaceToolApprovalCard(
-                workspace = workspace,
-                executionPermission = executionPermission,
-                onToolApprovalChange = onToolApprovalChange,
-            )
+        if (workspace != null) {
+            item { WorkspaceToolModeCard(workspace, onCycleToolMode) }
         }
     }
 }
@@ -590,39 +582,23 @@ private fun ShellStatusBadge(status: String?) {
 }
 
 @Composable
-private fun WorkspaceToolApprovalCard(
-    workspace: WorkspaceEntity?,
-    executionPermission: ExecutionPermission,
-    onToolApprovalChange: (String, Boolean) -> Unit,
+private fun WorkspaceToolModeCard(
+    workspace: WorkspaceEntity,
+    onCycleToolMode: (String) -> Unit,
 ) {
-    // 这些开关是工作区级配置，与「当前选中的助手」无关：用户在设置页里改的是工作区本身，
-    // 真正读取它们的是「审批」档位。之前按当前助手的档位灰显/隐藏，换个助手聊天时判断就错了。
-    val switchesEnabled = workspace != null
-    val overrides = workspace?.toolApprovalOverrides().orEmpty()
-    val fileWriteTools = workspace?.capabilities()?.fileWriteTools ?: true
-    val tools = workspaceToolApprovalItems().filter { (toolName) ->
-        fileWriteTools || toolName !in WorkspaceFileWriteToolNames
+    val modes = remember(workspace.toolApprovals) { workspace.toolModes() }
+    val fileWriteTools = workspace.capabilities().fileWriteTools
+    val tools = workspaceToolItems().filter { (name) ->
+        fileWriteTools || name !in WorkspaceFileWriteToolNames
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         CardGroupTip(stringResource(R.string.workspace_detail_tool_approval_mode_hint))
-        CardGroup(
-            title = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.workspace_detail_tool_approval))
-                    Text(
-                        text = stringResource(R.string.workspace_detail_tool_approval_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-        ) {
+        CardGroup(title = { Text(stringResource(R.string.workspace_detail_tool_approval)) }) {
             tools.forEach { (toolName, label, icon) ->
-                switchItem(
-                    checked = resolveWorkspaceToolApproval(toolName, overrides),
-                    onCheckedChange = { onToolApprovalChange(toolName, it) },
-                    enabled = switchesEnabled,
+                val mode = modes.toolMode(toolName)
+                item(
+                    onClick = { onCycleToolMode(toolName) },
                     supportingContent = {
                         Text(
                             text = toolName,
@@ -632,6 +608,7 @@ private fun WorkspaceToolApprovalCard(
                     },
                     leadingContent = { CardGroupIcon(icon) },
                     headlineContent = { Text(label) },
+                    trailingContent = { WorkspaceToolModeIndicator(mode) },
                 )
             }
         }
@@ -639,7 +616,32 @@ private fun WorkspaceToolApprovalCard(
 }
 
 @Composable
-private fun workspaceToolApprovalItems() = listOf(
+private fun WorkspaceToolModeIndicator(mode: WorkspaceToolMode) {
+    val (label, color) = when (mode) {
+        WorkspaceToolMode.DISABLED -> R.string.workspace_detail_tool_mode_disabled to
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+        WorkspaceToolMode.APPROVAL -> R.string.workspace_detail_tool_mode_approval to Color(0xFFE0A800)
+        WorkspaceToolMode.AUTO -> R.string.workspace_detail_tool_mode_auto to MaterialTheme.extendColors.green6
+    }
+    val dotColor by motionColorAsState(color, label = "workspaceToolMode")
+    Row(
+        modifier = Modifier.widthIn(max = 112.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).background(dotColor, CircleShape))
+        Text(
+            text = stringResource(label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun workspaceToolItems() = listOf(
     Triple("workspace_read_file", stringResource(R.string.workspace_detail_tool_read_file), HugeIcons.FileView),
     Triple("workspace_list", stringResource(R.string.workspace_detail_tool_list), HugeIcons.Folder01),
     Triple("workspace_glob", stringResource(R.string.workspace_detail_tool_glob), HugeIcons.File02),

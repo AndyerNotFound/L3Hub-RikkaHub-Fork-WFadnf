@@ -58,9 +58,9 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.ui.components.ai.label
+import me.rerere.rikkahub.ui.components.ai.workspacePermissionLabelRes
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -557,11 +557,7 @@ private fun buildToolTags(
     }
     // createWorkspaceTools 只接受 shell 就绪的工作区，其余 id 一个工具都不会注册
     if (assistant.allWorkspaceIds.isNotEmpty() && usableWorkspace) {
-        val permission = if (assistant.planMode) {
-            stringResource(R.string.assistant_page_execution_permission_read_only)
-        } else {
-            assistant.executionPermission.displayLabel()
-        }
+        val permission = stringResource(assistant.executionPermission.workspacePermissionLabelRes())
         tags += stringResource(R.string.chat_page_details_tool_workspace, permission)
         tags += stringResource(R.string.chat_page_details_tool_todo)
     }
@@ -608,16 +604,6 @@ private fun LocalToolOption.displayLabel(): String = stringResource(
         LocalToolOption.ChartDisplay -> R.string.assistant_page_local_tools_chart_display_title
         LocalToolOption.PhoneUse -> R.string.assistant_page_local_tools_phone_use_title
         LocalToolOption.SubAgent -> R.string.assistant_page_local_tools_sub_agent_title
-    }
-)
-
-@Composable
-private fun ExecutionPermission.displayLabel(): String = stringResource(
-    when (this) {
-        ExecutionPermission.READ_ONLY -> R.string.assistant_page_execution_permission_read_only
-        ExecutionPermission.READ_WRITE -> R.string.assistant_page_execution_permission_read_write
-        ExecutionPermission.APPROVAL -> R.string.assistant_page_execution_permission_approval
-        ExecutionPermission.FULL -> R.string.assistant_page_execution_permission_full
     }
 )
 

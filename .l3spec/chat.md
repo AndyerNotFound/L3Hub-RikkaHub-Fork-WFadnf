@@ -271,19 +271,18 @@
 ### 5.2 输入卡片内部（自上而下，`spacedBy(2dp)`）
 外壳：`fillMaxWidth()`，`clip(containerShape)`，`chatInputHaze`；`shape = adaptiveShape(uiCornerRadius.dp)`（全宽模式 0dp）；`tonalElevation = 0dp`；描边 `BorderStroke(1dp, outlineVariant.copy(alpha = 0.5f))`；底色 `LocalUiSlots.inputBar`（特效开启时透明，由 haze 上色）；内边距 `horizontal = inputPadding.dp, vertical = 4dp`。内层形状 `innerShape = adaptiveShape((uiCornerRadius - 8).coerceAtLeast(2).dp)`。
 
-1. **计划模式提示**（`assistant.planMode`）：`labelSmall`，`primary`，「计划模式 · 只读探索 · 点击退出」（`chat_input_plan_mode_hint`），`padding(horizontal = 4dp, vertical = 2dp)`，点击退出。
-2. **语音模式行**（`VoiceModeRow`）+ `HorizontalDivider(outlineVariant alpha 0.5)`；条件 `voiceState.phase != Off`。
-3. **附件 chips**（`MediaFileInputRow`，`AttachmentChips.kt`）→ 条件 `state.messageContent.isNotEmpty()`。
+1. **语音模式行**（`VoiceModeRow`）+ `HorizontalDivider(outlineVariant alpha 0.5)`；条件 `voiceState.phase != Off`。
+2. **附件 chips**（`MediaFileInputRow`，`AttachmentChips.kt`）→ 条件 `state.messageContent.isNotEmpty()`。
    - 容器：`Row`，`fillMaxWidth()`，`padding(horizontal = 6dp, vertical = 6dp)`，`spacedBy(8dp)`，横向滚动。
    - 单个 chip：高 `44dp`，圆角 `18dp`，底色 `surface`，`tonalElevation 1dp`，描边 1dp `outlineVariant alpha 0.35`，内边距 `start 8dp / end 6dp`，`spacedBy(8dp)`；前置块 `34dp`、圆角 `10dp`、`surfaceContainerHigh`（图片 Crop，视频 `Video01`，音频 `MusicNote03`，文档 `Files02`）；文件名 `bodyMedium`，宽度 `40..180dp`，单行省略；尾部移除按钮 `26dp` 圆形 + `Cancel01` 16dp（`onSurfaceVariant`）。
-4. **编辑旧消息提示条**（`EditingBanner`）→ 条件 `state.isEditing()`。
+3. **编辑旧消息提示条**（`EditingBanner`）→ 条件 `state.isEditing()`。
    - `Surface(shape = innerShape, color = surfaceContainerHigh)`，内边距 `h14 v4`：「编辑中」（`editing`）+ 右侧若存在思考则 `TextButton`「编辑思维过程」（`chat_input_edit_reasoning`）+ `Cancel01` 图标（`cancel_edit`）点击清空。
-5. **文字输入框**（`TextInputRow`）：
+4. **文字输入框**（`TextInputRow`）：
    - `TextField` fillMaxWidth，`shape = MaterialTheme.shapes.largeIncreased`（全宽 0dp），透明容器/指示线；`heightIn(max = 5 × 行高 + 24dp)`，`TextFieldLineLimits.MultiLine(maxHeightInLines = 5)`。
    - placeholder：默认「输入消息与AI聊天」（`chat_input_placeholder`，`maxLines = 1`，省略号）；单行布局展开后「向 %1$s 描述你的想法…」（`chat_input_placeholder_expanded`，`%1$s` = 模型显示名）。单行布局的占位符是逐字渐变（旧字上浮模糊淡出、新字自下而上补位）。
    - `trailingIcon`：`Fullscreen` 图标按钮（有文本，或（单行布局下溢出 / 多行布局下聚焦）时）；`leadingIcon`：快捷消息按钮（`QuickMessageButton`，`HugeIcons.Zap` 18dp，容器 30dp；点击开快捷消息/引导菜单，长按把输入内容当引导发出去），条件 `showQuickMessageButton`。
    - 输入行 `spacedBy(4dp)`；`sendOnEnter` 开启时回车即发送。
-6. **按钮行**（两种布局，见 5.4）。
+5. **按钮行**（两种布局，见 5.4）。
 
 按钮尺寸：`ActionIconButton` = `Surface(onClick)` + `size(30dp)`，形状 `CircleShape`（全宽 0dp），透明底色 + `appButtonShadow(shape, 2dp)`。
 
@@ -319,7 +318,7 @@
 - 中间左：模型胶囊 `ChatInputModelPill`（高 `30dp`，`CircleShape`，底色 `surfaceContainerHigh`，内边距 `h9`，`spacedBy(6dp)`：6dp 圆点 `primary` + 模型名 `labelMedium`（空则「选择模型」`model_list_select_model`）+ 推理档位标记（L3 风格是 `labelSmall` 粗体 `9sp/10sp` 文字，否则 14dp 图标）+ `ArrowDown01` 12dp；仅展开时可见；可思考模型点开先给强度面板）。
 - 右侧：ASR → 插话 → 发送/停止（顺序同多行布局）。
 
-**附件/相机**：底部按钮行里没有独立的相机/附件按钮，`+` 打开附件面板（`FilesPicker`，`ChatSidePane.Files`），面板内的动作依次是：拍照（`take_picture`）、照片（`photo`）、草图（`sketch`）、视频（`video`）、音频（`audio`，仅 Google 渠道）、上传文件（`upload_file`）、语音模式（`chat_page_voice_title`）；下方才是搜索/工作区/MCP/扩展/计划模式/压缩上下文等分段列表项。
+**附件/相机**：底部按钮行里没有独立的相机/附件按钮，`+` 打开附件面板（`FilesPicker`，`ChatSidePane.Files`），面板内的动作依次是：拍照（`take_picture`）、照片（`photo`）、草图（`sketch`）、视频（`video`）、音频（`audio`，仅 Google 渠道）、上传文件（`upload_file`）、语音模式（`chat_page_voice_title`）；下方才是搜索/工作区/MCP/扩展/压缩上下文等分段列表项。
 
 **发送/停止按钮**（`SendButton`）：`Box(size = 30dp)`，形状 `CircleShape`（全宽 0dp），内含 `Surface` + `appButtonShadow(2dp)`，图标 18dp。
 | 状态 | 容器色 | 内容色 | 图标 | contentDescription |

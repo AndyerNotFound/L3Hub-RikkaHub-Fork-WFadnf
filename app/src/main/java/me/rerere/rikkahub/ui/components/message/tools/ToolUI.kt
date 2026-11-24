@@ -26,6 +26,11 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.TODO_WRITE_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.WORKSPACE_GIT_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.local.SUB_AGENT_AWAIT_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.local.SUB_AGENT_LIST_TOOL_NAME
+import me.rerere.rikkahub.data.ai.tools.local.SUB_AGENT_TOOL_NAME
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
@@ -60,7 +65,7 @@ data class ToolUIContext(
  * 单个工具的 UI 渲染器
  *
  * 在 [ToolUIRegistry] 注册后, 聊天消息中对应的工具调用将使用该渲染器展示;
- * 未注册的工具 fallback 到接口的默认实现 (通用标题/图标 + JSON 详情)
+ * 未注册的工具沿用默认渲染：已知内置工具显示本地化标题，其余显示工具原名。
  */
 /**
  * 详情内容的高度。
@@ -80,8 +85,30 @@ interface ToolUIRenderer {
 
     /** 折叠步骤的标题 */
     @Composable
-    fun title(context: ToolUIContext): String =
-        stringResource(R.string.chat_message_tool_call_generic, context.tool.toolName)
+    fun title(context: ToolUIContext): String {
+        val name = context.tool.toolName
+        val titleRes = when (name) {
+            "conversation_read" -> R.string.chat_message_tool_conversation_read
+            "eval_javascript" -> R.string.chat_message_tool_eval_javascript
+            TODO_WRITE_TOOL_NAME -> R.string.chat_message_tool_todo_write
+            SUB_AGENT_TOOL_NAME -> R.string.assistant_page_local_tools_sub_agent_title
+            SUB_AGENT_AWAIT_TOOL_NAME -> R.string.chat_message_tool_await_sub_agent
+            SUB_AGENT_LIST_TOOL_NAME -> R.string.chat_message_tool_list_agents
+            "workspace_list" -> R.string.workspace_detail_tool_list
+            "workspace_glob" -> R.string.workspace_detail_tool_glob
+            "workspace_grep" -> R.string.workspace_detail_tool_grep
+            "workspace_repo_map" -> R.string.workspace_detail_tool_repo_map
+            WORKSPACE_GIT_TOOL_NAME -> R.string.chat_message_tool_workspace_git
+            "workspace_shell_output" -> R.string.chat_message_tool_workspace_shell_output
+            "workspace_shell_kill" -> R.string.chat_message_tool_workspace_shell_kill
+            else -> null
+        }
+        return if (titleRes != null) {
+            stringResource(titleRes)
+        } else {
+            stringResource(R.string.chat_message_tool_call_generic, name)
+        }
+    }
 
     /** 步骤展开时是否显示内联摘要 */
     fun hasSummary(context: ToolUIContext): Boolean = false

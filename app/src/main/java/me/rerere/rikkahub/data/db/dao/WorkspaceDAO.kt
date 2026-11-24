@@ -21,11 +21,32 @@ interface WorkspaceDAO {
     @Query("SELECT * FROM workspaces")
     suspend fun getAll(): List<WorkspaceEntity>
 
+    @Query("UPDATE workspaces SET name = :name, updated_at = :updatedAt WHERE id = :id")
+    suspend fun rename(id: String, name: String, updatedAt: Long): Int
+
+    @Query("UPDATE workspaces SET name = :name, ssh_config = :config, updated_at = :updatedAt WHERE id = :id AND type = 'SSH'")
+    suspend fun updateSsh(id: String, name: String, config: String, updatedAt: Long): Int
+
+    @Query("""
+        UPDATE workspaces SET ssh_config = :config, updated_at = :updatedAt
+        WHERE id = :id AND ssh_config = :previous
+    """)
+    suspend fun updateSshConfig(id: String, previous: String, config: String, updatedAt: Long): Int
+
+    @Query("UPDATE workspaces SET storage_mounts = :mounts, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateStorageMounts(id: String, mounts: String, updatedAt: Long): Int
+
     @Query("UPDATE workspaces SET shell_status = :shellStatus, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateShellStatus(id: String, shellStatus: String, updatedAt: Long): Int
 
     @Query("UPDATE workspaces SET shell_compatibility_mode = :enabled, updated_at = :updatedAt WHERE id = :id")
     suspend fun setShellCompatibilityMode(id: String, enabled: Boolean, updatedAt: Long): Int
+
+    @Query("""
+        UPDATE workspaces SET tool_approvals = :modes, updated_at = :updatedAt
+        WHERE id = :id AND tool_approvals = :previous
+    """)
+    suspend fun updateToolModes(id: String, previous: String, modes: String, updatedAt: Long): Int
 
     @Query("DELETE FROM workspaces WHERE id = :id")
     suspend fun deleteById(id: String): Int

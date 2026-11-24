@@ -159,7 +159,7 @@ private suspend fun WorkspaceRepository.readTextForSearch(
 
 /** 仓库地图：文件树 + 顶层符号，省掉逐个 read 的往返 */
 internal fun createRepoMapTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
 ) = Tool(
@@ -175,21 +175,20 @@ internal fun createRepoMapTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = false, defaultHint = DEFAULT_PATH_HINT)
+                putPathProperty(targets.layout, required = false, defaultHint = DEFAULT_PATH_HINT)
                 put("max_files", buildJsonObject {
                     put("type", "integer")
                     put("description", "Maximum files to scan. Defaults to 300, max 800.")
                 })
             },
+            required = targets.required(),
         )
     },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_repo_map") ?: true
-    },
+    needsApproval = { targets.needsApproval(it) },
     isReadOnly = true,
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val maxFiles = params.string("max_files")?.toIntOrNull()?.coerceIn(1, MAX_REPO_MAP_FILES) ?: DEFAULT_REPO_MAP_FILES
 
@@ -236,7 +235,7 @@ private fun String.isRepoMapSource(): Boolean =
     )
 
 internal fun createListTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
 ) = Tool(
@@ -250,17 +249,16 @@ internal fun createListTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = false, defaultHint = DEFAULT_PATH_HINT)
+                putPathProperty(targets.layout, required = false, defaultHint = DEFAULT_PATH_HINT)
             },
+            required = targets.required(),
         )
     },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_list") ?: true
-    },
+    needsApproval = { targets.needsApproval(it) },
     isReadOnly = true,
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val path = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
         val (area, relative) = resolveStorageArea(target.layout, path)
         val all = workspaceRepository.listFiles(target.id, area, relative)
@@ -290,7 +288,7 @@ internal fun createListTool(
 )
 
 internal fun createGlobTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
 ) = Tool(
@@ -309,22 +307,20 @@ internal fun createGlobTool(
                     put("type", "string")
                     put("description", "Glob pattern matched against paths relative to `path`, e.g. **/*.kt")
                 })
-                putPathProperty(targets.first().layout, required = false, defaultHint = DEFAULT_PATH_HINT)
+                putPathProperty(targets.layout, required = false, defaultHint = DEFAULT_PATH_HINT)
                 put("limit", buildJsonObject {
                     put("type", "integer")
                     put("description", "Maximum number of files to return. Defaults to $MAX_GLOB_RESULTS, max 2000.")
                 })
             },
-            required = listOf("pattern"),
+            required = targets.required("pattern"),
         )
     },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_glob") ?: true
-    },
+    needsApproval = { targets.needsApproval(it) },
     isReadOnly = true,
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val pattern = params.string("pattern")?.trim().orEmpty()
         require(pattern.isNotEmpty()) { "pattern is required" }
         val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)
@@ -364,7 +360,7 @@ internal fun createGlobTool(
 )
 
 internal fun createGrepTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
 ) = Tool(
@@ -383,7 +379,7 @@ internal fun createGrepTool(
                     put("type", "string")
                     put("description", "Text to search for, or a regular expression when regex=true")
                 })
-                putPathProperty(targets.first().layout, required = false, defaultHint = DEFAULT_PATH_HINT)
+                putPathProperty(targets.layout, required = false, defaultHint = DEFAULT_PATH_HINT)
                 put("include", buildJsonObject {
                     put("type", "string")
                     put("description", "Only search files whose name matches this glob, e.g. *.kt")
@@ -401,16 +397,14 @@ internal fun createGrepTool(
                     put("description", "Maximum number of matching lines. Defaults to $MAX_GREP_RESULTS, max 1000.")
                 })
             },
-            required = listOf("query"),
+            required = targets.required("query"),
         )
     },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_grep") ?: true
-    },
+    needsApproval = { targets.needsApproval(it) },
     isReadOnly = true,
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val query = params.string("query").orEmpty()
         require(query.isNotEmpty()) { "query is required" }
         val root = params.absolutePathOrNull("path") ?: target.cwdRoot(cwds)

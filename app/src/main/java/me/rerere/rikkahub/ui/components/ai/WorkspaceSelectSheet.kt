@@ -68,7 +68,7 @@ internal fun WorkspaceSelectSheet(
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }

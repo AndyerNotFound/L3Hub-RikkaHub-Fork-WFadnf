@@ -629,7 +629,7 @@ fun ChatInput(
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                // 内容行（plan 提示 / 语音 / 附件 / 编辑横幅）的出现与收起：
+                                // 内容行（语音 / 附件 / 编辑横幅）的出现与收起：
                                 // 旧的向下滑走、新的从下方滑入，fade+scale 一起收，ImageToolbox 同款曲线，
                                 // 进出同参同档；卡片整体高度由外层 motionContentSize 负责，这里只做行内动效
                                 val rowSlideSpec = rememberSlideSpec<IntOffset>()
@@ -643,21 +643,6 @@ fun ChatInput(
                                     slideOutVertically(rowSlideSpec) { it / 2 } +
                                         fadeOut(rowFadeSpec) +
                                         scaleOut(rowScaleSpec, targetScale = 0.96f)
-                                AnimatedVisibility(
-                                    visible = assistant.planMode,
-                                    enter = rowEnter,
-                                    exit = rowExit,
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.chat_input_plan_mode_hint),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onUpdateAssistant(assistant.copy(planMode = false)) }
-                                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                                    )
-                                }
                                 AnimatedVisibility(
                                     visible = voiceState.phase != VoicePhase.Off,
                                     enter = rowEnter,

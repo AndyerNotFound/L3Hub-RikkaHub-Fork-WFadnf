@@ -6,6 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
+import me.rerere.rikkahub.data.model.WorkspaceToolMode
+import me.rerere.rikkahub.data.model.decodeWorkspaceToolModes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.workspace.Workspace
 import me.rerere.workspace.WorkspaceBindMount
@@ -38,7 +40,7 @@ data class WorkspaceEntity(
     val updatedAt: Long,
     @ColumnInfo("last_access_at")
     val lastAccessAt: Long? = null,
-    // 工具审批的用户覆盖项 (toolName -> needsApproval)，未覆盖的工具沿用默认值
+    // 工具模式覆盖项。仍读取旧版的布尔值，未配置的工具沿用默认值。
     @ColumnInfo("tool_approvals", defaultValue = "{}")
     val toolApprovals: String = "{}",
     @ColumnInfo("shell_compatibility_mode", defaultValue = "0")
@@ -95,9 +97,7 @@ data class WorkspaceEntity(
     fun supportsTerminal(): Boolean =
         capabilities().terminal && shellStatus != WorkspaceShellStatus.DISABLED.name
 
-    fun toolApprovalOverrides(): Map<String, Boolean> = runCatching {
-        JsonInstant.decodeFromString<Map<String, Boolean>>(toolApprovals)
-    }.getOrDefault(emptyMap())
+    fun toolModes(): Map<String, WorkspaceToolMode> = decodeWorkspaceToolModes(toolApprovals)
 
     fun toWorkspace(): Workspace = Workspace(
         id = id,

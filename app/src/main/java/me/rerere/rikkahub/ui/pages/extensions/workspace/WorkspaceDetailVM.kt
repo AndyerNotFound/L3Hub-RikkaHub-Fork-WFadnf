@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -42,6 +44,7 @@ class WorkspaceDetailVM(
     val state = _state.asStateFlow()
 
     private var pendingExport: Pair<WorkspaceStorageArea, List<WorkspaceFileEntry>>? = null
+    private val toolModeMutex = Mutex()
 
     fun prepareBatchExport(entries: List<WorkspaceFileEntry>): Boolean {
         val files = entries.filterNot { it.isDirectory }
@@ -310,11 +313,18 @@ class WorkspaceDetailVM(
         }
     }
 
-    fun setToolApproval(toolName: String, needsApproval: Boolean) {
+    fun cycleToolMode(toolName: String) {
         viewModelScope.launch {
-            val workspace = state.value.workspace ?: return@launch
-            repository.setToolApproval(workspace.id, toolName, needsApproval)
-            loadWorkspace()
+            try {
+                toolModeMutex.withLock {
+                    val workspace = repository.cycleToolMode(id, toolName)
+                    _state.update { it.copy(workspace = workspace) }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _settingsError.value = error.message.orEmpty()
+            }
         }
     }
 

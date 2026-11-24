@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.WORKSPACE_SHELL_TOOL_NAME
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.WorkspaceCwd
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -46,6 +47,11 @@ class WorkspaceReminderTransformer(
                     return@forEach
                 }
                 val layout = workspaceRepository.layout(workspace) ?: return@forEach
+                val tools = ctx.workspaceToolNames[workspaceId].orEmpty()
+                if (tools.isEmpty()) {
+                    add(workspace to buildNoToolsPrompt(workspace))
+                    return@forEach
+                }
                 // Resolve the stored directory once for the prompt and instruction lookup.
                 val cwd = WorkspaceCwd.normalize(layout.workspaceDir, ctx.workspaceCwds[workspaceId])
                 // 没设置时提示词里不提工作目录；设置了才拼成执行环境里的绝对路径
@@ -83,14 +89,16 @@ class WorkspaceReminderTransformer(
                         shell = environment.shell,
                         distro = environment.distro,
                         cwd = cwdPath,
+                        tools = tools,
                     )
                 } else {
                     home = WorkspaceManager.ROOTFS_HOME_DIR
                     prompt = buildWorkspacePrompt(
                         workspace = workspace,
-                        shell = workspaceRepository.shell(workspace),
+                        shell = if (WORKSPACE_SHELL_TOOL_NAME in tools) workspaceRepository.shell(workspace) else null,
                         distro = readDistroName(workspace),
                         cwd = cwdPath,
+                        tools = tools,
                     )
                 }
                 val instructions = buildAgentsPrompt(workspace, workspaceAgentsPaths(layout.workspaceDir, cwdPath, home))
@@ -100,15 +108,18 @@ class WorkspaceReminderTransformer(
         if (prompts.isEmpty()) return messages
 
         val prompt = buildString {
-            if (prompts.size > 1) {
+            if (workspaceIds.size > 1) {
                 appendLine("<workspaces>")
                 appendLine(
-                    "The assistant is bound to multiple workspaces. Pass `workspace` to workspace_* tools using one of these IDs:"
+                    "The assistant is bound to multiple workspaces. Check each tool's description for the workspace IDs it accepts."
                 )
                 prompts.forEach { (workspace, _) ->
                     appendLine("- ${workspace.id} — ${workspace.name}")
                 }
-                appendLine("If `workspace` is omitted, \"${prompts.first().first.id}\" is used.")
+                appendLine(
+                    "For tools with a `workspace` parameter, the default is \"${workspaceIds.first()}\". " +
+                        "If the tool is unavailable there, explicitly specify an allowed workspace."
+                )
                 appendLine("</workspaces>")
                 appendLine()
             }
@@ -245,9 +256,10 @@ internal fun parseOsReleaseName(content: String): String? {
 
 private fun buildWorkspacePrompt(
     workspace: WorkspaceEntity,
-    shell: String,
+    shell: String?,
     distro: String?,
-    cwd: String? = null,
+    cwd: String?,
+    tools: Set<String>,
 ): String = buildString {
     appendLine("<workspace>")
     appendLine(
@@ -260,35 +272,15 @@ private fun buildWorkspacePrompt(
         "- All paths passed to workspace tools must be absolute and inside the Rootfs (for example `/workspace/notes.md`)."
     )
     if (distro != null) {
+        appendLine("- The Rootfs distribution is $distro.")
+    }
+    if (shell != null) appendShellLine(shell)
+    appendAvailableWorkspaceTools(tools)
+    if ("workspace_shell_output" in tools) {
         appendLine(
-            "- The Rootfs distribution is $distro. Use its native package manager when you need to install missing tools."
+            "- For long-running commands, use `run_in_background` rather than appending `&`. Wait for the completion notice instead of polling."
         )
     }
-    appendShellLine(shell)
-    appendLine("- Available tools:")
-    appendLine("  - `workspace_read_file`: read file contents. Supports `offset` and `limit` (1-based lines); check `totalLines` and page through large files instead of reading them whole.")
-    appendLine("  - `workspace_list`: list a directory, directories first.")
-    appendLine("  - `workspace_glob`: find files by glob pattern such as `**/*.kt`.")
-    appendLine("  - `workspace_grep`: search file contents, returns path, line number and matched line.")
-    appendLine(
-        "  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files."
-    )
-    appendLine("  - `workspace_shell`: run shell commands (the files area is mounted at /workspace).")
-    appendLine(
-        "- Prefer `workspace_glob` and `workspace_grep` over shell `find` / `grep`: they skip .git, node_modules and build directories and return structured results."
-    )
-    appendLine(
-        "  - `workspace_shell_output` / `workspace_shell_kill`: read the output of, or stop, a command started with `run_in_background`."
-    )
-    appendLine(
-        "- Read-only shell commands (ls, cat, grep, git status/diff/log, ...) run without approval; anything that writes or executes arbitrary code still asks the user."
-    )
-    appendLine(
-        "- Start long-running commands such as dev servers, watchers or long builds with `run_in_background` instead of appending `&`: processes left running with `&` are killed when the shell call returns. When a background command finishes you are notified with its exit code and the last lines of its output, so do not poll it; keep working on anything that does not depend on it, or end your reply if there is nothing else to do. On workspaces without background tasks (SSH) use `background=true`, which returns a pid and a log path."
-    )
-    appendLine(
-        "- Prefer `workspace_edit_file` for targeted edits over rewriting whole files."
-    )
     appendLine(
         "- The skills directory is mounted at `/skills`. Each skill is a subdirectory `/skills/<skill-name>/` containing a `SKILL.md` (with `name` and `description` frontmatter) plus any supporting files. Read a skill's `SKILL.md` before using it, and follow its instructions."
     )
@@ -326,6 +318,7 @@ private fun buildSshWorkspacePrompt(
     shell: String,
     distro: String?,
     cwd: String?,
+    tools: Set<String>,
 ): String = buildString {
     val address = workspace.sshSettings()?.let { "${it.username}@${it.host}" } ?: "the remote host"
     appendLine("<workspace>")
@@ -344,27 +337,30 @@ private fun buildSshWorkspacePrompt(
     if (distro != null) {
         appendLine("- The remote operating system is $distro.")
     }
-    appendShellLine(shell)
-    appendLine("- Available tools:")
-    appendLine("  - `workspace_read_file`: read file contents. Supports `offset` and `limit` (1-based lines); check `totalLines` and page through large files instead of reading them whole.")
-    appendLine("  - `workspace_list`: list a directory, directories first.")
-    appendLine("  - `workspace_glob`: find files by glob pattern such as `**/*.kt`.")
-    appendLine("  - `workspace_grep`: search file contents, returns path, line number and matched line.")
-    appendLine("  - `workspace_shell`: run shell commands on the remote machine (defaults to the workspace directory).")
-    appendLine(
-        "- Prefer `workspace_glob` and `workspace_grep` over shell `find` / `grep`: they skip .git, node_modules and build directories and return structured results."
-    )
-    appendLine(
-        "- Read-only shell commands (ls, cat, grep, git status/diff/log, ...) run without approval; anything that writes or executes arbitrary code still asks the user."
-    )
-    appendLine(
-        "- There are no file write or edit tools in this workspace. Create and modify files with `workspace_shell`, for example a quoted heredoc (`cat > file <<'EOF'`) for new content, or `sed`, `patch` or a short script for targeted edits. Prefer targeted edits over rewriting whole files."
-    )
+    if (WORKSPACE_SHELL_TOOL_NAME in tools) appendShellLine(shell)
+    appendAvailableWorkspaceTools(tools)
     if (!cwd.isNullOrBlank()) {
         appendLine(
             "- Current working directory: `$cwd`. Use this as the default context for file operations and shell commands."
         )
     }
+    append("</workspace>")
+}
+
+private fun StringBuilder.appendAvailableWorkspaceTools(tools: Set<String>) {
+    appendLine("- Available tools for this workspace: ${tools.joinToString { "`$it`" }}.")
+    if ("workspace_read_file" in tools) {
+        appendLine("- Use `offset` and `limit` to read files in pages; check `totalLines` to see what's left.")
+    }
+    if ("workspace_edit_file" in tools) {
+        appendLine("- Prefer `workspace_edit_file` for targeted edits over rewriting whole files.")
+    }
+}
+
+private fun buildNoToolsPrompt(workspace: WorkspaceEntity): String = buildString {
+    appendLine("<workspace>")
+    appendLine("No workspace tools are available for \"${workspace.name}\" (${workspace.id}) in this request.")
+    appendLine("Do not claim to have inspected or changed anything there, or silently use a different workspace instead.")
     append("</workspace>")
 }
 

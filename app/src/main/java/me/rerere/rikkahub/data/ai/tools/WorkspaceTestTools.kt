@@ -28,7 +28,7 @@ internal const val TEST_TIMEOUT_MAX_SECONDS = 1800L
  * only_changed=true 时用 git 改动推导要跑的测试，不用每次全量。
  */
 internal fun createTestTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
 ): Tool = Tool(
     name = WORKSPACE_TEST_TOOL_NAME,
@@ -36,7 +36,6 @@ internal fun createTestTool(
         Run the project's tests in the bound workspace and return structured diagnostics (file, line, test name, message) instead of raw stdout.
         Give the command you would normally run (./gradlew test, pytest -q, npm test, go test ./..., cargo test); the framework is detected from it.
         Set only_changed=true to run just the tests related to the files changed in git (Kotlin/Java: --tests filters, pytest: matching test files).
-        Prefer this over workspace_shell when you need to know which tests failed and where.
         ${targets.workspaceNote()}
     """.trimIndent().replace("\n", " "),
     parameters = {
@@ -76,16 +75,13 @@ internal fun createTestTool(
                     put("items", buildJsonObject { put("type", "string") })
                 })
             },
-            required = listOf("command"),
+            required = targets.required("command"),
         )
     },
-    needsApproval = { params ->
-        val target = params.jsonObject.resolveWorkspaceOrNull(targets)
-        target == null || target.needsApproval(WORKSPACE_TEST_TOOL_NAME)
-    },
+    needsApproval = { targets.needsApproval(it) },
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val baseCommand = params.str("command") ?: error("command is required")
         val cwd = params.str("cwd").orEmpty()
         val timeoutSeconds = params.str("timeout")?.toLongOrNull()

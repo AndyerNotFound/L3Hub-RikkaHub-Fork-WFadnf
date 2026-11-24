@@ -18,8 +18,10 @@ import me.rerere.rikkahub.data.model.SavedSshSecrets
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
 import me.rerere.rikkahub.data.model.WorkspaceStorageMount
+import me.rerere.rikkahub.data.model.WorkspaceToolDefaults
 import me.rerere.rikkahub.data.model.dropUndecryptableSecrets
 import me.rerere.rikkahub.data.model.normalizeStorageMountPath
+import me.rerere.rikkahub.data.model.toolMode
 import me.rerere.rikkahub.data.sync.SyncTombstones
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.SecretCipher
@@ -136,14 +138,15 @@ class WorkspaceRepository(
      */
     suspend fun usableSavedSecrets(id: String): SavedSshSecrets = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext SavedSshSecrets()
+        val previous = workspace.sshConfig ?: return@withContext SavedSshSecrets()
         val settings = workspace.sshSettings() ?: return@withContext SavedSshSecrets()
         val cleaned = settings.dropUndecryptableSecrets(SecretCipher::canDecrypt)
         if (cleaned != settings) {
-            dao.upsert(
-                workspace.copy(
-                    sshConfig = JsonInstant.encodeToString(cleaned),
-                    updatedAt = System.currentTimeMillis(),
-                )
+            dao.updateSshConfig(
+                id = id,
+                previous = previous,
+                config = JsonInstant.encodeToString(cleaned),
+                updatedAt = System.currentTimeMillis(),
             )
         }
         SavedSshSecrets(
@@ -163,11 +166,14 @@ class WorkspaceRepository(
         }
         val settings = withContext(Dispatchers.IO) { draft.toSettings(existing?.sshSettings()) }
         val now = System.currentTimeMillis()
-        val workspace = existing?.copy(
-            name = finalName,
-            sshConfig = JsonInstant.encodeToString(settings),
-            updatedAt = now,
-        ) ?: Uuid.random().toString().let { newId ->
+        val config = JsonInstant.encodeToString(settings)
+        val workspace = if (existing != null) {
+            check(dao.updateSsh(existing.id, finalName, config, now) > 0) {
+                "Workspace not found: ${existing.id}"
+            }
+            dao.getById(existing.id) ?: error("Workspace not found: ${existing.id}")
+        } else {
+            val newId = Uuid.random().toString()
             WorkspaceEntity(
                 id = newId,
                 name = finalName,
@@ -177,10 +183,9 @@ class WorkspaceRepository(
                 createdAt = now,
                 updatedAt = now,
                 type = WorkspaceType.SSH.name,
-                sshConfig = JsonInstant.encodeToString(settings),
-            )
+                sshConfig = config,
+            ).also { dao.upsert(it) }
         }
-        dao.upsert(workspace)
         withContext(Dispatchers.IO) { sshPool.close(workspace.id) }
         return workspace
     }
@@ -191,13 +196,7 @@ class WorkspaceRepository(
         require(!isNameTaken(finalName, excludeId = id)) {
             "Workspace name already exists: $finalName"
         }
-        dao.upsert(
-            workspace.copy(
-                name = finalName,
-                updatedAt = System.currentTimeMillis(),
-            )
-        )
-        return true
+        return dao.rename(id, finalName, System.currentTimeMillis()) > 0
     }
 
     /** 名字是否已被其他 workspace 占用（trim 后精确匹配，排除 [excludeId] 自身） */
@@ -228,24 +227,28 @@ class WorkspaceRepository(
                 }
             }
         }
-        dao.upsert(
-            workspace.copy(
-                storageMounts = JsonInstant.encodeToString(normalized),
-                updatedAt = System.currentTimeMillis(),
-            )
+        dao.updateStorageMounts(
+            id = id,
+            mounts = JsonInstant.encodeToString(normalized),
+            updatedAt = System.currentTimeMillis(),
         )
     }
 
-    suspend fun setToolApproval(id: String, toolName: String, needsApproval: Boolean): Boolean {
-        val workspace = dao.getById(id) ?: return false
-        val overrides = workspace.toolApprovalOverrides() + (toolName to needsApproval)
-        dao.upsert(
-            workspace.copy(
-                toolApprovals = JsonInstant.encodeToString(overrides),
+    suspend fun cycleToolMode(id: String, toolName: String): WorkspaceEntity? {
+        require(toolName in WorkspaceToolDefaults) { "Unknown workspace tool: $toolName" }
+        // 连点时按最新的模式循环，不覆盖工作区的其他字段。
+        while (true) {
+            val workspace = dao.getById(id) ?: return null
+            val current = workspace.toolModes()
+            val modes = current + (toolName to current.toolMode(toolName).next())
+            val updated = dao.updateToolModes(
+                id = id,
+                previous = workspace.toolApprovals,
+                modes = JsonInstant.encodeToString(modes),
                 updatedAt = System.currentTimeMillis(),
             )
-        )
-        return true
+            if (updated > 0) return dao.getById(id)
+        }
     }
 
     suspend fun installRootfs(

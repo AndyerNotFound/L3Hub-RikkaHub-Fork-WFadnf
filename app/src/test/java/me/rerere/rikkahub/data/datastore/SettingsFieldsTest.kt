@@ -10,6 +10,7 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
@@ -67,6 +68,31 @@ class SettingsFieldsTest {
             """[{"name":"clipboard_tool","description":"overridden description","instructions":"overridden instructions","parameters":"{\"type\":\"object\",\"properties\":{}}"}]""",
             stored["tool_overrides"],
         )
+    }
+
+    @Test
+    fun `old assistants keep their data when workspace permissions are migrated`() {
+        val assistantsJson = """
+            [
+                {"id":"00000000-0000-0000-0000-000000000001","name":"Legacy write","executionPermission":"READ_WRITE","planMode":false},
+                {"id":"00000000-0000-0000-0000-000000000002","name":"Legacy plan","executionPermission":"FULL","planMode":true}
+            ]
+        """.trimIndent()
+        val preferences = mutablePreferencesOf(SettingsStore.ASSISTANTS to assistantsJson)
+
+        val settings = preferences.toSettings()
+        assertEquals(listOf(id(1), id(2)), settings.assistants.map { it.id })
+        assertEquals(listOf("Legacy write", "Legacy plan"), settings.assistants.map { it.name })
+        assertEquals(
+            listOf(ExecutionPermission.APPROVAL, ExecutionPermission.READ_ONLY),
+            settings.assistants.map { it.executionPermission },
+        )
+
+        preferences.putSettings(settings)
+        val stored = preferences[SettingsStore.ASSISTANTS].orEmpty()
+        assertFalse(stored.contains("READ_WRITE"))
+        assertFalse(stored.contains("planMode"))
+        assertEquals(settings.assistants, preferences.toSettings().assistants)
     }
 
     @Test

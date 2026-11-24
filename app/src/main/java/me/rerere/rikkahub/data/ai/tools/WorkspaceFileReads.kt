@@ -24,13 +24,13 @@ private fun String.isImagePath(): Boolean =
     substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS
 
 internal fun createReadFileTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
 ) = Tool(
     name = "workspace_read_file",
     description = """
         Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use ${targets.first().layout.workspaceDir} for the workspace files area.
+        Use ${targets.layout.workspaceDir} for the workspace files area.
         Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
         Returns at most `limit` lines starting at `offset` (1-based); check totalLines to page through large files.
         ${targets.workspaceNote()}
@@ -39,7 +39,7 @@ internal fun createReadFileTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putWorkspaceProperty(targets)
-                putPathProperty(targets.first().layout, required = true)
+                putPathProperty(targets.layout, required = true)
                 put("offset", buildJsonObject {
                     put("type", "integer")
                     put("description", "1-based line number to start reading from. Defaults to 1.")
@@ -49,16 +49,14 @@ internal fun createReadFileTool(
                     put("description", "Maximum number of lines to read. Defaults to $DEFAULT_READ_LINES, max $MAX_READ_LINES.")
                 })
             },
-            required = listOf("path"),
+            required = targets.required("path"),
         )
     },
-    needsApproval = { params ->
-        params.jsonObject.resolveWorkspaceOrNull(targets)?.needsApproval("workspace_read_file") ?: true
-    },
+    needsApproval = { targets.needsApproval(it) },
     isReadOnly = true,
     execute = {
         val params = it.jsonObject
-        val target = params.resolveWorkspace(targets)
+        val target = targets.resolveForExecution(params)
         val path = params.absolutePath("path")
         if (path.isImagePath()) {
             workspaceRepository.readImageInRootfs(target.id, path)
@@ -94,8 +92,7 @@ private suspend fun WorkspaceRepository.readFileForTool(workspaceId: String, pat
         readAbsoluteFile(workspaceId, path, MAX_READ_FILE_BYTES)
     } catch (e: WorkspaceFileTooLargeException) {
         throw IOException(
-            "File is too large to read: $path (max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). " +
-                "Use shell commands like head, tail, or grep to read parts of it.",
+            "File is too large for workspace_read_file: $path (max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB).",
             e,
         )
     }

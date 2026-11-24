@@ -32,7 +32,7 @@ import kotlin.uuid.Uuid
 private const val TAG = "ChatToolFactory"
 
 /**
- * 子代理会话没有人在旁边确认，工具调用一律按完全权限直接执行。
+ * 子代理会话沿用免确认规则，只跳过审批，不改变可用工具或执行时的权限检查。
  * `ask_user` 需要真人回答，子代理只能自己决定，这里直接给模型回一条提示。
  */
 internal fun Tool.withAutoApproval(): Tool {
@@ -77,6 +77,11 @@ internal fun shouldUseExternalWebSearch(
 class InvalidMcpServerNamesException(val names: List<String>) :
     IllegalStateException("Invalid MCP server names: ${names.joinToString(", ")}")
 
+internal data class ChatToolSet(
+    val tools: List<Tool>,
+    val workspaceToolNames: Map<String, Set<String>>,
+)
+
 /** Creates the complete tool set for one generation run, including approval resumption. */
 class ChatToolFactory(
     private val context: Context,
@@ -88,7 +93,7 @@ class ChatToolFactory(
     private val workspaceRepository: WorkspaceRepository,
     private val backgroundShellManager: BackgroundShellManager,
 ) {
-    suspend fun createTools(
+    internal suspend fun createTools(
         settings: Settings,
         assistant: Assistant,
         model: Model,
@@ -96,13 +101,12 @@ class ChatToolFactory(
         conversationId: Uuid? = null,
         isSubAgentConversation: Boolean = false,
         autoApproveTools: Boolean = false,
-    ): List<Tool> {
+    ): ChatToolSet {
         val workspaceTools = createWorkspaceTools(
             workspaceIds = assistant.allWorkspaceIds.map { it.toString() },
             workspaceRepository = workspaceRepository,
             cwds = workspaceCwds,
             conversationId = conversationId,
-            planMode = assistant.planMode,
             executionPermission = assistant.executionPermission,
             backgroundShellManager = backgroundShellManager,
         )
@@ -137,7 +141,7 @@ class ChatToolFactory(
             if (assistant.enableRecentChatsReference) {
                 addAll(createConversationTools(conversationRepository, assistant.id))
             }
-            addAll(workspaceTools)
+            addAll(workspaceTools.tools)
             // 任务清单是 Coding Agent 的东西：只有绑了工作区才注册，
             // 纯聊天不该凭空多出一个 todo 工具让模型给自己派活
             if (conversationId != null && assistant.allWorkspaceIds.isNotEmpty()) {
@@ -172,14 +176,18 @@ class ChatToolFactory(
                 )
             }
         }
-        // 过长的输出存成文件让模型用 shell 按需读取；没有 shell 时模型读不到文件，只能原样返回。
-        // 文件放在本机, 只有本地 Rootfs 挂载了 /tool_outputs, 远程工作区同样读不到
-        val canReadToolOutputs = workspaceTools.isNotEmpty() && assistant.allWorkspaceIds.any { workspaceId ->
-            workspaceRepository.getById(workspaceId.toString())?.capabilities()?.rootfs == true
+        // /tool_outputs is only mounted in local Rootfs workspaces with Shell available.
+        val readers = workspaceTools.outputReaderWorkspaceIds
+        val truncated = if (readers.isEmpty()) {
+            tools
+        } else {
+            tools.map { withOutputTruncation(it, readers) }
         }
-        val truncated = if (canReadToolOutputs) tools.map(::withOutputTruncation) else tools
         val overridden = applyToolOverrides(truncated, settings.toolOverrides)
-        return if (autoApproveTools) overridden.map { it.withAutoApproval() } else overridden
+        return ChatToolSet(
+            tools = if (autoApproveTools) overridden.map { it.withAutoApproval() } else overridden,
+            workspaceToolNames = workspaceTools.namesByWorkspace,
+        )
     }
 
     /**
@@ -194,19 +202,14 @@ class ChatToolFactory(
         val catalogModel = Model()
         val readyWorkspaces = workspaceRepository.listFlow().first()
             .filter { it.shellStatus == WorkspaceShellStatus.READY.name }
-        val workspaceTools = if (readyWorkspaces.isEmpty()) {
-            createWorkspaceCatalogTools(
-                workspaceRepository = workspaceRepository,
-                backgroundShellManager = backgroundShellManager,
-            )
-        } else {
-            createWorkspaceTools(
-                workspaceIds = readyWorkspaces.map { it.id },
-                workspaceRepository = workspaceRepository,
-                conversationId = catalogConversationId,
-                backgroundShellManager = backgroundShellManager,
-            )
-        }
+        val availableWorkspaceTools = createWorkspaceTools(
+            workspaceIds = readyWorkspaces.map { it.id },
+            workspaceRepository = workspaceRepository,
+            conversationId = catalogConversationId,
+            backgroundShellManager = backgroundShellManager,
+        ).tools.associateBy { it.name }
+        val workspaceTools = createWorkspaceCatalogTools(workspaceRepository, backgroundShellManager)
+            .map { availableWorkspaceTools[it.name] ?: it }
 
         return buildList {
             localTools.getCatalogTools(
@@ -281,17 +284,26 @@ class ChatToolFactory(
         )
     }
 
-    private fun withOutputTruncation(tool: Tool): Tool {
+    private fun withOutputTruncation(tool: Tool, workspaceIds: List<String>): Tool {
         if (tool.name in TOOLS_WITHOUT_OUTPUT_TRUNCATION) return tool
         val execute = tool.execute
-        return tool.copy(execute = { truncateOutput(execute(it)) })
+        return tool.copy(execute = { truncateOutput(execute(it), workspaceIds) })
     }
 
-    private fun truncateOutput(output: List<UIMessagePart>): List<UIMessagePart> {
+    private suspend fun truncateOutput(
+        output: List<UIMessagePart>,
+        workspaceIds: List<String>,
+    ): List<UIMessagePart> {
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val totalChars = textParts.sumOf { it.text.length }
         if (totalChars <= MAX_TOOL_OUTPUT_CHARS) return output
 
+        // Shell may have been disabled while the tool was running.
+        val reader = workspaceIds.firstNotNullOfOrNull { workspaceId ->
+            workspaceRepository.getById(workspaceId)?.takeIf {
+                it.capabilities().rootfs && it.isToolEnabled(WORKSPACE_SHELL_TOOL_NAME)
+            }
+        } ?: return output
         val fileName = "${Uuid.random()}.txt"
         Log.i(TAG, "truncateOutput: saving $totalChars chars to $fileName")
         val fullText = textParts.joinToString("\n") { it.text }
@@ -303,6 +315,7 @@ class ChatToolFactory(
                 buildString {
                     appendLine("[Tool output truncated: $totalChars characters total]")
                     appendLine("Full output saved to: /tool_outputs/$fileName")
+                    appendLine("Use workspace_shell in workspace ${reader.id} (${reader.name}).")
                     appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
                     appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
                     appendLine()

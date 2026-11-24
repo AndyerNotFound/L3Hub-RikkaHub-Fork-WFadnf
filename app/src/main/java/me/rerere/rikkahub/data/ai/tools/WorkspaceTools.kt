@@ -1,14 +1,20 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import android.util.Log
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.ExecutionPermission
+import me.rerere.rikkahub.data.model.WorkspaceToolMode
+import me.rerere.rikkahub.data.model.toolMode
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.workspace.WorkspaceCapabilities
@@ -19,20 +25,6 @@ import me.rerere.workspace.WorkspacePaths
 import me.rerere.workspace.WorkspaceShellStatus
 import kotlin.uuid.Uuid
 
-val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
-    "workspace_read_file" to false,
-    "workspace_list" to false,
-    "workspace_glob" to false,
-    "workspace_grep" to false,
-    "workspace_write_file" to false,
-    "workspace_edit_file" to false,
-    "workspace_apply_patch" to false,
-    "workspace_shell" to true,
-    "workspace_git" to true,
-    "workspace_test" to true,
-    "workspace_repo_map" to false,
-)
-
 /** 直接写文件的工具, 只在支持 [WorkspaceCapabilities.fileWriteTools] 的工作区提供 */
 val WorkspaceFileWriteToolNames: Set<String> = setOf(
     "workspace_write_file",
@@ -40,98 +32,84 @@ val WorkspaceFileWriteToolNames: Set<String> = setOf(
     "workspace_apply_patch",
 )
 
-fun resolveWorkspaceToolApproval(name: String, overrides: Map<String, Boolean>): Boolean =
-    overrides[name] ?: WorkspaceToolDefaultApprovals[name] ?: false
-
 private const val TAG = "WorkspaceTools"
 
 internal data class WorkspaceTarget(
     val id: String,
     val name: String,
-    val layout: WorkspaceLayout,
-    val approvalOverrides: Map<String, Boolean>,
+    val readyLayout: WorkspaceLayout?,
+    val toolModes: Map<String, WorkspaceToolMode>,
     val supportsFileWrite: Boolean,
     val supportsBackgroundShell: Boolean = false,
+    val isLocalRootfs: Boolean = false,
     val executionPermission: ExecutionPermission = ExecutionPermission.APPROVAL,
+) {
+    val layout: WorkspaceLayout get() = checkNotNull(readyLayout) { "Workspace '$name' is not ready." }
+
+    fun allowsTool(name: String): Boolean =
+        readyLayout != null && toolModes.toolMode(name) != WorkspaceToolMode.DISABLED && when {
+            name in WorkspaceFileWriteToolNames -> {
+                supportsFileWrite && executionPermission != ExecutionPermission.READ_ONLY
+            }
+
+            name == WORKSPACE_TEST_TOOL_NAME -> executionPermission != ExecutionPermission.READ_ONLY
+            else -> true
+        }
+}
+
+internal data class WorkspaceToolSet(
+    val tools: List<Tool>,
+    val namesByWorkspace: Map<String, Set<String>>,
+    val outputReaderWorkspaceIds: List<String>,
 )
 
-suspend fun createWorkspaceTools(
+internal suspend fun createWorkspaceTools(
     workspaceIds: Collection<String>,
     workspaceRepository: WorkspaceRepository,
     cwds: Map<String, String> = emptyMap(),
     conversationId: Uuid? = null,
-    planMode: Boolean = false,
     executionPermission: ExecutionPermission = ExecutionPermission.APPROVAL,
     backgroundShellManager: BackgroundShellManager? = null,
-): List<Tool> {
-    // 只读档位沿用计划模式的过滤规则: 写文件 / 改仓库 / 跑测试都不注册, shell 只放只读命令
-    val readOnly = planMode || executionPermission == ExecutionPermission.READ_ONLY
-    val targets = workspaceIds
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .mapNotNull { id ->
-            val workspace = workspaceRepository.getById(id) ?: return@mapNotNull null
-            if (workspace.shellStatus != WorkspaceShellStatus.READY.name) {
-                Log.d(TAG, "skip workspace tools: workspace=$id, status=${workspace.shellStatus}")
-                return@mapNotNull null
-            }
-            val layout = workspaceRepository.layout(workspace) ?: return@mapNotNull null
-            val capabilities = workspace.capabilities()
-            WorkspaceTarget(
-                id = id,
-                name = workspace.name,
-                layout = layout,
-                approvalOverrides = workspace.toolApprovalOverrides(),
-                supportsFileWrite = capabilities.fileWriteTools,
-                supportsBackgroundShell = capabilities.backgroundShell,
-                executionPermission = executionPermission,
-            )
+): WorkspaceToolSet {
+    val ids = workspaceIds.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+    val defaultId = ids.firstOrNull()
+        ?: return WorkspaceToolSet(emptyList(), emptyMap(), emptyList())
+    // Resolve against all known bindings, not just the ones that can currently execute.
+    val targets = ids.mapNotNull { id ->
+        val workspace = workspaceRepository.getById(id) ?: return@mapNotNull null
+        val capabilities = workspace.capabilities()
+        val layout = if (workspace.shellStatus == WorkspaceShellStatus.READY.name && capabilities.terminal) {
+            workspaceRepository.layout(workspace)
+        } else {
+            Log.d(TAG, "skip workspace tools: workspace=$id, status=${workspace.shellStatus}")
+            null
         }
-        .toList()
-    if (targets.isEmpty()) return emptyList()
-
-    return buildList {
-        add(createReadFileTool(targets, workspaceRepository))
-        add(createListTool(targets, workspaceRepository, cwds))
-        add(createGlobTool(targets, workspaceRepository, cwds))
-        add(createGrepTool(targets, workspaceRepository, cwds))
-        add(createRepoMapTool(targets, workspaceRepository, cwds))
-        // 计划模式和「只读」档位只放只读工具：写文件、跑测试这类有副作用的工具直接不注册
-        if (targets.any { it.supportsFileWrite } && !readOnly) {
-            add(createWriteFileTool(targets, workspaceRepository))
-            add(createEditFileTool(targets, workspaceRepository))
-            add(createApplyPatchTool(targets, workspaceRepository))
-        }
-        add(createGitTool(targets, workspaceRepository, readOnly))
-        if (!readOnly) add(createTestTool(targets, workspaceRepository))
-        add(
-            createShellTool(
-                targets = targets,
-                workspaceRepository = workspaceRepository,
-                workspaceCwds = cwds,
-                readOnly = readOnly,
-                backgroundShellManager = backgroundShellManager,
-                conversationId = conversationId,
-            )
+        WorkspaceTarget(
+            id = id,
+            name = workspace.name,
+            readyLayout = layout,
+            toolModes = workspace.toolModes(),
+            supportsFileWrite = capabilities.fileWriteTools,
+            supportsBackgroundShell = capabilities.backgroundShell,
+            isLocalRootfs = capabilities.rootfs,
+            executionPermission = executionPermission,
         )
-        // 后台命令按会话归属；只有支持后台执行的工作区才提供输出/终止工具
-        if (backgroundShellManager != null && conversationId != null &&
-            targets.any { it.supportsBackgroundShell }
-        ) {
-            val background = BackgroundShell(backgroundShellManager, conversationId)
-            add(createShellOutputTool(background))
-            add(createShellKillTool(background))
-        }
     }
+    return buildWorkspaceTools(
+        targets = targets,
+        defaultId = defaultId,
+        workspaceRepository = workspaceRepository,
+        cwds = cwds,
+        readOnly = executionPermission == ExecutionPermission.READ_ONLY,
+        backgroundShellManager = backgroundShellManager,
+        conversationId = conversationId,
+    )
 }
 
 /**
- * 「工具覆写」页的固定目录：还没有可用工作区时也要能列出全部工作区工具。
- *
- * 只用默认的 Rootfs 目录约定生成定义，execute 不会被调用；有可用工作区时目录本身仍按真实绑定生成。
+ * 「工具覆写」只编辑定义。即使所有真实工作区都禁用某个工具，也要能编辑其定义。
  */
-fun createWorkspaceCatalogTools(
+internal fun createWorkspaceCatalogTools(
     workspaceRepository: WorkspaceRepository,
     backgroundShellManager: BackgroundShellManager?,
 ): List<Tool> {
@@ -139,93 +117,191 @@ fun createWorkspaceCatalogTools(
         workspaceDir = WorkspaceManager.ROOTFS_WORKSPACE_DIR,
         writableRoots = listOf(WorkspaceManager.ROOTFS_WORKSPACE_DIR, "/tmp"),
     )
-    val targets = listOf(
-        WorkspaceTarget(
-            id = "catalog",
-            name = "workspace",
-            layout = layout,
-            approvalOverrides = emptyMap(),
-            supportsFileWrite = true,
-            supportsBackgroundShell = true,
-        )
+    val target = WorkspaceTarget(
+        id = "catalog",
+        name = "workspace",
+        readyLayout = layout,
+        toolModes = emptyMap(),
+        supportsFileWrite = true,
+        supportsBackgroundShell = true,
     )
-    val conversationId = Uuid.random()
-    return buildList {
-        add(createReadFileTool(targets, workspaceRepository))
-        add(createListTool(targets, workspaceRepository))
-        add(createGlobTool(targets, workspaceRepository))
-        add(createGrepTool(targets, workspaceRepository))
-        add(createRepoMapTool(targets, workspaceRepository))
-        add(createWriteFileTool(targets, workspaceRepository))
-        add(createEditFileTool(targets, workspaceRepository))
-        add(createApplyPatchTool(targets, workspaceRepository))
-        add(createGitTool(targets, workspaceRepository, readOnly = false))
-        add(createTestTool(targets, workspaceRepository))
+    return buildWorkspaceTools(
+        targets = listOf(target),
+        defaultId = target.id,
+        workspaceRepository = workspaceRepository,
+        cwds = emptyMap(),
+        readOnly = false,
+        backgroundShellManager = backgroundShellManager,
+        conversationId = Uuid.random(),
+    ).tools
+}
+
+private fun buildWorkspaceTools(
+    targets: List<WorkspaceTarget>,
+    defaultId: String,
+    workspaceRepository: WorkspaceRepository,
+    cwds: Map<String, String>,
+    readOnly: Boolean,
+    backgroundShellManager: BackgroundShellManager?,
+    conversationId: Uuid?,
+): WorkspaceToolSet {
+    val tools = mutableListOf<Tool>()
+    val namesByWorkspace = mutableMapOf<String, MutableSet<String>>()
+    fun add(tool: Tool, enabled: List<WorkspaceTarget>) {
+        tools.add(tool)
+        enabled.forEach { namesByWorkspace.getOrPut(it.id) { linkedSetOf() }.add(tool.name) }
+    }
+    fun register(name: String, create: (WorkspaceToolTargets) -> Tool) {
+        val scope = WorkspaceToolTargets(name, targets, defaultId, workspaceRepository::getById)
+        if (scope.enabled.isNotEmpty()) add(create(scope), scope.enabled)
+    }
+
+    register("workspace_read_file") { createReadFileTool(it, workspaceRepository) }
+    register("workspace_list") { createListTool(it, workspaceRepository, cwds) }
+    register("workspace_glob") { createGlobTool(it, workspaceRepository, cwds) }
+    register("workspace_grep") { createGrepTool(it, workspaceRepository, cwds) }
+    register("workspace_repo_map") { createRepoMapTool(it, workspaceRepository, cwds) }
+    register("workspace_write_file") { createWriteFileTool(it, workspaceRepository) }
+    register("workspace_edit_file") { createEditFileTool(it, workspaceRepository) }
+    register("workspace_apply_patch") { createApplyPatchTool(it, workspaceRepository) }
+    register(WORKSPACE_GIT_TOOL_NAME) { createGitTool(it, workspaceRepository, readOnly) }
+    register(WORKSPACE_TEST_TOOL_NAME) { createTestTool(it, workspaceRepository) }
+
+    val shellTargets = WorkspaceToolTargets(WORKSPACE_SHELL_TOOL_NAME, targets, defaultId, workspaceRepository::getById)
+    val background = if (backgroundShellManager != null && conversationId != null) {
+        val enabled = shellTargets.enabled.filter { it.supportsBackgroundShell }
+        if (enabled.isEmpty()) null else BackgroundShell(backgroundShellManager, conversationId, enabled, workspaceRepository)
+    } else {
+        null
+    }
+    if (shellTargets.enabled.isNotEmpty()) {
         add(
             createShellTool(
-                targets = targets,
+                targets = shellTargets,
                 workspaceRepository = workspaceRepository,
-                backgroundShellManager = backgroundShellManager,
-                conversationId = conversationId,
-            )
+                workspaceCwds = cwds,
+                readOnly = readOnly,
+                background = background,
+            ),
+            shellTargets.enabled,
         )
-        if (backgroundShellManager != null) {
-            val background = BackgroundShell(backgroundShellManager, conversationId)
-            add(createShellOutputTool(background))
-            add(createShellKillTool(background))
+    }
+    if (background != null) {
+        add(createShellOutputTool(background), background.targets)
+        if (!readOnly) add(createShellKillTool(background), background.targets)
+    }
+    return WorkspaceToolSet(
+        tools = tools,
+        namesByWorkspace = namesByWorkspace,
+        outputReaderWorkspaceIds = shellTargets.enabled.filter { it.isLocalRootfs }.map { it.id },
+    )
+}
+
+internal class WorkspaceToolTargets(
+    private val toolName: String,
+    private val bound: List<WorkspaceTarget>,
+    private val defaultId: String,
+    private val loadWorkspace: suspend (String) -> WorkspaceEntity?,
+) {
+    val enabled = bound.filter { it.allowsTool(toolName) }
+    val layout get() = enabled.first().layout
+
+    private val defaultEnabled = enabled.any { it.id == defaultId }
+    private val showSelector get() = bound.size > 1 || !defaultEnabled
+    private val defaultHint get() = if (defaultEnabled) {
+        " Defaults to $defaultId."
+    } else {
+        " Specify a workspace ID; the default workspace ($defaultId) is unavailable for this tool."
+    }
+
+    fun workspaceNote(): String = if (showSelector) {
+        " Workspaces for this tool: ${enabled.availableWorkspaces()}.$defaultHint"
+    } else {
+        ""
+    }
+
+    fun putWorkspaceProperty(builder: JsonObjectBuilder) {
+        if (!showSelector) return
+        builder.put("workspace", buildJsonObject {
+            put("type", "string")
+            put("description", "Workspace ID. One of: ${enabled.availableWorkspaces()}.$defaultHint")
+        })
+    }
+
+    fun required(vararg names: String): List<String>? =
+        (names.toList() + if (defaultEnabled) emptyList() else listOf("workspace")).ifEmpty { null }
+
+    fun resolve(params: JsonObject): WorkspaceTarget {
+        val requested = params.requestedWorkspace()
+        // Approval resumption rebuilds the tool list. Never derive the implicit target from that list.
+        val target = if (requested == null) {
+            bound.firstOrNull { it.id == defaultId }
+                ?: error("Default workspace '$defaultId' is unavailable. ${workspaceNote().trim()}")
+        } else {
+            bound.resolveWorkspaceSelector(requested)
         }
+        check(target in enabled) {
+            "Tool $toolName is disabled or unavailable in workspace '${target.name}' (${target.id})." +
+                " Available: ${enabled.availableWorkspaces()}"
+        }
+        return target
+    }
+
+    fun needsApproval(
+        args: JsonElement,
+        requiresApproval: (WorkspaceTarget, JsonObject) -> Boolean = { target, _ -> target.needsApproval(toolName) },
+    ): Boolean {
+        val params = args as? JsonObject ?: return false
+        // Invalid or disabled targets are rejected by execute without asking for a useless approval.
+        val target = runCatching { resolve(params) }.getOrNull() ?: return false
+        return requiresApproval(target, params)
+    }
+
+    suspend fun resolveForExecution(params: JsonObject): WorkspaceTarget = resolve(params).also { target ->
+        val workspace = loadWorkspace(target.id) ?: error("Workspace '${target.id}' no longer exists.")
+        workspace.requireToolEnabled(toolName)
     }
 }
 
-internal fun List<WorkspaceTarget>.workspaceNote(): String = if (size <= 1) {
-    ""
-} else {
-    " Multiple workspaces are bound: ${joinToString { "${it.id} (${it.name})" }}." +
-        " Set `workspace` to one of these IDs; defaults to ${first().id}."
+internal fun JsonObjectBuilder.putWorkspaceProperty(targets: WorkspaceToolTargets) = targets.putWorkspaceProperty(this)
+
+internal fun WorkspaceEntity.requireToolEnabled(name: String) {
+    check(isToolEnabled(name)) { "Tool $name is disabled or unavailable in workspace '${this.name}'." }
 }
 
-internal fun JsonObjectBuilder.putWorkspaceProperty(targets: List<WorkspaceTarget>) {
-    if (targets.size <= 1) return
-    put("workspace", buildJsonObject {
-        put("type", "string")
-        put(
-            "description",
-            "Workspace ID to use. One of: ${targets.joinToString { "${it.id} (${it.name})" }}." +
-                " Defaults to ${targets.first().id}. Prefer the ID; names may contain quotes."
-        )
-    })
+internal fun WorkspaceEntity.isToolEnabled(name: String): Boolean =
+    shellStatus == WorkspaceShellStatus.READY.name &&
+        capabilities().terminal &&
+        toolModes().toolMode(name) != WorkspaceToolMode.DISABLED &&
+        (name !in WorkspaceFileWriteToolNames || capabilities().fileWriteTools)
+
+private fun JsonObject.requestedWorkspace(): String? {
+    val value = this["workspace"] ?: return null
+    if (value == JsonNull) return null
+    check(value is JsonPrimitive && value.isString) { "workspace must be a workspace ID or name." }
+    return value.content.trim().takeIf { it.isNotEmpty() }
 }
 
-internal fun JsonObject.resolveWorkspace(targets: List<WorkspaceTarget>): WorkspaceTarget {
-    if (targets.size == 1) return targets.first()
-    val requested = string("workspace")?.trim().orEmpty()
-    if (requested.isBlank()) return targets.first()
-
-    targets.firstOrNull { target ->
-        target.id.equals(requested, ignoreCase = true) || target.name.equals(requested, ignoreCase = true)
-    }?.let { return it }
-
+private fun List<WorkspaceTarget>.resolveWorkspaceSelector(requested: String): WorkspaceTarget {
     val normalized = requested.normalizeWorkspaceSelector()
+    if (WORKSPACE_ID.matches(normalized)) {
+        return firstOrNull { it.id.equals(normalized, ignoreCase = true) }
+            ?: error("Unknown workspace '$requested'. Use the workspace ID. Available: ${availableWorkspaces()}")
+    }
+    firstOrNull { it.id.equals(requested, ignoreCase = true) }?.let { return it }
+
     if (normalized.isNotEmpty()) {
-        val matches = targets.filter { target ->
-            target.id.normalizeWorkspaceSelector() == normalized ||
-                target.name.normalizeWorkspaceSelector() == normalized
+        val matches = filter { target ->
+            target.id.startsWith(normalized, ignoreCase = true) || target.name.normalizeWorkspaceSelector() == normalized
         }
         if (matches.size == 1) return matches.single()
         if (matches.size > 1) {
-            error("Ambiguous workspace '$requested'. Use the workspace ID. Available: ${targets.availableWorkspaces()}")
+            error("Ambiguous workspace '$requested'. Use the workspace ID. Available: ${availableWorkspaces()}")
         }
     }
 
-    val idPrefixMatches = targets.filter { it.id.startsWith(requested, ignoreCase = true) }
-    if (idPrefixMatches.size == 1) return idPrefixMatches.single()
-
-    error("Unknown workspace '$requested'. Use the workspace ID. Available: ${targets.availableWorkspaces()}")
+    error("Unknown workspace '$requested'. Use the workspace ID. Available: ${availableWorkspaces()}")
 }
-
-/** 审批回调不能抛异常，否则会中断整轮生成；解析失败时交给调用方按需要审批处理。 */
-internal fun JsonObject.resolveWorkspaceOrNull(targets: List<WorkspaceTarget>): WorkspaceTarget? =
-    runCatching { resolveWorkspace(targets) }.getOrNull()
 
 private fun List<WorkspaceTarget>.availableWorkspaces(): String =
     joinToString { "${it.id} (${it.name})" }
@@ -239,21 +315,11 @@ private fun String.normalizeWorkspaceSelector(): String =
 
 private val WORKSPACE_QUOTES = setOf('"', '\'', '“', '”', '‘', '’', '＂')
 private val WHITESPACE = Regex("\\s+")
+private val WORKSPACE_ID = Regex("[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 
-/**
- * 单条工具在当前执行权限下是否需要用户确认。
- *
- * [ExecutionPermission.READ_ONLY] 下写类工具根本不会注册, 这里保守地要求确认;
- * [ExecutionPermission.READ_WRITE] 只放行写文件, 命令类工具仍然确认;
- * [ExecutionPermission.FULL] 一律放行。
- */
-internal fun WorkspaceTarget.needsApproval(name: String): Boolean = when (executionPermission) {
-    ExecutionPermission.FULL -> false
-    ExecutionPermission.READ_WRITE ->
-        if (name in WorkspaceFileWriteToolNames) false else WorkspaceToolDefaultApprovals[name] ?: true
-    ExecutionPermission.READ_ONLY -> true
-    ExecutionPermission.APPROVAL -> resolveWorkspaceToolApproval(name, approvalOverrides)
-}
+/** Read-only mode limits what can run; the tool's approval mode applies in APPROVAL only. */
+internal fun WorkspaceTarget.needsApproval(name: String): Boolean =
+    executionPermission == ExecutionPermission.APPROVAL && toolModes.toolMode(name) == WorkspaceToolMode.APPROVAL
 
 /**
  * 写文件类工具的审批: [ExecutionPermission.FULL] 全部放行; 其余档位下写到可写区之外一律确认,
@@ -262,7 +328,6 @@ internal fun WorkspaceTarget.needsApproval(name: String): Boolean = when (execut
 internal fun WorkspaceTarget.requiresWriteApproval(name: String, outsideWritableRoots: Boolean): Boolean =
     when (executionPermission) {
         ExecutionPermission.FULL -> false
-        ExecutionPermission.READ_WRITE -> outsideWritableRoots
         ExecutionPermission.READ_ONLY -> true
         ExecutionPermission.APPROVAL -> needsApproval(name) || outsideWritableRoots
     }

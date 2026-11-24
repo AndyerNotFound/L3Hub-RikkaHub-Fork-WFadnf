@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -39,7 +40,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.ai.provider.ModelType
 import me.rerere.hugeicons.HugeIcons
@@ -55,6 +59,7 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.WorkspaceSelectSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
+import me.rerere.rikkahub.ui.components.ai.workspacePermissionLabelRes
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -71,13 +76,6 @@ import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.model.Tag as DataTag
-
-internal fun ExecutionPermission.labelRes(): Int = when (this) {
-    ExecutionPermission.READ_ONLY -> R.string.assistant_page_execution_permission_read_only
-    ExecutionPermission.READ_WRITE -> R.string.assistant_page_execution_permission_read_write
-    ExecutionPermission.APPROVAL -> R.string.assistant_page_execution_permission_approval
-    ExecutionPermission.FULL -> R.string.assistant_page_execution_permission_full
-}
 
 @Composable
 fun AssistantBasicPage(id: String) {
@@ -202,16 +200,8 @@ internal fun AssistantBasicContent(
                 headlineContent = { Text(stringResource(R.string.assistant_page_sub_agent)) },
                 supportingContent = { Text(stringResource(R.string.assistant_page_sub_agent_desc)) },
             )
-            // 计划模式和执行权限都只对工作区工具有意义，没绑工作区就不显示，免得纯聊天助手看到一堆无用开关
-            if (assistant.allWorkspaceIds.isNotEmpty()) {
-                switchItem(
-                    checked = assistant.planMode,
-                    onCheckedChange = { onUpdate(assistant.copy(planMode = it)) },
-                    headlineContent = { Text(stringResource(R.string.assistant_page_plan_mode)) },
-                    supportingContent = { Text(stringResource(R.string.assistant_page_plan_mode_desc)) },
-                )
-            }
-            if (assistant.allWorkspaceIds.isNotEmpty()) {
+            // 会话也可以从文件夹继承工作区，不要求助手直接绑定。
+            if (workspaces.isNotEmpty() || assistant.allWorkspaceIds.isNotEmpty()) {
                 formItem(
                     headlineContent = { Text(stringResource(R.string.assistant_page_execution_permission)) },
                     supportingContent = {
@@ -225,10 +215,14 @@ internal fun AssistantBasicContent(
                                 selected = assistant.executionPermission == permission,
                                 onClick = { onUpdate(assistant.copy(executionPermission = permission)) },
                                 shape = SegmentedButtonDefaults.itemShape(index, ExecutionPermission.entries.size),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                             ) {
                                 Text(
-                                    text = stringResource(permission.labelRes()),
-                                    maxLines = 1,
+                                    text = stringResource(permission.workspacePermissionLabelRes()),
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 14.sp),
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }

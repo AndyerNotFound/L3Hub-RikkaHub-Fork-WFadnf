@@ -57,6 +57,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.TodoItem
@@ -95,6 +96,7 @@ class ChatTurnContext(
     val tools: List<Tool>,
     /** 会话级任务清单，注入到消息尾部（不进系统提示词，见 TodoStateTransformer） */
     val todos: List<TodoItem> = emptyList(),
+    val workspaceToolNames: Map<String, Set<String>> = emptyMap(),
 )
 
 /** 把会话变成发给模型的请求：系统提示词、上下文裁剪、输入输出转换都在这里 */
@@ -139,6 +141,17 @@ class ChatRequestFactory(
             ?: throw IllegalStateException("No chat model selected")
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val workspaceCwds = conversation.effectiveWorkspaceCwds(assistant)
+        val toolSet = chatToolFactory.createTools(
+            settings = settings,
+            assistant = assistant,
+            model = model,
+            workspaceCwds = workspaceCwds,
+            conversationId = conversation.id,
+            // 只有会话本身是子代理会话时才继承派发能力；助手上的「设为子代理」只管「能被派发」
+            isSubAgentConversation = conversation.parentConversationId != null,
+            // 子代理会话是自己跑完的，没有人给它点审批
+            autoApproveTools = conversation.parentConversationId != null,
+        )
         return ChatTurnContext(
             settings = settings,
             assistant = assistant,
@@ -154,17 +167,8 @@ class ChatRequestFactory(
             } else {
                 emptyList()
             },
-            tools = chatToolFactory.createTools(
-                settings = settings,
-                assistant = assistant,
-                model = model,
-                workspaceCwds = workspaceCwds,
-                conversationId = conversation.id,
-                // 只有会话本身是子代理会话时才继承派发能力；助手上的「设为子代理」只管「能被派发」
-                isSubAgentConversation = conversation.parentConversationId != null,
-                // 子代理会话是自己跑完的，没有人给它点审批
-                autoApproveTools = conversation.parentConversationId != null,
-            ),
+            tools = toolSet.tools,
+            workspaceToolNames = toolSet.workspaceToolNames,
         )
     }
 
@@ -199,6 +203,7 @@ class ChatRequestFactory(
             assistant = turn.assistant,
             settings = settings,
             workspaceCwds = turn.workspaceCwds,
+            workspaceToolNames = turn.workspaceToolNames,
         ).firstOrNull { it.role == MessageRole.SYSTEM }
             ?.parts
             ?.filterIsInstance<UIMessagePart.Text>()
@@ -460,6 +465,7 @@ class ChatRequestFactory(
                 settings = turn.settings,
                 processingStatus = processingStatus,
                 workspaceCwds = turn.workspaceCwds,
+                workspaceToolNames = if (includeTools) turn.workspaceToolNames else emptyMap(),
                 // 开关关掉后尾部也不贴；清单快照可能是这一轮开始时的，循环里按最新值传
                 todos = if (todoRemindersEnabled) todos else emptyList(),
                 onOcrResults = onOcrResults,
@@ -497,7 +503,7 @@ class ChatRequestFactory(
     }
 }
 
-/** 系统提示词按固定顺序拼：用户提示词、计划模式、记忆、工具说明，顺序变了提示词缓存就失效 */
+/** 系统提示词按固定顺序拼：用户提示词、只读工作区提示、记忆、工具说明，顺序变了提示词缓存就失效 */
 private fun buildSystemPrompt(
     turn: ChatTurnContext,
     messages: List<UIMessage>,
@@ -515,13 +521,12 @@ private fun buildSystemPrompt(
             append(effectiveSystemPrompt)
         }
 
-        // 计划模式：只读探索，先把方案讲清楚
-        if (assistant.planMode) {
+        if (assistant.executionPermission == ExecutionPermission.READ_ONLY && assistant.allWorkspaceIds.isNotEmpty()) {
             appendLine()
             append(
-                "## Plan mode\n" +
-                    "Only read-only tools are available. File writes, git changes, test runs and non-read shell commands are rejected.\n" +
-                    "Explore the workspace, then present a concrete plan and ask the user to turn plan mode off before making changes."
+                "## Read-only workspace\n" +
+                    "Workspace tools cannot write files, modify the repository, run tests, or run non-read-only shell commands.\n" +
+                    "Use read-only inspection and report any proposed changes without applying them."
             )
         }
         // 记忆

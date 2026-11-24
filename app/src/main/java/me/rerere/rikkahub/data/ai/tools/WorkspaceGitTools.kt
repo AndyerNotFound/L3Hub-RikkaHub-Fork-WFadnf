@@ -16,25 +16,29 @@ import me.rerere.rikkahub.data.workspace.WorkspaceGit
 
 const val WORKSPACE_GIT_TOOL_NAME = "workspace_git"
 
-/** 只读动作不需要逐条确认, 改仓库的动作仍然要用户点一下 */
 private val GIT_READ_ONLY_ACTIONS = setOf("status", "diff", "numstat", "branches", "worktrees", "log")
+private val GIT_WRITE_ACTIONS = setOf("commit", "discard", "discard_hunk", "checkout", "worktree_add", "worktree_remove")
 
 internal fun createGitTool(
-    targets: List<WorkspaceTarget>,
+    targets: WorkspaceToolTargets,
     workspaceRepository: WorkspaceRepository,
     readOnly: Boolean = false,
 ): Tool {
     val git = WorkspaceGit(workspaceRepository)
+    val actions = if (readOnly) GIT_READ_ONLY_ACTIONS else GIT_READ_ONLY_ACTIONS + GIT_WRITE_ACTIONS
     return Tool(
         name = WORKSPACE_GIT_TOOL_NAME,
-        description = """
+        description = (if (readOnly) {
+            "Inspect git state in the assistant's bound workspace. Allowed actions: ${actions.joinToString()}."
+        } else {
+            """
             Inspect and change git state in the assistant's bound workspace.
             Actions: status (branch, ahead/behind, changed files), diff (unified diff, optional paths), numstat (per-file added/removed),
             log (recent commits), commit (git add -A + commit with the given message), discard (revert the given paths to HEAD, untracked files are deleted),
             branches (list local branches), checkout (switch branch; set create=true for a new branch), worktrees, worktree_add (path + branch), worktree_remove (path).
             Always run status before commit and never commit without a message that describes the actual change.
-            ${targets.workspaceNote()}
-        """.trimIndent().replace("\n", " "),
+            """.trimIndent().replace("\n", " ")
+        }) + targets.workspaceNote(),
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
@@ -44,10 +48,7 @@ internal fun createGitTool(
                         put(
                             "enum",
                             buildJsonArray {
-                                listOf(
-                                    "status", "diff", "numstat", "log", "commit", "discard", "discard_hunk",
-                                    "branches", "checkout", "worktrees", "worktree_add", "worktree_remove",
-                                ).forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                                actions.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
                             },
                         )
                     })
@@ -81,23 +82,13 @@ internal fun createGitTool(
                         put("description", "0-based hunk index for discard_hunk, as returned by diff")
                     })
                 },
-                required = listOf("action"),
+                required = targets.required("action"),
             )
         },
-        needsApproval = { params ->
-            val obj = params.jsonObject
-            val target = obj.resolveWorkspaceOrNull(targets)
-            val action = obj.str("action").orEmpty()
-            when {
-                target == null -> true
-                action in GIT_READ_ONLY_ACTIONS && !target.needsApproval(WORKSPACE_GIT_TOOL_NAME) -> false
-                action in GIT_READ_ONLY_ACTIONS -> false
-                else -> target.needsApproval(WORKSPACE_GIT_TOOL_NAME)
-            }
-        },
+        needsApproval = { targets.needsApproval(it) },
         execute = {
             val params = it.jsonObject
-            val target = params.resolveWorkspace(targets)
+            val target = targets.resolveForExecution(params)
             val action = params.str("action") ?: error("action is required")
             val cwd = params.str("cwd").orEmpty()
             val paths = (params["paths"] as? JsonArray)
@@ -110,9 +101,9 @@ internal fun createGitTool(
                         buildJsonObject {
                             put(
                                 "error",
-                                "Only read-only git actions are allowed right now " +
-                                    "(${GIT_READ_ONLY_ACTIONS.joinToString()}). Turn plan mode off or raise the " +
-                                    "execution permission in the assistant settings to change the repository."
+                                "This assistant has read-only workspace access. Allowed Git actions: " +
+                                    "${GIT_READ_ONLY_ACTIONS.joinToString()}. Change the workspace permission " +
+                                    "in the assistant settings to modify the repository."
                             )
                             put("action", action)
                         }.toString()
