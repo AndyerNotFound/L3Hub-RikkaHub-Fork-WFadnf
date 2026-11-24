@@ -421,7 +421,7 @@ private fun ListItemShapes.morphedBy(progress: Float): ListItemShapes {
 @Composable
 private fun lerpShape(from: Shape, to: Shape, fraction: Float): Shape =
     remember(from, to, fraction) {
-        object : Shape {
+        return@remember object : Shape {
             override fun createOutline(
                 size: Size,
                 layoutDirection: LayoutDirection,
