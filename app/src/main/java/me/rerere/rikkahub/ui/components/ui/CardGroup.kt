@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.ui.shape.withInterpolatableCorners
 import me.rerere.rikkahub.ui.theme.CustomColors
 import kotlin.math.roundToInt
 
@@ -382,12 +383,17 @@ private fun CardGroupListItem(
     count: Int,
     index: Int,
 ) {
-    // 首尾圆角与按压形变都交给 M3：segmentedShapes 按 index/count 解析，
-    // 按下时 shapeForInteraction 会对 CornerBasedShape 自己做形变动画
+    // 分组形状仍由 M3 按 index/count 解析；给自定义轮廓补齐 lerp，
+    // 否则仅继承 CornerBasedShape 也会在按压动画的中点硬切。
+    val baseShapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    val prototype = MaterialTheme.shapes.large
+    val shapes = remember(baseShapes, prototype) {
+        baseShapes.withInterpolatableCorners(prototype)
+    }
     val interactionSource = remember { MutableInteractionSource() }
 
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        shapes = shapes,
         modifier = item.modifier.fillMaxWidth(),
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,

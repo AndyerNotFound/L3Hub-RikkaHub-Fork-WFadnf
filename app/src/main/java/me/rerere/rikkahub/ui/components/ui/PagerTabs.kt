@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
+import me.rerere.rikkahub.ui.shape.withInterpolatableCorners
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFastSpatialSpec
 
@@ -68,6 +69,12 @@ internal fun PagerTabs(
     val tabContainerColor = glassColor(MaterialTheme.colorScheme.surfaceContainerHighest)
     // 进出两个方向的位移与显隐用同一组曲线：收起就是展开的倒放，模糊也能跟着同一条时间线走
     val motionScheme = MaterialTheme.motionScheme
+    // 三种状态使用同一主题轮廓族，避免固定 CircleShape 与自定义按下/选中形状互不支持 lerp。
+    val baseShapes = ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
+    val prototype = MaterialTheme.shapes.medium
+    val tabShapes = remember(baseShapes, prototype) {
+        baseShapes.withInterpolatableCorners(prototype)
+    }
 
     Row(
         modifier = modifier
@@ -94,6 +101,7 @@ internal fun PagerTabs(
                         animationSpec = motionScheme.fastSpatialSpec(),
                     )
                     .semantics { role = Role.Tab },
+                shapes = tabShapes,
                 colors = ToggleButtonDefaults.colors(
                     containerColor = tabContainerColor,
                 ),
