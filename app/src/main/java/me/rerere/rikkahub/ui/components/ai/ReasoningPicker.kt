@@ -1,13 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
@@ -40,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -58,7 +50,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
@@ -68,10 +59,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
+import me.rerere.rikkahub.ui.components.ui.SheetSlidePages
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.theme.motionContentSize
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.SaltModalSheet
 import me.rerere.ui.components.ToggleSurface
 import me.rerere.ui.icons.ReasoningHigh
@@ -197,15 +186,10 @@ fun ReasoningPicker(
         BackHandler(enabled = showModelList) {
             showModelList = false
         }
-        // 从思考强度面板切到模型列表时不关 sheet，直接换内容
-        // 两页要叠在同一块区域上，所以套了 Box；Box 里是 BoxScope，直接写 AnimatedVisibility
-        // 会落到 sheet 内容的 ColumnScope 那个重载上、被布局的 DSL marker 挡掉，这里显式指回去
-        Box(modifier = Modifier.motionContentSize().clipToBounds()) {
-            this@sheet.AnimatedVisibility(
-                visible = !showModelList,
-                enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeIn(rememberEffectsSpec<Float>()),
-                exit = slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { -it } + fadeOut(rememberEffectsSpec<Float>()),
-            ) {
+        // 两页互切：不关面板只换内容，动效与工具覆写弹窗共用同一份
+        SheetSlidePages(
+            showSecond = showModelList,
+            first = {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -314,17 +298,11 @@ fun ReasoningPicker(
                         )
                     }
                 }
-            }
-            if (modelContent != null) {
-                this@sheet.AnimatedVisibility(
-                    visible = showModelList,
-                    enter = slideInHorizontally(rememberSpatialSpec<IntOffset>()) { it } + fadeIn(rememberEffectsSpec<Float>()),
-                    exit = slideOutHorizontally(rememberSpatialSpec<IntOffset>()) { it } + fadeOut(rememberEffectsSpec<Float>()),
-                ) {
-                    modelContent { onDismissRequest() }
-                }
-            }
-        }
+            },
+            second = {
+                modelContent { onDismissRequest() }
+            },
+        )
     }
 }
 

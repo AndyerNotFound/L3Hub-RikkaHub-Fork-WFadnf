@@ -1,12 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -28,7 +20,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -50,7 +41,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import me.rerere.hugeicons.HugeIcons
@@ -75,6 +65,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.JsonTree
+import me.rerere.rikkahub.ui.components.ui.SheetSlidePages
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.Button
 import me.rerere.rikkahub.ui.style.Switch
@@ -384,89 +375,25 @@ private fun ToolOverrideSheet(
                 }
             }
 
-            AnimatedContent(
-                targetState = editing,
-                transitionSpec = {
-                    // 进编辑从右侧滑入、详情向右滑出，返回沿原路反向；与文件选择器的页面切换同参同曲线
-                    if (targetState) {
-                        slideInHorizontally { it } + fadeIn() togetherWith
-                            slideOutHorizontally { it } + fadeOut()
-                    } else {
-                        slideInHorizontally { -it } + fadeIn() togetherWith
-                            slideOutHorizontally { -it } + fadeOut()
+            SheetSlidePages(
+                showSecond = editing,
+                first = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        DetailSection(
+                            effectiveDescription = effectiveDescription,
+                            noDescription = noDescription,
+                            effectiveInstructions = effectiveInstructions,
+                            effectiveParameters = effectiveParameters,
+                            noParameters = noParameters,
+                            toolOverride = toolOverride,
+                            onResetClick = { confirmReset = true },
+                            onClose = { dismissSheet { onDismiss() } },
+                            onEditClick = { editing = true },
+                        )
                     }
                 },
-                label = "ToolOverrideEditing",
-            ) { isEditing ->
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (!isEditing) {
-                        ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
-                            Text(
-                                text = effectiveDescription.ifBlank { noDescription },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (effectiveInstructions.isNotBlank()) {
-                                Text(
-                                    text = stringResource(R.string.tool_override_detail_instructions),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                SelectionContainer {
-                                    Text(
-                                        text = effectiveInstructions,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontFamily = JetbrainsMono,
-                                    )
-                                }
-                            }
-                        }
-
-                        ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
-                            if (effectiveParameters == null) {
-                                Text(
-                                    text = noParameters,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            } else {
-                                JsonTree(
-                                    json = effectiveParameters,
-                                    initialExpandLevel = 2,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (toolOverride != null) {
-                                TextButton(onClick = { confirmReset = true }) {
-                                    Text(stringResource(R.string.tool_override_action_reset))
-                                }
-                            }
-                            Spacer(Modifier.weight(1f))
-                            androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
-                                Text(stringResource(R.string.tool_override_action_close))
-                            }
-                            Button(
-                                onClick = { editing = true },
-                                modifier = Modifier.heightIn(min = 48.dp),
-                            ) {
-                                Icon(
-                                    imageVector = HugeIcons.Edit03,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.tool_override_action_edit))
-                            }
-                        }
-                    } else {
+                second = {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         ToolOverrideEditor(
                             entry = entry,
                             toolOverride = toolOverride,
@@ -477,8 +404,8 @@ private fun ToolOverrideSheet(
                             },
                         )
                     }
-                }
-            }
+                },
+            )
         }
     }
 
@@ -503,6 +430,86 @@ private fun ToolOverrideSheet(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun DetailSection(
+    effectiveDescription: String,
+    noDescription: String,
+    effectiveInstructions: String,
+    effectiveParameters: JsonElement?,
+    noParameters: String,
+    toolOverride: ToolOverride?,
+    onResetClick: () -> Unit,
+    onClose: () -> Unit,
+    onEditClick: () -> Unit,
+) {
+    ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
+        Text(
+            text = effectiveDescription.ifBlank { noDescription },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (effectiveInstructions.isNotBlank()) {
+            Text(
+                text = stringResource(R.string.tool_override_detail_instructions),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SelectionContainer {
+                Text(
+                    text = effectiveInstructions,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = JetbrainsMono,
+                )
+            }
+        }
+    }
+
+    ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
+        if (effectiveParameters == null) {
+            Text(
+                text = noParameters,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            JsonTree(
+                json = effectiveParameters,
+                initialExpandLevel = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (toolOverride != null) {
+            TextButton(onClick = onResetClick) {
+                Text(stringResource(R.string.tool_override_action_reset))
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        androidx.compose.material3.TextButton(onClick = onClose) {
+            Text(stringResource(R.string.tool_override_action_close))
+        }
+        Button(
+            onClick = onEditClick,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Edit03,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.tool_override_action_edit))
+        }
     }
 }
 
