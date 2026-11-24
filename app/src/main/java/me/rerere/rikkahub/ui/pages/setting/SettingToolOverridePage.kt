@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,6 +26,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -343,57 +346,75 @@ private fun ToolOverrideSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            val groupLabel = entry.group.label()
-            CardGroup {
-                formItem(
-                    headlineContent = {
-                        Text(
-                            text = buildString {
-                                append(groupLabel)
-                                entry.groupDetail?.let { append(" · ").append(it) }
-                            },
-                        )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (toolOverride != null) {
+                        ValuePill(text = stringResource(R.string.tool_override_overridden))
+                    }
+                }
+                val groupLabel = entry.group.label()
+                Text(
+                    text = buildString {
+                        append(groupLabel)
+                        entry.groupDetail?.let { append(" · ").append(it) }
                     },
-                    supportingContent = toolOverride?.let { { Text(overriddenNote) } },
-                    trailingContent = toolOverride?.let {
-                        { CardGroupValue(stringResource(R.string.tool_override_overridden)) }
-                    },
-                ) {}
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (toolOverride != null) {
+                    Text(
+                        text = overriddenNote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
 
             if (!editing) {
-                CardGroup(title = { Text(stringResource(R.string.tool_override_detail_description)) }) {
-                    item(headlineContent = { Text(effectiveDescription.ifBlank { noDescription }) })
+                ToolSheetSection(title = stringResource(R.string.tool_override_detail_description)) {
+                    Text(
+                        text = effectiveDescription.ifBlank { noDescription },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                     if (effectiveInstructions.isNotBlank()) {
-                        item(
-                            overlineContent = { Text(stringResource(R.string.tool_override_detail_instructions)) },
-                            headlineContent = {
-                                SelectionContainer {
-                                    Text(
-                                        text = effectiveInstructions,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        fontFamily = JetbrainsMono,
-                                    )
-                                }
-                            },
+                        Text(
+                            text = stringResource(R.string.tool_override_detail_instructions),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        SelectionContainer {
+                            Text(
+                                text = effectiveInstructions,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = JetbrainsMono,
+                            )
+                        }
                     }
                 }
 
-                CardGroup(title = { Text(stringResource(R.string.tool_override_detail_definition)) }) {
+                ToolSheetSection(title = stringResource(R.string.tool_override_detail_definition)) {
                     if (effectiveParameters == null) {
-                        item(headlineContent = {}, supportingContent = { Text(noParameters) })
+                        Text(
+                            text = noParameters,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     } else {
-                        formItem {
-                            JsonTree(
-                                json = effectiveParameters,
-                                initialExpandLevel = 2,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        JsonTree(
+                            json = effectiveParameters,
+                            initialExpandLevel = 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
 
@@ -408,7 +429,7 @@ private fun ToolOverrideSheet(
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { dismissSheet { onDismiss() } }) {
+                    androidx.compose.material3.TextButton(onClick = { dismissSheet { onDismiss() } }) {
                         Text(stringResource(R.string.tool_override_action_close))
                     }
                     Button(
@@ -499,6 +520,7 @@ private fun ToolOverrideEditor(
                 Text(
                     text = stringResource(R.string.tool_override_edit_description_switch),
                     style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.tool_override_edit_description_hint),
@@ -539,6 +561,7 @@ private fun ToolOverrideEditor(
                 Text(
                     text = stringResource(R.string.tool_override_edit_definition_switch),
                     style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.tool_override_edit_definition_hint),
@@ -577,7 +600,7 @@ private fun ToolOverrideEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onCancel) {
+            androidx.compose.material3.TextButton(onClick = onCancel) {
                 Text(stringResource(R.string.tool_override_action_cancel))
             }
             Button(
@@ -605,4 +628,40 @@ private fun ToolOverrideEditor(
     }
 }
 
+@Composable
+private fun ToolSheetSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        content()
+    }
+}
+
 private const val DEFAULT_TOOL_SCHEMA = """{"type": "object", "properties": {}}"""
+
+/** 行右侧的取值小标签，胶囊观感与迁移前的取值标签一致。 */
+@Composable
+private fun ValuePill(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+            maxLines = 1,
+        )
+    }
+}

@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.components.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.background
@@ -53,6 +53,7 @@ private val CardGroupInnerCorner = 4.dp
 
 private data class CardGroupItem(
     val onClick: (() -> Unit)?,
+    val onLongClick: (() -> Unit)? = null,
     val modifier: Modifier,
     val overlineContent: (@Composable () -> Unit)?,
     val headlineContent: (@Composable () -> Unit)?,
@@ -71,6 +72,7 @@ private annotation class CardGroupDsl
 interface CardGroupScope {
     fun item(
         onClick: (() -> Unit)? = null,
+        onLongClick: (() -> Unit)? = null,
         modifier: Modifier = Modifier,
         overlineContent: (@Composable () -> Unit)? = null,
         supportingContent: (@Composable () -> Unit)? = null,
@@ -96,6 +98,7 @@ private class CardGroupScopeImpl : CardGroupScope {
 
     override fun item(
         onClick: (() -> Unit)?,
+        onLongClick: (() -> Unit)?,
         modifier: Modifier,
         overlineContent: (@Composable () -> Unit)?,
         supportingContent: (@Composable () -> Unit)?,
@@ -107,6 +110,7 @@ private class CardGroupScopeImpl : CardGroupScope {
         items.add(
             CardGroupItem(
                 onClick = onClick,
+                onLongClick = onLongClick,
                 modifier = modifier,
                 overlineContent = overlineContent,
                 headlineContent = headlineContent,
@@ -304,11 +308,12 @@ private fun CardGroupListItem(
                 )
             )
             .then(
-                if (item.onClick != null) {
-                    Modifier.clickable(
+                if (item.onClick != null || item.onLongClick != null) {
+                    Modifier.combinedClickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
-                        onClick = item.onClick,
+                        onClick = item.onClick ?: {},
+                        onLongClick = item.onLongClick,
                     )
                 } else Modifier
             ),
