@@ -39,7 +39,10 @@ internal data class ChatPageUiState(
     val assistant: Assistant,
     val currentChatModel: Model?,
     val errors: List<ChatError>,
+    // Bubbles only sample the backdrop; the input area can also sample the message list.
     val backgroundHazeState: HazeState,
+    val chromeHazeState: HazeState,
+
     // 布局：两个布局分支的差异只落在这三个字段上
     val threePane: Boolean = false,
     val sidebarOpen: Boolean = false,

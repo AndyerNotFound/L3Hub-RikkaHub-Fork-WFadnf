@@ -50,7 +50,8 @@ fun AssistantBackground(
     val base = LocalUiSlots.current.pageBackground
     val readable = advanced && appearance.enableChatTextReadability
     val image = if (setting.isGlobalBackgroundAppliedToChat()) LocalAppearanceImage.current?.image else null
-    val backdrop = if (advanced) modifier.fillMaxSize().background(base) else modifier
+    // Capture the theme base as well, so translucent images and the no-image state have a backdrop.
+    val backdrop = modifier.fillMaxSize().background(base)
     if (image != null) {
         Box(backdrop) {
             AppearanceBackdrop(image, appearance, Modifier.fillMaxSize())
@@ -129,7 +130,7 @@ fun AssistantBackground(
                 )
             }
         }
-    } else if (advanced) {
+    } else {
         Box(backdrop)
     }
 }

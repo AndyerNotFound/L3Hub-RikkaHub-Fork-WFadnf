@@ -190,8 +190,7 @@ fun ChatList(
     onPreviewModeChange: (Boolean) -> Unit,
     settings: Settings,
     bubbleHazeState: HazeState? = null,
-    // 消息列表本身也注册成源：输入框、顶栏、抽屉和浮层才能糊到滚动中的正文。
-    // 生成中不挂，避免每个 token 到达都重糊一次列表。
+    // 输入区与旧版浮层可取样消息列表，气泡本身只使用背景源。
     contentSource: HazeState? = null,
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
@@ -261,7 +260,7 @@ fun ChatList(
                 processingStatus = processingStatus,
                 settings = settings,
                 bubbleHazeState = bubbleHazeState,
-                contentSource = contentSource,
+                contentSource = contentSource.takeUnless { showPreview },
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
@@ -656,6 +655,15 @@ private fun ChatListNormal(
                             settings.displaySetting.motionBlur.scrollBlur &&
                             !followScrollBlurPaused,
                     )
+                    // Record the faded list above the wallpaper, without sampling scroll-motion blur.
+                    // Drop it during generation or compression to avoid blurring every new token.
+                    .then(
+                        if (contentSource != null && !loading && !compressing) {
+                            Modifier.hazeSource(contentSource, zIndex = 1f)
+                        } else {
+                            Modifier
+                        }
+                    )
                     // 详情面板把 topBar 撑高后，topPadding 会跟着涨到几百 dp；
                     // 渐隐带按它算会把上半屏消息整片吃掉，所以封顶到顶栏本体的量级。
                     // 生成期间不挂：正文每来一个 token 都要把整块列表重新录进离屏层，
@@ -664,16 +672,7 @@ private fun ChatListNormal(
                         height = minOf(innerPadding.calculateTopPadding() + 24.dp, 160.dp),
                         enabled = !loading,
                     )
-                    .nestedScroll(createPullConnection)
-                    // 静息时把列表也交给 haze：输入框与顶栏能糊到正文；
-                    // 生成中撤掉，省掉「每个 token 重糊整块列表」的开销
-                    .then(
-                        if (contentSource != null && !loading && !compressing) {
-                            Modifier.hazeSource(contentSource)
-                        } else {
-                            Modifier
-                        }
-                    ),
+                    .nestedScroll(createPullConnection),
             ) {
             itemsIndexed(
                 items = conversation.messageNodes,

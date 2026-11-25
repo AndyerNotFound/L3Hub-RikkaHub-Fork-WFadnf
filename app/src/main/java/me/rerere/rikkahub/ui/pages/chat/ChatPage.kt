@@ -185,6 +185,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
     val backgroundHazeState = rememberHazeState()
+    val chromeHazeState = rememberHazeState()
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
@@ -346,6 +347,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         currentChatModel = currentChatModel,
         errors = errors,
         backgroundHazeState = backgroundHazeState,
+        chromeHazeState = chromeHazeState,
     )
     val pageActions = ChatPageActions(
         onStartVoiceMode = startVoiceMode,
@@ -363,7 +365,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         if (advanced) AssistantBackground(
             setting = setting,
             assistant = assistant,
-            modifier = Modifier.hazeSource(backgroundHazeState),
+            modifier = Modifier.hazeSource(backgroundHazeState).hazeSource(chromeHazeState),
             scrim = !threePaneLayout,
             animateGradient = loadingJob == null && sessionActivity == null,
         )
@@ -479,6 +481,7 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     val advanced = state.setting.advancedAppearanceSetting.enableAdvancedAppearance
+    val overlayHazeState = if (advanced) state.backgroundHazeState else state.chromeHazeState
     // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
     val conversationFolders by state.vm.folders.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
@@ -913,7 +916,7 @@ private fun ChatPageContent(
             },
             injectedLorebookCount = lorebookInjectionCount,
             onShowUsage = { openPane(ChatSidePane.Usage) },
-            hazeState = state.backgroundHazeState,
+            hazeState = state.chromeHazeState,
             completionProviders = completionProviders,
             onCancelClick = {
                 state.vm.stopGeneration()
@@ -990,14 +993,14 @@ private fun ChatPageContent(
     }
 
     Surface(
-        color = if (advanced) Color.Transparent else LocalUiSlots.current.pageBackground,
+        color = Color.Transparent,
         contentColor = if (advanced) MaterialTheme.colorScheme.onBackground else contentColorFor(LocalUiSlots.current.pageBackground),
         modifier = Modifier.fillMaxSize()
     ) {
         // The advanced root background spans the three panes. Keep the legacy background inside this surface.
         if (!advanced) AssistantBackground(
             setting = state.setting,
-            modifier = Modifier.hazeSource(state.backgroundHazeState),
+            modifier = Modifier.hazeSource(state.backgroundHazeState).hazeSource(state.chromeHazeState),
             scrim = !state.threePane,
             animateGradient = state.loadingJob == null,
         )
@@ -1019,7 +1022,7 @@ private fun ChatPageContent(
             topBar = {
                 Column {
                     TopBar(
-                        hazeState = state.backgroundHazeState,
+                        hazeState = overlayHazeState,
                         settings = state.setting,
                         assistant = state.assistant,
                         chatModel = state.currentChatModel,
@@ -1058,7 +1061,7 @@ private fun ChatPageContent(
                             expanded = quotaExpanded,
                             onToggle = { quotaExpanded = !quotaExpanded },
                             displaySetting = state.setting.displaySetting,
-                            hazeState = state.backgroundHazeState,
+                            hazeState = overlayHazeState,
                         )
                     }
                 }
@@ -1135,8 +1138,7 @@ private fun ChatPageContent(
                         onPreviewModeChange = { previewMode = it },
                         settings = state.setting,
                         bubbleHazeState = state.backgroundHazeState,
-                        // Advanced materials sample only AssistantBackground, never the messages themselves.
-                        contentSource = state.backgroundHazeState.takeUnless { advanced },
+                        contentSource = state.chromeHazeState,
                         errors = state.errors,
                         onDismissError = actions.onDismissError,
                         onClearAllErrors = actions.onClearAllErrors,
@@ -1255,7 +1257,7 @@ private fun ChatPageContent(
                         contextTokens = contextTokens,
                         messageCount = state.messageCount,
                         previewState = requestPreviewState,
-                        hazeState = state.backgroundHazeState,
+                        hazeState = overlayHazeState,
                         onCollapse = { showDetails = false },
                         modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                     )
@@ -1270,7 +1272,7 @@ private fun ChatPageContent(
                         expanded = quotaExpanded,
                         running = state.loadingJob != null,
                         displaySetting = state.setting.displaySetting,
-                        hazeState = state.backgroundHazeState,
+                        hazeState = overlayHazeState,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = innerPadding.calculateTopPadding()),

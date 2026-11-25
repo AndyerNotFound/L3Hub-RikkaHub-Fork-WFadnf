@@ -40,9 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import me.rerere.hugeicons.HugeIcons
@@ -64,7 +62,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.SaltGlassStyles
+import me.rerere.rikkahub.ui.components.ui.blurBackdrop
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -440,13 +438,7 @@ private fun PreviewBubble(
     // 毛玻璃档走真实 haze：先模糊预览背景源，再叠半透明底色与边框，
     // 与聊天界面的 effectSurface 路径一致
     val effect = if (frosted && hazeState != null) {
-        base.hazeBlur(
-            input = HazeInput.Sources(hazeState),
-            style = SaltGlassStyles.blur(
-                isDarkTheme = LocalDarkMode.current,
-                radius = resolved.blurRadius,
-            ),
-        )
+        base.blurBackdrop(hazeState, resolved.blurRadius)
     } else {
         base
     }

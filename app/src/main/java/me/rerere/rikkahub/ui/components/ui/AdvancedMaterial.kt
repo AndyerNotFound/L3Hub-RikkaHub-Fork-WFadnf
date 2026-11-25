@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.glass.GlassOptics
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
@@ -193,7 +192,7 @@ internal fun Modifier.advancedMaterial(
             Modifier.hazeGlass(input = HazeInput.Sources(source), style = optics)
         }
         style.usesBlur && source != null && radius > 0.dp -> Modifier
-            .hazeBlur(input = HazeInput.Sources(source), style = SaltGlassStyles.blur(dark, radius))
+            .blurBackdrop(source, radius)
             .background(tint, shape)
         else -> Modifier.background(backing, shape)
     }

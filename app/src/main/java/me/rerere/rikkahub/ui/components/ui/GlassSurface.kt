@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.hazeGlass
@@ -39,7 +41,7 @@ private val ComponentGlassBlurRadius: Dp = 16.dp
 /**
  * 组件特效能取到的 Haze 源。
  *
- * 聊天页提供的是背景层（加上静息时的消息列表）；默认 null 时特效退化成半透明色块，开销为零。
+ * 默认只提供页面背景；需要糊到消息列表的聊天控件显式传自己的源。默认 null 时只画表面底色。
  *
  * 源由页面显式提供，不给列表每一项挂 `hazeSource`：滚动时每项重糊一次会明显掉帧。
  */
@@ -104,6 +106,22 @@ fun canGlassPane(hazeState: HazeState? = LocalGlassHazeState.current): Boolean {
     return hazeState != null && !LocalSeparateWindow.current && displaySetting.enableBlurEffect
 }
 
+/** As in Rikkahub Revised (AGPL-3.0), the caller supplies the only tint after the backdrop blur. */
+@Composable
+internal fun Modifier.blurBackdrop(hazeState: HazeState, radius: Dp): Modifier {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !radius.value.isFinite() || radius <= 0.dp) return this
+    val style = remember(radius) {
+        HazeBlurStyle {
+            blurRadius(radius)
+            backgroundColor(Color.Transparent)
+            colorEffects(emptyList())
+            fallbackColorEffect(null)
+            noiseFactor(0f)
+        }
+    }
+    return hazeBlur(input = HazeInput.Sources(hazeState), style = style)
+}
+
 /**
  * 组件特效底：所有带模糊/玻璃的组件都走这里，输入框、气泡、顶栏、卡片、抽屉、浮层共用同一套
  * 半径、着色和档位判断。
@@ -138,18 +156,9 @@ fun Modifier.effectSurface(
     val pane = when {
         source == null -> Modifier.background(tint)
 
-        effect == BackgroundEffectType.BLUR -> {
-            val radius = blurRadius
-            Modifier
-                .hazeBlur(
-                    input = HazeInput.Sources(source),
-                    style = SaltGlassStyles.blur(
-                        isDarkTheme = LocalDarkMode.current,
-                        radius = radius,
-                    ),
-                )
-                .background(tint)
-        }
+        effect == BackgroundEffectType.BLUR -> Modifier
+            .blurBackdrop(source, blurRadius)
+            .background(tint)
 
         else -> Modifier.hazeGlass(
             input = HazeInput.Sources(source),
