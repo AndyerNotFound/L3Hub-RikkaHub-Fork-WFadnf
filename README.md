@@ -1,6 +1,6 @@
 <div align="center">
   <img src="docs/icon.png" alt="App Icon" width="100" />
-  <h1>RikkaHub</h1>
+  <h1>L3Hub (Forked from RikkaHub)</h1>
 
 A native Android LLM chat client that supports switching between different providers for
 conversations 🤖💬
