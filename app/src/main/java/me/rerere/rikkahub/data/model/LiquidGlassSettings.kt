@@ -45,5 +45,5 @@ internal fun LiquidGlassParameters.normalized(): LiquidGlassParameters = copy(
     innerShadow = finiteAppearanceValue(innerShadow, 0f, .25f, .1f),
 )
 
-internal fun LiquidGlassSettings.edit(transform: (LiquidGlassParameters) -> LiquidGlassParameters): LiquidGlassSettings =
-    copy(preset = LiquidGlassPreset.CUSTOM, custom = transform(parameters()).normalized())
+internal fun LiquidGlassSettings.edit(transform: LiquidGlassParameters.() -> LiquidGlassParameters): LiquidGlassSettings =
+    copy(preset = LiquidGlassPreset.CUSTOM, custom = parameters().transform().normalized())

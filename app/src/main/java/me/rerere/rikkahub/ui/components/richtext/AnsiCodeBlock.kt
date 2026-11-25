@@ -46,7 +46,7 @@ internal fun AnsiCodeBlock(
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
             style = androidx.compose.ui.text.TextStyle(
-                fontFamily = JetBrainsMono,
+                fontFamily = JetbrainsMono,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 fontFeatureSettings = CODE_FONT_FEATURES,
