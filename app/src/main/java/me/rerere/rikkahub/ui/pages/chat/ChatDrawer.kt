@@ -92,8 +92,10 @@ import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -310,23 +312,42 @@ fun ChatDrawerContent(
         }
     }
 
-    // 左栏不要圆角：横屏它是常驻的一列，竖屏滑出来也是一整块边，圆角会让它像浮在页面上的卡片
+    // 左栏不要圆角：横屏它是常驻的一列，竖屏滑出来也是一整块边，圆角会让它浮在页面上的卡片
     val drawerShape = RectangleShape
+    // 高级外观开启后，抽屉底板改由 advancedMaterial 画：材质、着色、模糊半径和性能开关
+    // 全部来自 navigationMaterial()，和导航栏其余部分共用同一份参数。
+    // 关掉高级外观时这里是 null，下面继续走原来的 glassSurface，旧路径不动。
+    val drawerMaterial = LocalSettings.current.advancedAppearanceSetting
+        .takeIf { it.enableAdvancedAppearance }
+        ?.navigationMaterial()
     // 底板自己就是一块玻璃：取背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
     ModalDrawerSheet(
         modifier = Modifier
             .width(drawerWidth)
-            .glassSurface(
-                shape = drawerShape,
-                baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                hazeState = hazeState,
-                // 抽屉压在会话列表上，取值不掉到 0.65 以下：再低正文会透上来。
-                // 下限之内仍然跟着「玻璃透明度」变化。
-                minAlpha = 0.65f,
+            .then(
+                if (drawerMaterial != null) {
+                    Modifier.advancedMaterial(
+                        shape = drawerShape,
+                        base = MaterialTheme.colorScheme.surfaceContainerLow,
+                        material = drawerMaterial,
+                        hazeState = hazeState,
+                        // 抽屉压在会话列表上，着色不能掉到 0.65 以下：再低正文会透上来
+                        readableFloor = .65f,
+                    )
+                } else {
+                    Modifier.glassSurface(
+                        shape = drawerShape,
+                        baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        hazeState = hazeState,
+                        // 抽屉压在会话列表上，取值不掉到 0.65 以下：再低正文会透上来。
+                        // 下限之内仍然跟着「玻璃透明度」变化。
+                        minAlpha = 0.65f,
+                    )
+                }
             ),
         drawerShape = drawerShape,
-        // 着色由 glassSurface 统一铺，这里保持透明；没有源时它会退化成半透明色
-        drawerContainerColor = if (LocalSettings.current.displaySetting.enableBlurEffect) {
+        // 着色由材质层统一铺，这里保持透明；没有源时它会退化成半透明色
+        drawerContainerColor = if (drawerMaterial != null || LocalSettings.current.displaySetting.enableBlurEffect) {
             Color.Transparent
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow

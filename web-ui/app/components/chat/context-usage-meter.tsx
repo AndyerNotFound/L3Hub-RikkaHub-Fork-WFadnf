@@ -128,20 +128,17 @@ function UsageDetails({
 
 function ContextUsageRing({
   used,
-  warnTokens,
   maxTokens,
   absolute,
   children,
 }: {
   used: number;
-  warnTokens?: number | null;
-  maxTokens?: number | null;
+  maxTokens: number;
   absolute: boolean;
   children: React.ReactNode;
 }) {
-  const limit = maxTokens && maxTokens > 0 ? maxTokens : (warnTokens ?? 0);
-  const fraction = getContextUsageFraction(used, limit);
-  const percent = percentText(used, limit);
+  const fraction = getContextUsageFraction(used, maxTokens);
+  const percent = percentText(used, maxTokens);
   const strokeColor =
     fraction >= 1 ? "stroke-destructive" : fraction >= ALERT_FRACTION ? "stroke-amber-500" : "stroke-primary";
 
@@ -187,11 +184,10 @@ export function ContextUsageMeter({ messages, model, className }: ContextUsageMe
   const absolute = displaySetting?.contextMeterAbsolute ?? false;
 
   const used = React.useMemo(() => getContextTokens(messages), [messages]);
-  const warnTokens = model?.warnContextTokens ?? null;
   const maxTokens = model?.maxContextTokens ?? null;
   const limitReached = isContextLimitReached(used, maxTokens);
 
-  if (!model || style === "OFF" || (warnTokens == null && maxTokens == null)) {
+  if (!model || style === "OFF" || maxTokens == null || maxTokens <= 0) {
     return null;
   }
 
@@ -202,7 +198,6 @@ export function ContextUsageMeter({ messages, model, className }: ContextUsageMe
     return (
       <ContextUsageRing
         used={usedTokens}
-        warnTokens={warnTokens}
         maxTokens={maxTokens}
         absolute={absolute}
         children={details}
@@ -220,10 +215,7 @@ export function ContextUsageMeter({ messages, model, className }: ContextUsageMe
             className,
           )}
         >
-          {warnTokens != null ? (
-            <MeterRow label="WARN" used={usedTokens} limit={warnTokens} />
-          ) : null}
-          {maxTokens != null ? <MeterRow label="MAX" used={usedTokens} limit={maxTokens} /> : null}
+          <MeterRow label="MAX" used={usedTokens} limit={maxTokens} />
           {limitReached ? (
             <p className="text-destructive text-[11px] leading-tight">
               {t("context_meter.limit_reached")}

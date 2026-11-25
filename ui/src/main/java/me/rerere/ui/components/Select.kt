@@ -18,6 +18,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +51,7 @@ fun <T> Select(
     trailing: @Composable () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val overlay = LocalSeparateWindowColors.current
 
     ExposedDropdownMenuBox(
         modifier = modifier,
@@ -85,23 +87,24 @@ fun <T> Select(
         }
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = {
-                expanded = false
-            }
+            onDismissRequest = { expanded = false },
+            containerColor = overlay?.menu ?: MenuDefaults.containerColor,
+            tonalElevation = if (overlay == null) MenuDefaults.TonalElevation else 0.dp,
+            border = overlay?.menuBorder,
         ) {
-            options.fastForEach { option ->
-                DropdownMenuItem(
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    },
-                    text = {
-                        Text(text = optionToString(option), maxLines = 1)
-                    },
-                    leadingIcon = optionLeading?.let {
-                        { it(option) }
-                    }
-                )
+            SeparateWindowContent {
+                options.fastForEach { option ->
+                    DropdownMenuItem(
+                        onClick = {
+                            onOptionSelected(option)
+                            expanded = false
+                        },
+                        text = { Text(text = optionToString(option), maxLines = 1) },
+                        leadingIcon = optionLeading?.let {
+                            { it(option) }
+                        },
+                    )
+                }
             }
         }
     }
@@ -130,6 +133,7 @@ fun <T> SelectTextField(
     var expanded by remember { mutableStateOf(false) }
     var anchorWidth by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val overlay = LocalSeparateWindowColors.current
 
     Box(modifier = modifier) {
         OutlinedTextField(
@@ -168,16 +172,21 @@ fun <T> SelectTextField(
             onDismissRequest = { expanded = false },
             modifier = Modifier
                 .width(with(density) { anchorWidth.toDp() })
-                .heightIn(max = 240.dp)
+                .heightIn(max = 240.dp),
+            containerColor = overlay?.menu ?: MenuDefaults.containerColor,
+            tonalElevation = if (overlay == null) MenuDefaults.TonalElevation else 0.dp,
+            border = overlay?.menuBorder,
         ) {
-            options.fastForEach { option ->
-                DropdownMenuItem(
-                    text = { Text(text = optionToString(option), maxLines = 1) },
-                    onClick = {
-                        expanded = false
-                        onOptionSelected(option)
-                    }
-                )
+            SeparateWindowContent {
+                options.fastForEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(text = optionToString(option), maxLines = 1) },
+                        onClick = {
+                            expanded = false
+                            onOptionSelected(option)
+                        },
+                    )
+                }
             }
         }
     }

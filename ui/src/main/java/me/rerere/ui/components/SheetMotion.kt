@@ -67,7 +67,7 @@ fun SaltModalSheet(
     // 动作即退场：内容里的按钮把 visible 翻回 false，Salt 接着把退场演完
     val dismissThen: (() -> Unit) -> Unit = remember { { action -> action() } }
 
-    CompositionLocalProvider(LocalSheetDismiss provides dismissThen) {
+    CompositionLocalProvider(LocalSheetDismiss provides dismissThen) { SheetWindowTheme {
         Sheet(
             visible = visible,
             onDismissRequest = onDismissRequest,
@@ -94,5 +94,5 @@ fun SaltModalSheet(
                 content()
             }
         }
-    }
+    } }
 }

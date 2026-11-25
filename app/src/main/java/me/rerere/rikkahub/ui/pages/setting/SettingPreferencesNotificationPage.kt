@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -66,6 +67,8 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
+import me.rerere.ui.components.LocalSeparateWindowColors
+import me.rerere.ui.components.SeparateWindowContent
 import org.koin.androidx.compose.koinViewModel
 
 private val UPDATE_PAUSE_DAY_OPTIONS = listOf(7, 14, 21)
@@ -366,62 +369,67 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
     }
 
     if (showUpdatePauseDialog) {
-        AlertDialog(
-            onDismissRequest = { showUpdatePauseDialog = false },
-            title = { Text(stringResource(R.string.setting_update_reminder_pause_title)) },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(stringResource(R.string.setting_update_reminder_pause_description))
-                    ConnectedChoiceButtons(
-                        options = UPDATE_PAUSE_DAY_OPTIONS,
-                        selected = selectedUpdatePauseDays,
-                        onSelect = { selectedUpdatePauseDays = it },
-                        // 对话框底色和默认的按钮底色一样，换一个能分开的
-                        containerColor = MaterialTheme.colorScheme.surfaceBright,
-                    ) { days, selected ->
-                        ConnectedChoiceLabel(
-                            text = stringResource(R.string.setting_update_reminder_pause_days, days),
-                            selected = selected,
-                        )
-                    }
-                    if (!updateChecksEnabled) {
-                        TextButton(
-                            onClick = {
-                                updateDisplaySetting(
-                                    displaySetting.copy(updateCheckDisabledUntilEpochMillis = 0L)
-                                )
-                                showUpdatePauseDialog = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.setting_update_reminder_resume_now))
+        val tint = LocalSeparateWindowColors.current?.dialog
+        SeparateWindowContent {
+            AlertDialog(
+                onDismissRequest = { showUpdatePauseDialog = false },
+                containerColor = tint ?: AlertDialogDefaults.containerColor,
+                tonalElevation = if (tint == null) AlertDialogDefaults.TonalElevation else 0.dp,
+                title = { Text(stringResource(R.string.setting_update_reminder_pause_title)) },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(stringResource(R.string.setting_update_reminder_pause_description))
+                        ConnectedChoiceButtons(
+                            options = UPDATE_PAUSE_DAY_OPTIONS,
+                            selected = selectedUpdatePauseDays,
+                            onSelect = { selectedUpdatePauseDays = it },
+                            // 对话框底色和默认的按钮底色一样，换一个能分开的
+                            containerColor = MaterialTheme.colorScheme.surfaceBright,
+                        ) { days, selected ->
+                            ConnectedChoiceLabel(
+                                text = stringResource(R.string.setting_update_reminder_pause_days, days),
+                                selected = selected,
+                            )
+                        }
+                        if (!updateChecksEnabled) {
+                            TextButton(
+                                onClick = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(updateCheckDisabledUntilEpochMillis = 0L)
+                                    )
+                                    showUpdatePauseDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(stringResource(R.string.setting_update_reminder_resume_now))
+                            }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        updateDisplaySetting(
-                            displaySetting.copy(
-                                updateCheckDisabledUntilEpochMillis =
-                                    System.currentTimeMillis() + selectedUpdatePauseDays * MILLIS_PER_DAY,
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            updateDisplaySetting(
+                                displaySetting.copy(
+                                    updateCheckDisabledUntilEpochMillis =
+                                        System.currentTimeMillis() + selectedUpdatePauseDays * MILLIS_PER_DAY,
+                                )
                             )
-                        )
-                        showUpdatePauseDialog = false
+                            showUpdatePauseDialog = false
+                        }
+                    ) {
+                        Text(stringResource(R.string.confirm))
                     }
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUpdatePauseDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUpdatePauseDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
     }
 }
 

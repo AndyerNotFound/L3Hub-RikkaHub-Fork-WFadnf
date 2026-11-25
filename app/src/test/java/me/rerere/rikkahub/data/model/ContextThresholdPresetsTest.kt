@@ -1,112 +1,54 @@
 package me.rerere.rikkahub.data.model
 
+import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.provider.Model
+import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ContextThresholdPresetsTest {
-    private fun preset(id: String) = ContextThresholdPresets.resolve(id)
-
     @Test
-    fun `every model shares the same preset`() {
-        listOf("kimi-k3", "deepseek-v4.1", "deepseek-v4", "glm-5-flash", "gpt-5.2", "claude-opus-5")
-            .forEach { id ->
-                assertEquals(393_216 to 524_288, preset(id).pair())
-            }
+    fun `fills the same default MAX for large or unknown windows`() {
+        for (window in listOf(0, 1_000_000, Int.MAX_VALUE)) {
+            val model = Model(modelId = "unknown-test-model", contextLength = window)
+            assertEquals(524_288, model.withContextMaxPreset().maxContextTokens)
+        }
     }
 
     @Test
-    fun `falls back to the same preset for unknown models`() {
-        assertEquals(393_216 to 524_288, preset("llama-3-70b").pair())
-        assertEquals(393_216 to 524_288, preset("deepseek-chat").pair())
-    }
-
-    @Test
-    fun `keeps user thresholds untouched`() {
-        val model = Model(
-            modelId = "custom-model",
-            displayName = "Custom",
-            warnContextTokens = 1_000,
-            maxContextTokens = 2_000,
-        ).withContextPresets()
-        assertEquals(1_000, model.warnContextTokens)
-        assertEquals(2_000, model.maxContextTokens)
-    }
-
-    @Test
-    fun `fills preset when auto`() {
-        val model = Model(
-            modelId = "unknown-model",
-            displayName = "Unknown",
-        ).withContextPresets()
-        assertEquals(393_216, model.warnContextTokens)
-        assertEquals(524_288, model.maxContextTokens)
-    }
-
-    /** 回归：预设比模型窗口还大时门限等于没有，MAX 拦截和自动压缩都不会触发 */
-    @Test
-    fun `preset leaves headroom inside the model window`() {
-        val model = Model(
-            modelId = "small-model",
-            displayName = "Small",
-            contextLength = 128_000,
-        ).withContextPresets()
-        assertEquals(96_000, model.warnContextTokens)
+    fun `new presets leave headroom inside a small model window`() {
+        val model = Model(contextLength = 128_000).withContextMaxPreset()
         assertEquals(115_200, model.maxContextTokens)
+        assertEquals(1, Model(contextLength = 1).withContextMaxPreset().maxContextTokens)
     }
 
     @Test
-    fun `preset keeps the family values when the window is large`() {
-        val model = Model(
-            modelId = "big-model",
-            displayName = "Big",
-            contextLength = 1_000_000,
-        ).withContextPresets()
-        assertEquals(393_216, model.warnContextTokens)
+    fun `a saved MAX is not rewritten even when automatic presets are enabled`() {
+        val model = Model(contextLength = 128_000, maxContextTokens = 101_234)
+        assertEquals(model, model.withContextMaxPreset())
+    }
+
+    @Test
+    fun `clearing MAX keeps it unset until the preset is explicitly restored`() {
+        val model = Model(contextLength = 128_000, contextThresholdsAuto = false, enforceMaxContext = false)
+        assertNull(model.withContextMaxPreset().maxContextTokens)
+
+        val restored = model.applyContextMaxPreset()
+        assertEquals(115_200, restored.maxContextTokens)
+        assertTrue(restored.contextThresholdsAuto)
+        assertFalse(restored.enforceMaxContext)
+    }
+
+    @Test
+    fun `legacy model settings keep the original MAX and no longer write WARN`() {
+        val model = JsonInstant.decodeFromString<Model>(
+            """{"contextLength":128000,"warnContextTokens":393216,"maxContextTokens":524288}""",
+        ).withContextMaxPreset()
         assertEquals(524_288, model.maxContextTokens)
+        val saved = JsonInstant.encodeToJsonElement(Model.serializer(), model).jsonObject
+        assertFalse("warnContextTokens" in saved)
     }
-
-    /** 回归：老版本把 384K/512K 落进了存量设置，升级后小窗口模型必须按窗口重算 */
-    @Test
-    fun `migrates the legacy preset pair to the model window`() {
-        val model = Model(
-            modelId = "small-model",
-            displayName = "Small",
-            contextLength = 128_000,
-            warnContextTokens = 393_216,
-            maxContextTokens = 524_288,
-        ).withContextPresets()
-        assertEquals(96_000, model.warnContextTokens)
-        assertEquals(115_200, model.maxContextTokens)
-    }
-
-    @Test
-    fun `keeps a large window on the legacy pair without rewriting it`() {
-        val model = Model(
-            modelId = "big-model",
-            displayName = "Big",
-            contextLength = 1_000_000,
-            warnContextTokens = 393_216,
-            maxContextTokens = 524_288,
-        )
-        assertEquals(model, model.withContextPresets())
-    }
-
-    @Test
-    fun `slider stops run from 4Ki to 1024Ki in whole KiB`() {
-        val stops = ContextThresholdPresets.stops
-        assertEquals(stops.sorted(), stops)
-        assertTrue(stops.all { it % 1024 == 0 })
-        assertEquals(4 * 1024, stops.first())
-        assertEquals(1024 * 1024, stops.last())
-    }
-
-    @Test
-    fun `default preset sits on slider stops`() {
-        assertTrue(ContextThresholdPresets.default.warn in ContextThresholdPresets.stops)
-        assertTrue(ContextThresholdPresets.default.max in ContextThresholdPresets.stops)
-    }
-
-    private fun ContextThresholdPresets.Preset.pair() = warn to max
 }

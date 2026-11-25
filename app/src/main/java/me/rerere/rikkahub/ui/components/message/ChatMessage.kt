@@ -13,7 +13,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -42,9 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +50,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -60,13 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -82,11 +74,14 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import coil3.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -116,25 +111,29 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.ui.components.richtext.LocalChatMarkdownLayout
+import me.rerere.rikkahub.ui.components.richtext.MAX_OFFLINE_PREVIEW_CHARS
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.richtext.MarkdownRenderMode
+import me.rerere.rikkahub.ui.components.richtext.RichChartCard
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
-import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
-import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
+import me.rerere.rikkahub.ui.components.richtext.advancedChatParagraphGap
+import me.rerere.rikkahub.ui.components.richtext.outline
+import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
+import me.rerere.rikkahub.ui.components.richtext.withAdvancedChatLineHeight
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 import me.rerere.rikkahub.ui.components.ui.ComponentEffectBlurRadius
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
-import me.rerere.rikkahub.ui.modifier.motionStretchHeight
-import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
-import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
-import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.motionContentSize
@@ -142,10 +141,10 @@ import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
-import me.rerere.ui.charts.ChartCard
 import me.rerere.ui.charts.ChartSpec
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.webview.WebViewContentCache
+import java.io.File
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -241,23 +240,33 @@ fun ChatMessage(
     }
     val navController = LocalNavController.current
     val context = LocalContext.current
-    val colorScheme = MaterialTheme.colorScheme
+    val previewScope = rememberCoroutineScope()
+    val toaster = LocalToaster.current
     // 用户消息的长按菜单贴着气泡原地开
     val inPlaceMenu = message.role == MessageRole.USER
     val onSelectAndCopy: () -> Unit = { showSelectCopySheet = true }
     val onWebViewPreview: () -> Unit = {
-        val textContent = message.parts
-            .filterIsInstance<UIMessagePart.Text>()
-            .joinToString("\n\n") { it.text }
-            .trim()
-        if (textContent.isNotBlank()) {
-            val htmlContent = buildMarkdownPreviewHtml(
-                context = context,
-                markdown = textContent,
-                colorScheme = colorScheme
-            )
-            val contentId = WebViewContentCache.store(context.cacheDir, htmlContent)
-            navController.navigate(Screen.WebView(contentId = contentId))
+        previewScope.launch {
+            try {
+                val contentId = withContext(Dispatchers.IO) {
+                    // Retain one extra character so the renderer can signal truncation.
+                    val limit = MAX_OFFLINE_PREVIEW_CHARS + 1
+                    val source = buildString {
+                        for (part in message.parts) {
+                            if (part !is UIMessagePart.Text || part.text.isBlank()) continue
+                            if (isNotEmpty()) append("\n\n", 0, minOf(2, limit - length))
+                            append(part.text, 0, minOf(part.text.length, limit - length))
+                            if (length >= limit) break
+                        }
+                    }
+                    source.takeIf { it.isNotBlank() }?.let { WebViewContentCache.storeOfflineMessage(context.cacheDir, it) }
+                }
+                if (contentId != null) navController.navigate(Screen.WebView(contentId = contentId, offlineMessagePreview = true))
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {
+                toaster.show(context.getString(R.string.aa_preview_failed), type = me.rerere.ui.toast.ToastType.Error)
+            }
         }
     }
     // 原来挂在气泡下面的那排按钮，现在作为菜单顶部的一条胶囊，两条路径共用
@@ -370,6 +379,7 @@ fun ChatMessage(
         CompositionLocalProvider(
             LocalTextStyle provides textStyle,
             LocalWorkspaceId provides assistant?.primaryWorkspaceId?.toString(),
+            LocalChatMarkdownLayout provides true,
         ) {
             Box(
                 modifier = Modifier
@@ -670,11 +680,16 @@ private fun MessagePartsBlock(
         block is MessagePartBlock.ContentBlock && (block.part as? UIMessagePart.Text)?.text?.isNotBlank() == true
     }
     // 流式过程中也参与折叠：正在输出的正文留在外面，之前的思考和工具先收起来
+    val firstMediaIndex = groupedParts.indexOfFirst {
+        it is MessagePartBlock.ContentBlock &&
+            (it.part is UIMessagePart.Image || it.part is UIMessagePart.Video)
+    }
+    val firstVisibleIndex = listOf(lastBodyIndex, firstMediaIndex).filter { it >= 0 }.minOrNull() ?: -1
     val blocksBeforeBody = if (role == MessageRole.ASSISTANT && groupedParts.isNotEmpty()) {
         when {
-            lastBodyIndex > 0 -> groupedParts.subList(0, lastBodyIndex)
+            firstVisibleIndex > 0 -> groupedParts.subList(0, firstVisibleIndex)
             // 还没有正文（只有一段思考或一次工具调用）时整段内容都参与折叠
-            lastBodyIndex < 0 -> groupedParts
+            firstVisibleIndex < 0 -> groupedParts
             // 第一块就是正文：前面没有可折叠的东西
             else -> emptyList()
         }
@@ -725,6 +740,7 @@ private fun MessagePartsBlock(
                         ?: adaptiveShape(20.dp)
                     val chainBaseColor =
                         chainResolved?.background ?: MaterialTheme.colorScheme.surfaceContainerHigh
+                    val richMaterial = settings.advancedAppearanceSetting.richContentMaterial(loading)
                     // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明。
                     // 生成中步骤还在往这只卡片里加，尺寸每来一段就变一次，模糊要跟着重新采样，
                     // 这一段退回半透明底色，停止输出后恢复
@@ -735,7 +751,9 @@ private fun MessagePartsBlock(
                         // 会和它串联成两条弹簧，展开后卡片高度在目标附近反复上下
                         modifier = Modifier
                             .then(
-                                if (chainHasEffect) {
+                                if (richMaterial != null) {
+                                    Modifier.advancedMaterial(chainShape, chainBaseColor, richMaterial, hazeState)
+                                } else if (chainHasEffect) {
                                     Modifier
                                         .clip(chainShape)
                                         .chatInputHaze(
@@ -752,7 +770,9 @@ private fun MessagePartsBlock(
                             ),
                         steps = block.steps,
                         collapsedVisibleCount = collapsedVisibleCount,
-                        border = if (chainResolved != null || chainEffect == BackgroundEffectType.BLUR) {
+                        border = if (richMaterial != null) {
+                            settings.advancedAppearanceSetting.richContentStyle.outline()
+                        } else if (chainResolved != null || chainEffect == BackgroundEffectType.BLUR) {
                             BorderStroke(
                                 width = chainResolved?.borderWidth ?: 1.dp,
                                 color = chainResolved?.border
@@ -762,7 +782,8 @@ private fun MessagePartsBlock(
                             null
                         },
                         cardColors = CardDefaults.cardColors(
-                            containerColor = if (chainHasEffect) {
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            containerColor = if (richMaterial != null || chainHasEffect) {
                                 Color.Transparent
                             } else if (chainResolved != null) {
                                 // 消息样式开启时用解析结果的透明度（frosted 0.66 / solid 1.0），
@@ -820,7 +841,7 @@ private fun MessagePartsBlock(
 
             is MessagePartBlock.ChartBlock -> key(block.index) {
                 val spec = remember(block.tool.input) { ChartSpec.fromJson(block.tool.inputAsJson()) }
-                spec?.let { ChartCard(spec = it) }
+                spec?.let { RichChartCard(spec = it) }
             }
 
             is MessagePartBlock.ContentBlock -> key(block.index) {
@@ -870,7 +891,7 @@ private fun MessagePartsBlock(
                                         val paragraphs = remember(renderedText, splitByParagraph) {
                                             splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
                                         }
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
                                             paragraphs.fastForEachIndexed { index, paragraph ->
                                                 key(index) {
                                                     ChatMessageBubble(
@@ -912,7 +933,7 @@ private fun MessagePartsBlock(
                                             // 生成中退回静态底色，避免每个 token 重采样模糊背景
                                             streaming = true,
                                         ) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
                                                 paragraphs.fastForEachIndexed { index, paragraph ->
                                                     key(paragraph) {
                                                         MarkdownBlock(
@@ -946,7 +967,7 @@ private fun MessagePartsBlock(
                                         val paragraphs = remember(renderedText) {
                                             splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
                                         }
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
                                             paragraphs.fastForEachIndexed { index, paragraph ->
                                                 key(paragraph) {
                                                     MarkdownBlock(
@@ -976,10 +997,7 @@ private fun MessagePartsBlock(
                     }
 
                     is UIMessagePart.Video -> {
-                        ChatMessageMediaTile(
-                            icon = HugeIcons.Video01,
-                            onClick = { context.openLocalFile(part.url) },
-                        )
+                        ChatMessageVideoCard(url = part.url)
                     }
 
                     is UIMessagePart.Audio -> {
@@ -990,25 +1008,7 @@ private fun MessagePartsBlock(
                     }
 
                     is UIMessagePart.Image -> {
-                        val isImageLoading =
-                            part.url.isBlank() || part.url.matches(Regex("^data:image/[^;]*;base64,\\s*$"))
-                        if (isImageLoading) {
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(MaterialTheme.shapes.large)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .shimmer(isLoading = true)
-                            )
-                        } else {
-                            ZoomableAsyncImage(
-                                model = part.url,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .clip(MaterialTheme.shapes.large)
-                                    .height(72.dp)
-                            )
-                        }
+                        ChatMessageGeneratedImage(part.url)
                     }
 
                     is UIMessagePart.Document -> {
@@ -1099,7 +1099,7 @@ private fun CollapsibleUserMessageText(
 ) {
     var expanded by remember(text) { mutableStateOf(false) }
     val measurer = rememberTextMeasurer()
-    val style = LocalTextStyle.current
+    val style = LocalTextStyle.current.withAdvancedChatLineHeight()
     val markdownPaddingPx = with(LocalDensity.current) { 8.dp.roundToPx() }
     // 行高从实际排版量出来：fontSizeRatio、自定义字体、未指定 lineHeight 时都能对上，
     // 不能再拿 LocalTextStyle 的 lineHeight 猜，猜小了会把三行的话也算成需要折叠
@@ -1149,6 +1149,8 @@ private fun CollapsibleUserMessageText(
                         scope = AssistantAffectScope.USER,
                         visual = true,
                     ),
+                    style = style,
+                    renderMode = MarkdownRenderMode.USER_MESSAGE,
                     onClickCitation = onClickCitation,
                 )
             }
@@ -1207,150 +1209,6 @@ private fun Modifier.collapsibleContentHeight(
     val bounded = if (constraints.hasBoundedHeight) height.coerceAtMost(constraints.maxHeight) else height
     layout(placeable.width, bounded) {
         placeable.place(0, 0)
-    }
-}
-
-private val BubbleCorner = 24.dp
-private val BubbleTailCorner = 6.dp
-private val BubblePressedCorner = 12.dp
-
-// 同组相邻气泡接缝处的圆角：上一条的下圆角与下一条的上圆角都收成这个值，两条气泡看着是连着的
-private val BubbleJoinedCorner = 8.dp
-
-/**
- * 消息气泡：大圆角，靠头像一侧的顶角收紧；可点击时按下其余圆角也跟着收紧。
- * 与同组相邻气泡相接的那条边统一收成 [BubbleJoinedCorner]，看上去是一条连线。
- */
-@Composable
-private fun ChatMessageBubble(
-    role: MessageRole,
-    color: Color,
-    hazeState: HazeState? = null,
-    modifier: Modifier = Modifier,
-    // 正文气泡的弹性伸展与折叠：高度追着内容走
-    stretchHeight: Boolean = false,
-    // 这条正文还在流式输出：尺寸每来一段文本就变一次。模糊效果要按尺寸重新采样，
-    // 等于每帧重算一遍背景，所以这一段退回静态底色，停止输出后恢复设置里的背景效果
-    streaming: Boolean = false,
-    onClick: (() -> Unit)? = null,
-    onLongClick: (() -> Unit)? = null,
-    onLongClickLabel: String? = null,
-    popup: (@Composable () -> Unit)? = null,
-    joinedToPrevious: Boolean = false,
-    joinedToNext: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressProgress by animatePressProgress(interactionSource)
-    val fullWidth = LocalFullWidthComponents.current
-    val displaySetting = LocalSettings.current.displaySetting
-    // 消息样式开启时（frosted / solid）用解析结果覆盖气泡参数；默认档保持现状
-    val resolvedStyle = if (
-        displaySetting.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT
-    ) {
-        resolveBubbleStyle(
-            colorScheme = MaterialTheme.colorScheme,
-            style = displaySetting.chatMessageBackgroundStyle,
-            overrides = when (role) {
-                MessageRole.USER -> displaySetting.userChatBubbleStyleOverrides
-                else -> displaySetting.assistantChatBubbleStyleOverrides
-            },
-        )
-    } else {
-        null
-    }
-    val radius = resolvedStyle?.radius ?: adaptiveCornerRadius(displaySetting.uiCornerRadius.dp)
-    val corner = lerp(radius, minOf(radius, BubblePressedCorner), pressProgress)
-    val tail = minOf(BubbleTailCorner, radius * 0.25f)
-    // 接缝那一侧不能再留小尾巴，否则两条气泡之间会露一个豁口
-    val join = minOf(BubbleJoinedCorner, corner)
-    val shape = if (role == MessageRole.USER) {
-        RoundedCornerShape(
-            topStart = if (joinedToPrevious) join else corner,
-            topEnd = if (joinedToPrevious) join else tail,
-            bottomEnd = if (joinedToNext) join else corner,
-            bottomStart = if (joinedToNext) join else corner,
-        )
-    } else {
-        RoundedCornerShape(
-            topStart = if (joinedToPrevious) join else tail,
-            topEnd = if (joinedToPrevious) join else corner,
-            bottomEnd = if (joinedToNext) join else corner,
-            bottomStart = if (joinedToNext) join else corner,
-        )
-    }
-    val effect = displaySetting.effectiveBackgroundEffect
-    val useEffect = hazeState != null && effect != BackgroundEffectType.OFF && !streaming
-    val hazeModifier = if (useEffect && hazeState != null) {
-        Modifier.chatInputHaze(
-            hazeState = hazeState,
-            displaySetting = displaySetting,
-            containerColor = resolvedStyle?.background ?: color,
-            shape = shape,
-            blurRadius = resolvedStyle?.blurRadius ?: ComponentEffectBlurRadius,
-        )
-    } else {
-        Modifier
-    }
-    val contentColor = resolvedStyle?.text ?: contentColorFor(color)
-    Box(
-        modifier = modifier
-            // 全宽模式下气泡不再按内容收缩，左右边缘对齐父容器
-            .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-            .then(if (useEffect) Modifier.graphicsLayer(shape = shape, clip = true) else Modifier)
-            .clipDrawing(shape)
-            .then(hazeModifier)
-            // 特效开启时着色层由 chatInputHaze 叠在模糊之上，这里不再铺第二层
-            .then(if (useEffect) Modifier else Modifier.background(resolvedStyle?.background ?: color))
-            .then(
-                if (resolvedStyle != null || (useEffect && effect == BackgroundEffectType.BLUR)) {
-                    Modifier.border(
-                        width = resolvedStyle?.borderWidth ?: 1.dp,
-                        color = resolvedStyle?.border
-                            ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .then(
-                // 长按（用户消息的操作菜单）和点击（编辑）共用同一个交互源，
-                // 按下时圆角收缩的反馈对两种手势都在
-                if (onClick != null || onLongClick != null) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = ripple(),
-                        onLongClickLabel = onLongClickLabel,
-                        onLongClick = onLongClick,
-                        onClick = { onClick?.invoke() },
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            // 伸缩层放在气泡底色与形状裁剪的里侧：背景、圆角都按报告出去的高度画，
-            // 内容按自然高度排版，超出的部分被上面的 clipDrawing 按当前形状裁掉
-            .then(if (stretchHeight) Modifier.motionStretchHeight() else Modifier)
-            // MarkdownBlock 自带 4dp 的水平内边距
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-    ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) { content() }
-        // 长按菜单挂在气泡的布局节点里，弹窗以气泡为锚点定位
-        popup?.invoke()
-    }
-}
-
-/**
- * 只裁剪绘制内容，不像 [clip] 那样把形状设成图层轮廓。
- *
- * 四个角半径不同时图层轮廓是 Path，Compose 判断触摸点是否落在轮廓内时用 Path 求交，
- * 坐标超过 8192px 后 float 精度不够，求交结果为空，长消息下半部分（例如展开的长代码块）就收不到触摸了。
- */
-private fun Modifier.clipDrawing(shape: Shape): Modifier = drawWithCache {
-    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
-    onDrawWithContent {
-        clipPath(path) { this@onDrawWithContent.drawContent() }
     }
 }
 
@@ -1537,15 +1395,27 @@ private fun UserAttachmentTiles(
     ) {
         visible.forEachIndexed { index, part ->
             val more = if (index == visible.lastIndex) hiddenCount else 0
-            UserAttachmentTile(
-                part = part,
-                moreCount = more,
-                onClick = {
-                    val url = part.attachmentUrl()
-                    if (!url.isNullOrBlank()) context.openLocalFile(url)
-                },
-                onLongClick = onLongClick,
-            )
+            if (part is UIMessagePart.Video) {
+                ChatVideoAttachment(part.url) { play, thumbnail, _ ->
+                    UserAttachmentTile(
+                        part = part,
+                        moreCount = more,
+                        onClick = play,
+                        onLongClick = onLongClick,
+                        videoThumbnail = thumbnail,
+                    )
+                }
+            } else {
+                UserAttachmentTile(
+                    part = part,
+                    moreCount = more,
+                    onClick = {
+                        val url = part.attachmentUrl()
+                        if (!url.isNullOrBlank()) context.openLocalFile(url)
+                    },
+                    onLongClick = onLongClick,
+                )
+            }
         }
     }
 }
@@ -1556,6 +1426,7 @@ private fun UserAttachmentTile(
     moreCount: Int,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    videoThumbnail: File? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val partUrl = part.attachmentUrl().orEmpty()
@@ -1596,7 +1467,14 @@ private fun UserAttachmentTile(
                         modifier = Modifier.fillMaxSize(),
                     )
 
-                    is UIMessagePart.Video -> Icon(HugeIcons.Video01, null, Modifier.size(18.dp))
+                    is UIMessagePart.Video -> if (videoThumbnail == null) {
+                        Icon(HugeIcons.Video01, null, Modifier.size(18.dp))
+                    } else {
+                        AsyncImage(
+                            model = videoThumbnail, contentDescription = null,
+                            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
+                        )
+                    }
                     is UIMessagePart.Audio -> Icon(HugeIcons.MusicNote03, null, Modifier.size(18.dp))
                     else -> Icon(HugeIcons.Files02, null, Modifier.size(18.dp))
                 }

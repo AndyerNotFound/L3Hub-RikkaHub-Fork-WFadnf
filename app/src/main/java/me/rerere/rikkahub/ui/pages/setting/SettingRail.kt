@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +46,10 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
+import me.rerere.rikkahub.ui.components.ui.navigationMaterial
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.theme.LocalUiSlots
 
 /**
  * 横屏两栏时设置页左列的一级选项。
@@ -103,6 +108,7 @@ private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
 /** 当前路由落在哪一节；详情页跟着它的一级页走，首页（完全没有选中）返回 null */
 internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingPreferences,
+    is Screen.SettingPreferencesAdvancedAppearance,
     is Screen.SettingPreferencesTheme,
     is Screen.SettingPreferencesNotification,
     is Screen.SettingPreferencesGeneral,
@@ -182,12 +188,21 @@ internal fun SettingRail(
     modifier: Modifier = Modifier,
 ) {
     val selected = current?.settingSection()
+    val appearance = LocalSettings.current.advancedAppearanceSetting
+    val material = appearance.navigationMaterial().takeIf { appearance.enableAdvancedAppearance }
+    val scheme = MaterialTheme.colorScheme
+    val base = scheme.surfaceContainerLow
+    val panel = if (material == null) Modifier else Modifier.advancedMaterial(
+        RectangleShape, base, material, readableFloor = .45f, fallbackBase = LocalUiSlots.current.pageBackground,
+    )
 
     Surface(
         modifier = modifier
             .width(224.dp)
-            .fillMaxHeight(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+            .fillMaxHeight()
+            .then(panel),
+        color = if (material == null) base else Color.Transparent,
+        contentColor = scheme.onSurface,
     ) {
         Column(
             modifier = Modifier

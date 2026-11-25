@@ -1862,11 +1862,9 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">اختر الوكلاء الفرعيين الذين يُسمح لهذا المساعد بإسناد المهام إليهم. عدم اختيار أي منهم يعني عدم وجود قيود.</string>
   <string name="assistant_page_local_tools_sub_agent_title">إسناد وكلاء فرعيين</string>
   <string name="assistant_page_memory_auto_compress">الضغط التلقائي</string>
-  <string name="assistant_page_memory_auto_compress_desc">يُضغط السجل إلى ملخص عندما يبلغ استخدام السياق هذه النسبة من خط التحذير المختار: مرة بعد انتهاء الرد، وأثناء الدور بعد كل دفعة من استدعاءات الأدوات؛ والنتيجة مطابقة للضغط اليدوي</string>
-  <string name="assistant_page_memory_auto_compress_ratio">نسبة التشغيل</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">نسبة مئوية من خط التحذير المختار (WARN/MAX)؛ والنماذج بلا عتبات تعود إلى 75% / 90% من نافذة السياق</string>
-  <string name="assistant_page_memory_auto_compress_threshold">خط التحذير</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN خط التحذير وMAX الحد الأقصى؛ وتُطبَّق نسبة التشغيل على الخط المختار</string>
+  <string name="assistant_page_memory_auto_compress_desc">يُضغط السجل إلى ملخص عند بلوغ استخدام السياق عتبة التشغيل: يُفحص بعد كل رد وبعد كل دفعة من استدعاءات الأدوات؛ والنتيجة مطابقة للضغط اليدوي</string>
+  <string name="assistant_page_memory_auto_compress_ratio">عتبة التشغيل</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">نسبة مئوية من MAX للنموذج؛ وبدون MAX لا يوجد ضغط تلقائي</string>
   <string name="assistant_page_sub_agent">تعيينه كوكيل فرعي</string>
   <string name="assistant_page_sub_agent_desc">يمكن للمساعدين الآخرين إسناد مهام إلى هذا المساعد عبر أداة dispatch_sub_agent. ويعمل الوكلاء الفرعيون في محادثات منفصلة ولا يشاركون السياق الحالي</string>
   <string name="assistant_page_tab_heartbeat">النبض</string>
@@ -1907,7 +1905,6 @@
   <string name="chat_page_context_limit_reached">تم بلوغ حد السياق. اضغط السجل أو ابدأ محادثة جديدة</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">التصدير كنص XML مع الحفاظ على العلامات الأصلية</string>
   <string name="chat_page_heartbeat_conversation_title">النبض · %1$s</string>
@@ -2260,11 +2257,9 @@
   <string name="setting_provider_page_context_block">منع الإرسال عند MAX</string>
   <string name="setting_provider_page_context_block_desc">عند الإيقاف، يُظهر بلوغ MAX تحذيرًا فقط وتُرسل الرسائل كالمعتاد</string>
   <string name="setting_provider_page_context_max">الحد الأقصى (MAX)</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN هو أفضل نقطة للأداء، وبعده يبدأ شريط التقدم بالتحذير؛ وMAX هو نقطة الهبوط الحاد، وعند بلوغه تُمنع الرسائل الجديدة. وتركه فارغًا يعني بلا حد</string>
-  <string name="setting_provider_page_context_threshold_invalid">يجب أن يكون WARN أقل من MAX</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX هو حد نافذة سياق النموذج. اتركه فارغًا لتعطيله</string>
   <string name="setting_provider_page_context_threshold_use_preset">استخدام قيمة جاهزة</string>
   <string name="setting_provider_page_context_thresholds">تحذيرات السياق</string>
-  <string name="setting_provider_page_context_warn">عتبة التحذير (WARN)</string>
   <string name="setting_provider_proxy_clear">مسح وكيل هذا المزوّد</string>
   <string name="setting_provider_proxy_desc">ضبط وكيل خاص بنطاق واجهة هذا المزوّد وحده؛ يدعم http:// وhttps:// وsocks5://. وأدخل اسم المستخدم وكلمة المرور عند الحاجة إلى مصادقة، واتركهما فارغين لاستخدام الوكيل العام</string>
   <string name="setting_provider_proxy_desc_short">متابعة الوكيل العام</string>

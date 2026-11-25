@@ -124,6 +124,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
     }
 
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

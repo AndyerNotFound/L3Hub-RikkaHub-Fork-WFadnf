@@ -83,7 +83,11 @@ sealed interface Screen {
     data class MediaCreation(val id: String) : Screen
 
     @Serializable
-    data class WebView(val url: String = "", val contentId: String = "") : Screen
+    data class WebView(
+        val url: String = "",
+        val contentId: String = "",
+        val offlineMessagePreview: Boolean = false,
+    ) : Screen
 
     @Serializable
     data object SettingTheme : Screen
@@ -102,6 +106,9 @@ sealed interface Screen {
 
     @Serializable
     data object SettingPreferencesGeneral : Screen
+
+    @Serializable
+    data object SettingPreferencesAdvancedAppearance : Screen
 
     @Serializable
     data object SettingPreferencesMessageStyle : Screen

@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.data.datastore
 
-import me.rerere.rikkahub.data.model.withContextPresets
+import me.rerere.rikkahub.data.model.withContextMaxPreset
 
 /** 读盘后和每次修改后都要过一遍，保证内存里的设置始终是规整的。 */
 internal fun Settings.normalized(): Settings =
-    withBuiltInDefaults().withoutInvalidReferences().withValuesInRange().withContextThresholds()
+    withBuiltInDefaults().withoutInvalidReferences().withValuesInRange().withContextMaxPresets()
 
 // 补齐没被删过的内置提供商/助手/TTS，内置提供商和推荐提供商的描述信息始终以代码里的为准
 internal fun Settings.withBuiltInDefaults(): Settings {
@@ -118,11 +118,13 @@ internal fun Settings.withoutInvalidReferences(): Settings {
 private fun Settings.withValuesInRange(): Settings = copy(
     searchServiceSelected = searchServiceSelected.coerceIn(0, (searchServices.size - 1).coerceAtLeast(0)),
     defaultTTSPlaybackSpeed = defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f),
+    advancedAppearanceSetting = advancedAppearanceSetting.normalized(),
+    displaySetting = displaySetting.normalizedAppearanceInputs(),
 )
 
-// 没设置过上下文门限的模型按型号预填一份，用户改过的不动
-private fun Settings.withContextThresholds(): Settings = copy(
+// 自动预填未设的 MAX，保留已保存的值
+private fun Settings.withContextMaxPresets(): Settings = copy(
     providers = providers.map { provider ->
-        provider.copyProvider(models = provider.models.map { it.withContextPresets() })
+        provider.copyProvider(models = provider.models.map { it.withContextMaxPreset() })
     },
 )

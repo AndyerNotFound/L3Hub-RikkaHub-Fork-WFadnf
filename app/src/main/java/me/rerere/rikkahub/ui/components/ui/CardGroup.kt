@@ -45,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.ui.shape.withInterpolatableCorners
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import kotlin.math.roundToInt
 
 private val CardGroupCorner = 20.dp
@@ -308,10 +309,16 @@ private fun CardGroupFormItem(
     count: Int,
     index: Int,
 ) {
+    val material = LocalAdvancedPageMaterial.current
+    val shape = cardGroupItemShape(index, count)
+    val colors = CustomColors.listItemColors
     Surface(
-        modifier = item.modifier.fillMaxWidth(),
-        shape = cardGroupItemShape(index, count),
-        color = CustomColors.listItemColors.containerColor,
+        modifier = item.modifier.fillMaxWidth().then(if (material != null) {
+            Modifier.advancedMaterial(shape, colors.containerColor, material)
+        } else Modifier),
+        shape = shape,
+        color = if (material != null) Color.Transparent else colors.containerColor,
+        contentColor = if (material != null) MaterialTheme.colorScheme.onSurface else androidx.compose.material3.contentColorFor(colors.containerColor),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -391,15 +398,20 @@ private fun CardGroupListItem(
         baseShapes.withInterpolatableCorners(prototype)
     }
     val interactionSource = remember { MutableInteractionSource() }
+    // Explicit row colors (selection, warnings) remain owned by the caller.
+    val material = LocalAdvancedPageMaterial.current.takeIf { item.colors == null }
+    val colors = item.colors ?: CustomColors.listItemColors
 
     SegmentedListItem(
         shapes = shapes,
-        modifier = item.modifier.fillMaxWidth(),
+        modifier = item.modifier.fillMaxWidth().then(if (material != null) {
+            Modifier.advancedMaterial(shapes.shape, colors.containerColor, material)
+        } else Modifier),
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,
         leadingContent = item.leadingContent,
         trailingContent = item.trailingContent,
-        colors = item.colors ?: CustomColors.listItemColors,
+        colors = if (material != null) colors.copy(containerColor = Color.Transparent) else colors,
         onClick = item.onClick ?: {},
         onLongClick = item.onLongClick,
         interactionSource = interactionSource,

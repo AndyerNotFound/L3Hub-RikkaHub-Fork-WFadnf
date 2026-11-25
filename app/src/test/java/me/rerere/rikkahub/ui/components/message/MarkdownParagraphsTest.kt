@@ -34,6 +34,12 @@ class MarkdownParagraphsTest {
     }
 
     @Test
+    fun `keeps code in list and quote fences together`() {
+        val code = "> - ```text\n>   first\n>\n>   second\n>   ````"
+        assertEquals(listOf("Before", code, "After"), splitMarkdownParagraphs("Before\n\n$code\n\nAfter"))
+    }
+
+    @Test
     fun `does not split inside math block`() {
         val math = "$$\na = b\n\nc = d\n$$"
         assertEquals(listOf("公式", math), splitMarkdownParagraphs("公式\n\n$math"))

@@ -577,11 +577,9 @@ private fun ExportedChatImage(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        // Use painterResource for the logo
-                        val painter = painterResource(id = R.mipmap.ic_launcher_foreground)
                         Image(
-                            painter = painter,
-                            contentDescription = "Logo",
+                            painter = painterResource(R.drawable.l3hub_icon),
+                            contentDescription = "L3Hub",
                             modifier = Modifier.size(60.dp)
                         )
                     }

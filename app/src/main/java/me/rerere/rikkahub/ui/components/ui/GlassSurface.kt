@@ -29,6 +29,7 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.ui.components.LocalSeparateWindow
 
 /** 组件特效统一的模糊半径；玻璃档的 depth 也按这个基准缩放。 */
 val ComponentEffectBlurRadius: Dp = 12.dp
@@ -100,7 +101,7 @@ fun glassOverlayColor(base: Color, floor: Float = 0.6f): Color {
 @Composable
 fun canGlassPane(hazeState: HazeState? = LocalGlassHazeState.current): Boolean {
     val displaySetting = LocalSettings.current.displaySetting
-    return hazeState != null && displaySetting.enableBlurEffect
+    return hazeState != null && !LocalSeparateWindow.current && displaySetting.enableBlurEffect
 }
 
 /**
@@ -129,18 +130,19 @@ fun Modifier.effectSurface(
 ): Modifier {
     val effect = displaySetting.effectiveBackgroundEffect
     if (effect == BackgroundEffectType.OFF) return this
+    val source = if (LocalSeparateWindow.current) null else hazeState
     val alpha = (tintAlpha ?: displaySetting.effectSurfaceAlpha)
         .let { if (minAlpha > 0f) minAlpha + (1f - minAlpha) * it else it }
         .coerceIn(0f, 1f)
     val tint = baseColor.copy(alpha = baseColor.alpha * alpha)
     val pane = when {
-        hazeState == null -> Modifier.background(tint)
+        source == null -> Modifier.background(tint)
 
         effect == BackgroundEffectType.BLUR -> {
             val radius = blurRadius
             Modifier
                 .hazeBlur(
-                    input = HazeInput.Sources(hazeState),
+                    input = HazeInput.Sources(source),
                     style = SaltGlassStyles.blur(
                         isDarkTheme = LocalDarkMode.current,
                         radius = radius,
@@ -150,7 +152,7 @@ fun Modifier.effectSurface(
         }
 
         else -> Modifier.hazeGlass(
-            input = HazeInput.Sources(hazeState),
+            input = HazeInput.Sources(source),
             style = rememberGlassSurfaceStyle(
                 tint = tint,
                 shape = shape,

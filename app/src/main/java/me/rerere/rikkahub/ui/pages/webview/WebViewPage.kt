@@ -45,7 +45,11 @@ import me.rerere.ui.webview.rememberWebViewState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WebViewPage(url: String, contentId: String) {
+fun WebViewPage(url: String, contentId: String, offlineMessagePreview: Boolean = false) {
+    if (offlineMessagePreview) {
+        OfflineMessagePreviewPage(contentId)
+        return
+    }
     val context = LocalContext.current
     val state = if (url.isNotEmpty()) {
         rememberWebViewState(
@@ -81,6 +85,7 @@ fun WebViewPage(url: String, contentId: String) {
     }
 
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

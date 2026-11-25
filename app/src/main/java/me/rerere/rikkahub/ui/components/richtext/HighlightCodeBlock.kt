@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,10 +107,16 @@ fun HighlightCodeBlock(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val settings = LocalSettings.current
-    val normalizedLanguage = remember(language) { language.lowercase() }
+    val normalizedLanguage = remember(language) { normalizeCodeFenceLanguage(language) }
+    val chart = remember(language, code, completeCodeBlock) {
+        if (completeCodeBlock && isRevisedChartFenceLanguage(language)) {
+            parseRevisedChartSpec(language = language, code = code, streaming = false).specOrNull
+        } else null
+    }
     val canInlinePreview = completeCodeBlock && normalizedLanguage in PREVIEWABLE_LANGUAGES
-    var previewMode by remember(canInlinePreview, code, normalizedLanguage) {
-        mutableStateOf(false)
+    // A streaming fence can close without changing its body, making a chart newly available.
+    var previewMode by remember(canInlinePreview, chart != null, code, normalizedLanguage) {
+        mutableStateOf(chart != null)
     }
 
     var isExpanded by remember(settings.displaySetting.codeBlockAutoCollapse) {
@@ -137,15 +142,12 @@ fun HighlightCodeBlock(
     }
 
     Column(
-        modifier = modifier
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.large)
-            .clip(MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceContainer),
+        modifier = modifier.richContentFrame(streaming = !completeCodeBlock),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(richContentHeaderColor())
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             HighlightCodeActions(
@@ -157,7 +159,7 @@ fun HighlightCodeBlock(
                 navController = navController,
                 completeCodeBlock = completeCodeBlock,
                 previewMode = previewMode,
-                canInlinePreview = canInlinePreview,
+                canInlinePreview = canInlinePreview || chart != null,
                 onTogglePreviewMode = {
                     previewMode = !previewMode
                 },
@@ -171,6 +173,9 @@ fun HighlightCodeBlock(
                 .motionBlurOnToggle(isExpanded),
         ) {
             when {
+                chart != null && previewMode -> {
+                    RichChartCard(spec = chart)
+                }
                 canInlinePreview && previewMode -> {
                     CodeBlockPreview(
                         code = code,
@@ -182,6 +187,18 @@ fun HighlightCodeBlock(
                 }
                 completeCodeBlock && normalizedLanguage == "mermaid" -> {
                     Mermaid(
+                        code = code,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                shouldRenderAsAnsi(normalizedLanguage, code) -> {
+                    AnsiCodeBlock(
+                        code = code,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                shouldRenderAsDiff(normalizedLanguage, code) -> {
+                    DiffCodeBlock(
                         code = code,
                         modifier = Modifier.fillMaxWidth(),
                     )

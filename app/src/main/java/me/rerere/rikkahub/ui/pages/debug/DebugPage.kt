@@ -81,6 +81,7 @@ private enum class DebugTab(
 @Composable
 fun DebugPage(vm: DebugVM = koinViewModel()) {
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

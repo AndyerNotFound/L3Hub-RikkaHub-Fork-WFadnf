@@ -113,6 +113,8 @@ import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.rememberCustomAsrState
 import me.rerere.rikkahub.ui.hooks.rememberCustomTtsState
 import me.rerere.rikkahub.ui.navigation.ScreenContent
+import me.rerere.rikkahub.ui.navigation.RouteAppearance
+import me.rerere.rikkahub.ui.navigation.SettingRailAppearance
 import me.rerere.rikkahub.ui.navigation.NavigationBackHandler
 import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
@@ -516,16 +518,18 @@ class RouteActivity : ComponentActivity() {
                                     .fillMaxHeight()
                                     .clipToBounds(),
                             ) {
-                                SettingRail(
-                                    current = currentScreen,
-                                    // 换分区时退到设置首页再入栈，上一分区的下钻页一起收掉
-                                    onNavigate = { target ->
-                                        navigator.navigate(target) {
-                                            popUpTo(Screen.Setting)
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                )
+                                SettingRailAppearance {
+                                    SettingRail(
+                                        current = currentScreen,
+                                        // 换分区时退到设置首页再入栈，上一分区的下钻页一起收掉
+                                        onNavigate = { target ->
+                                            navigator.navigate(target) {
+                                                popUpTo(Screen.Setting)
+                                                launchSingleTop = true
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
                         // 设置中列不再随右列变宽被压缩：宽度固定成「右列最窄时」的宽度，
@@ -658,7 +662,9 @@ private fun NavChildContent(child: NavChild, navigator: Navigator) {
             LocalNavController provides navigator,
             LocalViewModelStoreOwner provides child,
         ) {
-            ScreenContent(screen)
+            RouteAppearance(screen) {
+                ScreenContent(screen)
+            }
         }
     }
 }

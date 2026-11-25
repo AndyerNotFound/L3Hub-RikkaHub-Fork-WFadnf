@@ -54,6 +54,8 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.Emoji
 import me.rerere.rikkahub.utils.EmojiData
+import me.rerere.ui.components.LocalSeparateWindowColors
+import me.rerere.ui.components.SeparateWindowContent
 import org.koin.compose.koinInject
 
 private data class EmojiTab(val icon: String, @StringRes val labelRes: Int)
@@ -263,41 +265,41 @@ private fun EmojiModifierPicker(
             dismissOnClickOutside = true
         )
     ) {
-        Surface(
-            modifier = Modifier
-                .wrapContentSize()
-                .padding(16.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 8.dp,
-            tonalElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
+        SeparateWindowContent {
+            val overlay = LocalSeparateWindowColors.current
+            Surface(
+                modifier = Modifier
+                    .wrapContentSize()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = overlay?.menu ?: MaterialTheme.colorScheme.surface,
+                shadowElevation = 8.dp,
+                tonalElevation = if (overlay == null) 8.dp else 0.dp,
+                border = overlay?.menuBorder,
             ) {
-                Text(
-                    text = stringResource(R.string.emoji_picker_select_skin_tone),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.emoji_picker_select_skin_tone),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
 
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(variants) { variant ->
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clickable { onEmojiSelected(variant) }
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = variant.emoji,
-                                fontSize = 24.sp,
-                                textAlign = TextAlign.Center
-                            )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(variants) { variant ->
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable { onEmojiSelected(variant) }
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = variant.emoji,
+                                    fontSize = 24.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }

@@ -49,8 +49,11 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.FloatingBarItem
+import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
@@ -113,6 +116,23 @@ internal fun FloatingBarItem.label(): String = stringResource(
 )
 
 /**
+ * 显式开启后，悬浮工具栏沿用聊天背景源，单独应用液态玻璃参数。
+ * 返回 null 时保留原有 chatInputHaze。
+ */
+internal fun Settings.chatDockMaterial(): AppearanceMaterial? {
+    val appearance = advancedAppearanceSetting
+    if (!appearance.enableAdvancedAppearance || !appearance.enableChatDockGlass) {
+        return null
+    }
+    return AppearanceMaterial(
+        style = BackgroundSurfaceStyle.LIQUID_GLASS,
+        opacity = appearance.chatDockGlassOpacity,
+        radius = appearance.chatDockGlassBlurRadius,
+        effects = appearance.enableChatDockPerformanceEffects,
+    )
+}
+
+/**
  * 输入框下方的悬浮栏。
  *
  * 容器直接用顶栏那颗胶囊（[ChatCapsule]）：同底色、同投影、同模糊与描边，
@@ -120,6 +140,11 @@ internal fun FloatingBarItem.label(): String = stringResource(
  *
  * 拉起和隐藏都走同一条过渡：高度从 0 展开或收回，内容同时做竖向位移与模糊淡入淡出。
  * 模糊/玻璃档位与透明度跟随输入框的全局特效设置。
+ *
+ * 高级外观开启并且打开了聊天坞（`enableChatDockGlass`）时，
+ * 容器使用液态玻璃，着色读 `chatDockGlassOpacity`，
+ * 性能开关读 `enableChatDockPerformanceEffects`；Haze 源仍然是页面那一个，不在这里新开。
+ * [material] 留空则整条栏保持原来的 `chatInputHaze` 路径。
  */
 @Composable
 internal fun ChatFloatingBar(
@@ -129,6 +154,7 @@ internal fun ChatFloatingBar(
     hazeState: HazeState,
     displaySetting: DisplaySetting,
     modifier: Modifier = Modifier,
+    material: AppearanceMaterial? = null,
 ) {
     val fullWidth = LocalFullWidthComponents.current
     val density = LocalDensity.current
@@ -169,6 +195,7 @@ internal fun ChatFloatingBar(
             ChatCapsule(
                 displaySetting = displaySetting,
                 hazeState = hazeState,
+                material = material,
                 modifier = Modifier
                     .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
                     .height(itemExtent),

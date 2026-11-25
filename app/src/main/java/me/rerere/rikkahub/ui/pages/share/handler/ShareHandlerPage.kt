@@ -42,6 +42,7 @@ fun ShareHandlerPage(text: String, image: String?) {
     val scope = rememberCoroutineScope()
     val navController = LocalNavController.current
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

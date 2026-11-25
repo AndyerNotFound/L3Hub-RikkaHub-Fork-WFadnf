@@ -12,40 +12,29 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.consume
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,17 +52,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -90,9 +76,6 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.ArrowUp02
-import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
@@ -115,6 +98,8 @@ import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
+import me.rerere.rikkahub.ui.components.ui.composerMaterial
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -125,12 +110,9 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
-import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
-import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
@@ -215,6 +197,10 @@ fun ChatInput(
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
+    // 输入卡片的材质：null = 高级外观关着（或没选材质也没强制玻璃），继续走原来的 chatInputHaze。
+    // composerMaterial 内部已经过了 enableAdvancedAppearance；设置里没选材质时沿用旧特效，
+    // 只有 applyToComposer 把玻璃档打开时才强制 liquid（和上游 chatComposerMaterial 一致）。
+    val composerStyle = settings.advancedAppearanceSetting.composerMaterial(settings.displaySetting)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -536,7 +522,6 @@ fun ChatInput(
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
                 ContextMeterSwitcher(
                     tokens = contextTokens,
-                    warnTokens = chatModel.warnContextTokens,
                     maxTokens = chatModel.maxContextTokens,
                     style = settings.displaySetting.contextMeterStyle,
                     onStyleChange = onUpdateContextMeterStyle,
@@ -603,20 +588,41 @@ fun ChatInput(
                                 }
                                 .then(revealFloatingBarModifier)
                                 .clip(containerShape)
-                                .chatInputHaze(
-                                    hazeState = hazeState,
-                                    displaySetting = settings.displaySetting,
-                                    containerColor = containerColor,
-                                    shape = containerShape,
+                                .then(
+                                    if (composerStyle != null) {
+                                        Modifier.advancedMaterial(
+                                            shape = containerShape,
+                                            base = containerColor,
+                                            material = composerStyle,
+                                            hazeState = hazeState,
+                                            // 输入框里是要打的字，着色不能薄到认不出边界
+                                            readableFloor = .35f,
+                                        )
+                                    } else {
+                                        Modifier.chatInputHaze(
+                                            hazeState = hazeState,
+                                            displaySetting = settings.displaySetting,
+                                            containerColor = containerColor,
+                                            shape = containerShape,
+                                        )
+                                    }
                                 ),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            ),
-                            // 着色由 chatInputHaze 统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
-                            color = if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
+                            // 玻璃档由材质层自己画渐变描边，这里再画一道平线就成了双线；
+                            // 其余情况保持原来那道 1dp 描边
+                            border = if (composerStyle == null || composerStyle.needsFlatOutline()) {
+                                BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                )
+                            } else {
+                                null
+                            },
+                            // 着色由材质层统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
+                            color = if (composerStyle != null) {
+                                Color.Transparent
+                            } else if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
                                 containerColor
                             } else {
                                 Color.Transparent
@@ -903,6 +909,8 @@ fun ChatInput(
                                 onItemClick = onFloatingBarItemClick,
                                 hazeState = hazeState,
                                 displaySetting = settings.displaySetting,
+                                // 聊天坞总闸关着时是 null，悬浮栏继续走 chatInputHaze 的老路径
+                                material = settings.chatDockMaterial(),
                             )
                         }
                     }
@@ -947,167 +955,4 @@ fun ChatInput(
         },
         useL3HubStyle = settings.displaySetting.useL3HubReasoningStyle,
     )
-}
-
-/**
- * 空会话输入区的槽位最小高度。
- *
- * [minHeightPx] 会读到卡片和输入框的实测高度，这些值都是在测量阶段写回来的：放在组合阶段读，
- * 收放动画的每一帧都会让整个 [ChatInput] 重组一次（清单、悬浮栏、按钮行全在内）；
- * 放到测量阶段读，最多多跑一次测量，组合不参与。
- *
- * 子项按原约束量，不把槽位当 minHeight 传下去：卡片顶边钉在槽位顶部，
- * 高出来的部分留在它下面，槽位高度不会反过来改变子项自己的测量结果。
- */
-private fun Modifier.cardSlotMinHeight(minHeightPx: () -> Int): Modifier =
-    layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints.copy(minHeight = 0))
-        val height = placeable.height
-            .coerceAtLeast(minHeightPx())
-            .coerceIn(constraints.minHeight, constraints.maxHeight)
-        layout(placeable.width, height) {
-            placeable.place(0, 0)
-        }
-    }
-
-@Composable
-private fun SendButton(
-    loading: Boolean,
-    empty: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val showStop = loading && empty
-    val shape = when {
-        LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
-        else -> CircleShape
-    }
-    val containerColor = when {
-        showStop -> MaterialTheme.colorScheme.errorContainer
-        empty -> MaterialTheme.colorScheme.surfaceContainerHigh
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val contentColor = when {
-        showStop -> MaterialTheme.colorScheme.onErrorContainer
-        empty -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-        else -> MaterialTheme.colorScheme.onPrimary
-    }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(30.dp)
-            .testTag("chat_send_button")
-            .clip(shape)
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                // 图标用 tint 单独设色，不会更新 LocalContentColor；涟漪也要跟随按钮前景色。
-                indication = ripple(color = contentColor),
-                enabled = showStop || !empty,
-                onClick = onClick,
-                onLongClick = onLongClick,
-            )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .appButtonShadow(shape, 2.dp),
-            shape = shape,
-            color = containerColor,
-            content = {},
-        )
-        Icon(
-            imageVector = if (showStop) HugeIcons.Cancel01 else HugeIcons.ArrowUp02,
-            contentDescription = stringResource(if (showStop) R.string.stop else R.string.send),
-            tint = contentColor,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-private fun BackgroundTasksButton(
-    running: Int,
-    onClick: () -> Unit,
-) {
-    BadgedBox(
-        modifier = Modifier.padding(horizontal = 5.dp),
-        badge = {
-            Badge(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) { Text(running.toString()) }
-        },
-    ) {
-        ActionIconButton(onClick = onClick) {
-            Icon(
-                imageVector = HugeIcons.ComputerTerminal01,
-                contentDescription = stringResource(R.string.background_tasks_running, running),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ActionIconButton(
-    onClick: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val shape = when {
-        LocalFullWidthComponents.current -> RoundedCornerShape(0.dp)
-        else -> CircleShape
-    }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .size(30.dp)
-            .appButtonShadow(shape, 2.dp),
-        shape = shape,
-        tonalElevation = 0.dp,
-        color = Color.Transparent,
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-        ) {
-            content()
-        }
-    }
-}
-
-/**
- * 编辑旧消息时的提示条。
- *
- * 单独放在 [TextInputRow] 外面：单行布局的两组按钮是相对整个 [TextInputRow] 居中的，
- * 提示条一旦排在 TextField 之前就会被算进高度，输入内容被删空、按钮切回居中时就会偏到输入框上方。
- */
-@Composable
-private fun EditingBanner(
-    state: ChatInputState,
-    shape: Shape,
-    onEditReasoning: () -> Unit,
-) {
-    Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = stringResource(R.string.editing))
-            Spacer(Modifier.weight(1f))
-            if (state.editingReasoning != null) {
-                TextButton(onClick = onEditReasoning) {
-                    Text(stringResource(R.string.chat_input_edit_reasoning))
-                }
-            }
-            Icon(
-                imageVector = HugeIcons.Cancel01,
-                contentDescription = stringResource(R.string.cancel_edit),
-                modifier = Modifier.clickable { state.clearInput() }
-            )
-        }
-    }
 }

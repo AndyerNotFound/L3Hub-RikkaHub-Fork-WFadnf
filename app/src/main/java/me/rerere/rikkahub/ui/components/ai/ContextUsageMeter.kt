@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
@@ -69,11 +67,9 @@ import kotlin.math.roundToInt
 private const val ALERT_FRACTION = 0.8f
 
 /**
- * 上下文预警进度条
+ * 上下文占用进度条
  *
- * 两条进度条共用当前占用, 但分母不同:
- * - WARN 条填满 = 到达性能最佳点, 之后回复质量可能开始下滑
- * - MAX 条填满 = 到达性能骤降点, 此时禁止继续发送消息
+ * 只有 MAX 一条: 填满 = 到达性能骤降点, 此时禁止继续发送消息。
  *
  * 同时显示绝对值(数字/数字)和百分比，百分比不封顶，可以超过 100%。
  * 点按整块区域打开会话的 Usage 看板。
@@ -81,8 +77,7 @@ private const val ALERT_FRACTION = 0.8f
 @Composable
 fun ContextUsageMeter(
     tokens: Int?,
-    warnTokens: Int?,
-    maxTokens: Int?,
+    maxTokens: Int,
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
     // 对话还在生成：进度条显示为流动的波浪，停下来后落成静态直条
@@ -90,8 +85,6 @@ fun ContextUsageMeter(
     // 速度指示（车速仪表盘）：内容由调用方给，位置固定在整条的右端
     speedIndicator: (@Composable () -> Unit)? = null,
 ) {
-    if (warnTokens == null && maxTokens == null) return
-
     val used = (tokens ?: 0).coerceAtLeast(0)
     val limitReached = isContextLimitReached(tokens, maxTokens)
 
@@ -108,24 +101,12 @@ fun ContextUsageMeter(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (warnTokens != null) {
-                ContextMeterRow(
-                    label = stringResource(R.string.chat_page_context_meter_warn),
-                    used = used,
-                    limit = warnTokens,
-                    hardLimit = false,
-                    running = running,
-                )
-            }
-            if (maxTokens != null) {
-                ContextMeterRow(
-                    label = stringResource(R.string.chat_page_context_meter_max),
-                    used = used,
-                    limit = maxTokens,
-                    hardLimit = true,
-                    running = running,
-                )
-            }
+            ContextMeterRow(
+                label = stringResource(R.string.chat_page_context_meter_max),
+                used = used,
+                limit = maxTokens,
+                running = running,
+            )
             if (limitReached) {
                 Text(
                     text = stringResource(R.string.chat_page_context_limit_reached),
@@ -143,11 +124,10 @@ private fun ContextMeterRow(
     label: String,
     used: Int,
     limit: Int,
-    hardLimit: Boolean,
     running: Boolean,
 ) {
     val fraction = contextUsageFraction(used, limit)
-    val fillColor = contextMeterColor(fraction, hardLimit)
+    val fillColor = contextMeterColor(fraction)
     val textColor = if (fraction >= ALERT_FRACTION) {
         fillColor
     } else {
@@ -202,10 +182,10 @@ private fun contextPercentValue(used: Int, limit: Int?): Int =
     if (limit != null && limit > 0) (used.toFloat() / limit * 100).roundToInt() else 0
 
 @Composable
-private fun contextMeterColor(fraction: Float, hardLimit: Boolean): Color {
+private fun contextMeterColor(fraction: Float): Color {
     val colors = MaterialTheme.colorScheme
     return when {
-        fraction >= 1f -> if (hardLimit) colors.error else colors.tertiary
+        fraction >= 1f -> colors.error
         fraction >= ALERT_FRACTION -> colors.tertiary
         else -> colors.primary
     }
@@ -214,30 +194,20 @@ private fun contextMeterColor(fraction: Float, hardLimit: Boolean): Color {
 @Composable
 fun ContextUsageRing(
     tokens: Int?,
-    warnTokens: Int?,
-    maxTokens: Int?,
+    maxTokens: Int,
     onShowUsage: () -> Unit,
     modifier: Modifier = Modifier,
     // 速度指示（车速仪表盘）：内容由调用方给，位置固定在环形图右侧
     speedIndicator: (@Composable () -> Unit)? = null,
 ) {
-    if (warnTokens == null && maxTokens == null) return
-
     val used = (tokens ?: 0).coerceAtLeast(0)
-    val warnFraction = warnTokens?.let { contextUsageFraction(used, it) }
-    val maxFraction = maxTokens?.let { contextUsageFraction(used, it) }
-    val mainFraction = (maxFraction ?: warnFraction ?: 0f).coerceIn(0f, 1f)
+    val mainFraction = contextUsageFraction(used, maxTokens).coerceIn(0f, 1f)
     val limitReached = isContextLimitReached(tokens, maxTokens)
     val animatedMain by animateFloatAsState(
         targetValue = mainFraction,
         label = "contextRingMain",
     )
-    val animatedWarn by animateFloatAsState(
-        targetValue = (warnFraction ?: 0f).coerceIn(0f, 1f),
-        label = "contextRingWarn",
-    )
-    val mainColor = contextMeterColor(mainFraction, maxTokens != null)
-    val warnColor = contextMeterColor(warnFraction ?: 0f, false)
+    val mainColor = contextMeterColor(mainFraction)
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
 
     Row(
@@ -255,7 +225,6 @@ fun ContextUsageRing(
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val stroke = 4.dp.toPx()
-                val warnStroke = 2.dp.toPx()
                 val outerRadius = (size.minDimension - stroke) / 2
                 val center = Offset(size.width / 2f, size.height / 2f)
 
@@ -269,25 +238,9 @@ fun ContextUsageRing(
                     size = Size(outerRadius * 2, outerRadius * 2),
                     style = Stroke(width = stroke, cap = StrokeCap.Round),
                 )
-
-                if (warnTokens != null && maxTokens != null) {
-                    val innerRadius = outerRadius - stroke / 2f - 1.dp.toPx() - warnStroke / 2f
-                    if (innerRadius > 0f) {
-                        drawCircle(color = trackColor.copy(alpha = 0.6f), radius = innerRadius, style = Stroke(warnStroke))
-                        drawArc(
-                            color = warnColor,
-                            startAngle = -90f,
-                            sweepAngle = animatedWarn * 360f,
-                            useCenter = false,
-                            topLeft = Offset(center.x - innerRadius, center.y - innerRadius),
-                            size = Size(innerRadius * 2, innerRadius * 2),
-                            style = Stroke(width = warnStroke, cap = StrokeCap.Round),
-                        )
-                    }
-                }
             }
             Text(
-                text = contextPercent(used, maxTokens ?: warnTokens),
+                text = contextPercent(used, maxTokens),
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
@@ -301,22 +254,12 @@ fun ContextUsageRing(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            if (warnTokens != null) {
-                RingValueRow(
-                    label = "WARN",
-                    used = used,
-                    limit = warnTokens,
-                    color = warnColor,
-                )
-            }
-            if (maxTokens != null) {
-                RingValueRow(
-                    label = "MAX",
-                    used = used,
-                    limit = maxTokens,
-                    color = mainColor,
-                )
-            }
+            RingValueRow(
+                label = stringResource(R.string.chat_page_context_meter_max),
+                used = used,
+                limit = maxTokens,
+                color = mainColor,
+            )
             if (limitReached) {
                 Text(
                     text = stringResource(R.string.chat_page_context_limit_reached),
@@ -367,18 +310,19 @@ private const val CONTEXT_METER_FLING_VELOCITY = 900f
 private val ContextMeterSwipeBlur = 6.dp
 
 /**
- * 上下文预警的两种视图（直条 / 环形）叠在同一块位置上，左右滑动时两层跟着手指横向平移，
+ * 上下文占用的两种视图（直条 / 环形）叠在同一块位置上，左右滑动时两层跟着手指横向平移，
  * 各自按「离落位还有多远」叠动态模糊：滑动中两块都是虚的，滑到哪一端，那一端重新聚焦。
  *
  * 位移一比一跟手，松手按位移与速度吸附到最近的一端；落位之后才把样式写回设置，
  * 中途被打断就停在当前进度上，不会留下半程状态。
  *
  * 两块视图同时参与布局，高度取两者较高的那一份并垂直居中，切换过程中底栏高度不变。
+ *
+ * 没有可用的 MAX 时整块不出现：连手势的落点都不留，底栏不多出一段空区域。
  */
 @Composable
 fun ContextMeterSwitcher(
     tokens: Int?,
-    warnTokens: Int?,
     maxTokens: Int?,
     style: ContextMeterStyle,
     onStyleChange: (ContextMeterStyle) -> Unit,
@@ -387,6 +331,9 @@ fun ContextMeterSwitcher(
     running: Boolean = false,
     speedIndicator: (@Composable () -> Unit)? = null,
 ) {
+    // 没有 MAX（或 MAX 非正）就没有分母，也没有可画的条：直接不占位
+    val limit = maxTokens?.takeIf { it > 0 } ?: return
+
     val scope = rememberCoroutineScope()
     // 0 = 直条在中间，1 = 环形在中间。拖动时直接改它、只在绘制阶段读：
     // 跟手的每一帧只重绘这一块，不带着输入区的其它部分一起重组
@@ -473,8 +420,7 @@ fun ContextMeterSwitcher(
         ) {
             ContextUsageRing(
                 tokens = tokens,
-                warnTokens = warnTokens,
-                maxTokens = maxTokens,
+                maxTokens = limit,
                 onShowUsage = onShowUsage,
                 modifier = Modifier.padding(horizontal = 4.dp),
                 speedIndicator = speedIndicator,
@@ -490,8 +436,7 @@ fun ContextMeterSwitcher(
         ) {
             ContextUsageMeter(
                 tokens = tokens,
-                warnTokens = warnTokens,
-                maxTokens = maxTokens,
+                maxTokens = limit,
                 onShowUsage = onShowUsage,
                 modifier = Modifier.padding(horizontal = 4.dp),
                 running = running && barOnScreen,
@@ -509,19 +454,16 @@ private fun ContextUsageMeterPreview() {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ContextUsageMeter(
                     tokens = 62_000,
-                    warnTokens = 64_000,
                     maxTokens = 200_000,
                     onShowUsage = {},
                 )
                 ContextUsageMeter(
-                    tokens = 62_000,
-                    warnTokens = 64_000,
+                    tokens = 168_000,
                     maxTokens = 200_000,
                     onShowUsage = {},
                 )
                 ContextUsageMeter(
                     tokens = 210_000,
-                    warnTokens = 64_000,
                     maxTokens = 200_000,
                     onShowUsage = {},
                 )

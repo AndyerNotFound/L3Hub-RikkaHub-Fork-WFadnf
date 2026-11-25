@@ -37,28 +37,28 @@ Android 用 `applicationId` 识别应用，不是 Kotlin 包名：
 
 ## 上下文预警进度条（fork 新增）
 
-输入框上方两条进度条，分别以模型上的两个门限为分母，共用同一个当前占用量：
+输入框上方一条进度条，以模型上的 MAX 门限为分母：
 
 | 条 | 含义 | 配置 |
 |---|---|---|
-| `WARN` | 性能最佳点，超过后回复质量开始下滑 | 模型编辑页 → WARN 阈值 |
-| `MAX` | 性能骤降点，到达后禁止继续发送消息 | 模型编辑页 → MAX 阈值 |
+| `MAX` | 硬上限，到达后禁止继续发送消息 | 模型编辑页 → 上限阈值（MAX） |
 
 - 当前占用取最近一次回复的真实用量（`prompt + completion`，即 `Conversation.lastContextTokens()`），新会话或刚压缩完显示 0
 - 点按进度条在百分比和绝对值（`12.3K / 200K`）之间切换，选择存在 `DisplaySetting.contextMeterAbsolute`
-- 占用 ≥ 80% 转提醒色，MAX 条满格转 error 色并显示提示
-- 两个门限都留空时整块不显示
+- 占用 ≥ 80% 转提醒色，满格转 error 色并显示提示
+- 模型没有正的 MAX（留空或 0）时整块不显示
 - 拦截点：聊天页发送（toast）、`ChatService.sendMessage`、语音入队、队列派发（暂停队列）
 
-改动文件（`Model` 多了两个可空字段，旧设置 JSON 缺字段时按 null 处理，向后兼容）：
+改动文件（`Model.maxContextTokens` 是可空字段，旧设置 JSON 缺字段时按 null 处理，向后兼容；
+更早版本写在设置里的 WARN 门限读盘时忽略，不参与任何计算）：
 
 ```
-ai/.../provider/Model.kt                        warnContextTokens / maxContextTokens
+ai/.../provider/Model.kt                        maxContextTokens
 app/.../data/model/ContextWindow.kt             纯逻辑：比例、是否到达上限
-app/.../ui/components/ai/ContextUsageMeter.kt   两条进度条的 UI
+app/.../ui/components/ai/ContextUsageMeter.kt   单条 MAX 进度条的 UI
 app/.../ui/components/ai/ChatInput.kt           插到输入框上方
 app/.../ui/pages/chat/ChatPage.kt               传入占用、点击切换、发送拦截
-app/.../ui/pages/setting/SettingProviderDetailPage.kt  模型表单里的 WARN/MAX 输入
+app/.../ui/pages/setting/SettingModelEditorPage.kt  模型表单里的 MAX 输入
 app/.../service/ChatService.kt                  发送/语音/队列的硬拦截
 app/.../data/datastore/Settings.kt              contextMeterAbsolute
 ```
@@ -107,29 +107,19 @@ file:///data/user/0/me.rerere.rikkahub/files/upload/<uuid>.png
 
 ## 上下文门限预设
 
-`data/model/ContextThresholdPresets.kt`：按模型名给 WARN/MAX 预填一份，命中不了的用 131072 / 196608。
+`data/model/ContextThresholdPresets.kt`：只给 MAX 预填一份，基准值 `524288`，按模型已知窗口的 90% 封顶，下限 `1`。
 
-| 型号 | WARN | MAX |
-|---|---|---|
-| Kimi K3 | 262144 | 327680 |
-| DeepSeek V4.1 | 172032 | 221184 |
-| DeepSeek V4 | 196608 | 262144 |
-| DeepSeek V3* | 131072 | 131072 |
-| GLM 5.* | 147456 | 221184 |
-| Qwen 3.* | 196608 | 262144 |
-| GPT 5.* | 196608 | 262144 |
-| Claude 4.* | 147456 | 221184 |
-| Claude 5.* | 221184 | 327680 |
-| Step(fun) 3.* | 147456 | 221184 |
-| Step(fun) 5* | 196608 | 327680 |
-| Nemotron | 131072 | 196608 |
-| Muse | 147456 | 221184 |
-| GPT OSS | 65536 | 131072 |
-| 其他 | 131072 | 196608 |
+| 型号 | MAX |
+|---|---|
+| 全部（含未知型号） | 524288，窗口更小时取 `min(524288, contextLength × 90%)`，至少 1 |
 
-- 在 `Settings.normalized()` 里执行：`contextThresholdsAuto` 为 true **且**两个门限都为空时才填
-- 用户在模型编辑页手改任一值 → `contextThresholdsAuto = false`，之后不再覆盖；页面上会出现「使用预设」按钮可以恢复
-- 主版本号从模型名里取（`claude-3-5-sonnet` 算 3 代、`qwen2.5-72b` 算 2 代），避免把旧型号误判成新代
+- 在 `Settings.normalized()` 里执行：`contextThresholdsAuto` 为 true **且** MAX 为空时才填；
+  已经有 MAX 的模型原样保留，不按新窗口重算
+- 新建模型在自动模式下走同一条路径，所以未手填 MAX 的新模型也会拿到预设
+- 用户在模型编辑页手填 MAX → `contextThresholdsAuto = false`，之后不再覆盖；页面上会出现「使用预设」按钮，
+  点一下按当前窗口重新填回预设并重新打开自动模式
+- 窗口来源仍是 `contextLength`；界面不维护这个值，模型目录里查不到时停在默认的 1M 窗口，
+  `524288` 不会被收窄
 
 ## SSH 工作区修复（fork）
 
@@ -231,17 +221,17 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 ## 自动压缩（设置随助手，行为走上游）
 
-助手 → 记忆 → 「自动压缩」：开关、触发比例（`Assistant.autoCompressRatio`，50%–95%，按 5% 取整）与预警线
-（`Assistant.autoCompressThreshold`，WARN / MAX）。用户偏好是每个助手各自一套，所以设置不放在全局偏好里。
-触发点取两者先到的那一个：`Model.autoCompressTriggerTokens()` = min(比例 × 上下文窗口, 选中预警线的门限)；
-预警线沿用模型里手填或预设的 WARN/MAX，自动填充的值按窗口收窄。时机与压缩范围全部采用上游 2026-11-10 的两个提交
+助手 → 记忆 → 「自动压缩」：开关与触发比例（`Assistant.autoCompressRatio`，50%–95%，按 5% 取整）。
+用户偏好是每个助手各自一套，所以设置不放在全局偏好里。触发点只有一条口径：
+`Model.autoCompressTriggerTokens()` = 比例 × 模型 MAX，四舍五入到 token；没有正的 MAX 就不自动压缩，
+不再有 WARN 预警线，也不再用上下文窗口兜底。时机与压缩范围全部采用上游 2026-11-10 的两个提交
 （`0cd90ef12` 按占比自动压缩、`bcc649abc` 一轮中途自动压缩），fork 不再自带预算与截断算法，也不再有「循环压缩」
 与「压缩后保留条数」两个选项——上游核心在一轮中途本来就会再压，自动压缩也不留保留区。
 
 | 项 | 说明 |
 |---|---|
 | 触发时机 | 回复结束后、派发收件箱之前检查一次；一轮中途每批工具执行完再检查一次，达到比例就压缩，之后的步骤写进检查点后面新的一条回复 |
-| 判据 | 最近一次请求的 usage（`lastContextTokens()` / `contextTokens()`）达到触发点（比例 × 窗口与 WARN/MAX 门限的先到者）；检查点之前的 usage 不算数 |
+| 判据 | 最近一次请求的 usage（`lastContextTokens()` / `contextTokens()`）达到触发点（比例 × 模型 MAX）；检查点之前的 usage 不算数 |
 | 任务槽 | 压缩与生成共用会话任务槽（`SessionActivity.Compressing`）：期间新消息照常排队、停止生成可取消、重新生成先取消它。不再有 `compressMutex` 与上下文指纹 |
 | 压缩范围 | 上一个检查点之后到末尾；手动压缩可另填保留条数，自动压缩不留保留区，整段进摘要 |
 | 摘要输入 | 上一个检查点加检查点之后的原文；检查点之前的原文不再重发 |
@@ -257,14 +247,14 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 - `ai/agent/Agent.kt`、`AgentLoop.kt`：`AgentHooks.shouldPause` 与 `AgentFinishReason.Paused`
 - `service/ConversationSession.kt`：`SessionActivity`、`canStartNextTurn`、`autoCompressedReplyId`
 - `data/ai/ChatRequestFactory.kt`：`withContinuationHint`，检查点后面不是用户消息时补一句继续任务
-- `data/model/AutoCompress.kt`：预警线换算（`autoCompressLimit`）、触发点合并（`autoCompressTriggerTokens`）
-  与触发比例的可选范围；token 估算在 `TokenEstimate.kt`，只给用量看板与摘要请求的输出上限用
+- `data/model/AutoCompress.kt`：触发点换算（`autoCompressTriggerTokens`）与触发比例的可选范围；
+  token 估算在 `TokenEstimate.kt`，只给用量看板与摘要请求的输出上限用
 
 ## 品牌与界面调整（fork）
 
 - 应用图标：上游 mipmap 各密度 PNG（`ic_launcher` / `_background` / `_foreground`）整体反色，原版是深底白兔，现在是浅底黑兔；`ic_launcher_monochrome` 保持原样（主题图标靠 alpha 取形，反色会变透明）
 - 关于页：标题改为 L3Hub，注明基于 RikkaHub；链接改为本 fork 仓库与 LICENSE，另保留「上游项目」指向 `rikkahub/rikkahub`
-- 模型编辑：删掉「上下文长度」整段，上下文窗口只保留 WARN / MAX 两个预警门限
+- 模型编辑：删掉「上下文长度」整段，上下文窗口只保留一个 MAX 上限输入（留空表示不设上限）
 - 界面偏好：新增「上下文预警进度条」开关（`DisplaySetting.showContextMeter`），关闭后输入框上方的进度条整行隐藏
 - 思考卡标题：折叠时用思考内容的第一句当标题（`DisplaySetting.showThinkingSummary`，默认开），没有正文或关掉开关就退回「思考了 N 秒」；截句是 `utils/MarkdownUtils.kt` 里的纯函数 `extractThinkingSummary()`，带单测
 - 压缩检查点：分隔线默认折叠时露出两行摘要预览，展开可看完整摘要并编辑/删除
@@ -773,7 +763,7 @@ composable 内容作为参数传入即可。
 - 左上角箭头把整条左栏收成 0 宽，右侧主视图拿满弹窗宽度；收起后同一个箭头移到标题左边
 - 标题行右侧是关闭按钮，搜索框占满主视图一整行，带清空按钮。搜索同时匹配**供应商名**、
   模型的 `displayName` 和 `modelId`；命中供应商时连同该供应商的全部模型一起列出，结果卡片会带上供应商名
-- 卡片：左侧图标方块，右侧模型名、`WARN x · MAX y`、标签行（供应商覆盖 / 类型 / 模态 / 能力）
+- 卡片：左侧图标方块，右侧模型名、`MAX x`（没设 MAX 时不显示）、标签行（供应商覆盖 / 类型 / 模态 / 能力）
 - 屏幕宽度 < 360dp 时自动换成紧凑卡片：图标缩小，标签独占一行，名称不再被收藏按钮挤没
 
 > 上游的单列实现（供应商 sticky header + 收藏拖动排序 + 供应商 Badge 横向滚动）在改成双列后
@@ -980,8 +970,8 @@ app/.../ui/pages/extensions/QuickMessages*.kt    两个 Tab，预设增删改
 参照 `~/WorkSpace/rikka-gateway` 的注入补丁，把值得留下的功能做进 web-ui，数据一律走后端 API，
 不再由网关抓 DOM、估算 token 或篡改 SSE：
 
-- **上下文用量条**：输入框上方按模型的 WARN / MAX 画两条进度条，数据取最近一次回复的 `lastUsage`
-  （压缩检查点之前的 usage 不作数）；点开看输入 / 输出 / 缓存明细。沿用
+- **上下文用量条**：输入框上方按模型的 MAX 画一条进度条，数据取最近一次回复的 `lastUsage`
+  （压缩检查点之前的 usage 不作数）；点开看输入 / 输出 / 缓存明细。模型没有正的 MAX 时整块不显示，沿用
   `DisplaySetting.contextMeterStyle`（BAR / RING / OFF）与 `contextMeterAbsolute`。
 - **渠道额度**：`GET /api/providers/{id}/quota` 复用 app 的 `ProviderManager.getQuota`，
   模型选择器与顶栏显示余额或订阅用量。对应网关的 `/__gw/bal`。
@@ -1467,7 +1457,7 @@ AGPL-3.0。分发 APK 或对外提供网络服务时，必须一并提供完整�
   `CNY 10`、`$10`、`10 USD`、`¥10` 等写法；带单位时只和同币种的余额比较，
   不带单位时比较余额里的第一笔（多币种以第一笔为主币种）；余额小于或等于预警值时，余额文字与图标转为 error 色
 - 聊天页环形上下文用量条：余额和左侧用量各占一半宽度，余额过长时在自己的格子里省略，不再把
-  WARN / MAX 数值挤成多行；余额在设置页最多显示两行
+  MAX 数值挤成多行；余额在设置页最多显示两行
 
 改动文件：
 

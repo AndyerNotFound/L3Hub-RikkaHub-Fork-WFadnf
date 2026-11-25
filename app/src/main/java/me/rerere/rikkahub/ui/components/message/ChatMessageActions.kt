@@ -83,8 +83,10 @@ import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.removeBracketedContent
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
+import me.rerere.ui.components.LocalSeparateWindowColors
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.SeparateWindowContent
 import java.util.Locale
 
 @Composable
@@ -341,7 +343,7 @@ private fun ChatMessageActionList(
     val actions = buildList {
         add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))
         if (hasTextContent) {
-            add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.render_with_webview), onClick = onWebViewPreview))
+            add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.aa_message_preview), onClick = onWebViewPreview))
         }
         add(MessageSheetAction(HugeIcons.Edit01, stringResource(R.string.edit), onClick = onEdit))
         add(MessageSheetAction(HugeIcons.Share04, stringResource(R.string.share), onClick = onShare))
@@ -568,30 +570,35 @@ internal fun UserMessageActionsMenu(
                     transformOrigin = TransformOrigin(1f, originY)
                 },
         ) {
-            Surface(
-                modifier = Modifier
-                    .width(menuWidth)
-                    .heightIn(max = maxHeight),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 8.dp,
-            ) {
-                ChatMessageActionList(
-                    message = message,
-                    model = model,
-                    onEdit = onEdit,
-                    onDelete = onDelete,
-                    onShare = onShare,
-                    onFork = onFork,
-                    onSelectAndCopy = onSelectAndCopy,
-                    isFavorite = isFavorite,
-                    onToggleFavorite = onToggleFavorite,
-                    onWebViewPreview = onWebViewPreview,
-                    onRunAction = dismissAfter,
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    quickActions = quickActions,
-                )
+            SeparateWindowContent {
+                val overlay = LocalSeparateWindowColors.current
+                Surface(
+                    modifier = Modifier
+                        .width(menuWidth)
+                        .heightIn(max = maxHeight),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = overlay?.menu ?: MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    border = overlay?.menuBorder,
+                    tonalElevation = if (overlay == null) 3.dp else 0.dp,
+                    shadowElevation = 8.dp,
+                ) {
+                    ChatMessageActionList(
+                        message = message,
+                        model = model,
+                        onEdit = onEdit,
+                        onDelete = onDelete,
+                        onShare = onShare,
+                        onFork = onFork,
+                        onSelectAndCopy = onSelectAndCopy,
+                        isFavorite = isFavorite,
+                        onToggleFavorite = onToggleFavorite,
+                        onWebViewPreview = onWebViewPreview,
+                        onRunAction = dismissAfter,
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        quickActions = quickActions,
+                    )
+                }
             }
         }
     }

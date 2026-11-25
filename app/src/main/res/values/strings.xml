@@ -317,7 +317,6 @@
   <string name="chat_page_context_limit_reached">Context limit reached. Compress the history or start a new conversation</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_conversation_system_prompt">Conversation System Prompt</string>
   <string name="chat_page_conversation_system_prompt_clear">Clear</string>
   <string name="chat_page_conversation_system_prompt_hint">Override the assistant\'s system prompt for this conversation</string>
@@ -2114,10 +2113,8 @@
   <string name="setting_provider_page_context_block_desc">When off, reaching MAX only shows a warning and messages are still sent</string>
   <string name="setting_provider_page_context_max">Hard limit (MAX)</string>
   <string name="setting_provider_page_context_threshold_use_preset">Use preset</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN marks where reply quality starts to degrade and the meter starts warning; reaching MAX blocks new messages. Leave empty to disable</string>
-  <string name="setting_provider_page_context_threshold_invalid">WARN must be lower than MAX</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX is the model\'s context window limit. Leave blank to disable.</string>
   <string name="setting_provider_page_context_thresholds">Context alerts</string>
-  <string name="setting_provider_page_context_warn">Warn threshold (WARN)</string>
   <string name="setting_media_page_asset_storage">Asset Storage</string>
   <string name="translator_page_error">Translation failed</string>
   <string name="translator_page_model_missing">No translation model selected. Tap the top-right corner to choose one.</string>
@@ -2393,11 +2390,9 @@
   <string name="task_tree_state_failed">Failed</string>
 
   <string name="assistant_page_memory_auto_compress">Auto-compress</string>
-  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary when context usage reaches this share of the selected warning line: once a reply ends, and during a turn after every tool batch; the result matches manual compression</string>
-  <string name="assistant_page_memory_auto_compress_ratio">Trigger ratio</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">Percentage of the selected warning line (WARN/MAX); models without thresholds fall back to 75% / 90% of the context window</string>
-  <string name="assistant_page_memory_auto_compress_threshold">Warning line</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN is the warning line, MAX the hard limit; the trigger ratio is applied to the selected line</string>
+  <string name="assistant_page_memory_auto_compress_desc">Compress the history into a summary once context usage reaches the trigger threshold: checked after each reply and after each tool batch; the result matches manual compression</string>
+  <string name="assistant_page_memory_auto_compress_ratio">Trigger threshold</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">Percentage of the model\'s MAX; without a MAX there is no auto-compression</string>
 
   <string name="about_page_fork_note">A modified version of RikkaHub</string>
   <string name="about_page_upstream">Upstream project</string>

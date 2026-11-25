@@ -14,10 +14,10 @@ import org.junit.Test
 class ModelDraftStateTest {
     private val key = ModelDraftKey(providerId = "provider-1", modelId = "model-1")
 
-    private fun model(id: String = "model-1", warn: Int? = 128, price: Double = 0.0) = Model(
+    private fun model(id: String = "model-1", max: Int? = 128, price: Double = 0.0) = Model(
         modelId = id,
         displayName = "Display $id",
-        warnContextTokens = warn,
+        maxContextTokens = max,
         pricing = ModelPricing(input = price),
     )
 
@@ -27,7 +27,7 @@ class ModelDraftStateTest {
 
         assertEquals(key, state.key)
         assertEquals("Display model-1", state.model.displayName)
-        assertEquals(128, state.model.warnContextTokens)
+        assertEquals(128, state.model.maxContextTokens)
         assertTrue(state.locked)
     }
 
@@ -48,10 +48,10 @@ class ModelDraftStateTest {
         val edited = initial.withModel(initial.model.copy(displayName = "编辑中"))
 
         // 别处写了同一条 provider/model：新的 Model 实例换了价目和门限
-        val afterExternalWrite = edited.reconcile(key, model(warn = 512, price = 9.0), providerLoaded = true)
+        val afterExternalWrite = edited.reconcile(key, model(max = 512, price = 9.0), providerLoaded = true)
 
         assertEquals("编辑中", afterExternalWrite.model.displayName)
-        assertEquals(128, afterExternalWrite.model.warnContextTokens)
+        assertEquals(128, afterExternalWrite.model.maxContextTokens)
         assertEquals(0.0, afterExternalWrite.model.pricing.input, 0.0)
     }
 
@@ -61,19 +61,19 @@ class ModelDraftStateTest {
         val edited = initial.withModel(initial.model.copy(displayName = "编辑中"))
 
         val other = ModelDraftKey(providerId = "provider-1", modelId = "model-2")
-        val switched = edited.reconcile(other, model(id = "model-2", warn = 256), providerLoaded = true)
+        val switched = edited.reconcile(other, model(id = "model-2", max = 256), providerLoaded = true)
 
         assertEquals(other, switched.key)
         assertEquals("Display model-2", switched.model.displayName)
-        assertEquals(256, switched.model.warnContextTokens)
+        assertEquals(256, switched.model.maxContextTokens)
     }
 
     @Test
     fun `re-entering the editor shows externally saved changes`() {
         // 上次编辑保存了 512，重新进入是新的组合：状态为 null
-        val reentered = (null as ModelDraftState?).reconcile(key, model(warn = 512), providerLoaded = true)
+        val reentered = (null as ModelDraftState?).reconcile(key, model(max = 512), providerLoaded = true)
 
-        assertEquals(512, reentered.model.warnContextTokens)
+        assertEquals(512, reentered.model.maxContextTokens)
     }
 
     @Test

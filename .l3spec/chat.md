@@ -264,7 +264,7 @@
 1. **任务清单 / 引导卡**（`ConversationTodoCard`）→ `fillMaxWidth()` + `adaptiveHorizontalPadding(12dp)` + `padding(vertical = 4dp)`；清单与引导共用一张卡、一次折叠。显示条件：`!LocalConversationStatusInSidePanel`（非三栏）且（有未完成清单 或 有引导）。
 2. **消息队列面板**（`MessageQueuePanel`，见 6.4）→ 仅有排队项时。
 3. **世界书提示**：`Text`「已注入世界书 %1$d 条」（`chat_page_worldbook_injected`），`labelSmall`，`onSurfaceVariant`，`padding(horizontal = 8dp)`；条件 `injectedLorebookCount > 0`。
-4. **上下文计量条**（`ContextMeterSwitcher`）→ 条件 `chatModel != null && contextMeterStyle != OFF`，见 5.3。
+4. **上下文计量条**（`ContextMeterSwitcher`）→ 条件 `chatModel != null && contextMeterStyle != OFF` 且模型 MAX 为正，见 5.3。
 5. **输入卡片**（`Surface`）→ 见 5.2。
 6. **悬浮栏**（`ChatFloatingBar`，`ChatFloatingBar.kt`）→ 输入卡片之后，条件 `enableFloatingBar && floatingBarItems 非空`；聚焦时收起、上滑输入框 24dp 阈值重新拉起，自动隐藏开启时静默 5s 收起。
 
@@ -286,23 +286,24 @@
 
 按钮尺寸：`ActionIconButton` = `Surface(onClick)` + `size(30dp)`，形状 `CircleShape`（全宽 0dp），透明底色 + `appButtonShadow(shape, 2dp)`。
 
-### 5.3 上下文计量条（两条进度条）
+### 5.3 上下文计量条（单条 MAX 进度条）
 `ContextMeterSwitcher` 把「直条」和「环形」两种视图叠在同一位置，左右滑动切换（阈值：位移 `60px` 或速度 `900px/s`；切换时各自叠最多 `6dp` 动态模糊）。
+只有 MAX 一条；模型没有正的 MAX（留空或 0）时整块不画，`chatModel != null && contextMeterStyle != OFF` 只是外层条件。
 
 **直条样式（BAR，默认）** `ContextUsageMeter`：
 - 容器：`fillMaxWidth()`，`clip(shapes.small)`，可点（打开用量看板），`padding(horizontal = 4dp, vertical = 4dp)`，`spacedBy(8dp)`；左侧 `Column(weight 1f, spacedBy 4dp)`，右端放速度表盘。
-- 每条一行（`ContextMeterRow`，`spacedBy(8dp)`）：
-  - 标签：`labelSmall` + `FontWeight.Medium`，`widthIn(min = 34dp)`；文案「WARN」（`chat_page_context_meter_warn`，中文包里仍是 `WARN`）/「MAX」（`chat_page_context_meter_max`）。
+- 一行（`ContextMeterRow`，`spacedBy(8dp)`）：
+  - 标签：`labelSmall` + `FontWeight.Medium`，`widthIn(min = 34dp)`；文案「MAX」（`chat_page_context_meter_max`）。
   - 进度条：`WaveProgressBar(weight 1f)`，轨道 `onSurface alpha 0.18`；生成中流动、停止后静止。
   - 数值：`labelMedium` + `FontFamily.Monospace`，右对齐，`widthIn(min = 128dp)`，格式「%1$s / %2$s · N%」（`chat_page_context_meter_absolute` + ` · $percent%`）；百分比不封顶，可 >100%。
-- 颜色（`contextMeterColor`）：`fraction >= 1f` → MAX 条 `error`、WARN 条 `tertiary`；`fraction >= 0.8f`（`ALERT_FRACTION`）→ `tertiary`；否则 `primary`。文本色：`fraction >= 0.8` 时用填充色，否则 `onSurfaceVariant`。
-- 两条条的分母：WARN 条 = `warnContextTokens`（填满即最佳性能点之后）；MAX 条 = `maxContextTokens`（填满即禁止发送）。
+- 颜色（`contextMeterColor`）：`fraction >= 1f` → `error`；`fraction >= 0.8f`（`ALERT_FRACTION`）→ `tertiary`；否则 `primary`。文本色：`fraction >= 0.8` 时用填充色，否则 `onSurfaceVariant`。
+- 分母只有 `maxContextTokens`（填满即禁止发送）。
 - 超限提示：`labelSmall`、`error`「上下文已达上限，请压缩历史或新建对话」（`chat_page_context_limit_reached`）。
 
 **环形样式（RING）** `ContextUsageRing`：
 - 容器 `fillMaxWidth()`，`clip(shapes.small)`，`padding(h8 v2)`，`spacedBy(10dp)`。
-- 左侧 `Box(46dp)`：外环 4dp 描边（主进度，起点 -90°，`StrokeCap.Round`），内环 2dp（WARN 环，仅两条都存在时画）；轨道 `onSurface alpha 0.15`（内环 `alpha 0.6`）；圆心百分比文字 `labelSmall`、`fontSize = 9.sp`、等宽。
-- 右侧 `Column(spacedBy(1dp))`：两行「WARN / MAX」+ 数值（`labelSmall` 等宽，`fraction >= 0.8` 时上色），最大高 46dp 对齐。
+- 左侧 `Box(46dp)`：单环 4dp 描边（起点 -90°，`StrokeCap.Round`），轨道 `onSurface alpha 0.15`；圆心百分比文字 `labelSmall`、`fontSize = 9.sp`、等宽，分母为 MAX。
+- 右侧 `Column(spacedBy(1dp))`：一行「MAX」+ 数值（`labelSmall` 等宽，`fraction >= 0.8` 时上色），最大高 46dp 对齐。
 
 **百分比/绝对值切换**：两种样式都同时显示「绝对值 / 绝对值 · 百分比」，没有单独的切换按钮；切换的是「直条 ↔ 环形」视图（左右滑动手势），落位后写回 `contextMeterStyle`。
 

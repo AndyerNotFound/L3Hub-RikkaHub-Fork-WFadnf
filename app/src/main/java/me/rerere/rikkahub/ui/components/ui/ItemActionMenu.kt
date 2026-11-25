@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.style.DropdownMenu
 
 /**
  * 列表 item 的次要操作（复制、导出、重命名、删除等）。

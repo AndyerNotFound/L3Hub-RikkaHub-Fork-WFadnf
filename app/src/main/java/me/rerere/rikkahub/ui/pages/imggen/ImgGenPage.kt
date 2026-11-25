@@ -34,7 +34,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -139,6 +138,7 @@ fun ImageGenPage(
     }
 
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

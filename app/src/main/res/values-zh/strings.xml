@@ -317,7 +317,6 @@
   <string name="chat_page_context_limit_reached">上下文已达上限，请压缩历史或新建对话</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_conversation_system_prompt">对话系统提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
   <string name="chat_page_conversation_system_prompt_hint">覆盖此对话的助手系统提示</string>
@@ -2104,10 +2103,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_provider_page_context_block_desc">关闭后，到达 MAX 仅显示提示，消息照常发送</string>
   <string name="setting_provider_page_context_max">上限阈值（MAX）</string>
   <string name="setting_provider_page_context_threshold_use_preset">使用预设</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN 为性能最佳点，超过后进度条开始提醒；MAX 为性能骤降点，到达后禁止发送消息。留空表示不限制</string>
-  <string name="setting_provider_page_context_threshold_invalid">WARN 必须小于 MAX</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX 为模型的上下文窗口上限，留空即停用</string>
   <string name="setting_provider_page_context_thresholds">上下文预警</string>
-  <string name="setting_provider_page_context_warn">预警阈值（WARN）</string>
   <string name="setting_media_page_asset_storage">素材存储</string>
   <string name="translator_page_error">翻译失败</string>
   <string name="translator_page_model_missing">未选择翻译模型。点击右上角进行选择。</string>
@@ -2394,11 +2391,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="task_tree_state_failed">失败</string>
 
   <string name="assistant_page_memory_auto_compress">自动压缩</string>
-  <string name="assistant_page_memory_auto_compress_desc">上下文占用达到所选预警线的这个比例时，把历史压成摘要：一轮回复结束后检查一次，一轮中途每批工具执行完也会检查；效果与手动压缩一致</string>
-  <string name="assistant_page_memory_auto_compress_ratio">触发比例</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">相对所选预警线（WARN/MAX）的百分比；没配门限的模型按窗口的 75% / 90% 兜底</string>
-  <string name="assistant_page_memory_auto_compress_threshold">预警线</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 为预警线，MAX 为硬上限；触发比例按所选预警线计算</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文占用达到触发阈值时，把历史压成摘要：每次回复结束后检查，每批工具执行完也检查；效果与手动压缩一致</string>
+  <string name="assistant_page_memory_auto_compress_ratio">触发阈值</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">相对模型 MAX 的百分比；没有 MAX 就不自动压缩</string>
 
   <string name="about_page_fork_note">基于 RikkaHub 的修改版本</string>
   <string name="about_page_upstream">上游项目</string>

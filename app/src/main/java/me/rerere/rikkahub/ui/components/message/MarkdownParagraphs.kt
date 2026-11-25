@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.ui.components.message
 
+import me.rerere.rikkahub.ui.components.richtext.MAX_DIFF_SOURCE_CHARS
+import me.rerere.rikkahub.ui.components.richtext.MarkdownFenceTracker
+import me.rerere.rikkahub.ui.components.richtext.looksLikeStandaloneUnifiedDiff
+
 private val ListMarkerRegex = Regex("^ {0,3}([-*+]|\\d{1,9}[.)])\\s")
-private val FenceRegex = Regex("^ {0,3}(`{3,}|~{3,})")
 
 /**
  * 把 Markdown 按空行拆成段落，用于把一条助手回复拆成多个气泡显示。
@@ -10,22 +13,22 @@ private val FenceRegex = Regex("^ {0,3}(`{3,}|~{3,})")
  * 每段内容原样保留。
  */
 fun splitMarkdownParagraphs(text: String): List<String> {
+    if (text.length <= MAX_DIFF_SOURCE_CHARS && looksLikeStandaloneUnifiedDiff(text)) {
+        return listOf(text)
+    }
     val chunks = mutableListOf<MutableList<String>>()
     var current: MutableList<String>? = null
-    // 当前所在代码块的围栏，比如 ``` 或 ~~~~
-    var fence: String? = null
+    val fences = MarkdownFenceTracker()
     var mathEnd: String? = null
 
     for (line in text.lines()) {
         val trimmed = line.trim()
         when {
-            fence != null -> {
-                if (trimmed.startsWith(fence) && trimmed.all { it == fence[0] }) fence = null
-            }
-
             mathEnd != null -> {
                 if (trimmed == mathEnd) mathEnd = null
             }
+
+            fences.contains(line) -> Unit
 
             trimmed.isEmpty() -> {
                 current = null
@@ -33,7 +36,6 @@ fun splitMarkdownParagraphs(text: String): List<String> {
             }
 
             else -> {
-                FenceRegex.find(line)?.let { fence = it.groupValues[1] }
                 when (trimmed) {
                     "$$" -> mathEnd = "$$"
                     "\\[" -> mathEnd = "\\]"

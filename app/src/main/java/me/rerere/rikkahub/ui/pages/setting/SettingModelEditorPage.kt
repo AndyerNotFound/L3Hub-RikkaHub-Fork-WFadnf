@@ -42,7 +42,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -61,13 +60,11 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.model.ContextThresholdPresets
-import me.rerere.rikkahub.data.model.withResolvedContextLength
+import me.rerere.rikkahub.data.model.applyContextMaxPreset
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.modelSettingItem
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.AppSlider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
@@ -91,7 +88,6 @@ import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.SaltModalSheet
 import org.koin.androidx.compose.koinViewModel
 
@@ -553,7 +549,7 @@ private fun ModelBasicOptions(
             onModelChange = onModelChange,
         )
 
-        ModelContextThresholdFields(
+        ModelContextMaxSettings(
             model = model,
             onModelChange = onModelChange,
         )
@@ -863,13 +859,12 @@ fun ModalAbilitySelector(
 }
 
 @Composable
-private fun ModelContextThresholdFields(
+private fun ModelContextMaxSettings(
     model: Model,
     onModelChange: (Model) -> Unit,
 ) {
-    val warn = model.warnContextTokens
     val max = model.maxContextTokens
-    val invalid = warn != null && max != null && warn >= max
+    val draft = rememberNumberDraft(max)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -883,51 +878,40 @@ private fun ModelContextThresholdFields(
             )
             if (!model.contextThresholdsAuto) {
                 TextButton(
-                    onClick = {
-                        val resolved = model.withResolvedContextLength()
-                        val preset = ContextThresholdPresets.forModel(resolved)
-                        onModelChange(
-                            model.copy(
-                                contextLength = resolved.contextLength,
-                                warnContextTokens = preset.warn,
-                                maxContextTokens = preset.max,
-                                contextThresholdsAuto = true,
-                            )
-                        )
-                    },
+                    onClick = { onModelChange(model.applyContextMaxPreset()) },
                 ) {
                     Text(stringResource(R.string.setting_provider_page_context_threshold_use_preset))
                 }
             }
         }
-        ContextThresholdSlider(
-            label = stringResource(R.string.setting_provider_page_context_warn),
-            value = warn,
-            isError = invalid,
-            onValueChange = { value ->
-                onModelChange(model.copy(warnContextTokens = value, contextThresholdsAuto = false))
-            },
-        )
-        ContextThresholdSlider(
-            label = stringResource(R.string.setting_provider_page_context_max),
-            value = max,
-            isError = invalid,
-            onValueChange = { value ->
-                onModelChange(model.copy(maxContextTokens = value, contextThresholdsAuto = false))
-            },
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.setting_provider_page_context_max),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            NumberDraftField(
+                draft = draft,
+                externalValue = max,
+                onCommit = { value ->
+                    onModelChange(model.copy(maxContextTokens = value, contextThresholdsAuto = false))
+                },
+                modifier = Modifier.width(136.dp),
+                maxDigits = 8,
+                suffix = "tokens",
+                placeholder = "-",
+                normalize = { tokens -> tokens.takeIf { it > 0 } },
+                commitEmpty = true,
+            )
+        }
         Text(
-            text = if (invalid) {
-                stringResource(R.string.setting_provider_page_context_threshold_invalid)
-            } else {
-                stringResource(R.string.setting_provider_page_context_threshold_hint)
-            },
+            text = stringResource(R.string.setting_provider_page_context_threshold_hint),
             style = MaterialTheme.typography.bodySmall,
-            color = if (invalid) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -952,105 +936,6 @@ private fun ModelContextThresholdFields(
         }
     }
 }
-
-/**
- * 单个门限的调整：滑杆按 [ContextThresholdPresets.stops] 的档位粗调，
- * 右边的输入框填任意精确值，两边改的是同一个字段。
- *
- * 输入框的草稿和提交规则跟 NumberSlider 是同一份实现（NumberDraftField）：
- * 清空表示不设门限，非数字直接忽略；滑杆拖动时草稿跟着跳到对应档位，
- * 用户自己敲的 007 不会被外部回声冲掉；失焦时也保留原文，直到下一次真正的外部变化，
- * 这与普通 NumberSlider 失焦回填真实值的策略不同，是有意保留输入证据。
- */
-@Composable
-private fun ContextThresholdSlider(
-    label: String,
-    value: Int?,
-    isError: Boolean,
-    onValueChange: (Int?) -> Unit,
-) {
-    val stops = ContextThresholdPresets.stops
-    val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
-    val draft = rememberNumberDraft(value)
-
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f),
-            )
-            NumberDraftField(
-                draft = draft,
-                externalValue = value,
-                onCommit = onValueChange,
-                modifier = Modifier.width(136.dp),
-                maxDigits = 8,
-                suffix = "tokens",
-                placeholder = "-",
-                isError = isError,
-                // 门限填 0 等于清空门限：提交 null，输入框里留着用户敲的那个 0
-                normalize = { tokens -> tokens.takeIf { it > 0 } },
-                commitEmpty = true,
-            )
-        }
-        AppSlider(
-            value = contextStopPosition(stops, value),
-            onValueChange = { position ->
-                onValueChange(stops[position.roundToInt().coerceIn(stops.indices)])
-            },
-            valueRange = 0f..stops.lastIndex.toFloat(),
-            steps = stops.size - 2,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = contextThresholdSummary(stops.first(), binaryUnits),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = contextThresholdSummary(value, binaryUnits),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (isError) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
-            Text(
-                text = contextThresholdSummary(stops.last(), binaryUnits),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-internal fun contextStopPosition(stops: List<Int>, value: Int?): Float {
-    if (value == null || value <= stops.first()) return 0f
-    if (value >= stops.last()) return stops.lastIndex.toFloat()
-    val upper = stops.indexOfFirst { it >= value }
-    if (stops[upper] == value) return upper.toFloat()
-    val lower = stops[upper - 1]
-    return upper - 1 + (value - lower).toFloat() / (stops[upper] - lower)
-}
-
-/** 档位和当前值的显示：二进制口径整 KiB 写成 384Ki，其余按全局单位显示 */
-private fun contextThresholdSummary(value: Int?, binary: Boolean): String = when {
-    value == null || value <= 0 -> "-"
-    binary && value % KIB == 0 -> "${value / KIB}Ki"
-    else -> value.formatNumber(binary)
-}
-
-private const val KIB = 1024
 
 @Composable
 private fun ProviderOverrideSettings(

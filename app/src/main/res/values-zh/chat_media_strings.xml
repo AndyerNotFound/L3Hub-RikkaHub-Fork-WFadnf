@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_media_image_loading">图片加载中</string>
+    <string name="chat_media_image_loaded">图片已加载</string>
+    <string name="chat_media_image_failed">图片加载失败</string>
+    <string name="chat_media_image_retry">点击重试</string>
+    <string name="chat_media_image_generating">正在生成图片…</string>
+    <string name="chat_media_video_play">播放视频</string>
+</resources>

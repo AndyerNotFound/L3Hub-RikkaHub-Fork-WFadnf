@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -60,12 +62,13 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.normalizedChatParagraphSpacingRatio
+import me.rerere.rikkahub.data.datastore.normalizedChatTextLineHeightRatio
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.bettertext.latex.LatexInline
 import me.rerere.bettertext.markdown.InlineDecoration
 import me.rerere.bettertext.markdown.MarkdownBlock
 import me.rerere.bettertext.markdown.MarkdownComponents
@@ -131,6 +134,23 @@ private fun MarkdownPreview() {
     }
 }
 
+internal val LocalChatMarkdownLayout = compositionLocalOf { false }
+
+@Composable
+internal fun TextStyle.withAdvancedChatLineHeight(): TextStyle {
+    val appearance = LocalSettings.current.advancedAppearanceSetting
+    if (!appearance.enableAdvancedAppearance || !fontSize.isSp) return this
+    return copy(lineHeight = fontSize * appearance.normalizedChatTextLineHeightRatio())
+}
+
+@Composable
+internal fun advancedChatParagraphGap(fallback: Dp): Dp {
+    val appearance = LocalSettings.current.advancedAppearanceSetting
+    val size = LocalTextStyle.current.fontSize
+    if (!appearance.enableAdvancedAppearance || !size.isSp) return fallback
+    return with(LocalDensity.current) { size.toDp() } * appearance.normalizedChatParagraphSpacingRatio()
+}
+
 /**
  * 应用内使用的 Markdown：在通用的 [Markdown] 组件上接入代码高亮、图片预览、LaTeX 渲染、
  * 表格工具栏和搜索引用角标这些和应用相关的能力。
@@ -143,27 +163,47 @@ fun MarkdownBlock(
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
     streaming: Boolean = false,
+    renderMode: MarkdownRenderMode = MarkdownRenderMode.STANDARD,
     onClickCitation: (String) -> Unit = {}
 ) {
     val enableLatexRendering = LocalSettings.current.displaySetting.enableLatexRendering
     val enableQuoteHighlight = LocalSettings.current.displaySetting.enableQuoteHighlight
-    val fontSize = LocalTextStyle.current.merge(style).fontSize
+    val chatLayout = LocalChatMarkdownLayout.current || renderMode == MarkdownRenderMode.USER_MESSAGE
+    val appearance = LocalSettings.current.advancedAppearanceSetting
+    val textStyle = if (chatLayout) LocalTextStyle.current.merge(style).withAdvancedChatLineHeight() else style
+    val fontSize = LocalTextStyle.current.merge(textStyle).fontSize
     val density = LocalDensity.current
     val quoteColor = MaterialTheme.colorScheme.tertiary
-    val defaultTheme = MaterialMarkdownDefaults.theme(style)
-    val theme = remember(defaultTheme, fontSize, density, enableQuoteHighlight, quoteColor) {
+    val defaultTheme = MaterialMarkdownDefaults.theme(textStyle)
+    val spacing = if (fontSize.isSp) {
+        with(density) { fontSize.toDp() } * if (chatLayout && appearance.enableAdvancedAppearance) {
+            appearance.normalizedChatParagraphSpacingRatio()
+        } else 1f
+    } else defaultTheme.blockSpacing
+    val theme = remember(defaultTheme, spacing, enableQuoteHighlight, quoteColor) {
         defaultTheme.copy(
             inlineCode = defaultTheme.inlineCode.copy(
                 fontFamily = JetbrainsMono,
                 fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
             ),
             // 段落间距跟随字号，调整字体大小时保持比例
-            blockSpacing = if (fontSize.isSp) with(density) { fontSize.toDp() } else defaultTheme.blockSpacing,
+            blockSpacing = spacing,
             quotedText = SpanStyle(color = quoteColor).takeIf { enableQuoteHighlight },
         )
     }
 
+    val standaloneDiff = remember(content, streaming) {
+        !streaming && content.length <= MAX_DIFF_SOURCE_CHARS && looksLikeStandaloneUnifiedDiff(content)
+    }
+    if (standaloneDiff) {
+        HighlightCodeBlock(code = content, language = "diff", modifier = modifier.fillMaxWidth())
+        return
+    }
+    val displayContent = remember(content, renderMode, enableLatexRendering, streaming) {
+        preprocessMarkdownForDisplay(content, renderMode, normalizeLatex = enableLatexRendering, streaming = streaming)
+    }
     val currentOnClickCitation by rememberUpdatedState(onClickCitation)
+    val currentStreaming by rememberUpdatedState(streaming)
     val components = remember(enableLatexRendering) {
         MarkdownComponents(
             codeBlock = { block ->
@@ -186,14 +226,17 @@ fun MarkdownBlock(
             },
             // 禁用 LaTeX 渲染时不注册公式组件，公式以等宽字体显示源码
             mathBlock = if (enableLatexRendering) {
-                { formula -> MathBlock(latex = formula, modifier = Modifier.fillMaxWidth()) }
+                { formula ->
+                    MathBlock(latex = formula, modifier = Modifier.fillMaxWidth()
+                        .richContentFrame(streaming = currentStreaming, withLegacyFrame = false))
+                }
             } else {
                 null
             },
-            table = { table -> TableCard(table) },
+            table = { table -> TableCard(table, streaming = currentStreaming) },
             details = MaterialMarkdownDefaults.components.details,
             inlineMath = if (enableLatexRendering) {
-                { formula -> LatexInline.cached(formula, context) }
+                { formula -> renderInlineLatex(formula) }
             } else {
                 null
             },
@@ -208,9 +251,9 @@ fun MarkdownBlock(
     }
 
     MaterialMarkdown(
-        content = content,
+        content = displayContent,
         modifier = modifier.padding(horizontal = 4.dp),
-        style = style,
+        style = textStyle,
         theme = theme,
         components = components,
         streaming = streaming,
@@ -337,7 +380,7 @@ private fun parseColorCode(code: String): Color? {
 
 // 表格卡片（工具栏 + 表格）
 @Composable
-private fun TableCard(table: MarkdownBlock.Table) {
+private fun TableCard(table: MarkdownBlock.Table, streaming: Boolean) {
     val clipboardManager = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -363,15 +406,12 @@ private fun TableCard(table: MarkdownBlock.Table) {
     }
 
     Column(
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.large)
-            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), MaterialTheme.shapes.large)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+        modifier = Modifier.richContentFrame(streaming),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(richContentHeaderColor())
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

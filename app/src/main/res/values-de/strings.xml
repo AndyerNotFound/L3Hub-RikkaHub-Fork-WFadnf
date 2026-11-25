@@ -1865,11 +1865,9 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">Wähle die Sub-Agents, an die dieser Assistent Aufgaben verteilen darf. Ohne Auswahl sind alle erlaubt.</string>
   <string name="assistant_page_local_tools_sub_agent_title">Sub-Agents verteilen</string>
   <string name="assistant_page_memory_auto_compress">Automatisch komprimieren</string>
-  <string name="assistant_page_memory_auto_compress_desc">Komprimiert den Verlauf zu einer Zusammenfassung, wenn die Kontextauslastung diesen Anteil der gewählten Warmlinie erreicht: einmal nach einer Antwort und während eines Durchlaufs nach jedem Werkzeug-Batch; das Ergebnis entspricht der manuellen Komprimierung</string>
-  <string name="assistant_page_memory_auto_compress_ratio">Auslöseanteil</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">Prozentsatz der gewählten Warmlinie (WARN/MAX); Modelle ohne Schwellenwerte fallen auf 75 % / 90 % des Kontextfensters zurück</string>
-  <string name="assistant_page_memory_auto_compress_threshold">Warnlinie</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN ist die Warmlinie, MAX das harte Limit; der Auslöseanteil bezieht sich auf die gewählte Warmlinie</string>
+  <string name="assistant_page_memory_auto_compress_desc">Fasst den Verlauf zu einer Zusammenfassung zusammen, sobald die Kontextauslastung die Auslöseschwelle erreicht: geprüft nach jeder Antwort und nach jedem Werkzeug-Batch; das Ergebnis entspricht der manuellen Komprimierung</string>
+  <string name="assistant_page_memory_auto_compress_ratio">Auslöseschwelle</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">Prozentsatz des MAX des Modells; ohne MAX keine automatische Komprimierung</string>
   <string name="assistant_page_sub_agent">Als Sub-Agent festlegen</string>
   <string name="assistant_page_sub_agent_desc">Andere Assistenten können über das Tool dispatch_sub_agent Aufgaben an diesen Assistenten übergeben. Sub-Agents laufen in getrennten Unterhaltungen und teilen den aktuellen Kontext nicht</string>
   <string name="assistant_page_tab_heartbeat">Heartbeat</string>
@@ -1910,7 +1908,6 @@
   <string name="chat_page_context_limit_reached">Kontextlimit erreicht. Verlauf komprimieren oder eine neue Unterhaltung beginnen</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">Als XML-Text mit erhaltenen Original-Markierungen exportieren</string>
   <string name="chat_page_heartbeat_conversation_title">Heartbeat · %1$s</string>
@@ -2263,11 +2260,9 @@
   <string name="setting_provider_page_context_block">Bei MAX das Senden blockieren</string>
   <string name="setting_provider_page_context_block_desc">Wenn aus, erscheint bei MAX nur ein Hinweis und Nachrichten werden weiterhin gesendet</string>
   <string name="setting_provider_page_context_max">Obergrenze (MAX)</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN markiert den Punkt bester Leistung, ab dem die Anzeige warnt; MAX ist der Punkt starken Leistungsabfalls, ab dem keine Nachrichten mehr gesendet werden. Leer bedeutet keine Begrenzung</string>
-  <string name="setting_provider_page_context_threshold_invalid">WARN muss kleiner als MAX sein</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX ist das Kontextfenster-Limit des Modells. Leer lassen deaktiviert es</string>
   <string name="setting_provider_page_context_threshold_use_preset">Voreinstellung verwenden</string>
   <string name="setting_provider_page_context_thresholds">Kontextwarnungen</string>
-  <string name="setting_provider_page_context_warn">Warnschwelle (WARN)</string>
   <string name="setting_provider_proxy_clear">Proxy dieses Anbieters entfernen</string>
   <string name="setting_provider_proxy_desc">Legt einen eigenen Proxy für die API-Domain dieses Anbieters fest; unterstützt http://, https:// und socks5://. Bei Bedarf Benutzername und Passwort angeben; leer lassen für den globalen Proxy</string>
   <string name="setting_provider_proxy_desc_short">Globalem Proxy folgen</string>

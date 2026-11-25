@@ -125,6 +125,7 @@ fun MediaCreationPage(id: String) {
     }
 
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = {

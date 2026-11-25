@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_media_image_loading">Loading image</string>
+    <string name="chat_media_image_loaded">Image loaded</string>
+    <string name="chat_media_image_failed">Couldn\'t load image</string>
+    <string name="chat_media_image_retry">Tap to retry</string>
+    <string name="chat_media_image_generating">Generating image…</string>
+    <string name="chat_media_video_play">Play video</string>
+</resources>

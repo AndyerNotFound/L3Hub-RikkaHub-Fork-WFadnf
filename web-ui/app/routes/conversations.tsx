@@ -1104,9 +1104,7 @@ function ConversationsPageInner() {
         {isNewChat && (
           <div className="mb-4 text-center">
             <div className="mb-3 flex justify-center">
-              <div className="[&>svg]:size-16">
-                <Logo className="size-16 text-primary" />
-              </div>
+              <Logo className="size-16" alt="L3Hub" />
             </div>
             <p className="text-lg text-muted-foreground">{t("conversations.welcome_prompt")}</p>
           </div>

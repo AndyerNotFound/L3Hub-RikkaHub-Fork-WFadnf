@@ -136,6 +136,7 @@ fun SettingPreferencesMessageStylePage(
     }
 
     Scaffold(
+        containerColor = me.rerere.rikkahub.ui.navigation.appearancePageContainerColor(),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.message_style_page_title)) },

@@ -3,7 +3,9 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,11 +13,14 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,6 +43,10 @@ import me.rerere.hugeicons.stroke.ArrowDownDouble
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUpDouble
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
+import me.rerere.rikkahub.data.datastore.MAX_CHAT_SUGGESTION_HEIGHT
+import me.rerere.rikkahub.data.datastore.MIN_CHAT_SUGGESTION_HEIGHT
+import me.rerere.rikkahub.data.datastore.finiteAppearanceValue
 import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
@@ -56,19 +65,56 @@ private fun jumperButtonColor(): Color {
 
 // 消息列表上的小组件：列表末尾的建议回复、侧边浮动的快速跳转按钮
 
+internal data class SuggestionSurfaceStyle(
+    val opacity: Float,
+    val borderOpacity: Float,
+    val maxHeight: Float,
+)
+
+internal fun AdvancedAppearanceSetting.suggestionSurfaceStyle(): SuggestionSurfaceStyle? =
+    if (!enableAdvancedAppearance || !enableChatSuggestionSurface) null
+    else SuggestionSurfaceStyle(
+        chatSuggestionSurfaceOpacity,
+        chatSuggestionBorderOpacity,
+        finiteAppearanceValue(chatSuggestionMaxHeight, MIN_CHAT_SUGGESTION_HEIGHT, MAX_CHAT_SUGGESTION_HEIGHT, 128f),
+    )
+
 @Composable
 internal fun ChatSuggestionsColumn(
     modifier: Modifier = Modifier,
     suggestions: List<String>,
     onClickSuggestion: (String) -> Unit,
 ) {
+    val style = LocalSettings.current.advancedAppearanceSetting.suggestionSurfaceStyle()
+    // LazyColumn measures each item with infinite height. Bound the inner viewport before scrolling.
+    val scroll = if (style != null) {
+        Modifier.heightIn(max = style.maxHeight.dp).verticalScroll(rememberScrollState())
+    } else Modifier
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(scroll),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         suggestions.forEachIndexed { index, suggestion ->
-            Row(
-                modifier = Modifier
+            val rowModifier = if (style != null) {
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onClickSuggestion(suggestion) }
+                    .background(
+                        MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+                            .copy(alpha = style.opacity.coerceIn(.2f, 1f))
+                    )
+                    .border(
+                        BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                                .copy(alpha = style.borderOpacity.coerceIn(0f, 1f)),
+                        ),
+                        RoundedCornerShape(16.dp),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            } else {
+                Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .clickable { onClickSuggestion(suggestion) }
@@ -78,7 +124,10 @@ internal fun ChatSuggestionsColumn(
                             floor = 0.6f,
                         )
                     )
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            }
+            Row(
+                modifier = rowModifier,
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {

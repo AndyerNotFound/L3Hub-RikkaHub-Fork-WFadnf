@@ -11,6 +11,7 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import me.rerere.rikkahub.ui.navigation.appearancePageContainerColor
 
 data class ExtendColors(
     val red1: Color,
@@ -175,10 +176,11 @@ object CustomColors {
     var black = false
 
     val topBarColors: TopAppBarColors
-        @Composable get() = TopAppBarDefaults.topAppBarColors(
-            containerColor = LocalUiSlots.current.topBar,
-            scrolledContainerColor = LocalUiSlots.current.topBar
-        )
+        @Composable get() {
+            // These colors are also read by legacy Scaffold call sites for their page container.
+            val base = appearancePageContainerColor(LocalUiSlots.current.topBar)
+            return TopAppBarDefaults.topAppBarColors(containerColor = base, scrolledContainerColor = base)
+        }
 
     val cardColors: CardColors
         @Composable get() = CardDefaults.cardColors(containerColor = LocalUiSlots.current.card)

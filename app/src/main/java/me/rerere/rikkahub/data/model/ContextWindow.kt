@@ -24,10 +24,9 @@ fun isContextLimitReached(tokens: Int?, maxTokens: Int?): Boolean {
 /**
  * Usage 看板/上下文占比条使用的有效窗口。
  *
- * 原版的 [Model.contextLength] 已不再在界面里维护，优先使用新的 MAX 门限；
- * 没设 MAX 时退回 WARN，最后才兼容旧的 contextLength。
+ * 优先使用 MAX 门限，未设置时用 [Model.contextLength]。
+ * 这项兜底不用于自动压缩触发或 MAX 发送拦截。
  */
 val Model.effectiveContextWindow: Int?
     get() = maxContextTokens?.takeIf { it > 0 }
-        ?: warnContextTokens?.takeIf { it > 0 }
         ?: contextLength.takeIf { it > 0 }

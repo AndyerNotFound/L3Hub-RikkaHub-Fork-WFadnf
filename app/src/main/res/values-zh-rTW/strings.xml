@@ -2029,11 +2029,9 @@
   <string name="assistant_page_allowed_sub_agents_dialog_desc">勾選這個助手允許派發的子代理；全部不勾選表示不限制</string>
   <string name="assistant_page_local_tools_sub_agent_title">派發子代理</string>
   <string name="assistant_page_memory_auto_compress">自動壓縮</string>
-  <string name="assistant_page_memory_auto_compress_desc">上下文佔用達到所選預警線的這個比例時，把歷史壓成摘要：一輪回覆結束後檢查一次，一輪中途每批工具執行完也會檢查；效果與手動壓縮一致</string>
-  <string name="assistant_page_memory_auto_compress_ratio">觸發比例</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">相對所選預警線（WARN/MAX）的百分比；沒配門限的模型按視窗的 75% / 90% 兜底</string>
-  <string name="assistant_page_memory_auto_compress_threshold">預警線</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN 為預警線，MAX 為硬上限；觸發比例按所選預警線計算</string>
+  <string name="assistant_page_memory_auto_compress_desc">上下文佔用達到觸發閾值時，把歷史壓成摘要：每次回覆結束後檢查，每批工具執行完也檢查；效果與手動壓縮一致</string>
+  <string name="assistant_page_memory_auto_compress_ratio">觸發閾值</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">相對模型 MAX 的百分比；沒有 MAX 就不自動壓縮</string>
   <string name="assistant_page_sub_agent">設為子代理</string>
   <string name="assistant_page_sub_agent_desc">其他助手可透過 dispatch_sub_agent 工具將任務派發給該助手。子代理在獨立會話中執行，不共享當前上下文</string>
   <string name="backup_page_import_from_markdown">從 Markdown 匯入</string>
@@ -2054,7 +2052,6 @@
   <string name="chat_page_context_limit_reached">上下文已達上限，請壓縮歷史或新建對話</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">匯出保留原始標記的 XML 文字</string>
   <string name="chat_page_interject">插話</string>
@@ -2347,11 +2344,9 @@
   <string name="setting_provider_page_context_block">到達 MAX 時阻止傳送</string>
   <string name="setting_provider_page_context_block_desc">關閉後，到達 MAX 僅顯示提示，訊息照常傳送</string>
   <string name="setting_provider_page_context_max">上限閾值（MAX）</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN 為效能最佳點，超過後進度條開始提醒；MAX 為效能驟降點，到達後禁止傳送訊息。留空表示不限制</string>
-  <string name="setting_provider_page_context_threshold_invalid">WARN 必須小於 MAX</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX 為模型的上下文視窗上限，留空即停用</string>
   <string name="setting_provider_page_context_threshold_use_preset">使用預設</string>
   <string name="setting_provider_page_context_thresholds">上下文預警</string>
-  <string name="setting_provider_page_context_warn">預警閾值（WARN）</string>
   <string name="setting_provider_proxy_clear">清除該提供商的代理</string>
   <string name="setting_provider_proxy_desc">為該提供商的介面域名單獨設定代理，支援 http://、https://、socks5://；需要認證時填寫使用者名稱與密碼，留空則使用全域性代理</string>
   <string name="setting_provider_proxy_desc_short">跟隨全域性代理</string>

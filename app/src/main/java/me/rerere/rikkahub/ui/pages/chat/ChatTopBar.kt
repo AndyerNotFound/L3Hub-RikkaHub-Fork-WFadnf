@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,12 +66,19 @@ import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.ui.components.ai.ChatCapsule
 import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.ui.components.ai.needsFlatOutline
+import me.rerere.rikkahub.ui.components.ai.topBarCapsuleMaterial
+import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
+import me.rerere.rikkahub.ui.components.ui.topBarBackdropMaterial
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
+import me.rerere.ui.components.LocalSeparateWindowColors
+import me.rerere.ui.components.SeparateWindowContent
 import kotlin.uuid.Uuid
 
 // 顶栏按钮统一尺寸：45dp 的按钮配 22.5dp 的图标（原来是 40dp/20dp，等比放大 12.5%），
@@ -90,7 +98,6 @@ internal fun TopBar(
     threePane: Boolean,
     sidebarOpen: Boolean,
     onOpenSidebar: () -> Unit,
-    showCapsuleBackground: Boolean,
     onNewChat: () -> Unit,
     onShowTaskTree: () -> Unit,
     onShowModelPicker: () -> Unit,
@@ -103,6 +110,10 @@ internal fun TopBar(
     onToggleDetails: () -> Unit,
 ) {
     val effect = settings.displaySetting.effectiveBackgroundEffect
+    val appearance = settings.advancedAppearanceSetting
+    // 高级外观开启后，顶栏的底与按钮的底都改由 advancedMaterial 画；关着时这两项恒为 null
+    val backdropMaterial = appearance.topBarBackdropMaterial(settings.displaySetting)
+    val buttonMaterial = appearance.topBarCapsuleMaterial(settings.displaySetting)
     // 着色交给 chatInputHaze，按当前档位读滑杆；按钮自己只在关闭特效时铺实色
     fun effectColor(base: Color): Color =
         if (effect == BackgroundEffectType.OFF) base else Color.Transparent
@@ -113,6 +124,19 @@ internal fun TopBar(
     }
 
     TopAppBar(
+        // 底色交给材质层，容器本身保持透明，否则会和底叠成两倍浓度
+        modifier = if (backdropMaterial != null) {
+            Modifier.advancedMaterial(
+                shape = RectangleShape,
+                base = MaterialTheme.colorScheme.surfaceContainer,
+                material = backdropMaterial,
+                hazeState = hazeState,
+                // 顶栏压着滚动中的消息正文，着色掉到 0.35 以下就看不出这是一条底了
+                readableFloor = .35f,
+            )
+        } else {
+            Modifier
+        },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         title = {
             // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里。
@@ -152,19 +176,47 @@ internal fun TopBar(
                             .size(TopBarButtonSize)
                             .appButtonShadow(navShape, 2.dp)
                             .clip(navShape)
-                            .background(effectColor(navColor))
-                            .chatInputHaze(
-                                hazeState = hazeState,
-                                displaySetting = settings.displaySetting,
-                                containerColor = navColor,
-                                shape = navShape,
-                            )
-                            // 描边画在模糊层之后，否则会被糊掉
                             .then(
-                                if (effectBorder != null) {
-                                    Modifier.border(effectBorder, navShape)
+                                if (buttonMaterial != null) {
+                                    Modifier
+                                        .advancedMaterial(
+                                            shape = navShape,
+                                            base = navColor,
+                                            material = buttonMaterial,
+                                            hazeState = hazeState,
+                                            readableFloor = .35f,
+                                        )
+                                        // 玻璃档自带渐变描边，其余档补一道平线
+                                        .then(
+                                            if (buttonMaterial.needsFlatOutline()) {
+                                                Modifier.border(
+                                                    BorderStroke(
+                                                        1.dp,
+                                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                                    ),
+                                                    navShape,
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
                                 } else {
                                     Modifier
+                                        .background(effectColor(navColor))
+                                        .chatInputHaze(
+                                            hazeState = hazeState,
+                                            displaySetting = settings.displaySetting,
+                                            containerColor = navColor,
+                                            shape = navShape,
+                                        )
+                                        // 描边画在模糊层之后，否则会被糊掉
+                                        .then(
+                                            if (effectBorder != null) {
+                                                Modifier.border(effectBorder, navShape)
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
                                 }
                             ),
                         shape = navShape,
@@ -198,6 +250,7 @@ internal fun TopBar(
                 ChatCapsule(
                     displaySetting = settings.displaySetting,
                     hazeState = hazeState,
+                    material = buttonMaterial,
                     modifier = Modifier.height(TopBarButtonSize),
                 ) {
                     // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
@@ -273,6 +326,7 @@ private fun ChatModelFolderPill(
     ChatCapsule(
         displaySetting = settings.displaySetting,
         hazeState = hazeState,
+        material = settings.advancedAppearanceSetting.topBarCapsuleMaterial(settings.displaySetting),
         modifier = modifier.height(TopBarButtonSize),
     ) {
         Box {
@@ -462,32 +516,44 @@ private fun ChatPageMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
-                MenuItem(
-                    text = stringResource(R.string.chat_page_conversation_map),
-                    icon = HugeIcons.LeftToRightListBullet,
-                    index = 0,
-                    count = 2,
-                    onClick = onShowOverview,
-                )
-                MenuItem(
-                    text = stringResource(R.string.export_title),
-                    icon = HugeIcons.Share04,
-                    index = 1,
-                    count = 2,
-                    onClick = onExport,
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 1)) {
-                MenuItem(
-                    text = stringResource(R.string.delete),
-                    icon = HugeIcons.Delete01,
-                    index = 0,
-                    count = 1,
-                    destructive = true,
-                    onClick = onDelete,
-                )
+            val overlay = LocalSeparateWindowColors.current
+            val color = overlay?.menuGroup ?: MenuDefaults.groupStandardContainerColor
+            SeparateWindowContent {
+                DropdownMenuGroup(
+                    shapes = MenuDefaults.groupShape(index = 0, count = 2),
+                    containerColor = color,
+                    border = overlay?.menuBorder,
+                ) {
+                    MenuItem(
+                        text = stringResource(R.string.chat_page_conversation_map),
+                        icon = HugeIcons.LeftToRightListBullet,
+                        index = 0,
+                        count = 2,
+                        onClick = onShowOverview,
+                    )
+                    MenuItem(
+                        text = stringResource(R.string.export_title),
+                        icon = HugeIcons.Share04,
+                        index = 1,
+                        count = 2,
+                        onClick = onExport,
+                    )
+                }
+                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(
+                    shapes = MenuDefaults.groupShape(index = 1, count = 1),
+                    containerColor = color,
+                    border = overlay?.menuBorder,
+                ) {
+                    MenuItem(
+                        text = stringResource(R.string.delete),
+                        icon = HugeIcons.Delete01,
+                        index = 0,
+                        count = 1,
+                        destructive = true,
+                        onClick = onDelete,
+                    )
+                }
             }
         }
     }

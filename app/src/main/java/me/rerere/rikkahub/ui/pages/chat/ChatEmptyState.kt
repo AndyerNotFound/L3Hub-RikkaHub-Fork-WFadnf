@@ -40,10 +40,15 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundEffectType
+import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.ui.components.ai.chatInputHaze
+import me.rerere.rikkahub.ui.components.richtext.outline
+import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
+import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
@@ -123,15 +128,28 @@ private fun EmptyChatHero(
     hazeState: HazeState,
 ) {
     val settings = LocalSettings.current
+    val appearance = settings.advancedAppearanceSetting
+    val inspiration = appearance.inspirationAppearance
     val effect = settings.displaySetting.effectiveBackgroundEffect
-    val shape = RoundedCornerShape(28.dp)
-    val baseColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val bespoke = appearance.enableAdvancedAppearance && !inspiration.followRichContent
+    val material = when {
+        bespoke -> AppearanceMaterial(BackgroundSurfaceStyle.TRANSLUCENT, inspiration.surfaceOpacity)
+        else -> appearance.richContentMaterial()
+    }
+    val shape = RoundedCornerShape(if (bespoke) inspiration.cornerRadius.dp else 28.dp)
+    val scheme = MaterialTheme.colorScheme
+    val baseColor = scheme.surfaceContainerLow
+    val advancedBorder = if (bespoke) {
+        BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = inspiration.borderOpacity))
+    } else appearance.richContentStyle.outline()
     Column(
         modifier = Modifier
             .padding(horizontal = 40.dp)
             .clip(shape)
             .then(
-                if (effect != BackgroundEffectType.OFF) {
+                if (material != null) {
+                    Modifier.advancedMaterial(shape, baseColor, material, hazeState).border(advancedBorder, shape)
+                } else if (effect != BackgroundEffectType.OFF) {
                     Modifier.chatInputHaze(
                         hazeState = hazeState,
                         displaySetting = settings.displaySetting,
@@ -144,7 +162,7 @@ private fun EmptyChatHero(
             )
             // 描边画在模糊层之后，否则会被糊掉
             .then(
-                if (effect == BackgroundEffectType.BLUR) {
+                if (material == null && effect == BackgroundEffectType.BLUR) {
                     Modifier.border(
                         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                         shape,

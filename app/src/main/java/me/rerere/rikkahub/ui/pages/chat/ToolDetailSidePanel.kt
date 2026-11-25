@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +50,9 @@ import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolPreviewFullHeight
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailRequest
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
+import me.rerere.rikkahub.ui.components.ui.overlayMaterial
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
@@ -107,13 +111,22 @@ internal fun ToolDetailSidePanel(
                 fadeOut(animationSpec = rememberEffectsSpec()),
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
+            val scheme = MaterialTheme.colorScheme
+            val shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+            val material = LocalSettings.current.advancedAppearanceSetting
+                .takeIf { it.enableAdvancedAppearance }?.overlayMaterial()
+            val panel = if (material != null) {
+                Modifier.advancedMaterial(shape, scheme.surface, material, readableFloor = .62f)
+            } else Modifier
             Surface(
                 modifier = Modifier
                     .width(panelWidth)
-                    .fillMaxHeight(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
-                tonalElevation = 3.dp,
+                    .fillMaxHeight()
+                    .then(panel),
+                color = if (material == null) scheme.surface else Color.Transparent,
+                contentColor = scheme.onSurface,
+                shape = shape,
+                tonalElevation = if (material == null) 3.dp else 0.dp,
                 shadowElevation = 8.dp,
             ) {
                 Column(

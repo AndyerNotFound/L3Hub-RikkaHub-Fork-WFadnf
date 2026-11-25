@@ -805,11 +805,6 @@ html[data-theme="dark"] body[data-amoled="on"]{
 
   <div id="composer">
     <div id="meter">
-      <div class="meter-row" id="meter-warn">
-        <span class="lb">WARN</span>
-        <div class="track"><i style="width:26%"></i></div>
-        <span class="val">12.3K / 48.0K · 26%</span>
-      </div>
       <div class="meter-row" id="meter-max">
         <span class="lb">MAX</span>
         <div class="track"><i style="width:6%"></i></div>
@@ -949,7 +944,7 @@ const shortcuts = [
 ];
 
 const conversations = {
-  c1: { id: 'c1', title: '把上下文预警拆成两条', pin: true, live: true },
+  c1: { id: 'c1', title: '把上下文预警收成一条 MAX', pin: true, live: true },
   c7: { id: 'c7', title: '截图里的下载按钮', pin: false },
   c2: { id: 'c2', title: '分栏布局的返回键收敛', pin: false },
   c3: { id: 'c3', title: 'Salt 主题接进设置页', pin: false },
@@ -977,11 +972,11 @@ const drawerItems = [
 ];
 
 const chat = {
-  title: '把上下文预警拆成两条',
+  title: '把上下文预警收成一条 MAX',
   messages: [
     {
       role: 'user',
-      text: '把上下文预警拆成 WARN 和 MAX 两条，阈值从模型上读，别在页面里再写一份常量。',
+      text: '上下文预警只留 MAX 一条，阈值从模型上读，别在页面里再写一份常量。',
       chips: [{ i: 'i-file', n: 'ContextUsageMeter.kt' }],
     },
     {
@@ -990,41 +985,41 @@ const chat = {
       reasoning: {
         title: '深度思考 · 先确认分母从哪来',
         dur: '3.4',
-        text: 'WARN 与 MAX 的语义不同：WARN 是性能开始下滑的点，MAX 是禁止继续发送的点。两者分母都来自 Model 上的两个可空字段，页面只该读，不该兜底成常量。\n\n旧实现把两条合成一条，百分比按 MAX 算；WARN 那条要单独用自己的分母，否则两条进度条永远同比例。',
+        text: '分母只剩 MAX 一个：它是禁止继续发送的点，来自 Model 上的可空字段，页面只该读，不该兜底成常量。\n\n旧实现画两条，WARN 那条自己算分母；现在 WARN 整个拿掉，占比一律按 MAX 算，没设 MAX 就整块不画。',
       },
       tools: [{
         name: 'workspace_read_file', title: '读取: ChatPage.kt', dur: '0.8',
         args: { path: 'ui/pages/chat/ChatPage.kt', offset: 480, limit: 80 },
-        out: '… val warnContextTokens = model?.warnContextTokens\n… val maxContextTokens = model?.maxContextTokens\n… ChatInput(contextMeter = …)',
+        out: '… val maxContextTokens = model?.maxContextTokens\n… ChatInput(contextMeter = …)',
       }],
-      html: `<p>两条条各用自己的分母，占用取最近一次回复的真实用量 <code>prompt + completion</code>：</p>
+      html: `<p>只剩一条，分母取模型上的 MAX，占用取最近一次回复的真实用量 <code>prompt + completion</code>：</p>
 <div class="code"><div class="cbar">${icon('i-file', 's12')}<span>ContextUsageMeter.kt</span></div><pre><span class="tk-k">val</span> fraction = used.toFloat() / denominator
 <span class="tk-k">val</span> color = <span class="tk-k">when</span> {
-    fraction &gt;= 1f -&gt; <span class="tk-k">if</span> (isMax) error <span class="tk-k">else</span> tertiary
+    fraction &gt;= 1f -&gt; error
     fraction &gt;= 0.8f -&gt; tertiary
     <span class="tk-k">else</span> -&gt; primary
 }</pre></div>
-<p>WARN 条超过 80% 转提醒色，MAX 条满格转 error 并拦发送。两条门限都留空时整块不显示。</p>`,
+<p>超过 80% 转提醒色，满格转 error 并拦发送。没设 MAX 时整块不显示。</p>`,
       nerd: ['6 步 · ¥0.0042', '12.3K 上下文（已缓存 8.1K）'],
       edited: [{ p: 'ui/components/ai/ContextUsageMeter.kt', a: 38, d: 6 }, { p: 'ui/components/ai/ChatInput.kt', a: 4, d: 2 }],
     },
     {
       role: 'user',
-      text: '80% 那条为什么用 tertiary？',
+      text: '80% 之后为什么用 tertiary？',
     },
     {
       role: 'ai',
       name: '默认助手',
-      html: `<p>因为 <code>error</code> 留给真正拦住发送的那一条。两条都变红的话，WARN 的提醒就失去位置了。</p>
+      html: `<p>因为 <code>error</code> 留给真正拦住发送的那一刻。提前变红，提醒就失去位置了。</p>
 <p>颜色不是三档固定值，是按比例算的：</p>
-<ul><li>低于 80%：<code>primary</code></li><li>80% 到满格：<code>tertiary</code></li><li>满格：MAX 条 <code>error</code>，WARN 条仍是 <code>tertiary</code></li></ul>`,
+<ul><li>低于 80%：<code>primary</code></li><li>80% 到满格：<code>tertiary</code></li><li>满格：<code>error</code>，同时拦发送</li></ul>`,
       nerd: ['12.3K 上下文'],
     },
     {
       role: 'notice',
       title: '子代理任务完成',
       hint: '系统自动回传',
-      body: '研究员：ContextUsageMeter 的两个分母都来自 Model，旧版本的 200K 是写死的回退值；换成 model?.maxContextTokens 之后，旧设置 JSON 缺字段时会退回 null，整块隐藏。',
+      body: '研究员：ContextUsageMeter 的分母只剩 Model 上的 MAX，旧版本的 200K 是写死的回退值；换成 model?.maxContextTokens 之后，旧设置 JSON 缺字段时会退回 null，整块隐藏。',
     },
   ],
 };
@@ -1225,9 +1220,9 @@ function renderChat() {
 
 /* ---------------- 渲染：右侧面板 ---------------- */
 const agents = [
-  { n: '主会话', s: '把上下文预警拆成两条', d: 0, st: 'running' },
+  { n: '主会话', s: '把上下文预警收成一条 MAX', d: 0, st: 'running' },
   { n: '研究员', s: '查 ContextUsageMeter 的阈值来源', d: 1, st: 'completed' },
-  { n: '校对', s: '核对 WARN 与 MAX 的分母', d: 2, st: 'failed' },
+  { n: '校对', s: '核对 MAX 的分母与预设', d: 2, st: 'failed' },
 ];
 const statusText = { running: '进行中', completed: '已完成', failed: '失败' };
 
@@ -1545,7 +1540,7 @@ function streamReply() {
   const msg = { role: 'ai', name: '默认助手', html: '', streaming: true, actions: false };
   chat.messages.push(msg);
   renderChat();
-  const full = '收到。两条进度条各自读模型上的门限：WARN 到 80% 转提醒色，MAX 满格转 `error` 并拦住发送。\n\n- 占用取最近一次回复的 `prompt + completion`\n- 两个门限都留空时整块不显示\n\n本轮只动了计量组件与输入栏的传参，没有碰发送拦截点。';
+  const full = '收到。只剩一条进度条，读模型上的 MAX：到 80% 转提醒色，满格转 `error` 并拦住发送。\n\n- 占用取最近一次回复的 `prompt + completion`\n- 没设 MAX 时整块不显示\n\n本轮只动了计量组件与输入栏的传参，没有碰发送拦截点。';
   let i = 0;
   const tick = () => {
     i = Math.min(full.length, i + 2);

@@ -57,10 +57,9 @@ data class Assistant(
     val useGlobalMemory: Boolean = false, // 使用全局共享记忆而非助手隔离记忆
     val autoConsolidateMemory: Boolean = true, // 对话停下来后在后台自动整理记忆; 关闭后只能手动整理
     val dreamingModelId: Uuid? = null, // 整理记忆(Dreaming)用的模型, 为 null 跟随全局
-    // 上下文占用达到所选预警线（WARN/MAX）的这个比例后自动压缩，效果与手动压缩一致（插入检查点摘要）
     val autoCompress: Boolean = false,
+    // 上下文占用达到模型 MAX 的这个比例时自动压缩
     val autoCompressRatio: Float = 0.8f,
-    val autoCompressThreshold: AutoCompressThreshold = AutoCompressThreshold.WARN,
     val enableRecentChatsReference: Boolean = false,
     val messageTemplate: String = "{{ message }}",
     val presetMessages: List<UIMessage> = emptyList(),
@@ -102,14 +101,14 @@ data class Assistant(
         get() = workspaceId ?: workspaceIds.firstOrNull()
 }
 
-/** 设置和备份共用解码规则：旧计划模式优先，不能恢复到原来更宽的权限。 */
+/** 设置和备份共用的旧助手字段迁移规则。 */
 @OptIn(ExperimentalSerializationApi::class)
 private object AssistantSerializer : JsonTransformingSerializer<Assistant>(Assistant.generatedSerializer()) {
     override fun transformDeserialize(element: JsonElement): JsonElement {
         val fields = element as? JsonObject ?: return element
         val planMode = fields["planMode"]
         val legacyReadWrite = fields["executionPermission"] == JsonPrimitive("READ_WRITE")
-        if (planMode == null && !legacyReadWrite) return fields
+        if (planMode == null && !legacyReadWrite && "autoCompressThreshold" !in fields) return fields
 
         val migrated = when {
             // 损坏的旧标记不能当作关闭计划模式处理。
@@ -119,6 +118,7 @@ private object AssistantSerializer : JsonTransformingSerializer<Assistant>(Assis
         }
         return JsonObject(fields.toMutableMap().apply {
             remove("planMode")
+            remove("autoCompressThreshold")
             if (migrated != null) put("executionPermission", JsonPrimitive(migrated.name))
         })
     }

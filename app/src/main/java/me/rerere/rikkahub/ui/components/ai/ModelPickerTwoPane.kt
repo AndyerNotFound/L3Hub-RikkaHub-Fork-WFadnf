@@ -579,14 +579,10 @@ private fun GroupOrderDialog(
 @Composable
 private fun ContextWatermark(model: Model, providerName: String?) {
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
+    val maxTokens = model.maxContextTokens?.takeIf { it > 0 }
     val parts = buildList {
         providerName?.let { add(it) }
-        if (model.warnContextTokens != null || model.maxContextTokens != null) {
-            add(
-                "WARN ${formatTokens(model.warnContextTokens, binaryUnits)}" +
-                    " · MAX ${formatTokens(model.maxContextTokens, binaryUnits)}"
-            )
-        }
+        maxTokens?.let { add("MAX ${formatTokens(it, binaryUnits)}") }
     }
     if (parts.isEmpty()) return
     Text(
@@ -599,7 +595,7 @@ private fun ContextWatermark(model: Model, providerName: String?) {
 }
 
 private fun contextWatermark(model: Model, providerName: String?): (@Composable () -> Unit)? =
-    if (providerName != null || model.warnContextTokens != null || model.maxContextTokens != null) {
+    if (providerName != null || model.maxContextTokens?.takeIf { it > 0 } != null) {
         { ContextWatermark(model = model, providerName = providerName) }
     } else {
         null

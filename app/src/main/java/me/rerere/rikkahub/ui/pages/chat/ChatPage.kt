@@ -29,9 +29,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberDrawerState
@@ -117,6 +117,8 @@ import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
+import me.rerere.rikkahub.ui.components.ui.LocalAdvancedAppearanceBusy
+import me.rerere.rikkahub.ui.components.ui.LocalGlassHazeState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
@@ -160,6 +162,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         derivedStateOf { conversationState.value.messageNodes.size }
     }
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
+    val sessionActivity by vm.sessionActivity.collectAsStateWithLifecycle()
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val assistant by vm.assistant.collectAsStateWithLifecycle()
@@ -180,8 +183,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
     // 竖屏的侧边栏：Material 的模态抽屉，开关、边缘手势与手势仲裁都交给 DrawerState
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    // 背景层（AssistantBackground）单独一份 Haze 源：抽屉和浮层的玻璃都取它，
-    // 取聊天列表会把正文一起糊进来。提到这一层是为了抽屉也拿得到
+    val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
     val backgroundHazeState = rememberHazeState()
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -329,6 +331,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val pageState = ChatPageUiState(
         inputState = inputState,
         loadingJob = loadingJob,
+        sessionActivity = sessionActivity,
         processingStatus = processingStatus,
         setting = setting,
         conversationState = conversationState,
@@ -351,8 +354,19 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         onClearAllErrors = { vm.clearAllErrors() },
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalToolDetailHost provides toolDetailHost) {
+    CompositionLocalProvider(
+        LocalToolDetailHost provides toolDetailHost,
+        LocalGlassHazeState provides backgroundHazeState.takeIf { advanced },
+        LocalAdvancedAppearanceBusy provides chatAppearanceBusy(advanced, chatListState, loadingJob != null || sessionActivity != null),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        if (advanced) AssistantBackground(
+            setting = setting,
+            assistant = assistant,
+            modifier = Modifier.hazeSource(backgroundHazeState),
+            scrim = !threePaneLayout,
+            animateGradient = loadingJob == null && sessionActivity == null,
+        )
         if (threePaneLayout) {
             val baseDensity = LocalDensity.current
             // 横屏三栏：整块缩到 75%。三列并排后每列都只剩竖屏的三分之一宽，
@@ -453,8 +467,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 )
             }
         }
-        }
         ToolDetailSidePanel(host = toolDetailHost)
+        }
     }
 }
 
@@ -464,7 +478,7 @@ private fun ChatPageContent(
     actions: ChatPageActions,
 ) {
     val scope = rememberCoroutineScope()
-    val sessionActivity by state.vm.sessionActivity.collectAsStateWithLifecycle()
+    val advanced = state.setting.advancedAppearanceSetting.enableAdvancedAppearance
     // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
     val conversationFolders by state.vm.folders.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
@@ -821,14 +835,6 @@ private fun ChatPageContent(
         }
     }
 
-    // 消息滚到标题栏下面时才显示胶囊背景，空页面或在顶部时按钮直接浮在背景上
-    // 概览页有自己的列表，切过去后跟着它判断
-    val listScrolledUnderTopBar by remember(state.chatListState, previewListState) {
-        derivedStateOf {
-            if (previewMode) previewListState.canScrollBackward else state.chatListState.canScrollBackward
-        }
-    }
-
     val completionProviders = remember(state.assistant.allWorkspaceIds, workspaceCwds, workspaceRepository) {
         state.assistant.allWorkspaceIds.map { workspaceId ->
             WorkspaceCompletionProvider(
@@ -984,17 +990,15 @@ private fun ChatPageContent(
     }
 
     Surface(
-        color = LocalUiSlots.current.pageBackground,
+        color = if (advanced) Color.Transparent else LocalUiSlots.current.pageBackground,
+        contentColor = if (advanced) MaterialTheme.colorScheme.onBackground else contentColorFor(LocalUiSlots.current.pageBackground),
         modifier = Modifier.fillMaxSize()
     ) {
-        AssistantBackground(
+        // The advanced root background spans the three panes. Keep the legacy background inside this surface.
+        if (!advanced) AssistantBackground(
             setting = state.setting,
-            modifier = Modifier
-                .hazeSource(state.backgroundHazeState),
-            // 横屏三栏不再盖渐变遮罩，背景图原样透出来
+            modifier = Modifier.hazeSource(state.backgroundHazeState),
             scrim = !state.threePane,
-            // 生成中背景完全不动：几十秒周期的漂移停一会儿看不出来，
-            // 而它每帧推进会作为模糊源失效，把整屏模糊重算一遍
             animateGradient = state.loadingJob == null,
         )
         // 横屏时清单与引导收进右栏，输入区不再重复渲染
@@ -1042,7 +1046,6 @@ private fun ChatPageContent(
                             selectionState.start(state.conversationState.value.messageNodes.map { it.id })
                         },
                         onDelete = { showDeleteConfirm = true },
-                        showCapsuleBackground = listScrolledUnderTopBar,
                         // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
                         // 这个提亮只在竖屏（顶栏底下展开）时看得见
                         detailsExpanded = showDetails,
@@ -1125,14 +1128,15 @@ private fun ChatPageContent(
                         selectionState = selectionState,
                         loading = state.loadingJob != null,
                         generationSpeed = generationSpeed,
-                        compressing = sessionActivity == SessionActivity.Compressing,
+                        compressing = state.sessionActivity == SessionActivity.Compressing,
                         onCreateNewChat = actions.onCreateNewChat,
                         processingStatus = state.processingStatus,
                         previewMode = previewMode,
                         onPreviewModeChange = { previewMode = it },
                         settings = state.setting,
                         bubbleHazeState = state.backgroundHazeState,
-                        contentSource = state.backgroundHazeState,
+                        // Advanced materials sample only AssistantBackground, never the messages themselves.
+                        contentSource = state.backgroundHazeState.takeUnless { advanced },
                         errors = state.errors,
                         onDismissError = actions.onDismissError,
                         onClearAllErrors = actions.onClearAllErrors,
@@ -1389,35 +1393,9 @@ private fun ChatPageContent(
         )
 
         if (showCreateFolderDialog) {
-            var folderName by remember { mutableStateOf("") }
-            AnimatedAlertDialog(
+            CreateChatFolderDialog(
                 onDismissRequest = { showCreateFolderDialog = false },
-                title = { Text(stringResource(R.string.chat_page_create_folder)) },
-                text = {
-                    OutlinedTextField(
-                        value = folderName,
-                        onValueChange = { folderName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text(stringResource(R.string.chat_page_folder_name)) },
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            state.vm.createFolder(folderName)
-                            showCreateFolderDialog = false
-                        },
-                        enabled = folderName.isNotBlank(),
-                    ) {
-                        Text(stringResource(R.string.chat_page_save))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCreateFolderDialog = false }) {
-                        Text(stringResource(R.string.chat_page_cancel))
-                    }
-                },
+                onCreate = { state.vm.createFolder(it) },
             )
         }
 

@@ -1,93 +1,59 @@
 package me.rerere.rikkahub.data.model
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.provider.Model
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AutoCompressTriggerTest {
     @Test
-    fun `trigger is the selected line scaled by the ratio`() {
-        val model = Model(
-            contextLength = 128_000,
-            warnContextTokens = 100_000,
-            maxContextTokens = 110_000,
-            contextThresholdsAuto = false,
-        )
-
-        assertEquals(50_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.5f)))
-        assertEquals(
-            104_500,
-            model.autoCompressTriggerTokens(
-                Assistant(
-                    autoCompressRatio = 0.95f,
-                    autoCompressThreshold = AutoCompressThreshold.MAX,
-                )
-            ),
-        )
+    fun `trigger is MAX scaled by the configured ratio`() {
+        val model = Model(maxContextTokens = 110_000)
+        assertEquals(55_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.5f)))
+        assertEquals(88_000, model.autoCompressTriggerTokens(Assistant()))
+        assertEquals(104_500, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.95f)))
     }
 
     @Test
-    fun `hand written thresholds are not narrowed by the window`() {
-        val model = Model(
-            contextLength = 256_000,
-            warnContextTokens = 200_000,
-            maxContextTokens = 220_000,
-            contextThresholdsAuto = false,
-        )
-
-        assertEquals(200_000, model.autoCompressLimit(AutoCompressThreshold.WARN))
-        // 触发点按预警线算：200000 × 0.95，而不是按窗口 256000 × 0.95 = 243200
-        assertEquals(190_000, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.95f)))
+    fun `the context window does not change the saved MAX for compression`() {
+        val model = Model(contextLength = 128_000, maxContextTokens = 524_288)
+        val assistant = Assistant(autoCompressRatio = 0.75f)
+        assertEquals(393_216, model.autoCompressTriggerTokens(assistant))
+        assertEquals(393_216, model.copy(contextThresholdsAuto = false).autoCompressTriggerTokens(assistant))
     }
 
     @Test
-    fun `thresholds beyond the window never fire below the line`() {
-        // 门限比窗口还大时，旧行为会退到 窗口 × 比例 提前触发；现在只认预警线
-        val model = Model(
-            contextLength = 262_144,
-            warnContextTokens = 352_000,
-            maxContextTokens = 384_000,
-            contextThresholdsAuto = false,
-        )
-
-        // 手填的 352 000 不被 262 144 的窗口收窄：触发点 = 352 000 × 0.9
-        assertEquals(
-            316_800,
-            model.autoCompressTriggerTokens(
-                Assistant(
-                    autoCompressRatio = 0.9f,
-                    autoCompressThreshold = AutoCompressThreshold.WARN,
-                )
-            ),
-        )
-    }
-
-    @Test
-    fun `auto filled thresholds are narrowed to the window`() {
-        val model = Model(
-            contextLength = 128_000,
-            warnContextTokens = 393_216,
-            maxContextTokens = 524_288,
-            contextThresholdsAuto = true,
-        )
-
-        assertEquals(96_000, model.autoCompressLimit(AutoCompressThreshold.WARN))
-        assertEquals(115_200, model.autoCompressLimit(AutoCompressThreshold.MAX))
-    }
-
-    @Test
-    fun `window without thresholds scales the fallback line`() {
+    fun `a missing or invalid MAX does not fall back to the context window`() {
         val model = Model(contextLength = 128_000)
-
-        // 兜底预警线 = 窗口 × 75%，比例再作用在上面：96000 × 0.8
-        assertEquals(76_800, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.8f)))
+        val assistant = Assistant(autoCompress = true)
+        assertNull(model.autoCompressTriggerTokens(assistant))
+        assertNull(model.copy(maxContextTokens = 0).autoCompressTriggerTokens(assistant))
+        assertNull(model.copy(maxContextTokens = -1).autoCompressTriggerTokens(assistant))
     }
 
     @Test
-    fun `no window and no thresholds means no trigger`() {
-        val model = Model(contextLength = 0)
+    fun `trigger is rounded to whole tokens`() {
+        val model = Model(maxContextTokens = 9)
+        assertEquals(5, model.autoCompressTriggerTokens(Assistant(autoCompressRatio = 0.5f)))
+    }
 
-        assertNull(model.autoCompressTriggerTokens(Assistant()))
+    @Test
+    fun `legacy line selection is ignored while the switch and ratio are kept`() {
+        val json = Json { encodeDefaults = true }
+        val model = Model(maxContextTokens = 100_000)
+        for (line in listOf("WARN", "MAX")) {
+            val assistant = json.decodeFromString<Assistant>(
+                """{"autoCompress":true,"autoCompressRatio":0.75,"autoCompressThreshold":"$line"}""",
+            )
+            assertTrue(assistant.autoCompress)
+            assertEquals(0.75f, assistant.autoCompressRatio, 0f)
+            assertEquals(75_000, model.autoCompressTriggerTokens(assistant))
+            val saved = json.encodeToJsonElement(Assistant.serializer(), assistant).jsonObject
+            assertFalse("autoCompressThreshold" in saved)
+        }
     }
 }

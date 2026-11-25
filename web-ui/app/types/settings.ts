@@ -123,8 +123,6 @@ export interface ProviderModel {
   tools?: BuiltInTool[];
   /** 上下文窗口大小（token） */
   contextLength?: number;
-  /** 性能最佳点门限，超过后提醒 */
-  warnContextTokens?: number | null;
   /** 性能骤降点门限，到达后禁止发送 */
   maxContextTokens?: number | null;
   enforceMaxContext?: boolean;

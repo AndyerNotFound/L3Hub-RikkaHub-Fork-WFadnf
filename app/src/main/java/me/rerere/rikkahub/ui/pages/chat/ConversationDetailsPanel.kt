@@ -62,7 +62,9 @@ import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ai.workspacePermissionLabelRes
 import me.rerere.rikkahub.ui.components.ui.JsonTree
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.components.ui.overlayMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
@@ -149,30 +151,26 @@ internal fun ConversationDetailsPanel(
         contextTokens?.formatNumber(binaryUnits) ?: "—"
     }
     val previewInjections = (previewState as? RequestPreviewUiState.Ready)?.preview?.injections
+    val material = settings.advancedAppearanceSetting.takeIf { it.enableAdvancedAppearance && !embedded }?.overlayMaterial()
+    val scheme = MaterialTheme.colorScheme
+    val base = scheme.surfaceContainerLow
+    val panel = when {
+        embedded -> Modifier
+        material != null -> Modifier.advancedMaterial(DetailsPanelShape, base, material, hazeState, readableFloor = .62f)
+        else -> Modifier.glassSurface(DetailsPanelShape, base, hazeState, minAlpha = .88f)
+    }
 
     Surface(
         modifier = if (embedded) {
             modifier.fillMaxSize()
         } else {
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                // 浮层现在压在聊天内容上，聊天正文不在 haze 源里，太透会和面板小字糊在一起；
-                // 下限提到 0.88，和选字浮层一致，留一点玻璃质感但保证正文读得清
-                .glassSurface(
-                    shape = DetailsPanelShape,
-                    baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    hazeState = hazeState,
-                    minAlpha = 0.88f,
-                )
+            modifier.fillMaxWidth().padding(horizontal = 12.dp).then(panel)
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,
-        color = if (embedded || LocalSettings.current.displaySetting.enableBlurEffect) {
+        color = if (embedded || material != null || settings.displaySetting.enableBlurEffect) {
             Color.Transparent
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        } else base,
+        contentColor = scheme.onSurface,
     ) {
         Column(
             modifier = (if (embedded) Modifier.fillMaxSize() else Modifier.height(panelHeight))

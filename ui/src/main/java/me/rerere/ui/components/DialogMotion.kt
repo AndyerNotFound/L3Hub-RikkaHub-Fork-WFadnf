@@ -3,6 +3,7 @@ package me.rerere.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -155,7 +156,8 @@ fun AnimatedAlertDialog(
     properties: DialogProperties = DialogProperties(),
 ) {
     val motion = rememberDialogMotion(onDismissRequest)
-    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+    val tint = LocalSeparateWindowColors.current?.dialog
+    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen, LocalSeparateWindow provides true) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = motion.requestDismiss,
             confirmButton = confirmButton,
@@ -166,6 +168,8 @@ fun AnimatedAlertDialog(
             icon = icon,
             title = title,
             text = text,
+            containerColor = tint ?: AlertDialogDefaults.containerColor,
+            tonalElevation = if (tint == null) AlertDialogDefaults.TonalElevation else 0.dp,
             properties = properties,
         )
     }
@@ -183,7 +187,7 @@ fun AnimatedBasicAlertDialog(
     content: @Composable () -> Unit,
 ) {
     val motion = rememberDialogMotion(onDismissRequest)
-    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+    CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen, LocalSeparateWindow provides true) {
         BasicAlertDialog(
             onDismissRequest = motion.requestDismiss,
             modifier = modifier.dialogSlideLayer(motion),
@@ -215,7 +219,7 @@ fun AnimatedDialog(
         onDismissRequest = motion.requestDismiss,
         properties = properties,
     ) {
-        CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen) {
+        CompositionLocalProvider(LocalDialogDismiss provides motion.dismissThen, LocalSeparateWindow provides true) {
             Box(modifier = modifier.dialogSlideLayer(motion)) {
                 content()
             }

@@ -1864,11 +1864,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_allowed_sub_agents_dialog_desc">이 어시스턴트가 파견할 수 있는 하위 에이전트를 선택하세요. 모두 선택하지 않으면 제한하지 않습니다</string>
   <string name="assistant_page_local_tools_sub_agent_title">하위 에이전트 파견</string>
   <string name="assistant_page_memory_auto_compress">자동 압축</string>
-  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 선택한 경고선의 이 비율에 도달하면 기록을 요약으로 압축합니다: 응답이 끝난 뒤 한 번, 턴 중간에는 도구 배치가 끝날 때마다 확인합니다; 결과는 수동 압축과 동일합니다</string>
-  <string name="assistant_page_memory_auto_compress_ratio">발동 비율</string>
-  <string name="assistant_page_memory_auto_compress_ratio_desc">선택한 경고선(WARN/MAX) 기준 백분율입니다; 임계값이 없는 모델은 컨텍스트 창의 75% / 90%로 대체됩니다</string>
-  <string name="assistant_page_memory_auto_compress_threshold">경고선</string>
-  <string name="assistant_page_memory_auto_compress_threshold_desc">WARN은 경고선, MAX는 상한선입니다; 트리거 비율은 선택한 경고선에 적용됩니다</string>
+  <string name="assistant_page_memory_auto_compress_desc">컨텍스트 사용량이 발동 임계값에 도달하면 기록을 요약으로 압축합니다: 각 응답이 끝난 뒤와 각 도구 배치가 끝난 뒤 확인합니다; 결과는 수동 압축과 동일합니다</string>
+  <string name="assistant_page_memory_auto_compress_ratio">발동 임계값</string>
+  <string name="assistant_page_memory_auto_compress_ratio_desc">모델 MAX 기준 백분율입니다; MAX가 없으면 자동 압축하지 않습니다</string>
   <string name="assistant_page_sub_agent">하위 에이전트로 설정</string>
   <string name="assistant_page_sub_agent_desc">다른 어시스턴트가 dispatch_sub_agent 도구로 이 어시스턴트에게 작업을 맡길 수 있습니다. 하위 에이전트는 독립된 대화에서 실행되며 현재 컨텍스트를 공유하지 않습니다</string>
   <string name="assistant_page_tab_heartbeat">하트비트</string>
@@ -1909,7 +1907,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_page_context_limit_reached">컨텍스트 한도에 도달했습니다. 기록을 압축하거나 새 대화를 시작하세요</string>
   <string name="chat_page_context_meter_absolute">%1$s / %2$s</string>
   <string name="chat_page_context_meter_max">MAX</string>
-  <string name="chat_page_context_meter_warn">WARN</string>
   <string name="chat_page_export_xml">XML</string>
   <string name="chat_page_export_xml_desc">원본 마커를 유지한 XML 텍스트로 내보냅니다</string>
   <string name="chat_page_heartbeat_conversation_title">하트비트 · %1$s</string>
@@ -2262,11 +2259,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_provider_page_context_block">MAX에 도달하면 전송 차단</string>
   <string name="setting_provider_page_context_block_desc">끄면 MAX에 도달해도 안내만 표시하고 메시지는 정상적으로 전송됩니다</string>
   <string name="setting_provider_page_context_max">상한 임계값(MAX)</string>
-  <string name="setting_provider_page_context_threshold_hint">WARN은 성능이 가장 좋은 지점으로, 넘으면 진행 표시줄이 경고하기 시작합니다. MAX는 성능이 급격히 떨어지는 지점으로, 도달하면 메시지 전송이 차단됩니다. 비워 두면 제한하지 않습니다</string>
-  <string name="setting_provider_page_context_threshold_invalid">WARN은 MAX보다 작아야 합니다</string>
+  <string name="setting_provider_page_context_threshold_hint">MAX는 모델의 컨텍스트 윈도우 상한입니다. 비워 두면 사용하지 않습니다</string>
   <string name="setting_provider_page_context_threshold_use_preset">프리셋 사용</string>
   <string name="setting_provider_page_context_thresholds">컨텍스트 경고</string>
-  <string name="setting_provider_page_context_warn">경고 임계값(WARN)</string>
   <string name="setting_provider_proxy_clear">이 제공자의 프록시 해제</string>
   <string name="setting_provider_proxy_desc">이 제공자의 API 도메인에만 프록시를 설정합니다. http://, https://, socks5://를 지원하며, 인증이 필요하면 사용자 이름과 비밀번호를 입력하고 비워 두면 전역 프록시를 사용합니다</string>
   <string name="setting_provider_proxy_desc_short">전역 프록시 따르기</string>

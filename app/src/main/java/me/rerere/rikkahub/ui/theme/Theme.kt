@@ -6,9 +6,11 @@ import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
@@ -32,6 +34,12 @@ import androidx.core.view.WindowCompat
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.AnimationSpeed
 import me.rerere.rikkahub.data.datastore.CornerStyle
+import me.rerere.rikkahub.data.datastore.TextColorMode
+import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
+import me.rerere.rikkahub.data.datastore.isGlobalBackgroundActive
+import me.rerere.rikkahub.ui.components.ui.LocalAdvancedAppearancePowerSave
+import me.rerere.rikkahub.ui.components.ui.staticOverlayBorder
+import me.rerere.rikkahub.ui.components.ui.staticOverlayColor
 import me.rerere.rikkahub.ui.shape.styledShape
 import me.rerere.rikkahub.ui.haptics.rememberEnhancedHapticFeedback
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
@@ -40,6 +48,8 @@ import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.ui.components.LocalDialogEnterSpec
 import me.rerere.ui.components.LocalDialogExitSpec
+import me.rerere.ui.components.LocalSeparateWindowColors
+import me.rerere.ui.components.SeparateWindowColors
 
 private val ExtendLightColors = lightExtendColors()
 private val ExtendDarkColors = darkExtendColors()
@@ -121,7 +131,7 @@ fun RikkahubTheme(
 
     // 配色：动态取色（Android 12+ 壁纸取色）优先，其次调色板（逐角色覆盖），
     // 最后落回预设/自定义主题自带的整套配色（对齐上游 rikkahub 的管线）
-    val colorScheme = when {
+    val baseScheme = when {
         settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -133,15 +143,33 @@ fun RikkahubTheme(
             theme.getColorScheme(dark = darkTheme)
         }
     }
+    val appearance = settings.advancedAppearanceSetting
+    val imageState = rememberAppearanceImageState(appearance.globalBackground.takeIf { settings.isGlobalBackgroundActive() })
+    val photoColors = imageState?.image?.colors
+    val colorScheme = rememberAdvancedScheme(settings, baseScheme, darkTheme, photoColors)
+    val textMode = if (appearance.enableAdvancedAppearance) appearance.textColorMode else TextColorMode.THEME
+    val wallpaperSeed = rememberAppearanceWallpaperSeed(
+        enabled = textMode == TextColorMode.SYSTEM_WALLPAPER,
+        provided = appearance.wallpaperTextSeedArgb?.toInt(),
+        providedId = appearance.wallpaperTextSeedWallpaperId,
+    )
+    val textSeed = when (textMode) {
+        TextColorMode.APP_BACKGROUND -> photoColors?.accent ?: photoColors?.average
+        TextColorMode.SYSTEM_WALLPAPER -> wallpaperSeed
+        else -> null
+    }
+    val reducedMotion = rememberSystemReducedMotion(appearance.enableAdvancedAppearance && appearance.respectSystemReducedMotion)
+    val animationsDisabled = settings.displaySetting.disableAnimations || reducedMotion
     // 全宽组件：直角 + 组件贴父容器边，由下面的 CompositionLocal 和 shapes 一起提供
     val fullWidthComponents = settings.displaySetting.fullWidthComponents
     // AMOLED：dark+AMOLED 时把大面积表面压纯黑（文字与强调色不动）
-    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, paletteScheme, colorScheme) {
-        if (darkTheme && amoledDarkMode) {
+    val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme, textMode, textSeed) {
+        val converted = if (darkTheme && amoledDarkMode) {
             colorScheme.amoledSurface()
         } else {
             colorScheme
         }
+        converted.withAppearanceText(textMode, textSeed)
     }
     // 位置层：调色板的位置覆盖
     val uiSlots = remember(settings.palette, darkTheme, amoledDarkMode, colorSchemeConverted) {
@@ -219,6 +247,8 @@ fun RikkahubTheme(
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
         LocalFullWidthComponents provides fullWidthComponents,
+        LocalAppearanceImage provides imageState,
+        LocalAdvancedAppearancePowerSave provides rememberAppearancePowerSave(appearance.enableAdvancedAppearance),
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
@@ -234,10 +264,11 @@ fun RikkahubTheme(
                     // 弹窗的进出场跟页面转场共用一档速度：用户在设置里调快以后，
                     // 不该只有页面收住了、弹窗还按默认时长慢慢滑
                     CompositionLocalProvider(
+                        LocalSeparateWindowColors provides appearance.separateWindowColors(),
                         // 这一档原本只在 RouteActivity 里提供，而那份在 RikkahubTheme 内部：
                         // 下面两行在这里求值，读到的永远是默认的 SYSTEM，弹窗曲线便不跟设置走。
                         // 提到主题这一层，页面转场、菜单、弹窗才都读到同一档。
-                        LocalAnimationSpeed provides if (settings.displaySetting.disableAnimations) {
+                        LocalAnimationSpeed provides if (animationsDisabled) {
                             AnimationSpeed.SYSTEM
                         } else {
                             settings.displaySetting.animationSpeed
@@ -247,14 +278,14 @@ fun RikkahubTheme(
                         LocalDialogExitSpec provides rememberSpatialSpec<Float>(),
                         // 动态模糊的参数也在这一层下发：滚动、收放、入场都读同一份，
                         // 关掉动效时连同模糊一起停掉，不用每个效果自己判断
-                        LocalMotionBlur provides if (settings.displaySetting.disableAnimations) {
+                        LocalMotionBlur provides if (animationsDisabled) {
                             settings.displaySetting.motionBlur.copy(enabled = false)
                         } else {
                             settings.displaySetting.motionBlur
                         },
                         // 手写的位移动画（侧边栏、菜单这类不走 MotionScheme 的）在关闭动效时也要停，
                         // 单独下发开关：档位那个 local 把关闭压成了 SYSTEM，读不出区别
-                        LocalAnimationsEnabled provides !settings.displaySetting.disableAnimations,
+                        LocalAnimationsEnabled provides !animationsDisabled,
                     ) {
                         val body: @Composable () -> Unit = {
                             if (wrapContent) {
@@ -274,13 +305,28 @@ fun RikkahubTheme(
             // 档位直接换成对应的 MotionScheme：material3 自己的动效（底部抽屉、菜单、
             // 对话框遮罩、拖拽吸附）只认这一个口子，不换成自定义 scheme 的话，
             // 「动画速度」调成快 / 缓只影响手写的位移动画
-            motionScheme = if (settings.displaySetting.disableAnimations) {
+            motionScheme = if (animationsDisabled) {
                 SnapMotionScheme
             } else {
                 motionSchemeOf(settings.displaySetting.animationSpeed)
             }
         )
     }
+}
+
+@Composable
+private fun AdvancedAppearanceSetting.separateWindowColors(): SeparateWindowColors? {
+    if (!enableAdvancedAppearance) return null
+    val scheme = MaterialTheme.colorScheme
+    val backing = LocalUiSlots.current.pageBackground.copy(alpha = 1f)
+    fun tint(base: Color) = staticOverlayColor(base, backing, scheme.primary) ?: base
+    return SeparateWindowColors(
+        dialog = tint(AlertDialogDefaults.containerColor),
+        sheet = tint(scheme.surfaceContainerLow),
+        menu = tint(MenuDefaults.containerColor),
+        menuGroup = tint(MenuDefaults.groupStandardContainerColor),
+        menuBorder = staticOverlayBorder(),
+    )
 }
 
 val MaterialTheme.extendColors

@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
+import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 
@@ -24,6 +25,7 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 internal data class ChatPageUiState(
     val inputState: ChatInputState,
     val loadingJob: Job?,
+    val sessionActivity: SessionActivity?,
     val processingStatus: String?,
     val setting: Settings,
     val conversationState: State<Conversation>,

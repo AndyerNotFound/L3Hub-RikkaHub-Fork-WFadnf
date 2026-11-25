@@ -59,7 +59,9 @@ import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.TopTab
 import me.rerere.rikkahub.ui.components.ui.TopTabRow
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassSurface
+import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.theme.appButtonShadow
@@ -107,30 +109,30 @@ internal fun ChatSidePanelColumn(
     content: @Composable (ChatSidePane) -> Unit,
 ) {
     val shape = RoundedCornerShape(24.dp)
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val settings = LocalSettings.current
+    val scheme = MaterialTheme.colorScheme
+    val containerColor = scheme.surfaceContainerLow
+    val material = settings.advancedAppearanceSetting.takeIf { it.enableAdvancedAppearance }?.navigationMaterial()
     // 选中的标签被关掉、或恢复出来的选中项已经不在标签里时，退到第一个，别让内容区空着
     val active = selected?.takeIf { it in panes } ?: panes.firstOrNull()
 
+    val panel = if (material == null) {
+        Modifier.glassSurface(shape, containerColor, hazeState, minAlpha = .5f)
+    } else {
+        Modifier.advancedMaterial(shape, containerColor, material, hazeState, readableFloor = .45f)
+    }
     Surface(
         modifier = modifier
             .fillMaxHeight()
             .appButtonShadow(shape, 6.dp)
-            // 右栏并排在中列旁边，底下只有背景层，浓度基本交给「玻璃透明度」；
-            // 留 0.5 的下限是因为栏里全是列表与代码，压在彩色背景上再透就难读
-            .glassSurface(
-                shape = shape,
-                baseColor = containerColor,
-                hazeState = hazeState,
-                minAlpha = 0.5f,
-            ),
+            .then(panel),
         shape = shape,
-        // 着色由 glassSurface 统一铺，这里保持透明；没有源时它会退化成半透明色
-        color = if (LocalSettings.current.displaySetting.enableBlurEffect) {
+        color = if (material != null || settings.displaySetting.enableBlurEffect) {
             Color.Transparent
         } else {
             containerColor
         },
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        contentColor = scheme.onSurface,
     ) {
         Column(
             modifier = Modifier

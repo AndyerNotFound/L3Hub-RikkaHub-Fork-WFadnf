@@ -85,4 +85,66 @@ class NavProjectionTest {
         assertEquals(single.middle, widened.top)
         assertEquals(single.root.first(), widened.root.first())
     }
+
+    // 高级外观页挂在「偏好设置」这一节下面：它自己不是分区首屏，所以落在右列
+    @Test
+    fun `advanced appearance pane drills into the right column`() {
+        val preferences = Screen.SettingPreferences
+        val advancedAppearance = Screen.SettingPreferencesAdvancedAppearance
+        val host: (Screen) -> Boolean = { it == providers || it == models || it == setting || it == preferences }
+
+        val projection = NavProjection.masterDetail(
+            listOf(chat, setting, preferences, advancedAppearance),
+            host,
+        )
+
+        assertEquals(listOf(chat, setting, preferences), projection.root)
+        assertEquals(listOf(advancedAppearance), projection.detail)
+        assertEquals(preferences, projection.middle)
+        assertEquals(advancedAppearance, projection.top)
+    }
+
+    @Test
+    fun `returning to a section host empties the right column`() {
+        val preferences = Screen.SettingPreferences
+        val advancedAppearance = Screen.SettingPreferencesAdvancedAppearance
+        val host: (Screen) -> Boolean = { it == setting || it == preferences }
+
+        // 下钻到高级外观页：它落在右列
+        assertEquals(
+            listOf(advancedAppearance),
+            NavProjection.masterDetail(listOf(setting, preferences, advancedAppearance), host).detail,
+        )
+
+        // 返回一格，栈顶重新变成分区首屏：右列不占宽度
+        val backToHost = NavProjection.masterDetail(listOf(setting, preferences), host)
+        assertTrue(backToHost.detail.isEmpty())
+        assertEquals(preferences, backToHost.top)
+    }
+
+    // 预览页与普通网页是同一个路由、只差一个标记：投影里它们都只是历史里的一页，不额外分裂
+    @Test
+    fun `web view preview and html pages project like any other page`() {
+        val html = Screen.WebView(url = "https://example.com")
+        val preview = Screen.WebView(contentId = "abc", offlineMessagePreview = true)
+
+        val projection = NavProjection.single(listOf(chat, html, preview))
+
+        assertEquals(listOf(chat, html, preview), projection.root)
+        assertEquals(preview, projection.top)
+        assertTrue(projection.detail.isEmpty())
+        // 两个路由值不相等：内容 id 与预览标记参与相等判断，历史不会把它们当成同一页
+        assertTrue(html != preview)
+    }
+
+    @Test
+    fun `a web view page is never a column host in the settings rail`() {
+        val preview = Screen.WebView(contentId = "abc", offlineMessagePreview = true)
+
+        val projection = NavProjection.masterDetail(listOf(chat, setting, preview), isColumnHost)
+
+        // WebView 不是分区首屏：它跟在 Setting 后面落进右列
+        assertEquals(listOf(chat, setting), projection.root)
+        assertEquals(listOf(preview), projection.detail)
+    }
 }

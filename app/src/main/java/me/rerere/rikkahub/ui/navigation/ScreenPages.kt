@@ -46,6 +46,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingMediaProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPalettePage
+import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesAdvancedAppearancePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesMessageStylePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
@@ -118,11 +119,12 @@ fun ScreenContent(screen: Screen) {
 
         is Screen.MediaCreation -> MediaCreationPage(screen.id)
 
-        is Screen.WebView -> { WebViewPage(screen.url, screen.contentId) }
+        is Screen.WebView -> { WebViewPage(screen.url, screen.contentId, screen.offlineMessagePreview) }
 
         Screen.SettingTheme -> { SettingThemePage() }
         Screen.SettingPalette -> { SettingPalettePage() }
         Screen.SettingPreferences -> { SettingPreferencesPage() }
+        Screen.SettingPreferencesAdvancedAppearance -> { SettingPreferencesAdvancedAppearancePage() }
         Screen.SettingPreferencesTheme -> { SettingPreferencesThemePage() }
         Screen.SettingPreferencesNotification -> { SettingPreferencesNotificationPage() }
         Screen.SettingPreferencesGeneral -> { SettingPreferencesGeneralPage() }

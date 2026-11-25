@@ -56,6 +56,8 @@ import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
+import me.rerere.ui.components.LocalSeparateWindowColors
+import me.rerere.ui.components.SeparateWindowContent
 
 /**
  * 后台子代理跑完后自动回投的结果。
@@ -258,41 +260,45 @@ private fun NoticeActionMenu(
             dismissOnClickOutside = true,
         ),
     ) {
-        // 外面这层留白是给阴影的：popup 窗口会把边界外的绘制裁掉，不留白就看不到阴影
-        Box(modifier = Modifier.padding(NoticeMenuMargin)) {
-            Surface(
-                modifier = Modifier
-                    .widthIn(min = 172.dp, max = 220.dp)
-                    .graphicsLayer {
-                        val shown = progress.value
-                        // 弹簧会过冲，透明度夹回 0..1，缩放那点回弹留着
-                        alpha = shown.coerceIn(0f, 1f)
-                        val scale = NoticeMenuExpandFromScale +
-                            (1f - NoticeMenuExpandFromScale) * shown
-                        scaleX = scale
-                        scaleY = scale
-                        transformOrigin = TransformOrigin(0f, originY)
-                    },
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 8.dp,
-            ) {
-                Column(modifier = Modifier.padding(vertical = 6.dp)) {
-                    onEdit?.let { action ->
-                        NoticeMenuItem(
-                            icon = HugeIcons.Edit01,
-                            label = stringResource(R.string.chat_message_sub_agent_notice_edit),
-                            onClick = { dismissAfter(action) },
-                        )
-                    }
-                    onDelete?.let { action ->
-                        NoticeMenuItem(
-                            icon = HugeIcons.Delete01,
-                            label = stringResource(R.string.delete),
-                            destructive = true,
-                            onClick = { dismissAfter(action) },
-                        )
+        SeparateWindowContent {
+            val overlay = LocalSeparateWindowColors.current
+            // 外面这层留白给阴影，避免被 Popup 窗口边界裁掉。
+            Box(modifier = Modifier.padding(NoticeMenuMargin)) {
+                Surface(
+                    modifier = Modifier
+                        .widthIn(min = 172.dp, max = 220.dp)
+                        .graphicsLayer {
+                            val shown = progress.value
+                            // 弹簧会过冲，透明度夹回 0..1，缩放那点回弹留着
+                            alpha = shown.coerceIn(0f, 1f)
+                            val scale = NoticeMenuExpandFromScale +
+                                (1f - NoticeMenuExpandFromScale) * shown
+                            scaleX = scale
+                            scaleY = scale
+                            transformOrigin = TransformOrigin(0f, originY)
+                        },
+                    shape = MaterialTheme.shapes.large,
+                    color = overlay?.menu ?: MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = if (overlay == null) 3.dp else 0.dp,
+                    shadowElevation = 8.dp,
+                    border = overlay?.menuBorder,
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                        onEdit?.let { action ->
+                            NoticeMenuItem(
+                                icon = HugeIcons.Edit01,
+                                label = stringResource(R.string.chat_message_sub_agent_notice_edit),
+                                onClick = { dismissAfter(action) },
+                            )
+                        }
+                        onDelete?.let { action ->
+                            NoticeMenuItem(
+                                icon = HugeIcons.Delete01,
+                                label = stringResource(R.string.delete),
+                                destructive = true,
+                                onClick = { dismissAfter(action) },
+                            )
+                        }
                     }
                 }
             }

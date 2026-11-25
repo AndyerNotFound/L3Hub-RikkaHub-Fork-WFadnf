@@ -54,6 +54,8 @@ fun ChartCard(
     spec: ChartSpec,
     modifier: Modifier = Modifier,
     initialMode: ChartDisplayMode = ChartDisplayMode.Chart,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    border: BorderStroke = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
 ) {
     var mode by rememberSaveable { mutableStateOf(initialMode) }
     val colors = remember(spec) { spec.seriesColors() }
@@ -64,8 +66,9 @@ fun ChartCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = border,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
