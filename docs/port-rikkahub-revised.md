@@ -27,7 +27,7 @@
 
 | 层 | 文件 | 作用 |
 |---|---|---|
-| 设置 | `data/datastore/{Settings,PreferencesStore,SettingsFields,SettingsNormalization,AdvancedAppearanceSetting}.kt` | `advanced_appearance_setting` 独立持久化和归一化；旧 `DisplaySetting` 缺失的新字段使用默认值 |
+| 设置 | `data/datastore/{Settings,PreferencesStore,SettingsFields,SettingsNormalization,AdvancedAppearanceSetting}.kt`、`data/datastore/migration/{PreferenceStoreV6Migration,SettingsJsonMigrator}.kt` | `advanced_appearance_setting` 独立持久化和归一化；旧 `DisplaySetting` 缺失的新字段使用默认值；V6 把旧全局特效开关搬进高级外观，偏好与备份 JSON 共用同一个纯函数 |
 | 预设 | `data/model/{LiquidGlassSettings,InspirationAppearance}.kt` | 玻璃渲染器与预设、灵感卡片样式 |
 | 路由与设置页 | `Screen.kt`、`ui/navigation/ScreenPages.kt`、`RouteActivity.kt`、`ui/pages/setting/` | 「偏好设置 → 高级外观设置」；各列独立背景；`WebView` 增加离线标志 |
 | 主题与材质 | `ui/theme/{Theme,AdvancedAppearanceTheme,AppearanceBackground}.kt`、`ui/components/ui/{AdvancedMaterial,GlassSurface,CardGroup}.kt` | 配色、背景取样、各面材质和降级 |
@@ -38,16 +38,51 @@
 | 双语资源 | `app/src/main/res/{values,values-zh}/{advanced_appearance,chat_media_strings}.xml` | 英文与简体中文 |
 | 回归源码 | `app/src/test/`、`ui/src/test/` | 设置兼容、三栏投影、旧路由、材质参数、富文本及缓存，验证状态见第 16 节 |
 
-## 2 高级外观默认关闭
+## 2 默认关闭；旧「全局特效」已并入高级外观（V6）
 
-`enableAdvancedAppearance = false` 保留旧配色、会话材质与旧 Haze 路径：输入区、顶栏、胶囊、气泡及悬浮栏
-不拿高级材质，列表仍可作为旧模糊源。高级的富内容框、建议条和灵感卡片外观也随总开关切换。
+`enableAdvancedAppearance = false` 时**一条 haze 都不挂**：页卡、列表项、气泡、输入区、顶栏、胶囊、
+配额条、抽屉和浮层一律落到实色或主题底色，受管全局背景也不绘制。
+
+原来的「常规 → 全局特效」（关闭 / 模糊 / 玻璃三档）和它背后的旧运行时已经整体删除：
+`chatInputHaze`、`effectSurface`、`glassSurface`、`canGlassPane`、`glassOverlayAlpha`、
+`effectiveBackgroundEffect` 这些入口都不在了。现在打开高级外观是让面材质重新采样背景的唯一入口，
+关闭它不会再退回「旧模糊路径」，而是直接回到实色。
+
+`DisplaySetting` 里的 `enableBlurEffect`、`backgroundEffectType`、`blurOpacity`、`glassOpacity`
+仍然保留，只服务三件事：降级版本读盘、备份导出与导入、V6 迁移的输入。界面不再读写这四个字段。
+
 **Markdown 渲染、媒体附件和离线消息预览不受总开关限制**，关闭不代表回到移植前的渲染行为或逐像素外观。
 开启会立即应用高级设置的默认值，不用再逐项打开。
 
 旧偏好缺失高级外观键时用默认设置；独立的外观 JSON 解码器把未知枚举值回落到该字段默认值，
 外观 JSON 畸形时只重置外观这一字段。`textColorMode` 默认 `THEME`（Revised 为 `AUTO_CLEAR`）；
 全屏背景开关默认 `true`，但仍须满足第 4 节的生效条件。
+
+### 2.1 V6：旧开关 → 高级外观
+
+`PreferenceStoreV6Migration`（DataStore，`data_version < 6`）与 `SettingsJsonMigrator` 的 V6 钩子
+（备份恢复）调用同一个纯函数 `migrateLegacyDisplayEffects()`，一次迁移落两份文档：
+`display_setting` 补输入区与顶栏的继承值并写标记，`advanced_appearance_setting` 补各面材质。
+
+| 旧状态 | 结果 |
+|---|---|
+| `enableBlurEffect = true` 且类型 `blur` | 高级外观**原本关着**才开启；页面 / 输入区 / 浮层 / 导航 / 聊天坞 / 气泡 / 富内容卡片置磨砂，模糊半径 **12dp**，不透明度取 `blurOpacity`（默认 .45） |
+| `enableBlurEffect = true` 且类型 `glass` | 同上，材质置液态玻璃，半径 **16dp**，不透明度取 `glassOpacity`（默认 .35），不指定玻璃预设 |
+| `enableBlurEffect = false`、类型 `off`、认不出来的类型值 | 一个字不动 |
+| 高级外观本来就开着 | 高级那份整份保留，旧开关不覆盖它；只在 `display_setting` 记「已经搬过」 |
+| 透明度不是 0..1 的合法数 | 用旧档自己的默认值（.45 / .35），避免迁完没有底色 |
+| `display_setting` 或 `advanced_appearance_setting` 读不出对象 | 两份都原样保留；不把坏数据当成缺失去补一份看起来正常的新文档 |
+
+- 迁移**只开材质**：`showTopBarBackground`、`showAssistantBubble` 这类「这个部件显不显示」的开关不碰。
+  导航玻璃与 Dock 玻璃原本就在旧全局效果的覆盖范围内，所以这两项要顺手启用。
+- 半径按档位分字段写：磨砂写 `pageSurfaceBlurRadius` / `overlaySurfaceBlurRadius` /
+  `navigationGlassBlurRadius` 这一族，液态玻璃写 `*LiquidGlassBlurRadius` 这一族。
+  壁纸图片自己的预模糊（`globalBackgroundBlurRadius`）和页面卡片的模糊半径是两份独立字段。
+- 已开高级外观的老文档如果只有 `globalBackgroundBlurRadius`、还没有 `pageSurfaceBlurRadius`，
+  有一条一次性回填把前者抄过去（只写这一个键），让既有磨砂页面与壁纸强度不变。
+- `display_setting.legacyEffectsMigrated` 是「已搬过一次」的标记：用户之后自己关掉高级外观、
+  再从备份恢复，旧开关不会把特效重新打开。
+- 旧字段一律不删：降级回来的版本照样读它们。
 
 主题依原顺序取基准：API 31+ 且已开启的系统动态色、调色板、预设或自定义主题。高级配色可用图片强调色
 替换种子（需启用自动强调色且采样有效），或根据基准强调色应用风格和对比度。其后保持深色 AMOLED 表面处理，
@@ -105,6 +140,21 @@
 映为 `amount / 16`、`depth` 映为 `min(amount / 6, 1)`，都在 `0..1`。深度在 6 饱和，强度仍可调；
 6 以上（含 `CLEAR` 预设的 9）不传越界深度，0 不走折射分支。
 
+### 5.1 液态玻璃的两种光学实现
+
+`LiquidGlassSettings.style` 取 `SALT`（默认）或 `MATERIAL3`。旧数据没有这个字段，落到 `SALT`，
+观感与加入该字段前一致。这一档只替换 `LIQUID_GLASS` 材质，磨砂 / 亚克力 / 云母不受影响。
+
+| 项 | `SALT` | `MATERIAL3`（RikkaHub 原版 Haze Material3） |
+|---|---|---|
+| 参数来源 | `LiquidGlassParameters`：预设、边缘高光、雾化、折射、内阴影、描边宽度 | 固定 `depth = .5`、模糊半径 **16dp**、tint alpha **.3**；不读 Salt 的 preset / highlight / refraction / edgeWidth / innerShadow，设置页把这些滑杆隐藏 |
+| 响应参数 | `SaltGlassStyles.regularSurface(dark)` | 按**应用主题**显式写入 response（深色数值等同库内 `regularDark`），不跟系统夜间模式走，避免应用内深色被挑成浅色预设 |
+| 折射 | API 33+、有源、实时刻且折射值 > 0 | 不参与折射分支 |
+| 不可实时时 | 渐变描边，强度按实时刻与 SDK 分档 | 1.5dp 中性描边（固定高光 .18 / 阴影 .12） |
+
+能力上限仍按上表：API 33+ 可折射，31–32 最多 12dp 普通模糊，26–30 一条模糊都不挂；
+静态、无源或系统不支持时只留着色与边缘。**纯色背景糊一遍还是同一个颜色，所以不承诺可见虚化。**
+
 网格 shader 与 Kotlin 绘制共享四份 `MeshLight` 坐标、半径和颜色；shader 初始化或绘制失败、软件 Canvas 时
 回到 Kotlin。壁纸文字取色在 API 26 只用可用的已存种子；API 27+ 可取壁纸色，API 31+ 还可尝试系统强调色。
 
@@ -117,28 +167,39 @@
 
 ## 7 聊天的背景源与组件开关
 
-`ChatPage.kt` 只在开启高级外观时把 `AssistantBackground` 注册为高级材质的 Haze 源。
-列表用 `contentSource = state.backgroundHazeState.takeUnless { advanced }`，关闭时保留旧源，开启时不把正文
-混入高级模糊。气泡、输入区、顶栏和悬浮栏共享背景源，不按控件单独抓取。三栏关闭普通图片遮罩；
-高级「聊天文字可读性」打开时，仍可给背景加可读性遮罩。
+`ChatPage.kt` 准备两份 Haze 源：`backgroundHazeState`（页面背景 / 助手背景）与
+`chromeHazeState`（背景 + 消息正文）。高级材质消费的是后者，气泡拿的是前者。
+高级外观关闭时 `LocalGlassHazeState` 给 `null`，没有消费者，任何面都不采样。
 
 | 设置 | 生效前提与范围 |
 |---|---|
-| 整条顶栏和顶栏胶囊 | `showTopBarBackground` 只控制整条顶栏的高级底层。胶囊独立，取页卡材质和顶栏着色浓度，但不单独实时模糊 |
-| 输入区 | 可显式选材质；未选且玻璃未应用到输入区时保留原输入区路径 |
-| 聊天坞玻璃 | 只装饰原有悬浮栏，要求已启用悬浮栏且快捷入口非空；有自己的不透明度与半径，不跟随输入区滑杆 |
-| 气泡与富内容框 | 分别控制外观；代码块和表格并不因此更换解析器 |
+| 整条顶栏和顶栏胶囊 | `showTopBarBackground` 只控制整条顶栏的高级底层；胶囊独立，取页卡材质和顶栏着色浓度。整条顶栏自己采样时胶囊保持**静态**着色——同一片区域对同一个源采两遍会叠深一层 |
+| 输入区 | 可显式选材质；未选且玻璃未应用到输入区时走页卡材质。旧输入区 haze 路径已随旧运行时删除，关着高级外观就只有实色底 |
+| 聊天坞玻璃 | 只装饰原有悬浮栏，要求已启用悬浮栏且快捷入口非空；有自己的材质档（`chatDockSurfaceStyle`，默认液态玻璃）、不透明度与半径，不跟随输入区滑杆 |
+| 气泡与富内容框 | 分别控制外观；代码块和表格并不因此更换解析器。消息样式为「默认」时气泡用所选高级气泡材质，显式「实色」时不采样背景；定制的思考链跟富内容材质走 |
+| 助手正文气泡 | 默认**不显示**气泡底（`showAssistantBubble = false`），要的话到 界面偏好 打开 |
 | 正文排版、建议条、灵感卡片 | 正文设行高和段间距；建议条可改面、边框和最大高度（72–220dp）；灵感样式仅作用于相应的空会话内容 |
+
+### 7.1 采样源：只给该采样的一层
+
+| 消费方 | 取哪份源 |
+|---|---|
+| 会话抽屉底板 | 只用背景源；它背后是页面背景，不采会话列表 |
+| 气泡、富内容卡片、思考链 | 只用背景源 |
+| 整条顶栏、顶栏胶囊、配额条与看板、会话详情浮层、同窗工具详情侧栏 | `chrome` 源，要糊出压着的正文 |
+| 空态概览、生成中、上下文压缩 | 不录正文 |
+| 分窗的 Dialog / 菜单 / Sheet | 不跨窗采样，只给静态着色 |
+| 浮在正文上的小控件（消息跳转、建议回复、下拉新建胶囊） | 只静态着色，不各自挂源 |
 
 ## 8 性能条件：什么时候退回静态
 
 | 条件 | 降级范围 |
 |---|---|
 | 相应的效果开关关闭，或系统省电 | 高级面材质不做实时模糊/折射，可保留静态着色、渐变或描边 |
-| 应用关动效，或按设置遵循系统且系统禁用动画 | 高级面材质退静态，网格渐变不漂移 |
+| 应用关动效，或按设置遵循系统且系统禁用动画 | 只停动画：网格渐变不漂移，**模糊与折射照旧**。模糊是渲染效果不是动效，`LocalAnimationsEnabled` 已不参与材质降级判断 |
 | 聊天滚动、输入法可见或生成中 | 自适应性能开启时，高级面材质按忙态降级；不按滚动偏移逐帧取值 |
 | 内容仍在增长 | 流式气泡、公式和表格，以及未闭合的代码围栏禁用该处的实时材质，不依赖自适应开关 |
-| 独立窗口或无 Haze 源 | 不跨窗口或列借源；按场景走静态底色或合成底色 |
+| 独立窗口或无 Haze 源 | 不跨窗口或列借源；按场景走静态底色或合成底色，只有着色与边缘 |
 
 网格渐变还有自己的动效开关；生成中先暂停漂移。`AppearanceBackdrop` 对选中图片本身的模糊仍按
 第 5 节的 API 半径计算，**不受上述面材质省电降级直接控制**。页内浮层（如工具详情）可使用自己的效果开关；
@@ -152,7 +213,8 @@
 
 `SeparateWindowContent` 标记独立窗口，`SheetWindowTheme` 把静态色交给 Salt 实际的面板容器。
 共享对话框、两类 Select 下拉、聊天菜单、子代理通知和 Emoji 肤色 Popup、暂停更新提示等消费这些机制。
-`advancedMaterial` 与旧 `GlassSurface` 在被标记的窗口都忽略父 `HazeState`。全屏图片预览如符合第 4 节，
+`advancedMaterial` 在被标记的窗口忽略父 `HazeState`，只拿静态色（旧 `GlassSurface.effectSurface` 已删除）。
+全屏图片预览如符合第 4 节，
 是独立窗口自己绘制同一张受管图，不是采样父窗口。
 
 ## 10 保留的既有依赖，没有换栈
@@ -163,7 +225,7 @@
 | BetterText | `v0.1.6` | Markdown 解析与排版；ANSI 块也用它的 `BetterText` 以保持同一选择容器 |
 | Coil | `3.6.3` | 背景图、生成图、视频封面；`coil-svg` 仍在 |
 | Salt UI | `3.0.0` | `SaltTheme` / `SaltDynamicColors` / Sheet；独立窗口用它换面板色 |
-| Haze | `2.1.0`（`haze` / `haze-blur` / `haze-glass` + material3 变体） | 模糊与玻璃，`SaltGlassStyles` 提供样式 |
+| Haze | `2.1.0`（`haze` / `haze-blur` / `haze-glass` + material3 变体） | 模糊与玻璃；Salt 样式走 `SaltGlassStyles`，原版玻璃走 `glass.material3` 变体 |
 | Decompose | `3.6.2` | 分栏与 child 身份（第 6 节） |
 | Media3 | `1.11.1` | 复用本地全屏播放器 |
 
@@ -340,16 +402,44 @@ DOM 存储、文件、Content 和网络访问，并拦截导航与子资源，�
   本次未触发 CI。未运行 Gradle、PNPM 或编译，未安装依赖、上机、出 APK、部署或发版。未改依赖、版本或构建配置；
   工作树原有的 Web UI 等非移植改动保持原状。
 
+### 16.1 本轮（全局特效并入高级外观，V6）
+
+- 本轮文档部分只动这四份：`docs/port-rikkahub-revised.md`、`docs/fork-features.md`、`FORK.md`、`.l3spec/settings-theme.md`；
+  本节只说文档与静态事实，不代其它改动下验证结论。
+- `git diff --check` 无输出、退出 0（`git diff --check -- docs .l3spec FORK.md` 同样退出 0）。
+  该命令只看已跟踪文件的空白问题，未跟踪的新文件不在其范围内。
+- 未运行 Gradle / PNPM / 编译 / 单测，未触发 CI，未安装依赖、未上机、未出包。
+  `app/src/test/.../PreferenceStoreV6MigrationTest.kt` 是新增源码但本轮没有执行它——
+  「迁移源码存在」不等于「迁移行为已验证」，本节不报告任何 CI 或真机结论。
+- 未改依赖、版本号或构建配置。
+
 ## 17 手工回归矩阵（全部待执行）
 
 在获批的测试环境中准备 `githubDebug` 变体，覆盖 API 26、31/32、33+，以及窄屏、横屏三栏、深浅色与中英文。
 恢复和缓存用例使用可丢弃的测试数据。下列是预期，不是观察结果。
 
+### 迁移（V6）与消息样式
+
+| 项 | 操作和预期 |
+|---|---|
+| 升级：模糊档 | 旧设置 `enableBlurEffect` 开、类型 blur、`blurOpacity` 65%；升级后高级外观为开，页面 / 输入区 / 浮层 / 导航 / 聊天坞 / 气泡 / 富内容卡片为磨砂、12dp、65%，顶栏与输入区继承同一浓度 |
+| 升级：玻璃档 | 类型 glass、`glassOpacity` 40%；材质为液态玻璃、16dp、40%，玻璃预设未被改写，`showTopBarBackground` 与助手气泡显示开关保持原值 |
+| 升级：OFF | 旧开关关、类型 off、或写成认不出来的值；高级外观仍关，界面全程实色，一条 haze 都不挂 |
+| 已开不覆盖 | 高级外观已开且自己调过半径与不透明度；升级后这些值不变，只在 `display_setting` 出现标记 |
+| 坏数据 | 把两份 JSON 分别换成畸形字符串、`null`、数组；不补新文档，盘上原文保留，应用照常启动 |
+| 备份恢复 | 用旧备份（开关开 + blur）恢复后，导出这份已迁移设置；手动关掉高级外观，再恢复这份新版备份，不应重新打开（`legacyEffectsMigrated`）。再次导入那份未带标记的旧备份仍会按旧规则迁移 |
+| 降级 | 装回旧版本仍按旧字段与旧浓度运行；再升回新版本，旧开关也不会二次重开 |
+| 壁纸与页面 | 壁纸预模糊与页面磨砂半径分别调，改一个不动另一个；旧盘只有 `globalBackgroundBlurRadius` 且非 20dp 时，页面半径被回填一次 |
+| 消息样式位置 | 高级外观设置内改三档样式与角色覆盖，返回重进保持；旧路由 `Screen.SettingPreferencesMessageStyle` 仍能直达同一块内容；数据仍在 `display_setting` |
+| 实色不采样 | 消息样式选「实色」；气泡不采样背景，透明度与半径滑杆不影响它。选「默认」时走所选高级气泡材质 |
+| 助手正文气泡 | 全新安装默认没有助手气泡底；到 界面偏好 打开「显示助手消息气泡」后才出现 |
+| 液态玻璃样式 | 在 Salt 与 RikkaHub 原版之间切换，Salt 的预设与光学滑杆随之隐藏/显示；切回 Salt 参数不丢 |
+
 ### 外观与导航
 
 | 项 | 操作和预期 |
 |---|---|
-| 默认与旧盘 | 全新安装、升级无高级外观键的旧设置；总开关默认关，原配色/材质与旧路由可用；富文本、附件、消息预览仍可用。开启后高级默认值生效，再关闭回旧材质 |
+| 默认与旧盘 | 全新安装、升级无高级外观键的旧设置；总开关默认关，主题与旧路由可用，各面是实色底；富文本、附件、消息预览仍可用。开启后高级默认值生效，再关闭回到实色（已经不存在旧模糊路径） |
 | 旧字段异常 | 用测试备份分别输入未知外观枚举、畸形外观 JSON；未知枚举用该字段默认，畸形 JSON 只回退外观，保留无关偏好 |
 | 导入 | 导入正常 JPEG 并重启；只存受管相对路径。换大于 16 MiB、任一边大于 16,384 或无效的图，应提示失败，不替换已保存设置 |
 | 缺图与恢复 | 移走图或换成不可解码文件；普通页退无图底，MICA 可留主题渐变，聊天退助手背景。还原同名有效图后应恢复 |
@@ -362,8 +452,8 @@ DOM 存储、文件、Content 和网络访问，并拦截导航与子资源，�
 | API 31/32 | 用非零模糊半径和有源表面；最大 12dp，折射不可用，网格走 Kotlin |
 | API 33+ | 通用上限 40dp，液态玻璃专属半径与导航半径仍有各自上限。折射试 0、6、16 和 `CLEAR`；在有源、无降级条件时检查 0 不折射、非零能调整且不抛错 |
 | 网格渲染器 | 分别选 `AUTO`、`AGSL`、`KOTLIN`；33+ 硬件画布尝试 AGSL，软件画布或 shader 失败时仍有 Kotlin 光斑 |
-| 聊天材质 | 开、关高级外观分别滚动长消息；开时只糊背景，关时旧列表源仍生效。顶栏整条底与胶囊独立；悬浮栏关闭或无快捷入口时 Dock 设置不自行创建栏 |
-| 忙态与省电 | 在 API 33+ 启用自适应，试滚动、键盘及生成；再试省电和遵循系统减弱动效。相关面退静态，合适条件恢复；图片本身的模糊不因此取消 |
+| 聊天材质 | 开、关高级外观分别滚动长消息；开时只糊背景，抽屉只采背景，顶栏与配额条取含正文的 chrome 源。整条顶栏在用同一个源时胶囊保持静态；悬浮栏关闭或无快捷入口时 Dock 设置不自行创建栏 |
+| 忙态与省电 | 在 API 33+ 启用自适应，试滚动、键盘及生成；再试省电与关闭动效。省电使相关面退静态、条件恢复后复原；关闭动效只停动画，模糊与折射不退；图片本身的模糊不因此取消 |
 | 独立窗口 | 打开确认框、两类 Select、菜单、Sheet 与 Popup；静态颜色不采父窗口，原交互仍可用。全屏图片仅在其背景条件满足时自己绘图 |
 
 ### 富文本
@@ -396,7 +486,9 @@ DOM 存储、文件、Content 和网络访问，并拦截导航与子资源，�
 
 ## 18 回滚
 
-尚未暂存或提交。临时停用高级材质可关总开关，但这不会撤销渲染、媒体或预览代码。
+尚未暂存或提交。临时停用面材质可关总开关：现在关掉就是回到实色底，已经没有旧特效运行时可以退回去。
+V6 迁移写进 `display_setting.legacyEffectsMigrated` 的标记不会随代码回退自动撤销：
+降级版本仍按旧字段运行，但再升回新版本时旧开关不会再打开一次高级外观。
 需要撤回源码时，先保全当前工作树和移植前的修改记录，再确认并反向应用仅属于本次移植的补丁，
 逐一核对只属于本次的新增文件和依赖引用。不要按目录或整个共享文件恢复到 `HEAD`，
 也不要把所有未跟踪文件视为移植产物；模型、上下文门限、导出、图标、文档及 Web UI 等原有修改须保留。

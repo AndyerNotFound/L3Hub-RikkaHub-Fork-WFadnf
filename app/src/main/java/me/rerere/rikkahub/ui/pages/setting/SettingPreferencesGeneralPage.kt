@@ -32,14 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.CornerStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.HapticsStrength
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
@@ -238,66 +236,6 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             }
 
             CardGroup {
-                formItem(
-                    headlineContent = { Text(text = stringResource(R.string.setting_display_page_background_effect_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_display_page_background_effect_desc)) },
-                ) {
-                    ConnectedChoiceButtons(
-                        options = BackgroundEffectType.entries,
-                        selected = displaySetting.effectiveBackgroundEffect,
-                        onSelect = { type ->
-                            updateDisplaySetting(
-                                displaySetting.copy(
-                                    backgroundEffectType = type,
-                                    enableBlurEffect = type != BackgroundEffectType.OFF,
-                                )
-                            )
-                        },
-                    ) { type, selected ->
-                        ConnectedChoiceLabel(
-                            text = when (type) {
-                                BackgroundEffectType.OFF -> stringResource(R.string.setting_display_page_background_effect_off)
-                                BackgroundEffectType.BLUR -> stringResource(R.string.setting_display_page_background_effect_blur)
-                                BackgroundEffectType.GLASS -> stringResource(R.string.setting_display_page_background_effect_glass)
-                            },
-                            selected = selected,
-                        )
-                    }
-                }
-                    animatedFormItem(
-                        visible = { displaySetting.effectiveBackgroundEffect == BackgroundEffectType.BLUR },
-                        headlineContent = { Text(text = stringResource(R.string.setting_display_page_blur_opacity_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_blur_opacity_desc)) },
-                        trailingContent = {
-                            CardGroupValue("${(displaySetting.blurOpacity * 100).roundToInt()}%")
-                        },
-                    ) {
-                        AppSlider(
-                            value = displaySetting.blurOpacity,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(blurOpacity = it))
-                            },
-                            valueRange = 0f..1f,
-                            steps = 19,
-                        )
-                    }
-                    animatedFormItem(
-                        visible = { displaySetting.effectiveBackgroundEffect == BackgroundEffectType.GLASS },
-                        headlineContent = { Text(text = stringResource(R.string.setting_display_page_glass_opacity_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_glass_opacity_desc)) },
-                        trailingContent = {
-                            CardGroupValue("${(displaySetting.glassOpacity * 100).roundToInt()}%")
-                        },
-                    ) {
-                        AppSlider(
-                            value = displaySetting.glassOpacity,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(glassOpacity = it))
-                            },
-                            valueRange = 0f..1f,
-                            steps = 19,
-                        )
-                    }
                 switchItem(
                     checked = displaySetting.fullWidthComponents,
                     onCheckedChange = { updateDisplaySetting(displaySetting.copy(fullWidthComponents = it)) },

@@ -58,14 +58,11 @@ import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.ui.components.ai.ChatCapsule
 import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
-import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.ai.needsFlatOutline
 import me.rerere.rikkahub.ui.components.ai.topBarCapsuleMaterial
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
@@ -88,7 +85,7 @@ private val TopBarButtonIconSize = 22.5.dp
 
 @Composable
 internal fun TopBar(
-    hazeState: HazeState,
+    hazeState: HazeState?,
     settings: Settings,
     assistant: Assistant,
     chatModel: Model?,
@@ -109,19 +106,16 @@ internal fun TopBar(
     detailsExpanded: Boolean,
     onToggleDetails: () -> Unit,
 ) {
-    val effect = settings.displaySetting.effectiveBackgroundEffect
     val appearance = settings.advancedAppearanceSetting
-    // 高级外观开启后，顶栏的底与按钮的底都改由 advancedMaterial 画；关着时这两项恒为 null
+    // 高级外观开启后，顶栏的底与按钮的底都改由 advancedMaterial 画；关着时这两项恒为 null，
+    // 下面各自退回一道实色底（旧全局特效运行时已经退役）。
     val backdropMaterial = appearance.topBarBackdropMaterial(settings.displaySetting)
-    val buttonMaterial = appearance.topBarCapsuleMaterial(settings.displaySetting)
-    // 着色交给 chatInputHaze，按当前档位读滑杆；按钮自己只在关闭特效时铺实色
-    fun effectColor(base: Color): Color =
-        if (effect == BackgroundEffectType.OFF) base else Color.Transparent
-    val effectBorder = if (effect == BackgroundEffectType.BLUR) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    } else {
-        null
-    }
+    // 整条顶栏的底开着并且由它自己采样时，胶囊保持静态着色：同一片区域对同一个 chrome 源
+    // 采样两遍，不只是多算一次，两层着色叠起来颜色也会深一层。
+    val buttonMaterial = appearance.topBarCapsuleMaterial(
+        display = settings.displaySetting,
+        backdropActive = backdropMaterial != null,
+    )
 
     TopAppBar(
         // 底色交给材质层，容器本身保持透明，否则会和底叠成两倍浓度
@@ -144,7 +138,6 @@ internal fun TopBar(
             // 放在导航位则会顶到右边的按钮上
             if (!threePane && chatModel != null) {
                 ChatModelFolderPill(
-                    settings = settings,
                     model = chatModel,
                     folderId = folderId,
                     folders = folders,
@@ -152,6 +145,7 @@ internal fun TopBar(
                     onCreateFolder = onCreateFolder,
                     onShowModelPicker = onShowModelPicker,
                     hazeState = hazeState,
+                    material = buttonMaterial,
                     modifier = Modifier.padding(start = 2.dp),
                 )
             }
@@ -201,22 +195,8 @@ internal fun TopBar(
                                             }
                                         )
                                 } else {
-                                    Modifier
-                                        .background(effectColor(navColor))
-                                        .chatInputHaze(
-                                            hazeState = hazeState,
-                                            displaySetting = settings.displaySetting,
-                                            containerColor = navColor,
-                                            shape = navShape,
-                                        )
-                                        // 描边画在模糊层之后，否则会被糊掉
-                                        .then(
-                                            if (effectBorder != null) {
-                                                Modifier.border(effectBorder, navShape)
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
+                                    // 高级外观关着：只有这一道实色底
+                                    Modifier.background(navColor)
                                 }
                             ),
                         shape = navShape,
@@ -248,7 +228,6 @@ internal fun TopBar(
                 // 和左侧的会话胶囊共用同一个容器，入口之间同样用一条细线隔开，
                 // 顶栏两头的胶囊才是同一套东西
                 ChatCapsule(
-                    displaySetting = settings.displaySetting,
                     hazeState = hazeState,
                     material = buttonMaterial,
                     modifier = Modifier.height(TopBarButtonSize),
@@ -310,23 +289,24 @@ internal fun TopBar(
  */
 @Composable
 private fun ChatModelFolderPill(
-    settings: Settings,
     model: Model,
     folderId: Uuid?,
     folders: List<Folder>,
     onSelectFolder: (Uuid?) -> Unit,
     onCreateFolder: () -> Unit,
     onShowModelPicker: () -> Unit,
-    hazeState: HazeState,
+    hazeState: HazeState?,
+    // 顶栏那一颗的材质（含「整条顶栏在用同一个源时保持静态」那一条）由 TopBar 算好传进来，
+    // 这里不再自己算一遍，免得两处各判一次、判出两种结果
+    material: AppearanceMaterial?,
     modifier: Modifier = Modifier,
 ) {
     val folder = folders.firstOrNull { it.id == folderId }
     var menuExpanded by remember { mutableStateOf(false) }
 
     ChatCapsule(
-        displaySetting = settings.displaySetting,
         hazeState = hazeState,
-        material = settings.advancedAppearanceSetting.topBarCapsuleMaterial(settings.displaySetting),
+        material = material,
         modifier = modifier.height(TopBarButtonSize),
     ) {
         Box {

@@ -39,6 +39,8 @@ data class AdvancedAppearanceSetting(
     val pageLiquidGlassBlurRadius: Float = 0f,
     val pageSurfaceOpacity: Float = .68f,
     val pageSurfaceStyle: BackgroundSurfaceStyle = BackgroundSurfaceStyle.TRANSLUCENT,
+    // 页面卡片的模糊与壁纸图片本身的模糊分开保存。
+    val pageSurfaceBlurRadius: Float = 20f,
     val overlaySurfaceStyle: BackgroundSurfaceStyle = BackgroundSurfaceStyle.OPAQUE,
     val overlaySurfaceOpacity: Float = .82f,
     val overlaySurfaceBlurRadius: Float = 20f,
@@ -49,14 +51,18 @@ data class AdvancedAppearanceSetting(
     val navigationGlassBlurRadius: Float = 24f,
     val navigationLiquidGlassBlurRadius: Float = 0f,
     val enableChatDockGlass: Boolean = false,
+    val chatDockSurfaceStyle: BackgroundSurfaceStyle = BackgroundSurfaceStyle.LIQUID_GLASS,
     val chatDockGlassOpacity: Float = .58f,
     val chatDockGlassBlurRadius: Float = 0f,
     val chatBubbleStyle: ChatBubbleStyle = ChatBubbleStyle.FROSTED,
+    val chatBubbleSurfaceOpacity: Float? = null,
+    val chatBubbleBlurRadius: Float? = null,
     val enableChatTextReadability: Boolean = true,
     val chatTextLineHeightRatio: Float = 1.5f,
     val chatParagraphSpacingRatio: Float = .65f,
     val richContentStyle: RichContentStyle = RichContentStyle.TRANSLUCENT,
     val richContentSurfaceOpacity: Float = .62f,
+    val richContentSurfaceBlurRadius: Float? = null,
     val enableChatSuggestionSurface: Boolean = true,
     val chatSuggestionSurfaceOpacity: Float = .62f,
     val chatSuggestionBorderOpacity: Float = .72f,
@@ -124,6 +130,7 @@ enum class ChatBubbleStyle {
 enum class RichContentStyle {
     @SerialName("translucent") TRANSLUCENT,
     @SerialName("outlined") OUTLINED,
+    @SerialName("liquid_glass") LIQUID_GLASS,
 }
 
 internal fun finiteAppearanceValue(value: Float, min: Float, max: Float, fallback: Float): Float =
@@ -142,19 +149,23 @@ internal fun AdvancedAppearanceSetting.normalized(): AdvancedAppearanceSetting {
         globalBackground = globalBackground?.trim()?.takeIf { it.isNotEmpty() && it.length <= 2048 },
         globalBackgroundOpacity = finiteAppearanceValue(globalBackgroundOpacity, 0f, 1f, 1f),
         globalBackgroundBlurRadius = finiteAppearanceValue(globalBackgroundBlurRadius, 0f, MAX_GLOBAL_BACKGROUND_BLUR_RADIUS, 20f),
+        pageSurfaceBlurRadius = finiteAppearanceValue(pageSurfaceBlurRadius, 0f, MAX_GLOBAL_BACKGROUND_BLUR_RADIUS, 20f),
         pageLiquidGlassBlurRadius = finiteAppearanceValue(pageLiquidGlassBlurRadius, 0f, MAX_LIQUID_GLASS_BLUR_RADIUS, 0f),
-        pageSurfaceOpacity = finiteAppearanceValue(pageSurfaceOpacity, .35f, 1f, .68f),
-        overlaySurfaceOpacity = finiteAppearanceValue(overlaySurfaceOpacity, .35f, 1f, .82f),
+        pageSurfaceOpacity = finiteAppearanceValue(pageSurfaceOpacity, 0f, 1f, .68f),
+        overlaySurfaceOpacity = finiteAppearanceValue(overlaySurfaceOpacity, 0f, 1f, .82f),
         overlaySurfaceBlurRadius = finiteAppearanceValue(overlaySurfaceBlurRadius, 0f, 40f, 20f),
         overlayLiquidGlassBlurRadius = finiteAppearanceValue(overlayLiquidGlassBlurRadius, 0f, MAX_LIQUID_GLASS_BLUR_RADIUS, 0f),
-        navigationGlassOpacity = finiteAppearanceValue(navigationGlassOpacity, .35f, 1f, .72f),
+        navigationGlassOpacity = finiteAppearanceValue(navigationGlassOpacity, 0f, 1f, .72f),
         navigationGlassBlurRadius = finiteAppearanceValue(navigationGlassBlurRadius, 0f, MAX_NAVIGATION_GLASS_BLUR_RADIUS, 24f),
         navigationLiquidGlassBlurRadius = finiteAppearanceValue(navigationLiquidGlassBlurRadius, 0f, MAX_LIQUID_GLASS_BLUR_RADIUS, 0f),
-        chatDockGlassOpacity = finiteAppearanceValue(chatDockGlassOpacity, .2f, 1f, .58f),
+        chatDockGlassOpacity = finiteAppearanceValue(chatDockGlassOpacity, 0f, 1f, .58f),
         chatDockGlassBlurRadius = finiteAppearanceValue(chatDockGlassBlurRadius, 0f, MAX_LIQUID_GLASS_BLUR_RADIUS, 0f),
+        chatBubbleSurfaceOpacity = chatBubbleSurfaceOpacity?.takeIf { it.isFinite() }?.coerceIn(0f, 1f),
+        chatBubbleBlurRadius = chatBubbleBlurRadius?.takeIf { it.isFinite() }?.coerceIn(0f, 40f),
         chatTextLineHeightRatio = normalizedChatTextLineHeightRatio(),
         chatParagraphSpacingRatio = normalizedChatParagraphSpacingRatio(),
-        richContentSurfaceOpacity = finiteAppearanceValue(richContentSurfaceOpacity, .2f, 1f, .62f),
+        richContentSurfaceOpacity = finiteAppearanceValue(richContentSurfaceOpacity, 0f, 1f, .62f),
+        richContentSurfaceBlurRadius = richContentSurfaceBlurRadius?.takeIf { it.isFinite() }?.coerceIn(0f, 40f),
         chatSuggestionSurfaceOpacity = finiteAppearanceValue(chatSuggestionSurfaceOpacity, .2f, 1f, .62f),
         chatSuggestionBorderOpacity = finiteAppearanceValue(chatSuggestionBorderOpacity, 0f, 1f, .72f),
         chatSuggestionMaxHeight = finiteAppearanceValue(
@@ -169,9 +180,9 @@ internal fun AdvancedAppearanceSetting.normalized(): AdvancedAppearanceSetting {
 internal fun DisplaySetting.normalizedAppearanceInputs(): DisplaySetting {
     val safe = copy(
         topBarBlurRadius = finiteAppearanceValue(topBarBlurRadius, 0f, 40f, 20f),
-        topBarSurfaceOpacity = finiteAppearanceValue(topBarSurfaceOpacity, .35f, 1f, .65f),
+        topBarSurfaceOpacity = finiteAppearanceValue(topBarSurfaceOpacity, 0f, 1f, .65f),
         inputBlurRadius = finiteAppearanceValue(inputBlurRadius, 0f, 40f, 12f),
-        inputSurfaceOpacity = finiteAppearanceValue(inputSurfaceOpacity, .2f, 1f, .55f),
+        inputSurfaceOpacity = finiteAppearanceValue(inputSurfaceOpacity, 0f, 1f, .55f),
     )
     return if (safe == this) this else safe
 }

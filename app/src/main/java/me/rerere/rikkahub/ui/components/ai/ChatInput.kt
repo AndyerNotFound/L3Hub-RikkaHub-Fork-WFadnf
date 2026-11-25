@@ -78,11 +78,9 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.ContextMeterStyle
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.FloatingBarItem
@@ -144,7 +142,7 @@ fun ChatInput(
     onUpdateContextMeterStyle: (ContextMeterStyle) -> Unit = {},
     injectedLorebookCount: Int = 0,
     onShowUsage: () -> Unit = {},
-    hazeState: HazeState,
+    hazeState: HazeState?,
     modifier: Modifier = Modifier,
     completionProviders: List<ChatCompletionProvider> = emptyList(),
     onUpdateChatModel: (Model) -> Unit,
@@ -197,8 +195,8 @@ fun ChatInput(
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
-    // 输入卡片的材质：null = 高级外观关着（或没选材质也没强制玻璃），继续走原来的 chatInputHaze。
-    // composerMaterial 内部已经过了 enableAdvancedAppearance；设置里没选材质时沿用旧特效，
+    // 输入卡片的材质：null = 高级外观关着（或没选材质也没强制玻璃），这时只有一道实色底。
+    // composerMaterial 内部已经过了 enableAdvancedAppearance；旧的全特效运行时已经退役，
     // 只有 applyToComposer 把玻璃档打开时才强制 liquid（和上游 chatComposerMaterial 一致）。
     val composerStyle = settings.advancedAppearanceSetting.composerMaterial(settings.displaySetting)
 
@@ -599,12 +597,8 @@ fun ChatInput(
                                             readableFloor = .35f,
                                         )
                                     } else {
-                                        Modifier.chatInputHaze(
-                                            hazeState = hazeState,
-                                            displaySetting = settings.displaySetting,
-                                            containerColor = containerColor,
-                                            shape = containerShape,
-                                        )
+                                        // 没开高级外观：底由下面 Surface 的 color 铺，这里不加第二层
+                                        Modifier
                                     }
                                 ),
                             shape = containerShape,
@@ -619,13 +613,12 @@ fun ChatInput(
                             } else {
                                 null
                             },
-                            // 着色由材质层统一叠在模糊之上，这里保持透明，避免叠成两倍浓度
+                            // 着色由材质层统一叠在模糊之上，这里保持透明，避免叠成两倍浓度；
+                            // 没开高级外观时这里就是那一整块实色底
                             color = if (composerStyle != null) {
                                 Color.Transparent
-                            } else if (settings.displaySetting.effectiveBackgroundEffect == BackgroundEffectType.OFF) {
-                                containerColor
                             } else {
-                                Color.Transparent
+                                containerColor
                             },
                         ) {
                             Column(
@@ -909,7 +902,7 @@ fun ChatInput(
                                 onItemClick = onFloatingBarItemClick,
                                 hazeState = hazeState,
                                 displaySetting = settings.displaySetting,
-                                // 聊天坞总闸关着时是 null，悬浮栏继续走 chatInputHaze 的老路径
+                                // 聊天坞总闸关着时是 null，悬浮栏退回一道实色底
                                 material = settings.chatDockMaterial(),
                             )
                         }

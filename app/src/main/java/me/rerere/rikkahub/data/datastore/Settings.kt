@@ -446,6 +446,18 @@ data class DisplaySetting(
     val topBarSurfaceOpacity: Float = .65f,
     val inputBlurRadius: Float = 12f,
     val inputSurfaceOpacity: Float = .55f,
+    /**
+     * 旧全局特效开关「已经搬过一次」的标记，默认 true：默认状态下没有要搬的东西，当前界面也不读它。
+     *
+     * 只有 V6 迁移看它，而且只看盘上原始 JSON 里这个键是不是 true
+     * （[me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV6Migration]）。落盘开着 `encodeDefaults`，
+     * 所以它一旦被读进模型再写回去，文件里就一定有一个真的布尔 `true`。用户之后自己关掉高级外观，
+     * 从这之后的备份恢复时，旧版的 `enableBlurEffect` 还在、这个标记也在，迁移就不会把特效重新打开。
+     *
+     * 仅供旧备份迁移和导出兼容；`enableBlurEffect` / `backgroundEffectType` / `blurOpacity` /
+     * `glassOpacity` 同理只留给迁移与降级读。
+     */
+    val legacyEffectsMigrated: Boolean = true,
     val enableBlurEffect: Boolean = false,
     val backgroundEffectType: BackgroundEffectType = BackgroundEffectType.BLUR,
     val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
@@ -455,9 +467,7 @@ data class DisplaySetting(
     val inputPadding: Int = 8,
     // 全宽组件：气泡/卡片撑满父宽、圆角收成直角、贴边组件去掉左右内边距
     val fullWidthComponents: Boolean = false,
-    // 模糊特效下气泡/输入框/顶栏的底色不透明度
     val blurOpacity: Float = 0.45f,
-    // 玻璃底（设置项/选项卡/按钮/顶栏图标）的透明度，0 = 全透明，1 = 原实色
     val glassOpacity: Float = 0.35f,
     // 消息样式：气泡背景三档（默认 / 毛玻璃 / 实色），参数按明暗与角色分别覆盖
     val chatMessageBackgroundStyle: ChatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
@@ -513,9 +523,6 @@ data class BackupReminderConfig(
     val intervalDays: Int = 7,
     val lastBackupTime: Long = 0L,
 )
-
-val DisplaySetting.effectiveBackgroundEffect: BackgroundEffectType
-    get() = if (enableBlurEffect) backgroundEffectType else BackgroundEffectType.OFF
 
 /** 删除提供商。内置提供商删过后记住 id，读盘时不再自动补回 */
 fun Settings.removeProvider(id: Uuid): Settings = copy(

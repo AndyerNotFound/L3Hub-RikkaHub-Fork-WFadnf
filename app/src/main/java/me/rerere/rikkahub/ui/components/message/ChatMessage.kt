@@ -103,14 +103,10 @@ import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
-import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
-import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.richtext.LocalChatMarkdownLayout
 import me.rerere.rikkahub.ui.components.richtext.MAX_OFFLINE_PREVIEW_CHARS
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -118,14 +114,9 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownRenderMode
 import me.rerere.rikkahub.ui.components.richtext.RichChartCard
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
 import me.rerere.rikkahub.ui.components.richtext.advancedChatParagraphGap
-import me.rerere.rikkahub.ui.components.richtext.outline
-import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
 import me.rerere.rikkahub.ui.components.richtext.withAdvancedChatLineHeight
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
-import me.rerere.rikkahub.ui.components.ui.ComponentEffectBlurRadius
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.effectSurfaceAlpha
-import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -720,84 +711,31 @@ private fun MessagePartsBlock(
                     } else {
                         maxOf(COLLAPSED_VISIBLE_STEPS, block.steps.size - firstPendingIndex)
                     }
-                    val chainEffect = settings.displaySetting.effectiveBackgroundEffect
-                    val chainStyleSetting = settings.displaySetting
-                    // 思考链卡片单独套消息样式时用解析结果，否则跟现状走
-                    val chainResolved = if (
-                        chainStyleSetting.chatMessageBackgroundStyle !=
-                            ChatMessageBackgroundStyle.DEFAULT &&
-                            chainStyleSetting.customizeThinkingToolCards
-                    ) {
-                        resolveBubbleStyle(
-                            colorScheme = MaterialTheme.colorScheme,
-                            style = chainStyleSetting.chatMessageBackgroundStyle,
-                            overrides = chainStyleSetting.thinkingToolCardStyleOverrides,
+                    val chainVisual = resolveThinkingBubbleVisual(
+                        appearance = settings.advancedAppearanceSetting,
+                        display = settings.displaySetting,
+                        streaming = loading,
+                    )
+                    val chainShape = adaptiveShape(chainVisual.radius)
+                    val chainModifier = when {
+                        chainVisual.material != null -> Modifier.advancedMaterial(
+                            chainShape,
+                            chainVisual.baseColor,
+                            chainVisual.material,
+                            hazeState,
                         )
-                    } else {
-                        null
+                        chainVisual.customized -> Modifier.background(chainVisual.baseColor, chainShape)
+                        else -> Modifier
                     }
-                    val chainShape = chainResolved?.let { adaptiveShape(it.radius) }
-                        ?: adaptiveShape(20.dp)
-                    val chainBaseColor =
-                        chainResolved?.background ?: MaterialTheme.colorScheme.surfaceContainerHigh
-                    val richMaterial = settings.advancedAppearanceSetting.richContentMaterial(loading)
-                    // 有源时着色交给 chatInputHaze；没有源时自己留一层半透明底，避免整块透明。
-                    // 生成中步骤还在往这只卡片里加，尺寸每来一段就变一次，模糊要跟着重新采样，
-                    // 这一段退回半透明底色，停止输出后恢复
-                    val chainHasEffect = chainEffect != BackgroundEffectType.OFF &&
-                        hazeState != null && !loading
                     ChainOfThought(
-                        // 高度交给卡片里各步骤的收放动画；这里再包一层 animateContentSize
-                        // 会和它串联成两条弹簧，展开后卡片高度在目标附近反复上下
-                        modifier = Modifier
-                            .then(
-                                if (richMaterial != null) {
-                                    Modifier.advancedMaterial(chainShape, chainBaseColor, richMaterial, hazeState)
-                                } else if (chainHasEffect) {
-                                    Modifier
-                                        .clip(chainShape)
-                                        .chatInputHaze(
-                                            hazeState = hazeState,
-                                            displaySetting = settings.displaySetting,
-                                            containerColor = chainBaseColor,
-                                            shape = chainShape,
-                                            blurRadius = chainResolved?.blurRadius
-                                                ?: ComponentEffectBlurRadius,
-                                        )
-                                } else {
-                                    Modifier
-                                }
-                            ),
+                        modifier = chainModifier,
+                        shape = chainShape,
                         steps = block.steps,
                         collapsedVisibleCount = collapsedVisibleCount,
-                        border = if (richMaterial != null) {
-                            settings.advancedAppearanceSetting.richContentStyle.outline()
-                        } else if (chainResolved != null || chainEffect == BackgroundEffectType.BLUR) {
-                            BorderStroke(
-                                width = chainResolved?.borderWidth ?: 1.dp,
-                                color = chainResolved?.border
-                                    ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
-                        } else {
-                            null
-                        },
+                        border = chainVisual.border,
                         cardColors = CardDefaults.cardColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                            containerColor = if (richMaterial != null || chainHasEffect) {
-                                Color.Transparent
-                            } else if (chainResolved != null) {
-                                // 消息样式开启时用解析结果的透明度（frosted 0.66 / solid 1.0），
-                                // 不再叠乘全局滑杆
-                                chainResolved.background
-                            } else {
-                                chainBaseColor.copy(
-                                    alpha = if (chainEffect == BackgroundEffectType.OFF) {
-                                        settings.displaySetting.bubbleOpacity
-                                    } else {
-                                        settings.displaySetting.effectSurfaceAlpha
-                                    },
-                                )
-                            },
+                            contentColor = chainVisual.contentColor,
+                            containerColor = chainVisual.cardContainerColor,
                         ),
                     ) { step ->
                         when (step) {

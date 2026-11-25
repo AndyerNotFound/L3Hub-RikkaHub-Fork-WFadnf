@@ -4,8 +4,15 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
+import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
+import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.overridesFor
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
+import me.rerere.rikkahub.data.datastore.finiteAppearanceValue
 
 /** 消息样式解析结果：气泡实际绘制用的全部参数。 */
 data class ResolvedBubbleStyle(
@@ -42,21 +49,32 @@ fun resolveBubbleStyle(
 ): ResolvedBubbleStyle {
     // 颜色跟随当前主题（surfaceContainerHigh / outlineVariant / onSurface），
     // 覆盖项里的颜色字段不再读取；保留字段仅为兼容旧数据。
-    val opacity = when (style) {
-        ChatMessageBackgroundStyle.FROSTED -> overrides.frostedOpacity ?: 0.66f
-        ChatMessageBackgroundStyle.SOLID,
-        ChatMessageBackgroundStyle.DEFAULT,
-        -> overrides.solidOpacity ?: 1.0f
-    }
-    val borderOpacity = overrides.borderOpacity
-        ?: if (style == ChatMessageBackgroundStyle.FROSTED) 0.14f else 0.16f
+    val defaultOpacity = if (style == ChatMessageBackgroundStyle.FROSTED) .66f else 1f
+    val opacity = finiteAppearanceValue(
+        if (style == ChatMessageBackgroundStyle.FROSTED) overrides.frostedOpacity ?: defaultOpacity
+        else overrides.solidOpacity ?: defaultOpacity,
+        0f, 1f, defaultOpacity,
+    )
+    val borderOpacity = finiteAppearanceValue(
+        overrides.borderOpacity ?: if (style == ChatMessageBackgroundStyle.FROSTED) .14f else .16f,
+        0f, 1f, .14f,
+    )
 
     return ResolvedBubbleStyle(
         background = colorScheme.surfaceContainerHigh.copy(alpha = opacity.coerceIn(0f, 1f)),
         border = colorScheme.outlineVariant.copy(alpha = borderOpacity.coerceIn(0f, 1f)),
         text = colorScheme.onSurface,
-        borderWidth = (overrides.borderWidth ?: 0.8f).dp,
-        radius = (overrides.cornerRadius ?: 16f).dp,
-        blurRadius = ((overrides.blurSigma ?: 14f) * BLUR_SIGMA_TO_DP_SCALE).dp,
+        borderWidth = finiteAppearanceValue(overrides.borderWidth ?: .8f, 0f, 8f, .8f).dp,
+        radius = finiteAppearanceValue(overrides.cornerRadius ?: 16f, 0f, 40f, 16f).dp,
+        blurRadius = (finiteAppearanceValue(overrides.blurSigma ?: 14f, 0f, 30f, 14f) * BLUR_SIGMA_TO_DP_SCALE).dp,
     )
 }
+
+/** Resolve only the optional per-role message-style layer; DEFAULT leaves the preset untouched. */
+internal fun resolveMessageStyle(
+    colorScheme: ColorScheme,
+    display: DisplaySetting,
+    target: ChatBubbleStyleTarget,
+): ResolvedBubbleStyle? =
+    if (display.chatMessageBackgroundStyle == ChatMessageBackgroundStyle.DEFAULT) null
+    else resolveBubbleStyle(colorScheme, display.chatMessageBackgroundStyle, display.overridesFor(target))

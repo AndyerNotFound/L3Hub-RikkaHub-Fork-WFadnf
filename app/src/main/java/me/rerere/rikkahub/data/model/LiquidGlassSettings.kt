@@ -12,6 +12,18 @@ enum class LiquidGlassPreset { SOFT, STANDARD, CLEAR, CUSTOM }
 @Serializable
 enum class LiquidGlassRenderer { AUTO, STANDARD, AGSL }
 
+/**
+ * 液态玻璃的光学实现来源。
+ *
+ * - [SALT]：现有的 Salt 光学样式，读取 [LiquidGlassParameters]（高光、雾化、折射、内阴影）。
+ * - [MATERIAL3]：RikkaHub 原版的 Haze Material3 玻璃（containerColor + tint + 固定 optics），
+ *   不读取 Salt 的 preset 与自定义参数。
+ *
+ * 旧数据的 JSON 没有这个字段，默认落到 [SALT]，观感与加入该字段前一致。
+ */
+@Serializable
+enum class LiquidGlassStyle { SALT, MATERIAL3 }
+
 @Serializable
 data class LiquidGlassParameters(
     val highlight: Float = .38f,
@@ -28,7 +40,11 @@ data class LiquidGlassSettings(
     val renderer: LiquidGlassRenderer = LiquidGlassRenderer.AUTO,
     val adaptivePerformance: Boolean = true,
     val applyToComposer: Boolean = false,
+    val style: LiquidGlassStyle = LiquidGlassStyle.SALT,
 )
+
+/** 是否走 RikkaHub 原版的 Haze Material3 玻璃（Salt 的 preset / 自定义参数不参与）。 */
+internal fun LiquidGlassSettings.usesMaterial3Style(): Boolean = style == LiquidGlassStyle.MATERIAL3
 
 internal fun LiquidGlassSettings.parameters(): LiquidGlassParameters = when (preset) {
     LiquidGlassPreset.SOFT -> LiquidGlassParameters(.20f, .035f, 1f, 3f, .06f)

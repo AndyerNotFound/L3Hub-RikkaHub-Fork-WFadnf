@@ -3082,6 +3082,7 @@
   <string name="message_style_page_preview_thinking">Thinking…</string>
   <string name="message_style_page_preview_assistant">Assistant reply</string>
   <string name="message_style_page_blur">Blur Radius</string>
+  <string name="aa_bubble_blur_value">%1$d sigma · %2$.1f dp</string>
   <string name="message_style_page_background_opacity">Background Opacity</string>
   <string name="message_style_page_border_opacity">Border Opacity</string>
   <string name="message_style_page_border_width">Border Width</string>
@@ -3091,7 +3092,8 @@
   <string name="message_style_page_cancel">Cancel</string>
   <string name="message_style_page_default_hint">The default style follows the theme colors and offers no parameters. Switch to frosted or solid to customize.</string>
 
-  <string name="message_style_page_blur_hint">Takes effect when the global effect is set to Blur. Switch to Blur in Preferences → General to tune it.</string>
+  <string name="message_style_page_blur_hint">This per-role sigma is converted to dp for the selected frosted material; zero means no blur, not no backdrop sampling. Without live blur the value is stored but not rendered.</string>
+  <string name="message_style_page_assistant_bubble_hint">Assistant bubbles are off. Turn on Show Assistant Message Bubble in UI Preferences → Message display to see this style in chats.</string>
   <string name="quick_start_page_title">Quick Start</string>
   <string name="quick_start_page_tab_general">General</string>
   <string name="quick_start_page_tab_deepseek">Migrate from DeepSeek</string>

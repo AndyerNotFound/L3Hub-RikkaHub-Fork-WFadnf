@@ -113,6 +113,12 @@ class SettingsFieldsTest {
         assertEquals(null, settings.memoryModelId)
         assertEquals(true, settings.dynamicColor)
         assertEquals(AdvancedAppearanceSetting(), settings.advancedAppearanceSetting)
+        // 旧全局特效与「已经搬过」的标记：新装默认没有旧特效，标记默认就是 true，界面不读它们
+        assertEquals(false, settings.displaySetting.enableBlurEffect)
+        assertEquals(BackgroundEffectType.BLUR, settings.displaySetting.backgroundEffectType)
+        assertEquals(true, settings.displaySetting.legacyEffectsMigrated)
+        assertEquals(.45f, settings.displaySetting.blurOpacity, 0f)
+        assertEquals(.35f, settings.displaySetting.glassOpacity, 0f)
         assertEquals(8080, settings.webServerPort)
         assertEquals(false, settings.sshServerEnabled)
         assertEquals(2222, settings.sshServerPort)
@@ -206,7 +212,8 @@ class SettingsFieldsTest {
         assertTrue(raw.contains("\"outlined\""))
     }
 
-    // 盘上越界或非有限的值在读盘规整时收回范围，界面拿到的永远是能直接画的值
+    // 盘上越界或非有限的值在读盘规整时收回范围，界面拿到的永远是能直接画的值。
+    // 透明度是 0..1 的模型：下限是 0（不再是 .35 / .2），所以 0.01 这种小值要原样留着。
     @Test
     fun `advanced appearance inputs are clamped on read`() {
         val stored = mutablePreferencesOf(
@@ -217,6 +224,12 @@ class SettingsFieldsTest {
                   "globalBackgroundOpacity": -1.0,
                   "globalBackgroundBlurRadius": 999.0,
                   "pageSurfaceOpacity": 0.01,
+                  "overlaySurfaceOpacity": -0.5,
+                  "navigationGlassOpacity": 0.03,
+                  "chatDockGlassOpacity": 0.04,
+                  "richContentSurfaceOpacity": 0.05,
+                  "chatBubbleSurfaceOpacity": 2.0,
+                  "chatBubbleBlurRadius": 99.0,
                   "chatTextLineHeightRatio": 9.0,
                   "chatParagraphSpacingRatio": 0.0,
                   "chatSuggestionMaxHeight": 10.0,
@@ -232,7 +245,13 @@ class SettingsFieldsTest {
         assertNull(appearance.globalBackground)
         assertEquals(0f, appearance.globalBackgroundOpacity, 0f)
         assertEquals(MAX_GLOBAL_BACKGROUND_BLUR_RADIUS, appearance.globalBackgroundBlurRadius, 0f)
-        assertEquals(.35f, appearance.pageSurfaceOpacity, 0f)
+        assertEquals(.01f, appearance.pageSurfaceOpacity, 0f)
+        assertEquals(0f, appearance.overlaySurfaceOpacity, 0f)
+        assertEquals(.03f, appearance.navigationGlassOpacity, 0f)
+        assertEquals(.04f, appearance.chatDockGlassOpacity, 0f)
+        assertEquals(.05f, appearance.richContentSurfaceOpacity, 0f)
+        assertEquals(1f, appearance.chatBubbleSurfaceOpacity!!, 0f)
+        assertEquals(40f, appearance.chatBubbleBlurRadius!!, 0f)
         assertEquals(MAX_CHAT_TEXT_LINE_HEIGHT_RATIO, appearance.chatTextLineHeightRatio, 0f)
         assertEquals(MIN_CHAT_PARAGRAPH_SPACING_RATIO, appearance.chatParagraphSpacingRatio, 0f)
         assertEquals(MIN_CHAT_SUGGESTION_HEIGHT, appearance.chatSuggestionMaxHeight, 0f)
@@ -419,11 +438,43 @@ class SettingsFieldsTest {
         assertEquals(0f, display.topBarBlurRadius, 0f)
         assertEquals(1f, display.topBarSurfaceOpacity, 0f)
         assertEquals(12f, display.inputBlurRadius, 0f)
-        assertEquals(.2f, display.inputSurfaceOpacity, 0f)
+        // 0..1 是合法区间：0 就是 0，不该被抬到旧的下限 .2
+        assertEquals(0f, display.inputSurfaceOpacity, 0f)
+
+        // 小透明度同理原样留着
+        val low = DisplaySetting(
+            topBarSurfaceOpacity = .12f,
+            inputSurfaceOpacity = .08f,
+        ).normalizedAppearanceInputs()
+        assertEquals(.12f, low.topBarSurfaceOpacity, 0f)
+        assertEquals(.08f, low.inputSurfaceOpacity, 0f)
 
         // 规整只动外观输入，别的显示项原样带过
         val untouched = DisplaySetting(userNickname = "me", displayMode = DisplayMode.LANDSCAPE)
         assertSame(untouched, untouched.normalizedAppearanceInputs())
+    }
+
+    // 0..1 的模型下默认值本来就都在范围里：规整一遍不该改动任何一项
+    @Test
+    fun `default appearance values sit inside their ranges`() {
+        assertEquals(AdvancedAppearanceSetting(), AdvancedAppearanceSetting().normalized())
+        assertEquals(DisplaySetting(), DisplaySetting().normalizedAppearanceInputs())
+
+        val defaults = AdvancedAppearanceSetting()
+        listOf(
+            defaults.pageSurfaceOpacity,
+            defaults.overlaySurfaceOpacity,
+            defaults.navigationGlassOpacity,
+            defaults.chatDockGlassOpacity,
+            defaults.richContentSurfaceOpacity,
+            defaults.chatSuggestionSurfaceOpacity,
+            defaults.chatSuggestionBorderOpacity,
+        ).forEach { alpha -> assertTrue("$alpha 不在 0..1 里", alpha in 0f..1f) }
+
+        // 可选的材质覆盖默认是缺省：没写过的人跟对应材质走，而不是被钉死一个数值
+        assertNull(defaults.chatBubbleSurfaceOpacity)
+        assertNull(defaults.chatBubbleBlurRadius)
+        assertNull(defaults.richContentSurfaceBlurRadius)
     }
 }
 

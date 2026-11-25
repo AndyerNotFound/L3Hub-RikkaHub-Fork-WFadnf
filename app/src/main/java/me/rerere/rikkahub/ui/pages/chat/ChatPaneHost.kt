@@ -131,7 +131,7 @@ internal fun ChatSidePanes(
     onClosePane: () -> Unit,
     onOpenConversation: (Uuid) -> Unit,
     onResize: (Dp) -> Unit,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     conversationState: State<Conversation>,
     conversationId: Uuid,
     assistant: Assistant,

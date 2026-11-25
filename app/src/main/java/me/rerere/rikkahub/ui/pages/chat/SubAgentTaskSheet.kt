@@ -40,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -93,8 +92,6 @@ fun SubAgentTaskSheet(
     conversationId: Uuid,
     onDismiss: () -> Unit,
     onOpenConversation: (Uuid) -> Unit,
-    // 底板玻璃的取样源；没有源时退回实色底，见 canGlassPane
-    hazeState: HazeState? = null,
 ) {
     // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
     val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)

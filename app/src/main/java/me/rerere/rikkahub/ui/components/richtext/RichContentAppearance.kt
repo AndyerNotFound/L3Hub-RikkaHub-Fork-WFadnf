@@ -22,11 +22,20 @@ import me.rerere.ui.charts.ChartSpec
 
 internal fun AdvancedAppearanceSetting.richContentMaterial(streaming: Boolean = false): AppearanceMaterial? {
     if (!enableAdvancedAppearance) return null
-    val outlined = richContentStyle == RichContentStyle.OUTLINED
+    val surface = when (richContentStyle) {
+        RichContentStyle.OUTLINED -> BackgroundSurfaceStyle.TRANSLUCENT
+        RichContentStyle.TRANSLUCENT -> BackgroundSurfaceStyle.FROSTED
+        RichContentStyle.LIQUID_GLASS -> BackgroundSurfaceStyle.LIQUID_GLASS
+    }
+    val radius = richContentSurfaceBlurRadius ?: when {
+        surface == BackgroundSurfaceStyle.LIQUID_GLASS -> 16f
+        surface == BackgroundSurfaceStyle.FROSTED -> 8f
+        else -> 0f
+    }
     return AppearanceMaterial(
-        style = if (outlined) BackgroundSurfaceStyle.TRANSLUCENT else BackgroundSurfaceStyle.FROSTED,
-        opacity = richContentSurfaceOpacity * if (outlined) .62f else 1f,
-        radius = if (outlined) 0f else 8f,
+        style = surface,
+        opacity = richContentSurfaceOpacity * if (richContentStyle == RichContentStyle.OUTLINED) .62f else 1f,
+        radius = radius,
         effects = enableRichContentPerformanceEffects && !streaming,
     )
 }
@@ -34,7 +43,11 @@ internal fun AdvancedAppearanceSetting.richContentMaterial(streaming: Boolean = 
 @Composable
 internal fun RichContentStyle.outline(): BorderStroke = BorderStroke(
     1.dp,
-    MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (this == RichContentStyle.OUTLINED) .94f else .55f),
+    MaterialTheme.colorScheme.outlineVariant.copy(alpha = when (this) {
+        RichContentStyle.OUTLINED -> .94f
+        RichContentStyle.TRANSLUCENT -> .55f
+        RichContentStyle.LIQUID_GLASS -> .4f
+    }),
 )
 
 @Composable

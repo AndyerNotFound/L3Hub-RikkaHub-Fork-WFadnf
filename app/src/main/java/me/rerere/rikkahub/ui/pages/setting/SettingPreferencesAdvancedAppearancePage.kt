@@ -52,6 +52,7 @@ import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
 import me.rerere.rikkahub.data.datastore.AppearanceColorStyle
 import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.GradientRendererMode
 import me.rerere.rikkahub.data.datastore.MAX_CHAT_PARAGRAPH_SPACING_RATIO
@@ -69,12 +70,15 @@ import me.rerere.rikkahub.data.datastore.configuredAssistantBackgroundCount
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.LiquidGlassPreset
+import me.rerere.rikkahub.data.model.LiquidGlassStyle
 import me.rerere.rikkahub.data.model.LiquidGlassRenderer
 import me.rerere.rikkahub.data.model.MAX_LIQUID_GLASS_REFRACTION
 import me.rerere.rikkahub.data.model.edit
 import me.rerere.rikkahub.data.model.parameters
+import me.rerere.rikkahub.data.model.usesMaterial3Style
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AppSlider
+import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
@@ -97,6 +101,7 @@ import me.rerere.rikkahub.ui.theme.sampleAppearanceImageBytes
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.SeparateWindowContent
 import me.rerere.ui.toast.ToastType
+import me.rerere.rikkahub.ui.pages.setting.MessageBubbleStyleSettingsSection
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import java.io.ByteArrayOutputStream
@@ -192,6 +197,23 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                     toggle(R.string.aa_enabled, appearance.enableAdvancedAppearance) { update { copy(enableAdvancedAppearance = it) } }
                 }
             }
+            item("messageStyle") {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.aa_message_appearance),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                    )
+                    MessageBubbleStyleSettingsSection(
+                        displaySetting = display,
+                        advancedAppearance = appearance,
+                        onDisplaySettingChange = { change ->
+                            vm.updateSettings { latest -> latest.copy(displaySetting = latest.displaySetting.change()) }
+                        },
+                    )
+                }
+            }
             if (!appearance.enableAdvancedAppearance) return@LazyColumn
 
             item("background") {
@@ -253,29 +275,44 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
             item("composer") {
                 val inputStyle = appearance.composerSurfaceStyle ?: BackgroundSurfaceStyle.LIQUID_GLASS.takeIf { appearance.liquidGlass.applyToComposer }
                 CardGroup(title = { Text(stringResource(R.string.aa_input)) }) {
-                    choice(R.string.aa_surface, appearance.composerSurfaceStyle?.label() ?: R.string.aa_inherit,
+                    choice(R.string.aa_input_surface, appearance.composerSurfaceStyle?.label() ?: R.string.aa_inherit,
                         listOf(null to R.string.aa_inherit) + surfaceOptions()) { update { copy(composerSurfaceStyle = it) } }
-                    slider(R.string.aa_surface_opacity, display.inputSurfaceOpacity, .2f..1f, visible = inputStyle != null && !inputStyle.opaqueMaterial) {
+                    slider(R.string.aa_input_opacity, display.inputSurfaceOpacity, 0f..1f, visible = inputStyle != null && !inputStyle.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         updateDisplay { copy(inputSurfaceOpacity = it) }
                     }
                     slider(R.string.aa_input_radius, display.inputBlurRadius, blurRange(40f), R.string.aa_dp,
-                        visible = inputStyle?.usesBlur == true,
-                        enabled = canBlur && appearance.enableInputPerformanceEffects && (inputStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive)) { updateDisplay { copy(inputBlurRadius = it) } }
+                        visible = inputStyle?.usesBlur == true &&
+                            (inputStyle != BackgroundSurfaceStyle.LIQUID_GLASS || !appearance.liquidGlass.usesMaterial3Style()),
+                        enabled = canBlur && appearance.enableInputPerformanceEffects &&
+                            (inputStyle != BackgroundSurfaceStyle.LIQUID_GLASS || (glassLive && appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD)),
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) { updateDisplay { copy(inputBlurRadius = it) } }
                     toggle(
                         R.string.aa_dock,
                         appearance.enableChatDockGlass,
                         detail = { Text(stringResource(R.string.aa_dock_requires_toolbar)) },
                     ) { update { copy(enableChatDockGlass = it) } }
-                    slider(R.string.aa_dock_opacity, appearance.chatDockGlassOpacity, .2f..1f, visible = appearance.enableChatDockGlass) {
+                    choice(R.string.aa_dock_surface, appearance.chatDockSurfaceStyle.label(), surfaceOptions(), visible = appearance.enableChatDockGlass) {
+                        update { copy(chatDockSurfaceStyle = it) }
+                    }
+                    slider(R.string.aa_dock_opacity, appearance.chatDockGlassOpacity, 0f..1f, visible = appearance.enableChatDockGlass && !appearance.chatDockSurfaceStyle.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         update { copy(chatDockGlassOpacity = it) }
                     }
+                    animatedItem(visible = { appearance.enableChatDockGlass && appearance.chatDockSurfaceStyle.opaqueMaterial }) {
+                        Text(stringResource(R.string.aa_solid_hint))
+                    }
                     slider(
-                        R.string.aa_refraction_blur,
+                        R.string.aa_dock_blur,
                         appearance.chatDockGlassBlurRadius,
                         blurRange(MAX_LIQUID_GLASS_BLUR_RADIUS),
                         R.string.aa_dp,
-                        visible = appearance.enableChatDockGlass,
-                        enabled = canBlur && glassLive && appearance.enableChatDockPerformanceEffects,
+                        visible = appearance.enableChatDockGlass && appearance.chatDockSurfaceStyle.usesBlur &&
+                            (appearance.chatDockSurfaceStyle != BackgroundSurfaceStyle.LIQUID_GLASS || !appearance.liquidGlass.usesMaterial3Style()),
+                        enabled = canBlur && appearance.enableChatDockPerformanceEffects &&
+                            (appearance.chatDockSurfaceStyle != BackgroundSurfaceStyle.LIQUID_GLASS ||
+                                (glassLive && appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD)),
+                        supportingContent = hint(R.string.aa_blur_radius_hint),
                     ) {
                         update { copy(chatDockGlassBlurRadius = it) }
                     }
@@ -285,17 +322,24 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                 CardGroup(title = { Text(stringResource(R.string.aa_topbar)) }) {
                     toggle(R.string.aa_topbar_background, display.showTopBarBackground) { updateDisplay { copy(showTopBarBackground = it) } }
                     val allowsBlur = pageStyle.usesBlur && (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive)
+                    // 整条顶栏的底由 showTopBarBackground 管；胶囊浮在正文上，关掉底也照样按这里的
+                    // 开关与半径采样（ChatCapsule.topBarCapsuleMaterial 不读那个开关），所以不跟着收起。
                     toggle(R.string.aa_topbar_blur, display.enableTopBarBlur,
-                        visible = display.showTopBarBackground && pageStyle.usesBlur,
-                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects) {
+                        visible = pageStyle.usesBlur,
+                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects,
+                        detail = if (display.showTopBarBackground) null else hint(R.string.aa_topbar_capsule_hint)) {
                         updateDisplay { copy(enableTopBarBlur = it) }
                     }
-                    slider(R.string.aa_surface_opacity, display.topBarSurfaceOpacity, .35f..1f, visible = !pageStyle.opaqueMaterial) {
+                    slider(R.string.aa_surface_opacity, display.topBarSurfaceOpacity, 0f..1f, visible = !pageStyle.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         updateDisplay { copy(topBarSurfaceOpacity = it) }
                     }
                     slider(R.string.aa_surface_blur, display.topBarBlurRadius, blurRange(40f), R.string.aa_dp,
-                        visible = display.showTopBarBackground && pageStyle.usesBlur && display.enableTopBarBlur,
-                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects) {
+                        visible = pageStyle.usesBlur && display.enableTopBarBlur &&
+                            (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || !appearance.liquidGlass.usesMaterial3Style()),
+                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects &&
+                            (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive),
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         updateDisplay { copy(topBarBlurRadius = it) }
                     }
                 }
@@ -303,11 +347,23 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
             item("cards") {
                 CardGroup(title = { Text(stringResource(R.string.aa_cards)) }) {
                     choice(R.string.aa_surface, appearance.pageSurfaceStyle.label(), surfaceOptions()) { update { copy(pageSurfaceStyle = it) } }
-                    slider(R.string.aa_surface_opacity, appearance.pageSurfaceOpacity, .35f..1f, visible = !appearance.pageSurfaceStyle.opaqueMaterial) {
+                    animatedItem(visible = { appearance.pageSurfaceStyle.opaqueMaterial }) {
+                        Text(stringResource(R.string.aa_solid_hint))
+                    }
+                    slider(R.string.aa_surface_opacity, appearance.pageSurfaceOpacity, 0f..1f, visible = !appearance.pageSurfaceStyle.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         update { copy(pageSurfaceOpacity = it) }
                     }
+                    slider(R.string.aa_surface_blur, appearance.pageSurfaceBlurRadius, blurRange(MAX_GLOBAL_BACKGROUND_BLUR_RADIUS), R.string.aa_dp,
+                        visible = pageStyle == BackgroundSurfaceStyle.FROSTED || pageStyle == BackgroundSurfaceStyle.ACRYLIC,
+                        enabled = canBlur,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
+                        update { copy(pageSurfaceBlurRadius = it) }
+                    }
                     slider(R.string.aa_refraction_blur, appearance.pageLiquidGlassBlurRadius, blurRange(MAX_LIQUID_GLASS_BLUR_RADIUS), R.string.aa_dp,
-                        visible = pageStyle == BackgroundSurfaceStyle.LIQUID_GLASS, enabled = canBlur && glassLive) {
+                        visible = pageStyle == BackgroundSurfaceStyle.LIQUID_GLASS && !appearance.liquidGlass.usesMaterial3Style(),
+                        enabled = canBlur && glassLive,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         update { copy(pageLiquidGlassBlurRadius = it) }
                     }
                     val usesMica = pageStyle == BackgroundSurfaceStyle.MICA ||
@@ -323,19 +379,26 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                 CardGroup(title = { Text(stringResource(R.string.aa_overlays)) }) {
                     val style = appearance.overlaySurfaceStyle
                     choice(R.string.aa_surface, style.label(), surfaceOptions()) { update { copy(overlaySurfaceStyle = it) } }
-                    slider(R.string.aa_surface_opacity, appearance.overlaySurfaceOpacity, .35f..1f, visible = !style.opaqueMaterial) {
+                    slider(R.string.aa_surface_opacity, appearance.overlaySurfaceOpacity, 0f..1f, visible = !style.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         update { copy(overlaySurfaceOpacity = it) }
                     }
                     animatedItem(visible = { !style.opaqueMaterial }) {
                         Text(stringResource(R.string.aa_overlay_fallback))
                     }
+                    animatedItem(visible = { style.opaqueMaterial }) {
+                        Text(stringResource(R.string.aa_solid_hint))
+                    }
                     slider(R.string.aa_surface_blur, appearance.overlaySurfaceBlurRadius, blurRange(40f), R.string.aa_dp,
-                        visible = style.usesBlur && style != BackgroundSurfaceStyle.LIQUID_GLASS, enabled = canBlur && appearance.enableOverlayPerformanceEffects) {
+                        visible = style.usesBlur && style != BackgroundSurfaceStyle.LIQUID_GLASS,
+                        enabled = canBlur && appearance.enableOverlayPerformanceEffects,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         update { copy(overlaySurfaceBlurRadius = it) }
                     }
                     slider(R.string.aa_refraction_blur, appearance.overlayLiquidGlassBlurRadius, blurRange(MAX_LIQUID_GLASS_BLUR_RADIUS), R.string.aa_dp,
-                        visible = style == BackgroundSurfaceStyle.LIQUID_GLASS,
-                        enabled = canBlur && glassLive && appearance.enableOverlayPerformanceEffects) {
+                        visible = style == BackgroundSurfaceStyle.LIQUID_GLASS && !appearance.liquidGlass.usesMaterial3Style(),
+                        enabled = canBlur && glassLive && appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD && appearance.enableOverlayPerformanceEffects,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         update { copy(overlayLiquidGlassBlurRadius = it) }
                     }
                 }
@@ -346,16 +409,23 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                     val enabled = appearance.enableNavigationGlass
                     toggle(R.string.aa_navigation_enabled, enabled) { update { copy(enableNavigationGlass = it) } }
                     choice(R.string.aa_surface, style.label(), surfaceOptions(), visible = enabled) { update { copy(navigationSurfaceStyle = it) } }
-                    slider(R.string.aa_surface_opacity, appearance.navigationGlassOpacity, .35f..1f, visible = enabled && !style.opaqueMaterial) {
+                    slider(R.string.aa_surface_opacity, appearance.navigationGlassOpacity, 0f..1f, visible = enabled && !style.opaqueMaterial,
+                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
                         update { copy(navigationGlassOpacity = it) }
                     }
+                    animatedItem(visible = { enabled && style.opaqueMaterial }) {
+                        Text(stringResource(R.string.aa_solid_hint))
+                    }
                     slider(R.string.aa_surface_blur, appearance.navigationGlassBlurRadius, blurRange(MAX_NAVIGATION_GLASS_BLUR_RADIUS), R.string.aa_dp,
-                        visible = enabled && style.usesBlur && style != BackgroundSurfaceStyle.LIQUID_GLASS, enabled = canBlur && appearance.enableNavigationPerformanceEffects) {
+                        visible = enabled && style.usesBlur && style != BackgroundSurfaceStyle.LIQUID_GLASS,
+                        enabled = canBlur && appearance.enableNavigationPerformanceEffects,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         update { copy(navigationGlassBlurRadius = it) }
                     }
                     slider(R.string.aa_refraction_blur, appearance.navigationLiquidGlassBlurRadius, blurRange(MAX_LIQUID_GLASS_BLUR_RADIUS), R.string.aa_dp,
-                        visible = enabled && style == BackgroundSurfaceStyle.LIQUID_GLASS,
-                        enabled = canBlur && glassLive && appearance.enableNavigationPerformanceEffects) {
+                        visible = enabled && style == BackgroundSurfaceStyle.LIQUID_GLASS && !appearance.liquidGlass.usesMaterial3Style(),
+                        enabled = canBlur && glassLive && appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD && appearance.enableNavigationPerformanceEffects,
+                        supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         update { copy(navigationLiquidGlassBlurRadius = it) }
                     }
                 }
@@ -363,51 +433,119 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
             item("liquidGlass") {
                 val glass = appearance.liquidGlass
                 val params = glass.parameters()
+                val usesSaltStyle = glass.style == LiquidGlassStyle.SALT
                 val presets = LiquidGlassPreset.entries.zip(listOf(R.string.aa_soft, R.string.aa_standard, R.string.aa_clear, R.string.aa_custom))
                 val renderers = LiquidGlassRenderer.entries.zip(listOf(R.string.aa_auto, R.string.aa_static, R.string.aa_agsl))
+                val glassStyles = LiquidGlassStyle.entries.zip(listOf(R.string.aa_glass_style_salt, R.string.aa_glass_style_original))
                 CardGroup(title = { Text(stringResource(R.string.aa_liquid_glass)) }) {
-                    choice(R.string.aa_glass_preset, presets.toMap().getValue(glass.preset), presets) { update { copy(liquidGlass = liquidGlass.copy(preset = it)) } }
+                    choice(R.string.aa_glass_style, glassStyles.toMap().getValue(glass.style), glassStyles,
+                        supportingContent = hint(R.string.aa_glass_style_hint)) {
+                        update { copy(liquidGlass = liquidGlass.copy(style = it)) }
+                    }
+                    choice(R.string.aa_glass_preset, presets.toMap().getValue(glass.preset), presets, visible = usesSaltStyle) { update { copy(liquidGlass = liquidGlass.copy(preset = it)) } }
                     choice(R.string.aa_renderer, renderers.toMap().getValue(glass.renderer), renderers, enabled = canRefract) {
                         update { copy(liquidGlass = liquidGlass.copy(renderer = it)) }
                     }
                     toggle(R.string.aa_glass_input, glass.applyToComposer, visible = appearance.composerSurfaceStyle == null) {
                         update { copy(liquidGlass = liquidGlass.copy(applyToComposer = it)) }
                     }
-                    slider(R.string.aa_glass_highlight, params.highlight, 0f.. .8f) { update { copy(liquidGlass = liquidGlass.edit { copy(highlight = it) }) } }
-                    slider(R.string.aa_glass_tint, params.tint, 0f.. .2f) { update { copy(liquidGlass = liquidGlass.edit { copy(tint = it) }) } }
-                    slider(R.string.aa_glass_edge, params.edgeWidth, .5f..4f, R.string.aa_dp) { update { copy(liquidGlass = liquidGlass.edit { copy(edgeWidth = it) }) } }
+                    slider(R.string.aa_glass_highlight, params.highlight, 0f.. .8f, visible = usesSaltStyle) { update { copy(liquidGlass = liquidGlass.edit { copy(highlight = it) }) } }
+                    slider(R.string.aa_glass_tint, params.tint, 0f.. .2f, visible = usesSaltStyle) { update { copy(liquidGlass = liquidGlass.edit { copy(tint = it) }) } }
+                    slider(R.string.aa_glass_edge, params.edgeWidth, .5f..4f, R.string.aa_dp, visible = usesSaltStyle) { update { copy(liquidGlass = liquidGlass.edit { copy(edgeWidth = it) }) } }
                     slider(R.string.aa_glass_refraction, params.refraction, 0f..MAX_LIQUID_GLASS_REFRACTION, R.string.aa_ratio,
-                        enabled = canRefract && glass.renderer != LiquidGlassRenderer.STANDARD) {
+                        visible = usesSaltStyle, enabled = canRefract && glass.renderer != LiquidGlassRenderer.STANDARD,
+                        supportingContent = hint(R.string.aa_refraction_hint)) {
                         update { copy(liquidGlass = liquidGlass.edit { copy(refraction = it) }) }
                     }
-                    slider(R.string.aa_glass_shadow, params.innerShadow, 0f.. .25f) { update { copy(liquidGlass = liquidGlass.edit { copy(innerShadow = it) }) } }
+                    slider(R.string.aa_glass_shadow, params.innerShadow, 0f.. .25f, visible = usesSaltStyle) { update { copy(liquidGlass = liquidGlass.edit { copy(innerShadow = it) }) } }
                 }
             }
             item("chat") {
                 val bubbles = ChatBubbleStyle.entries.zip(listOf(R.string.aa_frosted, R.string.aa_outlined, R.string.aa_liquid_glass))
-                CardGroup(title = { Text(stringResource(R.string.aa_chat_text)) }) {
-                    choice(R.string.aa_bubbles, bubbles.toMap().getValue(appearance.chatBubbleStyle), bubbles) { update { copy(chatBubbleStyle = it) } }
-                    toggle(R.string.aa_readability, appearance.enableChatTextReadability) { update { copy(enableChatTextReadability = it) } }
-                    slider(R.string.aa_line_height, appearance.chatTextLineHeightRatio, MIN_CHAT_TEXT_LINE_HEIGHT_RATIO..MAX_CHAT_TEXT_LINE_HEIGHT_RATIO, R.string.aa_ratio) {
-                        update { copy(chatTextLineHeightRatio = it) }
-                    }
-                    slider(R.string.aa_paragraph_spacing, appearance.chatParagraphSpacingRatio, MIN_CHAT_PARAGRAPH_SPACING_RATIO..MAX_CHAT_PARAGRAPH_SPACING_RATIO, R.string.aa_ratio) {
-                        update { copy(chatParagraphSpacingRatio = it) }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CardGroup(title = { Text(stringResource(R.string.aa_chat_text)) }) {
+                        choice(R.string.aa_bubbles, bubbles.toMap().getValue(appearance.chatBubbleStyle), bubbles) { update { copy(chatBubbleStyle = it) } }
+                        val bubbleOpacityDefault = when (appearance.chatBubbleStyle) {
+                            ChatBubbleStyle.FROSTED -> .46f + display.bubbleOpacity * .36f
+                            ChatBubbleStyle.OUTLINED -> .16f + display.bubbleOpacity * .12f
+                            ChatBubbleStyle.LIQUID_GLASS -> .62f + display.bubbleOpacity * .24f
+                        }
+                        val bubbleRoles = listOf(
+                            ChatBubbleStyleTarget.USER to display.userChatBubbleStyleOverrides,
+                            ChatBubbleStyleTarget.ASSISTANT to display.assistantChatBubbleStyleOverrides,
+                        )
+                        val inheritedOpacityRole = when (display.chatMessageBackgroundStyle) {
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.DEFAULT -> ChatBubbleStyleTarget.USER
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.FROSTED ->
+                                bubbleRoles.firstOrNull { it.second.frostedOpacity == null }?.first
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.SOLID -> null
+                        }
+                        val inheritedRadiusRole = when (display.chatMessageBackgroundStyle) {
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.DEFAULT -> ChatBubbleStyleTarget.USER
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.FROSTED ->
+                                bubbleRoles.firstOrNull { it.second.blurSigma == null }?.first
+                            me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.SOLID -> null
+                        }
+                        val inheritedOpacityMaterial = inheritedOpacityRole?.let { role ->
+                            appearance.messageBubbleMaterial(
+                                display, role, resolved = null, streaming = false,
+                            )
+                        }
+                        val inheritedRadiusMaterial = inheritedRadiusRole?.let { role ->
+                            appearance.messageBubbleMaterial(
+                                display, role, resolved = null, streaming = false,
+                            )
+                        }
+                        slider(R.string.aa_surface_opacity, inheritedOpacityMaterial?.opacity ?: bubbleOpacityDefault, 0f..1f,
+                            visible = inheritedOpacityRole != null,
+                            supportingContent = hint(R.string.aa_bubble_inherit_hint)) {
+                            update { copy(chatBubbleSurfaceOpacity = it) }
+                        }
+                        slider(
+                            R.string.aa_surface_blur,
+                            inheritedRadiusMaterial?.radius ?: if (appearance.chatBubbleStyle == ChatBubbleStyle.LIQUID_GLASS) 24f else 18f,
+                            blurRange(40f), R.string.aa_dp,
+                            visible = inheritedRadiusRole != null && appearance.chatBubbleStyle != ChatBubbleStyle.OUTLINED &&
+                                !(appearance.chatBubbleStyle == ChatBubbleStyle.LIQUID_GLASS && appearance.liquidGlass.usesMaterial3Style()),
+                            enabled = canBlur && appearance.enableBubblePerformanceEffects &&
+                                (appearance.chatBubbleStyle != ChatBubbleStyle.LIQUID_GLASS ||
+                                    (glassLive && appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD)),
+                            supportingContent = hint(R.string.aa_blur_radius_hint),
+                        ) { update { copy(chatBubbleBlurRadius = it) } }
+                        toggle(R.string.aa_readability, appearance.enableChatTextReadability) { update { copy(enableChatTextReadability = it) } }
+                        slider(R.string.aa_line_height, appearance.chatTextLineHeightRatio, MIN_CHAT_TEXT_LINE_HEIGHT_RATIO..MAX_CHAT_TEXT_LINE_HEIGHT_RATIO, R.string.aa_ratio) {
+                            update { copy(chatTextLineHeightRatio = it) }
+                        }
+                        slider(R.string.aa_paragraph_spacing, appearance.chatParagraphSpacingRatio, MIN_CHAT_PARAGRAPH_SPACING_RATIO..MAX_CHAT_PARAGRAPH_SPACING_RATIO, R.string.aa_ratio) {
+                            update { copy(chatParagraphSpacingRatio = it) }
+                        }
                     }
                 }
             }
             item("richContent") {
-                val rich = RichContentStyle.entries.zip(listOf(R.string.aa_translucent, R.string.aa_outlined))
+                val rich = RichContentStyle.entries.zip(listOf(R.string.aa_translucent, R.string.aa_outlined, R.string.aa_liquid_glass))
                 CardGroup(title = { Text(stringResource(R.string.aa_rich_content)) }) {
                     choice(R.string.aa_surface, rich.toMap().getValue(appearance.richContentStyle), rich) { update { copy(richContentStyle = it) } }
-                    slider(R.string.aa_surface_opacity, appearance.richContentSurfaceOpacity, .2f..1f) { update { copy(richContentSurfaceOpacity = it) } }
+                    slider(R.string.aa_surface_opacity, appearance.richContentSurfaceOpacity, 0f..1f) { update { copy(richContentSurfaceOpacity = it) } }
+                    slider(
+                        R.string.aa_surface_blur,
+                        appearance.richContentSurfaceBlurRadius ?: if (appearance.richContentStyle == RichContentStyle.LIQUID_GLASS) 16f else 8f,
+                        blurRange(40f), R.string.aa_dp,
+                        visible = appearance.richContentStyle != RichContentStyle.OUTLINED &&
+                            !(appearance.richContentStyle == RichContentStyle.LIQUID_GLASS && appearance.liquidGlass.usesMaterial3Style()),
+                        enabled = canBlur && appearance.enableRichContentPerformanceEffects &&
+                            (appearance.richContentStyle != RichContentStyle.LIQUID_GLASS || glassLive),
+                    ) { update { copy(richContentSurfaceBlurRadius = it) } }
                 }
             }
             item("suggestions") {
                 val enabled = appearance.enableChatSuggestionSurface
                 CardGroup(title = { Text(stringResource(R.string.aa_suggestions)) }) {
                     toggle(R.string.aa_suggestion_surface, enabled) { update { copy(enableChatSuggestionSurface = it) } }
-                    slider(R.string.aa_surface_opacity, appearance.chatSuggestionSurfaceOpacity, .2f..1f, visible = enabled) { update { copy(chatSuggestionSurfaceOpacity = it) } }
+                    slider(R.string.aa_surface_opacity, appearance.chatSuggestionSurfaceOpacity, .2f..1f, visible = enabled,
+                        supportingContent = hint(R.string.aa_suggestion_opacity_hint)) {
+                        update { copy(chatSuggestionSurfaceOpacity = it) }
+                    }
                     slider(R.string.aa_border_opacity, appearance.chatSuggestionBorderOpacity, 0f..1f, visible = enabled) { update { copy(chatSuggestionBorderOpacity = it) } }
                     slider(
                         R.string.aa_suggestion_height,
@@ -424,7 +562,8 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                 val card = appearance.inspirationAppearance
                 CardGroup(title = { Text(stringResource(R.string.aa_inspiration)) }) {
                     toggle(R.string.aa_follow_rich, card.followRichContent) { update { copy(inspirationAppearance = inspirationAppearance.copy(followRichContent = it)) } }
-                    slider(R.string.aa_surface_opacity, card.surfaceOpacity, .2f..1f, visible = !card.followRichContent) {
+                    slider(R.string.aa_surface_opacity, card.surfaceOpacity, .2f..1f, visible = !card.followRichContent,
+                        supportingContent = hint(R.string.aa_suggestion_opacity_hint)) {
                         update { copy(inspirationAppearance = inspirationAppearance.copy(surfaceOpacity = it)) }
                     }
                     slider(R.string.aa_border_opacity, card.borderOpacity, 0f..1f, visible = !card.followRichContent) {
@@ -466,7 +605,8 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                         Text(stringResource(if (canBlur) R.string.aa_no_refraction else R.string.aa_no_live_blur))
                     }
                     toggle(R.string.aa_reduce_motion, appearance.respectSystemReducedMotion) { update { copy(respectSystemReducedMotion = it) } }
-                    toggle(R.string.aa_adaptive, appearance.liquidGlass.adaptivePerformance, enabled = canBlur) {
+                    toggle(R.string.aa_adaptive, appearance.liquidGlass.adaptivePerformance, enabled = canBlur,
+                        detail = hint(R.string.aa_adaptive_hint)) {
                         update { copy(liquidGlass = liquidGlass.copy(adaptivePerformance = it)) }
                     }
                     toggle(R.string.aa_input_effects, appearance.enableInputPerformanceEffects) { update { copy(enableInputPerformanceEffects = it) } }
@@ -510,12 +650,14 @@ private fun CardGroupScope.toggle(
 private fun CardGroupScope.slider(
     @StringRes title: Int, value: Float, range: ClosedFloatingPointRange<Float>,
     @StringRes format: Int = R.string.aa_percent, visible: Boolean = true, enabled: Boolean = true,
+    supportingContent: (@Composable () -> Unit)? = null,
     onChange: (Float) -> Unit,
 ) {
     val shown = value.coerceIn(range)
     animatedFormItem(
         visible = { visible },
         headlineContent = { Text(stringResource(title)) },
+        supportingContent = supportingContent,
         trailingContent = {
             val label = if (format == R.string.aa_percent) stringResource(format, (shown * 100f).roundToInt()) else stringResource(format, shown)
             CardGroupValue(label)
@@ -530,10 +672,17 @@ private fun blurRange(max: Float): ClosedFloatingPointRange<Float> {
     return 0f..(supported.takeIf { it > 0f } ?: max)
 }
 
+/** 表单项下面的辅助说明；可以直接交给 supportingContent / detail。 */
+private fun hint(@StringRes text: Int): @Composable () -> Unit = { Text(stringResource(text)) }
+
 private fun <T> CardGroupScope.choice(
     @StringRes title: Int, @StringRes current: Int, options: List<Pair<T, Int>>, visible: Boolean = true,
-    enabled: Boolean = true, onChange: (T) -> Unit,
-) = animatedFormItem(visible = { visible }, headlineContent = { Text(stringResource(title)) }) {
+    enabled: Boolean = true, supportingContent: (@Composable () -> Unit)? = null, onChange: (T) -> Unit,
+) = animatedFormItem(
+    visible = { visible },
+    headlineContent = { Text(stringResource(title)) },
+    supportingContent = supportingContent,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         TextButton(enabled = enabled, onClick = { expanded = true }) { Text(stringResource(current)) }

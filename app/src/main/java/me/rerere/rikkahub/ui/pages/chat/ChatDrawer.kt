@@ -94,7 +94,6 @@ import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassColor
-import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -142,7 +141,7 @@ fun ChatDrawerContent(
     currentConversationId: Uuid,
     onNewChat: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    // 抽屉底板的玻璃取样源（聊天页的背景层）。没有源时 canGlassPane 返回 false，底板退回实色
+    // 抽屉底板使用页面背景取样源；没有源或关闭高级外观时底板退回实色
     hazeState: HazeState? = null,
     // 横屏三栏的左栏宽度由列宽决定，不再按窗口比例算
     widthOverride: Dp? = null,
@@ -316,11 +315,11 @@ fun ChatDrawerContent(
     val drawerShape = RectangleShape
     // 高级外观开启后，抽屉底板改由 advancedMaterial 画：材质、着色、模糊半径和性能开关
     // 全部来自 navigationMaterial()，和导航栏其余部分共用同一份参数。
-    // 关掉高级外观时这里是 null，下面继续走原来的 glassSurface，旧路径不动。
+    // 关掉高级外观时只保留抽屉自身的实色底。
     val drawerMaterial = LocalSettings.current.advancedAppearanceSetting
         .takeIf { it.enableAdvancedAppearance }
         ?.navigationMaterial()
-    // 底板自己就是一块玻璃：取背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
+    // 底板只取页面背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
     ModalDrawerSheet(
         modifier = Modifier
             .width(drawerWidth)
@@ -335,23 +334,13 @@ fun ChatDrawerContent(
                         readableFloor = .65f,
                     )
                 } else {
-                    Modifier.glassSurface(
-                        shape = drawerShape,
-                        baseColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        hazeState = hazeState,
-                        // 抽屉压在会话列表上，取值不掉到 0.65 以下：再低正文会透上来。
-                        // 下限之内仍然跟着「玻璃透明度」变化。
-                        minAlpha = 0.65f,
-                    )
+                    Modifier
                 }
             ),
         drawerShape = drawerShape,
         // 着色由材质层统一铺，这里保持透明；没有源时它会退化成半透明色
-        drawerContainerColor = if (drawerMaterial != null || LocalSettings.current.displaySetting.enableBlurEffect) {
-            Color.Transparent
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
+        drawerContainerColor = if (drawerMaterial != null) Color.Transparent
+        else MaterialTheme.colorScheme.surfaceContainerLow,
         // 底色交给玻璃层以后 contentColorFor 推不出内容色，这里显式钉住（= surfaceContainerLow 的默认值）
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {

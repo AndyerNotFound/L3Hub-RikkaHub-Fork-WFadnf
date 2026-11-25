@@ -319,6 +319,10 @@ L3Hub 自己的设置都在 `Settings` 里，随 `settings.json` 整份序列化
 
 ## 玻璃底、选项卡透明度与多色背景（fork）
 
+> **本节记录的三档链路已退役（2026-11-25）**：「常规 → 全局特效」界面、`chatInputHaze`、
+> `effectSurface`、`glassSurface`、`canGlassPane`、`glassOverlayAlpha` 都不在了，面材质统一由
+> `Modifier.advancedMaterial` 负责。迁移与现状见文末「全局特效并入高级外观（V6）」，下面保留当时的记录。
+
 显示设置 → 「背景特效」选 BLUR / GLASS 后，设置页的开关行、填充色调按钮、选项卡（选项按钮）、
 对话页顶栏的图标按钮都带一层毛玻璃底；同一页下面的「玻璃透明度」控制浓度（0%–100%，默认 35%）。
 
@@ -634,8 +638,8 @@ sealed class，这里拆成 `CornerStyle` 枚举 + 独立的 `cornerScale`：能
 
 ## 全宽组件（fork 新增）
 
-设置 → 偏好设置 → 通用 → 背景特效一栏里的「全宽组件」开关，就在「玻璃透明度」滑杆下面
-（`DisplaySetting.fullWidthComponents`，默认关）。
+设置 → 偏好设置 → 通用 里的「全宽组件」开关（`DisplaySetting.fullWidthComponents`，默认关）。
+它原来排在「背景特效」那一组后面，2026-11-25 三档特效删掉以后就成了该组的第一个开关。
 关着的时候每个分支都退回改造前的取值，行为与改动前完全一致。
 
 打开后：
@@ -1733,3 +1737,66 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 - **文案**：8 种语言的 `strings.xml` 先取 Fork 版本，再把上游新增的 31 个键补进去。在用的 25 个已按各语言补齐翻译；`deep_thinking_seconds`、`chat_page_folder_add`、`setting_display_page_auto_compress_*` 这 6 个当前没有引用，留英文原文。
 - **版本号**：本次只合代码，`versionCode` / `versionName`（352 / `L.3.2.30.174`）未动，出包时再统一决定。
 - **验证**：本机不编译，行为验证走 CI 单测（push 即触发）；真机观感未实测。
+
+## 全局特效并入高级外观（V6，2026-11-25）
+
+「常规 → 全局特效」这一屏和它背后的旧运行时整体删掉了。现在只剩一个入口：
+设置 → 偏好设置 → 高级外观设置（副标题「背景、材质和聊天样式」）。
+
+### 删掉的东西
+
+- 界面：`SettingPreferencesGeneralPage` 里的三档选择（关闭 / 模糊 / 玻璃）与两个浓度滑杆，以及它们的字符串引用点。
+- 运行时：`ChatInputHaze.kt`（`chatInputHaze`）、`Modifier.effectSurface`、`glassSurface`、
+  `canGlassPane`、`glassOverlayAlpha`、`DisplaySetting.effectiveBackgroundEffect`。
+  气泡、输入框、顶栏、配额条、抽屉、详情浮层、BottomSheet 的旧分支全部改走 `advancedMaterial`，
+  或者干脆只剩一道实色底。
+- `DisplaySetting` 的 `enableBlurEffect` / `backgroundEffectType` / `blurOpacity` / `glassOpacity`
+  留着：降级版本要读、备份要导出导入、V6 迁移拿它当输入。界面不再显示它们。
+
+### 迁移（V6）
+
+`PreferenceStoreV6Migration`（`data_version < 6`）与 `SettingsJsonMigrator` 的 V6 钩子（备份恢复）
+共用 `migrateLegacyDisplayEffects()`，一次落两份文档。
+
+| 旧状态 | 结果 |
+|---|---|
+| 开关为真、类型 blur | 高级外观原关才开启；页面 / 输入区 / 浮层 / 导航 / 聊天坞 / 气泡 / 富内容卡片置磨砂、12dp，浓度取 `blurOpacity`（坏值或缺值用 .45） |
+| 开关为真、类型 glass | 同上，材质置液态玻璃、16dp，浓度取 `glassOpacity`（默认 .35），不指定预设 |
+| 开关为假、类型 off、认不出来的值 | 不动 |
+| 高级外观本来就开着 | 高级那份整份保留，不被覆盖，只在 `display_setting` 记「已搬过」 |
+| 某一份 JSON 读不出对象 | 两份都原样保留，不凭空补一份新的 |
+
+- 只开材质，`showTopBarBackground`、`showAssistantBubble` 这类显示开关不碰；导航玻璃与 Dock 玻璃
+  原本就在旧全局效果的覆盖范围内，所以这两项要启用。
+- 磨砂半径写 `pageSurfaceBlurRadius` / `overlaySurfaceBlurRadius` / `navigationGlassBlurRadius` 这一族，
+  液态玻璃写 `*LiquidGlassBlurRadius` 这一族；壁纸图片的预模糊 `globalBackgroundBlurRadius` 与
+  页面半径分成两个字段，另有一条一次性回填（只写 `pageSurfaceBlurRadius`）照顾既有的磨砂页面。
+- `display_setting.legacyEffectsMigrated` 防二次迁移：用户之后自己关掉高级外观、再从备份恢复，
+  旧开关不会重新打开特效。
+
+### 采样范围
+
+聊天页有两份源：`backgroundHazeState`（页面 / 助手背景）与 `chromeHazeState`（背景 + 正文）。
+
+| 消费方 | 取哪份 |
+|---|---|
+| 抽屉底板 | 背景源 |
+| 气泡、富内容卡片、思考链 | 背景源 |
+| 整条顶栏、顶栏胶囊、配额条与看板、会话详情、同窗工具详情侧栏 | `chrome` 源 |
+| 空态概览、生成中、上下文压缩 | 不录正文 |
+| 分窗 Dialog / 菜单 / Sheet | 不跨窗采样，只静态着色 |
+| 消息跳转、建议回复、下拉新建等小控件 | 只静态着色 |
+
+### 液态玻璃样式与气泡
+
+- `LiquidGlassSettings.style`：`SALT`（默认）或 `MATERIAL3`（RikkaHub 原版 Haze Material3，固定 depth .5、
+  16dp、tint alpha .3，不读 Salt 的预设与光学滑杆，按应用主题取响应参数；设置页把 Salt 滑杆隐藏）。
+- 气泡：消息样式「默认」走所选高级气泡材质，「实色」不采样；角色覆盖与字段仍在 `display_setting`，
+  旧路由 `Screen.SettingPreferencesMessageStyle` 仍能直达同一块设置。助手正文气泡默认不显示，可在 界面偏好 打开。
+- 省电与忙态降级保留；关闭动效**不再等于关模糊**（`LocalAnimationsEnabled` 已不参与材质降级），
+  网格渐变只停漂移。
+
+### 本轮未验证
+
+这一轮没有编译、没有跑单测、没有上机（`PreferenceStoreV6MigrationTest` 是新增源码但没执行），
+也没有触发 CI。上面写的都是实现意图与静态事实，不是 CI 或真机结论。

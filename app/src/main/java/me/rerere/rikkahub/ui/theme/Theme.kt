@@ -248,7 +248,9 @@ fun RikkahubTheme(
         LocalOverscrollFactory provides null,
         LocalFullWidthComponents provides fullWidthComponents,
         LocalAppearanceImage provides imageState,
-        LocalAdvancedAppearancePowerSave provides rememberAppearancePowerSave(appearance.enableAdvancedAppearance),
+        LocalAdvancedAppearancePowerSave provides rememberAppearancePowerSave(
+            appearance.enableAdvancedAppearance || settings.displaySetting.chatMessageBackgroundStyle == me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle.FROSTED,
+        ),
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,

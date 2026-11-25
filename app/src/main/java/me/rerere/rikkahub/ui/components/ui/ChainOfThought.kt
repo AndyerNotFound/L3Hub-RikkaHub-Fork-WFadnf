@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -87,6 +88,7 @@ fun <T> ChainOfThought(
     steps: List<T>,
     collapsedVisibleCount: Int = 2,
     collapsedAdaptiveWidth: Boolean = false,
+    shape: Shape = adaptiveShape(20.dp),
     content: @Composable ChainOfThoughtScope.(T) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -97,7 +99,7 @@ fun <T> ChainOfThought(
         // 全宽组件模式下整张卡片撑满父宽，和气泡、其它卡片对齐
         modifier = modifier.then(if (LocalFullWidthComponents.current) Modifier.fillMaxWidth() else Modifier),
         colors = cardColors,
-        shape = adaptiveShape(20.dp),
+        shape = shape,
         border = border,
     ) {
         // 这一层不要再套 animateContentSize：卡片高度由各步骤自己的收放负责，

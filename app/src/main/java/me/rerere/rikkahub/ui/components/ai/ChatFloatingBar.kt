@@ -49,7 +49,6 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.FloatingBarItem
@@ -116,8 +115,14 @@ internal fun FloatingBarItem.label(): String = stringResource(
 )
 
 /**
- * 显式开启后，悬浮工具栏沿用聊天背景源，单独应用液态玻璃参数。
- * 返回 null 时保留原有 chatInputHaze。
+ * 输入框下方聊天坞的材质。
+ *
+ * 显式开启后，悬浮工具栏沿用聊天背景源，单独应用聊天坞自己的材质：
+ * 材质档读 `chatDockSurfaceStyle`（默认液态玻璃），着色读 `chatDockGlassOpacity`，
+ * 模糊半径读 `chatDockGlassBlurRadius`，性能开关读 `enableChatDockPerformanceEffects`。
+ *
+ * 返回 null 时容器退回一道实色底：高级外观关着，或者聊天坞总闸
+ * （`enableChatDockGlass`）关着，两种情况都不该借顶栏的材质顶上。
  */
 internal fun Settings.chatDockMaterial(): AppearanceMaterial? {
     val appearance = advancedAppearanceSetting
@@ -125,7 +130,7 @@ internal fun Settings.chatDockMaterial(): AppearanceMaterial? {
         return null
     }
     return AppearanceMaterial(
-        style = BackgroundSurfaceStyle.LIQUID_GLASS,
+        style = appearance.chatDockSurfaceStyle,
         opacity = appearance.chatDockGlassOpacity,
         radius = appearance.chatDockGlassBlurRadius,
         effects = appearance.enableChatDockPerformanceEffects,
@@ -139,19 +144,19 @@ internal fun Settings.chatDockMaterial(): AppearanceMaterial? {
  * 按钮按胶囊的切面平均分段，段与段之间用 [ChatCapsuleDivider] 隔开。
  *
  * 拉起和隐藏都走同一条过渡：高度从 0 展开或收回，内容同时做竖向位移与模糊淡入淡出。
- * 模糊/玻璃档位与透明度跟随输入框的全局特效设置。
+ * 材质与透明度跟随聊天坞自己的高级外观设置。
  *
  * 高级外观开启并且打开了聊天坞（`enableChatDockGlass`）时，
- * 容器使用液态玻璃，着色读 `chatDockGlassOpacity`，
+ * 容器按 `chatDockSurfaceStyle` 取材质，着色读 `chatDockGlassOpacity`，
  * 性能开关读 `enableChatDockPerformanceEffects`；Haze 源仍然是页面那一个，不在这里新开。
- * [material] 留空则整条栏保持原来的 `chatInputHaze` 路径。
+ * [material] 留空则整条栏保持一道实色底。
  */
 @Composable
 internal fun ChatFloatingBar(
     visible: Boolean,
     items: List<FloatingBarItem>,
     onItemClick: (FloatingBarItem) -> Unit,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     displaySetting: DisplaySetting,
     modifier: Modifier = Modifier,
     material: AppearanceMaterial? = null,
@@ -193,7 +198,6 @@ internal fun ChatFloatingBar(
             contentAlignment = Alignment.Center,
         ) {
             ChatCapsule(
-                displaySetting = displaySetting,
                 hazeState = hazeState,
                 material = material,
                 modifier = Modifier

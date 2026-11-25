@@ -63,7 +63,6 @@ import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ai.workspacePermissionLabelRes
 import me.rerere.rikkahub.ui.components.ui.JsonTree
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.components.ui.overlayMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
@@ -102,7 +101,7 @@ internal fun ConversationDetailsPanel(
     contextTokens: Int?,
     messageCount: Int,
     previewState: RequestPreviewUiState,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
     // 嵌在横屏右侧栏里时不再套一层底板：外面已经有玻璃底和关法，
@@ -157,7 +156,7 @@ internal fun ConversationDetailsPanel(
     val panel = when {
         embedded -> Modifier
         material != null -> Modifier.advancedMaterial(DetailsPanelShape, base, material, hazeState, readableFloor = .62f)
-        else -> Modifier.glassSurface(DetailsPanelShape, base, hazeState, minAlpha = .88f)
+        else -> Modifier
     }
 
     Surface(
@@ -167,9 +166,7 @@ internal fun ConversationDetailsPanel(
             modifier.fillMaxWidth().padding(horizontal = 12.dp).then(panel)
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,
-        color = if (embedded || material != null || settings.displaySetting.enableBlurEffect) {
-            Color.Transparent
-        } else base,
+        color = if (embedded || material != null) Color.Transparent else base,
         contentColor = scheme.onSurface,
     ) {
         Column(

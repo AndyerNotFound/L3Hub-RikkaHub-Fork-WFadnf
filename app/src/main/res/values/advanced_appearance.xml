@@ -42,6 +42,9 @@
     <string name="aa_acrylic">Acrylic</string>
     <string name="aa_mica">Mica</string>
     <string name="aa_mica_tint">Mica tint</string>
+    <string name="aa_glass_style">Liquid glass style</string>
+    <string name="aa_glass_style_salt">SaltUI optical</string>
+    <string name="aa_glass_style_original">RikkaHub original</string>
     <string name="aa_glass_preset">Glass preset</string>
     <string name="aa_glass_input">Use liquid glass when input follows existing settings</string>
     <string name="aa_glass_highlight">Edge highlight</string>
@@ -58,7 +61,8 @@
     <string name="aa_static">Static</string>
     <string name="aa_kotlin">Kotlin</string>
     <string name="aa_renderer">Renderer</string>
-    <string name="aa_bubbles">Chat bubbles</string>
+    <string name="aa_bubbles">Chat bubble material</string>
+    <string name="aa_message_appearance">Bubble appearance by role</string>
     <string name="aa_outlined">Outlined</string>
     <string name="aa_chat_text">Chat text</string>
     <string name="aa_readability">Improve text readability</string>
@@ -112,4 +116,17 @@
     <string name="aa_preview_truncated">Preview shortened. Read the full message in the chat.</string>
     <string name="aa_preview_missing">Preview expired. Open it again from the message.</string>
     <string name="aa_preview_failed">Could not open the message preview.</string>
+    <string name="aa_opacity_floor_hint">0% is stored as given. Text surfaces render at their readability floor instead: input and top bar capsule 35%, cards 18%, sidebar 45%, drawer 65%, detail and quota panels 62%. Static menus, dialogs and sheets composite over the window background; at 0% they show that backing color, not transparency.</string>
+    <string name="aa_blur_radius_hint">0 dp means no blur, but a live liquid-glass surface can still sample for refraction. Android 12–12L caps live blur at 12 dp, Android 13+ up to 40 dp; older versions keep the value without blur.</string>
+    <string name="aa_refraction_hint">Refraction is independent of blur radius: it needs Android 13+, the automatic or AGSL renderer, a live source and enabled effects; it can still bend the backdrop at 0 dp blur.</string>
+    <string name="aa_topbar_capsule_hint">The top bar capsule keeps using this toggle and radius even when Show top bar background is off.</string>
+    <string name="aa_solid_hint">Solid doesn’t sample the background, so the opacity and blur rows are skipped.</string>
+    <string name="aa_bubble_inherit_hint">The surface opacity and radius apply when no role-specific override is set. Explicit frosted alpha and blur override those values on blur-capable materials; solid bubbles never blur.</string>
+    <string name="aa_glass_style_hint">Applies to every liquid glass surface: input, top bar, cards, overlays, sidebar, dock, bubbles and rich content. Salt is the default; the original keeps RikkaHub’s fixed optics and ignores the Salt sliders.</string>
+    <string name="aa_adaptive_hint">While the list is scrolling, the keyboard is open, a reply is generating, or the device is in battery saver, live sampling pauses; the material keeps the stored opacity.</string>
+    <string name="aa_dock_surface">Dock material</string>
+    <string name="aa_dock_blur">Dock blur radius</string>
+    <string name="aa_input_surface">Input material</string>
+    <string name="aa_input_opacity">Input opacity</string>
+    <string name="aa_suggestion_opacity_hint">The stored floor is 20%; text on these surfaces stays readable over the background.</string>
 </resources>

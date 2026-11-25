@@ -47,20 +47,15 @@ import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
 import me.rerere.rikkahub.data.datastore.MAX_CHAT_SUGGESTION_HEIGHT
 import me.rerere.rikkahub.data.datastore.MIN_CHAT_SUGGESTION_HEIGHT
 import me.rerere.rikkahub.data.datastore.finiteAppearanceValue
-import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
+import me.rerere.rikkahub.ui.components.ui.overlayControlColor
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 
-// 消息列表上的浮动按钮：开了背景特效走玻璃底，关掉保持原来的半透明实色。
-// 下限 0.6 是因为底下压着消息正文，再透就认不出按钮边界了。
+// 消息列表上的浮动按钮不逐个采样；只取高级浮层材质的静态着色并保留可读下限。
 @Composable
 private fun jumperButtonColor(): Color {
     val base = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
-    return if (LocalSettings.current.displaySetting.enableBlurEffect) {
-        glassOverlayColor(base = base, floor = 0.6f)
-    } else {
-        base.copy(alpha = 0.65f)
-    }
+    return overlayControlColor(base = base, floor = .6f, fallback = base.copy(alpha = .65f))
 }
 
 // 消息列表上的小组件：列表末尾的建议回复、侧边浮动的快速跳转按钮
@@ -119,9 +114,9 @@ internal fun ChatSuggestionsColumn(
                     .clip(RoundedCornerShape(16.dp))
                     .clickable { onClickSuggestion(suggestion) }
                     .background(
-                        glassOverlayColor(
+                        overlayControlColor(
                             base = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
-                            floor = 0.6f,
+                            floor = .6f,
                         )
                     )
                     .padding(horizontal = 14.dp, vertical = 12.dp)

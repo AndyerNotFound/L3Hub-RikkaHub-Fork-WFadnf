@@ -39,11 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.ui.components.ai.chatInputHaze
 import me.rerere.rikkahub.ui.components.richtext.outline
 import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
@@ -60,7 +57,7 @@ internal fun EmptyChatContent(
     innerPadding: PaddingValues,
     assistant: Assistant,
     slogan: String,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     visibleState: MutableTransitionState<Boolean>,
     contentAlpha: Float,
     scrollEnabled: Boolean,
@@ -125,12 +122,11 @@ internal fun EmptyChatContent(
 private fun EmptyChatHero(
     assistant: Assistant,
     slogan: String,
-    hazeState: HazeState,
+    hazeState: HazeState?,
 ) {
     val settings = LocalSettings.current
     val appearance = settings.advancedAppearanceSetting
     val inspiration = appearance.inspirationAppearance
-    val effect = settings.displaySetting.effectiveBackgroundEffect
     val bespoke = appearance.enableAdvancedAppearance && !inspiration.followRichContent
     val material = when {
         bespoke -> AppearanceMaterial(BackgroundSurfaceStyle.TRANSLUCENT, inspiration.surfaceOpacity)
@@ -149,24 +145,6 @@ private fun EmptyChatHero(
             .then(
                 if (material != null) {
                     Modifier.advancedMaterial(shape, baseColor, material, hazeState).border(advancedBorder, shape)
-                } else if (effect != BackgroundEffectType.OFF) {
-                    Modifier.chatInputHaze(
-                        hazeState = hazeState,
-                        displaySetting = settings.displaySetting,
-                        containerColor = baseColor,
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            // 描边画在模糊层之后，否则会被糊掉
-            .then(
-                if (material == null && effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        shape,
-                    )
                 } else {
                     Modifier
                 }

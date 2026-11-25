@@ -100,15 +100,19 @@
 
 ### 1.5 二级页（供原型做第二屏，摘要）
 
-**偏好设置**（`SettingPreferencesPage.kt`，`LargeFlexibleTopAppBar` + 单张 `CardGroup`，`padding(horizontal = 16.dp, vertical = 8.dp)`，间距 16dp）：5 行，全部 `CardGroupIcon`（40dp 圆底，20dp 图标，`primaryContainer` / `onPrimaryContainer`）+ 标题 + 副标题 + 跳转。
+**偏好设置**（`SettingPreferencesPage.kt`，`LargeFlexibleTopAppBar` + 单张 `CardGroup`，`padding(horizontal = 16.dp, vertical = 8.dp)`，间距 16dp）：6 行，全部 `CardGroupIcon`（40dp 圆底，20dp 图标，`primaryContainer` / `onPrimaryContainer`；高级外观那一行是 `tertiaryContainer`）+ 标题 + 副标题 + 跳转。
 
 | 条目 | 副标题 | 跳转 | 图标 |
 |---|---|---|---|
 | 常规 | 交互行为、滚动、输入设置 | `SettingPreferencesGeneral` | `HugeIcons.Settings03` |
 | 主题 | 动态配色、主题、AMOLED深色模式 | `SettingPreferencesTheme` | `HugeIcons.Sun01` |
 | 界面偏好设置 | 消息显示、字体、代码块 | `SettingPreferencesUI` | `HugeIcons.PaintBoard` |
+| 高级外观设置 | 背景、材质和聊天样式 | `SettingPreferencesAdvancedAppearance` | `HugeIcons.PaintBoard`（`tertiaryContainer`） |
 | 通知 | 更新提醒、消息生成通知、后台悬浮窗 | `SettingPreferencesNotification` | `HugeIcons.Notification01` |
 | 网络 | User-Agent 和网络请求设置 | `SettingPreferencesNetwork` | `HugeIcons.CloudServer` |
+
+「消息样式」原来在这张表最后一行的位置，2026-11-25 起并入「高级外观设置」页；旧路由
+`Screen.SettingPreferencesMessageStyle` 仍可直达同一块内容。
 
 **主题**（`SettingPreferencesThemePage.kt:60-95`，单张 `CardGroup`，4 行）：
 
@@ -119,9 +123,13 @@
 | 调色板 | 选择内置调色板，或逐项自定义颜色 | 跳转 + `ArrowRight01` |
 | AMOLED 暗色模式 | 在暗色主题中使用纯黑背景，适合 AMOLED 屏幕 | **开关** |
 
-**常规**（`SettingPreferencesGeneralPage.kt`，9 张 `CardGroup`，顺序）：①资料行 ②语言（trailing 值胶囊） ③启动时新建对话 / 按Enter发送 / 消息队列（开关） ④消息导航按钮 / 消息导航按钮位置（依赖上一项）/ 自动滚动（开关） ⑤全局特效（分段：关闭/模糊/玻璃）+ 模糊不透明度/玻璃透明度（滑块，按特效类型择一显示）+ 全宽组件（开关）+ 输入框布局（分段：单行/双行）+ 消息生成触觉反馈（开关）+ 触感强度（分段：跟随系统/轻/重）+ 形状类型（FilterChip）、边角大小（滑块 %）、边角动画节流（数字滑块 ms）、开关类型（8 个 FilterChip）、滑块类型（4 个 FilterChip） ⑥跳过图片编辑 / 粘贴长文本为文件 / 文本长度阈值 ⑦音量键翻页 / 滚动幅度 ⑧「TTS设置」：默认播放速度 / TTS仅朗读引用内容 / TTS不朗读括号内的内容 / 生成后自动播放TTS / 语音模式回复时继续聆听 ⑨「隐私」：应用锁 / 离开后锁定（分段：立即 / 1 / 5 / 15 分钟）。
+**常规**（`SettingPreferencesGeneralPage.kt`，9 张 `CardGroup`，顺序）：①资料行 ②语言（trailing 值胶囊） ③启动时新建对话 / 按Enter发送 / 消息队列（开关） ④消息导航按钮 / 消息导航按钮位置（依赖上一项）/ 自动滚动（开关） ⑤全宽组件（开关）+ 输入框布局（分段：单行/双行）+ 消息生成触觉反馈（开关）+ 触感强度（分段：跟随系统/轻/重）+ 形状类型（FilterChip）、边角大小（滑块 %）、边角动画节流（数字滑块 ms）、开关类型（8 个 FilterChip）、滑块类型（4 个 FilterChip） ⑥跳过图片编辑 / 粘贴长文本为文件 / 文本长度阈值 ⑦音量键翻页 / 滚动幅度 ⑧「TTS设置」：默认播放速度 / TTS仅朗读引用内容 / TTS不朗读括号内的内容 / 生成后自动播放TTS / 语音模式回复时继续聆听 ⑨「隐私」：应用锁 / 离开后锁定（分段：立即 / 1 / 5 / 15 分钟）。
 
-**界面偏好**（`SettingPreferencesUIPage.kt`，8 张 `CardGroup`）：①显示模式（trailing 值胶囊 + 选择弹窗） ②「消息显示」：显示用户头像、显示助手消息气泡、按段落拆分气泡（依赖上一项）、新对话标语、气泡不透明度 ③：聊天列表模型图标、显示模型名称、按钮阴影、完成后收起任务清单、在消息中显示日期和时间、使用 L3Hub 思考强度图标、显示Token和上下文统计、限额显示、以二进制量计数、用量饼图、上下文预警 ④显示工具调用输出、界面圆角（数字滑块 0–32）、输入框左右内边距（滑块 0–16）、关闭所有动画、动画速度（跟随系统/轻快/柔和三选一，`optionGroup` 随「关闭所有动画」收起） ⑤「动态模糊」：启用/滚动动态模糊/模糊半径/过渡时长/滚动行程 ⑥「悬浮栏」：显示悬浮栏、自动隐藏、悬浮栏大小、槽位管理 ⑦聊天字体（四格 `ConnectedChoiceButtons`，`minHeight = 64.dp`）、应用到全局、自定义字体、界面缩放、聊天字体大小 ⑧「代码显示」：代码块自动换行、代码块自动折叠、显示行号。
+> 2026-11-25 起这一页的「全局特效」（分段：关闭 / 模糊 / 玻璃）与「模糊不透明度」「玻璃透明度」两个滑块
+> 已删除，特效只从「偏好设置 → 高级外观设置」进；`DisplaySetting` 的旧字段仍在，但界面不再显示。
+> ⑤ 里剩下的项顺位不变，页卡数量与顺序也没变。
+
+**界面偏好**（`SettingPreferencesUIPage.kt`，8 张 `CardGroup`）：①显示模式（trailing 值胶囊 + 选择弹窗） ②「消息显示」：显示用户头像、显示助手消息气泡（默认关，即助手正文不带气泡底）、按段落拆分气泡（依赖上一项）、新对话标语、气泡不透明度 ③：聊天列表模型图标、显示模型名称、按钮阴影、完成后收起任务清单、在消息中显示日期和时间、使用 L3Hub 思考强度图标、显示Token和上下文统计、限额显示、以二进制量计数、用量饼图、上下文预警 ④显示工具调用输出、界面圆角（数字滑块 0–32）、输入框左右内边距（滑块 0–16）、关闭所有动画、动画速度（跟随系统/轻快/柔和三选一，`optionGroup` 随「关闭所有动画」收起） ⑤「动态模糊」：启用/滚动动态模糊/模糊半径/过渡时长/滚动行程 ⑥「悬浮栏」：显示悬浮栏、自动隐藏、悬浮栏大小、槽位管理 ⑦聊天字体（四格 `ConnectedChoiceButtons`，`minHeight = 64.dp`）、应用到全局、自定义字体、界面缩放、聊天字体大小 ⑧「代码显示」：代码块自动换行、代码块自动折叠、显示行号。
 
 ---
 
@@ -150,7 +158,7 @@
 | 项 | 值 | 依据 |
 |---|---|---|
 | 圆角 | 组首尾 **20dp**，中间 **4dp**，间距 **2dp**；按下时整行四角变 20dp | `CardGroup.kt:61-63, 325-340` |
-| 卡片底色 | `CustomColors.listItemColors.containerColor` = `listItem` 槽 = **`surfaceBright`**（开毛玻璃特效时改 `Color.Transparent` + `glassSurface(baseColor = surfaceBright)`） | `CardGroup.kt:361-390`、`UiSlots.kt` |
+| 卡片底色 | `CustomColors.listItemColors.containerColor` = `listItem` 槽 = **`surfaceBright`**（高级外观开启且该页有材质时改 `Color.Transparent` + `Modifier.advancedMaterial(shape, containerColor, LocalAdvancedPageMaterial.current)`） | `CardGroup.kt:311-320, 405-415`、`UiSlots.kt` |
 | 行内边距 | M3 `ListItem`：左右 **16dp**、上下 **16dp** | M3 默认（`ListItemDefaults.ContentPadding`） |
 | 最小高度 | 56dp 单行 / 72dp 双行 / 88dp 三行（M3 默认） | M3 默认 |
 | 主标题 | `bodyLarge` 16sp/24 w400，色 `onSurface` | `CardGroup.kt` 里未覆盖 ListItem 默认 |
@@ -170,7 +178,7 @@
 ### 2.3 分段控件（`ConnectedChoiceButtons`）
 
 - 高度 `minHeight = 48.dp`（聊天字体那组传 64dp），相邻按钮间距 `ButtonGroupDefaults.ConnectedSpaceBetween`（8dp）。
-- 选中项 `weight = 1.3f`（未选中 1f），首/中/末分别是 leading/middle/trailing 连接形；底色 `glassColor(surfaceContainerHigh)`；选中文字前带图标（`ConnectedChoiceLabel`）。
+- 选中项 `weight = 1.3f`（未选中 1f），首/中/末分别是 leading/middle/trailing 连接形；底色 `glassColor(surfaceContainerHigh)`（只有高级外观开启且页卡不是实色时才按页卡浓度调透明，下限 .35；否则原样实色）；选中文字前带图标（`ConnectedChoiceLabel`）。
 - 交互：点未选中项才触发，`Role.RadioButton`。
 
 ### 2.4 圆角与底色 token 对照（做原型时直接查这张）

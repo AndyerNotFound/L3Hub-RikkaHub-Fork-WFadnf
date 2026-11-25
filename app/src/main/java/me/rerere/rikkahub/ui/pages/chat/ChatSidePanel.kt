@@ -60,7 +60,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.TopTab
 import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.glassSurface
 import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.style.DropdownMenu
@@ -116,22 +115,16 @@ internal fun ChatSidePanelColumn(
     // 选中的标签被关掉、或恢复出来的选中项已经不在标签里时，退到第一个，别让内容区空着
     val active = selected?.takeIf { it in panes } ?: panes.firstOrNull()
 
-    val panel = if (material == null) {
-        Modifier.glassSurface(shape, containerColor, hazeState, minAlpha = .5f)
-    } else {
-        Modifier.advancedMaterial(shape, containerColor, material, hazeState, readableFloor = .45f)
-    }
+    val panel = material?.let {
+        Modifier.advancedMaterial(shape, containerColor, it, hazeState, readableFloor = .45f)
+    } ?: Modifier
     Surface(
         modifier = modifier
             .fillMaxHeight()
             .appButtonShadow(shape, 6.dp)
             .then(panel),
         shape = shape,
-        color = if (material != null || settings.displaySetting.enableBlurEffect) {
-            Color.Transparent
-        } else {
-            containerColor
-        },
+        color = if (material != null) Color.Transparent else containerColor,
         contentColor = scheme.onSurface,
     ) {
         Column(

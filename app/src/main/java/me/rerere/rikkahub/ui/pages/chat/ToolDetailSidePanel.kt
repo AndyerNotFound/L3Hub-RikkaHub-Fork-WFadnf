@@ -42,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -61,10 +62,15 @@ import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
  *
  * 这里是一层普通的 Compose 覆盖，不是 Dialog / BottomSheet 那样另开的窗口，
  * 所以不会把已经隐藏的状态栏重新带出来。
+ *
+ * [hazeState] 是同一会话里含消息正文的那一份 Haze 源（ChatPage 的 chrome 源）：
+ * 侧栏压着聊天区，要糊出正文，就不能只取页面背景那一份。没有源时
+ * [advancedMaterial] 会降级成静态填充，内容照样读得清。
  */
 @Composable
 internal fun ToolDetailSidePanel(
     host: ToolDetailHostState,
+    hazeState: HazeState?,
     modifier: Modifier = Modifier,
 ) {
     val request = host.request
@@ -113,10 +119,19 @@ internal fun ToolDetailSidePanel(
         ) {
             val scheme = MaterialTheme.colorScheme
             val shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+            // 高级外观开着时底交给 overlayMaterial；关着时 material 为 null，
+            // 下面 Surface 用原来的实色 surface + tonalElevation 兜底，旧观感一像素不动
             val material = LocalSettings.current.advancedAppearanceSetting
                 .takeIf { it.enableAdvancedAppearance }?.overlayMaterial()
             val panel = if (material != null) {
-                Modifier.advancedMaterial(shape, scheme.surface, material, readableFloor = .62f)
+                Modifier.advancedMaterial(
+                    shape = shape,
+                    base = scheme.surface,
+                    material = material,
+                    hazeState = hazeState,
+                    // 面板压着聊天区正文，着色太淡就分不出底板和下面的字
+                    readableFloor = .62f,
+                )
             } else Modifier
             Surface(
                 modifier = Modifier

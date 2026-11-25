@@ -14,7 +14,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.hugeicons.stroke.PaintBoard
@@ -135,18 +134,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                         },
                         headlineContent = { Text(stringResource(R.string.setting_page_preferences_network)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_network_desc)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingPreferencesMessageStyle) },
-                        leadingContent = {
-                            CardGroupIcon(
-                                HugeIcons.BubbleChat,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        },
-                        headlineContent = { Text(stringResource(R.string.setting_page_preferences_message_style)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_preferences_message_style_desc)) },
                     )
                 }
             }

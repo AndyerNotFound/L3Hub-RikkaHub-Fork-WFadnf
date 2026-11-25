@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,10 +64,11 @@ import me.rerere.rikkahub.data.ai.ProviderGateStatus
 import me.rerere.rikkahub.data.ai.ProviderWindowUsage
 import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
-import me.rerere.rikkahub.data.datastore.BackgroundEffectType
 import me.rerere.rikkahub.data.datastore.DisplaySetting
-import me.rerere.rikkahub.data.datastore.effectiveBackgroundEffect
 import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
+import me.rerere.rikkahub.ui.components.ui.advancedMaterial
+import me.rerere.rikkahub.ui.components.ui.overlayMaterial
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
@@ -129,6 +131,58 @@ fun rememberChatQuotaStripData(provider: ProviderSetting): ChatQuotaStripData {
 }
 
 /**
+ * 折叠条与展开看板共用的底色。
+ *
+ * 高级外观开着时底交给 [advancedMaterial]：材质（surface style）、着色、模糊半径与性能开关
+ * 全部来自 [LocalSettings] 里那份 `AdvancedAppearanceSetting.overlayMaterial()`，和会话详情浮层、
+ * 顶栏胶囊走同一条路径；关着时只有一道实色底 —— 旧的全特效运行时已经退役，
+ * 这里不再有旧全局特效着色退路，也不会出现两层着色叠在一起。
+ *
+ * 折叠条和看板写在同一处，是因为它们视觉上是一块：看板从折叠条下面展开，
+ * 各自实现一遍材质的话，展开和收起时着色、描边会各走各的。
+ *
+ * 效果条件不满足时（SDK 版本不够、省电、独立窗口取不到源）由 [advancedMaterial]
+ * 自己降级成静态填充，这里不再另判一遍。
+ *
+ * [hazeState] 由调用方给：这两块都压在滚动中的消息正文上，要的是含正文的那一份源。
+ */
+@Composable
+private fun Modifier.quotaStripSurface(
+    shape: Shape,
+    containerColor: Color,
+    hazeState: HazeState?,
+): Modifier {
+    val material = LocalSettings.current.advancedAppearanceSetting
+        .takeIf { it.enableAdvancedAppearance }
+        ?.overlayMaterial()
+    if (material == null) {
+        // 高级外观关着：只有这一道实色底
+        return background(containerColor, shape)
+    }
+    return this
+        .advancedMaterial(
+            shape = shape,
+            base = containerColor,
+            material = material,
+            hazeState = hazeState,
+            // 底下压着没被糊过的正文，着色太淡就认不出这是一条底
+            readableFloor = .62f,
+        )
+        // 玻璃档自带渐变描边，其余档补一道平线，和实色底那条路的观感接上
+        .then(
+            if (material.needsFlatOutline()) {
+                Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    shape = shape,
+                )
+            } else {
+                Modifier
+            }
+        )
+}
+
+/**
  * 顶栏下方的限额折叠条，只有收起的那一行摘要。
  *
  * 摘要里是提供商名加最近一分钟与各时间窗的用量，右侧单列当前余额；点按切换看板的展开状态。
@@ -144,8 +198,7 @@ fun ChatQuotaStrip(
     data: ChatQuotaStripData,
     expanded: Boolean,
     onToggle: () -> Unit,
-    displaySetting: DisplaySetting,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -230,7 +283,6 @@ fun ChatQuotaStrip(
     } else {
         RoundedCornerShape(20.dp)
     }
-    val effect = displaySetting.effectiveBackgroundEffect
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -248,24 +300,11 @@ fun ChatQuotaStrip(
             )
             .appButtonShadow(shape, 2.dp)
             .clip(shape)
-            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
-            .chatInputHaze(
-                hazeState = hazeState,
-                displaySetting = displaySetting,
-                containerColor = containerColor,
+            // 高级外观开着时底走 overlayMaterial，关着时是一道实色底
+            .quotaStripSurface(
                 shape = shape,
-            )
-            // 描边画在模糊层之后，否则会被糊掉
-            .then(
-                if (effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                }
+                containerColor = containerColor,
+                hazeState = hazeState,
             )
             .clickable(onClick = onToggle)
             .padding(horizontal = 14.dp, vertical = 9.dp),
@@ -354,7 +393,7 @@ fun ChatQuotaStripDashboard(
     expanded: Boolean,
     running: Boolean,
     displaySetting: DisplaySetting,
-    hazeState: HazeState,
+    hazeState: HazeState?,
     modifier: Modifier = Modifier,
 ) {
     val shape: RoundedCornerShape = if (LocalFullWidthComponents.current) {
@@ -362,7 +401,6 @@ fun ChatQuotaStripDashboard(
     } else {
         RoundedCornerShape(20.dp)
     }
-    val effect = displaySetting.effectiveBackgroundEffect
     val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
 
     MotionExpandCollapse(
@@ -375,23 +413,11 @@ fun ChatQuotaStripDashboard(
             )
             .appButtonShadow(shape, 4.dp)
             .clip(shape)
-            .background(if (effect == BackgroundEffectType.OFF) containerColor else Color.Transparent)
-            .chatInputHaze(
-                hazeState = hazeState,
-                displaySetting = displaySetting,
-                containerColor = containerColor,
+            // 和折叠条同一份材质：高级外观开着走 overlayMaterial，关着退回原实色
+            .quotaStripSurface(
                 shape = shape,
-            )
-            .then(
-                if (effect == BackgroundEffectType.BLUR) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        shape = shape,
-                    )
-                } else {
-                    Modifier
-                }
+                containerColor = containerColor,
+                hazeState = hazeState,
             ),
         enter = expandVertically(
             expandFrom = Alignment.Top,

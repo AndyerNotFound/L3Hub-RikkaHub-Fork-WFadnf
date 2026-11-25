@@ -66,7 +66,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
@@ -184,8 +183,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     // 竖屏的侧边栏：Material 的模态抽屉，开关、边缘手势与手势仲裁都交给 DrawerState
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
-    val backgroundHazeState = rememberHazeState()
-    val chromeHazeState = rememberHazeState()
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
@@ -310,6 +307,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     val chatListState = rememberLazyListState()
+    val hazeCapture = rememberChatHazeCaptureState(setting, chatListState, loadingJob != null || sessionActivity != null)
+    val backgroundHazeState = rememberHazeState().takeIf { hazeCapture.plan.background }
+    val chromeHazeState = rememberHazeState().takeIf { hazeCapture.plan.chrome }
     LaunchedEffect(nodeId, conversationMessageCount) {
         val conversation = conversationState.value
         if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
@@ -358,14 +358,14 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
 
     CompositionLocalProvider(
         LocalToolDetailHost provides toolDetailHost,
-        LocalGlassHazeState provides backgroundHazeState.takeIf { advanced },
-        LocalAdvancedAppearanceBusy provides chatAppearanceBusy(advanced, chatListState, loadingJob != null || sessionActivity != null),
+        LocalGlassHazeState provides backgroundHazeState,
+        LocalAdvancedAppearanceBusy provides hazeCapture.busy,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
         if (advanced) AssistantBackground(
             setting = setting,
             assistant = assistant,
-            modifier = Modifier.hazeSource(backgroundHazeState).hazeSource(chromeHazeState),
+            modifier = Modifier.chatHazeSources(backgroundHazeState, chromeHazeState),
             scrim = !threePaneLayout,
             animateGradient = loadingJob == null && sessionActivity == null,
         )
@@ -469,19 +469,22 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 )
             }
         }
-        ToolDetailSidePanel(host = toolDetailHost)
+        ToolDetailSidePanel(host = toolDetailHost, hazeState = chromeHazeState)
         }
     }
 }
-
 @Composable
 private fun ChatPageContent(
     state: ChatPageUiState,
     actions: ChatPageActions,
 ) {
     val scope = rememberCoroutineScope()
+    var previewMode by rememberSaveable { mutableStateOf(false) }
     val advanced = state.setting.advancedAppearanceSetting.enableAdvancedAppearance
-    val overlayHazeState = if (advanced) state.backgroundHazeState else state.chromeHazeState
+    // 顶栏、配额条/看板、会话详情浮层都压在消息正文上：统一取 chrome 源（背景 + 正文）。
+    // 只给 background 源的话，浮层底下滚过去的正文糊不出来，着色一淡就透字。
+    // 抽屉不用这一份 —— 它是整块侧栏、背后是页面背景，仍取 state.backgroundHazeState。
+    val overlayHazeState = state.chromeHazeState
     // 顶栏胶囊的文件夹选单：按会话自己的助手取，不看抽屉里当前选中的助手
     val conversationFolders by state.vm.folders.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
@@ -691,7 +694,6 @@ private fun ChatPageContent(
         chatListState = state.chatListState,
     )
 
-    var previewMode by rememberSaveable { mutableStateOf(false) }
     val previewListState = rememberLazyListState()
     val selectionState = rememberChatSelectionState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -1000,7 +1002,7 @@ private fun ChatPageContent(
         // The advanced root background spans the three panes. Keep the legacy background inside this surface.
         if (!advanced) AssistantBackground(
             setting = state.setting,
-            modifier = Modifier.hazeSource(state.backgroundHazeState).hazeSource(state.chromeHazeState),
+            modifier = Modifier.chatHazeSources(state.backgroundHazeState, state.chromeHazeState),
             scrim = !state.threePane,
             animateGradient = state.loadingJob == null,
         )
@@ -1060,7 +1062,6 @@ private fun ChatPageContent(
                             data = quotaData,
                             expanded = quotaExpanded,
                             onToggle = { quotaExpanded = !quotaExpanded },
-                            displaySetting = state.setting.displaySetting,
                             hazeState = overlayHazeState,
                         )
                     }
@@ -1134,8 +1135,7 @@ private fun ChatPageContent(
                         compressing = state.sessionActivity == SessionActivity.Compressing,
                         onCreateNewChat = actions.onCreateNewChat,
                         processingStatus = state.processingStatus,
-                        previewMode = previewMode,
-                        onPreviewModeChange = { previewMode = it },
+                        previewMode = previewMode, onPreviewModeChange = { previewMode = it },
                         settings = state.setting,
                         bubbleHazeState = state.backgroundHazeState,
                         contentSource = state.chromeHazeState,
@@ -1386,7 +1386,6 @@ private fun ChatPageContent(
         SubAgentTaskSheet(
             visible = showTaskTree && !state.threePane,
             conversationId = state.conversationId,
-            hazeState = state.backgroundHazeState,
             onDismiss = { showTaskTree = false },
             onOpenConversation = { id ->
                 showTaskTree = false

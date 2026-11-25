@@ -114,7 +114,7 @@ import me.rerere.rikkahub.ui.components.ai.GenerationSpeed
 import me.rerere.rikkahub.ui.components.ai.tokenSpeedRatioColor
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
-import me.rerere.rikkahub.ui.components.ui.glassOverlayColor
+import me.rerere.rikkahub.ui.components.ui.overlayControlColor
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledIconButton
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
@@ -190,7 +190,7 @@ fun ChatList(
     onPreviewModeChange: (Boolean) -> Unit,
     settings: Settings,
     bubbleHazeState: HazeState? = null,
-    // 输入区与旧版浮层可取样消息列表，气泡本身只使用背景源。
+    // 输入区与同窗浮层可取样消息列表，气泡本身只使用背景源。
     contentSource: HazeState? = null,
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
@@ -260,7 +260,8 @@ fun ChatList(
                 processingStatus = processingStatus,
                 settings = settings,
                 bubbleHazeState = bubbleHazeState,
-                contentSource = contentSource.takeUnless { showPreview },
+                // 按钮切换的首帧和滑入/滑出期间都不录正文；窗内背景仍由页面单独录制。
+                contentSource = contentSource.takeUnless { previewMode || showPreview },
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
@@ -965,7 +966,7 @@ private fun ChatListNormal(
                 shape = CircleShape,
                 // 拉满换色，明确告诉用户"现在松手就会新建"；
                 // 底色跟「玻璃透明度」走，0.7 的下限保证压着消息正文时还认得出是一块胶囊
-                color = glassOverlayColor(
+                color = overlayControlColor(
                     base = if (createPullArmed) {
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
