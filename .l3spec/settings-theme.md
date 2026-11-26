@@ -100,14 +100,14 @@
 
 ### 1.5 二级页（供原型做第二屏，摘要）
 
-**偏好设置**（`SettingPreferencesPage.kt`，`LargeFlexibleTopAppBar` + 单张 `CardGroup`，`padding(horizontal = 16.dp, vertical = 8.dp)`，间距 16dp）：6 行，全部 `CardGroupIcon`（40dp 圆底，20dp 图标，`primaryContainer` / `onPrimaryContainer`；高级外观那一行是 `tertiaryContainer`）+ 标题 + 副标题 + 跳转。
+**偏好设置**（`SettingPreferencesPage.kt`，`LargeFlexibleTopAppBar` + 单张 `CardGroup`，`padding(horizontal = 16.dp, vertical = 8.dp)`，间距 16dp）：6 行，全部 `CardGroupIcon`（40dp 圆底，20dp 图标，`primaryContainer` / `onPrimaryContainer`，高级外观与其它入口一致）+ 标题 + 副标题 + 跳转。
 
 | 条目 | 副标题 | 跳转 | 图标 |
 |---|---|---|---|
 | 常规 | 交互行为、滚动、输入设置 | `SettingPreferencesGeneral` | `HugeIcons.Settings03` |
 | 主题 | 动态配色、主题、AMOLED深色模式 | `SettingPreferencesTheme` | `HugeIcons.Sun01` |
 | 界面偏好设置 | 消息显示、字体、代码块 | `SettingPreferencesUI` | `HugeIcons.PaintBoard` |
-| 高级外观设置 | 背景、材质和聊天样式 | `SettingPreferencesAdvancedAppearance` | `HugeIcons.PaintBoard`（`tertiaryContainer`） |
+| 高级外观设置 | 背景、材质和聊天样式 | `SettingPreferencesAdvancedAppearance` | `HugeIcons.PaintBoard` |
 | 通知 | 更新提醒、消息生成通知、后台悬浮窗 | `SettingPreferencesNotification` | `HugeIcons.Notification01` |
 | 网络 | User-Agent 和网络请求设置 | `SettingPreferencesNetwork` | `HugeIcons.CloudServer` |
 

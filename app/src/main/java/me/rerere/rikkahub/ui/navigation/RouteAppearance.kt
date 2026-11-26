@@ -24,6 +24,7 @@ import me.rerere.rikkahub.data.datastore.isPageBackgroundActive
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.LocalAdvancedPageMaterial
 import me.rerere.rikkahub.ui.components.ui.LocalGlassHazeState
+import me.rerere.rikkahub.ui.components.ui.LocalTopBarHazeState
 import me.rerere.rikkahub.ui.components.ui.pageMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.AppearancePreviewBackdrop
@@ -52,6 +53,8 @@ internal fun RouteAppearance(screen: Screen, content: @Composable () -> Unit) {
         useImage = usesBackdrop,
         useMica = appearance.enableAdvancedAppearance && !preview && appearance.pageSurfaceStyle == BackgroundSurfaceStyle.MICA,
         material = appearance.pageMaterial().takeIf { appearance.enableAdvancedAppearance },
+        topBarPageContentSource = screen == Screen.SettingPreferencesAdvancedAppearance ||
+            screen == Screen.SettingPreferencesMessageStyle,
         content = content,
     )
 }
@@ -73,15 +76,24 @@ private fun RouteBackdrop(
     useImage: Boolean,
     useMica: Boolean = false,
     material: AppearanceMaterial? = null,
+    topBarPageContentSource: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val image = if (useImage) LocalAppearanceImage.current?.image else null
     val visible = image != null || useMica
     val haze = if (visible) rememberHazeState() else null
+    // Keep the top bar's content source separate from page surfaces to avoid sampling them recursively.
+    val settings = LocalSettings.current
+    val topBarNeedsHazeSource = visible || topBarPageContentSource
+    val topBarHaze = if (
+        material != null && settings.displaySetting.showTopBarBackground && topBarNeedsHazeSource
+    ) rememberHazeState() else null
     // A transitioning pane keeps its own backing, including when part of it covers another pane.
     Box(Modifier.fillMaxSize().clipToBounds()) {
         if (haze != null) {
-            val source = Modifier.matchParentSize().hazeSource(haze)
+            val source = Modifier.matchParentSize()
+                .hazeSource(haze)
+                .then(topBarHaze?.let { Modifier.hazeSource(it) } ?: Modifier)
             if (image != null) {
                 AppearancePreviewBackdrop(image, appearance, source)
             } else {
@@ -95,6 +107,7 @@ private fun RouteBackdrop(
             LocalRouteBackdropVisible provides visible,
             LocalAdvancedPageMaterial provides material,
             LocalGlassHazeState provides haze,
+            LocalTopBarHazeState provides topBarHaze,
             LocalContentColor provides if (visible) MaterialTheme.colorScheme.onBackground else LocalContentColor.current,
         ) { content() }
     }

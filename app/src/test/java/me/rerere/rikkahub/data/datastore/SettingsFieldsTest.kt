@@ -10,7 +10,9 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.ExecutionPermission
+import me.rerere.rikkahub.data.model.ImageCrop
 import me.rerere.rikkahub.data.model.InspirationAppearance
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
@@ -428,6 +430,59 @@ class SettingsFieldsTest {
 
         assertEquals(2, settings.configuredAssistantBackgroundCount())
         assertEquals(0, Settings(assistants = emptyList()).configuredAssistantBackgroundCount())
+    }
+
+    @Test
+    fun `display field edit keeps unrelated latest settings`() {
+        // Create the page callback before another page changes the shared display settings.
+        val pauseUpdates: DisplaySetting.() -> DisplaySetting = {
+            copy(updateCheckDisabledUntilEpochMillis = 123_456L)
+        }
+        val latest = Settings(
+            displaySetting = DisplaySetting(
+                showTopBarBackground = true,
+                topBarSurfaceOpacity = .4f,
+                topBarBlurRadius = 9f,
+                inputSurfaceOpacity = .3f,
+                assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(cornerRadius = 20f),
+                userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(borderWidth = 2f),
+                thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(blurSigma = 10f),
+            ),
+            advancedAppearanceSetting = AdvancedAppearanceSetting(
+                enableAdvancedAppearance = true,
+                pageSurfaceOpacity = .25f,
+            ),
+        )
+
+        val updated = latest.applyDisplaySettingEdit(pauseUpdates)
+
+        assertEquals(
+            latest.copy(displaySetting = latest.displaySetting.copy(updateCheckDisabledUntilEpochMillis = 123_456L)),
+            updated,
+        )
+        val resumed = updated.applyDisplaySettingEdit { copy(updateCheckDisabledUntilEpochMillis = 0L) }
+        assertEquals(latest, resumed)
+    }
+
+    @Test
+    fun `display edits preserve nested fields but replace an avatar as a unit`() {
+        val latest = Settings(
+            displaySetting = DisplaySetting(
+                motionBlur = MotionBlurSetting(radius = 7, durationMillis = 520),
+                userAvatar = Avatar.Image(
+                    url = "old.gif",
+                    crop = ImageCrop(0f, 0f, .5f, .5f),
+                ),
+            ),
+        )
+
+        val updated = latest
+            .applyDisplaySettingEdit { copy(motionBlur = motionBlur.copy(radius = 12)) }
+            .applyDisplaySettingEdit { copy(userAvatar = Avatar.Image("new.gif")) }
+
+        assertEquals(12, updated.displaySetting.motionBlur.radius)
+        assertEquals(520, updated.displaySetting.motionBlur.durationMillis)
+        assertEquals(Avatar.Image("new.gif"), updated.displaySetting.userAvatar)
     }
 
     @Test

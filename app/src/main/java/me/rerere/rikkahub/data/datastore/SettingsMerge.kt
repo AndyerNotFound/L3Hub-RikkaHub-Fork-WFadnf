@@ -2,6 +2,11 @@ package me.rerere.rikkahub.data.datastore
 
 import me.rerere.ai.provider.ProviderSetting
 
+/** Apply a page-local edit to the latest settings snapshot without replacing unrelated fields. */
+internal fun Settings.applyDisplaySettingEdit(
+    change: DisplaySetting.() -> DisplaySetting,
+): Settings = copy(displaySetting = displaySetting.change())
+
 /**
  * 恢复备份时的设置合并：保留当前设置，只补入备份里当前缺少的条目。
  *

@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.hazeSource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.Refresh03
@@ -35,21 +36,20 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
 import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
-import me.rerere.rikkahub.data.datastore.RichContentStyle
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
+import me.rerere.rikkahub.data.datastore.applyDisplaySettingEdit
 import me.rerere.rikkahub.data.datastore.finiteAppearanceValue
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
-import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
-import me.rerere.rikkahub.data.datastore.overridesFor
 import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
-import me.rerere.rikkahub.ui.components.message.thinkingBubbleMaterial
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.LocalTopBarHazeState
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
@@ -62,6 +62,7 @@ import me.rerere.rikkahub.ui.navigation.appearancePageContainerColor
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.ui.components.LocalSeparateWindow
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
+import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
@@ -72,6 +73,7 @@ fun SettingPreferencesMessageStylePage(
     vm: SettingVM = koinViewModel(),
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val topBarHazeState = LocalTopBarHazeState.current
 
     Scaffold(
         containerColor = appearancePageContainerColor(),
@@ -85,9 +87,9 @@ fun SettingPreferencesMessageStylePage(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
+                .then(topBarHazeState?.let { Modifier.hazeSource(it, zIndex = 1f) } ?: Modifier)
                 .adaptiveHorizontalPadding(0.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
@@ -95,7 +97,7 @@ fun SettingPreferencesMessageStylePage(
                     displaySetting = settings.displaySetting,
                     advancedAppearance = settings.advancedAppearanceSetting,
                     onDisplaySettingChange = { change ->
-                        vm.updateSettings { latest -> latest.copy(displaySetting = latest.displaySetting.change()) }
+                        vm.updateSettings { latest -> latest.applyDisplaySettingEdit(change) }
                     },
                 )
             }
@@ -104,7 +106,7 @@ fun SettingPreferencesMessageStylePage(
 }
 
 /**
- * 消息气泡样式分段：三档样式、按角色 overrides、参数组与重置对话框。
+ * 消息气泡样式分段：三档样式、助手参数与重置对话框；保留其它角色的旧数据。
  *
  * 直接以 Column + CardGroup 输出，不带 Scaffold，也不自建 LazyColumn，
  * 供 advanced appearance 页的 chat item 直接调用。
@@ -113,14 +115,13 @@ fun SettingPreferencesMessageStylePage(
 @Composable
 internal fun MessageBubbleStyleSettingsSection(
     displaySetting: DisplaySetting,
-    advancedAppearance: me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting,
+    advancedAppearance: AdvancedAppearanceSetting,
     onDisplaySettingChange: (DisplaySetting.() -> DisplaySetting) -> Unit,
 ) {
     val latestOnChange by rememberUpdatedState(onDisplaySettingChange)
     // Keep drag updates visible immediately while SettingsStore persists them asynchronously.
     // The parent callback still applies the same transform to its latest DisplaySetting.
     var editingDisplaySetting by remember(displaySetting) { mutableStateOf(displaySetting) }
-    var editingTarget by rememberSaveable { mutableStateOf(ChatBubbleStyleTarget.ASSISTANT) }
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
 
     /** 以最新 DisplaySetting 为基准做差量修改，再交给调用方落库。 */
@@ -131,35 +132,24 @@ internal fun MessageBubbleStyleSettingsSection(
 
     val style = editingDisplaySetting.chatMessageBackgroundStyle
     val customizeCards = editingDisplaySetting.customizeThinkingToolCards
-    val target = if (
-        !customizeCards && editingTarget == ChatBubbleStyleTarget.THINKING_TOOL_CARD
-    ) {
-        ChatBubbleStyleTarget.ASSISTANT
-    } else {
-        editingTarget
-    }
-    val overrides = editingDisplaySetting.overridesFor(target)
+    // This section only edits assistant bubbles; legacy overrides for other targets remain stored.
+    val overrides = editingDisplaySetting.assistantChatBubbleStyleOverrides
 
     fun updateOverrides(transform: ChatBubbleStyleOverrides.() -> ChatBubbleStyleOverrides) {
         update {
-            val current = this.overridesFor(target)
+            val current = assistantChatBubbleStyleOverrides
             val next = current.transform()
             copy(
-                userChatBubbleStyleOverrides = if (target == ChatBubbleStyleTarget.USER) next else userChatBubbleStyleOverrides,
-                assistantChatBubbleStyleOverrides = if (target == ChatBubbleStyleTarget.ASSISTANT) next else assistantChatBubbleStyleOverrides,
-                thinkingToolCardStyleOverrides = if (target == ChatBubbleStyleTarget.THINKING_TOOL_CARD) next else thinkingToolCardStyleOverrides,
+                assistantChatBubbleStyleOverrides = next,
             )
         }
     }
 
-    fun resetAll() {
+    fun resetAssistantStyle() {
         update {
             copy(
                 chatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
-                userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
                 assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
-                thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(),
-                customizeThinkingToolCards = false,
             )
         }
     }
@@ -191,54 +181,24 @@ internal fun MessageBubbleStyleSettingsSection(
             }
         }
 
-        // 气泡显隐与样式放在一起；助手气泡隐藏时材质设置仍可在此修改。
-        CardGroup {
-            switchItem(
-                checked = customizeCards,
-                onCheckedChange = { next -> update { copy(customizeThinkingToolCards = next) } },
-                leadingContent = { CardGroupIcon(HugeIcons.BubbleChat) },
-                supportingContent = { Text(stringResource(R.string.message_style_page_customize_thinking_desc)) },
-                headlineContent = { Text(stringResource(R.string.message_style_page_customize_thinking)) },
-            )
+        // Only offer the legacy toggle when there is a saved style to use (or to turn off).
+        // Its parameters remain read-only, and users without legacy data see assistant controls only.
+        if (customizeCards || !editingDisplaySetting.thinkingToolCardStyleOverrides.isDefault) {
+            CardGroup {
+                switchItem(
+                    checked = customizeCards,
+                    onCheckedChange = { next -> update { copy(customizeThinkingToolCards = next) } },
+                    leadingContent = { CardGroupIcon(HugeIcons.BubbleChat) },
+                    supportingContent = { Text(stringResource(R.string.message_style_page_customize_thinking_desc)) },
+                    headlineContent = { Text(stringResource(R.string.message_style_page_customize_thinking)) },
+                )
+            }
         }
 
         if (style != ChatMessageBackgroundStyle.DEFAULT) {
-            // 角色分段
-            CardGroup {
-                formItem(
-                    headlineContent = { Text(text = stringResource(R.string.message_style_page_target_title)) },
-                ) {
-                    ConnectedChoiceButtons(
-                        options = if (customizeCards) {
-                            ChatBubbleStyleTarget.entries
-                        } else {
-                            listOf(
-                                ChatBubbleStyleTarget.USER,
-                                ChatBubbleStyleTarget.ASSISTANT,
-                            )
-                        },
-                        selected = target,
-                        onSelect = { editingTarget = it },
-                    ) { option, selected ->
-                        ConnectedChoiceLabel(
-                            text = when (option) {
-                                ChatBubbleStyleTarget.USER ->
-                                    stringResource(R.string.message_style_page_role_user)
-                                ChatBubbleStyleTarget.ASSISTANT ->
-                                    stringResource(R.string.message_style_page_role_assistant)
-                                ChatBubbleStyleTarget.THINKING_TOOL_CARD ->
-                                    stringResource(R.string.message_style_page_role_thinking)
-                            },
-                            selected = selected,
-                        )
-                    }
-                }
-            }
-
-            // 参数组
+            // Parameters are fixed to assistant; no role switch is exposed here.
             StyleParamsGroup(
                 style = style,
-                target = target,
                 displaySetting = editingDisplaySetting,
                 overrides = overrides,
                 advancedAppearance = advancedAppearance,
@@ -300,7 +260,7 @@ internal fun MessageBubbleStyleSettingsSection(
                             .background(MaterialTheme.colorScheme.primaryContainer)
                             .clickable {
                                 showResetDialog = false
-                                resetAll()
+                                resetAssistantStyle()
                             }
                             .padding(vertical = 10.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -311,11 +271,10 @@ internal fun MessageBubbleStyleSettingsSection(
     }
 }
 
-/** Parameters reflect the actual material and inherited values for the selected role. */
+/** Parameters reflect the actual assistant material and its inherited values. */
 @Composable
 private fun StyleParamsGroup(
     style: ChatMessageBackgroundStyle,
-    target: ChatBubbleStyleTarget,
     displaySetting: DisplaySetting,
     overrides: ChatBubbleStyleOverrides,
     advancedAppearance: AdvancedAppearanceSetting,
@@ -326,7 +285,6 @@ private fun StyleParamsGroup(
         style = style,
         overrides = overrides,
     )
-    val thinking = target == ChatBubbleStyleTarget.THINKING_TOOL_CARD
     val advancedOn = advancedAppearance.enableAdvancedAppearance
     val overridesBlur = overrides.blurSigma
         ?.takeIf { style == ChatMessageBackgroundStyle.FROSTED }
@@ -334,17 +292,13 @@ private fun StyleParamsGroup(
     val resolvedForMaterial = resolved.takeIf { style != ChatMessageBackgroundStyle.DEFAULT }
     val actualMaterial = when {
         style == ChatMessageBackgroundStyle.SOLID -> null
-        thinking -> advancedAppearance.thinkingBubbleMaterial(displaySetting, resolvedForMaterial, streaming = false)
-        else -> advancedAppearance.messageBubbleMaterial(displaySetting, target, resolvedForMaterial, streaming = false)
+        else -> advancedAppearance.messageBubbleMaterial(
+            displaySetting, ChatBubbleStyleTarget.ASSISTANT, resolvedForMaterial, streaming = false,
+        )
     }
     val inheritedRadius = when {
         actualMaterial != null -> actualMaterial.radius
         !advancedOn -> resolved.blurRadius.value
-        thinking -> advancedAppearance.richContentSurfaceBlurRadius ?: when (advancedAppearance.richContentStyle) {
-            RichContentStyle.OUTLINED -> 0f
-            RichContentStyle.TRANSLUCENT -> 8f
-            RichContentStyle.LIQUID_GLASS -> 16f
-        }
         else -> advancedAppearance.chatBubbleBlurRadius ?: when (advancedAppearance.chatBubbleStyle) {
             ChatBubbleStyle.FROSTED -> 18f
             ChatBubbleStyle.OUTLINED -> 0f
@@ -376,8 +330,7 @@ private fun StyleParamsGroup(
             (advancedAppearance.liquidGlass.usesMaterial3Style() || standardRenderer))
     val blurLiveAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !powerSave &&
         !(busy && advancedAppearance.liquidGlass.adaptivePerformance) && !LocalSeparateWindow.current &&
-        (!advancedOn || if (thinking) advancedAppearance.enableRichContentPerformanceEffects
-            else advancedAppearance.enableBubblePerformanceEffects)
+        (!advancedOn || advancedAppearance.enableBubblePerformanceEffects)
     val shownBlurRadius = resolvedLiveAppearanceRadius(
         effectiveRadius,
         Build.VERSION.SDK_INT,
@@ -391,7 +344,7 @@ private fun StyleParamsGroup(
         onOverridesChange(transform)
     }
 
-    CardGroup {
+    CardGroup(title = { Text(stringResource(R.string.message_style_page_role_assistant)) }) {
         if (radiusApplicable) {
             paramSliderRow(
                 headlineContent = { Text(stringResource(R.string.message_style_page_blur)) },

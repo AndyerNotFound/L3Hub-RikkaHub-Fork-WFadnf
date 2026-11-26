@@ -38,6 +38,7 @@ import me.rerere.rikkahub.data.datastore.HapticsStrength
 import me.rerere.rikkahub.data.datastore.InputLayoutStyle
 import me.rerere.rikkahub.data.datastore.SliderType
 import me.rerere.rikkahub.data.datastore.SwitchType
+import me.rerere.rikkahub.data.datastore.applyDisplaySettingEdit
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
@@ -75,9 +76,9 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
         mutableFloatStateOf(settings.defaultTTSPlaybackSpeed)
     }
 
-    fun updateDisplaySetting(setting: DisplaySetting) {
-        displaySetting = setting
-        vm.updateSettings { it.copy(displaySetting = setting) }
+    fun updateDisplaySetting(change: DisplaySetting.() -> DisplaySetting) {
+        displaySetting = displaySetting.change()
+        vm.updateSettings { latest -> latest.applyDisplaySettingEdit(change) }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -111,7 +112,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             value = displaySetting.userAvatar,
                             avatarSize = 40.dp,
                             onUpdate = { avatar ->
-                                updateDisplaySetting(displaySetting.copy(userAvatar = avatar))
+                                updateDisplaySetting { copy(userAvatar = avatar) }
                             },
                         )
                     },
@@ -141,7 +142,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                updateDisplaySetting(displaySetting.copy(userNickname = nicknameDraft.trim()))
+                                updateDisplaySetting { copy(userNickname = nicknameDraft.trim()) }
                                 showNicknameDialog = false
                             }
                         ) {
@@ -199,7 +200,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 )
                 switchItem(
                     checked = displaySetting.sendOnEnter,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(sendOnEnter = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(sendOnEnter = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_title)) },
                 )
@@ -216,20 +217,20 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             CardGroup {
                 switchItem(
                     checked = displaySetting.showMessageJumper,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(showMessageJumper = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(showMessageJumper = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_show_message_jumper_title)) },
                 )
                     animatedSwitchItem(
                         visible = { displaySetting.showMessageJumper },
                         checked = displaySetting.messageJumperOnLeft,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it)) },
+                        onCheckedChange = { updateDisplaySetting { copy(messageJumperOnLeft = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_message_jumper_position_title)) },
                     )
                 switchItem(
                     checked = displaySetting.enableAutoScroll,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableAutoScroll = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(enableAutoScroll = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_enable_auto_scroll_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_enable_auto_scroll_title)) },
                 )
@@ -238,7 +239,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             CardGroup {
                 switchItem(
                     checked = displaySetting.fullWidthComponents,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(fullWidthComponents = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(fullWidthComponents = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_full_width_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_full_width_title)) },
                 )
@@ -250,7 +251,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         options = InputLayoutStyle.entries,
                         selected = displaySetting.inputLayoutStyle,
                         onSelect = { layout ->
-                            updateDisplaySetting(displaySetting.copy(inputLayoutStyle = layout))
+                            updateDisplaySetting { copy(inputLayoutStyle = layout) }
                         },
                     ) { layout, selected ->
                         ConnectedChoiceLabel(
@@ -265,7 +266,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 switchItem(
                     checked = displaySetting.enableMessageGenerationHapticEffect,
                     onCheckedChange = {
-                        updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
+                        updateDisplaySetting { copy(enableMessageGenerationHapticEffect = it) }
                     },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title)) },
@@ -278,7 +279,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         options = HapticsStrength.entries,
                         selected = displaySetting.hapticsStrength,
                         onSelect = { strength ->
-                            updateDisplaySetting(displaySetting.copy(hapticsStrength = strength))
+                            updateDisplaySetting { copy(hapticsStrength = strength) }
                         },
                     ) { strength, selected ->
                         ConnectedChoiceLabel(
@@ -304,7 +305,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             FilterChip(
                                 selected = displaySetting.cornerStyle == style,
                                 onClick = {
-                                    updateDisplaySetting(displaySetting.copy(cornerStyle = style))
+                                    updateDisplaySetting { copy(cornerStyle = style) }
                                 },
                                 label = { Text(cornerStyleLabel(style)) },
                             )
@@ -321,7 +322,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     AppSlider(
                         value = displaySetting.cornerScale,
                         onValueChange = { scale ->
-                            updateDisplaySetting(displaySetting.copy(cornerScale = scale))
+                            updateDisplaySetting { copy(cornerScale = scale) }
                         },
                         valueRange = 0f..2f,
                     )
@@ -336,7 +337,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                     NumberSlider(
                         value = displaySetting.cornerAnimThrottle,
                         onValueChange = { throttle ->
-                            updateDisplaySetting(displaySetting.copy(cornerAnimThrottle = throttle))
+                            updateDisplaySetting { copy(cornerAnimThrottle = throttle) }
                         },
                         valueRange = 0..500,
                     )
@@ -353,7 +354,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             FilterChip(
                                 selected = displaySetting.switchType == type,
                                 onClick = {
-                                    updateDisplaySetting(displaySetting.copy(switchType = type))
+                                    updateDisplaySetting { copy(switchType = type) }
                                 },
                                 label = { Text(switchTypeLabel(type)) },
                             )
@@ -372,7 +373,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                             FilterChip(
                                 selected = displaySetting.sliderType == type,
                                 onClick = {
-                                    updateDisplaySetting(displaySetting.copy(sliderType = type))
+                                    updateDisplaySetting { copy(sliderType = type) }
                                 },
                                 label = { Text(sliderTypeLabel(type)) },
                             )
@@ -384,13 +385,13 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             CardGroup {
                 switchItem(
                     checked = displaySetting.skipCropImage,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(skipCropImage = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(skipCropImage = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_title)) },
                 )
                 switchItem(
                     checked = displaySetting.pasteLongTextAsFile,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(pasteLongTextAsFile = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(pasteLongTextAsFile = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_title)) },
                 )
@@ -404,7 +405,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         NumberSlider(
                             value = displaySetting.pasteLongTextThreshold,
                             onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(pasteLongTextThreshold = it))
+                                updateDisplaySetting { copy(pasteLongTextThreshold = it) }
                             },
                             valueRange = 100..10_000,
                         )
@@ -414,7 +415,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
             CardGroup {
                 switchItem(
                     checked = displaySetting.enableVolumeKeyScroll,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableVolumeKeyScroll = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(enableVolumeKeyScroll = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_volume_key_scroll_title)) },
                 )
@@ -428,7 +429,7 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                         AppSlider(
                             value = displaySetting.volumeKeyScrollRatio,
                             onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(volumeKeyScrollRatio = it))
+                                updateDisplaySetting { copy(volumeKeyScrollRatio = it) }
                             },
                             valueRange = 0.25f..1.0f,
                             steps = 2,
@@ -480,25 +481,25 @@ fun SettingPreferencesGeneralPage(embedded: Boolean = false, vm: SettingVM = koi
                 }
                 switchItem(
                     checked = displaySetting.ttsOnlyReadQuoted,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(ttsOnlyReadQuoted = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(ttsOnlyReadQuoted = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_title)) },
                 )
                 switchItem(
                     checked = displaySetting.ttsOnlyReadOutsideBrackets,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(ttsOnlyReadOutsideBrackets = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(ttsOnlyReadOutsideBrackets = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_tts_read_outside_brackets_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_tts_read_outside_brackets_title)) },
                 )
                 switchItem(
                     checked = displaySetting.autoPlayTTSAfterGeneration,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoPlayTTSAfterGeneration = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(autoPlayTTSAfterGeneration = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_title)) },
                 )
                 switchItem(
                     checked = displaySetting.voiceModeListenWhileReplying,
-                    onCheckedChange = { updateDisplaySetting(displaySetting.copy(voiceModeListenWhileReplying = it)) },
+                    onCheckedChange = { updateDisplaySetting { copy(voiceModeListenWhileReplying = it) } },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_voice_listen_while_replying_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_voice_listen_while_replying_title)) },
                 )

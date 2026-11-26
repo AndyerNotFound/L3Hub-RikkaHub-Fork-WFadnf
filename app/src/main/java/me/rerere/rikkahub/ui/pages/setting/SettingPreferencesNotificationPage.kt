@@ -59,6 +59,7 @@ import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.switchItem
 
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.applyDisplaySettingEdit
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
 import me.rerere.rikkahub.ui.components.ui.PercentNumberSlider
@@ -85,9 +86,9 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
     var showFloatingIconPicker by remember { mutableStateOf(false) }
     var selectedUpdatePauseDays by remember { mutableStateOf(UPDATE_PAUSE_DAY_OPTIONS.first()) }
 
-    fun updateDisplaySetting(setting: DisplaySetting) {
-        displaySetting = setting
-        vm.updateSettings { it.copy(displaySetting = setting) }
+    fun updateDisplaySetting(change: DisplaySetting.() -> DisplaySetting) {
+        displaySetting = displaySetting.change()
+        vm.updateSettings { latest -> latest.applyDisplaySettingEdit(change) }
     }
 
     // 滑块拖动时只改这三份草稿，松手才写设置：每帧落盘要把整份 DisplaySetting 重新编码一遍
@@ -178,7 +179,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         if (it && !permissionState.allPermissionsGranted) {
                             permissionState.requestPermissions()
                         }
-                        updateDisplaySetting(displaySetting.copy(enableNotificationOnMessageGeneration = it))
+                        updateDisplaySetting { copy(enableNotificationOnMessageGeneration = it) }
                     },
                     supportingContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_display_page_notification_message_generated)) },
@@ -187,7 +188,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         visible = { displaySetting.enableNotificationOnMessageGeneration },
                         checked = displaySetting.enableLiveUpdateNotification,
                         onCheckedChange = {
-                            updateDisplaySetting(displaySetting.copy(enableLiveUpdateNotification = it))
+                            updateDisplaySetting { copy(enableLiveUpdateNotification = it) }
                         },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_live_update_notification_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_live_update_notification)) },
@@ -196,7 +197,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                     checked = displaySetting.enableFloatingChatWindow,
                     onCheckedChange = {
                         if (it && !canDrawOverlays) requestOverlayPermission()
-                        updateDisplaySetting(displaySetting.copy(enableFloatingChatWindow = it))
+                        updateDisplaySetting { copy(enableFloatingChatWindow = it) }
                     },
                     supportingContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window_desc)) },
                     headlineContent = { Text(stringResource(R.string.setting_page_preferences_notification_floating_window)) },
@@ -233,7 +234,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         value = draftPanelWidth,
                         onValueChange = { draftPanelWidth = FloatingPanelSizing.clampWidthRatio(it) },
                         onValueChangeFinished = {
-                            updateDisplaySetting(displaySetting.copy(floatingPanelWidthRatio = draftPanelWidth))
+                            updateDisplaySetting { copy(floatingPanelWidthRatio = draftPanelWidth) }
                         },
                         valueRange = FloatingPanelSizing.MIN_WIDTH_RATIO..FloatingPanelSizing.MAX_WIDTH_RATIO,
                     )
@@ -249,7 +250,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         value = draftPanelHeight,
                         onValueChange = { draftPanelHeight = FloatingPanelSizing.clampHeightRatio(it) },
                         onValueChangeFinished = {
-                            updateDisplaySetting(displaySetting.copy(floatingPanelHeightRatio = draftPanelHeight))
+                            updateDisplaySetting { copy(floatingPanelHeightRatio = draftPanelHeight) }
                         },
                         valueRange = FloatingPanelSizing.MIN_HEIGHT_RATIO..FloatingPanelSizing.MAX_HEIGHT_RATIO,
                     )
@@ -267,12 +268,12 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         value = draftPreviewHeight.roundToInt(),
                         onValueChange = { draftPreviewHeight = it.toFloat() },
                         onValueChangeFinished = {
-                            updateDisplaySetting(
-                                displaySetting.copy(
+                            updateDisplaySetting {
+                                copy(
                                     floatingPreviewMaxHeight =
                                     FloatingPanelSizing.clampPreviewHeight(draftPreviewHeight.roundToInt()),
                                 )
-                            )
+                            }
                         },
                         valueRange = FloatingPanelSizing.MIN_PREVIEW_HEIGHT_DP..
                             FloatingPanelSizing.MAX_PREVIEW_HEIGHT_DP,
@@ -316,7 +317,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
         current = displaySetting.floatingBubbleIcon,
         onSelect = { icon ->
             // 旧图片由 FilesManager.saveBubbleIcon 自己在写入成功之后清掉，这里只管存设置
-            updateDisplaySetting(displaySetting.copy(floatingBubbleIcon = icon))
+            updateDisplaySetting { copy(floatingBubbleIcon = icon) }
         },
         onDismiss = { showFloatingIconPicker = false },
     )
@@ -378,9 +379,7 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                         if (!updateChecksEnabled) {
                             TextButton(
                                 onClick = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(updateCheckDisabledUntilEpochMillis = 0L)
-                                    )
+                                    updateDisplaySetting { copy(updateCheckDisabledUntilEpochMillis = 0L) }
                                     showUpdatePauseDialog = false
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -393,12 +392,8 @@ fun SettingPreferencesNotificationPage(embedded: Boolean = false, vm: SettingVM 
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            updateDisplaySetting(
-                                displaySetting.copy(
-                                    updateCheckDisabledUntilEpochMillis =
-                                        System.currentTimeMillis() + selectedUpdatePauseDays * MILLIS_PER_DAY,
-                                )
-                            )
+                            val disabledUntil = System.currentTimeMillis() + selectedUpdatePauseDays * MILLIS_PER_DAY
+                            updateDisplaySetting { copy(updateCheckDisabledUntilEpochMillis = disabledUntil) }
                             showUpdatePauseDialog = false
                         }
                     ) {

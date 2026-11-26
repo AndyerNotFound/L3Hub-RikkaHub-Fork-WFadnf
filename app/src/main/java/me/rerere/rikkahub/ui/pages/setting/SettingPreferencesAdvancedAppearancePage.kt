@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,6 +68,7 @@ import me.rerere.rikkahub.data.datastore.MIN_CHAT_SUGGESTION_HEIGHT
 import me.rerere.rikkahub.data.datastore.MIN_CHAT_TEXT_LINE_HEIGHT_RATIO
 import me.rerere.rikkahub.data.datastore.RichContentStyle
 import me.rerere.rikkahub.data.datastore.TextColorMode
+import me.rerere.rikkahub.data.datastore.applyDisplaySettingEdit
 import me.rerere.rikkahub.data.datastore.configuredAssistantBackgroundCount
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
@@ -83,6 +85,7 @@ import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.LocalTopBarHazeState
 import me.rerere.rikkahub.ui.components.ui.animatedFormItem
 import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
@@ -133,13 +136,14 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
     val canRefract = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     val glassLive = appearance.liquidGlass.renderer != LiquidGlassRenderer.STANDARD
     val pageStyle = appearance.pageSurfaceStyle
+    val topBarHazeState = LocalTopBarHazeState.current
     val imageRequest = remember { PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly) }
 
     fun update(change: AdvancedAppearanceSetting.() -> AdvancedAppearanceSetting) = vm.updateSettings { latest ->
         latest.copy(advancedAppearanceSetting = latest.advancedAppearanceSetting.change())
     }
     fun updateDisplay(change: DisplaySetting.() -> DisplaySetting) = vm.updateSettings { latest ->
-        latest.copy(displaySetting = latest.displaySetting.change())
+        latest.applyDisplaySettingEdit(change)
     }
     fun importImage(uri: Uri?, wallpaper: Boolean) {
         if (uri == null || importing) return
@@ -190,7 +194,9 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
         },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(
+                topBarHazeState?.let { Modifier.hazeSource(it, zIndex = 1f) } ?: Modifier
+            ),
             contentPadding = padding + PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -211,7 +217,7 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                         displaySetting = display,
                         advancedAppearance = appearance,
                         onDisplaySettingChange = { change ->
-                            vm.updateSettings { latest -> latest.copy(displaySetting = latest.displaySetting.change()) }
+                            vm.updateSettings { latest -> latest.applyDisplaySettingEdit(change) }
                         },
                     )
                 }

@@ -104,8 +104,8 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = {
                             CardGroupIcon(
                                 HugeIcons.PaintBoard,
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         },
                         headlineContent = { Text(stringResource(R.string.aa_title)) },

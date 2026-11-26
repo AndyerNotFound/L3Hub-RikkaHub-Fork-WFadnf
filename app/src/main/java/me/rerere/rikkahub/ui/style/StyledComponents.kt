@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 import me.rerere.rikkahub.ui.components.ui.LocalAdvancedPageMaterial
+import me.rerere.rikkahub.ui.components.ui.LocalTopBarHazeState
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
 import me.rerere.rikkahub.ui.components.ui.topBarMaterial
@@ -368,12 +369,19 @@ private fun Modifier.settingsTopBarMaterial(base: Color): Modifier {
     if (!settings.displaySetting.showTopBarBackground) return this
     val material = settings.advancedAppearanceSetting.topBarMaterial(settings.displaySetting) ?: return this
     val color = if (base.isSpecified && base.alpha > 0f) base else LocalUiSlots.current.topBar
-    return advancedMaterial(RectangleShape, color, material)
+    return advancedMaterial(
+        RectangleShape,
+        color,
+        material,
+        hazeState = LocalTopBarHazeState.current,
+    )
 }
 
 @Composable
 private fun TopAppBarColors.withPageMaterial(): TopAppBarColors =
     if (LocalAdvancedPageMaterial.current != null && !LocalSeparateWindow.current) {
+        // The shared material draws the background when enabled; otherwise the bar stays transparent.
+        // Restoring M3's opaque container here would undo the "show top bar background" switch.
         copy(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent)
     } else this
 

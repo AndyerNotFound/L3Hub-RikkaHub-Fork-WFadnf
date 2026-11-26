@@ -55,6 +55,7 @@ internal data class AppearanceMaterial(
 )
 
 internal val LocalAdvancedPageMaterial = compositionLocalOf<AppearanceMaterial?> { null }
+internal val LocalTopBarHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalAdvancedAppearanceBusy = compositionLocalOf { false }
 internal val LocalAdvancedAppearancePowerSave = compositionLocalOf { false }
 
