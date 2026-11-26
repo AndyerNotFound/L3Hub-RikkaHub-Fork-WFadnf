@@ -11,7 +11,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -78,13 +77,13 @@ fun rememberMotionBlurSpec(): FiniteAnimationSpec<Float> {
  */
 private object FastMotionScheme : MotionScheme {
     override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.9f, stiffness = 900f)
+        tween(durationMillis = 140, easing = FastOutSlowInEasing)
 
     override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.95f, stiffness = 1400f)
+        tween(durationMillis = 100, easing = FastOutSlowInEasing)
 
     override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.9f, stiffness = 600f)
+        tween(durationMillis = 200, easing = FastOutSlowInEasing)
 
     override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 120)
 
@@ -95,13 +94,13 @@ private object FastMotionScheme : MotionScheme {
 
 private object GentleMotionScheme : MotionScheme {
     override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.8f, stiffness = 220f)
+        tween(durationMillis = 320, easing = FastOutSlowInEasing)
 
     override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.8f, stiffness = 420f)
+        tween(durationMillis = 240, easing = FastOutSlowInEasing)
 
     override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
-        spring(dampingRatio = 0.75f, stiffness = 150f)
+        tween(durationMillis = 420, easing = FastOutSlowInEasing)
 
     override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 320)
 
@@ -110,9 +109,30 @@ private object GentleMotionScheme : MotionScheme {
     override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 420)
 }
 
-/** 当前档位对应的 MotionScheme：SYSTEM 用 Material 的 expressive，其余两档用上面那两套。 */
+/**
+ * 朴素档（默认）：不用弹簧，位移与淡入都是固定时长的缓动。
+ *
+ * Material 自带的 expressive scheme 带越界回弹，视觉上偏「活泼」；
+ * 极简外观要的是位移到位就停，所以这里改成一档干脆的时长。
+ */
+private object PlainMotionScheme : MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = 200, easing = FastOutSlowInEasing)
+
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = 140, easing = FastOutSlowInEasing)
+
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = 280, easing = FastOutSlowInEasing)
+
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 160)
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 100)
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 220)
+}
+
+/** 当前档位对应的 MotionScheme：默认档用朴素曲线，其余两档只改时长。 */
 fun motionSchemeOf(speed: AnimationSpeed): MotionScheme = when (speed) {
-    AnimationSpeed.SYSTEM -> MotionScheme.expressive()
+    AnimationSpeed.SYSTEM -> PlainMotionScheme
     AnimationSpeed.FAST -> FastMotionScheme
     AnimationSpeed.GENTLE -> GentleMotionScheme
 }

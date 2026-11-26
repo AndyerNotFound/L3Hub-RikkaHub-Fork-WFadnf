@@ -2623,7 +2623,7 @@
   <string name="setting_display_page_animation_speed_fast_desc">Same distance, covered in less time</string>
   <string name="setting_display_page_animation_speed_gentle">Gentle</string>
   <string name="setting_display_page_animation_speed_gentle_desc">Slower, with a longer tail</string>
-  <string name="setting_display_page_animation_speed_system_desc">Uses the Material spatial curve</string>
+  <string name="setting_display_page_animation_speed_system_desc">Fixed-duration easing, no overshoot</string>
   <string name="setting_mcp_page_needs_oauth">OAuth authorization required</string>
   <string name="setting_mcp_page_authorize_oauth">Authorize with OAuth</string>
   <string name="setting_mcp_page_authorizing_hint">Authorizing, finish in the browser…</string>
@@ -2696,7 +2696,7 @@
   <string name="workspace_file_editor_load_failed">Couldn\'t read this file</string>
   <string name="workspace_file_editor_saved">Saved</string>
   <string name="workspace_file_editor_source">Source</string>
-  <string name="setting_display_page_animation_speed_system">Follow system</string>
+  <string name="setting_display_page_animation_speed_system">Standard</string>
   <string name="workspace_detail_create_target_failed">Couldn\'t create the target file</string>
   <string name="workspace_detail_open_target_failed">Couldn\'t open the target file</string>
   <string name="workspace_detail_export_entry_failed">%1$s: %2$s</string>

@@ -2621,7 +2621,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_animation_speed_fast_desc">同样距离，用更短的时间走完</string>
   <string name="setting_display_page_animation_speed_gentle">柔和</string>
   <string name="setting_display_page_animation_speed_gentle_desc">更慢，收尾更长</string>
-  <string name="setting_display_page_animation_speed_system_desc">使用 Material 空间曲线</string>
+  <string name="setting_display_page_animation_speed_system_desc">固定时长的缓动，位移到位即停</string>
   <string name="setting_mcp_page_needs_oauth">需要 OAuth 授权</string>
   <string name="setting_mcp_page_authorize_oauth">使用 OAuth 授权</string>
   <string name="setting_mcp_page_authorizing_hint">正在授权，请在浏览器中完成…</string>
@@ -2694,7 +2694,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_file_editor_load_failed">无法读取这个文件</string>
   <string name="workspace_file_editor_saved">已保存</string>
   <string name="workspace_file_editor_source">源码</string>
-  <string name="setting_display_page_animation_speed_system">跟随系统</string>
+  <string name="setting_display_page_animation_speed_system">标准</string>
   <string name="workspace_detail_create_target_failed">无法创建目标文件</string>
   <string name="workspace_detail_open_target_failed">无法打开目标文件</string>
   <string name="workspace_detail_export_entry_failed">%1$s：%2$s</string>

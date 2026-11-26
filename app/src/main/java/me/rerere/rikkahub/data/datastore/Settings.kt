@@ -223,7 +223,7 @@ enum class DisplayMode {
 /** 页面/列表过渡的速度手感，只在没关动效时生效。 */
 @Serializable
 enum class AnimationSpeed {
-    /** 跟随 Material 的 expressive 曲线 */
+    /** 默认档：固定时长的缓动，不用弹簧 */
     SYSTEM,
 
     /** 收紧：同样的位移用更短的时间走完 */
