@@ -46,7 +46,8 @@ internal fun AdvancedAppearanceSetting.navigationMaterial() = PlainMaterial
 /** 输入框与顶栏不再单独叠材质，返回 null 表示「用页面底色」。 */
 internal fun AdvancedAppearanceSetting.composerMaterial(display: DisplaySetting): AppearanceMaterial? = null
 
-internal fun AdvancedAppearanceSetting.topBarMaterial(display: DisplaySetting): AppearanceMaterial? = null
+/** 顶栏按实心表面绘制，避免正文从标题下穿过。 */
+internal fun AdvancedAppearanceSetting.topBarMaterial(display: DisplaySetting): AppearanceMaterial? = PlainMaterial
 
 internal fun resolvedLiveAppearanceRadius(radius: Float, sdk: Int, effects: Boolean): Float = 0f
 
