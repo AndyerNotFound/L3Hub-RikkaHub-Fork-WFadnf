@@ -10,6 +10,7 @@ export const state = {
   folder: '全部',
   search: '',
   chatTab: 0,
+  thinking: '标准',
   detailsTab: 0,
   detailsOpen: false,
   listOpen: false,

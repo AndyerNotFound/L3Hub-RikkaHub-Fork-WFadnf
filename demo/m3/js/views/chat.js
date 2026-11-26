@@ -57,6 +57,15 @@ let sheetFolder = '';
 let sheetKeepFolder = true;
 let sheetFoldersOpen = true;
 let sheetKeyHandler = null;
+let voiceRecording = false;
+let voiceTimer = null;
+
+const QUICK_MESSAGES = [
+  { id: 'continue', label: '继续', text: '继续', icon: 'arrow_forward' },
+  { id: 'shorter', label: '再短一点', text: '把上面的内容压到一半，保留结论。', icon: 'article' },
+  { id: 'check', label: '检查这次改动', text: '检查一下刚才的改动，有没有遗漏或风险。', icon: 'check' },
+  { id: 'list', label: '整理成清单', text: '把这一轮整理成可执行的清单。', icon: 'task_alt' },
+];
 
 function loadCollapsed() {
   try {
@@ -264,7 +273,7 @@ function topBar(conv) {
 /* 顶栏标签栏：Inline / Show labels / Fill / Full width / Elastic       */
 /* ------------------------------------------------------------------ */
 
-const CHAT_TABS = [{ label: '对话' }, { label: '任务' }, { label: '文件' }];
+const CHAT_TABS = [{ label: '对话' }, { label: '对话地图' }, { label: '任务' }, { label: '文件' }];
 
 function chatTabsHtml() {
   return `<div class="chat-tabs" role="tablist" aria-label="对话分区">
@@ -315,6 +324,147 @@ function positionTabIndicator(animate = false) {
   ind.style.width = `${to.w}px`;
   ind.style.transform = `translateX(${to.x}px)`;
   tabPos = to;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 对话地图：每轮一张卡片，固定搜索栏，点卡片跳回对话                    */
+/* ------------------------------------------------------------------ */
+
+let mapQuery = '';
+let mapCurrentId = '';
+let mapConvId = '';
+
+function ensureMapContext(conv) {
+  if (conv?.id !== mapConvId) {
+    mapConvId = conv?.id || '';
+    mapQuery = '';
+    mapCurrentId = '';
+  }
+}
+
+function plainText(text = '') {
+  return String(text)
+    .replace(/```[\s\S]*?```/g, ' [代码] ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[#>*_~]+/g, ' ')
+    .replace(/^\s*[-–]\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function conversationRounds(conv) {
+  const rounds = [];
+  for (const m of conv?.messages || []) {
+    if (m.role === 'user') {
+      rounds.push({ id: m.id, user: m, replies: [] });
+    } else if (rounds.length) {
+      rounds[rounds.length - 1].replies.push(m);
+    } else {
+      rounds.push({ id: m.id, user: null, replies: [m] });
+    }
+  }
+  return rounds.map((r) => ({
+    ...r,
+    userText: plainText(r.user?.text || ''),
+    replyText: plainText(r.replies.map((x) => x.text || '').filter(Boolean).join(' ')),
+    time: r.user?.time || r.replies[0]?.time || '',
+  }));
+}
+
+function mapFiltered(conv) {
+  const q = mapQuery.trim().toLowerCase();
+  const rounds = conversationRounds(conv);
+  const shown = q
+    ? rounds.filter((r) => `${r.userText} ${r.replyText}`.toLowerCase().includes(q))
+    : rounds;
+  return { rounds, shown, q };
+}
+
+function mapCardsHtml(conv) {
+  ensureMapContext(conv);
+  const { rounds, shown, q } = mapFiltered(conv);
+  if (!shown.length) {
+    return `<div class="map-empty">${icon('search', { size: 30 })}<span>${
+      q ? '没有匹配的消息' : '还没有消息'
+    }</span><small>${q ? '换个词试试，或清空搜索框' : '发一句就会出现在这里'}</small></div>`;
+  }
+  const currentId = rounds.some((r) => r.id === mapCurrentId)
+    ? mapCurrentId
+    : rounds[rounds.length - 1]?.id;
+  const a = assistantById(conv?.assistant);
+  return shown
+    .map(
+      (r) => `<button class="map-card ${r.id === currentId ? 'current' : ''}" data-action="map-jump" data-msg="${esc(
+        r.id
+      )}">
+        ${r.user ? `<span class="map-user">
+          <span class="mu-text">${esc(r.userText || '（附件消息）')}</span>
+          <span class="mu-time">${esc(r.time)}</span>
+        </span>` : ''}
+        ${
+          r.replyText
+            ? `<span class="map-reply">
+          <span class="map-ava">${avatar(a, 'xs')}</span>
+          <span class="mr-text">${esc(r.replyText)}</span>
+        </span>`
+            : ''
+        }
+      </button>`
+    )
+    .join('');
+}
+
+function mapPaneHtml(conv) {
+  ensureMapContext(conv);
+  const { rounds, shown, q } = mapFiltered(conv);
+  return `<div class="pane map-pane" role="region" aria-label="对话地图">
+    <div class="map-searchbar">
+      <label class="map-search">
+        ${icon('search', { size: 20 })}
+        <input id="map-search" type="search" placeholder="搜索消息" value="${esc(mapQuery)}" autocomplete="off" aria-label="搜索对话地图">
+        <span class="map-count" id="map-count">${q ? `${shown.length} / ${rounds.length}` : rounds.length}</span>
+      </label>
+    </div>
+    <div class="map-scroll"><div class="map-list" id="map-list">${mapCardsHtml(conv)}</div></div>
+  </div>`;
+}
+
+function renderMapList() {
+  const conv = currentConversation();
+  ensureMapContext(conv);
+  const { rounds, shown, q } = mapFiltered(conv);
+  const list = document.getElementById('map-list');
+  if (list) list.innerHTML = mapCardsHtml(conv);
+  const count = document.getElementById('map-count');
+  if (count) count.textContent = q ? `${shown.length} / ${rounds.length}` : String(rounds.length);
+}
+
+function jumpToMapRound(id) {
+  mapCurrentId = id;
+  if (state.chatTab === 0) refreshChatMain();
+  else switchChatTab(0);
+  window.setTimeout(() => {
+    const el = [...document.querySelectorAll('.msg')].find((n) => n.dataset.msg === id);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('msg-flash');
+    window.setTimeout(() => el.classList.remove('msg-flash'), 1400);
+  }, 180);
+}
+
+function bindPane() {
+  const input = document.getElementById('map-search');
+  if (input) {
+    input.value = mapQuery;
+    input.addEventListener('input', (e) => {
+      mapQuery = e.target.value;
+      renderMapList();
+    });
+  }
+  const messages = document.getElementById('messages');
+  if (messages) scrollToBottom(messages);
 }
 
 function archivedBannerHtml(conv) {
@@ -432,8 +582,9 @@ function filesPaneHtml() {
 }
 
 function paneHtml(conv) {
-  if (state.chatTab === 1) return `<div class="pane-host" id="pane-host">${tasksPaneHtml()}</div>`;
-  if (state.chatTab === 2) return `<div class="pane-host" id="pane-host">${filesPaneHtml()}</div>`;
+  if (state.chatTab === 1) return `<div class="pane-host" id="pane-host">${mapPaneHtml(conv)}</div>`;
+  if (state.chatTab === 2) return `<div class="pane-host" id="pane-host">${tasksPaneHtml()}</div>`;
+  if (state.chatTab === 3) return `<div class="pane-host" id="pane-host">${filesPaneHtml()}</div>`;
   return `<div class="pane-host" id="pane-host"><div class="pane pane-chat">
     ${conv?.archived ? archivedBannerHtml(conv) : ''}
     <div class="messages" id="messages">${messagesHtml(conv)}</div>
@@ -596,14 +747,11 @@ function emptyHtml() {
 
 function composerHtml(conv) {
   const a = assistantById(conv?.assistant);
+  const model = conv?.model || a.model;
+  const thinking = state.thinking || '标准';
   return `<div class="composer-wrap">
     <div class="composer-inner">
       ${state.streaming ? `<div class="queue-pill">${icon('hourglass_top', { size: 13 })}正在生成 · 点击停止可以保留已写内容</div>` : ''}
-      <div class="context-line">
-        <span class="ctx-num">上下文 42%</span>
-        <span class="meter" aria-hidden="true"><i class="m1" style="width:28%"></i><i class="m2" style="width:14%"></i><i class="m3" style="width:8%"></i></span>
-        <span class="ctx-num">84.2k / 200k</span>
-      </div>
       <div class="composer" id="composer">
         <div class="attach-row" id="composer-attach">${pendingFiles
           .map(
@@ -616,19 +764,36 @@ function composerHtml(conv) {
           )
           .join('')}</div>
         <textarea id="composer-input" rows="1" placeholder="给 ${esc(a.name)} 发消息…" aria-label="消息输入"></textarea>
-        <div class="composer-tools">
-          <button class="icon-btn sm" data-action="attach" aria-label="添加附件">${icon('attach_file', { size: 19 })}</button>
-          <button class="icon-btn sm" data-action="composer-tools" aria-label="工具">${icon('build', { size: 18 })}</button>
-          <button class="model-chip" data-action="pick-model">${icon('auto_awesome', { size: 14 })}${esc(conv?.model || a.model)}
-            ${icon('expand_more', { size: 13 })}</button>
-          <span class="spacer"></span>
-          <button class="icon-btn sm" data-action="voice" aria-label="语音输入">${icon('mic', { size: 19 })}</button>
-          <button class="send ${state.streaming ? 'stop' : ''}" data-action="${state.streaming ? 'stop' : 'send'}" aria-label="${
+        <div class="composer-bar">
+          <div class="cb-left">
+            <button class="icon-btn sm cb-icon" data-action="composer-plus" aria-label="更多功能">${icon('add', { size: 22 })}</button>
+            <button class="icon-btn sm cb-icon" data-action="quick-messages" aria-label="快捷消息">${icon('bolt', { size: 19 })}</button>
+            <div class="split-pill" role="group" aria-label="思考强度与模型">
+              <button class="sp-half sp-think" data-action="pick-thinking" aria-label="思考强度">
+                ${icon('psychology', { size: 16 })}<span class="sp-think-label" title="${esc(thinking)}">${esc(thinking)}</span>
+              </button>
+              <span class="sp-div" aria-hidden="true"></span>
+              <button class="sp-half sp-model" data-action="pick-model" aria-label="选择模型">
+                ${icon('auto_awesome', { size: 16 })}<span class="sp-model-label" title="${esc(model)}">${esc(model)}</span>
+              </button>
+            </div>
+          </div>
+          <div class="cb-right">
+            <button class="icon-btn sm voice-btn ${voiceRecording ? 'recording' : ''}" data-action="voice" aria-pressed="${voiceRecording}" aria-label="语音输入">${icon(
+    voiceRecording ? 'fiber_manual_record' : 'mic',
+    { size: voiceRecording ? 18 : 20 }
+  )}</button>
+            <button class="send-btn ${state.streaming ? 'stop' : ''}" data-action="${state.streaming ? 'stop' : 'send'}" aria-label="${
     state.streaming ? '停止生成' : '发送'
-  }">${icon(state.streaming ? 'stop_circle' : 'send', { size: 20 })}</button>
+  }">
+              <span class="sb-icons"><span class="sb-ico send-i">${icon('send', {
+                size: 18,
+              })}</span><span class="sb-ico stop-i">${icon('stop_circle', { size: 18 })}</span></span>
+              <span class="sb-roll" aria-hidden="true"><span>发送</span><span>终止</span></span>
+            </button>
+          </div>
         </div>
       </div>
-      <div class="hint-line">Enter 发送 · Shift + Enter 换行 · 内容会后端保存</div>
     </div>
   </div>`;
 }
@@ -733,15 +898,17 @@ function mountChatMain() {
     document.getElementById(`ctab-${next}`)?.focus();
   });
 
-  const messages = document.getElementById('messages');
-  if (messages) requestAnimationFrame(() => scrollToBottom(messages));
+  requestAnimationFrame(bindPane);
 }
 
 function refreshChatMain() {
   const main = document.querySelector('.chat-main');
   if (!main) return;
-  main.innerHTML = chatMainHtml(currentConversation());
+  const conv = currentConversation();
+  main.innerHTML = chatMainHtml(conv);
   mountChatMain();
+  const mt = document.querySelector('.mobile-top .mt-title');
+  if (mt && state.route === 'chat') mt.textContent = conv?.title || '新对话';
 }
 
 /* 同轴 Y 转场：有 View Transitions 就交给它，没有就即时替换。 */
@@ -765,8 +932,7 @@ function switchChatTab(index) {
     host.outerHTML = paneHtml(conv);
     requestAnimationFrame(() => {
       positionTabIndicator();
-      const box = document.getElementById('messages');
-      if (box) scrollToBottom(box);
+      bindPane();
     });
   };
   if (motionOn && typeof document.startViewTransition === 'function') {
@@ -861,17 +1027,16 @@ function renderMessagesOnly() {
 }
 
 function updateSendEnabled(enabled) {
-  const btn = document.querySelector('.send');
+  const btn = document.querySelector('.send-btn');
   if (!btn || state.streaming) return;
   btn.disabled = !enabled;
 }
 
 function updateComposerStreaming() {
-  const btn = document.querySelector('.send');
+  const btn = document.querySelector('.send-btn');
   if (!btn) return;
   btn.classList.toggle('stop', state.streaming);
   btn.dataset.action = state.streaming ? 'stop' : 'send';
-  btn.innerHTML = icon(state.streaming ? 'stop_circle' : 'send', { size: 20 });
   btn.setAttribute('aria-label', state.streaming ? '停止生成' : '发送');
   if (!state.streaming) updateSendEnabled(Boolean(document.getElementById('composer-input')?.value.trim()));
   const pill = document.querySelector('.composer-wrap .queue-pill');
@@ -891,8 +1056,10 @@ function focusComposer() {
 }
 
 function autoGrow(el) {
+  const line = parseFloat(getComputedStyle(el).lineHeight) || 24;
   el.style.height = 'auto';
-  el.style.height = `${Math.min(168, Math.max(26, el.scrollHeight))}px`;
+  /* 最多显示 6 行，再多就在输入框里滚。 */
+  el.style.height = `${Math.min(Math.round(line * 6 + 12), Math.max(line, el.scrollHeight))}px`;
 }
 
 function submitComposer() {
@@ -952,6 +1119,8 @@ function renameConversation(conv, text) {
   }
   const mp = document.querySelector('.chat-top .mp-name');
   if (mp) mp.textContent = conv.title;
+  const mt = document.querySelector('.mobile-top .mt-title');
+  if (mt && state.route === 'chat') mt.textContent = conv.title;
 }
 
 export async function sendMessage(text) {
@@ -1090,9 +1259,7 @@ function openModelMenu(anchor) {
       conv.model = m.name;
       const el = document.querySelector('.model-pill .mp-model');
       if (el) el.textContent = m.name;
-      document.querySelectorAll('.composer .model-chip').forEach((n) => {
-        n.innerHTML = `${icon('auto_awesome', { size: 14 })}${esc(m.name)} ${icon('expand_more', { size: 13 })}`;
-      });
+      document.querySelectorAll('.sp-model-label').forEach((n) => (n.textContent = m.name));
       toast(`模型已切换到 ${m.name}`);
     }
   );
@@ -1100,7 +1267,6 @@ function openModelMenu(anchor) {
 
 function openChatMore(anchor) {
   showMenu(anchor, [
-    { id: 'map', label: '对话地图', icon: 'account_tree' },
     { id: 'export', label: '导出为 Markdown', icon: 'download' },
     { id: 'fork', label: '创建分支', icon: 'call_split' },
     { divider: true, id: 'd1' },
@@ -1115,10 +1281,107 @@ function openChatMore(anchor) {
       if (c) confirmDelete([c.id]);
     } else if (id === 'fork') {
       toast('已创建分支（演示）');
-    } else if (id === 'map') {
-      toast('对话地图：3 个分支 · 12 步工具调用');
     }
   });
+}
+
+function openThinkingMenu(anchor) {
+  const levels = [
+    ['快速', 'bolt', '少推理'],
+    ['标准', 'psychology', '默认'],
+    ['深度', 'lightbulb', '多步推理'],
+    ['极致', 'science', '最慢，最完整'],
+  ];
+  showMenu(
+    anchor,
+    levels.map(([id, iconName, hint]) => ({
+      id,
+      label: id,
+      icon: iconName,
+      hint,
+      selected: (state.thinking || '标准') === id,
+    })),
+    (id) => {
+      state.thinking = id;
+      document.querySelectorAll('.sp-think-label').forEach((n) => (n.textContent = id));
+      toast(`思考强度：${id}`);
+    }
+  );
+}
+
+function openComposerPlus(anchor) {
+  showMenu(
+    anchor,
+    [
+      { id: 'attach', label: '附件', icon: 'attach_file' },
+      { id: 'image', label: '图片', icon: 'image' },
+      { id: 'workspace', label: '工作区', icon: 'terminal' },
+      { id: 'memory', label: '记忆库', icon: 'psychology' },
+      { divider: true, id: 'd1' },
+      { id: 'subagent', label: '派发子代理', icon: 'account_tree' },
+    ],
+    (id) => {
+      if (id === 'attach') return document.getElementById('file-input')?.click();
+      const names = { image: '图片', workspace: '工作区', memory: '记忆库', subagent: '子代理' };
+      toast(id === 'subagent' ? '已打开子代理派发（演示）' : `本轮已带上 ${names[id] || id}`);
+    }
+  );
+}
+
+function openQuickMessages(anchor) {
+  showMenu(
+    anchor,
+    QUICK_MESSAGES.map((q) => ({ id: q.id, label: q.label, icon: q.icon })),
+    (id) => {
+      const q = QUICK_MESSAGES.find((x) => x.id === id);
+      const ta = document.getElementById('composer-input');
+      if (!q || !ta) return;
+      const current = ta.value.trim();
+      ta.value = current ? `${current}\n${q.text}` : q.text;
+      autoGrow(ta);
+      updateSendEnabled(true);
+      ta.focus();
+      toast('已插入快捷消息');
+    }
+  );
+}
+
+function paintVoice() {
+  const btn = document.querySelector('.voice-btn');
+  if (!btn) return;
+  btn.classList.toggle('recording', voiceRecording);
+  btn.setAttribute('aria-pressed', String(voiceRecording));
+  btn.innerHTML = icon(voiceRecording ? 'fiber_manual_record' : 'mic', { size: voiceRecording ? 18 : 20 });
+}
+
+function finishVoice() {
+  if (voiceTimer) {
+    clearTimeout(voiceTimer);
+    voiceTimer = null;
+  }
+  if (!voiceRecording) return;
+  voiceRecording = false;
+  paintVoice();
+  const ta = document.getElementById('composer-input');
+  if (ta) {
+    const text = '帮我把这一版的间距再收一点';
+    ta.value = ta.value.trim() ? `${ta.value.trim()} ${text}` : text;
+    autoGrow(ta);
+    updateSendEnabled(true);
+    ta.focus();
+  }
+  toast('语音识别完成 · 已填入输入框');
+}
+
+function toggleVoice() {
+  if (voiceRecording) {
+    finishVoice();
+    return;
+  }
+  voiceRecording = true;
+  paintVoice();
+  toast('正在录音 · 3 秒后自动结束');
+  voiceTimer = window.setTimeout(finishVoice, 3000);
 }
 
 function openComposerTools(anchor) {
@@ -1465,6 +1728,9 @@ export function chatAction(action, el, event) {
     case 'chat-tab':
       switchChatTab(Number(el.dataset.tab) || 0);
       return true;
+    case 'map-jump':
+      jumpToMapRound(el.dataset.msg);
+      return true;
     case 'batch-move':
     case 'batch-copy': {
       const ids = currentSelection();
@@ -1607,7 +1873,16 @@ export function chatAction(action, el, event) {
       return true;
     }
     case 'voice':
-      toast('语音输入还没有接到 Web 端');
+      toggleVoice();
+      return true;
+    case 'pick-thinking':
+      openThinkingMenu(el.closest('.sp-think') || el);
+      return true;
+    case 'composer-plus':
+      openComposerPlus(el.closest('.cb-icon') || el);
+      return true;
+    case 'quick-messages':
+      openQuickMessages(el.closest('.cb-icon') || el);
       return true;
     case 'copy-msg': {
       const m = findMessage(el.dataset.msg);

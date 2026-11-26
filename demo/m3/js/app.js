@@ -30,6 +30,7 @@ import {
   toggleTheme,
   navigate,
   currentAssistant,
+  currentConversation,
   selectAssistant,
   selectConversation,
   newConversation,
@@ -119,25 +120,20 @@ function navHtml() {
   </div>`;
 }
 
-function bottomNavHtml() {
-  return NAV.slice(0, 5)
-    .map(
-      (n) => `<button class="bnav-item ${state.route === n.id ? 'active' : ''}" data-action="go" data-route="${n.id}" ${
-        state.route === n.id ? 'aria-current="page"' : ''
-      }>
-        <span class="bnav-ico">${icon(n.icon, { size: 21, fill: state.route === n.id })}</span>
-        <span>${n.label}</span>
-      </button>`
-    )
-    .join('');
-}
-
 function mobileTopHtml() {
   const r = ROUTES[state.route];
+  const chat = state.route === 'chat';
+  const title = chat ? currentConversation()?.title || '新对话' : r.title;
   return `<button class="icon-btn" data-action="open-nav" aria-label="打开导航">${icon('menu', { size: 22 })}</button>
-    <span class="mt-title">${r.title}</span>
-    <button class="icon-btn" data-action="open-palette" aria-label="搜索">${icon('search', { size: 21 })}</button>
-    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题">${icon('contrast', { size: 21 })}</button>`;
+    <span class="mt-title">${esc(title)}</span>
+    ${
+      chat
+        ? `<button class="icon-btn" data-action="open-list" aria-label="会话列表">${icon('view_agenda', { size: 20 })}</button>
+           <button class="icon-btn" data-action="open-details" aria-label="详情">${icon('layers', { size: 20 })}</button>`
+        : ''
+    }
+    <button class="icon-btn" data-action="open-palette" aria-label="搜索">${icon('search', { size: 20 })}</button>
+    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题">${icon('contrast', { size: 20 })}</button>`;
 }
 
 function shell() {
@@ -147,7 +143,6 @@ function shell() {
     <div class="main">
       <header class="mobile-top glass" id="mobile-top"></header>
       <div id="view"></div>
-      <nav class="bottom-nav" id="bottom-nav" aria-label="底部导航"></nav>
     </div>`;
 }
 
@@ -162,7 +157,6 @@ function render() {
   const app = document.getElementById('app');
   app.dataset.route = state.route;
   document.getElementById('nav').innerHTML = navHtml();
-  document.getElementById('bottom-nav').innerHTML = bottomNavHtml();
   document.getElementById('mobile-top').innerHTML = mobileTopHtml();
   app.classList.toggle('nav-open', state.navOpen);
 

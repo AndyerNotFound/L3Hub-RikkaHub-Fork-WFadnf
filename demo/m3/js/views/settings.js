@@ -76,7 +76,7 @@ function appearanceSection() {
         </div>
       </div>
       <div class="setting-row">
-        <div class="sr-text"><div class="setting-name">圆角</div><div class="setting-desc">影响卡片、气泡和输入框；底部导航不受影响。</div></div>
+        <div class="sr-text"><div class="setting-name">圆角</div><div class="setting-desc">影响卡片、气泡和会话项；顶栏标签本身不参与圆角。</div></div>
         <div class="setting-control wide">
           <md-slider id="radius-slider" min="8" max="36" step="2" value="${t.radius}" ticks aria-label="圆角"></md-slider>
           <span class="val" id="radius-val">${t.radius}px</span>
