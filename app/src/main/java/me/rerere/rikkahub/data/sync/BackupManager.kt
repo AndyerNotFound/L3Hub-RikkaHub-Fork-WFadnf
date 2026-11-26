@@ -115,7 +115,7 @@ class BackupManager(
                 addText(zip, BundleFormat.ENTRY_SETTINGS, settingsJson())
                 if (includeDatabase) {
                     val snapshot = File(staging, SQLiteConfiguration.DATABASE_NAME)
-                    DatabaseBackup.createSnapshot(database.openHelper.writableDatabase, snapshot)
+                    createDatabaseSnapshot(snapshot)
                     addFile(zip, snapshot, BundleFormat.ENTRY_DATABASE)
                 }
                 if (includeFiles) {
@@ -151,7 +151,7 @@ class BackupManager(
                 addText(zip, BundleFormat.ENTRY_SETTINGS, UpstreamCompat.downgradeSettings(settingsJson()))
                 if (includeDatabase) {
                     val snapshot = File(staging, SQLiteConfiguration.DATABASE_NAME)
-                    DatabaseBackup.createSnapshot(database.openHelper.writableDatabase, snapshot)
+                    createDatabaseSnapshot(snapshot)
                     UpstreamCompat.downgradeDatabase(context, snapshot)
                     addFile(zip, snapshot, BundleFormat.ENTRY_DATABASE)
                 }
@@ -444,6 +444,27 @@ class BackupManager(
         // 只记下备份里确实存在的类别：恢复时按这份清单决定动不动当前数据
         restore.publish(staging, RestoreOptions(items = staged, mode = options.mode))
         return RestoreStageResult(staged = staged, skipped = options.items - staged)
+    }
+
+    private fun createDatabaseSnapshot(destination: File) {
+        try {
+            DatabaseBackup.createSnapshot(database.openHelper.writableDatabase, destination)
+        } catch (e: Exception) {
+            // 迁移失败、降级安装时 Room 打不开库，应用一碰数据库就崩，只能进安全模式导出。
+            // 迁移在事务里，失败会回滚，盘上还是迁移前的完整数据，直接从文件拍快照
+            Log.w(TAG, "Room snapshot failed, falling back to the database file", e)
+            check(!destination.exists() || destination.delete()) { "Cannot remove partial snapshot" }
+            try {
+                DatabaseBackup.createFileSnapshot(
+                    context,
+                    context.getDatabasePath(SQLiteConfiguration.DATABASE_NAME),
+                    destination
+                )
+            } catch (fallback: Exception) {
+                e.addSuppressed(fallback)
+                throw e
+            }
+        }
     }
 
     /** 白名单目录下可备份的附件，键是相对 filesDir 的路径 */

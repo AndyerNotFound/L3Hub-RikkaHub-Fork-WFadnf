@@ -2180,7 +2180,6 @@
   <string name="setting_page_preferences_network_retry_interval">Wiederholungsintervall</string>
   <string name="setting_page_preferences_network_retry_interval_desc">Feste Wartezeit zwischen zwei Versuchen (1–60 Sekunden)</string>
   <string name="setting_page_preferences_network_retry_interval_value">%1$d Sekunden</string>
-  <string name="setting_page_preferences_notification_battery_optimization">Ausnahme von der Akkuoptimierung anfordern</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">Hält die App im Hintergrund aktiv, damit Generierung und Sub-Agent-Aufgaben nicht vom System unterbrochen werden</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">Bereits ausgenommen; der Hintergrundbetrieb unterliegt keiner Akkuoptimierung</string>
   <string name="setting_page_profile">Profil</string>
@@ -2686,4 +2685,7 @@
   <string name="quick_start_card_desc">RikkaHub benötigt einen Modellanbieter zum Chatten. Folge dem Schnellstart, um einen Anbieter und ein Standardmodell einzurichten, oder migriere deinen Chatverlauf von DeepSeek.</string>
   <string name="setting_page_quick_start">Schnellstart</string>
   <string name="setting_page_quick_start_desc">Richte Anbieter und Modelle Schritt für Schritt ein oder migriere von DeepSeek</string>
+  <string name="setting_page_preferences_notification_battery_optimization">Akkuoptimierung ignorieren</string>
+  <string name="setting_page_preferences_notification_battery_optimization_on">Zugelassen. Die Hintergrundgenerierung wird vom System seltener beendet</string>
+  <string name="setting_page_preferences_notification_battery_optimization_off">Nicht erlaubt. Das System kann die Generierung im Hintergrund stoppen, um Akku zu sparen</string>
 </resources>

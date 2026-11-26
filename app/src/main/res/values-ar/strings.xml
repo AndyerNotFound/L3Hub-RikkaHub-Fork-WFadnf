@@ -2177,7 +2177,6 @@
   <string name="setting_page_preferences_network_retry_interval">فاصل إعادة المحاولة</string>
   <string name="setting_page_preferences_network_retry_interval_desc">مدة الانتظار الثابتة بين محاولتين (1-60 ثانية)</string>
   <string name="setting_page_preferences_network_retry_interval_value">%1$d ثانية</string>
-  <string name="setting_page_preferences_notification_battery_optimization">طلب استثناء من تحسين البطارية</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">إبقاء التطبيق يعمل في الخلفية كي لا يقطع النظام التوليد ومهام الوكلاء الفرعيين</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">مستثنى بالفعل؛ والتشغيل في الخلفية غير مقيّد بتحسين البطارية</string>
   <string name="setting_page_profile">الملف الشخصي</string>
@@ -2685,4 +2684,10 @@
   <string name="quick_start_card_title">لا توجد نماذج متاحة بعد</string>
   <string name="quick_start_card_desc">يحتاج RikkaHub إلى مزوّد نماذج للدردشة. اتبع البدء السريع لإعداد مزوّد ونموذج افتراضي، أو انقل سجل محادثاتك من DeepSeek.</string>
   <string name="setting_page_quick_start">البدء السريع</string>
-  <string name="setting_page_quick_start_desc">أعدّ المزوّدين والنماذج خطوة بخطوة، أو قم بالترحيل من DeepSeek</string></resources>
+  <string name="setting_page_quick_start_desc">أعدّ المزوّدين والنماذج خطوة بخطوة، أو قم بالترحيل من DeepSeek</string>
+  <string name="setting_page_preferences_notification_battery_optimization">تجاهل تحسين البطارية</string>
+  <string name="setting_page_preferences_notification_battery_optimization_on">مسموح. من غير المرجح أن يوقف النظام عملية التوليد في الخلفية</string>
+  <string name="setting_page_preferences_notification_battery_optimization_off">غير مسموح. قد يوقف النظام عملية التوليد في الخلفية لتوفير طاقة البطارية</string>
+  <string name="assistant_page_local_tools_phone_use_service_stopped">أوقف النظام خدمة تسهيلات الاستخدام، مع أن إعدادات النظام لا تزال تعرضها على أنها مفعّلة (يحدث هذا في بعض الهواتف عند إغلاق التطبيق من قائمة التطبيقات الأخيرة). أوقف هذا المفتاح ثم شغّله مجددًا لفتح الإعدادات، وبعدها أوقف "RikkaHub Phone Use" وشغّله مجددًا من إعدادات النظام. لتجنب تكرار ذلك، ثبّت RikkaHub في قائمة التطبيقات الأخيرة واسمح بالتشغيل التلقائي.</string>
+  <string name="assistant_page_local_tools_phone_use_restart_service">أوقف "RikkaHub Phone Use" ثم شغّله مجددًا من إعدادات تسهيلات الاستخدام</string>
+</resources>

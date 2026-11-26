@@ -2179,7 +2179,6 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_page_preferences_network_retry_interval">재시도 간격</string>
   <string name="setting_page_preferences_network_retry_interval_desc">두 재시도 사이의 고정 대기 시간(1–60초)</string>
   <string name="setting_page_preferences_network_retry_interval_value">%1$d초</string>
-  <string name="setting_page_preferences_notification_battery_optimization">배터리 최적화 예외 요청</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">앱이 백그라운드에서 계속 실행되도록 하여 생성과 하위 에이전트 작업이 시스템에 중단되지 않게 합니다</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">이미 예외 목록에 있음, 배터리 최적화 제한 없이 백그라운드에서 실행됩니다</string>
   <string name="setting_page_profile">프로필</string>
@@ -2687,4 +2686,10 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="quick_start_page_deepseek_import_title">RikkaHub로 가져오기</string>
   <string name="quick_start_page_deepseek_import_desc">이전 단계의 ZIP을 선택하세요. 각 채팅에 대해 현재 표시된 브랜치가 추론 및 첨부 파일을 포함하여 현재 어시스턴트 \"%1$s\"로 가져와집니다. 이미 가져온 채팅은 건너뛰므로 다시 가져와도 안전합니다.</string>
   <string name="quick_start_page_deepseek_importing">가져오는 중…</string>
-  <string name="quick_start_page_deepseek_import_another">다른 ZIP 가져오기</string></resources>
+  <string name="quick_start_page_deepseek_import_another">다른 ZIP 가져오기</string>
+  <string name="setting_page_preferences_notification_battery_optimization">배터리 최적화 무시</string>
+  <string name="setting_page_preferences_notification_battery_optimization_on">허용됨. 백그라운드 생성이 시스템에 의해 중단될 가능성이 낮습니다</string>
+  <string name="setting_page_preferences_notification_battery_optimization_off">허용되지 않음. 배터리를 절약하기 위해 시스템이 백그라운드 생성을 중지할 수 있습니다.</string>
+  <string name="assistant_page_local_tools_phone_use_service_stopped">시스템이 접근성 서비스를 중지했지만 시스템 설정에는 여전히 켜짐으로 표시됩니다(일부 휴대전화에서는 최근 앱에서 앱을 밀어 닫으면 발생합니다). 이 스위치를 껐다가 다시 켜 설정을 연 다음, 시스템 설정에서 "RikkaHub Phone Use"를 껐다가 다시 켜세요. 다시 발생하지 않도록 최근 앱에서 RikkaHub를 잠그고 자동 시작을 허용하세요.</string>
+  <string name="assistant_page_local_tools_phone_use_restart_service">접근성 설정에서 "RikkaHub Phone Use"를 껐다가 다시 켜세요</string>
+</resources>

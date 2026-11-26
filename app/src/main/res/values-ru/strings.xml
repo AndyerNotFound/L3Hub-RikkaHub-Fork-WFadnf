@@ -2185,7 +2185,6 @@
   <string name="setting_page_preferences_network_retry_interval">Интервал повторов</string>
   <string name="setting_page_preferences_network_retry_interval_desc">Фиксированная пауза между повторами (1–60 секунд)</string>
   <string name="setting_page_preferences_network_retry_interval_value">%1$d с</string>
-  <string name="setting_page_preferences_notification_battery_optimization">Запросить исключение из оптимизации батареи</string>
   <string name="setting_page_preferences_notification_battery_optimization_desc">Поддерживать работу приложения в фоне, чтобы генерация и задачи субагентов не прерывались системой</string>
   <string name="setting_page_preferences_notification_battery_optimization_granted">Исключение уже предоставлено; работа в фоне не ограничивается оптимизацией батареи</string>
   <string name="setting_page_profile">Профиль</string>
@@ -2687,4 +2686,10 @@
   <string name="quick_start_page_deepseek_import_title">Импорт в RikkaHub</string>
   <string name="quick_start_page_deepseek_import_desc">Выберите ZIP-файл из предыдущего шага. Для каждого чата в текущего ассистента \"%1$s\" импортируется отображаемая сейчас ветка, включая рассуждения и вложения. Уже импортированные чаты пропускаются, поэтому повторный импорт безопасен.</string>
   <string name="quick_start_page_deepseek_importing">Импорт…</string>
-  <string name="quick_start_page_deepseek_import_another">Импортировать другой ZIP</string></resources>
+  <string name="quick_start_page_deepseek_import_another">Импортировать другой ZIP</string>
+  <string name="setting_page_preferences_notification_battery_optimization">Игнорировать оптимизацию батареи</string>
+  <string name="setting_page_preferences_notification_battery_optimization_on">Разрешено. Система реже останавливает фоновую генерацию</string>
+  <string name="setting_page_preferences_notification_battery_optimization_off">Не разрешено. Система может останавливать генерацию в фоне для экономии заряда батареи</string>
+  <string name="assistant_page_local_tools_phone_use_service_stopped">Система остановила службу специальных возможностей, хотя в системных настройках она всё ещё отмечена как включённая (на некоторых телефонах это происходит после закрытия приложения в списке последних). Выключите и снова включите этот переключатель, чтобы открыть настройки, затем выключите и снова включите там «RikkaHub Phone Use». Чтобы это не повторялось, закрепите RikkaHub в списке последних приложений и разрешите автозапуск.</string>
+  <string name="assistant_page_local_tools_phone_use_restart_service">Выключите и снова включите «RikkaHub Phone Use» в настройках специальных возможностей</string>
+</resources>

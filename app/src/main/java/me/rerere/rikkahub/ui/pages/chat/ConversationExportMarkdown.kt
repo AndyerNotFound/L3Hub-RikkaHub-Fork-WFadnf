@@ -8,6 +8,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.toLocalString
+import kotlinx.datetime.toJavaLocalDateTime
 
 // ConversationExport.kt 的区域文件：Markdown 导出的正文拼装。
 // 除 private → internal（供同包源文件调用）外，函数体逐字节照搬。
@@ -21,7 +22,7 @@ internal fun buildMarkdownExport(
 
     messages.filterNot { it.isNoticeOnly }.forEach { message ->
         val role = if (message.role == MessageRole.USER) "**User**" else "**Assistant**"
-        append("$role:\n\n")
+        append("$role · *${message.createdAt.toJavaLocalDateTime().toLocalString()}*:\n\n")
         message.parts.forEach { part ->
             when (part) {
                 is UIMessagePart.Text -> {

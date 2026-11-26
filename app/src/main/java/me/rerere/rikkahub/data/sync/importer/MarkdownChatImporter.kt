@@ -23,7 +23,7 @@ object MarkdownChatImporter {
     private const val ROLE_GROUP = """(user|assistant|human|ai|system|用户|助手|系统)"""
 
     private val roleLine = Regex(
-        """^\s*(?:>\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?\s*$ROLE_GROUP\s*(?:\*\*|__)?\s*[:：]\s*(.*)$""",
+        """^\s*(?:>\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?\s*$ROLE_GROUP\s*(?:\*\*|__)?(?:\s*[·•—-]\s*\*[^*]*\*)?\s*[:：]\s*(.*)$""",
         RegexOption.IGNORE_CASE,
     )
 

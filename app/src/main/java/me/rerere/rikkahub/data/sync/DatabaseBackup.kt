@@ -18,6 +18,21 @@ internal object DatabaseBackup {
         database.execSQL("VACUUM main INTO ?", arrayOf(destination.absolutePath))
     }
 
+    /** 不经过 Room，直接从库文件拍快照，供 Room 打不开时的安全模式导出使用。 */
+    fun createFileSnapshot(context: Context, databaseFile: File, destination: File) {
+        check(!destination.exists()) { "Backup snapshot already exists" }
+        require(databaseFile.isFile) { "Database file not found" }
+        val configuration = SQLiteConfiguration.configure(
+            context,
+            SQLiteDatabaseConfiguration(databaseFile.absolutePath, SQLiteDatabase.OPEN_READONLY)
+        )
+        SQLiteDatabase.openDatabase(configuration, null) {
+            error("Database is corrupt")
+        }.use { database ->
+            database.execSQL("VACUUM main INTO ?", arrayOf(destination.absolutePath))
+        }
+    }
+
     /**
      * Only opens the staged copy. The caller must place its matching WAL beside it first.
      *

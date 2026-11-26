@@ -33,6 +33,24 @@ class MarkdownChatImporterTest {
     }
 
     @Test
+    fun `parses timestamped role markers with colons in the timestamp`() {
+        val markdown = """
+            **User** · *Sep 20, 2026, 2:30:00 PM*:
+            hello
+            **Assistant** · *Sep 20, 2026, 2:31:00 PM*:
+            hi
+        """.trimIndent()
+
+        val parsed = MarkdownChatImporter.parse(markdown)
+
+        assertEquals(2, parsed.messages.size)
+        assertEquals(MessageRole.USER, parsed.messages[0].role)
+        assertEquals("hello", parsed.messages[0].toText())
+        assertEquals(MessageRole.ASSISTANT, parsed.messages[1].role)
+        assertEquals("hi", parsed.messages[1].toText())
+    }
+
+    @Test
     fun `parses plain markers and keeps multiline bodies`() {
         val markdown = """
             User: line one

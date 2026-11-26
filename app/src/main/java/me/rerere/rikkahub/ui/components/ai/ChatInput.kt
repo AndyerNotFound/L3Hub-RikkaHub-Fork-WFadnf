@@ -701,7 +701,6 @@ fun ChatInput(
                                                             }
                                                         }
                                                     }
-
                                                     ASRStatus.Connecting, ASRStatus.Stopping -> {}
                                                 }
                                             }
@@ -719,7 +718,8 @@ fun ChatInput(
                                     }
                                 }
                                 val sendButton: @Composable () -> Unit = {
-                                    if (loading) {
+                                    // 录音中熄屏会截断语音输入；和生成共用一个亮屏实例，避免两个实例互相清理。
+                                    if (loading || asrState.isRecording) {
                                         KeepScreenOn()
                                     }
                                     AnimatedVisibility(

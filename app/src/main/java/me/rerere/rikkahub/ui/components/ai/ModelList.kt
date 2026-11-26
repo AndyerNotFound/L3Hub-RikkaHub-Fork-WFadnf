@@ -511,7 +511,7 @@ internal fun ModelItem(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        ModelName(model = model)
+                        ModelName(model = model, maxLines = 2)
                         subtitle?.invoke()
                         ModelTags(model = model, providerSetting = providerSetting)
                     }
@@ -523,11 +523,11 @@ internal fun ModelItem(
 }
 
 @Composable
-private fun ModelName(model: Model) {
+private fun ModelName(model: Model, maxLines: Int = 1) {
     Text(
         text = model.displayName,
         style = MaterialTheme.typography.titleSmall,
-        maxLines = 1,
+        maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )
 }
