@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
+  <string name="sheet_close">閉じる</string>
   <string name="sketch_dialog_undo">元に戻す</string>
   <string name="sketch_dialog_redo">やり直す</string>
   <string name="sketch_dialog_clear">クリア</string>

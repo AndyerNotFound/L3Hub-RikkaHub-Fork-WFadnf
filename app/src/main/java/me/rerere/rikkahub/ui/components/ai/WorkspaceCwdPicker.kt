@@ -43,7 +43,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
 import me.rerere.rikkahub.ui.style.HorizontalDivider
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea
 import org.koin.compose.koinInject
@@ -92,8 +92,8 @@ fun WorkspaceCwdPickerSheet(
     }
 
     // 半展开会让打开时先停在半屏（看起来像「打开后往下掉一截」）：
-    // SaltModalSheet 只留 Hidden / Expanded 两个锚点
-    SaltModalSheet(
+    // AppModalSheet 只留 Hidden / Expanded 两个锚点
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.workspace_cwd_select_directory),

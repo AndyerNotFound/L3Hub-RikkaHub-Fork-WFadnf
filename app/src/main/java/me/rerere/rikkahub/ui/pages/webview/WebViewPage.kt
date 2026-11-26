@@ -37,7 +37,7 @@ import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.webview.WEB_VIEW_BASE_URL
 import me.rerere.ui.webview.WebView
 import me.rerere.ui.webview.WebViewContentCache
@@ -155,7 +155,7 @@ fun WebViewPage(url: String, contentId: String, offlineMessagePreview: Boolean =
         )
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = showConsoleSheet,
         onDismissRequest = { showConsoleSheet = false },
         title = stringResource(R.string.console_logs_title),

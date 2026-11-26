@@ -83,7 +83,7 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,7 +140,7 @@ fun SettingFilesPage(
         )
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = showCleanSheet,
         onDismissRequest = { showCleanSheet = false },
         title = stringResource(R.string.setting_files_page_clean_title),

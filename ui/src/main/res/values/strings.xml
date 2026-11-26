@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
+  <string name="sheet_close">Close</string>
   <string name="sketch_dialog_undo">Undo</string>
   <string name="sketch_dialog_redo">Redo</string>
   <string name="sketch_dialog_clear">Clear</string>

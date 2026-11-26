@@ -85,7 +85,7 @@ import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.ui.components.LocalSeparateWindowColors
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.components.SeparateWindowContent
 import java.util.Locale
 
@@ -292,7 +292,7 @@ fun ChatMessageActionsSheet(
     // 弹窗顶部的一排快捷操作
     quickActions: (@Composable () -> Unit)? = null,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.skills_page_more_actions),

@@ -1,13 +1,13 @@
 # 聊天页界面规格（Compose → HTML 复刻用）
 
-来源：只读阅读本仓库 `app/src/main/java/me/rerere/rikkahub/` 下的 chat 页与 message/ai 组件，未运行编译、未修改任何既有文件。
+来源：阅读本仓库 `app/src/main/java/me/rerere/rikkahub/` 下的 chat 页与 message/ai 组件。气泡、输入区、顶栏、空态与抽屉描述已按 demo/m3 样式移植后的 Compose 实现同步；本轮仅做静态核对，未运行编译或真机验收。
 中文文案取自 `app/src/main/res/values-zh/strings.xml`（本仓库没有 `values-zh-rCN`，简体中文只在 `values-zh`；`values/strings.xml` 为英文原文）。下文「文案」一律给简体中文原值，括号里是 string key。
 颜色/形状凡是主题驱动的，只写 token 名（`colorScheme.xxx`）；尺寸写代码里的字面值。
 
 阅读范围（行数）：
-`ui/pages/chat/ChatTopBar.kt(494)`、`ChatEmptyState.kt(174)`、`ChatList.kt(1006)`、`ChatPage.kt(部分: 930-1069)`、
-`ui/components/ai/ChatInput.kt(1078)`、`ChatInputFields.kt(99-338)`、`ChatInputSingleLine.kt(283)`、`ContextUsageMeter.kt(531)`、`AttachmentChips.kt(301)`、`MessageQueuePanel.kt(193)`、`ChatCapsule.kt(96)`、`ChatQuotaStrip.kt(130-329)`、`TokenSpeed.kt(节选)`、
-`ui/components/message/*` 全部（ChatMessage 1528、ChatMessageActions 633、ChatMessageTools 683、ChatMessageReasoning 430、ChatMessageCot 102、ChatMessageSubAgentNotice 368、ChatMessageEditedFiles 567、ChatMessageNerdLine 420、Avatar/Branch/Notices/Cot 全文）。
+`ui/pages/chat/ChatTopBar.kt`、`ChatEmptyState.kt(211)`、`ChatList.kt(1006)`、`ChatPage.kt(部分: 930-1069)`、
+`ui/components/ai/ChatInput.kt(964)`、`ChatInputFields.kt(99-338)`、`ChatInputSingleLine.kt(283)`、`ContextUsageMeter.kt(531)`、`AttachmentChips.kt(301)`、`MessageQueuePanel.kt(193)`、`ChatCapsule.kt(96)`、`ChatQuotaStrip.kt(130-329)`、`TokenSpeed.kt(节选)`、
+`ui/components/message/*` 全部（ChatMessage 1444、ChatMessageBubble 242、ChatMessageActions 633、ChatMessageTools 683、ChatMessageReasoning 430、ChatMessageCot 102、ChatMessageSubAgentNotice 368、ChatMessageEditedFiles 567、ChatMessageNerdLine 420、Avatar/Branch/Notices/Cot 全文）。
 未读：`web-ui/`、`web/`（按约束跳过）。
 
 ---
@@ -81,18 +81,20 @@
 消息间距（`ChatList.kt`）：同角色相邻 `MESSAGE_GAP_JOINED = 2dp`，角色切换 `MESSAGE_GAP_ROLE_CHANGE = 16dp`；列表 `contentPadding` = 水平 `adaptiveHorizontalPaddingValue(16dp)`，垂直 `16dp`，额外顶部 `innerPadding.top`、底部 `32dp + innerPadding.bottom`；`verticalArrangement = spacedBy(0dp)`。
 
 ### 2.2 气泡几何
-`ChatMessageBubble`（`ChatMessage.kt`）：
-- 圆角基准 `corner = adaptiveCornerRadius(uiCornerRadius.dp)`（取设置里的圆角半径）。常量：`BubbleCorner = 24dp`、`BubbleTailCorner = 6dp`、`BubblePressedCorner = 12dp`、`BubbleJoinedCorner = 8dp`。
-  - 尾巴角 `tail = min(6dp, radius * 0.25)`；按下时 `corner` 收到 `min(radius, 12dp)`；与同组相邻气泡相接的一侧用 `join = min(8dp, corner)`。
-- 用户气泡：`topStart = corner（同组则 join）`、`topEnd = tail`、`bottomEnd/bottomStart = corner（同组则 join）`。
-- 助手气泡：镜像 —— `topStart = tail`、`topEnd = corner`。
-- 内边距：`padding(horizontal = 10dp, vertical = 10dp)`；内部 `MarkdownBlock` 自带 4dp 水平内边距。
-- 底色：`LocalUiSlots.userBubble` / `LocalUiSlots.aiBubble`，各自 `.copy(alpha = bubbleOpacity)`；开启背景特效（BLUR/其它档）时着色由 `chatInputHaze` 叠在模糊上，BLUR 档再加 1dp `outlineVariant alpha 0.5` 描边。
+`ChatMessageBubble`（`ui/components/message/ChatMessageBubble.kt`）。几何从该文件读，`ChatMessage.kt` 负责内容与调用。
+
+- 形状（**只有用户气泡画形状**）：`styledShape(style = LocalCornerStyle.current, scale = LocalCornerScale.current)`，逐角 `topStart = 22dp`、`topEnd = 7dp`、`bottomEnd = if (joinedToNext) 7dp else 22dp`、`bottomStart = 22dp`。全宽组件模式（`LocalFullWidthComponents`）换 `SquareShapes.small`（四角 **0dp 直角**）。
+- `joinedToPrevious` 已不参与形状（参数位保留）；只有 `joinedToNext` 把右下角收到 `7dp`。
 - 宽度：
-  - 用户气泡 `Modifier.padding(start = adaptiveHorizontalPaddingValue(24dp))` —— 起始侧留白，气泡不铺满整行，右侧贴父容器右缘（外层 Alignment.End）。
-  - 助手气泡宽度由内容决定，最多占满父宽。
-  - 全宽组件模式（`LocalFullWidthComponents`）：两者都 `fillMaxWidth()`，左右贴屏幕边。
-- 背景/文字色：文字色 = `contentColorFor(bubbleColor)`。
+  - 用户气泡挂 `Modifier.layout`：宽度有界时把子项 `maxWidth` 压到 `constraints.maxWidth × 0.84`，无界时沿用原约束；正常宽松约束下按内容收缩。父容器强制最小宽度时报告尺寸遵守它，并将气泡放在末端。
+  - 助手气泡不加宽度修饰，按内容收缩、最多占满父宽。
+  - 全宽模式两者都 `fillMaxWidth()`（贴屏幕边）。
+- 底色：只有用户气泡 `background(color, userShape)`；**助手不铺表面**（传入的 `color` 在助手分支不参与绘制）。调用点传入 `LocalUiSlots.userBubble / aiBubble` 各 `.copy(alpha = bubbleOpacity)`。
+- 静态色：`messageBubbleMaterial()` 恒返回 `null`（文件内明确写死），正文一律走静态 M3 颜色，不采样背景、不叠材质；`streaming` 参数保留但材质侧不用。
+- 内边距：用户 `horizontal = 12dp, vertical = 12dp`；助手只有 `vertical = 2dp`。`MarkdownBlock` 自带 4dp 水平内边距，用户正文左右合计 16dp。
+- 文字色：用户 `LocalUiSlots.userBubbleText`；助手 `colorScheme.onSurface`。
+- 交互：只有传了 `onClick` / `onLongClick` 才挂 `combinedClickable`；用户的水波纹由共享 `interactionSource` 的 `matchParentSize()` 装饰层绘制，只有该层 `clip(userShape)`，正文和触摸节点不经过非对称圆角图层；助手沿用 `ripple()`。`stretchHeight` 走 `motionStretchHeight()`；`popup` 在外层 `Box` 内绘制（用户就地菜单就挂这里）。
+- 调用点：用户在 `MessagePartsBlock` 中提前分流到 `UserMessageContent`，实际路径已去掉旧的 24dp 起始留白，统一由 84% 宽度上限控制；下面遗留的 USER 分支不可达。助手三个分支（按段拆 / 流式增量 / 整段）都传 `Modifier.motionContentSize()`。
 
 ### 2.3 用户气泡内容
 - 附件卡片：`FlowRow`，间距 `6dp`；最多显示 3 个，第 3 个叠 `+N` 遮罩（黑 `alpha 0.55`，白字 `labelSmall` 粗体）。
@@ -103,7 +105,7 @@
 
 ### 2.4 助手气泡内容
 - 正文：`MarkdownBlock`。`showAssistantBubble` 开则套气泡；`splitAssistantBubbleByParagraph` 开则按段拆成多个气泡，段间距 `4dp`（首段继承 `joinedToPrevious`，末段继承 `joinedToNext`）。
-- 流式时最后一段带 `streaming = true`（着色退回静态底，不重采样模糊）。
+- 流式时最后一段带 `streaming = true`，交给 `MarkdownBlock`；气泡材质恒为 `null`，所以底色本来就是静态的，不存在重采样模糊。
 - 非文本部件：图片 `ZoomableAsyncImage` 高 `72dp`、圆角 `MaterialTheme.shapes.large`；载入中占位 `72dp` + `surfaceVariant` + shimmer；视频/音频为 `ChatMessageMediaTile`；文档为文件 chip（`docx`/`pdf` 图标或 `File02`，20dp）。
 
 ### 2.5 操作行（仅助手侧）
@@ -124,7 +126,7 @@
 - 操作行整体显示条件：`showActions && role != USER`，其中 `showActions = if (lastMessage) !loading else !parts.isEmptyUIMessage()`。
 - 操作行进出带 `slideInVertically(it/2) + fadeIn`（反向退出）。
 
-操作弹窗（助手：底部 `SaltModalSheet`；用户：贴气泡的原地 `Popup`）共用同一份条目，顺序固定：
+操作弹窗（助手：底部 `AppModalSheet` —— `ui/components/SheetMotion.kt` 里对 AndroidX Material3 `ModalBottomSheet` 的封装，`containerColor = LocalSeparateWindowColors.current?.sheet ?: BottomSheetDefaults.ContainerColor`；用户：贴气泡的原地 `Popup`）共用同一份条目，顺序固定：
 1.「选择复制」`select_and_copy`（`TextSelection`）
 2.「网页视图渲染」`render_with_webview`（`WebDesign01`；仅有非空文本时）
 3.「编辑」`edit`（`Edit01`）
@@ -199,7 +201,7 @@
 
 - 拒绝态：折叠头下方加一行 `labelSmall`、`error`：「已拒绝」（`chat_message_tool_denied`）+ 有原因时 `": $reason"`。
 - 工具输出里的图片：`LazyRow spacedBy(4dp)`，每张 `height(64dp)`、宽度自适应。
-- 折叠头点按：横屏且存在右侧详情宿主时把详情推进右栏（`ToolDetailRequest`），否则弹 `SaltModalSheet`；输出不是 JSON 时详情退回默认原文预览。
+- 折叠头点按：横屏且存在右侧详情宿主时把详情推进右栏（`ToolDetailRequest`），否则弹 `AppModalSheet`（标题 = `renderer.title(context)`）；输出不是 JSON 时详情退回默认原文预览。
 - 工具入参/结果在**详情面板**（`DefaultToolPreview` / 各渲染器 `Preview`）里呈现：入参按单列字段展示（`ToolArgsFieldList`，字段名 + 值，代码类字段用等宽字体），解析不出字段时回落 JSON 高亮；输出按内容识别（JSON 格式化 / Markdown 富文本 / 纯文本可选中）。
 
 ### 3.4 推理（Thinking）区块
@@ -248,9 +250,10 @@
 
 - 布局容器（`EmptyChatContent`）：`BoxWithConstraints` fillMaxSize + `innerPadding`；内层 `Column` fillMaxWidth、`verticalScroll(enabled = scrollEnabled)`、`heightIn(min = maxHeight)`、`padding(vertical = 16dp)`，水平居中、垂直居中。
 - 英雄卡（`EmptyChatHero`）：
-  - 外边距 `padding(horizontal = 40dp)`；圆角 `RoundedCornerShape(28dp)`；底色 `surfaceContainerLow`；特效开启时用 `chatInputHaze` 上色，BLUR 档加 1dp `outlineVariant alpha 0.5` 描边；内边距 `horizontal = 28dp, vertical = 24dp`；`spacedBy(12dp)`，内容水平居中。
-  - 头像：`UIAvatar(name = assistant.name, value = assistant.avatar, avatarSize = 88dp, shape = CircleShape)`。
-  - 文案：`slogan`（助手配置的口号），空则「今天想聊点什么？」（`chat_empty_default_slogan`）；样式 `titleMedium`，`onSurface`，居中。
+  - 外边距 `padding(horizontal = 32dp)`；默认没有卡片底色或描边。仅 `material != null` 时保留用户选定的高级表面，圆角为独立灵感设置或 28dp，基色 `surfaceContainerLow`。内边距 `horizontal = 24dp, vertical = 24dp`；`spacedBy(18dp)`，内容水平居中。
+  - 头像：`UIAvatar(name = assistant.name, value = assistant.avatar, avatarSize = 88dp, shape = CircleShape)`，放在 132dp 的居中盒子里。
+  - 头像装饰：主色 `alpha .18` 到透明的径向柔光，外伸 22dp；`outlineVariant alpha .8` 的静态虚线环，半径 51dp、线宽 1dp、虚线间隔 5dp / 5dp，不做无限旋转。
+  - 文案：`slogan`（助手配置的口号），空则「今天想聊点什么？」（`chat_empty_default_slogan`）；样式 `headlineSmall` + `SemiBold`，`onSurface`，居中。
 - **没有任何快捷提示按钮/建议 chip**：`ChatEmptyState.kt` 里只有头像 + 一句口号。回复建议（`ChatSuggestionsColumn`）是会话产生后追加在列表尾部的，不属于空状态。
 - 动效：进场 `fadeIn`，首条消息进来时 `fadeOut` + 模糊（`maxRadius = 8dp`）；键盘弹起时整卡 `translationY = -(imeBottom / 2)` 上移。
 
@@ -258,18 +261,24 @@
 
 ## 5. 输入区
 
-`ChatInput` 的根是一个 `Surface(color = Transparent)`，包一层 `drawBehind` 的底部渐变遮罩（`background` → `alpha 0f..scrimAlpha()`），再是 `Column`：`imePadding().navigationBarsPadding()`、`adaptiveHorizontalPadding(8dp)`、`padding(bottom = 8dp + liftedBy)`、内容贴底对齐、`spacedBy(8dp)`。
+`ChatInput`（`ui/components/ai/ChatInput.kt`，964 行）的根是一个 `Surface`：`color = if (docked) containerColor else Color.Transparent`，`docked = !pinContentToTop`（贴底才有整块实色底，抬到英雄卡下面时透明）。后面接两件事：
+
+- 底部渐变遮罩：只在 `!docked && applyWindowInsets && showScrim` 时挂 `drawBehind`，从 `LocalUiSlots.pageBackground` 的 `alpha 0f → scrimAlpha()` 垂直渐变铺到屏幕底（`deferImeInset` 时铺到自身高度，否则铺到键盘上沿 `size.height - imeInsets.bottom`）。贴底态直接用整条底板，不再绘制被盖住的渐变。
+- 贴底时再挂 `drawWithContent`：在 `y = 0.5dp` 画一条 1dp 线，色 `outlineVariant alpha 0.5`（整条线位于输入区顶边内侧）。
+
+内层 `Column`：`applyWindowInsets` 为真时 `imePadding().navigationBarsPadding()`（`deferImeInset` 时只 `navigationBarsPadding()`）、否则不加；`adaptiveHorizontalPadding(12dp)`；`padding(top = if (docked) 8dp else 0dp, bottom = 8dp + liftedBy)`；`!pinContentToTop` 时 `motionContentSize(alignment = BottomStart)`（内容贴底对齐）；`motionBlurOnToggle(isEditing(), maxRadius = 4dp)`；`spacedBy(8dp)`。
 
 ### 5.1 从上到下每一层
-1. **任务清单 / 引导卡**（`ConversationTodoCard`）→ `fillMaxWidth()` + `adaptiveHorizontalPadding(12dp)` + `padding(vertical = 4dp)`；清单与引导共用一张卡、一次折叠。显示条件：`!LocalConversationStatusInSidePanel`（非三栏）且（有未完成清单 或 有引导）。
-2. **消息队列面板**（`MessageQueuePanel`，见 6.4）→ 仅有排队项时。
+1. **任务清单 / 引导卡**（`ConversationTodoCard`）→ `fillMaxWidth()` + `adaptiveHorizontalPadding(12dp)` + `padding(vertical = 4dp)`；清单、引导、待回答的 `ask_user` 问题共用一张卡、一次折叠。显示条件：`!LocalConversationStatusInSidePanel`（非三栏）且（有未完成清单 或 有引导 或 `pendingAskUser` 非空）；`hideCompletedTodoCard` 开启且清单全部完成时整块收起。
+2. **消息队列面板**（`MessageQueuePanel`，见 6.4）→ 传入的是 `visibleQueue`：`enableMessageQueue` 关闭时，若队列里只剩「绕过队列直接发送」的过渡项就传空表（不闪一下「待发送」），还压着别的条目或暂停中则照常显示。
 3. **世界书提示**：`Text`「已注入世界书 %1$d 条」（`chat_page_worldbook_injected`），`labelSmall`，`onSurfaceVariant`，`padding(horizontal = 8dp)`；条件 `injectedLorebookCount > 0`。
-4. **上下文计量条**（`ContextMeterSwitcher`）→ 条件 `chatModel != null && contextMeterStyle != OFF` 且模型 MAX 为正，见 5.3。
+4. **上下文计量条**（`ContextMeterSwitcher`）→ 条件 `chatModel != null && contextMeterStyle != OFF`（「模型 MAX 为正」那道门槛在计量条内部，本轮未复核）；`speedIndicator` 槽位传 `TokenSpeedGauge(generationSpeed, running = loading, fallbackSpeed = usageTokenSpeed)`，见 5.3。
 5. **输入卡片**（`Surface`）→ 见 5.2。
-6. **悬浮栏**（`ChatFloatingBar`，`ChatFloatingBar.kt`）→ 输入卡片之后，条件 `enableFloatingBar && floatingBarItems 非空`；聚焦时收起、上滑输入框 24dp 阈值重新拉起，自动隐藏开启时静默 5s 收起。
+6. **悬浮栏**（`ChatFloatingBar`，`ChatFloatingBar.kt`）→ 和输入卡片同一个 `Column` 里排在它下面，条件 `enableFloatingBar && floatingBarItems 非空`，`material = settings.chatDockMaterial()`；入口高度 `16dp + FloatingBarSizing.buttonExtent(floatingBarScale)`。聚焦时收起、上滑输入框 24dp 阈值重新拉起、自动隐藏开启时静默 5s 收起。
 
 ### 5.2 输入卡片内部（自上而下，`spacedBy(2dp)`）
-外壳：`fillMaxWidth()`，`clip(containerShape)`，`chatInputHaze`；`shape = adaptiveShape(uiCornerRadius.dp)`（全宽模式 0dp）；`tonalElevation = 0dp`；描边 `BorderStroke(1dp, outlineVariant.copy(alpha = 0.5f))`；底色 `LocalUiSlots.inputBar`（特效开启时透明，由 haze 上色）；内边距 `horizontal = inputPadding.dp, vertical = 4dp`。内层形状 `innerShape = adaptiveShape((uiCornerRadius - 8).coerceAtLeast(2).dp)`。
+外壳 `Surface`：`fillMaxWidth()` → `onSizeChanged`（`expandProgress == 0f` 时记 `collapsedCardHeightPx`，每次都记 `cardHeightPx`）→ 上滑拉悬浮栏的手势 → `clip(containerShape)`；`shape = containerShape = adaptiveShape(if (docked) 0.dp else uiCornerRadius.dp)`（贴底是直角，抬到英雄卡下面时保留用户的圆角设置；全宽模式由 `adaptiveShape` 再归 0）；`tonalElevation = 0dp`；描边只在 `!docked` 且（`composerStyle == null || needsFlatOutline()`）时给 `BorderStroke(1dp, outlineVariant alpha 0.5)`。贴底时没有四周描边，只有外层的 1dp 顶边线；内层底色 `color = if (docked || composerStyle != null) Color.Transparent else containerColor`（`containerColor = LocalUiSlots.inputBar`），避免与外层半透明底色重复叠加。`composerStyle != null` 时保留 `advancedMaterial(shape, base = containerColor, material = composerStyle, hazeState, readableFloor = .35f)` 入口；当前 `composerMaterial()` 恒返回 `null`，使用静态底色。内边距 `horizontal = inputPadding.dp, vertical = 4dp`；内层形状 `innerShape = adaptiveShape((uiCornerRadius - 8).coerceAtLeast(2).dp)`。
+行内进出动效（语音行 / 附件行 / 编辑提示条共用同一档）：进场 `slideInVertically(it/2) + fadeIn + scaleIn(0.96f)`，退场同参反向。
 
 1. **语音模式行**（`VoiceModeRow`）+ `HorizontalDivider(outlineVariant alpha 0.5)`；条件 `voiceState.phase != Off`。
 2. **附件 chips**（`MediaFileInputRow`，`AttachmentChips.kt`）→ 条件 `state.messageContent.isNotEmpty()`。
@@ -311,13 +320,16 @@
 
 ### 5.4 底部按钮行的两种布局与顺序
 **多行布局（默认，`InputLayoutStyle` 非 SINGLE）**：`Row` `fillMaxWidth()`、`padding(horizontal = 4dp)`、`spacedBy(4dp)`，垂直居中。
-- 左侧可滚动组 `Row(weight 1f, horizontalScroll, spacedBy 2dp)`：① 模型选择按钮（`ModelSelectorButton`，仅图标）② 推理档位按钮（`ReasoningButton`，仅图标；条件模型 `abilities` 含 `REASONING`）。
-- 右侧固定组（按下列顺序）：③「+」`Add01`（`more_options`）→ 打开附件面板 ④ ASR 语音输入按钮（条件 `asrState.isAvailable || isRecording`，录音中发送按钮淡出）⑤「插话」`MessageAdd01`（`chat_page_interject`；条件 `loading && enableMessageQueue && 输入非空`）⑥ 发送/停止按钮。
+- 左侧可滚动组 `Row(weight 1f, horizontalScroll, spacedBy 2dp)`：① 模型选择按钮（`ModelSelectorButton`，`onlyIcon = true`）② 推理档位按钮（`reasoningButton()`，仅图标；条件模型 `abilities` 含 `REASONING`）。
+- 右侧固定组（按下列顺序）：③「+」`ActionIconButton` + `Add01`（`more_options`，`onMoreClick` 打开附件面板）④ ASR 语音输入按钮（`asrButton()`；条件 `!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)`）⑤「插话」`MessageAdd01`（`chat_page_interject`；条件 `loading && enableMessageQueue && !state.isEmpty()`）⑥ 发送/停止按钮（外裹 `AnimatedVisibility(visible = !asrState.isRecording)`，录音中淡出；`loading || asrState.isRecording` 时挂 `KeepScreenOn()`）。
 
-**单行布局（`InputLayoutStyle.SINGLE`）**：文字与按钮同一行，卡片收起时高 1 行、聚焦或有内容时展开成 2 行（`actionRowHeight = 48dp`，展开曲线 `CubicBezierEasing(0.32, 0.72, 0, 1)`，380ms）。
-- 行内左侧：`+`（`Add01`）→ 快捷消息按钮（`Zap`）。
-- 中间左：模型胶囊 `ChatInputModelPill`（高 `30dp`，`CircleShape`，底色 `surfaceContainerHigh`，内边距 `h9`，`spacedBy(6dp)`：6dp 圆点 `primary` + 模型名 `labelMedium`（空则「选择模型」`model_list_select_model`）+ 推理档位标记（L3 风格是 `labelSmall` 粗体 `9sp/10sp` 文字，否则 14dp 图标）+ `ArrowDown01` 12dp；仅展开时可见；可思考模型点开先给强度面板）。
-- 右侧：ASR → 插话 → 发送/停止（顺序同多行布局）。
+**单行布局（`InputLayoutStyle.SINGLE`）**：
+- 展开判据：`expanded = singleLine && (fieldFocused || 输入非空)`；`expandProgress` 走 `animateFloatAsState(rememberFixedSpec(380, ChatInputExpandEasing))`（380ms）。
+- 行高：`actionRowHeight = 48dp`；`oneLineHeight` 由 `onMeasure` 实测，读不到时兜底 `56dp`；`actionRowInset = ((oneLineHeight - actionRowHeight) / 2f).coerceAtLeast(0.dp)`（收起时按钮与单行文字居中对齐）；`expansionHeight = actionRowInset + actionRowHeight + 4dp`。按钮行固定在 `align(BottomStart)`，`padding(bottom = actionRowInset)`、`height(48dp)`、`spacedBy(2dp)`，卡片朝上长高时按钮的屏幕坐标不变。
+- 行内左侧：`+`（`Add01`）→ 快捷消息按钮 `QuickMessageButton`（`Zap`；常显，长按把输入内容当引导发出去）。
+- 中间左：模型胶囊 `ChatInputModelPill`（`visible = expanded`；点击时能思考的模型先开 `ReasoningPicker`，否则直接开模型列表）。它的尺寸与配色在 `ChatInputModelPill` 自身，本轮未复核，层内旧记的 30dp / `CircleShape` / `h9` 等值仍待按该文件确认。
+- 右侧：`Spacer(weight 1f)` → ASR → 插话 → 发送/停止（顺序与条件同多行布局）。
+- 文字框：`TextInputRow(showQuickMessageButton = false, fullscreenOnOverflow = true, singleLineExpansion = SingleLineExpansion(progress, collapsedStart = (70 - inputInsetFix).dp, collapsedEnd = (112 - inputInsetFix).dp, bottom = expansionHeight))`，其中 `inputInsetFix = (inputPadding - 8).coerceAtLeast(0)`（左右内边距变大时把输入框自己的内缩减回去，行数不随滑块变）；占位符用 `MorphingPlaceholder`，展开时换成「向 %1$s 描述你的想法…」。
 
 **附件/相机**：底部按钮行里没有独立的相机/附件按钮，`+` 打开附件面板（`FilesPicker`，`ChatSidePane.Files`），面板内的动作依次是：拍照（`take_picture`）、照片（`photo`）、草图（`sketch`）、视频（`video`）、音频（`audio`，仅 Google 渠道）、上传文件（`upload_file`）、语音模式（`chat_page_voice_title`）；下方才是搜索/工作区/MCP/扩展/压缩上下文等分段列表项。
 

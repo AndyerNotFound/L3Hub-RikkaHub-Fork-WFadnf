@@ -34,7 +34,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 /**
  * ask_user 问答抽屉：逐题作答。
@@ -99,7 +99,7 @@ fun AskUserSheet(
         if (currentIndex < questions.lastIndex) currentIndex++
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = tool != null,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.ask_user_question_title),
@@ -109,7 +109,7 @@ fun AskUserSheet(
             }
         },
     ) {
-        val current = questions.getOrNull(currentIndex) ?: return@SaltModalSheet
+        val current = questions.getOrNull(currentIndex) ?: return@AppModalSheet
         Column(
             modifier = Modifier
                 .fillMaxWidth()

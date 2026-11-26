@@ -76,7 +76,7 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import kotlin.uuid.Uuid
@@ -392,7 +392,7 @@ private fun CustomThemeEditSheet(
         mutableStateOf(theme ?: CustomTheme())
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = if (theme == null) stringResource(R.string.setting_theme_page_create_theme) else stringResource(R.string.setting_theme_page_edit_theme),

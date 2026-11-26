@@ -112,7 +112,9 @@ internal fun TopBar(
         modifier = if (backdropMaterial != null) {
             Modifier.advancedMaterial(
                 shape = RectangleShape,
-                base = MaterialTheme.colorScheme.surfaceContainer,
+                // 整条顶栏和里面的胶囊用同一个主题槽位（surfaceContainerLow），
+                // 之前容器用 surfaceContainer，胶囊比底更浅，看起来像两套东西
+                base = MaterialTheme.colorScheme.surfaceContainerLow,
                 material = backdropMaterial,
                 hazeState = hazeState,
             )
@@ -300,7 +302,10 @@ private fun ChatModelFolderPill(
                 Text(
                     text = folder?.name ?: stringResource(R.string.chat_page_folder_unfiled),
                     modifier = Modifier.weight(1f, fill = false),
-                    style = MaterialTheme.typography.labelLarge,
+                    // demo 的 .model-pill .fp：12px、次要色。文件夹在这颗胶囊里是坐标，
+                    // 模型才是主体，两者同一档字号会把层级压平
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

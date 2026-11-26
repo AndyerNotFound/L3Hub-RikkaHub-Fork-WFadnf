@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
+  <string name="sheet_close">إغلاق</string>
   <string name="sketch_dialog_undo">تراجع</string>
   <string name="sketch_dialog_redo">إعادة</string>
   <string name="sketch_dialog_clear">مسح</string>

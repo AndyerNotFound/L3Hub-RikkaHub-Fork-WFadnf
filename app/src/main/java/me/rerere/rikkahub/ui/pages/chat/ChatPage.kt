@@ -129,7 +129,7 @@ import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -1363,7 +1363,7 @@ private fun ChatPageContent(
             )
         }
 
-        SaltModalSheet(
+        AppModalSheet(
             visible = showUsageSheet && !state.threePane,
             onDismissRequest = { showUsageSheet = false },
         ) {

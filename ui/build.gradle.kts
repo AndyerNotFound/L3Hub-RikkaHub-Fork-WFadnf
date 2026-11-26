@@ -10,8 +10,6 @@ android {
 
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
-    // SaltUI 的 Sheet 标着 UnstableSaltUiApi，抽屉引擎在这里落地
-    compilerOptions.optIn.add("com.moriafly.salt.ui.UnstableSaltUiApi")
 }
 
 dependencies {
@@ -31,9 +29,6 @@ dependencies {
     implementation(libs.huge.icons)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
-
-    // SaltUI：抽屉引擎换成 Salt Sheet 以后由这里提供
-    implementation(libs.saltui)
 
     testImplementation(libs.junit)
 }

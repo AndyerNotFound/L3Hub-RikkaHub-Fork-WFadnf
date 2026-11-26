@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
+  <string name="sheet_close">Закрыть</string>
   <string name="sketch_dialog_undo">Отменить</string>
   <string name="sketch_dialog_redo">Повторить</string>
   <string name="sketch_dialog_clear">Очистить</string>

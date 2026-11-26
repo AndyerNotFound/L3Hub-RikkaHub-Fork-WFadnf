@@ -42,7 +42,7 @@ import me.rerere.rikkahub.utils.Version
 import me.rerere.rikkahub.utils.onError
 import me.rerere.rikkahub.utils.onSuccess
 import me.rerere.rikkahub.utils.toLocalDateTime
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -124,7 +124,7 @@ fun UpdateCard(vm: ChatVM) {
             showDetail = false
             toaster.show(context.getString(R.string.update_card_downloading), type = ToastType.Info)
         }
-        SaltModalSheet(
+        AppModalSheet(
             visible = showDetail,
             onDismissRequest = { showDetail = false },
             title = stringResource(R.string.update_card_title),

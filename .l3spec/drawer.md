@@ -196,7 +196,7 @@
 |---|---|---|---|
 | 整行 | Material3 `NavigationDrawerItem`（默认高度 56dp，本处未覆写尺寸），`modifier = fillMaxWidth()`，`selected = false`（不显示选中态） | 左侧图标 `HugeIcons.LookTop`（默认 24dp，未覆写）；文字为当前助手名，为空时 **默认助手**（`assistant_page_default_assistant`），`maxLines = 1` 省略 | 始终 |
 | 行内头像 | 标签行尾 `Spacer(weight(1f))` + `UIAvatar`（`avatarSize` 默认 **32.dp**） | 当前助手头像；点击 → `Screen.AssistantDetail(id = 当前助手)` | 始终 |
-| 点整行 | 弹出助手选择 Sheet（`SaltModalSheet`）：`Column(fillMaxWidth, fillMaxHeight(0.8f), padding(16.dp), spacedBy(8.dp))` | — | 始终 |
+| 点整行 | 弹出助手选择 Sheet（`AppModalSheet` = `ui/components/SheetMotion.kt` 对 AndroidX Material3 `ModalBottomSheet` 的封装，`containerColor = LocalSeparateWindowColors.current?.sheet ?: BottomSheetDefaults.ContainerColor`）：`Column(fillMaxWidth, fillMaxHeight(0.8f), padding(16.dp), spacedBy(8.dp))` | — | 始终 |
 | Sheet 标题 | `Text(titleLarge, padding(bottom = 8.dp))` | **助手设置**（`assistant_page_title`） | Sheet 打开 |
 | Sheet 标签过滤 | `LazyRow` + `FilterChip(shape = RoundedCornerShape(50))`，`padding(bottom = 8.dp)`，`spacedBy(8.dp)` | 每个 `assistantTags` 一个 chip，文案为标签名 | `settings.assistantTags.isNotEmpty()` |
 | Sheet 助手列表 | `LazyColumn(weight(1f), spacedBy(8.dp))`，每项 `Card(shape = shapes.large)`；选中项 `primaryContainer`/`onPrimaryContainer`，其余 `surface`/`onSurface` | `ListItem`：头像是 `UIAvatar(32.dp)`；标题为助手名或 **默认助手**；行尾 `IconButton` 图标 `HugeIcons.Edit03` → 先关 Sheet 再进 `Screen.AssistantDetail(id)` | Sheet 打开 |

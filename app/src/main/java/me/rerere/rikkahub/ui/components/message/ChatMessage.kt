@@ -1185,8 +1185,6 @@ private fun UserMessageContent(
         onLongClick = onLongClick,
         onLongClickLabel = stringResource(R.string.chat_message_long_press_actions),
         popup = menu,
-        modifier = Modifier
-            .padding(start = adaptiveHorizontalPaddingValue(24.dp)),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (attachments.isNotEmpty()) {

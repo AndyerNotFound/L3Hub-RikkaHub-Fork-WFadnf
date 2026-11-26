@@ -34,7 +34,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.copyMessageToClipboard
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 @Composable
 fun ChatMessageCopySheet(
@@ -45,7 +45,7 @@ fun ChatMessageCopySheet(
     hazeState: HazeState? = null,
 ) {
     val context = LocalContext.current
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.select_and_copy),

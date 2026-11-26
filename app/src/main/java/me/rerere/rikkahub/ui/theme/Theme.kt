@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
@@ -262,46 +263,44 @@ fun RikkahubTheme(
                 else -> styledShapes
             },
             content = {
-                SaltThemeHost(isDark = effectiveDark) {
-                    // 弹窗的进出场跟页面转场共用一档速度：用户在设置里调快以后，
-                    // 不该只有页面收住了、弹窗还按默认时长慢慢滑
-                    CompositionLocalProvider(
-                        LocalSeparateWindowColors provides appearance.separateWindowColors(),
-                        // 这一档原本只在 RouteActivity 里提供，而那份在 RikkahubTheme 内部：
-                        // 下面两行在这里求值，读到的永远是默认的 SYSTEM，弹窗曲线便不跟设置走。
-                        // 提到主题这一层，页面转场、菜单、弹窗才都读到同一档。
-                        LocalAnimationSpeed provides if (animationsDisabled) {
-                            AnimationSpeed.SYSTEM
+                // 弹窗的进出场跟页面转场共用一档速度。
+                CompositionLocalProvider(
+                    LocalContentColor provides colorSchemeConverted.onBackground,
+                    LocalSeparateWindowColors provides appearance.separateWindowColors(),
+                    // 这一档原本只在 RouteActivity 里提供，而那份在 RikkahubTheme 内部：
+                    // 下面两行在这里求值，读到的永远是默认的 SYSTEM，弹窗曲线便不跟设置走。
+                    // 提到主题这一层，页面转场、菜单、弹窗才都读到同一档。
+                    LocalAnimationSpeed provides if (animationsDisabled) {
+                        AnimationSpeed.SYSTEM
+                    } else {
+                        settings.displaySetting.animationSpeed
+                    },
+                    // 进出同一档：退场不再取更紧的快档，两端同时长同曲线
+                    LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
+                    LocalDialogExitSpec provides rememberSpatialSpec<Float>(),
+                    // 动态模糊的参数也在这一层下发：滚动、收放、入场都读同一份，
+                    // 关掉动效时连同模糊一起停掉，不用每个效果自己判断
+                    LocalMotionBlur provides if (animationsDisabled) {
+                        settings.displaySetting.motionBlur.copy(enabled = false)
+                    } else {
+                        settings.displaySetting.motionBlur
+                    },
+                    // 手写的位移动画（侧边栏、菜单这类不走 MotionScheme 的）在关闭动效时也要停，
+                    // 单独下发开关：档位那个 local 把关闭压成了 SYSTEM，读不出区别
+                    LocalAnimationsEnabled provides !animationsDisabled,
+                ) {
+                    val body: @Composable () -> Unit = {
+                        if (wrapContent) {
+                            content()
                         } else {
-                            settings.displaySetting.animationSpeed
-                        },
-                        // 进出同一档：退场不再取更紧的快档，两端同时长同曲线
-                        LocalDialogEnterSpec provides rememberSpatialSpec<Float>(),
-                        LocalDialogExitSpec provides rememberSpatialSpec<Float>(),
-                        // 动态模糊的参数也在这一层下发：滚动、收放、入场都读同一份，
-                        // 关掉动效时连同模糊一起停掉，不用每个效果自己判断
-                        LocalMotionBlur provides if (animationsDisabled) {
-                            settings.displaySetting.motionBlur.copy(enabled = false)
-                        } else {
-                            settings.displaySetting.motionBlur
-                        },
-                        // 手写的位移动画（侧边栏、菜单这类不走 MotionScheme 的）在关闭动效时也要停，
-                        // 单独下发开关：档位那个 local 把关闭压成了 SYSTEM，读不出区别
-                        LocalAnimationsEnabled provides !animationsDisabled,
-                    ) {
-                        val body: @Composable () -> Unit = {
-                            if (wrapContent) {
+                            // 编辑模式：全屏盖一层取色器，点哪算哪
+                            Box(modifier = Modifier.fillMaxSize()) {
                                 content()
-                            } else {
-                                // 编辑模式：全屏盖一层取色器，点哪算哪
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    content()
-                                    ColorProbeOverlay()
-                                }
+                                ColorProbeOverlay()
                             }
                         }
-                        body()
                     }
+                    body()
                 }
             },
             // 档位直接换成对应的 MotionScheme：material3 自己的动效（底部抽屉、菜单、

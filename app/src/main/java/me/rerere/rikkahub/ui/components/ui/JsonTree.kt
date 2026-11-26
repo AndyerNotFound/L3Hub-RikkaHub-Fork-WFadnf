@@ -45,7 +45,7 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 @Composable
 fun JsonTree(
@@ -68,7 +68,7 @@ fun JsonTree(
     // 收起动画期间 selectedString 已经是 null，用最后一份内容把退场演完
     var shownString by remember { mutableStateOf(selectedString) }
     LaunchedEffect(selectedString) { if (selectedString != null) shownString = selectedString }
-    SaltModalSheet(
+    AppModalSheet(
         visible = selectedString != null,
         onDismissRequest = { selectedString = null },
         title = stringResource(R.string.json_value_title),

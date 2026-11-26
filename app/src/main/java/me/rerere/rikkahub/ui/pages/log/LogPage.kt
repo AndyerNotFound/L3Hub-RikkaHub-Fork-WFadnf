@@ -60,7 +60,7 @@ import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstantPretty
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -183,7 +183,7 @@ private fun UnifiedLogList(
     LaunchedEffect(selectedLog) { if (selectedLog != null) shownLog = selectedLog }
     val detail = shownLog
     if (detail != null) {
-        SaltModalSheet(
+        AppModalSheet(
             visible = selectedLog != null,
             onDismissRequest = { selectedLog = null },
             title = stringResource(R.string.request_detail_title),

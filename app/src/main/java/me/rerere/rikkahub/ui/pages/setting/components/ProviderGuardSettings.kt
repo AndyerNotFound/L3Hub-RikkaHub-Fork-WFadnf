@@ -90,7 +90,7 @@ import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.formatCost
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.compose.koinInject
 
 private val LOCK_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -852,7 +852,7 @@ private fun QuotaWindowSheet(
     val context = LocalContext.current
     val binaryUnits = LocalSettings.current.displaySetting.binaryUnits
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = if (initial == null) stringResource(R.string.setting_provider_guard_window_add) else stringResource(R.string.setting_provider_guard_window_edit),
@@ -1186,7 +1186,7 @@ private fun LockScheduleSheet(
         )
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = if (initial == null) stringResource(R.string.setting_provider_guard_lock_add) else stringResource(R.string.setting_provider_guard_lock_edit),

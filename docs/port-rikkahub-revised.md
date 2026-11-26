@@ -123,6 +123,8 @@
 
 ## 5 Android 版本与玻璃参数
 
+> 当前 `AdvancedMaterial.kt` 的表面渲染已简化为静态底色，`resolvedLiveAppearanceRadius()` 返回 0，`composerMaterial()` 返回 null；第 5–8 节的实时模糊、折射与性能降级描述保留为旧方案和数据兼容参考，不代表当前启用的渲染效果。聊天正文使用静态用户气泡与无底色助手排版。
+
 最低 API 26。`resolvedLiveAppearanceRadius()` 同时用于出图侧和设置页滑杆范围；表里是能力上限，
 实际还受各控件范围、材质、模糊源与第 8 节性能条件约束。
 
@@ -145,10 +147,16 @@
 `LiquidGlassSettings.style` 取 `SALT`（默认）或 `MATERIAL3`。旧数据没有这个字段，落到 `SALT`，
 观感与加入该字段前一致。这一档只替换 `LIQUID_GLASS` 材质，磨砂 / 亚克力 / 云母不受影响。
 
+Salt UI 已从构建里移除，`LiquidGlassStyle.SALT` 保留为**持久化枚举**。代码中的 `LiquidGlassStyle`
+只出现在 `data/model/LiquidGlassSettings.kt`；其余判断通过 `usesMaterial3Style()` 读取，调用位于
+`ChatMessageBubble.kt`、`ChatHazeSampling.kt`、`SettingPreferencesMessageStylePage.kt`，没有改写该字段的设置入口。
+SALT 档保留仓库内的 `LiquidGlassParameters` / `parameters()`；`refraction` 目前只参与 Haze 源采集判据
+（`ChatHazeSampling.kt:60`），不表示 Salt UI 依赖仍在使用。
+
 | 项 | `SALT` | `MATERIAL3`（RikkaHub 原版 Haze Material3） |
 |---|---|---|
-| 参数来源 | `LiquidGlassParameters`：预设、边缘高光、雾化、折射、内阴影、描边宽度 | 固定 `depth = .5`、模糊半径 **16dp**、tint alpha **.3**；不读 Salt 的 preset / highlight / refraction / edgeWidth / innerShadow，设置页把这些滑杆隐藏 |
-| 响应参数 | `SaltGlassStyles.regularSurface(dark)` | 按**应用主题**显式写入 response（深色数值等同库内 `regularDark`），不跟系统夜间模式走，避免应用内深色被挑成浅色预设 |
+| 参数来源 | `LiquidGlassParameters`：预设、边缘高光、雾化、折射、内阴影、描边宽度 | 固定 `depth = .5`、模糊半径 **16dp**、tint alpha **.3**；不读 SALT 档的 preset / highlight / refraction / edgeWidth / innerShadow（这些滑杆现已不在设置页里） |
+| 响应参数 | 仓库内 `LiquidGlassParameters` 经 `parameters()` 归一化后提供（Salt UI 已移除，`SaltGlassStyles` 在仓库里已无引用） | 按**应用主题**显式写入 response（深色数值等同原库内 `regularDark`），不跟系统夜间模式走，避免应用内深色被挑成浅色预设 |
 | 折射 | API 33+、有源、实时刻且折射值 > 0 | 不参与折射分支 |
 | 不可实时时 | 渐变描边，强度按实时刻与 SDK 分档 | 1.5dp 中性描边（固定高光 .18 / 阴影 .12） |
 
@@ -211,7 +219,9 @@
 分别取基色，再把着色合到不透明的页面底色；液态玻璃样式另给菜单静态描边。这里不读取父窗口像素；换图只有在
 图片实际影响主题强调色等配色时才可能改窗口颜色。总开关关闭时不提供这些颜色，组件保留默认样式。
 
-`SeparateWindowContent` 标记独立窗口，`SheetWindowTheme` 把静态色交给 Salt 实际的面板容器。
+`SeparateWindowContent` 标记独立窗口；Sheet 一侧由 `AppModalSheet`（`ui/components/SheetMotion.kt`）把这些静态色
+直接交给 AndroidX Material3 的 `ModalBottomSheet`：`containerColor = LocalSeparateWindowColors.current?.sheet ?: BottomSheetDefaults.ContainerColor`、
+`contentColor = colorScheme.onSurface`，关闭动作由调用方的 `visible` 驱动（旧 `SheetWindowTheme` 已不在仓库里）。
 共享对话框、两类 Select 下拉、聊天菜单、子代理通知和 Emoji 肤色 Popup、暂停更新提示等消费这些机制。
 `advancedMaterial` 在被标记的窗口忽略父 `HazeState`，只拿静态色（旧 `GlassSurface.effectSurface` 已删除）。
 全屏图片预览如符合第 4 节，
@@ -224,8 +234,7 @@
 | Compose BOM / Material3 | `2026.09.00` / `1.5.0-rc01` | 主题、动效、形状与对话框 |
 | BetterText | `v0.1.6` | Markdown 解析与排版；ANSI 块也用它的 `BetterText` 以保持同一选择容器 |
 | Coil | `3.6.3` | 背景图、生成图、视频封面；`coil-svg` 仍在 |
-| Salt UI | `3.0.0` | `SaltTheme` / `SaltDynamicColors` / Sheet；独立窗口用它换面板色 |
-| Haze | `2.1.0`（`haze` / `haze-blur` / `haze-glass` + material3 变体） | 模糊与玻璃；Salt 样式走 `SaltGlassStyles`，原版玻璃走 `glass.material3` 变体 |
+| Haze | `2.1.0`（`haze` / `haze-blur` / `haze-glass` + material3 变体） | 模糊与玻璃；仓库内已无 `SaltGlassStyles` 引用，SALT 档只按 `LiquidGlassParameters` 参与 Haze 源采集判据 |
 | Decompose | `3.6.2` | 分栏与 child 身份（第 6 节） |
 | Media3 | `1.11.1` | 复用本地全屏播放器 |
 
@@ -433,7 +442,7 @@ DOM 存储、文件、Content 和网络访问，并拦截导航与子资源，�
 | 消息样式位置 | 高级外观设置内改三档样式与角色覆盖，返回重进保持；旧路由 `Screen.SettingPreferencesMessageStyle` 仍能直达同一块内容；数据仍在 `display_setting` |
 | 实色不采样 | 消息样式选「实色」；气泡不采样背景，透明度与半径滑杆不影响它。选「默认」时走所选高级气泡材质 |
 | 助手正文气泡 | 全新安装默认没有助手气泡底；到 界面偏好 打开「显示助手消息气泡」后才出现 |
-| 液态玻璃样式 | 在 Salt 与 RikkaHub 原版之间切换，Salt 的预设与光学滑杆随之隐藏/显示；切回 Salt 参数不丢 |
+| 液态玻璃样式 | `LiquidGlassStyle`（`SALT` / `MATERIAL3`，默认 `SALT`）现在只按持久化字段核对：旧数据缺该字段时读成 `SALT`，原样写回不丢值；Salt UI 移除后仓库里没有改写它的设置入口，界面上也没有「Salt ↔ RikkaHub 原版」的切换控件，本轮不再按界面切换核对 |
 
 ### 外观与导航
 

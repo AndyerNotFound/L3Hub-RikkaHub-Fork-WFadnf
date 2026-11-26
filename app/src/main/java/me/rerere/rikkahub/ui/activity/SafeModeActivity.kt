@@ -72,7 +72,7 @@ import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.LocalDialogDismiss
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.components.rememberSheetDismiss
 import org.koin.android.ext.android.inject
 import java.io.File
@@ -429,7 +429,7 @@ private fun AssistantPickerSheet(
         else settings.assistants.filter { it.tags.any { id -> id in selectedTagIds } }
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.safe_mode_assistants),

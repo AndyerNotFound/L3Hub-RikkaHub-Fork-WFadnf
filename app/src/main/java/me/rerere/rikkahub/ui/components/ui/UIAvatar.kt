@@ -61,7 +61,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.crop.NormalizedCrop
 import org.koin.compose.koinInject
 import java.security.MessageDigest
@@ -332,7 +332,7 @@ fun UIAvatar(
         )
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = showEmojiPicker,
         onDismissRequest = {
             showEmojiPicker = false

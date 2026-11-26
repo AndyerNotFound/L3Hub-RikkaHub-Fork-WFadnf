@@ -67,7 +67,7 @@ import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.toDp
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -335,7 +335,7 @@ fun ModelListSheet(
         onDispose { state.close() }
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         // 关窗统一走 state：wrapper 先播完退场再拆窗口，点外部 / 返回键 / X 走同一条
         visible = state.visible,
         onDismissRequest = { state.close() },

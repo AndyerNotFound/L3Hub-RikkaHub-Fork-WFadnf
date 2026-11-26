@@ -76,7 +76,7 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.DotLoading
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -457,7 +457,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         )
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = showResult,
         onDismissRequest = { showResult = false },
         // 详情抽屉用调用的工具作标题：与折叠卡上的展示名一致

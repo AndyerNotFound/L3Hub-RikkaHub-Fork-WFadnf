@@ -61,7 +61,7 @@ import me.rerere.hugeicons.stroke.Idea
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.rikkahub.ui.components.ui.SheetSlidePages
 import me.rerere.rikkahub.R
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.components.ToggleSurface
 import me.rerere.ui.icons.ReasoningHigh
 import me.rerere.ui.icons.ReasoningLow
@@ -174,7 +174,7 @@ fun ReasoningPicker(
         }
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         // 返回键和点外部都走这里：先在面板内部退一级，退无可退才真关掉。
         // 这样即使 BackHandler 被 Dialog 自己吃了，行为也是对的

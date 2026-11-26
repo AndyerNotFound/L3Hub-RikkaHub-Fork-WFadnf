@@ -56,7 +56,7 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalButton
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.compose.koinInject
 import java.io.IOException
 
@@ -72,7 +72,7 @@ fun BackgroundTasksSheet(
     onStop: suspend (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.background_tasks_title),

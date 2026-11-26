@@ -124,7 +124,7 @@ import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.ui.components.FormItem
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.components.Tooltip
 import me.rerere.ui.sketch.SketchDialog
 import java.io.File
@@ -1202,7 +1202,7 @@ private fun ComposerSheet(
     title: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = title,

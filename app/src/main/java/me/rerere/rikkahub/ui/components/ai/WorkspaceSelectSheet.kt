@@ -32,7 +32,7 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.statusLabel
 import me.rerere.rikkahub.ui.style.Checkbox
 import me.rerere.rikkahub.ui.style.HorizontalDivider
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 @Composable
 internal fun WorkspaceSelectSheet(
@@ -46,7 +46,7 @@ internal fun WorkspaceSelectSheet(
     supportingText: String? = null,
 ) {
     val selectedIds = boundIds.map { it.toString() }.toSet()
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.workspace_select),

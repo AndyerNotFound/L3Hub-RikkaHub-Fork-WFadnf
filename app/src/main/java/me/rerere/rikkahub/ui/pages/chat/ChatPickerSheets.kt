@@ -36,7 +36,7 @@ import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 @Composable
 internal fun ChatFilesPickerSheet(
@@ -52,7 +52,7 @@ internal fun ChatFilesPickerSheet(
     onStartVoiceMode: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.files_picker_title),
@@ -166,7 +166,7 @@ internal fun TerminalWorkspacePickerSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.floating_bar_item_terminal),

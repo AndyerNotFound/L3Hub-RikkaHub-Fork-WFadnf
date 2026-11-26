@@ -7,7 +7,7 @@
 
 - 工单写的 `app/src/main/res/values-zh-rCN/strings.xml` **不存在**。简体中文在 `values-zh/strings.xml`（`values-zh-rTW` 是繁体）。本文中文一律取自 `values-zh`。
 - `SettingRail.kt` 的文件头注释自相矛盾：类注释说「横屏两栏」，但同一文件里已经出现右列判据 `hostsDetailColumn()`。**实情是三栏**（左栏常驻 + 中列分区页 + 右列下钻页），以 `RouteActivity.kt:461-535` 的实现为准。
-- Salt UI（`io.github.moriafly:salt-ui:3.0.0`，`gradle/libs.versions.toml:81,121`）是外部依赖，源码不在仓库、Gradle 缓存为空。**首页那些 Salt 行的高度、内边距、分隔线、右箭头只能给结构 + 推测值**，第 2 节逐条标了「推测」。
+- **Salt UI 已移除；本文凡是提到 Salt 的段落（第 2.1 节整张表、2.4 / 3 / 4.4 里的 Salt 行）都是迁移前的历史资料。** 依赖 `io.github.moriafly:salt-ui` 已从 `gradle/libs.versions.toml` 与 `app/build.gradle.kts` 删除（本轮 `grep -i salt` 在这两个文件里 0 命中），`ui/components/ui/SaltSettingsList.kt`、`ui/theme/SaltThemeBridge.kt` 也已不在仓库里。首页现在用 `CardGroup`（`SettingPage.kt` 的四个分区 `item`：236 / 289 / 350 / 384），行几何以 2.2 节 + `CardGroup.kt` 为准。**没有重新实测的 Salt 尺寸一律按历史记着，不向 M3 外推，也不用默认值去填**；旧表里标「推测」的格子只代表迁移前那次读码的判断。
 - 另一个会影响「色值」的事实：`Settings.dynamicColor` 默认 **true**（`data/datastore/Settings.kt:38`），Android 12+ 默认走系统壁纸取色。**默认状态下整套配色没有固定十六进制值**，第 4 节给了三条链路和各自的取数办法。
 
 ---
@@ -20,21 +20,21 @@
 |---|---|---|
 | 页面底色 | `CustomColors.topBarColors.containerColor` = `LocalUiSlots.topBar` = `surfaceContainer` | `SettingPage.kt:124`（`containerColor`）+ `ui/theme/UiSlots.kt` `uiSlotsFrom()` |
 | 顶栏 | M3 顶栏，高 **64dp**，标题「设置」用 titleLarge，左 `BackButton`（FilledTonalIconButton，底色 = `listItem` 槽 = `surfaceBright`） | `ui/style/StyledComponents.kt:468-491`、`ui/components/nav/BackButton.kt` |
-| 列表 | `LazyColumn`，`contentPadding = 系统内边距 + PaddingValues(vertical = 8.dp)`，条目间距 **16dp** | `SettingPage.kt:129-130` |
-| 横向内边距 | 头像区/告警卡自己加 `padding(horizontal = 16.dp)`；Salt 分组**不再补**，Salt 的 `RoundedColumn` 自带 16dp 内外距（代码注释明说再补会变 32dp） | `SettingPage.kt:126-130, 143`；`ui/components/ui/SaltSettingsList.kt:16-19` |
+| 列表 | `LazyColumn`，`contentPadding = 系统内边距 + PaddingValues(horizontal = 16.dp, vertical = 8.dp)`，条目间距 **16dp** | `SettingPage.kt:133-134` |
+| 横向内边距 | 由列给：`contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp)`，注释写明「CardGroup 自身不带外距，内距由列给」；头像区与条件卡片各自再补 `padding(horizontal = 16.dp)` | `SettingPage.kt:133, 147, 214, 222, 230` |
 
 ### 1.2 分区顺序（自上而下）
 
 | # | `item()` key | 分区标题（无=裸块） | 显示条件 | 行号 |
 |---|---|---|---|---|
-| 1 | `profile` | — | 始终 | 132 |
-| 2 | （匿名） | — | `settings.isNotConfigured()` | 187 |
-| 3 | `localNetworkPermission` | — | 局域网权限未授予 | 196 |
-| 4 | `notificationPermission` | — | 通知权限未授予 | 207 |
-| 5 | `generalSettings` | **通用设置** | 始终 | 232 |
-| 6 | `modelServices` | **模型与服务** | 始终 | 294 |
-| 7 | `dataSettings` | **数据设置** | 始终 | 347 |
-| 8 | `aboutSettings` | **关于** | 始终 | 375 |
+| 1 | `profile` | — | 始终 | 136 |
+| 2 | （匿名） | — | `settings.isNotConfigured()` | 211 |
+| 3 | `localNetworkPermission` | — | 局域网权限未授予 | 220 |
+| 4 | `notificationPermission` | — | 通知权限未授予 | 228 |
+| 5 | `generalSettings` | **通用设置** | 始终 | 236 |
+| 6 | `modelServices` | **模型与服务** | 始终 | 289 |
+| 7 | `dataSettings` | **数据设置** | 始终 | 350 |
+| 8 | `aboutSettings` | **关于** | 始终 | 384 |
 
 ### 1.3 顶部资料区（`profile`）
 
@@ -49,9 +49,11 @@
 
 ### 1.4 各分区条目清单
 
-控件类型说明：**跳转** = 整行可点、右侧 Salt 自绘箭头；**开关** = M3 `Switch`；**分段** = `ConnectedChoiceButtons`（胶囊按钮组，未选中项可长出选中项，见 2.3）；**滑块** = M3 `Slider` + 右侧 `CardGroupValue` 数值胶囊。
+控件类型说明：**跳转** = 整行可点（`CardGroup` 的 `item(onClick = ...)`）；**开关** = M3 `Switch`；**分段** = `ConnectedChoiceButtons`（胶囊按钮组，未选中项可长出选中项，见 2.3）；**滑块** = M3 `Slider` + 右侧 `CardGroupValue` 数值胶囊。
 
-#### 通用设置（`SaltGroup` 标题「通用设置」）
+首页四组都是 `CardGroup(title = { ... })`，组内图标统一 `CardGroupIcon(containerColor/contentColor)`：通用设置 = `primaryContainer`、模型与服务 = `tertiaryContainer`、数据设置 = `secondaryContainer`、关于 = `primaryContainer`。`CardGroup` 自身不追加行尾箭头，调用点也没给跳转行传 `trailingContent`（唯一例外是「关于」行的两颗 `IconButton`），所以**首页跳转行看不到右箭头**；`SegmentedListItem` 取自 M3 库（仓库内 `material3/` 只有 3 个 kt，库源码不在仓库），它内部是否另画箭头本轮未查。
+
+#### 通用设置（`CardGroup` 标题「通用设置」）
 
 | 条目 | 副标题 | 右侧控件 | 图标函数名 |
 |---|---|---|---|
@@ -60,7 +62,7 @@
 | 助手 | 设置个性化助手 (智能体) | 跳转 → `Screen.Assistant` | `HugeIcons.LookTop` |
 | 扩展管理 | 管理提示词注入、技能等扩展 | 跳转 → `Screen.Extensions` | `HugeIcons.Package` |
 
-颜色模式这一行是 `ItemContainer` 手拼：`Row(spacedBy(16.dp))` 里图标 `Modifier.size(SaltTheme.dimens.itemIcon)` + `Text`，下面接分段控件，整块 `Column(spacedBy(12.dp))`。
+颜色模式这一行是 `CardGroup` 的 `formItem`，渲染成 `CardGroupFormItem`：`Column(padding(horizontal = 16.dp, vertical = 12.dp), spacedBy(12.dp))`，上排 `Row(spacedBy(16.dp))` 放 `CardGroupIcon` + `Text`，下面接分段控件（`ConnectedChoiceButtons`）。
 
 #### 模型与服务
 
@@ -73,6 +75,7 @@
 | 媒体 | 图像与视频生成提供商、素材上传 | 跳转 → `Screen.SettingMedia` | `HugeIcons.Image02` |
 | MCP | 配置MCP服务器 | 跳转 → `Screen.SettingMcp` | `HugeIcons.McpServer` |
 | 工具覆写 | 查看并覆写工具定义与工具说明 | 跳转 → `Screen.ToolOverrides` | `HugeIcons.Tools` |
+| 模型指纹 | 模型指纹说明（`model_fingerprint_desc`） | 跳转 → `Screen.ModelFingerprint` | `HugeIcons.FingerPrint` |
 | Web服务器 | 允许你通过网页访问 RikkaHub | 跳转 → `Screen.SettingWeb` | `HugeIcons.ServerStack01` |
 
 #### 数据设置
@@ -86,12 +89,14 @@
 
 | 条目 | 副标题 | 右侧控件 | 图标函数名 |
 |---|---|---|---|
-| 关于（自绘行，非 `SaltNavItem`） | 关于本APP | 文字块本身是跳转（→ `Screen.SettingAbout`）；右侧另有**两个 `IconButton`**：QQ（`TencentQQIcon`，tint `secondary`，弹群列表 BottomSheet）、Discord（`DiscordIcon`，tint `secondary`，外链） | `HugeIcons.Clapping01` |
+| 关于 | 关于本APP | 整行跳转 → `Screen.SettingAbout`；`trailingContent` 里另有**两个 `IconButton`**：QQ（`TencentQQIcon`，tint `secondary`，弹群列表 `AppModalSheet`）、Discord（`DiscordIcon`，tint `secondary`，外链 `discord.gg/9weBqxe5c4`） | `HugeIcons.Clapping01` |
+| 快速开始 | 快速开始说明（`setting_page_quick_start_desc`） | 跳转 → `Screen.QuickStart` | `HugeIcons.Rocket01` |
 | 使用文档 | 查看应用使用说明和帮助文档 | 跳转（外链 `docs.rikka-ai.com`，中文环境带 `/zh`） | `HugeIcons.Book01` |
 | 请求日志 | 查看 HTTP 请求日志 | 跳转 → `Screen.Log` | `HugeIcons.Bookshelf01` |
-| 分享 | 分享本APP给朋友 | 系统分享 Chooser（Salt 仍画箭头，因为 `SaltNavItem` 一律有） | `HugeIcons.Share04` |
+| 捐赠 | 捐赠说明（`setting_page_donate_desc`） | 跳转 → `Screen.SettingDonate` | `HugeIcons.InLove` |
+| 分享 | 分享本APP给朋友 | 系统分享 Chooser（`Intent.ACTION_SEND` + `Intent.createChooser`，`EXTRA_TEXT` = `setting_page_share_text`）；行尾没有额外控件 | `HugeIcons.Share04` |
 
-#### 条件卡片（不在任何 SaltGroup 里）
+#### 条件卡片（不在任何 `CardGroup` 里）
 
 | 卡片 | 结构 | 颜色 |
 |---|---|---|
@@ -135,9 +140,11 @@
 
 ## 2. 设置条目行的视觉
 
-首页用 **Salt 行**，子页用 **`CardGroup` 行**（`ui/components/ui/CardGroup.kt`）。两套不是同一个东西，原型里要分开做。
+首页与子页现在都用 **`CardGroup` 行**（`ui/components/ui/CardGroup.kt`）：首页 = `CardGroup` + `CardGroupIcon`（`SettingPage.kt` 的 236 / 289 / 350 / 384 四个分区），子页同理。原型按 2.2 那一套做即可，两套行样式已经不存在。
 
-### 2.1 Salt 行（首页，`SaltNavItem` → `com.moriafly.salt.ui.Item`）
+### 2.1 Salt 行（历史资料，已不适用）
+
+> **迁移前资料，保留只为追溯。** 这一节记的是 Salt UI 还在时首页 `SaltNavItem`（`com.moriafly.salt.ui.Item`）的样子。Salt 依赖、`SaltSettingsList.kt`、`SaltThemeBridge.kt` 都已从仓库移除，下表多数格子当时就标着「推测」，**不能当当前实现用，也不要拿它们反推现在的 M3 尺寸**——现在的行几何见 2.2。
 
 | 项 | 值 | 依据 |
 |---|---|---|
@@ -187,7 +194,7 @@
 |---|---|---|---|
 | 页面底 | `background` | `#FFF8F7` | `#1A1112` |
 | 顶栏底 | `surfaceContainer` | `#FBEAEB` | `#261D1E` |
-| Salt 分组卡片底 | `surfaceContainer` | `#FBEAEB` | `#261D1E` |
+| 首页分组卡片底 | `listItem` 槽 = `surfaceBright`（与下一行同色；Salt 时代曾是 `surfaceContainer`） | `#FFF8F7` | `#413738` |
 | `CardGroup` 行底 | `surfaceBright` | `#FFF8F7` | `#413738` |
 | 弹窗/菜单 | `surfaceContainerHigh` | `#F6E4E5` | `#312828` |
 | 分隔线 | `outlineVariant` | `#D7C1C3` | `#524345` |
@@ -195,7 +202,7 @@
 | 副文字 | `onSurfaceVariant` | `#524345` | `#D7C1C3` |
 | 强调/箭头/组标题 | `primary` | `#8E4955` | `#FFB2BC` |
 
-注意：浅色 Sakura 里 `surfaceBright == background == #FFF8F7`，**首页 Salt 卡片（surfaceContainer）与页面底只差一档**；`CardGroup` 行底也是近白，子页的行是靠 2dp 间距和圆角分组区分，不靠底色对比。深色下 `CardGroup` 行底 `#413738` 明显亮于页面底 `#1A1112`。
+注意：浅色 Sakura 里 `surfaceBright == background == #FFF8F7`，首页分组卡片（`listItem` → `surfaceBright`）与页面底同色，靠 2dp 间距与圆角分组区分；子页的行也一样。深色下 `CardGroup` 行底 `#413738` 明显亮于页面底 `#1A1112`。
 
 ---
 
@@ -328,14 +335,14 @@
 | displaySmall | 36sp | 44sp | 400 | 0 | 无 |
 | headlineLarge | 32sp | 40sp | 400 | 0 | 无 |
 | headlineMedium | 28sp | 36sp | 400 | 0 | 无 |
-| headlineSmall | 24sp | 32sp | 400 | 0 | Salt `largeTitle`（本页未用） |
+| headlineSmall | 24sp | 32sp | 400 | 0 | 本页未用 |
 | titleLarge | 22sp | 28sp | 400 | 0 | 顶栏标题 |
 | titleMedium | 16sp | 24sp | 500 | 0.15sp | 首页昵称、左栏「设置」 |
 | titleMediumEmphasized | 16sp | 24sp | 500 + Emphasized 字面 | 0.15sp | 告警卡标题（推测字重更粗） |
 | titleSmall | 14sp | 20sp | 500 | 0.1sp | — |
 | titleSmallEmphasized | 14sp | 20sp | 500 + Emphasized | 0.1sp | `CardGroup` 组标题 |
-| bodyLarge | 16sp | 24sp | 400 | 0.5sp | 设置行主标题（Salt `main` / `ListItem` 默认） |
-| bodyMedium | 14sp | 20sp | 400 | 0.25sp | 设置行副标题（Salt `sub` / `supporting`） |
+| bodyLarge | 16sp | 24sp | 400 | 0.5sp | 设置行主标题（`ListItem` 默认） |
+| bodyMedium | 14sp | 20sp | 400 | 0.25sp | 设置行副标题（`supporting`） |
 | bodySmall | 12sp | 16sp | 400 | 0.4sp | — |
 | labelLarge | 14sp | 20sp | 500 | 0.1sp | 左栏项文字、值胶囊、按钮 |
 | labelMedium | 12sp | 16sp | 500 | 0.5sp | — |
@@ -363,9 +370,9 @@ M3 五档来自 `MaterialTheme.shapes`，默认值：`extraSmall 4dp`、`small 8
 
 | 元素 | 圆角 | 依据 |
 |---|---|---|
-| 首页 Salt 分组卡片 | **推测 16dp**（Salt `shapes.large`） | `SaltThemeBridge.kt:52-55` |
-| `CardGroup` 组首/尾 | **20dp** | `CardGroup.kt:61` |
-| `CardGroup` 中间行 | **4dp** | `CardGroup.kt:63` |
+| 首页分组卡片 | 同 `CardGroup`：首尾 **20dp** / 中间 **4dp**（Salt 时代的「推测 16dp」已随依赖作废） | `CardGroup.kt:51-52, 246-250` |
+| `CardGroup` 组首/尾 | **20dp** | `CardGroup.kt:51` |
+| `CardGroup` 中间行 | **4dp** | `CardGroup.kt:52` |
 | `CardGroup` 按下整行 | 20dp（四角） | `CardGroup.kt:330-338` |
 | 左栏选中项 | **14dp**（硬编码，不跟轮廓设置走） | `SettingRail.kt:236` |
 | 告警卡 | `shapes.extraLarge` = 28dp | `SettingPage.kt:493` |

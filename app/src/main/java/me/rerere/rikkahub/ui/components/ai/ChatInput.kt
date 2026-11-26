@@ -50,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -203,8 +205,9 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // 全宽模式下输入框也和屏幕两边齐平，圆角收成直角
-    val containerShape = adaptiveShape(settings.displaySetting.uiCornerRadius.dp)
+    // 贴底时使用 demo 的平整底板；空会话抬升到英雄卡下方时保留独立圆角。
+    val docked = !pinContentToTop
+    val containerShape = adaptiveShape(if (docked) 0.dp else settings.displaySetting.uiCornerRadius.dp)
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -405,9 +408,10 @@ fun ChatInput(
     }
 
     // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏
-    val scrimColor = MaterialTheme.colorScheme.background
-    // 嵌在空会话页面中间时不需要底部渐变遮罩
-    val scrimModifier = if (applyWindowInsets && showScrim) {
+    val scrimColor = LocalUiSlots.current.pageBackground
+    val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f)
+    // 贴底时由整块底板遮住消息，只在透明的抬升态保留渐变路径。
+    val scrimModifier = if (!docked && applyWindowInsets && showScrim) {
         Modifier.drawBehind {
             val endY = if (deferImeInset) {
                 // 空态底栏本来就不含键盘 inset，不必再读它，免得跟着键盘每帧重画遮罩
@@ -429,8 +433,18 @@ fun ChatInput(
         Modifier
     }
     Surface(
-        color = Color.Transparent,
-        modifier = scrimModifier,
+        color = if (docked) containerColor else Color.Transparent,
+        modifier = scrimModifier.then(
+            if (docked) Modifier.drawWithContent {
+                drawContent()
+                drawLine(
+                    color = dividerColor,
+                    start = Offset(0f, 0.5.dp.toPx()),
+                    end = Offset(size.width, 0.5.dp.toPx()),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            } else Modifier,
+        ),
     ) {
         Column(
             modifier = modifier
@@ -445,9 +459,9 @@ fun ChatInput(
                         Modifier
                     },
                 )
-                // 全宽模式下输入框贴到屏幕左右边，键盘 inset 与导航栏 inset 仍然保留
-                .adaptiveHorizontalPadding(8.dp)
-                .padding(bottom = 8.dp + liftedBy)
+                // 底板铺满宽度，文字与工具栏保留 demo 的 12dp 内缩及系统 inset。
+                .adaptiveHorizontalPadding(12.dp)
+                .padding(top = if (docked) 8.dp else 0.dp, bottom = 8.dp + liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
                 // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
                 // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
@@ -603,9 +617,8 @@ fun ChatInput(
                                 ),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 玻璃档由材质层自己画渐变描边，这里再画一道平线就成了双线；
-                            // 其余情况保持原来那道 1dp 描边
-                            border = if (composerStyle == null || composerStyle.needsFlatOutline()) {
+                            // 贴底输入区只保留顶部细线；抬升的空态输入卡才需要四周轮廓。
+                            border = if (!docked && (composerStyle == null || composerStyle.needsFlatOutline())) {
                                 BorderStroke(
                                     1.dp,
                                     MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -613,9 +626,9 @@ fun ChatInput(
                             } else {
                                 null
                             },
-                            // 着色由材质层统一叠在模糊之上，这里保持透明，避免叠成两倍浓度；
-                            // 没开高级外观时这里就是那一整块实色底
-                            color = if (composerStyle != null) {
+                            // 贴底底色由外层铺满，避免半透明主题在输入框内叠成两倍浓度。
+                            // 抬升的空态输入卡仍由自己的 Surface 着色。
+                            color = if (docked || composerStyle != null) {
                                 Color.Transparent
                             } else {
                                 containerColor

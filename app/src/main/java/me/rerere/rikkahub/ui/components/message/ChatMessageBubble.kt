@@ -1,10 +1,14 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
@@ -12,15 +16,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.combinedClickable
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
 import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
-import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
@@ -33,7 +38,13 @@ import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.ResolvedBubbleStyle
 import me.rerere.rikkahub.ui.components.ui.resolveMessageStyle
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
+import me.rerere.rikkahub.ui.shape.styledShape
+import me.rerere.rikkahub.ui.theme.LocalCornerScale
+import me.rerere.rikkahub.ui.theme.LocalCornerStyle
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
+import me.rerere.rikkahub.ui.theme.LocalUiSlots
+import me.rerere.rikkahub.ui.theme.SquareShapes
+import kotlin.math.roundToInt
 
 // 消息样式给出的模糊半径最多到这里。AdvancedMaterial 内部还会按 SDK 与实时档位再夹一次
 // （resolvedLiveAppearanceRadius：TIRAMISU 以下 12dp、以上 40dp），这里只挡住明显越界与非法值。
@@ -43,10 +54,8 @@ private const val MAX_MESSAGE_STYLE_MATERIAL_RADIUS = 40f
 private const val MAX_MESSAGE_STYLE_BORDER_WIDTH = 8f
 
 /**
- * 正文气泡不再有材质：朴素外观里一条消息就是文本块。
- *
- * 参数保留是为了调用点（消息样式页、Haze 采样、测试）暂时还能编译；
- * 返回值恒为 null 表示「不铺任何表面」。
+ * 正文沿用静态 M3 颜色；用户气泡不采样背景，助手正文不铺表面。
+ * 保留这个入口供消息样式页与 Haze 采样判定使用。
  */
 @Suppress("UNUSED_PARAMETER")
 internal fun AdvancedAppearanceSetting.messageBubbleMaterial(
@@ -139,12 +148,9 @@ internal fun AdvancedAppearanceSetting.thinkingBubbleMaterial(
 }
 
 /**
- * 消息正文：不画底色、不画边框、不做圆角。
- *
- * 朴素外观里一条消息就是一个文本块，角色靠头像与对齐方式区分：
- * 用户消息在调用点按 End 对齐，助手消息按 Start 对齐，两者之间只有纵向间距。
- * [color]、[hazeState]、[joinedToPrevious]、[joinedToNext]、[streaming] 保留在签名里，
- * 是因为调用点还在传；它们已经不影响绘制。
+ * demo/m3 的用户气泡与助手正文：用户按内容收缩，最多占行宽的 84%，
+ * 助手保持无底色排版。圆角只裁剪独立的水波纹层，正文和触摸区域不经过
+ * 非对称 Path 图层，避免超长消息触发平台图层尺寸限制。
  */
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -166,15 +172,39 @@ internal fun ChatMessageBubble(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val fullWidth = LocalFullWidthComponents.current
+    val isUser = role == MessageRole.USER
+    val interactive = onClick != null || onLongClick != null
+    val userShape = if (fullWidth) SquareShapes.small else styledShape(
+        style = LocalCornerStyle.current,
+        topStart = CornerSize(22.dp),
+        topEnd = CornerSize(7.dp),
+        bottomEnd = CornerSize(if (joinedToNext) 7.dp else 22.dp),
+        bottomStart = CornerSize(22.dp),
+        scale = LocalCornerScale.current,
+    )
+    val userWidth = if (isUser && !fullWidth) {
+        Modifier.layout { measurable, constraints ->
+            val maxWidth = if (constraints.hasBoundedWidth) {
+                (constraints.maxWidth * .84f).roundToInt()
+            } else constraints.maxWidth
+            val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = maxWidth))
+            val width = constraints.constrainWidth(placeable.width)
+            layout(width, placeable.height) {
+                placeable.placeRelative(width - placeable.width, 0)
+            }
+        }
+    } else Modifier
     Box(
         modifier = modifier
             // 全宽模式下贴到边，其余情况按内容收缩
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
+            .then(userWidth)
+            .then(if (isUser) Modifier.background(color, userShape) else Modifier)
             .then(
-                if (onClick != null || onLongClick != null) {
+                if (interactive) {
                     Modifier.combinedClickable(
                         interactionSource = interactionSource,
-                        indication = ripple(),
+                        indication = if (isUser) null else ripple(),
                         onLongClickLabel = onLongClickLabel,
                         onLongClick = onLongClick,
                         onClick = { onClick?.invoke() },
@@ -183,11 +213,30 @@ internal fun ChatMessageBubble(
                     Modifier
                 },
             )
-            .then(if (stretchHeight) Modifier.motionStretchHeight() else Modifier)
-            // MarkdownBlock 自带 4dp 的水平内边距，这里只留一点点纵向呼吸，不再留气泡内边距
-            .padding(vertical = 2.dp),
+            .then(if (stretchHeight) Modifier.motionStretchHeight() else Modifier),
     ) {
-        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) { content() }
+        CompositionLocalProvider(
+            LocalContentColor provides if (isUser) {
+                LocalUiSlots.current.userBubbleText
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        ) {
+            Box(
+                // MarkdownBlock 自带 4dp 水平内边距，用户正文合计为 16dp / 12dp。
+                modifier = if (isUser) Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+                else Modifier.padding(vertical = 2.dp),
+            ) { content() }
+            if (isUser && interactive) {
+                // 仅装饰层参与圆角裁剪；它不接收触摸，也不改变气泡的测量结果。
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .clip(userShape)
+                        .indication(interactionSource, ripple()),
+                )
+            }
+        }
         popup?.invoke()
     }
 }

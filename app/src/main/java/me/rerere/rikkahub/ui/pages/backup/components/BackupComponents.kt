@@ -67,7 +67,7 @@ import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.toLocalDateTime
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import java.time.Instant
 
 // 列表项开头的图标，操作进行中时换成进度圈
@@ -265,7 +265,7 @@ internal fun <T> BackupFilesSheet(
     onRestore: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

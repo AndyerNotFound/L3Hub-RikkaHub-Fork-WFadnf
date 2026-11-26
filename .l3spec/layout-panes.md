@@ -234,8 +234,8 @@
 | pane | 竖屏呈现 | 尺寸 |
 | --- | --- | --- |
 | 详情 | 顶栏下方展开浮层 | 高 `screenHeight × 0.75`，水平 12dp 内边距，圆角 22dp |
-| 用量 | `SaltModalSheet` | 水平 20dp，底部 24dp |
-| 附件与工具 | `SaltModalSheet` | 内容自适应 |
+| 用量 | `AppModalSheet`（AndroidX M3 `ModalBottomSheet`；条件 `showUsageSheet && !threePane`，内容 `Column(fillMaxWidth, padding(horizontal = 20.dp), padding(bottom = 24.dp), spacedBy(8.dp))`） | 水平 20dp，底部 24dp |
+| 附件与工具 | `AppModalSheet`（`ChatFilesPickerSheet`，`title` = `files_picker_title`；内容是 `ChatFilesPickerContent(modifier = fillMaxWidth())`，高度跟内容走） | 内容自适应 |
 | 任务树 | `SubAgentTaskSheet` | 见第 4 节 |
 | 模型 | `ModelListSheet` | 组件默认 |
 | 后台任务 | `BackgroundTasksSheet` | 组件默认 |

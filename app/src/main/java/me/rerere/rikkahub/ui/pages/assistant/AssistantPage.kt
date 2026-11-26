@@ -77,7 +77,7 @@ import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -356,7 +356,7 @@ private fun AssistantCreationSheet(
     LaunchedEffect(state.currentState) { if (state.currentState != null) shown = state.currentState }
     shown?.let { assistant ->
         val update: (Assistant) -> Unit = { state.currentState = it }
-        SaltModalSheet(
+        AppModalSheet(
             visible = state.isEditing,
             onDismissRequest = {
                 state.dismiss()

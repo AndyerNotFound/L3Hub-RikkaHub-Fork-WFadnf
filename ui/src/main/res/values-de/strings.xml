@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
+  <string name="sheet_close">Schließen</string>
   <string name="chart_mode_chart">Diagramm</string>
   <string name="chart_mode_table">Tabelle</string>
   <string name="chart_series">Reihe</string>

@@ -106,7 +106,7 @@ import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.FormItem
 import me.rerere.ui.components.OutlinedNumberInput
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -814,7 +814,7 @@ private fun SettingsBottomSheet(
     scope: CoroutineScope,
     onDismiss: () -> Unit
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

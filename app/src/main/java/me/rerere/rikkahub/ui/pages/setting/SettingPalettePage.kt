@@ -113,7 +113,7 @@ import me.rerere.rikkahub.ui.theme.uiSlotsFrom
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -478,7 +478,7 @@ private fun PaletteEditSheet(
     val baseSlots = remember(scheme) { uiSlotsFrom(scheme) }
     val effectiveSlots = remember(colors, slots, scheme) { slots.overlay(baseSlots) }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(if (darkMode) R.string.setting_palette_page_dark_palette else R.string.setting_palette_page_light_palette),

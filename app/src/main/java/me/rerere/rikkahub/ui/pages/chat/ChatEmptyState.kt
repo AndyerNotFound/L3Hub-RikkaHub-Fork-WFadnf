@@ -6,8 +6,6 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,17 +30,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.ui.components.richtext.outline
 import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -51,6 +55,12 @@ import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import kotlin.math.roundToInt
+
+// 空态头像与它外圈的光：88dp 头像，外扩 22dp 盛辉光，虚线环压在头像外沿 7dp，
+// 三个数和 demo/m3/app.css 的 .empty-halo::before / ::after 的 inset 对得上。
+private val HeroAvatarSize = 88.dp
+private val HeroGlowReach = 22.dp
+private val HeroRingInset = 7.dp
 
 @Composable
 internal fun EmptyChatContent(
@@ -135,35 +145,66 @@ private fun EmptyChatHero(
     val shape = RoundedCornerShape(if (bespoke) inspiration.cornerRadius.dp else 28.dp)
     val scheme = MaterialTheme.colorScheme
     val baseColor = scheme.surfaceContainerLow
-    val advancedBorder = if (bespoke) {
-        BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = inspiration.borderOpacity))
-    } else appearance.richContentStyle.outline()
+    val halo = scheme.primary.copy(alpha = 0.18f)
+    val ring = scheme.outlineVariant.copy(alpha = 0.8f)
     Column(
         modifier = Modifier
-            .padding(horizontal = 40.dp)
-            .clip(shape)
+            .padding(horizontal = 32.dp)
+            // 默认外观下这里是空态本身：不留卡片、不描边，只有头像和一束光。
+            // 用户开了高级外观才垫一层很淡的底，那是他自己选的表面，不该被这次改版吃掉
             .then(
                 if (material != null) {
-                    Modifier.advancedMaterial(shape, baseColor, material, hazeState).border(advancedBorder, shape)
+                    Modifier.clip(shape).advancedMaterial(shape, baseColor, material, hazeState)
                 } else {
                     Modifier
                 }
             )
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        UIAvatar(
-            name = assistant.name,
-            value = assistant.avatar,
-            avatarSize = 88.dp,
-            shape = CircleShape,
-        )
+        Box(
+            modifier = Modifier
+                .size(HeroAvatarSize + HeroGlowReach * 2)
+                .drawBehind {
+                    // 头像外圈先铺一层主色辉光，到边缘化没（demo 的 .empty-halo::before）
+                    val reach = size.minDimension / 2f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(halo, Color.Transparent),
+                            center = center,
+                            radius = reach,
+                        ),
+                        radius = reach,
+                    )
+                    // 再压一道虚线圈（demo 的 ::after）。这里只要静态的一圈，
+                    // 空态不做无限旋转，省一帧都不画的动画
+                    drawCircle(
+                        color = ring,
+                        radius = (HeroAvatarSize / 2 + HeroRingInset).toPx(),
+                        style = Stroke(
+                            width = 1.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(
+                                floatArrayOf(5.dp.toPx(), 5.dp.toPx()),
+                            ),
+                        ),
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            UIAvatar(
+                name = assistant.name,
+                value = assistant.avatar,
+                avatarSize = HeroAvatarSize,
+                shape = CircleShape,
+            )
+        }
         Text(
             text = slogan.ifBlank { stringResource(R.string.chat_empty_default_slogan) },
-            style = MaterialTheme.typography.titleMedium,
+            // demo 的 .empty h1：24–30px、600、字距收紧。这里落成 M3 的 headlineSmall 加粗一档
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = scheme.onSurface,
         )
     }
 }

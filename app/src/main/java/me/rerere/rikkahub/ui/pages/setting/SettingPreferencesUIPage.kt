@@ -101,7 +101,7 @@ import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import me.rerere.workspace.HostPaths
 import org.koin.androidx.compose.koinViewModel
@@ -787,7 +787,7 @@ private fun FloatingBarAddSheet(
     onDismiss: () -> Unit,
 ) {
     val available = FloatingBarItem.entries.filter { it !in configured }
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = stringResource(R.string.setting_display_page_floating_bar_add_sheet_title),

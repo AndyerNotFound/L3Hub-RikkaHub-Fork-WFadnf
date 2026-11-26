@@ -46,7 +46,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.style.TextButton
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 @Composable
 internal fun PromptSettingsPage(settings: Settings, vm: SettingVM, contentPadding: PaddingValues) {
@@ -212,8 +212,8 @@ private fun PromptEditSheet(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // 半展开时键盘会把输入框整个盖住：SaltModalSheet 只留 Hidden / Expanded
-    SaltModalSheet(
+    // 半展开时键盘会把输入框整个盖住：AppModalSheet 只留 Hidden / Expanded
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

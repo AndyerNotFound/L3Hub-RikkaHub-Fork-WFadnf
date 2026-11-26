@@ -65,7 +65,7 @@ import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.utils.JsonInstantPretty
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
@@ -96,7 +96,7 @@ fun SubAgentTaskSheet(
     // 高度第一帧就定死：树是异步读出来的，晚到的高度变化会让 sheet 重新测量、位置再跳一次
     val bodyHeight = minOf(560.dp, LocalConfiguration.current.screenHeightDp.dp * 0.75f)
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
     ) {

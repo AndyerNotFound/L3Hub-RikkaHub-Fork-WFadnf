@@ -88,7 +88,7 @@ import me.rerere.rikkahub.ui.style.Switch
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -1028,7 +1028,7 @@ private fun ProviderOverrideSettings(
         var shownProvider by remember { mutableStateOf(editingProvider) }
         LaunchedEffect(editingProvider) { if (editingProvider != null) shownProvider = editingProvider }
         shownProvider?.let { provider ->
-            SaltModalSheet(
+            AppModalSheet(
                 visible = showProviderConfig,
                 onDismissRequest = {
                     showProviderConfig = false

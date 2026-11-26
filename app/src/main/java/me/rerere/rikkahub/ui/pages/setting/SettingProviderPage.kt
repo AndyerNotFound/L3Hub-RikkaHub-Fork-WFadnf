@@ -102,7 +102,7 @@ import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
@@ -644,7 +644,7 @@ private fun AddButton(
         Icon(HugeIcons.Add01, "Add")
     }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = showSheet,
         onDismissRequest = { showSheet = false },
         title = stringResource(R.string.setting_provider_page_add_provider),

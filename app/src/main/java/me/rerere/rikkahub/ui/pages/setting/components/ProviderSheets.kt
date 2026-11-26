@@ -30,7 +30,7 @@ import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
 import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
-import me.rerere.ui.components.SaltModalSheet
+import me.rerere.ui.components.AppModalSheet
 
 // 新建服务商时先选类型的面板
 @Composable
@@ -42,7 +42,7 @@ internal fun <T> ProviderTypeSheet(
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = title,
@@ -103,7 +103,7 @@ internal fun <T> ProviderEditSheet(
 ) {
     var current by remember(initial) { mutableStateOf(initial) }
 
-    SaltModalSheet(
+    AppModalSheet(
         visible = visible,
         onDismissRequest = onDismiss,
         title = title,
