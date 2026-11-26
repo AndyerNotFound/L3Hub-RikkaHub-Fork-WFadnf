@@ -77,12 +77,16 @@ class FingerprintDetectorTest {
     @Test
     fun `ordered block halves are smoothed distributions`() {
         val feature = FingerprintMath.orderedBlockFeature(IntArray(120) { 1 + (it * 11) % 355 })
-        var blockSum = 0.0
-        for (index in 0 until 64) blockSum += feature[index]
+        // 每块先归一化成概率，再开方做 Hellinger 嵌入，故平方和为 1，值之和并不为 1
+        for (block in 0 until 4) {
+            var blockSum = 0.0
+            for (index in block * 16 until (block + 1) * 16) blockSum += feature[index] * feature[index]
+            assertEquals(1.0, blockSum, 1e-9)
+        }
         var digitSum = 0.0
-        for (index in 64 until 74) digitSum += feature[index]
-        assertEquals(1.0, blockSum, 1e-9)
+        for (index in 64 until 74) digitSum += feature[index] * feature[index]
         assertEquals(1.0, digitSum, 1e-9)
+        assertTrue(feature.all { it > 0.0 })
     }
 
     // ---------------------------------------------------------------- binary codec
