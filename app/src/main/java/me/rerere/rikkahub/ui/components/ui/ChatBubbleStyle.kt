@@ -47,8 +47,7 @@ fun resolveBubbleStyle(
     style: ChatMessageBackgroundStyle,
     overrides: ChatBubbleStyleOverrides,
 ): ResolvedBubbleStyle {
-    // 颜色跟随当前主题（surfaceContainerHigh / outlineVariant / onSurface），
-    // 覆盖项里的颜色字段不再读取；保留字段仅为兼容旧数据。
+    // 颜色跟随当前主题（surfaceContainerHigh / outlineVariant / onSurface）。
     val defaultOpacity = if (style == ChatMessageBackgroundStyle.FROSTED) .66f else 1f
     val opacity = finiteAppearanceValue(
         if (style == ChatMessageBackgroundStyle.FROSTED) overrides.frostedOpacity ?: defaultOpacity

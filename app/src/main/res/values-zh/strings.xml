@@ -3067,9 +3067,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="message_style_page_role_user">用户</string>
   <string name="message_style_page_role_assistant">助手</string>
   <string name="message_style_page_role_thinking">思考链</string>
-  <string name="message_style_page_preview_user">这是一条用户消息</string>
-  <string name="message_style_page_preview_thinking">思考中…</string>
-  <string name="message_style_page_preview_assistant">助手回复</string>
   <string name="message_style_page_blur">模糊半径</string>
   <string name="aa_bubble_blur_value">%1$d sigma · %2$.1f dp</string>
   <string name="message_style_page_background_opacity">背景透明度</string>
@@ -3082,7 +3079,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="message_style_page_default_hint">默认样式沿用主题配色，不提供参数调节；选择毛玻璃或实色后即可定制。</string>
 
   <string name="message_style_page_blur_hint">按角色设置的 sigma 会换算为当前磨砂材质的 dp；0 表示不模糊，不代表不取样。设备无法实时模糊时只保存数值，不渲染。</string>
-  <string name="message_style_page_assistant_bubble_hint">助手气泡在「界面偏好设置 → 消息显示」里关着。到那里打开「显示助手消息气泡」后，聊天里才会出现这套样式。</string>
   <string name="quick_start_page_title">快速入门</string>
   <string name="quick_start_page_tab_general">通用</string>
   <string name="quick_start_page_tab_deepseek">从 DeepSeek 迁移</string>

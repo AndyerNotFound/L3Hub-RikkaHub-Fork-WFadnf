@@ -116,7 +116,7 @@
     <string name="aa_preview_truncated">Preview shortened. Read the full message in the chat.</string>
     <string name="aa_preview_missing">Preview expired. Open it again from the message.</string>
     <string name="aa_preview_failed">Could not open the message preview.</string>
-    <string name="aa_opacity_floor_hint">0% is stored as given. Text surfaces render at their readability floor instead: input and top bar capsule 35%, cards 18%, sidebar 45%, drawer 65%, detail and quota panels 62%. Static menus, dialogs and sheets composite over the window background; at 0% they show that backing color, not transparency.</string>
+    <string name="aa_opacity_floor_hint">0% is stored as given. Text surfaces render at their readability floor instead: input and chat dock 35%, cards 18%, sidebar 45%, drawer 65%, detail and quota panels 62%. Static menus, dialogs and sheets composite over the window background; at 0% they show that backing color, not transparency.</string>
     <string name="aa_blur_radius_hint">0 dp means no blur, but a live liquid-glass surface can still sample for refraction. Android 12–12L caps live blur at 12 dp, Android 13+ up to 40 dp; older versions keep the value without blur.</string>
     <string name="aa_refraction_hint">Refraction is independent of blur radius: it needs Android 13+, the automatic or AGSL renderer, a live source and enabled effects; it can still bend the backdrop at 0 dp blur.</string>
     <string name="aa_topbar_capsule_hint">The top bar capsule keeps using this toggle and radius even when Show top bar background is off.</string>

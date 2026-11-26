@@ -469,7 +469,7 @@ data class DisplaySetting(
     val fullWidthComponents: Boolean = false,
     val blurOpacity: Float = 0.45f,
     val glassOpacity: Float = 0.35f,
-    // 消息样式：气泡背景三档（默认 / 毛玻璃 / 实色），参数按明暗与角色分别覆盖
+    // 消息样式：气泡背景三档（默认 / 毛玻璃 / 实色），参数按角色覆盖
     val chatMessageBackgroundStyle: ChatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
     val userChatBubbleStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
     val assistantChatBubbleStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),

@@ -2,22 +2,15 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.os.Build
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -26,22 +19,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.Refresh03
@@ -56,12 +42,8 @@ import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.overridesFor
-import me.rerere.ai.core.MessageRole
-import me.rerere.rikkahub.ui.components.message.messageBubbleShape
-import me.rerere.rikkahub.ui.components.message.resolveMessageBubbleVisual
 import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
 import me.rerere.rikkahub.ui.components.message.thinkingBubbleMaterial
-import me.rerere.rikkahub.ui.components.message.resolveThinkingBubbleVisual
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
@@ -69,7 +51,6 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.NumberSlider
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
 import me.rerere.rikkahub.ui.components.ui.resolvedLiveAppearanceRadius
@@ -79,11 +60,8 @@ import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.data.model.usesMaterial3Style
 import me.rerere.rikkahub.ui.navigation.appearancePageContainerColor
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.theme.LocalDarkMode
-import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.ui.components.LocalSeparateWindow
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
-import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.ui.components.AnimatedAlertDialog
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
@@ -126,7 +104,7 @@ fun SettingPreferencesMessageStylePage(
 }
 
 /**
- * 消息气泡样式分段：三档样式、按角色 overrides、预览、参数组与重置对话框。
+ * 消息气泡样式分段：三档样式、按角色 overrides、参数组与重置对话框。
  *
  * 直接以 Column + CardGroup 输出，不带 Scaffold，也不自建 LazyColumn，
  * 供 advanced appearance 页的 chat item 直接调用。
@@ -139,17 +117,20 @@ internal fun MessageBubbleStyleSettingsSection(
     onDisplaySettingChange: (DisplaySetting.() -> DisplaySetting) -> Unit,
 ) {
     val latestOnChange by rememberUpdatedState(onDisplaySettingChange)
-
+    // Keep drag updates visible immediately while SettingsStore persists them asynchronously.
+    // The parent callback still applies the same transform to its latest DisplaySetting.
+    var editingDisplaySetting by remember(displaySetting) { mutableStateOf(displaySetting) }
     var editingTarget by rememberSaveable { mutableStateOf(ChatBubbleStyleTarget.ASSISTANT) }
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
 
     /** 以最新 DisplaySetting 为基准做差量修改，再交给调用方落库。 */
     fun update(transform: DisplaySetting.() -> DisplaySetting) {
+        editingDisplaySetting = editingDisplaySetting.transform()
         latestOnChange(transform)
     }
 
-    val style = displaySetting.chatMessageBackgroundStyle
-    val customizeCards = displaySetting.customizeThinkingToolCards
+    val style = editingDisplaySetting.chatMessageBackgroundStyle
+    val customizeCards = editingDisplaySetting.customizeThinkingToolCards
     val target = if (
         !customizeCards && editingTarget == ChatBubbleStyleTarget.THINKING_TOOL_CARD
     ) {
@@ -157,11 +138,11 @@ internal fun MessageBubbleStyleSettingsSection(
     } else {
         editingTarget
     }
-    val overrides = displaySetting.overridesFor(target)
+    val overrides = editingDisplaySetting.overridesFor(target)
 
     fun updateOverrides(transform: ChatBubbleStyleOverrides.() -> ChatBubbleStyleOverrides) {
         update {
-            val current = overridesFor(target)
+            val current = this.overridesFor(target)
             val next = current.transform()
             copy(
                 userChatBubbleStyleOverrides = if (target == ChatBubbleStyleTarget.USER) next else userChatBubbleStyleOverrides,
@@ -210,7 +191,7 @@ internal fun MessageBubbleStyleSettingsSection(
             }
         }
 
-        // 气泡显隐与样式放在一起；助手气泡隐藏时材质设置仍可在此找到并预览。
+        // 气泡显隐与样式放在一起；助手气泡隐藏时材质设置仍可在此修改。
         CardGroup {
             switchItem(
                 checked = customizeCards,
@@ -220,12 +201,6 @@ internal fun MessageBubbleStyleSettingsSection(
                 headlineContent = { Text(stringResource(R.string.message_style_page_customize_thinking)) },
             )
         }
-
-        MessageStylePreview(
-            editingTarget = target,
-            displaySetting = displaySetting,
-            advancedAppearance = advancedAppearance,
-        )
 
         if (style != ChatMessageBackgroundStyle.DEFAULT) {
             // 角色分段
@@ -264,7 +239,7 @@ internal fun MessageBubbleStyleSettingsSection(
             StyleParamsGroup(
                 style = style,
                 target = target,
-                displaySetting = displaySetting,
+                displaySetting = editingDisplaySetting,
                 overrides = overrides,
                 advancedAppearance = advancedAppearance,
                 onOverridesChange = ::updateOverrides,
@@ -336,140 +311,6 @@ internal fun MessageBubbleStyleSettingsSection(
     }
 }
 
-/** Preview uses the same visual resolvers, material gates, shapes and color layers as real chat. */
-@Composable
-private fun MessageStylePreview(
-    editingTarget: ChatBubbleStyleTarget,
-    displaySetting: DisplaySetting,
-    advancedAppearance: AdvancedAppearanceSetting,
-) {
-    val cs = MaterialTheme.colorScheme
-    val isDark = LocalDarkMode.current
-    val previewHaze = rememberHazeState()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, cs.outlineVariant.copy(alpha = if (isDark) 0.12f else 0.10f), RoundedCornerShape(16.dp)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSource(previewHaze)
-                    .background(Brush.verticalGradient(listOf(cs.surfaceContainerLow, cs.surfaceContainerHigh))),
-            ) {
-                Box(
-                    modifier = Modifier.align(Alignment.TopStart).offset(x = 36.dp, y = 24.dp)
-                        .size(56.dp).background(cs.primary.copy(alpha = .30f), CircleShape),
-                )
-                Box(
-                    modifier = Modifier.align(Alignment.BottomEnd).offset(x = -24.dp, y = -16.dp)
-                        .size(72.dp).background(cs.tertiary.copy(alpha = .22f), CircleShape),
-                )
-            }
-            Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                PreviewBubble(
-                    text = stringResource(R.string.message_style_page_preview_user),
-                    modifier = Modifier.align(Alignment.End),
-                    dimmed = displaySetting.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT &&
-                        editingTarget != ChatBubbleStyleTarget.USER,
-                    target = ChatBubbleStyleTarget.USER,
-                    displaySetting = displaySetting,
-                    advancedAppearance = advancedAppearance,
-                    hazeState = previewHaze,
-                )
-                PreviewBubble(
-                    text = stringResource(R.string.message_style_page_preview_thinking),
-                    dimmed = displaySetting.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT &&
-                        editingTarget != ChatBubbleStyleTarget.THINKING_TOOL_CARD &&
-                        editingTarget != ChatBubbleStyleTarget.ASSISTANT,
-                    compact = true,
-                    target = ChatBubbleStyleTarget.THINKING_TOOL_CARD,
-                    displaySetting = displaySetting,
-                    advancedAppearance = advancedAppearance,
-                    hazeState = previewHaze,
-                )
-                PreviewBubble(
-                    text = stringResource(R.string.message_style_page_preview_assistant),
-                    dimmed = displaySetting.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT &&
-                        editingTarget != ChatBubbleStyleTarget.ASSISTANT,
-                    target = ChatBubbleStyleTarget.ASSISTANT,
-                    displaySetting = displaySetting,
-                    advancedAppearance = advancedAppearance,
-                    hazeState = previewHaze,
-                )
-            }
-        }
-        if (!displaySetting.showAssistantBubble) {
-            Text(
-                text = stringResource(R.string.message_style_page_assistant_bubble_hint),
-                color = LocalContentColor.current.copy(alpha = .6f),
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
-
-/** Preview uses the identical resolved color, border, shape and advanced material as ChatMessageBubble. */
-@Composable
-private fun PreviewBubble(
-    text: String,
-    modifier: Modifier = Modifier,
-    dimmed: Boolean,
-    compact: Boolean = false,
-    target: ChatBubbleStyleTarget,
-    displaySetting: DisplaySetting,
-    advancedAppearance: AdvancedAppearanceSetting,
-    hazeState: HazeState,
-) {
-    val isThinking = target == ChatBubbleStyleTarget.THINKING_TOOL_CARD
-    val role = if (target == ChatBubbleStyleTarget.USER) MessageRole.USER else MessageRole.ASSISTANT
-    val fallback = when (target) {
-        ChatBubbleStyleTarget.USER -> LocalUiSlots.current.userBubble.copy(alpha = displaySetting.bubbleOpacity)
-        ChatBubbleStyleTarget.ASSISTANT -> LocalUiSlots.current.aiBubble.copy(alpha = displaySetting.bubbleOpacity)
-        ChatBubbleStyleTarget.THINKING_TOOL_CARD -> MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    val message = if (isThinking) null else resolveMessageBubbleVisual(
-        appearance = advancedAppearance,
-        display = displaySetting,
-        role = role,
-        fallbackColor = fallback,
-        streaming = false,
-    )
-    val thinking = if (isThinking) resolveThinkingBubbleVisual(advancedAppearance, displaySetting, streaming = false) else null
-    val base = message?.background ?: thinking?.baseColor ?: fallback
-    val material = message?.material ?: thinking?.material
-    val contentColor = message?.contentColor ?: thinking?.contentColor ?: MaterialTheme.colorScheme.onSurface
-    val shape = if (isThinking) {
-        adaptiveShape(thinking?.radius ?: 20.dp)
-    } else {
-        messageBubbleShape(role, message?.radius ?: 16.dp)
-    }
-    val borderModifier = when {
-        message?.borderColor != null -> Modifier.border(message.borderWidth, message.borderColor, shape)
-        thinking?.border != null -> Modifier.border(thinking.border, shape)
-        else -> Modifier
-    }
-    val container = when {
-        thinking?.customized == true -> base
-        else -> thinking?.cardContainerColor ?: base
-    }
-    val styled = Modifier.widthIn(max = 240.dp).height(if (compact) 34.dp else 44.dp)
-        .alpha(if (dimmed) .45f else 1f).clip(shape)
-        .then(if (material != null) Modifier.advancedMaterial(shape, base, material, hazeState)
-            else Modifier.background(container, shape))
-        .then(borderModifier)
-        .padding(horizontal = 10.dp)
-    Box(modifier = modifier.then(styled), contentAlignment = Alignment.CenterStart) {
-        Text(text, color = contentColor, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
 /** Parameters reflect the actual material and inherited values for the selected role. */
 @Composable
 private fun StyleParamsGroup(
@@ -510,25 +351,41 @@ private fun StyleParamsGroup(
             ChatBubbleStyle.LIQUID_GLASS -> 24f
         }
     }
-    val effectiveOpacity = (actualMaterial?.opacity ?: resolved.background.alpha).coerceIn(0f, 1f)
+    val overrideOpacity = when (style) {
+        ChatMessageBackgroundStyle.FROSTED -> overrides.frostedOpacity
+        ChatMessageBackgroundStyle.SOLID -> overrides.solidOpacity
+        ChatMessageBackgroundStyle.DEFAULT -> null
+    }
+    val effectiveOpacity = finiteAppearanceValue(
+        overrideOpacity ?: actualMaterial?.opacity ?: resolved.background.alpha,
+        0f,
+        1f,
+        if (style == ChatMessageBackgroundStyle.FROSTED) .66f else 1f,
+    )
     val sigmaRangeMax = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) 8 else 26
     val effectiveRadius = overridesBlur?.let { it * 1.5f } ?: inheritedRadius
-    val shownBlurRadius = resolvedLiveAppearanceRadius(effectiveRadius, Build.VERSION.SDK_INT, effects = true)
     val effectiveSigma = overridesBlur ?: (inheritedRadius / 1.5f)
     val blurSigma = effectiveSigma.roundToInt().coerceIn(0, sigmaRangeMax)
     val powerSave = LocalAdvancedAppearancePowerSave.current
     val busy = LocalAdvancedAppearanceBusy.current
-    val blurLiveAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !powerSave &&
-        !(busy && advancedAppearance.liquidGlass.adaptivePerformance) && !LocalSeparateWindow.current
     val standardRenderer = advancedAppearance.liquidGlass.renderer == me.rerere.rikkahub.data.model.LiquidGlassRenderer.STANDARD
     val actualSurfaceStyle = actualMaterial?.style
     val radiusApplicable = style == ChatMessageBackgroundStyle.FROSTED && actualSurfaceStyle != null &&
         actualSurfaceStyle.usesBlur &&
         !(actualSurfaceStyle == BackgroundSurfaceStyle.LIQUID_GLASS &&
             (advancedAppearance.liquidGlass.usesMaterial3Style() || standardRenderer))
-    val blurEnabled = radiusApplicable && blurLiveAllowed &&
+    val blurLiveAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !powerSave &&
+        !(busy && advancedAppearance.liquidGlass.adaptivePerformance) && !LocalSeparateWindow.current &&
         (!advancedOn || if (thinking) advancedAppearance.enableRichContentPerformanceEffects
             else advancedAppearance.enableBubblePerformanceEffects)
+    val shownBlurRadius = resolvedLiveAppearanceRadius(
+        effectiveRadius,
+        Build.VERSION.SDK_INT,
+        effects = blurLiveAllowed,
+    )
+    // Rendering gates affect whether the current frame can show blur, not whether the user
+    // may edit and persist the per-role sigma.
+    val blurEnabled = radiusApplicable
 
     fun update(transform: ChatBubbleStyleOverrides.() -> ChatBubbleStyleOverrides) {
         onOverridesChange(transform)
@@ -550,7 +407,7 @@ private fun StyleParamsGroup(
                     )
                 },
             )
-            if (!blurEnabled) {
+            if (!blurLiveAllowed) {
                 formItem {
                     Text(
                         text = stringResource(R.string.message_style_page_blur_hint),

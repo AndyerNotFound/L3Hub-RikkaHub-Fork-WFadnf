@@ -87,10 +87,14 @@ internal fun AdvancedAppearanceSetting.composerMaterial(display: DisplaySetting)
     return AppearanceMaterial(style, display.inputSurfaceOpacity, display.inputBlurRadius, enableInputPerformanceEffects)
 }
 
-internal fun AdvancedAppearanceSetting.topBarBackdropMaterial(display: DisplaySetting): AppearanceMaterial? {
-    if (!enableAdvancedAppearance || !display.showTopBarBackground) return null
+internal fun AdvancedAppearanceSetting.topBarMaterial(display: DisplaySetting): AppearanceMaterial? {
+    if (!enableAdvancedAppearance) return null
     return AppearanceMaterial(
-        style = pageSurfaceStyle,
+        // The default translucent page style can still opt into blur for the top bar.
+        style = when (pageSurfaceStyle) {
+            BackgroundSurfaceStyle.TRANSLUCENT -> BackgroundSurfaceStyle.FROSTED
+            else -> pageSurfaceStyle
+        },
         opacity = display.topBarSurfaceOpacity,
         radius = display.topBarBlurRadius,
         effects = enableTopBarPerformanceEffects && display.enableTopBarBlur,

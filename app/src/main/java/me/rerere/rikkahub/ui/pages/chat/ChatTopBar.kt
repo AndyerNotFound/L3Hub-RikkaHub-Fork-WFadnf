@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,12 +60,11 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.ui.components.ai.ChatCapsule
 import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
-import me.rerere.rikkahub.ui.components.ai.needsFlatOutline
-import me.rerere.rikkahub.ui.components.ai.topBarCapsuleMaterial
+import me.rerere.rikkahub.ui.components.ai.chatCapsuleSurface
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.topBarBackdropMaterial
+import me.rerere.rikkahub.ui.components.ui.topBarMaterial
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -106,16 +102,10 @@ internal fun TopBar(
     detailsExpanded: Boolean,
     onToggleDetails: () -> Unit,
 ) {
-    val appearance = settings.advancedAppearanceSetting
-    // 高级外观开启后，顶栏的底与按钮的底都改由 advancedMaterial 画；关着时这两项恒为 null，
-    // 下面各自退回一道实色底（旧全局特效运行时已经退役）。
-    val backdropMaterial = appearance.topBarBackdropMaterial(settings.displaySetting)
-    // 整条顶栏的底开着并且由它自己采样时，胶囊保持静态着色：同一片区域对同一个 chrome 源
-    // 采样两遍，不只是多算一次，两层着色叠起来颜色也会深一层。
-    val buttonMaterial = appearance.topBarCapsuleMaterial(
-        display = settings.displaySetting,
-        backdropActive = backdropMaterial != null,
-    )
+    val material = settings.advancedAppearanceSetting.topBarMaterial(settings.displaySetting)
+    val backdropMaterial = material?.takeIf { settings.displaySetting.showTopBarBackground }
+    // 非实色顶栏已绘制整层背景时，组件只绘制轮廓，避免重复取样和叠色。
+    val shareBackdrop = backdropMaterial?.style?.opaqueMaterial == false
 
     TopAppBar(
         // 底色交给材质层，容器本身保持透明，否则会和底叠成两倍浓度
@@ -125,13 +115,14 @@ internal fun TopBar(
                 base = MaterialTheme.colorScheme.surfaceContainer,
                 material = backdropMaterial,
                 hazeState = hazeState,
-                // 顶栏压着滚动中的消息正文，着色掉到 0.35 以下就看不出这是一条底了
-                readableFloor = .35f,
             )
         } else {
             Modifier
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+        ),
         title = {
             // 横屏三栏的顶栏只留菜单、新建和会话菜单：模型、详情、任务树都在右栏的标签页里。
             // 胶囊放在标题位：这里只拿到菜单与右侧按钮之间的剩余宽度，文件夹名超长时按这份宽度截断，
@@ -145,7 +136,8 @@ internal fun TopBar(
                     onCreateFolder = onCreateFolder,
                     onShowModelPicker = onShowModelPicker,
                     hazeState = hazeState,
-                    material = buttonMaterial,
+                    material = material,
+                    outlineOnly = shareBackdrop,
                     modifier = Modifier.padding(start = 2.dp),
                 )
             }
@@ -170,34 +162,12 @@ internal fun TopBar(
                             .size(TopBarButtonSize)
                             .appButtonShadow(navShape, 2.dp)
                             .clip(navShape)
-                            .then(
-                                if (buttonMaterial != null) {
-                                    Modifier
-                                        .advancedMaterial(
-                                            shape = navShape,
-                                            base = navColor,
-                                            material = buttonMaterial,
-                                            hazeState = hazeState,
-                                            readableFloor = .35f,
-                                        )
-                                        // 玻璃档自带渐变描边，其余档补一道平线
-                                        .then(
-                                            if (buttonMaterial.needsFlatOutline()) {
-                                                Modifier.border(
-                                                    BorderStroke(
-                                                        1.dp,
-                                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                                    ),
-                                                    navShape,
-                                                )
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
-                                } else {
-                                    // 高级外观关着：只有这一道实色底
-                                    Modifier.background(navColor)
-                                }
+                            .chatCapsuleSurface(
+                                shape = navShape,
+                                base = navColor,
+                                material = material,
+                                hazeState = hazeState,
+                                outlineOnly = shareBackdrop,
                             ),
                         shape = navShape,
                         color = Color.Transparent,
@@ -229,7 +199,9 @@ internal fun TopBar(
                 // 顶栏两头的胶囊才是同一套东西
                 ChatCapsule(
                     hazeState = hazeState,
-                    material = buttonMaterial,
+                    material = material,
+                    readableFloor = 0f,
+                    outlineOnly = shareBackdrop,
                     modifier = Modifier.height(TopBarButtonSize),
                 ) {
                     // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
@@ -296,9 +268,8 @@ private fun ChatModelFolderPill(
     onCreateFolder: () -> Unit,
     onShowModelPicker: () -> Unit,
     hazeState: HazeState?,
-    // 顶栏那一颗的材质（含「整条顶栏在用同一个源时保持静态」那一条）由 TopBar 算好传进来，
-    // 这里不再自己算一遍，免得两处各判一次、判出两种结果
     material: AppearanceMaterial?,
+    outlineOnly: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val folder = folders.firstOrNull { it.id == folderId }
@@ -307,6 +278,8 @@ private fun ChatModelFolderPill(
     ChatCapsule(
         hazeState = hazeState,
         material = material,
+        readableFloor = 0f,
+        outlineOnly = outlineOnly,
         modifier = modifier.height(TopBarButtonSize),
     ) {
         Box {

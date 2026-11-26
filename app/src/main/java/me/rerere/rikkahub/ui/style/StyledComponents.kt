@@ -56,7 +56,7 @@ import androidx.compose.ui.window.PopupProperties
 import me.rerere.rikkahub.ui.components.ui.LocalAdvancedPageMaterial
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
-import me.rerere.rikkahub.ui.components.ui.topBarBackdropMaterial
+import me.rerere.rikkahub.ui.components.ui.topBarMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.ui.components.LocalSeparateWindow
@@ -365,9 +365,10 @@ private fun CardColors.withPageMaterial(enabled: Boolean = true): CardColors =
 private fun Modifier.settingsTopBarMaterial(base: Color): Modifier {
     if (LocalAdvancedPageMaterial.current == null || LocalSeparateWindow.current) return this
     val settings = LocalSettings.current
-    val material = settings.advancedAppearanceSetting.topBarBackdropMaterial(settings.displaySetting) ?: return this
+    if (!settings.displaySetting.showTopBarBackground) return this
+    val material = settings.advancedAppearanceSetting.topBarMaterial(settings.displaySetting) ?: return this
     val color = if (base.isSpecified && base.alpha > 0f) base else LocalUiSlots.current.topBar
-    return advancedMaterial(RectangleShape, color, material, readableFloor = .35f)
+    return advancedMaterial(RectangleShape, color, material)
 }
 
 @Composable

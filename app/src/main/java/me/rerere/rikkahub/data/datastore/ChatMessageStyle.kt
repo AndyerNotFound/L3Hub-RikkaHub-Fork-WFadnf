@@ -38,17 +38,11 @@ enum class ChatBubbleStyleTarget {
  * 气泡样式覆盖项，移植自 Kelivo 的 `ChatBubbleStyleOverrides`。
  *
  * 每个字段可空：`null` 表示不覆盖，沿用 L3Hub 现有的默认值
- * （主题跟随色、现有圆角与特效半径等）。颜色存 ARGB 整数，
- * 明暗两套分别记忆；透明度与几何参数两档样式共用。
+ * （主题跟随色、现有圆角与特效半径等）。颜色跟随当前主题；透明度与几何参数
+ * 按角色覆盖。
  */
 @Serializable
 data class ChatBubbleStyleOverrides(
-    val backgroundArgbLight: Int? = null,
-    val backgroundArgbDark: Int? = null,
-    val borderArgbLight: Int? = null,
-    val borderArgbDark: Int? = null,
-    val textArgbLight: Int? = null,
-    val textArgbDark: Int? = null,
     val borderWidth: Float? = null,
     val borderOpacity: Float? = null,
     val cornerRadius: Float? = null,

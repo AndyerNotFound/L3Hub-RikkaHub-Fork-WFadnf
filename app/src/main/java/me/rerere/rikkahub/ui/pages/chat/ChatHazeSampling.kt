@@ -16,7 +16,6 @@ import me.rerere.rikkahub.data.model.LiquidGlassRenderer
 import me.rerere.rikkahub.data.model.parameters
 import me.rerere.rikkahub.data.model.usesMaterial3Style
 import me.rerere.rikkahub.ui.components.ai.chatDockMaterial
-import me.rerere.rikkahub.ui.components.ai.topBarCapsuleMaterial
 import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
 import me.rerere.rikkahub.ui.components.message.thinkingBubbleMaterial
 import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
@@ -26,7 +25,7 @@ import me.rerere.rikkahub.ui.components.ui.composerMaterial
 import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.components.ui.overlayMaterial
 import me.rerere.rikkahub.ui.components.ui.resolvedLiveAppearanceRadius
-import me.rerere.rikkahub.ui.components.ui.topBarBackdropMaterial
+import me.rerere.rikkahub.ui.components.ui.topBarMaterial
 import me.rerere.ui.components.LocalSeparateWindow
 
 /** Whether the chat background and message list need to be recorded as Haze sources. */
@@ -83,13 +82,12 @@ internal fun Settings.chatHazeCapturePlan(
     val background = bodyMaterials.any { it.active() }
     if (!appearance.enableAdvancedAppearance) return ChatHazeCapturePlan(background, chrome = false)
 
-    val backdropMaterial = appearance.topBarBackdropMaterial(display)
     val chromeMaterials = listOfNotNull(
         appearance.composerMaterial(display),
         appearance.overlayMaterial(),
         chatDockMaterial().takeIf { display.enableFloatingBar && display.floatingBarItems.isNotEmpty() },
-        backdropMaterial,
-        appearance.topBarCapsuleMaterial(display, backdropActive = backdropMaterial != null),
+        // Either the whole top bar or its controls consume this source.
+        appearance.topBarMaterial(display),
     )
     return ChatHazeCapturePlan(background, chrome = chromeMaterials.any { it.active() })
 }

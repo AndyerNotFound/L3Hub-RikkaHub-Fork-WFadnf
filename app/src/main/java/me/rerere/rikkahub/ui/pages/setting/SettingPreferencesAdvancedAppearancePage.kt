@@ -88,6 +88,7 @@ import me.rerere.rikkahub.ui.components.ui.animatedItem
 import me.rerere.rikkahub.ui.components.ui.animatedSwitchItem
 import me.rerere.rikkahub.ui.components.ui.resolvedLiveAppearanceRadius
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.ui.topBarMaterial
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.navigation.appearancePageContainerColor
 import me.rerere.rikkahub.ui.style.DropdownMenu
@@ -320,26 +321,25 @@ fun SettingPreferencesAdvancedAppearancePage(vm: SettingVM = koinViewModel()) {
                 }
             }
             item("topBar") {
+                val topBarStyle = appearance.topBarMaterial(display)?.style ?: pageStyle
+                val canBlurTopBar = canBlur && appearance.enableTopBarPerformanceEffects &&
+                    (topBarStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive)
                 CardGroup(title = { Text(stringResource(R.string.aa_topbar)) }) {
                     toggle(R.string.aa_topbar_background, display.showTopBarBackground) { updateDisplay { copy(showTopBarBackground = it) } }
-                    val allowsBlur = pageStyle.usesBlur && (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive)
-                    // 整条顶栏的底由 showTopBarBackground 管；胶囊浮在正文上，关掉底也照样按这里的
-                    // 开关与半径采样（ChatCapsule.topBarCapsuleMaterial 不读那个开关），所以不跟着收起。
+                    // 整条底关闭时，聊天顶栏的按钮和胶囊仍使用这里的模糊设置。
                     toggle(R.string.aa_topbar_blur, display.enableTopBarBlur,
-                        visible = pageStyle.usesBlur,
-                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects,
+                        visible = topBarStyle.usesBlur,
+                        enabled = canBlurTopBar,
                         detail = if (display.showTopBarBackground) null else hint(R.string.aa_topbar_capsule_hint)) {
                         updateDisplay { copy(enableTopBarBlur = it) }
                     }
-                    slider(R.string.aa_surface_opacity, display.topBarSurfaceOpacity, 0f..1f, visible = !pageStyle.opaqueMaterial,
-                        supportingContent = hint(R.string.aa_opacity_floor_hint)) {
+                    slider(R.string.aa_surface_opacity, display.topBarSurfaceOpacity, 0f..1f, visible = !topBarStyle.opaqueMaterial) {
                         updateDisplay { copy(topBarSurfaceOpacity = it) }
                     }
                     slider(R.string.aa_surface_blur, display.topBarBlurRadius, blurRange(40f), R.string.aa_dp,
-                        visible = pageStyle.usesBlur && display.enableTopBarBlur &&
-                            (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || !appearance.liquidGlass.usesMaterial3Style()),
-                        enabled = canBlur && allowsBlur && appearance.enableTopBarPerformanceEffects &&
-                            (pageStyle != BackgroundSurfaceStyle.LIQUID_GLASS || glassLive),
+                        visible = topBarStyle.usesBlur && display.enableTopBarBlur &&
+                            (topBarStyle != BackgroundSurfaceStyle.LIQUID_GLASS || !appearance.liquidGlass.usesMaterial3Style()),
+                        enabled = canBlurTopBar,
                         supportingContent = hint(R.string.aa_blur_radius_hint)) {
                         updateDisplay { copy(topBarBlurRadius = it) }
                     }
