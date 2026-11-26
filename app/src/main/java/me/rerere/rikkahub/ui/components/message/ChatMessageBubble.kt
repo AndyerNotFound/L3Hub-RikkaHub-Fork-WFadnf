@@ -1,32 +1,21 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
+import androidx.compose.foundation.combinedClickable
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
@@ -43,23 +32,14 @@ import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
 import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.ResolvedBubbleStyle
 import me.rerere.rikkahub.ui.components.ui.resolveMessageStyle
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
-import me.rerere.rikkahub.ui.theme.adaptiveCornerRadius
-
-private val BubbleTailCorner = 6.dp
-private val BubblePressedCorner = 12.dp
-
-// 同组相邻气泡接缝处的圆角：上一条的下圆角与下一条的上圆角都收成这个值，两条气泡看着是连着的
-private val BubbleJoinedCorner = 8.dp
 
 // 消息样式给出的模糊半径最多到这里。AdvancedMaterial 内部还会按 SDK 与实时档位再夹一次
 // （resolvedLiveAppearanceRadius：TIRAMISU 以下 12dp、以上 40dp），这里只挡住明显越界与非法值。
 private const val MAX_MESSAGE_STYLE_MATERIAL_RADIUS = 40f
 
-// 边框宽度上限：再宽就会盖住气泡里的正文
+// 边框宽度上限：再宽就会盖住正文
 private const val MAX_MESSAGE_STYLE_BORDER_WIDTH = 8f
 
 internal fun AdvancedAppearanceSetting.messageBubbleMaterial(
@@ -123,81 +103,6 @@ internal fun AdvancedAppearanceSetting.messageBubbleMaterial(
 /** 消息样式解析出的边框宽度：非有限值退回 1dp，上限见 [MAX_MESSAGE_STYLE_BORDER_WIDTH]。 */
 internal fun resolvedMessageBorderWidth(width: Dp): Dp =
     finiteAppearanceValue(width.value, 0f, MAX_MESSAGE_STYLE_BORDER_WIDTH, 1f).dp
-
-internal fun messageBubbleShape(
-    role: MessageRole,
-    radius: Dp,
-    joinedToPrevious: Boolean = false,
-    joinedToNext: Boolean = false,
-    pressProgress: Float = 0f,
-): RoundedCornerShape {
-    val corner = lerp(radius, minOf(radius, BubblePressedCorner), pressProgress)
-    val tail = minOf(BubbleTailCorner, radius * .25f)
-    val join = minOf(BubbleJoinedCorner, corner)
-    return if (role == MessageRole.USER) {
-        RoundedCornerShape(
-            topStart = if (joinedToPrevious) join else corner,
-            topEnd = if (joinedToPrevious) join else tail,
-            bottomEnd = if (joinedToNext) join else corner,
-            bottomStart = if (joinedToNext) join else corner,
-        )
-    } else {
-        RoundedCornerShape(
-            topStart = if (joinedToPrevious) join else tail,
-            topEnd = if (joinedToPrevious) join else corner,
-            bottomEnd = if (joinedToNext) join else corner,
-            bottomStart = if (joinedToNext) join else corner,
-        )
-    }
-}
-
-internal data class MessageBubbleVisual(
-    val resolvedStyle: ResolvedBubbleStyle?,
-    val background: Color,
-    val contentColor: Color,
-    val material: AppearanceMaterial?,
-    val borderColor: Color?,
-    val borderWidth: Dp,
-    val radius: Dp,
-)
-
-@Composable
-internal fun resolveMessageBubbleVisual(
-    appearance: AdvancedAppearanceSetting,
-    display: DisplaySetting,
-    role: MessageRole,
-    fallbackColor: Color,
-    streaming: Boolean,
-): MessageBubbleVisual {
-    val target = if (role == MessageRole.USER) ChatBubbleStyleTarget.USER else ChatBubbleStyleTarget.ASSISTANT
-    val scheme = MaterialTheme.colorScheme
-    val resolved = resolveMessageStyle(scheme, display, target)
-    val material = appearance.messageBubbleMaterial(display, target, resolved, streaming)
-    val fallbackBorder = when {
-        material == null -> null
-        appearance.chatBubbleStyle == ChatBubbleStyle.FROSTED -> scheme.outlineVariant.copy(alpha = .4f)
-        appearance.chatBubbleStyle == ChatBubbleStyle.OUTLINED ->
-            (if (role == MessageRole.USER) scheme.primary else scheme.outline).copy(alpha = .62f)
-        else -> null
-    }
-    val width = resolved?.let { resolvedMessageBorderWidth(it.borderWidth) }
-        ?: if (appearance.chatBubbleStyle == ChatBubbleStyle.OUTLINED) 1.dp else .75.dp
-    val content = resolved?.text ?: when {
-        material == null -> contentColorFor(fallbackColor)
-        role == MessageRole.USER && appearance.chatBubbleStyle != ChatBubbleStyle.OUTLINED -> scheme.onPrimaryContainer
-        else -> scheme.onSurface
-    }
-    return MessageBubbleVisual(
-        resolvedStyle = resolved,
-        background = if (material != null) (resolved?.background ?: fallbackColor).copy(alpha = 1f)
-            else resolved?.background ?: fallbackColor,
-        contentColor = content,
-        material = material,
-        borderColor = resolved?.border ?: fallbackBorder,
-        borderWidth = width,
-        radius = adaptiveCornerRadius(resolved?.radius ?: display.uiCornerRadius.dp),
-    )
-}
 
 internal data class ThinkingBubbleVisual(
     val resolvedStyle: ResolvedBubbleStyle?,
@@ -277,21 +182,23 @@ internal fun AdvancedAppearanceSetting.thinkingBubbleMaterial(
     )
 }
 
-
 /**
- * 消息气泡：大圆角，靠头像一侧的顶角收紧；可点击时按下其余圆角也跟着收紧。
- * 与同组相邻气泡相接的那条边统一收成 [BubbleJoinedCorner]，看上去是一条连线。
+ * 消息正文：不画底色、不画边框、不做圆角。
+ *
+ * 朴素外观里一条消息就是一个文本块，角色靠头像与对齐方式区分：
+ * 用户消息在调用点按 End 对齐，助手消息按 Start 对齐，两者之间只有纵向间距。
+ * [color]、[hazeState]、[joinedToPrevious]、[joinedToNext]、[streaming] 保留在签名里，
+ * 是因为调用点还在传；它们已经不影响绘制。
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun ChatMessageBubble(
     role: MessageRole,
     color: Color,
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier,
-    // 正文气泡的弹性伸展与折叠：高度追着内容走
+    // 正文的弹性伸展与折叠：高度追着内容走
     stretchHeight: Boolean = false,
-    // 这条正文还在流式输出：尺寸每来一段文本就变一次。模糊效果要按尺寸重新采样，
-    // 等于每帧重算一遍背景，所以这一段退回静态底色，停止输出后恢复设置里的背景效果
     streaming: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
@@ -302,29 +209,12 @@ internal fun ChatMessageBubble(
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val pressProgress by animatePressProgress(interactionSource)
     val fullWidth = LocalFullWidthComponents.current
-    val displaySetting = LocalSettings.current.displaySetting
-    val appearance = LocalSettings.current.advancedAppearanceSetting
-    val visual = resolveMessageBubbleVisual(appearance, displaySetting, role, color, streaming)
-    val resolvedStyle = visual.resolvedStyle
-    val material = visual.material
-    val radius = visual.radius
-    val shape = messageBubbleShape(role, radius, joinedToPrevious, joinedToNext, pressProgress)
-    val resolvedBorder = visual.borderColor?.let { Modifier.border(visual.borderWidth, it, shape) } ?: Modifier
-    val advancedSurface = material?.let {
-        Modifier.advancedMaterial(shape, visual.background, it, hazeState).then(resolvedBorder)
-    }
     Box(
         modifier = modifier
-            // 全宽模式下气泡不再按内容收缩，左右边缘对齐父容器
+            // 全宽模式下贴到边，其余情况按内容收缩
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-            .clipDrawing(shape)
-            .then(advancedSurface ?: Modifier.background(visual.background, shape))
-            .then(if (material == null && resolvedStyle != null) resolvedBorder else Modifier)
             .then(
-                // 长按（用户消息的操作菜单）和点击（编辑）共用同一个交互源，
-                // 按下时圆角收缩的反馈对两种手势都在
                 if (onClick != null || onLongClick != null) {
                     Modifier.combinedClickable(
                         interactionSource = interactionSource,
@@ -337,27 +227,11 @@ internal fun ChatMessageBubble(
                     Modifier
                 },
             )
-            // 伸缩层放在气泡底色与形状裁剪的里侧：背景、圆角都按报告出去的高度画，
-            // 内容按自然高度排版，超出的部分被上面的 clipDrawing 按当前形状裁掉
             .then(if (stretchHeight) Modifier.motionStretchHeight() else Modifier)
-            // MarkdownBlock 自带 4dp 的水平内边距
-            .padding(horizontal = 10.dp, vertical = 10.dp),
+            // MarkdownBlock 自带 4dp 的水平内边距，这里只留一点点纵向呼吸，不再留气泡内边距
+            .padding(vertical = 2.dp),
     ) {
-        CompositionLocalProvider(LocalContentColor provides visual.contentColor) { content() }
-        // 长按菜单挂在气泡的布局节点里，弹窗以气泡为锚点定位
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) { content() }
         popup?.invoke()
-    }
-}
-
-/**
- * 只裁剪绘制内容，避免把形状设成图层的触摸轮廓。
- *
- * 四个角半径不同时图层轮廓是 Path，Compose 判断触摸点是否落在轮廓内时用 Path 求交，
- * 坐标超过 8192px 后 float 精度不够，求交结果为空，长消息下半部分（例如展开的长代码块）就收不到触摸了。
- */
-private fun Modifier.clipDrawing(shape: Shape): Modifier = drawWithCache {
-    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
-    onDrawWithContent {
-        clipPath(path) { this@onDrawWithContent.drawContent() }
     }
 }
