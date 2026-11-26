@@ -9,6 +9,7 @@ export const state = {
   conversationId: 'workspace-refactor',
   folder: '全部',
   search: '',
+  chatTab: 0,
   detailsTab: 0,
   detailsOpen: false,
   listOpen: false,
@@ -55,6 +56,7 @@ export function selectConversation(id) {
   const conv = conversations.find((c) => c.id === id);
   if (!conv) return false;
   state.conversationId = id;
+  state.chatTab = 0;
   if (conv.assistant) state.assistantId = conv.assistant;
   return true;
 }
@@ -69,6 +71,8 @@ export function selectAssistant(id) {
 export function newConversation() {
   const a = currentAssistant();
   const id = `new-${Date.now().toString(36)}`;
+  state.chatTab = 0;
+  state.folder = '全部';
   const conv = {
     id,
     title: '新对话',

@@ -339,6 +339,7 @@ export const conversations = [
     id: 'release',
     title: '发布说明 v3.3.1.4',
     folder: '翻译',
+    archived: true,
     pinned: false,
     assistant: 'lingo',
     model: 'Gemini 2.5 Flash',

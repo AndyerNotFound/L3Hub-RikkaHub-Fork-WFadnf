@@ -5,6 +5,7 @@ import {
   conversations,
   folders,
   modelList,
+  filePreviews,
   suggestions,
   workspaceTasks,
   user,
@@ -15,6 +16,7 @@ import {
   currentConversation,
   selectAssistant,
   selectConversation,
+  newConversation,
   runtime,
   toast,
 } from '../core.js';
@@ -28,6 +30,7 @@ import {
   uid,
   copyText,
   openDialog,
+  closeDialog,
   showMenu,
   closeMenu,
   scrollToBottom,
@@ -37,6 +40,42 @@ let pendingFiles = [];
 let streamToken = 0;
 let branchIndex = 1;
 let lastPrompt = '';
+
+/* 会话列表的多选 / 折叠 / 底部弹层状态（只属于这一页）。 */
+const ARCHIVED_GROUP = '已归档';
+const COLLAPSE_KEY = 'l3hub.m3.collapsedGroups';
+const savedGroups = loadCollapsed();
+const collapsedGroups = new Set(savedGroups || [ARCHIVED_GROUP]);
+let selectionMode = false;
+const selectedConvs = new Set();
+let pendingDelete = [];
+let sheetEl = null;
+let sheetMode = 'move';
+let sheetIds = [];
+let sheetAssistant = '';
+let sheetFolder = '';
+let sheetKeepFolder = true;
+let sheetFoldersOpen = true;
+let sheetKeyHandler = null;
+
+function loadCollapsed() {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_KEY);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCollapsed() {
+  try {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...collapsedGroups]));
+  } catch {
+    /* 隐私模式下忽略 */
+  }
+}
 
 function assistantById(id) {
   return assistants.find((a) => a.id === id) || currentAssistant();
@@ -51,49 +90,120 @@ function convMeta(conv) {
 /* 会话列表                                                            */
 /* ------------------------------------------------------------------ */
 
-function groupedConversations() {
+function convMatchesQuery(c, q) {
+  if (!q) return true;
+  return c.title.toLowerCase().includes(q) || c.messages.some((m) => (m.text || '').toLowerCase().includes(q));
+}
+
+function visibleConversations() {
   const q = state.search.trim().toLowerCase();
-  const list = conversations.filter((c) => {
+  const showArchived = state.folder === ARCHIVED_GROUP;
+  return conversations.filter((c) => {
+    if (!convMatchesQuery(c, q)) return false;
+    if (showArchived) return Boolean(c.archived);
+    if (c.archived) return false;
     if (state.folder !== '全部' && c.folder !== state.folder) return false;
-    if (q && !c.title.toLowerCase().includes(q) && !c.messages.some((m) => (m.text || '').toLowerCase().includes(q))) return false;
     return true;
   });
+}
+
+function groupedConversations() {
+  const list = visibleConversations();
+  if (state.folder === ARCHIVED_GROUP) {
+    return list.length ? [{ label: ARCHIVED_GROUP, items: list, archived: true }] : [];
+  }
   const groups = [];
   const pinned = list.filter((c) => c.pinned);
-  if (pinned.length) groups.push(['置顶', pinned]);
+  if (pinned.length) groups.push({ label: '置顶', items: pinned });
   for (const g of ['本周', '上周', '更早']) {
     const items = list.filter((c) => !c.pinned && c.group === g);
-    if (items.length) groups.push([g, items]);
+    if (items.length) groups.push({ label: g, items });
+  }
+  if (state.folder === '全部') {
+    const q = state.search.trim().toLowerCase();
+    const archived = conversations.filter((c) => c.archived && convMatchesQuery(c, q));
+    if (archived.length) groups.push({ label: ARCHIVED_GROUP, items: archived, archived: true });
   }
   return groups;
+}
+
+function convItemHtml(c) {
+  const a = assistantById(c.assistant);
+  const active = c.id === state.conversationId;
+  const checked = selectedConvs.has(c.id);
+  return `<button class="conv-item ${active ? 'active' : ''} ${c.archived ? 'archived' : ''} ${
+    checked ? 'checked' : ''
+  }" data-action="${selectionMode ? 'conv-select' : 'conv'}" data-conv="${esc(c.id)}"${
+    selectionMode ? ` aria-pressed="${checked}"` : ''
+  }>
+    ${selectionMode ? `<span class="c-check">${icon(checked ? 'check_box' : 'check_box_outline_blank', { size: 18 })}</span>` : ''}
+    <span class="c-main">
+      <span class="c-title">${esc(c.title || '新消息')}</span>
+      ${
+        c.archived
+          ? `<span class="c-tag">已归档${c.assistant !== state.assistantId ? ` · ${esc(a.name)}` : ''}</span>`
+          : c.assistant !== state.assistantId
+          ? `<span class="c-tag">${esc(a.name)}</span>`
+          : ''
+      }
+    </span>
+    ${c.archived ? `<span class="c-arch" aria-label="已归档">${icon('archive', { size: 13 })}</span>` : ''}
+    ${c.pinned ? `<span class="pin">${icon('push_pin', { size: 13, fill: true })}</span>` : ''}
+    ${active && state.streaming ? '<span class="run"></span>' : ''}
+  </button>`;
 }
 
 function convListHtml() {
   const groups = groupedConversations();
   if (!groups.length) return '<div class="conv-empty">没有找到会话</div>';
   return groups
-    .map(
-      ([label, items]) => `<div class="conv-group">${label === '置顶' ? icon('push_pin', { size: 12 }) : ''}${esc(
-        label
-      )}<span class="spacer"></span><span class="tnum">${items.length}</span></div>
-      ${items
-        .map(
-          (c) => `<button class="conv-item ${c.id === state.conversationId ? 'active' : ''}" data-action="conv" data-conv="${esc(
-            c.id
-          )}">
-            <span class="c-title">${esc(c.title || '新消息')}</span>
-            ${c.pinned ? `<span class="pin">${icon('push_pin', { size: 13, fill: true })}</span>` : ''}
-            ${c.id === state.conversationId && state.streaming ? '<span class="run"></span>' : ''}
-          </button>`
-        )
-        .join('')}`
-    )
+    .map(({ label, items, archived }, gi) => {
+      const collapsed = collapsedGroups.has(label);
+      return `<div class="conv-group ${archived ? 'is-archived' : ''} ${collapsed ? 'collapsed' : ''}">
+        <button class="conv-group-btn" data-action="toggle-group" data-group="${esc(label)}" aria-expanded="${!collapsed}" aria-controls="conv-g-${gi}">
+          <span class="cg-chev">${icon('expand_more', { size: 14 })}</span>
+          ${label === '置顶' ? icon('push_pin', { size: 12 }) : archived ? icon('archive', { size: 12 }) : ''}
+          <span class="cg-label">${esc(label)}</span>
+          <span class="spacer"></span>
+          <span class="tnum">${items.length}</span>
+        </button>
+      </div>
+      <div class="conv-items" id="conv-g-${gi}" ${collapsed ? 'hidden' : ''}>${items.map(convItemHtml).join('')}</div>`;
+    })
     .join('');
 }
 
+function selectionBarHtml() {
+  if (!selectionMode) return '';
+  const n = selectedConvs.size;
+  return `<div class="sel-bar" id="sel-bar" role="toolbar" aria-label="批量操作">
+    <div class="sel-top">
+      <button class="icon-btn xs" data-action="exit-select" aria-label="退出多选">${icon('close', { size: 16 })}</button>
+      <b>已选 ${n} 项</b>
+      <span class="spacer"></span>
+      <button class="sel-text" data-action="select-all">全选</button>
+    </div>
+    <div class="sel-actions">
+      <button class="sel-act" data-action="batch-move">${icon('drive_file_move', { size: 15 })}<span>移动到</span></button>
+      <button class="sel-act" data-action="batch-copy">${icon('content_copy', { size: 15 })}<span>复制到</span></button>
+      <button class="sel-act" data-action="batch-archive">${icon('archive', { size: 15 })}<span>归档</span></button>
+      <button class="sel-act" data-action="batch-retitle">${icon('edit_note', { size: 15 })}<span>重命名</span></button>
+      <button class="sel-act danger" data-action="batch-delete">${icon('delete', { size: 15 })}<span>删除</span></button>
+    </div>
+  </div>`;
+}
+
+function refreshConvList() {
+  const box = document.getElementById('conv-scroll');
+  if (box) box.innerHTML = convListHtml();
+  const bar = document.getElementById('sel-bar-host');
+  if (bar) bar.innerHTML = selectionBarHtml();
+  document.querySelector('.conv-panel')?.classList.toggle('selecting', selectionMode);
+}
+
 function convPanel() {
-  const counts = conversations.length;
-  return `<aside class="conv-panel" aria-label="会话列表">
+  const counts = conversations.filter((c) => !c.archived).length;
+  return `<aside class="conv-panel ${selectionMode ? 'selecting' : ''}" aria-label="会话列表">
     <div class="conv-head">
       <h2>会话</h2>
       <button class="icon-btn sm" data-action="sort-conv" aria-label="排序方式">${icon('more_horiz', { size: 20 })}</button>
@@ -104,7 +214,7 @@ function convPanel() {
       <input id="conv-search" type="search" placeholder="搜索 ${counts} 个会话" autocomplete="off" aria-label="搜索会话">
     </label>
     <div class="folder-row" role="group" aria-label="文件夹筛选">
-      ${folders
+      ${[...folders, ARCHIVED_GROUP]
         .map(
           (f) =>
             `<md-filter-chip label="${esc(f)}" data-action="folder" data-folder="${esc(f)}" ${
@@ -113,6 +223,7 @@ function convPanel() {
         )
         .join('')}
     </div>
+    <div id="sel-bar-host">${selectionBarHtml()}</div>
     <div class="conv-scroll" id="conv-scroll">${convListHtml()}</div>
     <button class="icon-btn tonal" data-action="new-chat" aria-label="新建对话" style="align-self:flex-end;margin:2px 4px 0">${icon(
       'edit',
@@ -147,6 +258,174 @@ function topBar(conv) {
       <button class="icon-btn" data-action="chat-more" aria-label="更多选项">${icon('more_vert', { size: 21 })}</button>
     </div>
   </header>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 顶栏标签栏：Inline / Show labels / Fill / Full width / Elastic       */
+/* ------------------------------------------------------------------ */
+
+const CHAT_TABS = [
+  { label: '对话', icon: 'forum' },
+  { label: '任务', icon: 'task_alt' },
+  { label: '文件', icon: 'folder_open' },
+];
+
+function chatTabsHtml() {
+  return `<div class="chat-tabs" role="tablist" aria-label="对话分区">
+    <span class="chat-tab-indicator" aria-hidden="true"></span>
+    ${CHAT_TABS.map(
+      (t, i) => `<button class="chat-tab ${state.chatTab === i ? 'active' : ''}" role="tab" id="ctab-${i}" aria-selected="${
+        state.chatTab === i
+      }" aria-controls="pane-host" tabindex="${state.chatTab === i ? 0 : -1}" data-action="chat-tab" data-tab="${i}">
+        ${icon(t.icon, { size: 18 })}<span>${t.label}</span>
+      </button>`
+    ).join('')}
+  </div>`;
+}
+
+/* 指示器宽度跟着标签走：整宽胶囊 + 圆角，切换时用弹性曲线滑过去。 */
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('resize', () => positionTabIndicator());
+}
+
+function positionTabIndicator() {
+  const bar = document.querySelector('.chat-tabs');
+  const ind = bar?.querySelector('.chat-tab-indicator');
+  const active = bar?.querySelector('.chat-tab.active');
+  if (!bar || !ind || !active) return;
+  const b = bar.getBoundingClientRect();
+  const r = active.getBoundingClientRect();
+  if (!r.width) return;
+  ind.style.width = `${Math.max(0, r.width - 8)}px`;
+  ind.style.transform = `translateX(${r.left - b.left + 4}px)`;
+}
+
+function archivedBannerHtml(conv) {
+  return `<div class="archived-banner">
+    <span class="ab-ico">${icon('archive', { size: 18 })}</span>
+    <div class="ab-text"><b>此会话已归档</b><span>归档的会话不能继续对话。解除归档后会回到「${esc(
+      conv.folder || '未归类'
+    )}」。</span></div>
+    <md-text-button data-action="unarchive-current">解除归档</md-text-button>
+  </div>`;
+}
+
+function archivedComposerHtml() {
+  return `<div class="composer-wrap"><div class="composer-inner">
+    <div class="archived-lock">${icon('lock', { size: 20 })}
+      <div class="al-text"><b>输入已锁定</b><span>解除归档后才能继续这个会话。</span></div>
+      <md-filled-tonal-button data-action="unarchive-current">${icon('unarchive', {
+        size: 16,
+        slot: 'icon',
+      })}解除归档</md-filled-tonal-button>
+    </div>
+  </div></div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 主区三个面板                                                        */
+/* ------------------------------------------------------------------ */
+
+function taskCardHtml(t) {
+  const label = { done: '已完成', running: '进行中', wait: '等待批准' }[t.state] || t.state;
+  const ico =
+    t.state === 'done'
+      ? icon('check', { size: 15 })
+      : t.state === 'running'
+      ? icon('progress_activity', { size: 15, cls: 'spin' })
+      : icon('warning', { size: 15 });
+  return `<div class="task-card ${t.state}">
+    <span class="tc-ico">${ico}</span>
+    <div class="tc-text"><b>${esc(t.title)}</b><small>${esc(t.who)} · ${esc(t.meta)}</small></div>
+    <span class="tc-badge">${label}</span>
+  </div>`;
+}
+
+function tasksPaneHtml() {
+  const done = workspaceTasks.filter((t) => t.state === 'done').length;
+  return `<div class="pane pane-scroll"><div class="pane-inner">
+    <div class="pane-head">
+      <div>
+        <span class="eyebrow">${icon('task_alt', { size: 13 })} 本轮</span>
+        <h2>任务</h2>
+        <p>${done} / ${workspaceTasks.length} 完成 · 子代理并行 3 / 4</p>
+      </div>
+      <span class="chip">进行中</span>
+    </div>
+    <div class="task-board">${workspaceTasks.map(taskCardHtml).join('')}</div>
+    <div class="card pane-card">
+      <div class="pane-card-title">${icon('verified', { size: 16 })} 待批准的工具调用</div>
+      <div class="side-row"><span class="k">workspace_shell</span><span class="v">pnpm build</span></div>
+      <div class="side-row"><span class="k">风险</span><span class="v">写入 demo/m3/dist</span></div>
+      <div class="approve">
+        <md-filled-tonal-button data-action="approve-tool">${icon('check', {
+          size: 15,
+          slot: 'icon',
+        })}批准</md-filled-tonal-button>
+        <md-text-button data-action="deny-tool">拒绝</md-text-button>
+      </div>
+    </div>
+    <div class="card pane-card">
+      <div class="pane-card-title">${icon('hub', { size: 16 })} 子代理</div>
+      <div class="side-row"><span class="k">研究员</span><span class="v">已完成 · 12.4s</span></div>
+      <div class="side-row"><span class="k">构建</span><span class="v">已完成 · 8.1s</span></div>
+      <div class="side-row"><span class="k">并行上限</span><span class="v">3 / 4</span></div>
+    </div>
+  </div></div>`;
+}
+
+const PANE_FILES = [
+  ['demo/m3/index.html', '2.9 KB', '刚刚'],
+  ['demo/m3/js/theme.js', '8.6 KB', '3 分钟前'],
+  ['demo/m3/js/app.js', '14 KB', '3 分钟前'],
+  ['demo/index.html', '103 KB', '昨天'],
+  ['README.md', '4.8 KB', '10月29日'],
+];
+
+function filesPaneHtml() {
+  return `<div class="pane pane-scroll"><div class="pane-inner">
+    <div class="pane-head">
+      <div>
+        <span class="eyebrow">${icon('folder_open', { size: 13 })} 本轮</span>
+        <h2>文件</h2>
+        <p>${PANE_FILES.length} 个文件被读取或改写 · 只读预览</p>
+      </div>
+      <md-text-button data-action="open-workspace">${icon('open_in_new', {
+        size: 16,
+        slot: 'icon',
+      })}打开工作区</md-text-button>
+    </div>
+    <div class="card pane-card tight">
+      ${PANE_FILES.map(
+        ([path, size, when]) => `<button class="pane-file" data-action="preview-file" data-path="${esc(path)}">
+          <span class="pf-ico">${icon(path.endsWith('.js') ? 'code' : 'description', { size: 18 })}</span>
+          <span class="pf-text"><b>${esc(path.split('/').pop())}</b><small>${esc(path)}</small></span>
+          <span class="pf-meta">${esc(size)} · ${esc(when)}</span>
+          ${icon('chevron_right', { size: 16 })}
+        </button>`
+      ).join('')}
+    </div>
+    <div class="card pane-card">
+      <div class="pane-card-title">${icon('terminal', { size: 16 })} 工作区</div>
+      <div class="side-row"><span class="k">目录</span><span class="v">demo/m3</span></div>
+      <div class="side-row"><span class="k">服务</span><span class="v">127.0.0.1:8799</span></div>
+      <div class="side-row"><span class="k">权限</span><span class="v">读 / 写 / Shell</span></div>
+    </div>
+  </div></div>`;
+}
+
+function paneHtml(conv) {
+  if (state.chatTab === 1) return `<div class="pane-host" id="pane-host">${tasksPaneHtml()}</div>`;
+  if (state.chatTab === 2) return `<div class="pane-host" id="pane-host">${filesPaneHtml()}</div>`;
+  return `<div class="pane-host" id="pane-host"><div class="pane pane-chat">
+    ${conv?.archived ? archivedBannerHtml(conv) : ''}
+    <div class="messages" id="messages">${messagesHtml(conv)}</div>
+    ${conv?.archived ? archivedComposerHtml() : composerHtml(conv)}
+  </div></div>`;
+}
+
+function chatMainHtml(conv) {
+  return `${topBar(conv)}${chatTabsHtml()}${paneHtml(conv)}`;
 }
 
 function reasoningHtml(r, open) {
@@ -256,14 +535,13 @@ function messageHtml(m, conv, index) {
   const isLast = index === conv.messages.length - 1;
   const openReasoning = Boolean(m.openReasoning);
   return `<div class="msg assistant" data-msg="${esc(m.id)}">
-    ${avatar(a, 'sm')}
     <div class="msg-col">
       <div class="msg-meta"><span class="msg-name">${esc(a.name)}</span><span class="msg-model">${esc(m.model || a.model)}</span><span>·</span><span>${esc(
     m.time || ''
   )}</span></div>
       ${reasoningHtml(m.reasoning, openReasoning)}
       ${(m.tools || []).map(toolHtml).join('')}
-      <div class="bubble bubble-ai" data-bubble="${esc(m.id)}">${
+      <div class="answer" data-bubble="${esc(m.id)}">${
         m.text ? md(m.text) : `<span class="thinking"><i></i><i></i><i></i> 正在思考</span>`
       }${m.streaming ? '<span class="type-cursor"></span>' : ''}</div>
       ${subagentHtml(m.subagent)}
@@ -344,61 +622,6 @@ function composerHtml(conv) {
 
 function sideBodyHtml() {
   const a = currentAssistant();
-  if (state.detailsTab === 1) {
-    return `<div class="side-card">
-        <div class="side-card-title">${icon('account_tree', { size: 14 })}任务树</div>
-        <div class="tree">
-          ${workspaceTasks
-            .map(
-              (t) => `<div class="tree-row ${t.state}">
-                <span class="tree-dot">${t.state === 'done' ? icon('check', { size: 11 }) : ''}</span>
-                <div class="tree-text">${esc(t.title)}<small>${esc(t.who)} · ${esc(t.meta)}</small></div>
-              </div>`
-            )
-            .join('')}
-        </div>
-      </div>
-      <div class="side-card">
-        <div class="side-card-title">${icon('verified', { size: 14 })}待批准的工具调用</div>
-        <div class="side-row"><span class="k">workspace_shell</span><span class="v">pnpm build</span></div>
-        <div class="side-row"><span class="k">风险</span><span class="v">写入 demo/m3/dist</span></div>
-        <div class="approve">
-          <md-filled-tonal-button data-action="approve-tool">${icon('check', { size: 15, slot: 'icon' })}批准</md-filled-tonal-button>
-          <md-text-button data-action="deny-tool">拒绝</md-text-button>
-        </div>
-      </div>
-      <div class="side-card">
-        <div class="side-card-title">${icon('hub', { size: 14 })}子代理</div>
-        <div class="side-row"><span class="k">研究员</span><span class="v">已完成 · 12.4s</span></div>
-        <div class="side-row"><span class="k">构建</span><span class="v">已完成 · 8.1s</span></div>
-        <div class="side-row"><span class="k">并行上限</span><span class="v">3 / 4</span></div>
-      </div>`;
-  }
-  if (state.detailsTab === 2) {
-    return `<div class="side-card">
-        <div class="side-card-title">${icon('folder', { size: 14 })}本轮改动</div>
-        ${[
-          ['index.html', '2.5 KB'],
-          ['app.css', '38 KB'],
-          ['js/theme.js', '8.4 KB'],
-          ['js/views/chat.js', '31 KB'],
-          ['js/data.js', '12 KB'],
-        ]
-          .map(
-            ([f, s]) => `<div class="side-file">${icon('description', { size: 14 })}<span class="sf-name">${esc(f)}</span><span>${esc(
-              s
-            )}</span></div>`
-          )
-          .join('')}
-      </div>
-      <div class="side-card">
-        <div class="side-card-title">${icon('terminal', { size: 14 })}工作区</div>
-        <div class="side-row"><span class="k">目录</span><span class="v">demo/m3</span></div>
-        <div class="side-row"><span class="k">服务</span><span class="v">127.0.0.1:8765</span></div>
-        <div class="side-row"><span class="k">权限</span><span class="v">读 / 写 / Shell</span></div>
-        <div class="approve"><md-filled-tonal-button data-action="open-workspace">${icon('open_in_new', { size: 15 })} 打开工作区</md-filled-tonal-button></div>
-      </div>`;
-  }
   return `<div class="side-card">
       <div class="side-assistant">
         ${avatar(a, 'md')}
@@ -438,11 +661,6 @@ function sidePanel() {
     'close',
     { size: 19 }
   )}</button></div>
-    <md-tabs aria-label="详情分区">
-      <md-primary-tab>概览</md-primary-tab>
-      <md-primary-tab>任务</md-primary-tab>
-      <md-primary-tab>文件</md-primary-tab>
-    </md-tabs>
     <div class="side-body" id="side-body">${sideBodyHtml()}</div>
   </aside>`;
 }
@@ -456,25 +674,18 @@ export function renderChat() {
   if (conv?.assistant) state.assistantId = conv.assistant;
   return `<div class="chat ${state.listOpen ? 'list-open' : ''} ${state.detailsOpen ? 'details-open' : ''}" id="chat">
     ${convPanel()}
-    <section class="chat-main">
-      ${topBar(conv)}
-      <div class="messages" id="messages">${messagesHtml(conv)}</div>
-      ${composerHtml(conv)}
-    </section>
+    <section class="chat-main">${chatMainHtml(conv)}</section>
     ${sidePanel()}
     <div class="panel-scrim list" data-action="close-list"></div>
     <div class="panel-scrim details" data-action="close-details"></div>
   </div>`;
 }
 
-export function mountChat() {
-  const messages = document.getElementById('messages');
-  scrollToBottom(messages);
-
+function mountChatMain() {
   const ta = document.getElementById('composer-input');
   if (ta) {
     autoGrow(ta);
-    updateSendEnabled(false);
+    updateSendEnabled(ta.value.trim().length > 0);
     ta.addEventListener('input', () => {
       autoGrow(ta);
       updateSendEnabled(ta.value.trim().length > 0);
@@ -487,23 +698,103 @@ export function mountChat() {
     });
   }
 
+  positionTabIndicator();
+  requestAnimationFrame(positionTabIndicator);
+
+  const tabs = document.querySelector('.chat-tabs');
+  tabs?.addEventListener('keydown', (e) => {
+    const cur = Number(document.querySelector('.chat-tab.active')?.dataset.tab || 0);
+    let next = null;
+    if (e.key === 'ArrowRight') next = (cur + 1) % CHAT_TABS.length;
+    if (e.key === 'ArrowLeft') next = (cur + CHAT_TABS.length - 1) % CHAT_TABS.length;
+    if (e.key === 'Home') next = 0;
+    if (e.key === 'End') next = CHAT_TABS.length - 1;
+    if (next === null) return;
+    e.preventDefault();
+    switchChatTab(next);
+    document.getElementById(`ctab-${next}`)?.focus();
+  });
+
+  const messages = document.getElementById('messages');
+  if (messages) requestAnimationFrame(() => scrollToBottom(messages));
+}
+
+function refreshChatMain() {
+  const main = document.querySelector('.chat-main');
+  if (!main) return;
+  main.innerHTML = chatMainHtml(currentConversation());
+  mountChatMain();
+}
+
+/* 同轴 Y 转场：有 View Transitions 就交给它，没有就即时替换。 */
+function switchChatTab(index) {
+  if (index === state.chatTab) return;
+  state.chatTab = index;
+  document.querySelectorAll('.chat-tab').forEach((t, i) => {
+    const on = i === index;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  });
+  positionTabIndicator();
+
+  const conv = currentConversation();
+  const swap = () => {
+    const host = document.getElementById('pane-host');
+    if (!host) return;
+    host.outerHTML = paneHtml(conv);
+    requestAnimationFrame(() => {
+      positionTabIndicator();
+      const box = document.getElementById('messages');
+      if (box) scrollToBottom(box);
+    });
+  };
+  const motionOn = document.documentElement.dataset.motion !== 'off';
+  if (motionOn && typeof document.startViewTransition === 'function') {
+    try {
+      document.startViewTransition(swap);
+      return;
+    } catch {
+      /* 过渡被占用时退回普通切换 */
+    }
+  }
+  swap();
+  if (motionOn) document.querySelector('.pane')?.classList.add('pane-enter');
+}
+
+export function mountChat() {
+  mountChatMain();
+
   const input = document.getElementById('conv-search');
   if (input) {
     input.value = state.search;
     input.addEventListener('input', (e) => {
       state.search = e.target.value;
-      document.getElementById('conv-scroll').innerHTML = convListHtml();
+      refreshConvList();
     });
   }
 
-  const tabs = document.querySelector('.side-panel md-tabs');
-  if (tabs) {
-    tabs.activeTabIndex = state.detailsTab;
-    tabs.addEventListener('change', () => {
-      state.detailsTab = tabs.activeTabIndex || 0;
-      document.getElementById('side-body').innerHTML = sideBodyHtml();
-    });
-  }
+  /* 长按在 WebView 里不可靠，用双击 / 双指点开菜单。 */
+  const scroll = document.getElementById('conv-scroll');
+  let lastTap = { id: '', t: 0 };
+  scroll?.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse' || selectionMode) return;
+    const item = e.target.closest?.('.conv-item');
+    if (!item) return;
+    const now = Date.now();
+    if (lastTap.id === item.dataset.conv && now - lastTap.t < 380) {
+      lastTap = { id: '', t: 0 };
+      /* 等这一下 click 走完再开菜单，否则 popover 会把它当成外部点击。 */
+      window.setTimeout(() => openConvMenu(item), 60);
+    } else {
+      lastTap = { id: item.dataset.conv, t: now };
+    }
+  });
+  scroll?.addEventListener('dblclick', (e) => {
+    if (selectionMode) return;
+    const item = e.target.closest?.('.conv-item');
+    if (item) openConvMenu(item);
+  });
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -522,7 +813,6 @@ export function mountChat() {
   runtime.renderMessages = renderMessagesOnly;
   runtime.focusComposer = focusComposer;
   runtime.stopStreaming = () => stopStreaming(false);
-  requestAnimationFrame(() => scrollToBottom(messages));
 }
 
 function renderPendingFiles() {
@@ -648,6 +938,10 @@ function renameConversation(conv, text) {
 export async function sendMessage(text) {
   const conv = currentConversation();
   if (!conv) return;
+  if (conv.archived) {
+    toast('会话已归档 · 解除归档后才能继续');
+    return;
+  }
   const a = currentAssistant();
   if (!conv.messages.length && (!conv.title || conv.title === '新对话')) renameConversation(conv, text);
   lastPrompt = text;
@@ -798,7 +1092,8 @@ function openChatMore(anchor) {
       const body = conv?.messages.map((m) => `${m.role === 'user' ? '你' : '助手'}: ${m.text}`).join('\n\n') || '';
       copyText(body).then((ok) => toast(ok ? '对话已复制为 Markdown' : '复制失败'));
     } else if (id === 'delete') {
-      toast('演示里不真删对话');
+      const c = currentConversation();
+      if (c) confirmDelete([c.id]);
     } else if (id === 'fork') {
       toast('已创建分支（演示）');
     } else if (id === 'map') {
@@ -826,23 +1121,402 @@ function openSortMenu(anchor) {
   ], (id) => toast(id === 'update' ? '已按更新时间排序' : '已按创建时间排序'));
 }
 
+
+/* ------------------------------------------------------------------ */
+/* 会话操作：菜单 / 多选 / 移动复制 / 归档 / 删除                        */
+/* ------------------------------------------------------------------ */
+
+function convById(id) {
+  return conversations.find((c) => c.id === id) || null;
+}
+
+function enterSelection(id) {
+  selectionMode = true;
+  selectedConvs.clear();
+  if (id) selectedConvs.add(id);
+  refreshConvList();
+}
+
+function exitSelection() {
+  selectionMode = false;
+  selectedConvs.clear();
+  refreshConvList();
+}
+
+function toggleConvSelection(id) {
+  if (selectedConvs.has(id)) selectedConvs.delete(id);
+  else selectedConvs.add(id);
+  refreshConvList();
+}
+
+function selectAllVisible() {
+  const items = visibleConversations();
+  const all = items.length > 0 && items.every((c) => selectedConvs.has(c.id));
+  selectedConvs.clear();
+  if (!all) items.forEach((c) => selectedConvs.add(c.id));
+  refreshConvList();
+}
+
+function currentSelection() {
+  const ids = [...selectedConvs].filter((id) => convById(id));
+  if (!ids.length) toast('先选会话');
+  return ids;
+}
+
+function openConvMenu(anchor) {
+  const conv = convById(anchor?.dataset?.conv);
+  if (!conv) return;
+  showMenu(
+    anchor,
+    [
+      { id: 'select', label: '多选', icon: 'check_box' },
+      { id: 'move', label: '移动到…', icon: 'drive_file_move' },
+      { id: 'copy', label: '复制到…', icon: 'content_copy' },
+      { id: 'retitle', label: '重新生成标题', icon: 'edit_note' },
+      { divider: true, id: 'd1' },
+      { id: 'archive', label: conv.archived ? '解除归档' : '归档', icon: conv.archived ? 'unarchive' : 'archive' },
+      { id: 'delete', label: '删除', icon: 'delete', danger: true },
+    ],
+    (action) => {
+      if (action === 'select') enterSelection(conv.id);
+      else if (action === 'move' || action === 'copy') openTransferSheet(action, [conv.id]);
+      else if (action === 'retitle') retitleConversations([conv.id]);
+      else if (action === 'archive') setArchived([conv.id], !conv.archived);
+      else if (action === 'delete') confirmDelete([conv.id]);
+    }
+  );
+}
+
+function retitleConversations(ids) {
+  let n = 0;
+  for (const id of ids) {
+    const c = convById(id);
+    if (!c) continue;
+    const first = c.messages.find((m) => m.role === 'user');
+    const title = first ? nameFromPrompt(first.text) : '';
+    if (title) {
+      c.title = title;
+      n++;
+    }
+  }
+  if (!n) {
+    toast('这些会话还没有能命名的消息');
+    return;
+  }
+  toast(`已重新生成 ${n} 个标题`);
+  refreshConvList();
+  refreshChatMain();
+  document.querySelectorAll('.recent-item').forEach((el) => {
+    const item = convById(el.dataset.conv);
+    const label = el.querySelector('span');
+    if (item && label) label.textContent = item.title;
+  });
+}
+
+function setArchived(ids, value) {
+  let n = 0;
+  for (const id of ids) {
+    const c = convById(id);
+    if (!c || Boolean(c.archived) === value) continue;
+    c.archived = value;
+    c.updated = '刚刚';
+    n++;
+  }
+  if (value) collapsedGroups.add(ARCHIVED_GROUP);
+  if (!value && state.folder === ARCHIVED_GROUP) state.folder = '全部';
+  saveCollapsed();
+  exitSelection();
+  runtime.render();
+  toast(value ? `已归档 ${n} 个会话 · 在「${ARCHIVED_GROUP}」分组里` : `已解除归档 ${n} 个会话`);
+}
+
+function confirmDelete(ids) {
+  if (!ids.length) return;
+  pendingDelete = ids;
+  openDialog({
+    headline: ids.length > 1 ? `删除 ${ids.length} 个会话` : '删除会话',
+    iconName: 'delete',
+    content: `<p class="dialog-lead">删除后不能恢复，会话里的消息会一起消失。</p>
+      <div class="dialog-list">${ids
+        .slice(0, 5)
+        .map((id) => `<div class="dl-row">${icon('chat_bubble', { size: 15 })}<span>${esc(convById(id)?.title || '未命名')}</span></div>`)
+        .join('')}${ids.length > 5 ? `<div class="dl-more">还有 ${ids.length - 5} 个</div>` : ''}</div>`,
+    actions: `<md-text-button data-action="close-dialog">取消</md-text-button><md-filled-button data-action="confirm-delete">删除</md-filled-button>`,
+  });
+}
+
+/* ---------------------------- Bottom Sheet ---------------------------- */
+
+function openTransferSheet(mode, ids) {
+  if (!ids.length) return;
+  closeTransferSheet(true);
+  sheetMode = mode;
+  sheetIds = ids;
+  sheetAssistant = currentAssistant().id;
+  sheetFolder = '';
+  sheetKeepFolder = true;
+  sheetFoldersOpen = true;
+  const layer = document.createElement('div');
+  layer.className = 'sheet-layer';
+  layer.innerHTML = `<div class="sheet-scrim" data-action="sheet-close"></div><section class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${sheetHtml()}</section>`;
+  document.getElementById('overlay-root').append(layer);
+  sheetEl = layer;
+  document.body.classList.add('sheet-open');
+  sheetKeyHandler = (e) => {
+    if (e.key === 'Escape') closeTransferSheet();
+  };
+  document.addEventListener('keydown', sheetKeyHandler);
+  requestAnimationFrame(() => layer.classList.add('open'));
+}
+
+function refreshSheet() {
+  const panel = sheetEl?.querySelector('.bottom-sheet');
+  if (panel) panel.innerHTML = sheetHtml();
+}
+
+function closeTransferSheet(instant = false) {
+  const layer = sheetEl;
+  if (!layer) return;
+  sheetEl = null;
+  document.body.classList.remove('sheet-open');
+  if (sheetKeyHandler) {
+    document.removeEventListener('keydown', sheetKeyHandler);
+    sheetKeyHandler = null;
+  }
+  if (instant) {
+    layer.remove();
+    return;
+  }
+  layer.classList.remove('open');
+  window.setTimeout(() => layer.remove(), 220);
+}
+
+function sheetHtml() {
+  const modeLabel = sheetMode === 'move' ? '移动到' : '复制到';
+  const a = assistants.find((x) => x.id === sheetAssistant) || assistants[0];
+  return `<div class="sheet-grab" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <div><span class="eyebrow">${sheetIds.length} 个会话</span><h2 id="sheet-title">${modeLabel}</h2></div>
+      <button class="icon-btn" data-action="sheet-close" aria-label="关闭">${icon('close', { size: 20 })}</button>
+    </header>
+    <div class="sheet-body">
+      <h4 class="sheet-label">目标助手 <span>单选必选</span></h4>
+      <div class="sheet-chips" role="radiogroup" aria-label="目标助手">
+        ${assistants
+          .map(
+            (x) => `<md-filter-chip label="${esc(x.name)}" data-action="sheet-assistant" data-id="${esc(x.id)}" ${
+              x.id === sheetAssistant ? 'selected' : ''
+            }></md-filter-chip>`
+          )
+          .join('')}
+      </div>
+      <p class="sheet-hint">${esc(a.name)} · ${esc(a.model)} · 记忆跟着助手走</p>
+      <button class="sheet-expander" data-action="sheet-folders" aria-expanded="${sheetFoldersOpen}">
+        ${icon('folder', { size: 18 })}<span>目标文件夹</span><span class="spacer"></span>
+        <span class="se-value">${sheetKeepFolder ? '保留原文件夹' : esc(sheetFolder)}</span>
+        ${icon('expand_more', { size: 18, cls: 'chev' })}
+      </button>
+      <div class="sheet-folder-list" ${sheetFoldersOpen ? '' : 'hidden'}>
+        <button class="sheet-folder ${sheetKeepFolder ? 'active' : ''}" data-action="sheet-folder" data-folder="">
+          <span class="sf-radio">${icon(sheetKeepFolder ? 'check_circle' : 'radio_button_unchecked', { size: 18 })}</span>
+          <span class="sf-text">保留原文件夹<small>每个会话留在原来的分类</small></span>
+        </button>
+        ${folders
+          .filter((f) => f !== '全部' && f !== ARCHIVED_GROUP)
+          .map(
+            (f) => `<button class="sheet-folder ${!sheetKeepFolder && sheetFolder === f ? 'active' : ''}" data-action="sheet-folder" data-folder="${esc(
+              f
+            )}">
+            <span class="sf-radio">${icon(
+              !sheetKeepFolder && sheetFolder === f ? 'check_circle' : 'radio_button_unchecked',
+              { size: 18 }
+            )}</span>
+            <span class="sf-text">${esc(f)}<small>${conversations.filter((c) => c.folder === f && !c.archived).length} 个会话</small></span>
+          </button>`
+          )
+          .join('')}
+      </div>
+    </div>
+    <footer class="sheet-foot">
+      <md-text-button data-action="sheet-close">取消</md-text-button>
+      <md-filled-button data-action="sheet-confirm">${modeLabel} ${sheetIds.length} 个</md-filled-button>
+    </footer>`;
+}
+
+function applyTransfer() {
+  const target = assistants.find((a) => a.id === sheetAssistant) || assistants[0];
+  const ids = [...sheetIds];
+  const folder = sheetKeepFolder ? null : sheetFolder;
+  let n = 0;
+  if (sheetMode === 'move') {
+    for (const id of ids) {
+      const c = convById(id);
+      if (!c) continue;
+      c.assistant = target.id;
+      if (folder) c.folder = folder;
+      c.updated = '刚刚';
+      n++;
+    }
+    toast(`已移动 ${n} 个会话到 ${target.name}${folder ? ' · ' + folder : ''}`);
+  } else {
+    const copies = [];
+    let i = 0;
+    for (const id of ids) {
+      const c = convById(id);
+      if (!c) continue;
+      const copy = JSON.parse(JSON.stringify(c));
+      copy.id = `copy-${Date.now().toString(36)}-${i++}`;
+      copy.title = `${c.title} · 副本`;
+      copy.assistant = target.id;
+      copy.pinned = false;
+      copy.archived = false;
+      copy.group = '本周';
+      copy.updated = '刚刚';
+      if (folder) copy.folder = folder;
+      copies.push(copy);
+      n++;
+    }
+    conversations.unshift(...copies);
+    toast(`已复制 ${n} 个会话到 ${target.name}${folder ? ' · ' + folder : ''}`);
+  }
+  closeTransferSheet();
+  exitSelection();
+  runtime.render();
+}
+
+function deletePendingConversations() {
+  const ids = pendingDelete;
+  pendingDelete = [];
+  if (!ids.length) return 0;
+  const set = new Set(ids);
+  for (let i = conversations.length - 1; i >= 0; i--) {
+    if (set.has(conversations[i].id)) conversations.splice(i, 1);
+  }
+  if (set.has(state.conversationId)) {
+    const next = conversations.find((c) => !c.archived) || conversations[0];
+    if (next) selectConversation(next.id);
+    else newConversation();
+  }
+  return ids.length;
+}
+
+function openFilePreview(path) {
+  const lines = filePreviews[path];
+  openDialog({
+    headline: path.split('/').pop() || '文件预览',
+    iconName: 'description',
+    content: `<p class="dialog-lead">${esc(path)} · 只读预览</p>${
+      lines ? `<div class="dialog-code">${esc(lines.join('\\n'))}</div>` : '<p class="dialog-lead">演示数据里没有这个文件的内容。</p>'
+    }`,
+    actions: `<md-text-button data-action="close-dialog">关闭</md-text-button><md-filled-tonal-button data-action="open-workspace">打开工作区</md-filled-tonal-button>`,
+  });
+}
+
 export function chatAction(action, el, event) {
   switch (action) {
     case 'conv': {
+      if (event?.detail > 1) return true;
       if (state.streaming) stopStreaming(true);
       pendingFiles = [];
-      selectConversation(el.dataset.conv);
+      if (!selectConversation(el.dataset.conv)) return true;
+      document.querySelectorAll('.conv-item').forEach((n) => n.classList.toggle('active', n.dataset.conv === el.dataset.conv));
+      document.querySelectorAll('.recent-item').forEach((n) => n.classList.toggle('active', n.dataset.conv === el.dataset.conv));
       state.listOpen = false;
-      runtime.render();
+      document.getElementById('chat')?.classList.remove('list-open');
+      refreshChatMain();
       return true;
     }
+    case 'conv-select':
+      toggleConvSelection(el.dataset.conv);
+      return true;
+    case 'toggle-group': {
+      const g = el.dataset.group;
+      if (collapsedGroups.has(g)) collapsedGroups.delete(g);
+      else collapsedGroups.add(g);
+      saveCollapsed();
+      refreshConvList();
+      return true;
+    }
+    case 'exit-select':
+      exitSelection();
+      return true;
+    case 'select-all':
+      selectAllVisible();
+      return true;
+    case 'chat-tab':
+      switchChatTab(Number(el.dataset.tab) || 0);
+      return true;
+    case 'batch-move':
+    case 'batch-copy': {
+      const ids = currentSelection();
+      if (ids.length) openTransferSheet(action === 'batch-move' ? 'move' : 'copy', ids);
+      return true;
+    }
+    case 'batch-archive': {
+      const ids = currentSelection();
+      if (!ids.length) return true;
+      const allArchived = ids.every((id) => convById(id)?.archived);
+      setArchived(ids, !allArchived);
+      return true;
+    }
+    case 'batch-retitle': {
+      const ids = currentSelection();
+      if (ids.length) {
+        retitleConversations(ids);
+        exitSelection();
+      }
+      return true;
+    }
+    case 'batch-delete': {
+      const ids = currentSelection();
+      if (ids.length) confirmDelete(ids);
+      return true;
+    }
+    case 'sheet-assistant':
+      sheetAssistant = el.dataset.id;
+      refreshSheet();
+      return true;
+    case 'sheet-folder':
+      sheetKeepFolder = !el.dataset.folder;
+      sheetFolder = el.dataset.folder || '';
+      refreshSheet();
+      return true;
+    case 'sheet-folders':
+      sheetFoldersOpen = !sheetFoldersOpen;
+      refreshSheet();
+      return true;
+    case 'sheet-close':
+      closeTransferSheet();
+      return true;
+    case 'sheet-confirm':
+      applyTransfer();
+      return true;
+    case 'unarchive-current': {
+      const c = currentConversation();
+      if (c) setArchived([c.id], false);
+      return true;
+    }
+    case 'confirm-delete': {
+      const n = deletePendingConversations();
+      closeDialog();
+      exitSelection();
+      runtime.render();
+      toast(`已删除 ${n} 个会话`);
+      return true;
+    }
+    case 'preview-file':
+      openFilePreview(el.dataset.path);
+      return true;
     case 'folder': {
       state.folder = el.dataset.folder;
+      if (state.folder === ARCHIVED_GROUP) {
+        collapsedGroups.delete(ARCHIVED_GROUP);
+        saveCollapsed();
+      }
       document.querySelectorAll('[data-folder]').forEach((c) => {
         c.selected = c.dataset.folder === state.folder;
       });
-      const box = document.getElementById('conv-scroll');
-      if (box) box.innerHTML = convListHtml();
+      refreshConvList();
       return true;
     }
     case 'open-list':
@@ -969,11 +1643,11 @@ export function chatAction(action, el, event) {
     }
     case 'approve-tool':
       toast('已批准 workspace_shell · pnpm build');
-      el.closest('.side-card')?.querySelector('.approve')?.remove();
+      el.closest('.pane-card, .side-card')?.querySelector('.approve')?.remove();
       return true;
     case 'deny-tool':
       toast('已拒绝本次工具调用');
-      el.closest('.side-card')?.querySelector('.approve')?.remove();
+      el.closest('.pane-card, .side-card')?.querySelector('.approve')?.remove();
       return true;
     case 'open-assistant':
       runtime.openAssistantPicker?.();
@@ -991,6 +1665,10 @@ export function chatAction(action, el, event) {
 async function rerun(prompt) {
   const conv = currentConversation();
   if (!conv) return;
+  if (conv.archived) {
+    toast('会话已归档 · 解除归档后才能继续');
+    return;
+  }
   const a = currentAssistant();
   state.streaming = true;
   updateComposerStreaming();
