@@ -264,11 +264,7 @@ function topBar(conv) {
 /* 顶栏标签栏：Inline / Show labels / Fill / Full width / Elastic       */
 /* ------------------------------------------------------------------ */
 
-const CHAT_TABS = [
-  { label: '对话', icon: 'forum' },
-  { label: '任务', icon: 'task_alt' },
-  { label: '文件', icon: 'folder_open' },
-];
+const CHAT_TABS = [{ label: '对话' }, { label: '任务' }, { label: '文件' }];
 
 function chatTabsHtml() {
   return `<div class="chat-tabs" role="tablist" aria-label="对话分区">
@@ -277,18 +273,20 @@ function chatTabsHtml() {
       (t, i) => `<button class="chat-tab ${state.chatTab === i ? 'active' : ''}" role="tab" id="ctab-${i}" aria-selected="${
         state.chatTab === i
       }" aria-controls="pane-host" tabindex="${state.chatTab === i ? 0 : -1}" data-action="chat-tab" data-tab="${i}">
-        ${icon(t.icon, { size: 18 })}<span>${t.label}</span>
+        ${t.label}
       </button>`
     ).join('')}
   </div>`;
 }
 
-/* 指示器宽度跟着标签走：整宽胶囊 + 圆角，切换时用弹性曲线滑过去。 */
+/* 整宽圆角线指示器：宽度=整格，Elastic 时在移动途中拉长再收回。 */
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('resize', () => positionTabIndicator());
 }
 
-function positionTabIndicator() {
+let tabPos = null;
+
+function positionTabIndicator(animate = false) {
   const bar = document.querySelector('.chat-tabs');
   const ind = bar?.querySelector('.chat-tab-indicator');
   const active = bar?.querySelector('.chat-tab.active');
@@ -296,8 +294,27 @@ function positionTabIndicator() {
   const b = bar.getBoundingClientRect();
   const r = active.getBoundingClientRect();
   if (!r.width) return;
-  ind.style.width = `${Math.max(0, r.width - 8)}px`;
-  ind.style.transform = `translateX(${r.left - b.left + 4}px)`;
+  const to = { x: r.left - b.left, w: r.width };
+  const from = tabPos;
+  ind.getAnimations?.().forEach((a) => a.cancel());
+  if (animate && from && (from.x !== to.x || from.w !== to.w) && typeof ind.animate === 'function') {
+    const distance = Math.abs(to.x - from.x);
+    /* 往右走时右缘先冲出去，往左走时左缘先冲出去，看起来才像被拉长。 */
+    const lead = to.x >= from.x ? 0.38 : 0.62;
+    const midX = from.x + (to.x - from.x) * lead;
+    const midW = Math.min(b.width - Math.max(0, midX), Math.max(from.w, to.w) + distance * 0.55);
+    ind.animate(
+      [
+        { transform: `translateX(${from.x}px)`, width: `${from.w}px` },
+        { transform: `translateX(${midX}px)`, width: `${midW}px`, offset: 0.55 },
+        { transform: `translateX(${to.x}px)`, width: `${to.w}px` },
+      ],
+      { duration: 420, easing: 'cubic-bezier(.2, 0, 0, 1)' }
+    );
+  }
+  ind.style.width = `${to.w}px`;
+  ind.style.transform = `translateX(${to.x}px)`;
+  tabPos = to;
 }
 
 function archivedBannerHtml(conv) {
@@ -698,8 +715,9 @@ function mountChatMain() {
     });
   }
 
+  tabPos = null;
   positionTabIndicator();
-  requestAnimationFrame(positionTabIndicator);
+  requestAnimationFrame(() => positionTabIndicator());
 
   const tabs = document.querySelector('.chat-tabs');
   tabs?.addEventListener('keydown', (e) => {
@@ -736,7 +754,9 @@ function switchChatTab(index) {
     t.setAttribute('aria-selected', String(on));
     t.tabIndex = on ? 0 : -1;
   });
-  positionTabIndicator();
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const motionOn = document.documentElement.dataset.motion !== 'off' && !reduce;
+  positionTabIndicator(motionOn);
 
   const conv = currentConversation();
   const swap = () => {
@@ -749,7 +769,6 @@ function switchChatTab(index) {
       if (box) scrollToBottom(box);
     });
   };
-  const motionOn = document.documentElement.dataset.motion !== 'off';
   if (motionOn && typeof document.startViewTransition === 'function') {
     try {
       document.startViewTransition(swap);

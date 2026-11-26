@@ -39,8 +39,9 @@ python3 -m http.server 8799
   “停止”会保留已经写出的内容。
 - **重新生成 / 复制 / 分支 / 更多**：都在助手消息的操作行里；复制走剪贴板 API。
 - **工具卡**：展开入参与输出，或打开工具详情对话框跳到工作区。
-- **顶栏标签**：Inline 主标签栏，标签常显、选中填充、整宽、圆角整宽指示器，
-  切换时走 View 同轴 Y 转场（不支持时退回 CSS 动画）；`←` `→` 也能切。
+- **顶栏标签**：Inline 主标签栏——不显示图标、只显示标签、Gravity Fill（三等分
+  整宽）、底部 3px 整宽圆角线指示器；Elastic 播放时指示器会先拉长再收回。
+  面板切换走 View 同轴 Y 转场（不支持时退回 CSS 动画）；`←` `→` 也能切。
 - **详情栏**：概览（助手、供应商配额、上下文、本轮工具权限）；
   任务与文件移到了顶栏的另外两个分区。
 - **会话历史**：分组可以折叠，会话用缩进 + 竖线挂在组下面；折叠状态存
@@ -97,8 +98,9 @@ python3 -m http.server 8799
 - 动效：emphasized / standard easing + 四档时长；`data-motion="off"` 时全部收掉。
 - 布局：M3 的 navigation drawer / rail / navigation bar 三形态，列表-详情模式，
   搜索用 search bar 的形态，输入区用 surface-container-high + hairline。
-- 标签：主标签栏按 M3 tabs 的 Inline / labels / filled / full width / elastic
-  组合来做，指示器是一个整宽圆角胶囊，宽度与位移都跟着标签走。
+- 标签：主标签栏按 M3 tabs 的组合来做——labels on / icons off / gravity fill /
+  inline / full-width indicator / rounded line / elastic；指示器是贴底的 3px
+  圆角线，宽度等于整格，移动时用 Web Animations 走一段拉伸关键帧。
 - 弹层：Bottom Sheet 从底部进入，目标助手用单选 Chips，文件夹用可展开列表。
 
 ## 文件结构

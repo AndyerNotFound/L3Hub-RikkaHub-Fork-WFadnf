@@ -1131,33 +1131,32 @@ html[data-density="compact"] .msg-stream { gap: 16px; }
 .chat-tabs {
   position: relative;
   display: flex; align-items: stretch; flex: none;
-  height: 50px; margin: 0 10px 2px;
+  height: 48px; margin: 0 10px 2px;
   border-bottom: 1px solid var(--l3-hairline);
 }
+/* Full-width indicator + Rounded line：3px，整格宽度，贴底 */
 .chat-tab-indicator {
-  position: absolute; left: 0; top: 6px;
-  height: 38px; width: 0;
-  border-radius: 19px;
-  background: var(--md-sys-color-secondary-container);
-  transition:
-    transform var(--md-sys-motion-duration-medium3) var(--md-sys-motion-easing-spring),
-    width var(--md-sys-motion-duration-medium3) var(--md-sys-motion-easing-spring);
+  position: absolute; left: 0; bottom: -1px;
+  height: 3px; width: 0;
+  border-radius: 3px;
+  background: var(--md-sys-color-primary);
+  pointer-events: none;
   will-change: transform, width;
 }
 .chat-tab {
   position: relative; z-index: 1;
   flex: 1; min-width: 0;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  border: 0; border-radius: 19px; background: none;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px;
+  border: 0; background: none;
   color: var(--md-sys-color-on-surface-variant);
-  font-family: inherit; font-size: 13px; font-weight: 600;
+  font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: .01em;
   cursor: pointer;
-  transition: color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+  transition: color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+              background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
-.chat-tab:hover:not(.active) { color: var(--md-sys-color-on-surface); }
-.chat-tab.active { color: var(--md-sys-color-on-secondary-container); }
-.chat-tab .icon { opacity: .85; }
-.chat-tab.active .icon { opacity: 1; }
+.chat-tab:hover { background: color-mix(in oklab, var(--md-sys-color-on-surface) var(--l3-hover), transparent); }
+.chat-tab.active { color: var(--md-sys-color-on-surface); }
 
 /* 主区面板 + View 同轴 Y 转场 */
 .pane-host {
@@ -1352,8 +1351,7 @@ html[data-motion="off"] ::view-transition-new(chat-pane) { animation: none; }
 
 @media (max-width: 839px) {
   .chat-tabs { height: 46px; margin: 0 6px 0; }
-  .chat-tab { font-size: 12px; gap: 5px; }
-  .chat-tab-indicator { height: 34px; top: 6px; border-radius: 17px; }
+  .chat-tab { font-size: 13px; }
   .pane-head h2 { font-size: 19px; }
   .archived-banner { flex-wrap: wrap; }
   .archived-banner md-text-button { margin-left: 29px; }
