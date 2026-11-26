@@ -1,0 +1,18 @@
+{
+  "name": "L3Hub · Material 3 Preview",
+  "short_name": "L3Hub",
+  "description": "L3Hub 的纯 Material 3 Web 前端演示",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141218",
+  "theme_color": "#141218",
+  "icons": [
+    {
+      "src": "./assets/mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

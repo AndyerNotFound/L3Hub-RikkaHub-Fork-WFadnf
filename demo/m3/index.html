@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#141218">
+<title>L3Hub · Material 3 Web Preview</title>
+<meta name="description" content="L3Hub 的全新前端演示：纯 Material 3，基于 @material/web 与 material-color-utilities。">
+<link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..800&family=Roboto+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./app.css">
+<style>
+  /* 第一帧兜底，避免自定义元素升级前闪白 */
+  html { background: #141218; color-scheme: dark; }
+  @media (prefers-color-scheme: light) { html { background: #fdf8ff; color-scheme: light; } }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; background: var(--md-sys-color-surface, #141218); z-index: 200; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "@material/web/": "./vendor/@material/web/",
+    "@material/material-color-utilities/": "./vendor/@material/material-color-utilities/",
+    "lit": "./vendor/lit/index.js",
+    "lit/": "./vendor/lit/",
+    "lit-html": "./vendor/lit-html/lit-html.js",
+    "lit-html/": "./vendor/lit-html/",
+    "lit-element/": "./vendor/lit-element/",
+    "@lit/reactive-element": "./vendor/@lit/reactive-element/reactive-element.js",
+    "@lit/reactive-element/": "./vendor/@lit/reactive-element/",
+    "tslib": "./vendor/tslib/tslib.es6.mjs"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="app" class="app"></div>
+<div id="overlay-root"></div>
+<div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+
+<div id="boot" aria-hidden="true">
+  <div class="boot-inner">
+    <div class="boot-mark"></div>
+    <div class="boot-name">L3Hub</div>
+    <div class="boot-hint">Material 3 · Web Preview</div>
+    <div class="boot-track"><span></span></div>
+  </div>
+</div>
+
+<noscript>
+  <div style="padding:32px;font-family:system-ui;line-height:1.7">
+    <strong>L3Hub · Web Preview</strong><br>
+    这个演示需要启用 JavaScript 与 ES Module。
+  </div>
+</noscript>
+
+<script type="module" src="./js/app.js"></script>
+<script>
+  // 如果模块加载失败，至少让启动页给出一句可排查的提示。
+  setTimeout(function () {
+    var boot = document.getElementById('boot');
+    var hint = document.querySelector('.boot-hint');
+    if (boot && hint) hint.textContent = '加载较慢 · 检查控制台与 import map';
+  }, 7000);
+</script>
+</body>
+</html>

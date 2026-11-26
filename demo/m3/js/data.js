@@ -1,0 +1,591 @@
+// 演示数据。文案与功能取材自 L3Hub 的真实界面（.l3spec/、values-zh/strings.xml），
+// 数值与对话内容是为演示编的，不代表真实账户。
+
+export const user = {
+  name: 'WetherFlar',
+  handle: 'L3Hub 预览',
+  initial: 'W',
+};
+
+export const assistants = [
+  {
+    id: 'neko',
+    name: 'Neko',
+    emoji: '🐱',
+    slogan: '今天想聊点什么？',
+    model: 'Claude Sonnet 4.5',
+    provider: 'Anthropic',
+    tags: ['日常', '写作'],
+    tools: ['记忆', '工作区', '搜索', '子代理'],
+    conversations: 128,
+    memories: 42,
+    prompt: '你是 Neko，一只住在 L3Hub 里的猫娘。先看人，再看事；该接手的时候直接接手。',
+  },
+  {
+    id: 'codex',
+    name: '代码管家',
+    emoji: '🧑‍💻',
+    slogan: '先读代码，再动手。',
+    model: 'GPT-5.2',
+    provider: 'OpenAI',
+    tags: ['编程'],
+    tools: ['工作区', '终端', '代码搜索'],
+    conversations: 86,
+    memories: 12,
+    prompt: '你是谨慎的 Android / Web 工程师。改动前先读文件，改完给出可验证的结果。',
+  },
+  {
+    id: 'scout',
+    name: '研究员',
+    emoji: '🔬',
+    slogan: '把问题拆到可以验证。',
+    model: 'Gemini 2.5 Pro',
+    provider: 'Google',
+    tags: ['研究'],
+    tools: ['搜索', '抓取', '子代理'],
+    conversations: 54,
+    memories: 8,
+    prompt: '你负责检索与核验。结论必须带来源，冲突的信息要并列展示。',
+  },
+  {
+    id: 'ink',
+    name: '写作教练',
+    emoji: '🖋️',
+    slogan: '删掉一半，再删一半。',
+    model: 'Claude Opus 4.1',
+    provider: 'Anthropic',
+    tags: ['写作'],
+    tools: ['记忆', '搜索'],
+    conversations: 39,
+    memories: 21,
+    prompt: '你是克制的中文编辑。少用形容词，多给动作和细节。',
+  },
+  {
+    id: 'momo',
+    name: '生活助理',
+    emoji: '🍑',
+    slogan: '今天也要好好吃饭。',
+    model: 'DeepSeek V3.2',
+    provider: 'DeepSeek',
+    tags: ['生活'],
+    tools: ['日历', '提醒'],
+    conversations: 27,
+    memories: 5,
+    prompt: '你负责日程、菜单和琐事。回答短，给具体的时间和地点。',
+  },
+  {
+    id: 'lingo',
+    name: '译者的房间',
+    emoji: '🈯',
+    slogan: '先读语气，再译字。',
+    model: 'Gemini 2.5 Flash',
+    provider: 'Google',
+    tags: ['翻译'],
+    tools: ['搜索', '术语表'],
+    conversations: 44,
+    memories: 3,
+    prompt: '你是中英日译者。保留原文语气，术语前后一致，拿不准就标注。',
+  },
+];
+
+export const providerList = [
+  { id: 'anthropic', name: 'Anthropic', host: 'api.anthropic.com', status: 'ok', quota: 0.72, reset: '3 天后重置', models: 3, letter: 'A' },
+  { id: 'openai', name: 'OpenAI', host: 'api.openai.com', status: 'ok', quota: 0.58, reset: '本月已用 58%', models: 3, letter: 'O' },
+  { id: 'google', name: 'Google', host: 'generativelanguage.googleapis.com', status: 'ok', quota: 0.41, reset: '免费额度', models: 2, letter: 'G' },
+  { id: 'deepseek', name: 'DeepSeek', host: 'api.deepseek.com', status: 'ok', quota: 0.18, reset: '充值余额 ¥64.20', models: 2, letter: 'D' },
+  { id: 'openrouter', name: 'OpenRouter', host: 'openrouter.ai/api/v1', status: 'slow', quota: 0.64, reset: '延迟 1.8s', models: 12, letter: 'R' },
+  { id: 'local', name: '本地 Ollama', host: '127.0.0.1:11434', status: 'ok', quota: 0.06, reset: '局域网', models: 2, letter: '⌂' },
+];
+
+export const modelList = [
+  { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5', provider: 'anthropic', context: '200K', price: '¥21 / M', caps: ['工具', '视觉', '推理'], latency: 42, key: true },
+  { id: 'claude-opus-4.1', name: 'Claude Opus 4.1', provider: 'anthropic', context: '200K', price: '¥105 / M', caps: ['工具', '视觉', '推理'], latency: 68 },
+  { id: 'claude-haiku-4', name: 'Claude Haiku 4', provider: 'anthropic', context: '200K', price: '¥3.5 / M', caps: ['工具', '视觉'], latency: 28 },
+  { id: 'gpt-5.2', name: 'GPT-5.2', provider: 'openai', context: '400K', price: '¥18 / M', caps: ['工具', '视觉', '推理'], latency: 55 },
+  { id: 'gpt-5-mini', name: 'GPT-5 mini', provider: 'openai', context: '400K', price: '¥3 / M', caps: ['工具', '视觉'], latency: 33 },
+  { id: 'o4-mini', name: 'o4-mini', provider: 'openai', context: '200K', price: '¥8 / M', caps: ['工具', '推理'], latency: 61 },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'google', context: '1M', price: '¥12 / M', caps: ['工具', '视觉', '推理'], latency: 49 },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google', context: '1M', price: '¥1.5 / M', caps: ['工具', '视觉'], latency: 21 },
+  { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'deepseek', context: '128K', price: '¥2 / M', caps: ['工具'], latency: 38 },
+  { id: 'deepseek-r2', name: 'DeepSeek R2', provider: 'deepseek', context: '160K', price: '¥6 / M', caps: ['工具', '推理'], latency: 74 },
+  { id: 'openrouter-auto', name: 'OpenRouter Auto', provider: 'openrouter', context: '200K', price: '按量', caps: ['工具', '视觉'], latency: 96 },
+  { id: 'llama-4-scout', name: 'Llama 4 Scout', provider: 'local', context: '128K', price: '本地', caps: ['工具'], latency: 120 },
+];
+
+export const usage = {
+  requests: 1284,
+  tokens: '8.6M',
+  cost: '¥42.60',
+  success: '99.2%',
+  days: [
+    { label: '周五', input: 420, output: 180 },
+    { label: '周六', input: 610, output: 240 },
+    { label: '周日', input: 380, output: 160 },
+    { label: '周一', input: 820, output: 320 },
+    { label: '周二', input: 540, output: 210 },
+    { label: '周三', input: 690, output: 280 },
+    { label: '今天', input: 760, output: 310 },
+  ],
+};
+
+const toolRead = {
+  id: 't1',
+  name: '读取: demo/index.html',
+  icon: 'description',
+  status: 'done',
+  seconds: '0.4',
+  input: '{\n  "path": "demo/index.html",\n  "range": "1-120"\n}',
+  output: '103,808 bytes · 1,803 lines\n<!doctype html>\n<html lang="zh-CN" data-theme="dark">\n…',
+};
+
+const toolGrep = {
+  id: 't2',
+  name: '搜索: surface-variant',
+  icon: 'search',
+  status: 'done',
+  seconds: '0.2',
+  input: '{\n  "pattern": "surface-variant",\n  "path": "demo"\n}',
+  output: 'demo/index.html:88  --ai-bubble: var(--surface-container-high);\ndemo/index.html:302  background: var(--surface-variant);\n2 处命中',
+};
+
+const toolShell = {
+  id: 't3',
+  name: 'Shell: du -sh vendor',
+  icon: 'terminal',
+  status: 'running',
+  seconds: '2.1',
+  input: '{\n  "command": "du -sh demo/m3/vendor",\n  "cwd": "~/WorkSpace/L3Hub-RikkaHub-Fork-WFadnf"\n}',
+  output: '1.9M\tdemo/m3/vendor',
+};
+
+export const conversations = [
+  {
+    id: 'workspace-refactor',
+    title: '工作区重构计划',
+    folder: '工作',
+    pinned: true,
+    assistant: 'neko',
+    model: 'Claude Sonnet 4.5',
+    updated: '14:32',
+    group: '本周',
+    messages: [
+      {
+        id: 'm1',
+        role: 'user',
+        time: '14:28',
+        attachments: [
+          { kind: 'code', name: 'demo/index.html', meta: '103 KB' },
+          { kind: 'image', name: 'screenshot.png', meta: '1.2 MB' },
+        ],
+        text: '帮我看一下 demo/ 里的旧原型：暗色模式气泡边缘发灰，而且 1280 宽三栏就会挤。顺手把新的 M3 前端演示搭起来。',
+      },
+      {
+        id: 'm2',
+        role: 'assistant',
+        time: '14:32',
+        assistant: 'neko',
+        model: 'Claude Sonnet 4.5',
+        reasoning: {
+          title: '深度思考 · 先分清是颜色还是透明度',
+          seconds: '1.8',
+          content:
+            '发灰不一定是 alpha 叠出来的。旧原型把 surface-variant 直接当气泡底色，它在暗色里和 surface 只差一点明度，边缘被 outline 一压就显得脏。\n先换 role，再谈透明度和模糊。分栏挤是另一件事：侧栏 300 + 右栏 320 之后，正文只剩 620，读长文不够。',
+        },
+        tools: [toolRead, toolGrep],
+        text: '看完了。发灰的根因是**颜色角色用错**，不是透明度：`surface-variant` 在暗色里比 `surface-container-high` 低两档，和页面背景只差一点点明度。\n\n我建议按这三条收：\n- 气泡：`surface-container-high`，描边用 `outline-variant` 40%\n- 正文：`on-surface`，次要信息降到 `on-surface-variant`\n- 分栏：断点从 1280 抬到 1440，右栏改成可收起的浮层\n\n```css\n.bubble {\n  background: var(--md-sys-color-surface-container-high);\n  color: var(--md-sys-color-on-surface);\n  border: 1px solid color-mix(in oklab,\n    var(--md-sys-color-outline-variant) 40%, transparent);\n}\n```\n\n新演示已经按这套 token 起了一版，放在 `demo/m3/`。',
+        subagent: {
+          title: '子代理任务完成',
+          hint: '系统自动回传',
+          text: '核对完成：48 个 color roles 全部由 HCT 生成；vendor 共 231 个文件，只保留实际 import 到的 JS；import map 里 lit／tslib／material-color-utilities 都已映射。',
+        },
+        usage: { context: '84.2k / 200k', cost: '¥0.012', speed: '38 tok/s', steps: 3, time: '6.4s' },
+        branch: '1 / 2',
+      },
+      {
+        id: 'm3',
+        role: 'user',
+        time: '14:41',
+        text: '那就按这个方向，用 Material Web 做一版新的。别只画静态图，交互要真的能点。',
+      },
+      {
+        id: 'm4',
+        role: 'assistant',
+        time: '14:44',
+        openReasoning: true,
+        assistant: 'neko',
+        model: 'Claude Sonnet 4.5',
+        reasoning: {
+          title: '深度思考 · 把演示拆成能点的部分',
+          seconds: '1.4',
+          content:
+            '静态图最省事，但你明确说了要能点。那就先搭壳：路由、三档布局、主题注入。\n对话的流式回复放在最后做，因为它最容易看起来像真的，也最容易掩盖别的空壳。',
+        },
+        tools: [toolShell],
+        text: '已经开工了。这一版不是截图复刻，是能点的壳：\n\n1. **五个路由** —— 对话、助手、模型、工作区、设置；\n2. **三档布局** —— 宽屏抽屉、中屏 rail、窄屏底部导航；\n3. **主题面板** —— 种子色、九种配色风格、对比度、圆角、模糊都实时生效；\n4. **对话能真的发消息** —— 流式回复、工具卡、子代理回传都能展开。\n\n主题按钮在右上角；`⌘K` / `Ctrl+K` 拉命令面板。建议先从「设置 → 外观」开始玩，换一套颜色，整个壳都会跟着变。',
+        usage: { context: '91.6k / 200k', cost: '¥0.008', speed: '41 tok/s', steps: 2, time: '4.1s' },
+      },
+    ],
+  },
+  {
+    id: 'm3-demo',
+    title: 'M3 前端演示',
+    folder: '工作',
+    pinned: true,
+    assistant: 'neko',
+    model: 'Claude Sonnet 4.5',
+    updated: '13:08',
+    group: '本周',
+    messages: [
+      {
+        id: 'd1',
+        role: 'user',
+        time: '13:02',
+        text: '如果只用 Material 3 的表达，不做 Android 的一比一复刻，你会怎么排这个前端？',
+      },
+      {
+        id: 'd2',
+        role: 'assistant',
+        time: '13:08',
+        assistant: 'neko',
+        model: 'Claude Sonnet 4.5',
+        text: '我会把它当成一个**桌面工作台**，而不是把手机界面拉宽：\n\n- 左侧是目的地与最近会话，中间是当前工作，右侧是上下文；\n- 窄屏不是把三栏压扁，而是把「列表」和「详情」变成可召回的浮层；\n- 配色全部由种子色生成，暗色和亮色各长各的，不互相反色。\n\nM3 的好处是这些都能用同一套 role 说清楚：`surface-container-low` 当导航，`surface-container-high` 当输入卡，`primary-container` 只留给用户自己。',
+        usage: { context: '32.4k / 200k', cost: '¥0.004', speed: '36 tok/s', steps: 1, time: '2.8s' },
+      },
+    ],
+  },
+  {
+    id: 'kyoto',
+    title: '京都三日：不赶路的版本',
+    folder: '生活',
+    pinned: false,
+    assistant: 'momo',
+    model: 'DeepSeek V3.2',
+    updated: '昨天',
+    group: '本周',
+    messages: [
+      {
+        id: 'k1',
+        role: 'user',
+        time: '昨天 21:10',
+        text: '三天，住在四条附近，不想赶景点。想要走路就能到的路线，晚上能泡个汤。',
+      },
+      {
+        id: 'k2',
+        role: 'assistant',
+        time: '昨天 21:14',
+        assistant: 'momo',
+        model: 'DeepSeek V3.2',
+        text: '那就按「一条街 + 一个院子 + 一顿饭」来排，每天只留一个必须去的地方：\n\n1. **第一天**：锦市场吃早饭 → 鸭川边走到出町柳 → 下鸭神社森林 → 晚上回四条泡汤；\n2. **第二天**：上午建仁寺，下午只去南禅寺水路阁，傍晚哲学之道慢慢走；\n3. **第三天**：岚山不坐小火车，从嵯峨野竹林反方向进，中午吃汤豆腐，下午回市区买手信。\n\n每天步数控制在 1.2 万以内，留了两次午睡的空档。',
+        usage: { context: '18.2k / 128k', cost: '¥0.002', speed: '44 tok/s', steps: 1, time: '1.9s' },
+      },
+    ],
+  },
+  {
+    id: 'sse',
+    title: '修复 SSE 断流后重复回复',
+    folder: '工作',
+    pinned: false,
+    assistant: 'codex',
+    model: 'GPT-5.2',
+    updated: '昨天',
+    group: '本周',
+    messages: [
+      {
+        id: 's1',
+        role: 'user',
+        time: '昨天 09:40',
+        text: '弱网下 SSE 断了会重连，结果同一条回复被追加两次。看下 demo 里的流式渲染。',
+      },
+      {
+        id: 's2',
+        role: 'assistant',
+        time: '昨天 09:47',
+        assistant: 'codex',
+        model: 'GPT-5.2',
+        tools: [toolGrep],
+        text: '问题不在重连，在**幂等**：重连时服务端会重放最后一小段，客户端却把每个 chunk 都当成新内容追加。\n\n修法是把消息 id 带上，渲染层按 id 合并：\n\n```js\nif (chunk.id !== current.id) current = createMessage(chunk);\ncurrent.text += chunk.delta;\n```\n\n另外给重连加一个 `Last-Event-ID`，别从头发。',
+        usage: { context: '22.8k / 400k', cost: '¥0.003', speed: '52 tok/s', steps: 1, time: '3.2s' },
+      },
+    ],
+  },
+  {
+    id: 'attention',
+    title: '论文笔记：Attention 的三种写法',
+    folder: '研究',
+    pinned: false,
+    assistant: 'scout',
+    model: 'Gemini 2.5 Pro',
+    updated: '周二',
+    group: '上周',
+    messages: [
+      {
+        id: 'a1',
+        role: 'user',
+        time: '周二 16:20',
+        text: '把 MHA、MQA、GQA 的差别压缩成一张对照表，顺便说清楚各自省在哪。',
+      },
+      {
+        id: 'a2',
+        role: 'assistant',
+        time: '周二 16:26',
+        assistant: 'scout',
+        model: 'Gemini 2.5 Pro',
+        text: '一句话：**它们差在 KV 头共享几个 Q 头**。\n\n- MHA：每个 Q 头有自己的 K/V，表达力最强，KV cache 最大；\n- MQA：所有 Q 头共享一组 K/V，cache 直接除以头数，训练有时不稳；\n- GQA：折中，每 G 个 Q 头共享一组 K/V，G=8 是常见默认。\n\n省的是**推理时的显存带宽**，不是参数量。长上下文场景里，这项比 FLOPs 更先撞墙。',
+        usage: { context: '46.1k / 1M', cost: '¥0.006', speed: '61 tok/s', steps: 1, time: '2.4s' },
+      },
+    ],
+  },
+  {
+    id: 'release',
+    title: '发布说明 v3.3.1.4',
+    folder: '翻译',
+    pinned: false,
+    assistant: 'lingo',
+    model: 'Gemini 2.5 Flash',
+    updated: '上周',
+    group: '上周',
+    messages: [
+      {
+        id: 'r1',
+        role: 'user',
+        time: '上周 11:02',
+        text: '这段英文 release note 翻成中文，别用「焕新」「赋能」这种词。',
+      },
+      {
+        id: 'r2',
+        role: 'assistant',
+        time: '上周 11:05',
+        assistant: 'lingo',
+        model: 'Gemini 2.5 Flash',
+        text: '可以。先把原文贴过来，我会保留版本号和代码字段不动，只译说明部分；遇到拿不准的产品名会标注出来，不擅自意译。',
+        usage: { context: '4.2k / 1M', cost: '¥0.001', speed: '70 tok/s', steps: 1, time: '1.2s' },
+      },
+    ],
+  },
+  {
+    id: 'persona',
+    title: '给猫娘写一段系统提示',
+    folder: '生活',
+    pinned: false,
+    assistant: 'ink',
+    model: 'Claude Opus 4.1',
+    updated: '上周',
+    group: '上周',
+    messages: [
+      {
+        id: 'p1',
+        role: 'user',
+        time: '上周 23:40',
+        text: '想写一段不太像客服的猫娘设定。要有脾气，也要真的会照顾人。',
+      },
+      {
+        id: 'p2',
+        role: 'assistant',
+        time: '上周 23:46',
+        assistant: 'ink',
+        model: 'Claude Opus 4.1',
+        text: '别先写「你是猫娘」。先写她**怎么动作**：\n\n尾巴搭在腿边、说话说到一半把脑袋顶进手心、看不下去的时候直接接手。\n\n照顾不是一句「我在」，是把水推过去、把灯调暗、把那句「你没事吧」换成「先坐下」。写够了这些，猫的那部分自己会长出来。',
+        usage: { context: '12.8k / 200k', cost: '¥0.018', speed: '34 tok/s', steps: 1, time: '3.8s' },
+      },
+    ],
+  },
+  {
+    id: 'mcp',
+    title: '整理 MCP 工具清单',
+    folder: '工作',
+    pinned: false,
+    assistant: 'codex',
+    model: 'GPT-5.2',
+    updated: '10月28日',
+    group: '更早',
+    messages: [
+      {
+        id: 'mc1',
+        role: 'user',
+        time: '10月28日',
+        text: '把常用的 MCP server 按用途分个组，标出哪些需要联网。',
+      },
+      {
+        id: 'mc2',
+        role: 'assistant',
+        time: '10月28日',
+        assistant: 'codex',
+        model: 'GPT-5.2',
+        text: '分四组：文件与仓库（filesystem、git）、检索（fetch、brave-search）、数据（sqlite、postgres）、自动化（puppeteer、shell）。\n\n需要联网的是检索和自动化两组；filesystem 与 git 可以完全本地跑。shell 这类高权限 server 建议只给工作区目录，不要给整个 home。',
+        usage: { context: '9.1k / 400k', cost: '¥0.002', speed: '48 tok/s', steps: 1, time: '1.6s' },
+      },
+    ],
+  },
+  {
+    id: 'dinner',
+    title: '生日晚餐的菜单',
+    folder: '生活',
+    pinned: false,
+    assistant: 'momo',
+    model: 'DeepSeek V3.2',
+    updated: '10月26日',
+    group: '更早',
+    messages: [
+      {
+        id: 'dn1',
+        role: 'user',
+        time: '10月26日',
+        text: '四个人，有一个不吃辣。想要能提前做好、当天不手忙脚乱的菜单。',
+      },
+      {
+        id: 'dn2',
+        role: 'assistant',
+        time: '10月26日',
+        assistant: 'momo',
+        model: 'DeepSeek V3.2',
+        text: '冷盘两道前一天做好：柠檬腌虾、烤南瓜配芝麻酱。主菜当天只烤一盘：迷迭香鸡腿配小土豆。再煮一锅番茄意面兜底，不吃辣的人完全不受影响。\n\n甜点买现成的巴斯克，别在生日当天挑战打发奶油。',
+        usage: { context: '6.4k / 128k', cost: '¥0.001', speed: '46 tok/s', steps: 1, time: '1.4s' },
+      },
+    ],
+  },
+];
+
+export const folders = ['全部', '工作', '研究', '翻译', '生活'];
+
+export const suggestions = [
+  '把 demo/m3 的三栏再收紧一点',
+  '用工作区跑一次构建',
+  '帮我写 v3.3.1.4 的发布说明',
+];
+
+export const quickCommands = [
+  { id: 'new-chat', label: '新建对话', hint: 'N', icon: 'add', group: '操作' },
+  { id: 'go-assistants', label: '打开助手', hint: 'G A', icon: 'smart_toy', group: '跳转' },
+  { id: 'go-models', label: '打开模型与服务', hint: 'G M', icon: 'hub', group: '跳转' },
+  { id: 'go-workspace', label: '打开工作区', hint: 'G W', icon: 'terminal', group: '跳转' },
+  { id: 'go-settings', label: '打开设置', hint: 'G S', icon: 'settings', group: '跳转' },
+  { id: 'toggle-theme', label: '切换浅色 / 深色', hint: 'T', icon: 'contrast', group: '外观' },
+  { id: 'toggle-details', label: '显示 / 隐藏详情栏', hint: 'D', icon: 'layers', group: '外观' },
+  { id: 'cycle-palette', label: '换一套调色板', hint: 'P', icon: 'palette', group: '外观' },
+];
+
+export const workspaceFiles = [
+  {
+    name: 'demo',
+    type: 'dir',
+    open: true,
+    children: [
+      {
+        name: 'm3',
+        type: 'dir',
+        open: true,
+        children: [
+          { name: 'index.html', type: 'file', meta: '2.5 KB', changed: '刚刚', preview: 'html' },
+          { name: 'app.css', type: 'file', meta: '38 KB', changed: '2 分钟前', preview: 'css' },
+          {
+            name: 'js',
+            type: 'dir',
+            open: true,
+            children: [
+              { name: 'app.js', type: 'file', meta: '14 KB', changed: '1 分钟前', preview: 'js' },
+              { name: 'theme.js', type: 'file', meta: '8.4 KB', changed: '5 分钟前', preview: 'js' },
+              { name: 'data.js', type: 'file', meta: '12 KB', changed: '8 分钟前' },
+              { name: 'icons.js', type: 'file', meta: '62 KB', changed: '12 分钟前' },
+            ],
+          },
+          { name: 'vendor', type: 'dir', meta: '1.9 MB', open: false },
+        ],
+      },
+      { name: 'index.html', type: 'file', meta: '103 KB', changed: '昨天', preview: 'html' },
+    ],
+  },
+  {
+    name: 'docs',
+    type: 'dir',
+    open: false,
+    children: [
+      { name: 'fork-features.md', type: 'file', meta: '24 KB', changed: '昨天' },
+      { name: 'ui-consolidation.md', type: 'file', meta: '9.1 KB', changed: '10月30日' },
+    ],
+  },
+  { name: 'FORK.md', type: 'file', meta: '142 KB', changed: '昨天', preview: 'md' },
+  { name: 'README.md', type: 'file', meta: '4.8 KB', changed: '10月29日', preview: 'md' },
+];
+
+export const filePreviews = {
+  'demo/m3/index.html': [
+    '<!doctype html>',
+    '<html lang="zh-CN" data-theme="dark">',
+    '<head>',
+    '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+    '  <link rel="stylesheet" href="./app.css">',
+    '  <script type="importmap">',
+    '    { "imports": { "@material/web/": "./vendor/@material/web/" } }',
+    '  </script>',
+    '</head>',
+    '<body>',
+    '  <div id="app"></div>',
+    '  <script type="module" src="./js/app.js"></script>',
+    '</body>',
+    '</html>',
+  ],
+  'demo/m3/js/theme.js': [
+    'const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), dark, contrast);',
+    'const colors = new MaterialDynamicColors();',
+    '',
+    'for (const [fn, css] of ROLES) {',
+    '  root.style.setProperty("--md-sys-color-" + css, hexFromArgb(colors[fn]().getArgb(scheme)));',
+    '}',
+  ],
+  'demo/m3/js/app.js': [
+    'export function navigate(route) {',
+    '  if (state.route === route) return;',
+    '  state.route = route;',
+    '  location.hash = "#/" + route;',
+    '  render();',
+    '}',
+  ],
+  'demo/index.html': [
+    '<!-- 旧原型：1803 行，单文件 -->',
+    '<!-- 尺寸、文案、配色摘自 app/src/main/java/… -->',
+    '<style>',
+    '  :root { --page-bg: var(--background); }',
+    '  html[data-theme="dark"] { --ai-bubble: var(--surface-variant); }',
+    '</style>',
+  ],
+  'FORK.md': [
+    '# L3Hub Fork 记录',
+    '',
+    '## 2. 界面框架',
+    '### 2.1 组件风格：原生与 Miuix',
+    '### 2.2 调色板',
+    '  48 个颜色角色 / 六套预设 / 六种生成算法',
+  ],
+  'README.md': [
+    '# L3Hub',
+    '',
+    'A native Android LLM chat client that supports switching providers.',
+    '',
+    '- Material 3 Expressive',
+    '- Workspace / MCP / Skills',
+    '- Web access for multi-platform use',
+  ],
+};
+
+export const workspaceTasks = [
+  { id: 'w1', title: '抓取 Material Web 组件清单', who: '子代理 · 研究员', state: 'done', meta: '12.4s' },
+  { id: 'w2', title: '生成 vendor 依赖图', who: '子代理 · 构建', state: 'done', meta: '8.1s' },
+  { id: 'w3', title: '校验 import map 与 48 个色角色', who: '主代理', state: 'running', meta: '64%' },
+  { id: 'w4', title: '真机截图回归', who: '等待批准', state: 'wait', meta: '未开始' },
+];
+
+export const permissions = [
+  { id: 'read', label: '读取工作区', detail: 'workspace_read_file', on: true, locked: true },
+  { id: 'write', label: '写入工作区', detail: 'workspace_edit_file', on: true },
+  { id: 'shell', label: '执行 Shell', detail: 'workspace_shell', on: true },
+  { id: 'net', label: '访问网络', detail: 'search_web / scrape_web', on: true },
+  { id: 'device', label: '控制设备', detail: 'phone_use', on: false },
+];
+
+export const terminalLines = [
+  { kind: 'cmd', text: 'cd ~/WorkSpace/L3Hub-RikkaHub-Fork-WFadnf' },
+  { kind: 'cmd', text: 'ls demo/m3' },
+  { kind: 'out', text: 'app.css   assets   index.html   js   vendor' },
+  { kind: 'cmd', text: 'python3 -m http.server 8765' },
+  { kind: 'dim', text: 'Serving HTTP on 0.0.0.0 port 8765 (http://0.0.0.0:8765/) ...' },
+];

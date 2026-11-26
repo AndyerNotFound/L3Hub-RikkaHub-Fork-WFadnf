@@ -1,0 +1,292 @@
+/* ==========================================================================
+   L3Hub · M3 tokens
+   只定义 Material 3 的形状 / 层级 / 动效 / 字体尺度与基础重置；
+   颜色由 js/theme.js 写入 48 个 --md-sys-color-* 角色，不在这里手写。
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  --l3-radius: 24px;
+  --l3-radius-sm: 14px;
+  --l3-radius-lg: 30px;
+
+  --md-ref-typeface-brand: "Roboto Flex", "Roboto", "Noto Sans SC", "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --md-ref-typeface-plain: "Roboto Flex", "Roboto", "Noto Sans SC", "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --md-ref-typeface-mono: "Roboto Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --md-ref-typeface-weight-regular: 400;
+  --md-ref-typeface-weight-medium: 500;
+  --md-ref-typeface-weight-bold: 700;
+
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 999px;
+
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px 1px rgba(0, 0, 0, .15);
+  --md-sys-elevation-level2: 0 1px 2px rgba(0, 0, 0, .3), 0 2px 6px 2px rgba(0, 0, 0, .15);
+  --md-sys-elevation-level3: 0 4px 8px 3px rgba(0, 0, 0, .15), 0 1px 3px rgba(0, 0, 0, .3);
+  --md-sys-elevation-level4: 0 6px 10px 4px rgba(0, 0, 0, .15), 0 2px 3px rgba(0, 0, 0, .3);
+  --md-sys-elevation-level5: 0 8px 12px 6px rgba(0, 0, 0, .15), 0 4px 4px rgba(0, 0, 0, .3);
+
+  --md-sys-motion-easing-linear: cubic-bezier(0, 0, 1, 1);
+  --md-sys-motion-easing-standard: cubic-bezier(.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(.3, 0, 1, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(.05, .7, .1, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(.3, 0, .8, .15);
+  --md-sys-motion-easing-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
+
+  /* 类型尺度（M3: size / line-height / tracking / weight） */
+  --md-sys-typescale-display-large-size: 3.5625rem;
+  --md-sys-typescale-display-large-line: 4rem;
+  --md-sys-typescale-display-large-track: -.015em;
+  --md-sys-typescale-display-medium-size: 2.8125rem;
+  --md-sys-typescale-display-medium-line: 3.25rem;
+  --md-sys-typescale-display-small-size: 2.25rem;
+  --md-sys-typescale-display-small-line: 2.75rem;
+  --md-sys-typescale-headline-large-size: 2rem;
+  --md-sys-typescale-headline-large-line: 2.5rem;
+  --md-sys-typescale-headline-medium-size: 1.75rem;
+  --md-sys-typescale-headline-medium-line: 2.25rem;
+  --md-sys-typescale-headline-small-size: 1.5rem;
+  --md-sys-typescale-headline-small-line: 2rem;
+  --md-sys-typescale-title-large-size: 1.375rem;
+  --md-sys-typescale-title-large-line: 1.75rem;
+  --md-sys-typescale-title-medium-size: 1rem;
+  --md-sys-typescale-title-medium-line: 1.5rem;
+  --md-sys-typescale-title-small-size: .875rem;
+  --md-sys-typescale-title-small-line: 1.25rem;
+  --md-sys-typescale-body-large-size: 1rem;
+  --md-sys-typescale-body-large-line: 1.5rem;
+  --md-sys-typescale-body-medium-size: .875rem;
+  --md-sys-typescale-body-medium-line: 1.25rem;
+  --md-sys-typescale-body-small-size: .75rem;
+  --md-sys-typescale-body-small-line: 1rem;
+  --md-sys-typescale-label-large-size: .875rem;
+  --md-sys-typescale-label-large-line: 1.25rem;
+  --md-sys-typescale-label-medium-size: .75rem;
+  --md-sys-typescale-label-medium-line: 1rem;
+  --md-sys-typescale-label-small-size: .6875rem;
+  --md-sys-typescale-label-small-line: 1rem;
+
+  --l3-hairline: color-mix(in oklab, var(--md-sys-color-outline-variant) 55%, transparent);
+  --l3-hairline-strong: color-mix(in oklab, var(--md-sys-color-outline-variant) 80%, transparent);
+  --l3-press: 10%;
+  --l3-hover: 8%;
+  --l3-focus: 10%;
+  --l3-scrim: 38%;
+  --l3-shadow: 0 18px 50px -18px rgba(0, 0, 0, .45);
+}
+
+html[data-theme="light"] {
+  --md-sys-elevation-level1: 0 1px 2px rgba(0, 0, 0, .08), 0 1px 3px 1px rgba(0, 0, 0, .06);
+  --md-sys-elevation-level2: 0 1px 2px rgba(0, 0, 0, .08), 0 2px 6px 2px rgba(0, 0, 0, .06);
+  --md-sys-elevation-level3: 0 4px 8px 3px rgba(0, 0, 0, .07), 0 1px 3px rgba(0, 0, 0, .1);
+  --md-sys-elevation-level4: 0 6px 10px 4px rgba(0, 0, 0, .07), 0 2px 3px rgba(0, 0, 0, .1);
+  --md-sys-elevation-level5: 0 8px 12px 6px rgba(0, 0, 0, .07), 0 4px 4px rgba(0, 0, 0, .1);
+  --l3-shadow: 0 18px 45px -22px rgba(0, 0, 0, .28);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+button, input, textarea, select { font: inherit; color: inherit; }
+button { -webkit-user-select: none; user-select: none; }
+a { color: var(--md-sys-color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+img, svg { display: block; }
+h1, h2, h3, h4, p { margin: 0; }
+::selection { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+
+:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px; }
+:where(button):focus:not(:focus-visible) { outline: none; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--md-sys-color-outline) 45%, transparent);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+* { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--md-sys-color-outline) 40%, transparent) transparent; }
+
+/* ---------- type utilities ---------- */
+.t-display  { font-size: var(--md-sys-typescale-display-small-size); line-height: var(--md-sys-typescale-display-small-line); letter-spacing: -.015em; font-weight: 600; }
+.t-headline { font-size: var(--md-sys-typescale-headline-small-size); line-height: var(--md-sys-typescale-headline-small-line); font-weight: 500; letter-spacing: -.01em; }
+.t-title    { font-size: var(--md-sys-typescale-title-large-size); line-height: var(--md-sys-typescale-title-large-line); font-weight: 500; }
+.t-title-m  { font-size: var(--md-sys-typescale-title-medium-size); line-height: var(--md-sys-typescale-title-medium-line); font-weight: 500; }
+.t-body     { font-size: var(--md-sys-typescale-body-large-size); line-height: var(--md-sys-typescale-body-large-line); }
+.t-body-m   { font-size: var(--md-sys-typescale-body-medium-size); line-height: var(--md-sys-typescale-body-medium-line); }
+.t-label    { font-size: var(--md-sys-typescale-label-large-size); line-height: var(--md-sys-typescale-label-large-line); font-weight: 500; letter-spacing: .006em; }
+.t-label-m  { font-size: var(--md-sys-typescale-label-medium-size); line-height: var(--md-sys-typescale-label-medium-line); font-weight: 500; letter-spacing: .04em; }
+.t-label-s  { font-size: var(--md-sys-typescale-label-small-size); line-height: var(--md-sys-typescale-label-small-line); font-weight: 500; letter-spacing: .04em; }
+.t-display-xl { font-size: clamp(2.5rem, 5vw, 3.5625rem); line-height: 1.06; letter-spacing: -.02em; font-weight: 600; }
+.mono { font-family: var(--md-ref-typeface-mono); font-variant-ligatures: none; }
+.muted { color: var(--md-sys-color-on-surface-variant); }
+.dim { color: color-mix(in oklab, var(--md-sys-color-on-surface-variant) 72%, transparent); }
+.primary-text { color: var(--md-sys-color-primary); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------- icons / avatars / mark ---------- */
+.icon { flex: none; fill: currentColor; }
+.mark { flex: none; border-radius: 22%; }
+
+.avatar {
+  --av-bg: var(--md-sys-color-tertiary-container);
+  --av-fg: var(--md-sys-color-on-tertiary-container);
+  width: 40px; height: 40px; flex: none;
+  display: inline-grid; place-items: center;
+  border-radius: 50%;
+  background: var(--av-bg);
+  color: var(--av-fg);
+  font-size: 20px; line-height: 1;
+  border: 1px solid color-mix(in oklab, var(--av-fg) 8%, transparent);
+}
+.avatar.tone-1 { --av-bg: var(--md-sys-color-tertiary-container); --av-fg: var(--md-sys-color-on-tertiary-container); }
+.avatar.tone-2 { --av-bg: var(--md-sys-color-secondary-container); --av-fg: var(--md-sys-color-on-secondary-container); }
+.avatar.tone-3 { --av-bg: var(--md-sys-color-primary-container); --av-fg: var(--md-sys-color-on-primary-container); }
+.avatar-user {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-weight: 700;
+  font-family: var(--md-ref-typeface-brand);
+  border-color: transparent;
+}
+.avatar-xs { width: 26px; height: 26px; font-size: 13px; }
+.avatar-sm { width: 32px; height: 32px; font-size: 16px; }
+.avatar-md { width: 40px; height: 40px; font-size: 20px; }
+.avatar-lg { width: 56px; height: 56px; font-size: 28px; }
+.avatar-xl { width: 72px; height: 72px; font-size: 36px; }
+.avatar-xxl { width: 88px; height: 88px; font-size: 44px; }
+
+/* ---------- md-web component 统一形状 ---------- */
+md-filled-button,
+md-filled-tonal-button,
+md-outlined-button,
+md-text-button,
+md-elevated-button {
+  --md-filled-button-container-shape: 999px;
+  --md-filled-tonal-button-container-shape: 999px;
+  --md-outlined-button-container-shape: 999px;
+  --md-text-button-container-shape: 999px;
+  --md-elevated-button-container-shape: 999px;
+  --md-filled-button-label-text-font: var(--md-ref-typeface-plain);
+  --md-filled-tonal-button-label-text-font: var(--md-ref-typeface-plain);
+  --md-outlined-button-label-text-font: var(--md-ref-typeface-plain);
+  --md-text-button-label-text-font: var(--md-ref-typeface-plain);
+}
+md-filled-button { --md-filled-button-container-height: 44px; }
+md-filled-tonal-button { --md-filled-tonal-button-container-height: 44px; }
+md-outlined-button { --md-outlined-button-container-height: 44px; }
+md-text-button { --md-text-button-container-height: 40px; }
+md-icon-button {
+  --md-icon-button-icon-color: var(--md-sys-color-on-surface-variant);
+}
+
+md-list-item {
+  --md-list-item-label-text-font: var(--md-ref-typeface-plain);
+  border-radius: 12px;
+}
+
+md-dialog {
+  --md-dialog-container-color: var(--md-sys-color-surface-container-high);
+  --md-dialog-headline-color: var(--md-sys-color-on-surface);
+  --md-dialog-supporting-text-color: var(--md-sys-color-on-surface-variant);
+  --md-dialog-container-shape: 28px;
+  max-width: min(92vw, 560px);
+}
+md-dialog::part(scrim) { background: color-mix(in oklab, var(--md-sys-color-scrim) var(--l3-scrim), transparent); }
+
+md-menu {
+  --md-menu-container-color: var(--md-sys-color-surface-container);
+  --md-menu-container-shape: 16px;
+  --md-menu-item-label-text-font: var(--md-ref-typeface-plain);
+  min-width: 220px;
+  max-width: 320px;
+  z-index: 160;
+}
+
+md-tabs {
+  --md-primary-tab-active-indicator-color: var(--md-sys-color-primary);
+  --md-primary-tab-label-text-font: var(--md-ref-typeface-plain);
+  --md-primary-tab-active-label-text-color: var(--md-sys-color-primary);
+  --md-primary-tab-inactive-label-text-color: var(--md-sys-color-on-surface-variant);
+  --md-secondary-tab-label-text-font: var(--md-ref-typeface-plain);
+}
+
+md-filter-chip {
+  --md-filter-chip-label-text-font: var(--md-ref-typeface-plain);
+  --md-filter-chip-container-shape: 12px;
+}
+md-assist-chip, md-suggestion-chip, md-input-chip {
+  --md-assist-chip-label-text-font: var(--md-ref-typeface-plain);
+  --md-suggestion-chip-label-text-font: var(--md-ref-typeface-plain);
+}
+md-switch {
+  --md-switch-selected-handle-color: var(--md-sys-color-on-primary);
+  --md-switch-selected-track-color: var(--md-sys-color-primary);
+}
+md-linear-progress {
+  --md-linear-progress-active-indicator-color: var(--md-sys-color-primary);
+  --md-linear-progress-track-color: var(--md-sys-color-surface-container-highest);
+  border-radius: 999px;
+}
+
+/* ---------- motion 开关 ---------- */
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: var(--md-sys-motion-easing-emphasized);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
