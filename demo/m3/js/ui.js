@@ -225,8 +225,24 @@ export function closeMenu() {
  * items: [{id, label, icon, selected, danger, hint, divider}]
  */
 export function showMenu(anchor, items, onPick) {
+  /* 输入法打开时先收起键盘，再等它落下去，否则 popover 会贴到界面底部。 */
+  const active = typeof document !== 'undefined' ? document.activeElement : null;
+  const editing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  const keyboardOpen = Boolean(vv && vv.height > 0 && vv.height < window.innerHeight - 80);
+  if (editing) active.blur();
+  /* 键盘还开着时，等它落下去再定位菜单；否则 popover 会贴到可见区底部。 */
+  if (keyboardOpen) {
+    closeMenu();
+    window.setTimeout(() => showMenuNow(anchor, items, onPick), 200);
+    return null;
+  }
+  return showMenuNow(anchor, items, onPick);
+}
+
+function showMenuNow(anchor, items, onPick) {
   closeMenu();
-  if (!anchor) return;
+  if (!anchor || anchor.isConnected === false) return;
   const menu = document.createElement('md-menu');
   menu.className = 'app-menu';
   menu.anchorElement = anchor;

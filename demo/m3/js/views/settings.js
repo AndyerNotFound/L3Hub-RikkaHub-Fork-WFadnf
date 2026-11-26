@@ -2,7 +2,8 @@
 import { icon, mark } from '../icons.js';
 import { DEFAULT_THEME, PALETTES, STYLES, paletteById, rolePreview, isDark } from '../theme.js';
 import { state, setTheme, runtime, toast, bus } from '../core.js';
-import { esc, openDialog, showMenu } from '../ui.js';
+import { user } from '../data.js';
+import { esc, openDialog, closeDialog, showMenu, userAvatar } from '../ui.js';
 
 const MODES = [
   { id: 'system', label: '跟随系统', icon: 'contrast' },
@@ -45,10 +46,10 @@ function stylesHtml() {
   </div>`;
 }
 
-function appearanceSection() {
+function appearanceSection(head = true) {
   const t = state.theme;
   return `<section class="settings-section" id="sec-appearance">
-    <div class="settings-section-head"><h2>外观</h2><p>改这里会立刻写进 48 个 color role，Material Web 组件一起变。</p></div>
+    ${head ? `<div class="settings-section-head"><h2>外观</h2><p>改这里会立刻写进 48 个 color role，Material Web 组件一起变。</p></div>` : ''}
     <div class="card">
       <div class="setting-row">
         <div class="sr-text"><div class="setting-name">颜色模式</div><div class="setting-desc">跟随系统时会监听系统的深浅色变化。</div></div>
@@ -102,9 +103,9 @@ function appearanceSection() {
   </section>`;
 }
 
-function generalSection() {
+function generalSection(head = true) {
   return `<section class="settings-section" id="sec-general">
-    <div class="settings-section-head"><h2>通用</h2><p>只保留会在这一版演示里生效的开关。</p></div>
+    ${head ? `<div class="settings-section-head"><h2>通用</h2><p>只保留会在这一版演示里生效的开关。</p></div>` : ''}
     <div class="card">
       <div class="setting-row">
         <div class="sr-text"><div class="setting-name">界面语言</div><div class="setting-desc">简中 / 繁中 / English。演示文案目前只维护简中。</div></div>
@@ -135,9 +136,9 @@ function generalSection() {
   </section>`;
 }
 
-function dataSection() {
+function dataSection(head = true) {
   return `<section class="settings-section" id="sec-data">
-    <div class="settings-section-head"><h2>数据</h2><p>演示的“数据”只有主题偏好和会话数组，导出的是一个真的 JSON。</p></div>
+    ${head ? `<div class="settings-section-head"><h2>数据</h2><p>演示的“数据”只有主题偏好和会话数组，导出的是一个真的 JSON。</p></div>` : ''}
     <div class="card">
       <div class="setting-row">
         <div class="sr-text"><div class="setting-name">自动备份</div><div class="setting-desc">每周把会话、助手与设置打包成一份可导入的备份。</div></div>
@@ -159,9 +160,9 @@ function dataSection() {
   </section>`;
 }
 
-function aboutSection() {
+function aboutSection(head = true) {
   return `<section class="settings-section" id="sec-about">
-    <div class="settings-section-head"><h2>关于</h2><p>这是 L3Hub 的 Web 前端演示，不是 Android 包。</p></div>
+    ${head ? `<div class="settings-section-head"><h2>关于</h2><p>这是 L3Hub 的 Web 前端演示，不是 Android 包。</p></div>` : ''}
     <div class="card">
       <div class="about-hero">
         ${mark(56)}
@@ -188,33 +189,210 @@ function aboutSection() {
   </section>`;
 }
 
-export function renderSettings() {
-  return `<div class="page"><div class="page-inner">
-    <header class="page-head">
-      <div>
-        <span class="eyebrow">${icon('settings', { size: 13 })} Settings</span>
-        <h1 class="page-title">设置</h1>
-        <p class="page-sub">主题是这一页的主角。换一颗种子色，整页的层级、气泡、按钮都会重新长一遍。</p>
-      </div>
-      <div class="head-actions">
-        <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题">${icon('contrast', { size: 21 })}</button>
-        <md-filled-tonal-button data-action="reset-theme">${icon('undo', { size: 17, slot: 'icon' })}恢复默认</md-filled-tonal-button>
-      </div>
-    </header>
-    <div class="settings-grid">
-      <nav class="settings-nav" aria-label="设置分区">
-        <button class="settings-nav-item active" data-section="sec-appearance">${icon('palette', { size: 16 })}外观</button>
-        <button class="settings-nav-item" data-section="sec-general">${icon('tune', { size: 16 })}通用</button>
-        <button class="settings-nav-item" data-section="sec-data">${icon('database', { size: 16 })}数据</button>
-        <button class="settings-nav-item" data-section="sec-about">${icon('article', { size: 16 })}关于</button>
-      </nav>
-      <div class="settings-main">
-        ${appearanceSection()}
-        ${generalSection()}
-        ${dataSection()}
-        ${aboutSection()}
-      </div>
+/* ------------------------------------------------------------------ */
+/* 分级设置：首页 → 偏好设置 → 主题 / 常规 / 界面 / 通知 / 网络          */
+/* ------------------------------------------------------------------ */
+
+export function resetSettingsPage() {
+  page = 'home';
+}
+
+let page = 'home';
+
+const PAGE_TITLES = {
+  home: '设置',
+  preferences: '偏好设置',
+  theme: '主题',
+  general: '常规',
+  ui: '界面偏好设置',
+  advanced: '高级外观设置',
+  notification: '通知',
+  network: '网络',
+  data: '数据备份',
+  about: '关于',
+};
+
+const PAGE_PARENT = {
+  preferences: 'home',
+  theme: 'preferences',
+  general: 'preferences',
+  ui: 'preferences',
+  advanced: 'preferences',
+  notification: 'preferences',
+  network: 'preferences',
+  data: 'home',
+  about: 'home',
+};
+
+function sgRow({ ico, label, sub, to, route, action, dataLabel }) {
+  let attrs = '';
+  if (to) attrs = `data-action="settings-go" data-page="${to}"`;
+  else if (route) attrs = `data-action="go" data-route="${route}"`;
+  else if (action) attrs = `data-action="${action}"${dataLabel ? ` data-label="${esc(dataLabel)}"` : ''}`;
+  return `<button class="sg-row" ${attrs}>
+    <span class="sg-ico">${icon(ico, { size: 20 })}</span>
+    <span class="sg-text"><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>
+    <span class="sg-chev">${icon('chevron_right', { size: 18 })}</span>
+  </button>`;
+}
+
+function sgGroup(title, rows) {
+  return `<section class="sg-group">${title ? `<h2>${esc(title)}</h2>` : ''}<div class="sg-card">${rows.join('')}</div></section>`;
+}
+
+function colorModeRow() {
+  const t = state.theme;
+  return `<div class="sg-row sg-row-col">
+    <div class="sg-row-top">
+      <span class="sg-ico">${icon('contrast', { size: 20 })}</span>
+      <span class="sg-text"><b>颜色模式</b><small>跟随系统时会监听系统的深浅色变化</small></span>
     </div>
+    <md-outlined-segmented-button-set data-mode-set aria-label="颜色模式">
+      ${MODES.map(
+        (m) => `<md-outlined-segmented-button label="${m.label}" ${t.mode === m.id ? 'selected' : ''}></md-outlined-segmented-button>`
+      ).join('')}
+    </md-outlined-segmented-button-set>
+  </div>`;
+}
+
+function switchRow(label, desc, key, checked) {
+  return `<div class="setting-row">
+    <div class="sr-text"><div class="setting-name">${esc(label)}</div><div class="setting-desc">${esc(desc)}</div></div>
+    <div class="setting-control"><md-switch data-demo-switch="${esc(label)}" ${checked ? 'selected' : ''} aria-label="${esc(
+    label
+  )}"></md-switch></div>
+  </div>`;
+}
+
+function settingsHome() {
+  return `<div class="settings-profile">
+      <button class="settings-avatar" data-action="edit-name" aria-label="编辑昵称">${userAvatar('lg')}</button>
+      <button class="settings-name" data-action="edit-name">${esc(user.name)}</button>
+      <span class="settings-handle">${esc(user.handle)}</span>
+    </div>
+    ${sgGroup('通用设置', [
+      colorModeRow(),
+      sgRow({ ico: 'tune', label: '偏好设置', sub: '主题、通知、界面和常规设置', to: 'preferences' }),
+      sgRow({ ico: 'smart_toy', label: '助手', sub: '设置个性化助手（智能体）', route: 'assistants' }),
+      sgRow({ ico: 'extension', label: '扩展管理', sub: '管理提示词注入、技能等扩展', action: 'settings-stub', dataLabel: '扩展管理' }),
+    ])}
+    ${sgGroup('模型与服务', [
+      sgRow({ ico: 'auto_awesome', label: '默认模型和提示词', sub: '设置各个功能的默认模型', action: 'settings-stub', dataLabel: '默认模型和提示词' }),
+      sgRow({ ico: 'hub', label: '提供商', sub: '配置 AI 提供商', route: 'models' }),
+      sgRow({ ico: 'search', label: '搜索服务', sub: '设置搜索服务', action: 'settings-stub', dataLabel: '搜索服务' }),
+      sgRow({ ico: 'mic', label: '语音服务', sub: '配置语音合成与语音识别服务提供商', action: 'settings-stub', dataLabel: '语音服务' }),
+      sgRow({ ico: 'image', label: '媒体', sub: '图像与视频生成提供商、素材上传', action: 'settings-stub', dataLabel: '媒体' }),
+      sgRow({ ico: 'account_tree', label: 'MCP', sub: '配置 MCP 服务器', action: 'settings-stub', dataLabel: 'MCP' }),
+      sgRow({ ico: 'build', label: '工具覆写', sub: '查看并覆写工具定义与说明', action: 'settings-stub', dataLabel: '工具覆写' }),
+      sgRow({ ico: 'terminal', label: 'Web 服务器', sub: '允许你通过网页访问 L3Hub', action: 'settings-stub', dataLabel: 'Web 服务器' }),
+    ])}
+    ${sgGroup('数据设置', [
+      sgRow({ ico: 'database', label: '数据备份', sub: '备份和恢复应用数据', to: 'data' }),
+      sgRow({ ico: 'storage', label: '存储管理', sub: '会话 12 MB · 附件 86 MB · 工作区 3.2 GB', to: 'data' }),
+    ])}
+    ${sgGroup('关于', [
+      sgRow({ ico: 'article', label: '关于', sub: '关于本应用', to: 'about' }),
+      sgRow({ ico: 'menu_book', label: '使用文档', sub: '查看应用使用说明和帮助文档', action: 'open-readme' }),
+      sgRow({ ico: 'history', label: '请求日志', sub: '查看 HTTP 请求日志', action: 'settings-stub', dataLabel: '请求日志' }),
+      sgRow({ ico: 'share', label: '分享', sub: '分享本应用给朋友', action: 'settings-stub', dataLabel: '分享' }),
+    ])}`;
+}
+
+function settingsPreferences() {
+  return sgGroup('外观与行为', [
+    sgRow({ ico: 'tune', label: '常规', sub: '交互行为、滚动、输入设置', to: 'general' }),
+    sgRow({ ico: 'palette', label: '主题', sub: '动态配色、主题、深色模式', to: 'theme' }),
+    sgRow({ ico: 'article', label: '界面偏好设置', sub: '消息显示、字体、代码块', to: 'ui' }),
+    sgRow({ ico: 'contrast', label: '高级外观设置', sub: '背景、材质和聊天样式', to: 'advanced' }),
+    sgRow({ ico: 'notifications', label: '通知', sub: '更新提醒、消息生成通知、后台悬浮窗', to: 'notification' }),
+    sgRow({ ico: 'wifi', label: '网络', sub: 'User-Agent 和网络请求设置', to: 'network' }),
+  ]);
+}
+
+function uiSection() {
+  return `<section class="settings-section"><div class="card">
+    ${switchRow('显示模型图标', '在消息头部显示模型图标。', 'show-model', true)}
+    ${switchRow('代码块自动换行', '长代码不横向滚动。', 'code-wrap', false)}
+    ${switchRow('折叠长消息', '超过 8 行的消息默认收起。', 'collapse', false)}
+  </div></section>`;
+}
+
+function advancedSection() {
+  return `<section class="settings-section"><div class="card">
+    ${switchRow('透明输入区', '输入区背景跟随页面，不使用容器色。', 'transparent-input', false)}
+    ${switchRow('气泡背景模糊', '气泡后方使用模糊材质。', 'bubble-blur', state.theme.blur)}
+    ${switchRow('全宽组件', '消息与输入区贴边排列。', 'full-width', false)}
+  </div></section>`;
+}
+
+function notificationSection() {
+  return `<section class="settings-section"><div class="card">
+    ${switchRow('生成完成通知', '助手回复结束时发一条系统通知。', 'done-notify', true)}
+    ${switchRow('更新提醒', '有新版本时提醒。', 'update-notify', false)}
+    ${switchRow('后台悬浮窗', '退到后台时用小窗显示生成进度。', 'floating-window', false)}
+  </div></section>`;
+}
+
+function networkSection() {
+  return `<section class="settings-section"><div class="card">
+    <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div class="sr-text"><div class="setting-name">User-Agent</div><div class="setting-desc">覆盖请求头里的 UA，空值用默认。</div></div>
+      <md-outlined-text-field id="ua-input" label="User-Agent" value="L3Hub/1.0 (Web Preview)" style="width:100%"></md-outlined-text-field>
+    </div>
+    ${switchRow('跟随系统代理', '使用系统的网络代理设置。', 'system-proxy', true)}
+  </div></section>`;
+}
+
+function themePage() {
+  return `${appearanceSection(false)}
+    <div class="settings-actions">
+      <md-outlined-button data-action="reset-theme">${icon('undo', { size: 16, slot: 'icon' })}恢复默认外观</md-outlined-button>
+    </div>`;
+}
+
+function settingsBody() {
+  switch (page) {
+    case 'preferences':
+      return settingsPreferences();
+    case 'theme':
+      return themePage();
+    case 'general':
+      return generalSection(false);
+    case 'ui':
+      return uiSection();
+    case 'advanced':
+      return advancedSection();
+    case 'notification':
+      return notificationSection();
+    case 'network':
+      return networkSection();
+    case 'data':
+      return dataSection(false);
+    case 'about':
+      return aboutSection(false);
+    default:
+      return settingsHome();
+  }
+}
+
+function settingsBarHtml() {
+  const home = page === 'home';
+  return `<header class="settings-bar ${home ? 'is-home' : ''}">
+    ${
+      home
+        ? `<span class="sb-brand">${mark(26)}</span>`
+        : `<button class="icon-btn" data-action="settings-back" aria-label="返回">${icon('arrow_back', { size: 22 })}</button>`
+    }
+    <h1>${esc(PAGE_TITLES[page] || '设置')}</h1>
+    <span class="spacer"></span>
+    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题">${icon('contrast', { size: 21 })}</button>
+  </header>`;
+}
+
+export function renderSettings() {
+  return `<div class="page"><div class="settings-inner">
+    ${settingsBarHtml()}
+    <div class="settings-body">${settingsBody()}</div>
   </div></div>`;
 }
 
@@ -283,6 +461,13 @@ export function mountSettings() {
     seed.closest('.swatch')?.classList.add('active');
   });
 
+  document.querySelectorAll('[data-demo-switch]').forEach((sw) => {
+    sw.addEventListener('change', () => {
+      toast(`${sw.dataset.demoSwitch}：${sw.selected ? '已开启' : '已关闭'}`);
+    });
+  });
+  document.getElementById('ua-input')?.addEventListener('change', () => toast('User-Agent 已保存（演示）'));
+
   document.querySelectorAll('.settings-nav [data-section]').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.settings-nav [data-section]').forEach((b) => b.classList.remove('active'));
@@ -304,6 +489,38 @@ export function mountSettings() {
 
 export function settingsAction(action, el) {
   switch (action) {
+    case 'settings-go': {
+      const next = el.dataset.page;
+      if (PAGE_TITLES[next]) {
+        page = next;
+        runtime.render();
+      }
+      return true;
+    }
+    case 'settings-back': {
+      page = PAGE_PARENT[page] || 'home';
+      runtime.render();
+      return true;
+    }
+    case 'settings-stub':
+      toast(`${el.dataset.label || '这个入口'}：演示里还没接`);
+      return true;
+    case 'edit-name':
+      openDialog({
+        headline: '编辑昵称',
+        iconName: 'edit',
+        content: `<md-outlined-text-field id="name-input" label="昵称" value="${esc(user.name)}" style="width:100%"></md-outlined-text-field>`,
+        actions: `<md-text-button data-action="close-dialog">取消</md-text-button><md-filled-button data-action="save-name">保存</md-filled-button>`,
+      });
+      return true;
+    case 'save-name': {
+      const value = document.getElementById('name-input')?.value?.trim();
+      if (value) user.name = value;
+      closeDialog();
+      runtime.render();
+      toast(value ? '昵称已更新' : '昵称没有变化');
+      return true;
+    }
     case 'palette': {
       const p = paletteById(el.dataset.palette);
       if (!p) return true;

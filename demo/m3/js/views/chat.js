@@ -456,6 +456,21 @@ function jumpToMapRound(id) {
   }, 180);
 }
 
+function syncKeyboardInset() {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  if (!vv) return;
+  const raw = window.innerHeight - vv.height - vv.offsetTop;
+  const inset = Math.min(window.innerHeight * 0.6, Math.max(0, raw));
+  document.documentElement.style.setProperty('--kb-inset', `${Math.round(inset)}px`);
+}
+
+if (typeof window !== 'undefined' && window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncKeyboardInset);
+  window.visualViewport.addEventListener('scroll', syncKeyboardInset);
+  window.addEventListener('focusin', () => window.setTimeout(syncKeyboardInset, 260));
+  window.addEventListener('focusout', () => window.setTimeout(syncKeyboardInset, 120));
+}
+
 function bindPane() {
   const input = document.getElementById('map-search');
   if (input) {
@@ -763,6 +778,11 @@ function composerHtml(conv) {
     <div class="composer-inner">
       ${state.streaming ? `<div class="queue-pill">${icon('hourglass_top', { size: 13 })}正在生成 · 点击停止可以保留已写内容</div>` : ''}
       <div class="composer" id="composer">
+        <div class="ctx-meter" role="img" aria-label="上下文已用 42%">
+          <span class="cm-label">上下文</span>
+          <span class="cm-track"><i style="width:42%"></i></span>
+          <span class="cm-val">84.2k / 200k · 42%</span>
+        </div>
         <div class="attach-row" id="composer-attach">${pendingFiles
           .map(
             (f, i) => `<span class="attach"><span class="a-ico">${icon('description', { size: 14 })}</span><span class="a-name">${esc(
@@ -797,9 +817,8 @@ function composerHtml(conv) {
     state.streaming ? '停止生成' : '发送'
   }">
               <span class="sb-icons"><span class="sb-ico send-i">${icon('send', {
-                size: 18,
-              })}</span><span class="sb-ico stop-i">${icon('stop_circle', { size: 18 })}</span></span>
-              <span class="sb-roll" aria-hidden="true"><span>发送</span><span>终止</span></span>
+                size: 19,
+              })}</span><span class="sb-ico stop-i">${icon('stop_circle', { size: 19 })}</span></span>
             </button>
           </div>
         </div>

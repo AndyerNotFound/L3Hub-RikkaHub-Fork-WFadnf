@@ -41,7 +41,7 @@ import { renderChat, mountChat, chatAction, stopStreaming } from './views/chat.j
 import { renderAssistants, assistantsAction } from './views/assistants.js';
 import { renderModels, modelsAction } from './views/models.js';
 import { renderWorkspace, mountWorkspace, workspaceAction } from './views/workspace.js';
-import { renderSettings, mountSettings, settingsAction } from './views/settings.js';
+import { renderSettings, mountSettings, settingsAction, resetSettingsPage } from './views/settings.js';
 
 const NAV = [
   { id: 'chat', label: '对话', icon: 'forum' },
@@ -165,6 +165,7 @@ function render() {
     closeDialog();
     if (state.streaming) stopStreaming(true);
   }
+  if (state.route === 'settings' && lastRoute !== 'settings') resetSettingsPage();
   lastRoute = state.route;
 
   const view = document.getElementById('view');
