@@ -59,6 +59,8 @@ let sheetFoldersOpen = true;
 let sheetKeyHandler = null;
 let voiceRecording = false;
 let voiceTimer = null;
+let draft = '';
+let draftConvId = '';
 
 const QUICK_MESSAGES = [
   { id: 'continue', label: '继续', text: '继续', icon: 'arrow_forward' },
@@ -745,7 +747,15 @@ function emptyHtml() {
 /* 输入区                                                              */
 /* ------------------------------------------------------------------ */
 
+function ensureDraftConv(conv) {
+  if ((conv?.id || '') !== draftConvId) {
+    draftConvId = conv?.id || '';
+    draft = '';
+  }
+}
+
 function composerHtml(conv) {
+  ensureDraftConv(conv);
   const a = assistantById(conv?.assistant);
   const model = conv?.model || a.model;
   const thinking = state.thinking || '标准';
@@ -763,7 +773,7 @@ function composerHtml(conv) {
             )}</button></span>`
           )
           .join('')}</div>
-        <textarea id="composer-input" rows="1" placeholder="给 ${esc(a.name)} 发消息…" aria-label="消息输入"></textarea>
+        <textarea id="composer-input" rows="1" placeholder="给 ${esc(a.name)} 发消息…" aria-label="消息输入">${esc(draft)}</textarea>
         <div class="composer-bar">
           <div class="cb-left">
             <button class="icon-btn sm cb-icon" data-action="composer-plus" aria-label="更多功能">${icon('add', { size: 22 })}</button>
@@ -866,9 +876,11 @@ export function renderChat() {
 function mountChatMain() {
   const ta = document.getElementById('composer-input');
   if (ta) {
+    ensureDraftConv(currentConversation());
     autoGrow(ta);
     updateSendEnabled(ta.value.trim().length > 0);
     ta.addEventListener('input', () => {
+      draft = ta.value;
       autoGrow(ta);
       updateSendEnabled(ta.value.trim().length > 0);
     });
@@ -914,6 +926,8 @@ function refreshChatMain() {
 /* 同轴 Y 转场：有 View Transitions 就交给它，没有就即时替换。 */
 function switchChatTab(index) {
   if (index === state.chatTab) return;
+  const live = document.getElementById('composer-input');
+  if (live) draft = live.value;
   state.chatTab = index;
   document.querySelectorAll('.chat-tab').forEach((t, i) => {
     const on = i === index;
@@ -1068,6 +1082,7 @@ function submitComposer() {
   const text = ta.value.trim();
   if (!text || state.streaming) return;
   ta.value = '';
+  draft = '';
   autoGrow(ta);
   sendMessage(text);
 }
@@ -1338,6 +1353,7 @@ function openQuickMessages(anchor) {
       if (!q || !ta) return;
       const current = ta.value.trim();
       ta.value = current ? `${current}\n${q.text}` : q.text;
+      draft = ta.value;
       autoGrow(ta);
       updateSendEnabled(true);
       ta.focus();
@@ -1366,6 +1382,7 @@ function finishVoice() {
   if (ta) {
     const text = '帮我把这一版的间距再收一点';
     ta.value = ta.value.trim() ? `${ta.value.trim()} ${text}` : text;
+    draft = ta.value;
     autoGrow(ta);
     updateSendEnabled(true);
     ta.focus();
@@ -1851,6 +1868,7 @@ export function chatAction(action, el, event) {
       const ta = document.getElementById('composer-input');
       if (ta) {
         ta.value = el.dataset.text || '';
+        draft = ta.value;
         autoGrow(ta);
         updateSendEnabled(true);
         ta.focus();
