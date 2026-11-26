@@ -223,7 +223,7 @@ internal fun List<UIMessage>.measuredUsageIndex(): Int? {
 /**
  * 在 [afterNodeId] 节点之后插入压缩检查点；该节点已不存在时返回 null。
  *
- * 检查点替代它之前的全部历史，却只改发给模型的内容：原文一条不删，聊天页仍能看到完整内容。
+ * 检查点替代它之前的全部历史，却只改发给模型的内容：原文和旧检查点一条不删，聊天页仍能看到完整内容。
  * 旧版本的检查点还可能带 `contextStartMessageId` / `contextStartPartIndex`（切在一条消息中间），
  * 请求侧由 `limitContext` 兼容，新写入的检查点一律落在消息边界上。
  */
@@ -231,15 +231,9 @@ internal fun Conversation.insertContextCheckpoint(
     afterNodeId: Uuid,
     summary: String,
 ): Conversation? {
-    // 旧检查点已经被新摘要吸收——它的文本就在这次压缩的输入里——留着只会在聊天页堆出一串
-    // 摘要块，导出和 WebDto 也跟着带上全部旧摘要。请求侧本来只用最后一个，删掉不改变行为。
-    // 锚点本身是检查点时留着：正常调用不会这样传，但滤掉它只会让插入无声失败
-    val nodes = messageNodes
-        .filterNot { node ->
-            node.id != afterNodeId &&
-                node.messages.getOrNull(node.selectIndex)?.isContextCheckpoint == true
-        }
-        .toMutableList()
+    // 检查点是聊天记录的一部分，不能因为新摘要已经生成就删除旧摘要。
+    // 请求侧由 limitContext 只使用最后一个检查点，历史展示则保留每次压缩的结果。
+    val nodes = messageNodes.toMutableList()
     val index = nodes.indexOfFirst { it.id == afterNodeId }
     if (index == -1) return null
     val checkpoint = UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode()

@@ -26,18 +26,23 @@ class ConversationCheckpointTest {
     }
 
     @Test
-    fun `the previous checkpoint is absorbed by the new summary`() {
+    fun `previous checkpoints remain in conversation history`() {
         val nodes = List(4) { UIMessage.user("message $it").toMessageNode() }
         val source = Conversation(assistantId = Uuid.random(), messageNodes = nodes)
 
         val first = source.insertContextCheckpoint(afterNodeId = nodes[1].id, summary = "first")!!
         val second = first.insertContextCheckpoint(afterNodeId = nodes[2].id, summary = "second")!!
 
-        // 旧摘要的正文已经进了这次压缩的输入，留着只会在会话里堆一串摘要块
-        assertEquals(1, second.messageNodes.count { it.currentMessage.isContextCheckpoint })
-        assertEquals(nodes.subList(0, 3), second.messageNodes.subList(0, 3))
-        assertEquals("second", second.messageNodes[3].currentMessage.toText())
-        assertEquals(nodes[3], second.messageNodes[4])
+        assertEquals(2, second.messageNodes.count { it.currentMessage.isContextCheckpoint })
+        assertEquals("first", second.messageNodes[2].currentMessage.toText())
+        assertEquals(nodes[2], second.messageNodes[3])
+        assertEquals("second", second.messageNodes[4].currentMessage.toText())
+        assertEquals(nodes[3], second.messageNodes[5])
+        // 聊天记录保留旧摘要，模型上下文仍然只从最新检查点开始
+        assertEquals(
+            second.currentMessages.subList(4, 6),
+            second.currentMessages.limitContext(0),
+        )
     }
 
     @Test
