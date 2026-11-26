@@ -117,7 +117,8 @@ class SettingsFieldsTest {
         assertEquals(null, settings.memoryModelId)
         assertEquals(null, settings.modelFingerprintModelId)
         assertTrue(settings.modelFingerprintStrictMode)
-        assertEquals(true, settings.dynamicColor)
+        // 朴素外观：新装不跟壁纸取色
+        assertEquals(false, settings.dynamicColor)
         assertEquals(AdvancedAppearanceSetting(), settings.advancedAppearanceSetting)
         // 旧全局特效与「已经搬过」的标记：新装默认没有旧特效，标记默认就是 true，界面不读它们
         assertEquals(false, settings.displaySetting.enableBlurEffect)

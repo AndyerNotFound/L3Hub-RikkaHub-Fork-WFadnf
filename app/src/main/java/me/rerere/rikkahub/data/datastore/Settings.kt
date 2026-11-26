@@ -25,7 +25,6 @@ import me.rerere.rikkahub.data.model.ToolOverride
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PaletteSetting
-import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import me.rerere.tts.provider.TTSProviderSetting
@@ -35,8 +34,9 @@ import kotlin.uuid.Uuid
 data class Settings(
     @Transient
     val init: Boolean = false,
-    val dynamicColor: Boolean = true,
-    val themeId: String = PresetThemes[0].id,
+    // 朴素外观是默认：不跟壁纸取色，主题固定为中性极简预设。
+    val dynamicColor: Boolean = false,
+    val themeId: String = "minimal",
     val customThemes: List<CustomTheme> = emptyList(),
     // 调色板：预设或用户逐个改过的深浅两套颜色，默认不启用（跟随 themeId / 动态取色）
     val palette: PaletteSetting = PaletteSetting(),
@@ -345,7 +345,8 @@ enum class HapticsStrength {
  */
 @Serializable
 data class MotionBlurSetting(
-    val enabled: Boolean = true,
+    // 朴素外观不叠动态模糊：滚动与入场只走位移和淡入。
+    val enabled: Boolean = false,
     // 基准半径(dp)：各处按自己的相对强度（6dp 记作 1.0）缩放，调到 0 就是完全不糊
     val radius: Int = 6,
     // 模糊收放与入场位移的时长(ms)；越小越利落，越大尾段拖得越长
