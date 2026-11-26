@@ -91,8 +91,8 @@ class ScreenSerializationTest {
         assertEquals("me.rerere.rikkahub.Screen.WebView", Screen.WebView().typeName())
         assertEquals("me.rerere.rikkahub.Screen.Chat", Screen.Chat(id = "c").typeName())
         assertEquals(
-            "me.rerere.rikkahub.Screen.SettingPreferencesAdvancedAppearance",
-            Screen.SettingPreferencesAdvancedAppearance.typeName(),
+            "me.rerere.rikkahub.Screen.SettingPreferencesTheme",
+            Screen.SettingPreferencesTheme.typeName(),
         )
         assertEquals("me.rerere.rikkahub.Screen.Setting", Screen.Setting.typeName())
     }
@@ -121,7 +121,7 @@ class ScreenSerializationTest {
 
     @Test
     fun `detail destination wraps a screen and survives serialization`() {
-        val page: DetailDestination = DetailDestination.Page(Screen.SettingPreferencesAdvancedAppearance)
+        val page: DetailDestination = DetailDestination.Page(Screen.SettingPreferencesTheme)
         val none: DetailDestination = DetailDestination.None
 
         assertEquals(page, JsonInstant.decodeFromString<DetailDestination>(JsonInstant.encodeToString(page)))

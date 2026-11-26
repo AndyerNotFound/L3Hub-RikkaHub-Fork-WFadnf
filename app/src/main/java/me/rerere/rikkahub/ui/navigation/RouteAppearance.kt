@@ -53,8 +53,7 @@ internal fun RouteAppearance(screen: Screen, content: @Composable () -> Unit) {
         useImage = usesBackdrop,
         useMica = appearance.enableAdvancedAppearance && !preview && appearance.pageSurfaceStyle == BackgroundSurfaceStyle.MICA,
         material = appearance.pageMaterial().takeIf { appearance.enableAdvancedAppearance },
-        topBarPageContentSource = screen == Screen.SettingPreferencesAdvancedAppearance ||
-            screen == Screen.SettingPreferencesMessageStyle,
+        topBarPageContentSource = screen == Screen.SettingPreferencesMessageStyle,
         content = content,
     )
 }

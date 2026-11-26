@@ -28,8 +28,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
@@ -71,8 +73,6 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.TopTab
-import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.components.ui.shadow.Button
 import me.rerere.rikkahub.ui.components.ui.shadow.FilledTonalIconButton
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -315,17 +315,29 @@ private fun FolderRow(
     selectedFolder: String,
     onFolderSelected: (String) -> Unit,
 ) {
-    TopTabRow(
-        selectedIndex = folders.indexOf(selectedFolder),
+    PrimaryScrollableTabRow(
+        selectedTabIndex = folders.indexOf(selectedFolder),
         modifier = Modifier.padding(vertical = 4.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        edgePadding = 16.dp,
     ) {
         folders.forEach { folder ->
-            TopTab(
+            Tab(
                 selected = selectedFolder == folder,
                 onClick = { onFolderSelected(folder) },
-                label = folderDisplayName(folder),
-                icon = HugeIcons.FolderOpen,
+                text = {
+                    Text(
+                        text = folderDisplayName(folder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                icon = {
+                    Icon(
+                        imageVector = HugeIcons.FolderOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                    )
+                },
             )
         }
     }

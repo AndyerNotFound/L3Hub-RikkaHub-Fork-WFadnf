@@ -108,9 +108,6 @@ sealed interface Screen {
     data object SettingPreferencesGeneral : Screen
 
     @Serializable
-    data object SettingPreferencesAdvancedAppearance : Screen
-
-    @Serializable
     data object SettingPreferencesMessageStyle : Screen
 
     @Serializable

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,7 +29,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,8 +61,6 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.GitFork
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.TopTab
-import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -194,25 +196,39 @@ private fun ChatSidePanelTabStrip(
             .padding(start = 8.dp, end = 4.dp, top = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TopTabRow(
-            selectedIndex = selectedIndex,
+        PrimaryScrollableTabRow(
+            selectedTabIndex = selectedIndex,
             modifier = Modifier.weight(1f),
             minTabWidth = 112.dp,
         ) {
             panes.forEach { pane ->
                 key(pane) {
-                    TopTab(
+                    Tab(
                         selected = pane == selected,
                         onClick = { onSelect(pane) },
-                        label = stringResource(pane.titleRes),
-                        icon = pane.icon,
-                        trailingAction = {
-                            IconButton(onClick = { onClose(pane) }, modifier = Modifier.size(48.dp)) {
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = HugeIcons.Cancel01,
-                                    contentDescription = stringResource(R.string.chat_page_side_panel_close_tab),
-                                    modifier = Modifier.size(16.dp),
+                                    imageVector = pane.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
                                 )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(pane.titleRes),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                IconButton(
+                                    onClick = { onClose(pane) },
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Cancel01,
+                                        contentDescription = stringResource(R.string.chat_page_side_panel_close_tab),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                             }
                         },
                     )

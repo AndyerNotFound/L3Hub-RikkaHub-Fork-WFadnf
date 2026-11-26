@@ -100,18 +100,6 @@ fun SettingPreferencesPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_preferences_ui_desc)) },
                     )
                     item(
-                        onClick = { navController.navigate(Screen.SettingPreferencesAdvancedAppearance) },
-                        leadingContent = {
-                            CardGroupIcon(
-                                HugeIcons.PaintBoard,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        },
-                        headlineContent = { Text(stringResource(R.string.aa_title)) },
-                        supportingContent = { Text(stringResource(R.string.aa_description)) },
-                    )
-                    item(
                         onClick = { navController.navigate(Screen.SettingPreferencesNotification) },
                         leadingContent = {
                             CardGroupIcon(

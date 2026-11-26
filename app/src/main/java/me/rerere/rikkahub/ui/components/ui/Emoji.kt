@@ -27,7 +27,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -130,13 +133,13 @@ fun EmojiPicker(
                     )
                 }
 
-                TopTabRow(
-                    selectedIndex = selectedCategoryIndex,
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = selectedCategoryIndex,
                     modifier = Modifier.padding(bottom = 8.dp),
                 ) {
                     data.categories.forEachIndexed { index, category ->
                         val tab = emojiTabs[category.name]
-                        TopTab(
+                        Tab(
                             selected = selectedCategoryIndex == index,
                             onClick = {
                                 selectedCategoryIndex = index
@@ -144,15 +147,22 @@ fun EmojiPicker(
                                     lazyListState.animateScrollToItem(0)
                                 }
                             },
-                            label = if (tab == null) category.name else stringResource(tab.labelRes),
-                        ) {
-                            Text(
-                                text = tab?.icon ?: "\uD83D\uDE03",
-                                modifier = Modifier.clearAndSetSemantics {},
-                                fontSize = 20.sp,
-                                maxLines = 1,
-                            )
-                        }
+                            text = {
+                                Text(
+                                    text = if (tab == null) category.name else stringResource(tab.labelRes),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            icon = {
+                                Text(
+                                    text = tab?.icon ?: "\uD83D\uDE03",
+                                    modifier = Modifier.clearAndSetSemantics {},
+                                    fontSize = 20.sp,
+                                    maxLines = 1,
+                                )
+                            },
+                        )
                     }
                 }
 

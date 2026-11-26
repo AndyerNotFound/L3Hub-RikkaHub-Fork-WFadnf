@@ -13,7 +13,7 @@ import org.junit.Test
 
 class ChatMessageMaterialTest {
     @Test
-    fun `frosted role overrides win over advanced defaults`() {
+    fun `plain appearance gives body bubbles no material`() {
         val appearance = AdvancedAppearanceSetting(
             enableAdvancedAppearance = true,
             chatBubbleStyle = ChatBubbleStyle.FROSTED,
@@ -22,79 +22,11 @@ class ChatMessageMaterialTest {
         )
         val display = DisplaySetting(
             chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(
-                frostedOpacity = .2f,
-                blurSigma = 4f,
-            ),
-        )
-        val material = requireNotNull(appearance.messageBubbleMaterial(
-            display,
-            ChatBubbleStyleTarget.USER,
-            resolved = null,
-            streaming = false,
-        ))
-        assertEquals(.2f, material.opacity, 0f)
-        assertEquals(6f, material.radius, 0f)
-    }
-
-    @Test
-    fun `default style ignores role overrides and follows material`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            chatBubbleStyle = ChatBubbleStyle.FROSTED,
-            chatBubbleBlurRadius = 9f,
-        )
-        val display = DisplaySetting(
-            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
-            bubbleOpacity = .5f,
-            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(frostedOpacity = .05f, blurSigma = 1f),
-        )
-        val material = requireNotNull(appearance.messageBubbleMaterial(
-            display,
-            ChatBubbleStyleTarget.USER,
-            resolved = null,
-            streaming = false,
-        ))
-        assertEquals(.64f, material.opacity, .0001f)
-        assertEquals(9f, material.radius, 0f)
-    }
-
-    @Test
-    fun `empty frosted role uses the material opacity when no migrated alpha exists`() {
-        val appearance = AdvancedAppearanceSetting(enableAdvancedAppearance = true)
-        val display = DisplaySetting(
-            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            bubbleOpacity = .5f,
-            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
+            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(frostedOpacity = .2f, blurSigma = 4f),
         )
 
-        val material = requireNotNull(appearance.messageBubbleMaterial(
-            display, ChatBubbleStyleTarget.USER, resolved = null, streaming = false,
-        ))
-
-        assertEquals(.64f, material.opacity, .0001f)
-        assertEquals(18f, material.radius, 0f)
-    }
-
-    @Test
-    fun `empty frosted bubble roles inherit migrated opacity and twelve dp radius`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            chatBubbleStyle = ChatBubbleStyle.FROSTED,
-            chatBubbleSurfaceOpacity = .12f,
-            chatBubbleBlurRadius = 12f,
-        )
-        val display = DisplaySetting(
-            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
-            assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),
-        )
-
-        listOf(ChatBubbleStyleTarget.USER, ChatBubbleStyleTarget.ASSISTANT).forEach { target ->
-            val material = requireNotNull(appearance.messageBubbleMaterial(display, target, null, streaming = false))
-            assertEquals(.12f, material.opacity, 0f)
-            assertEquals(12f, material.radius, 0f)
-        }
+        assertNull(appearance.messageBubbleMaterial(display, ChatBubbleStyleTarget.USER, null, false))
+        assertNull(appearance.messageBubbleMaterial(display, ChatBubbleStyleTarget.ASSISTANT, null, false))
     }
 
     @Test

@@ -86,34 +86,34 @@ class NavProjectionTest {
         assertEquals(single.root.first(), widened.root.first())
     }
 
-    // 高级外观页挂在「偏好设置」这一节下面：它自己不是分区首屏，所以落在右列
+    // 主题页挂在「偏好设置」这一节下面：它自己不是分区首屏，所以落在右列
     @Test
-    fun `advanced appearance pane drills into the right column`() {
+    fun `preference sub page drills into the right column`() {
         val preferences = Screen.SettingPreferences
-        val advancedAppearance = Screen.SettingPreferencesAdvancedAppearance
+        val themePage = Screen.SettingPreferencesTheme
         val host: (Screen) -> Boolean = { it == providers || it == models || it == setting || it == preferences }
 
         val projection = NavProjection.masterDetail(
-            listOf(chat, setting, preferences, advancedAppearance),
+            listOf(chat, setting, preferences, themePage),
             host,
         )
 
         assertEquals(listOf(chat, setting, preferences), projection.root)
-        assertEquals(listOf(advancedAppearance), projection.detail)
+        assertEquals(listOf(themePage), projection.detail)
         assertEquals(preferences, projection.middle)
-        assertEquals(advancedAppearance, projection.top)
+        assertEquals(themePage, projection.top)
     }
 
     @Test
     fun `returning to a section host empties the right column`() {
         val preferences = Screen.SettingPreferences
-        val advancedAppearance = Screen.SettingPreferencesAdvancedAppearance
+        val themePage = Screen.SettingPreferencesTheme
         val host: (Screen) -> Boolean = { it == setting || it == preferences }
 
-        // 下钻到高级外观页：它落在右列
+        // 下钻到主题页：它落在右列
         assertEquals(
-            listOf(advancedAppearance),
-            NavProjection.masterDetail(listOf(setting, preferences, advancedAppearance), host).detail,
+            listOf(themePage),
+            NavProjection.masterDetail(listOf(setting, preferences, themePage), host).detail,
         )
 
         // 返回一格，栈顶重新变成分区首屏：右列不占宽度

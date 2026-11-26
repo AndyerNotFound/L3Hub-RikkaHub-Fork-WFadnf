@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,8 +17,10 @@ import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -44,8 +47,6 @@ import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
-import me.rerere.rikkahub.ui.components.ui.TopTab
-import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -89,18 +90,30 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            TopTabRow(selectedIndex = selectedTab) {
-                TopTab(
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
+                Tab(
                     selected = !isGuideTab,
                     onClick = { selectedTab = TAB_MESSAGES },
-                    label = stringResource(R.string.quick_messages_tab_messages),
-                    icon = HugeIcons.Zap,
+                    text = { Text(stringResource(R.string.quick_messages_tab_messages)) },
+                    icon = {
+                        Icon(
+                            imageVector = HugeIcons.Zap,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
                 )
-                TopTab(
+                Tab(
                     selected = isGuideTab,
                     onClick = { selectedTab = TAB_GUIDES },
-                    label = stringResource(R.string.quick_messages_tab_guides),
-                    icon = HugeIcons.MagicWand01,
+                    text = { Text(stringResource(R.string.quick_messages_tab_guides)) },
+                    icon = {
+                        Icon(
+                            imageVector = HugeIcons.MagicWand01,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
                 )
             }
             LazyColumn(

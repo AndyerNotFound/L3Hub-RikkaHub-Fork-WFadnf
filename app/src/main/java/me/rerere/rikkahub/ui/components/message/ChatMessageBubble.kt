@@ -42,63 +42,19 @@ private const val MAX_MESSAGE_STYLE_MATERIAL_RADIUS = 40f
 // 边框宽度上限：再宽就会盖住正文
 private const val MAX_MESSAGE_STYLE_BORDER_WIDTH = 8f
 
+/**
+ * 正文气泡不再有材质：朴素外观里一条消息就是文本块。
+ *
+ * 参数保留是为了调用点（消息样式页、Haze 采样、测试）暂时还能编译；
+ * 返回值恒为 null 表示「不铺任何表面」。
+ */
+@Suppress("UNUSED_PARAMETER")
 internal fun AdvancedAppearanceSetting.messageBubbleMaterial(
     display: DisplaySetting,
     target: ChatBubbleStyleTarget,
     resolved: ResolvedBubbleStyle?,
     streaming: Boolean,
-): AppearanceMaterial? {
-    val messageStyle = display.chatMessageBackgroundStyle
-    if (messageStyle == ChatMessageBackgroundStyle.SOLID) return null
-    if (!enableAdvancedAppearance) {
-        if (messageStyle != ChatMessageBackgroundStyle.FROSTED) return null
-        val role = display.overridesFor(target)
-        return AppearanceMaterial(
-            style = BackgroundSurfaceStyle.FROSTED,
-            opacity = role.frostedOpacity ?: resolved?.background?.alpha ?: .66f,
-            radius = role.blurSigma?.let { finiteAppearanceValue(it, 0f, 30f, 14f) * 1.5f }
-                ?: resolved?.blurRadius?.value ?: 21f,
-            effects = !streaming,
-        )
-    }
-    // DEFAULT follows the advanced material preset and never reads per-role message overrides.
-    val roleOverrides = if (messageStyle == ChatMessageBackgroundStyle.FROSTED) display.overridesFor(target)
-        else me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides()
-    val style = when (chatBubbleStyle) {
-        ChatBubbleStyle.FROSTED -> BackgroundSurfaceStyle.FROSTED
-        ChatBubbleStyle.OUTLINED -> BackgroundSurfaceStyle.TRANSLUCENT
-        ChatBubbleStyle.LIQUID_GLASS -> BackgroundSurfaceStyle.LIQUID_GLASS
-    }
-    val opacity = finiteAppearanceValue(
-        when {
-            messageStyle == ChatMessageBackgroundStyle.FROSTED ->
-                roleOverrides.frostedOpacity ?: chatBubbleSurfaceOpacity ?: (.46f + display.bubbleOpacity * .36f)
-            else -> chatBubbleSurfaceOpacity ?: when (chatBubbleStyle) {
-                ChatBubbleStyle.FROSTED -> .46f + display.bubbleOpacity * .36f
-                ChatBubbleStyle.OUTLINED -> .16f + display.bubbleOpacity * .12f
-                ChatBubbleStyle.LIQUID_GLASS -> .62f + display.bubbleOpacity * .24f
-            }
-        },
-        0f, 1f, .66f,
-    )
-    val radius = when {
-        style == BackgroundSurfaceStyle.LIQUID_GLASS && liquidGlass.usesMaterial3Style() -> 16f
-        messageStyle == ChatMessageBackgroundStyle.FROSTED && roleOverrides.blurSigma != null ->
-            finiteAppearanceValue(roleOverrides.blurSigma, 0f, 30f, 14f) * 1.5f
-        chatBubbleBlurRadius != null -> finiteAppearanceValue(chatBubbleBlurRadius, 0f, MAX_MESSAGE_STYLE_MATERIAL_RADIUS, 18f)
-        // An empty per-role override inherits the advanced material default (or migrated radius),
-        // never resolveBubbleStyle's unrelated 14-sigma fallback.
-        style == BackgroundSurfaceStyle.LIQUID_GLASS -> 24f
-        style == BackgroundSurfaceStyle.FROSTED -> 18f
-        else -> 0f
-    }
-    return AppearanceMaterial(
-        style = style,
-        opacity = opacity,
-        radius = radius,
-        effects = enableBubblePerformanceEffects && !streaming,
-    )
-}
+): AppearanceMaterial? = null
 
 /** 消息样式解析出的边框宽度：非有限值退回 1dp，上限见 [MAX_MESSAGE_STYLE_BORDER_WIDTH]。 */
 internal fun resolvedMessageBorderWidth(width: Dp): Dp =

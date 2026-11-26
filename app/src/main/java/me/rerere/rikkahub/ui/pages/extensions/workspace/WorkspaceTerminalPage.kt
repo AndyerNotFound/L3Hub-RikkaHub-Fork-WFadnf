@@ -24,8 +24,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -57,8 +59,6 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.TopTab
-import me.rerere.rikkahub.ui.components.ui.TopTabRow
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.ColorMode
@@ -176,34 +176,49 @@ private fun WorkspaceTerminalContent(
                 BackButton()
                 Box(modifier = Modifier.weight(1f)) {
                     if (selectedTab != null) {
-                        TopTabRow(
-                            selectedIndex = selectedIndex,
+                        PrimaryScrollableTabRow(
+                            selectedTabIndex = selectedIndex,
                             minTabWidth = 160.dp,
                         ) {
                             state.tabs.forEach { tab ->
                                 key(tab.id) {
                                     val isSelected = selectedTab.id == tab.id
-                                    TopTab(
+                                    Tab(
                                         selected = isSelected,
                                         onClick = { onSelectTab(tab.id) },
-                                        label = tab.title ?: stringResource(R.string.workspace_terminal_tab, tab.number),
-                                        icon = HugeIcons.ComputerTerminal01,
-                                        labelModifier = if (isSelected) {
-                                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                                        } else {
-                                            Modifier
-                                        },
-                                        labelOverflow = if (isSelected) TextOverflow.Clip else TextOverflow.Ellipsis,
-                                        trailingAction = {
-                                            IconButton(onClick = { onCloseTab(tab.id) }, modifier = Modifier.size(48.dp)) {
-                                                Icon(
-                                                    imageVector = HugeIcons.Cancel01,
-                                                    contentDescription = stringResource(
-                                                        R.string.workspace_terminal_close_tab, tab.number,
-                                                    ),
-                                                    modifier = Modifier.size(16.dp),
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = tab.title
+                                                        ?: stringResource(R.string.workspace_terminal_tab, tab.number),
+                                                    maxLines = 1,
+                                                    overflow = if (isSelected) TextOverflow.Clip else TextOverflow.Ellipsis,
+                                                    modifier = if (isSelected) {
+                                                        Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                                    } else {
+                                                        Modifier
+                                                    },
                                                 )
+                                                IconButton(
+                                                    onClick = { onCloseTab(tab.id) },
+                                                    modifier = Modifier.size(32.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = HugeIcons.Cancel01,
+                                                        contentDescription = stringResource(
+                                                            R.string.workspace_terminal_close_tab, tab.number,
+                                                        ),
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
                                             }
+                                        },
+                                        icon = {
+                                            Icon(
+                                                imageVector = HugeIcons.ComputerTerminal01,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                            )
                                         },
                                     )
                                 }

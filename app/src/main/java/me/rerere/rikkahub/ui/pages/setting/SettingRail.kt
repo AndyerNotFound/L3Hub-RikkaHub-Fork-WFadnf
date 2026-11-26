@@ -111,7 +111,6 @@ private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
 /** 当前路由落在哪一节；详情页跟着它的一级页走，首页（完全没有选中）返回 null */
 internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingPreferences,
-    is Screen.SettingPreferencesAdvancedAppearance,
     is Screen.SettingPreferencesTheme,
     is Screen.SettingPreferencesNotification,
     is Screen.SettingPreferencesGeneral,

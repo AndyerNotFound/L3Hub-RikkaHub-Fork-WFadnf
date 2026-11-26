@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -20,8 +24,6 @@ import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
-import me.rerere.rikkahub.ui.components.ui.TopTab
-import me.rerere.rikkahub.ui.components.ui.TopTabRow
 
 /**
  * 模型列表里的一页：一把启用的 Key，或收「没有绑定 Key」的模型的那一页。
@@ -117,19 +119,31 @@ fun ModelKeyGroupStrip(
 ) {
     if (groups.isEmpty()) return
     val selectedIndex = groups.indexOfFirst { it.key == selectedKey }.coerceAtLeast(0)
-    TopTabRow(
-        selectedIndex = selectedIndex,
+    PrimaryScrollableTabRow(
+        selectedTabIndex = selectedIndex,
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = if (compact) 8.dp else 16.dp),
+        edgePadding = if (compact) 8.dp else 16.dp,
         minTabWidth = if (compact) 72.dp else 88.dp,
     ) {
         groups.forEachIndexed { index, group ->
             key(group.key) {
-                TopTab(
+                Tab(
                     selected = index == selectedIndex,
                     onClick = { onSelect(group.key) },
-                    label = group.name,
-                    icon = if (group.key == null) HugeIcons.Layers01 else groupIcon,
+                    text = {
+                        Text(
+                            text = group.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = if (group.key == null) HugeIcons.Layers01 else groupIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
                 )
             }
         }

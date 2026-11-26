@@ -1,7 +1,13 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.material3.Icon
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -10,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 
@@ -22,6 +29,7 @@ internal interface PagerTab {
 private class TabRequest(val index: Int)
 
 // tabs 的顺序要和 pager 的页一一对应。
+// 指示器交给 M3 的 PrimaryScrollableTabRow：它按 targetPage 换位，不再逐帧跟随滑动。
 @Composable
 internal fun PagerTabs(
     pagerState: PagerState,
@@ -41,22 +49,28 @@ internal fun PagerTabs(
         }
     }
 
-    // 点标签时直接伸向目标；滑动页面时则逐帧跟随 Pager（避免重组整排标签）。
-    val pagePosition = remember(pagerState) {
-        { pagerState.currentPage + pagerState.currentPageOffsetFraction }
-    }
-    TopTabRow(
-        selectedIndex = selectedIndex,
-        modifier = modifier,
-        contentPadding = contentPadding,
-        swipePosition = pagePosition.takeIf { pending == null && pagerState.isScrollInProgress },
+    PrimaryScrollableTabRow(
+        selectedTabIndex = selectedIndex,
+        modifier = modifier.padding(contentPadding),
     ) {
         tabs.fastForEachIndexed { index, tab ->
-            TopTab(
+            Tab(
                 selected = index == selectedIndex,
                 onClick = { if (index != selectedIndex) request = TabRequest(index) },
-                label = tab.label,
-                icon = tab.icon,
+                text = {
+                    Text(
+                        text = tab.label,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                icon = {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                    )
+                },
             )
         }
     }
