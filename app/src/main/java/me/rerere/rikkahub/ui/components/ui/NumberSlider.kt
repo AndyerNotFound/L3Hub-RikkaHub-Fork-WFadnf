@@ -4,12 +4,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -176,9 +181,31 @@ fun NumberSlider(
     enabled: Boolean = true,
     // 默认每个整数一档；取值范围太大时传 0，免得轨道上画出一片密密麻麻的刻度
     steps: Int = (valueRange.last - valueRange.first - 1).coerceAtLeast(0),
+    /** Preserve continuous thumb movement for integer-backed values while dragging. */
+    preserveFractionalDrag: Boolean = false,
     onValueChangeFinished: () -> Unit = {},
 ) {
     val draft = rememberNumberDraft(value)
+    val sliderThumb = remember {
+        mutableFloatStateOf(value.coerceIn(valueRange.first, valueRange.last).toFloat())
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val sliderDragging by interactionSource.collectIsDraggedAsState()
+    val wasSliderDragging = remember { mutableStateOf(false) }
+    LaunchedEffect(value, preserveFractionalDrag, sliderDragging) {
+        if (!preserveFractionalDrag) {
+            sliderThumb.floatValue = value.coerceIn(valueRange.first, valueRange.last).toFloat()
+        } else {
+            val dragEnded = wasSliderDragging.value && !sliderDragging
+            val externalValueChanged = value != sliderThumb.floatValue.roundToInt()
+            // Keep the fractional thumb through integer value echoes. Sync external changes and
+            // snap to the committed integer when a drag ends.
+            if (dragEnded || externalValueChanged) {
+                sliderThumb.floatValue = value.coerceIn(valueRange.first, valueRange.last).toFloat()
+            }
+        }
+        wasSliderDragging.value = sliderDragging
+    }
     SliderWithNumberField(
         modifier = modifier,
         enabled = enabled,
@@ -193,16 +220,30 @@ fun NumberSlider(
             }
         },
     ) { sliderModifier ->
-        // 外观跟「滑块类型」设置走；默认档仍是 M3 的 Slider
+        // Keep the controlled slider's thumb continuous when its persisted value is integer-backed.
         AppSlider(
-            value = value.coerceIn(valueRange.first, valueRange.last).toFloat(),
+            value = (if (preserveFractionalDrag) sliderThumb.floatValue else value.toFloat())
+                .coerceIn(valueRange.first.toFloat(), valueRange.last.toFloat()),
             onValueChange = { raw ->
-                onValueChange(raw.roundToInt().coerceIn(valueRange.first, valueRange.last))
+                val requested = raw.roundToInt().coerceIn(valueRange.first, valueRange.last)
+                if (preserveFractionalDrag) {
+                    sliderThumb.floatValue = raw
+                }
+                onValueChange(requested)
             },
             valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
-            steps = steps,
+            steps = if (preserveFractionalDrag) 0 else steps,
             enabled = enabled,
-            onValueChangeFinished = onValueChangeFinished,
+            onValueChangeFinished = {
+                if (preserveFractionalDrag) {
+                    val committed = sliderThumb.floatValue.roundToInt()
+                        .coerceIn(valueRange.first, valueRange.last)
+                    sliderThumb.floatValue = committed.toFloat()
+                    onValueChange(committed)
+                }
+                onValueChangeFinished()
+            },
+            interactionSource = interactionSource,
             modifier = sliderModifier,
         )
     }

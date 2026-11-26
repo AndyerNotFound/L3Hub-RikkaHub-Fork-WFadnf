@@ -40,6 +40,42 @@ class ChatHazeSamplingTest {
     }
 
     @Test
+    fun `top bar backdrop remains captured during adaptive busy state`() {
+        val topBar = AppearanceMaterial(
+            style = BackgroundSurfaceStyle.FROSTED,
+            opacity = .65f,
+            radius = 20f,
+            allowDuringBusy = true,
+        )
+        val adaptive = AdvancedAppearanceSetting(
+            enableAdvancedAppearance = true,
+            liquidGlass = LiquidGlassSettings(adaptivePerformance = true),
+        )
+
+        assertTrue(topBar.needs(appearance = adaptive, busy = true))
+        assertFalse(topBar.needs(appearance = adaptive, busy = true, powerSave = true))
+        assertFalse(topBar.copy(allowDuringBusy = false).needs(appearance = adaptive, busy = true))
+    }
+
+    @Test
+    fun `default top bar keeps its message source captured during busy state`() {
+        val settings = Settings(
+            advancedAppearanceSetting = AdvancedAppearanceSetting(enableAdvancedAppearance = true),
+            displaySetting = DisplaySetting(enableTopBarBlur = true),
+        )
+
+        val plan = settings.chatHazeCapturePlan(
+            sdk = 33,
+            powerSave = false,
+            busy = true,
+            separateWindow = false,
+        )
+
+        assertTrue(plan.topBarSamplesMessages)
+        assertTrue(plan.chrome)
+    }
+
+    @Test
     fun `hidden assistant-only frosted bubble does not keep chat background capture active`() {
         val settings = Settings(
             displaySetting = DisplaySetting(

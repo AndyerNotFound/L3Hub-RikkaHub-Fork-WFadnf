@@ -32,6 +32,7 @@ import me.rerere.ui.components.LocalSeparateWindow
 internal data class ChatHazeCapturePlan(
     val background: Boolean,
     val chrome: Boolean,
+    val topBarSamplesMessages: Boolean = false,
 )
 
 /**
@@ -46,7 +47,7 @@ internal fun AppearanceMaterial.needsChatBackdrop(
     separateWindow: Boolean,
 ): Boolean {
     if (!style.usesBlur || !effects || sdk < Build.VERSION_CODES.S || powerSave || separateWindow) return false
-    if (busy && appearance.liquidGlass.adaptivePerformance) return false
+    if (busy && appearance.liquidGlass.adaptivePerformance && !allowDuringBusy) return false
     val material3 = style == BackgroundSurfaceStyle.LIQUID_GLASS && appearance.liquidGlass.usesMaterial3Style()
     val realtime = effects && !(style == BackgroundSurfaceStyle.LIQUID_GLASS &&
         appearance.liquidGlass.renderer == LiquidGlassRenderer.STANDARD)
@@ -82,14 +83,20 @@ internal fun Settings.chatHazeCapturePlan(
     val background = bodyMaterials.any { it.active() }
     if (!appearance.enableAdvancedAppearance) return ChatHazeCapturePlan(background, chrome = false)
 
+    val topBarMaterial = appearance.topBarMaterial(display)
+    val topBarSamplesMessages = topBarMaterial?.active() == true
     val chromeMaterials = listOfNotNull(
         appearance.composerMaterial(display),
         appearance.overlayMaterial(),
         chatDockMaterial().takeIf { display.enableFloatingBar && display.floatingBarItems.isNotEmpty() },
         // Either the whole top bar or its controls consume this source.
-        appearance.topBarMaterial(display),
+        topBarMaterial,
     )
-    return ChatHazeCapturePlan(background, chrome = chromeMaterials.any { it.active() })
+    return ChatHazeCapturePlan(
+        background = background,
+        chrome = chromeMaterials.any { it.active() },
+        topBarSamplesMessages = topBarSamplesMessages,
+    )
 }
 
 internal data class ChatHazeCaptureState(

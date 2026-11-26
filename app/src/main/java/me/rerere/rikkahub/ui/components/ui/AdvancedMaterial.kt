@@ -51,6 +51,7 @@ internal data class AppearanceMaterial(
     val opacity: Float,
     val radius: Float = 0f,
     val effects: Boolean = true,
+    val allowDuringBusy: Boolean = false,
 )
 
 internal val LocalAdvancedPageMaterial = compositionLocalOf<AppearanceMaterial?> { null }
@@ -98,6 +99,7 @@ internal fun AdvancedAppearanceSetting.topBarMaterial(display: DisplaySetting): 
         opacity = display.topBarSurfaceOpacity,
         radius = display.topBarBlurRadius,
         effects = enableTopBarPerformanceEffects && display.enableTopBarBlur,
+        allowDuringBusy = true,
     )
 }
 
@@ -178,7 +180,8 @@ internal fun Modifier.advancedMaterial(
     // Blur is a rendering effect, not motion. Disabling app/system animations must not silently disable it.
     val lowPower = LocalAdvancedAppearancePowerSave.current
     val busy = LocalAdvancedAppearanceBusy.current
-    val live = material.effects && !separate && !lowPower && !(busy && glass.adaptivePerformance)
+    val live = material.effects && !separate && !lowPower &&
+        !(busy && glass.adaptivePerformance && !material.allowDuringBusy)
     val sdk = Build.VERSION.SDK_INT
     val realtime = live && !(style == BackgroundSurfaceStyle.LIQUID_GLASS && glass.renderer == LiquidGlassRenderer.STANDARD)
     val requestedRadius = if (material3Glass) Material3GlassBlurRadius.value else material.radius

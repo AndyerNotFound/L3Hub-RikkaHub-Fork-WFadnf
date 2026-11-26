@@ -404,6 +404,7 @@ private fun StyleParamsGroup(
                         onValueChange = { update { copy(blurSigma = it.toFloat()) } },
                         valueRange = 0..sigmaRangeMax,
                         enabled = blurEnabled,
+                        preserveFractionalDrag = true,
                     )
                 },
             )
@@ -433,6 +434,7 @@ private fun StyleParamsGroup(
                         }
                     },
                     valueRange = 0..100,
+                    preserveFractionalDrag = true,
                 )
             },
         )
@@ -444,6 +446,7 @@ private fun StyleParamsGroup(
                     value = (resolved.border.alpha * 100).roundToInt().coerceIn(0, 100),
                     onValueChange = { update { copy(borderOpacity = it / 100f) } },
                     valueRange = 0..100,
+                    preserveFractionalDrag = true,
                 )
             },
         )
@@ -455,6 +458,7 @@ private fun StyleParamsGroup(
                     value = (resolved.borderWidth.value * 10).roundToInt().coerceIn(0, 30),
                     onValueChange = { update { copy(borderWidth = it / 10f) } },
                     valueRange = 0..30,
+                    preserveFractionalDrag = true,
                 )
             },
         )
@@ -466,6 +470,7 @@ private fun StyleParamsGroup(
                     value = resolved.radius.value.roundToInt().coerceIn(0, 28),
                     onValueChange = { update { copy(cornerRadius = it.toFloat()) } },
                     valueRange = 0..28,
+                    preserveFractionalDrag = true,
                 )
             },
         )

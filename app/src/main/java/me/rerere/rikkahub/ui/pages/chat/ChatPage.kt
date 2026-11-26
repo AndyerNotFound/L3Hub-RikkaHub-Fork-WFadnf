@@ -348,6 +348,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         errors = errors,
         backgroundHazeState = backgroundHazeState,
         chromeHazeState = chromeHazeState,
+        topBarSamplesMessages = hazeCapture.plan.topBarSamplesMessages,
     )
     val pageActions = ChatPageActions(
         onStartVoiceMode = startVoiceMode,
@@ -1139,6 +1140,7 @@ private fun ChatPageContent(
                         settings = state.setting,
                         bubbleHazeState = state.backgroundHazeState,
                         contentSource = state.chromeHazeState,
+                        retainContentSourceForTopBar = state.topBarSamplesMessages,
                         errors = state.errors,
                         onDismissError = actions.onDismissError,
                         onClearAllErrors = actions.onClearAllErrors,

@@ -192,6 +192,8 @@ fun ChatList(
     bubbleHazeState: HazeState? = null,
     // 输入区与同窗浮层可取样消息列表，气泡本身只使用背景源。
     contentSource: HazeState? = null,
+    // Keep the message source for the top bar only when it has a live backdrop effect.
+    retainContentSourceForTopBar: Boolean = false,
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
     onClearAllErrors: () -> Unit = {},
@@ -262,6 +264,7 @@ fun ChatList(
                 bubbleHazeState = bubbleHazeState,
                 // 按钮切换的首帧和滑入/滑出期间都不录正文；窗内背景仍由页面单独录制。
                 contentSource = contentSource.takeUnless { previewMode || showPreview },
+                retainContentSourceForTopBar = retainContentSourceForTopBar,
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
@@ -323,6 +326,7 @@ private fun ChatListNormal(
     settings: Settings,
     bubbleHazeState: HazeState? = null,
     contentSource: HazeState? = null,
+    retainContentSourceForTopBar: Boolean = false,
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
@@ -657,9 +661,11 @@ private fun ChatListNormal(
                             !followScrollBlurPaused,
                     )
                     // Record the faded list above the wallpaper, without sampling scroll-motion blur.
-                    // Drop it during generation or compression to avoid blurring every new token.
+                    // Drop it during generation unless the active top bar needs messages as its backdrop.
                     .then(
-                        if (contentSource != null && !loading && !compressing) {
+                        if (contentSource != null &&
+                            ((!loading && !compressing) || retainContentSourceForTopBar)
+                        ) {
                             Modifier.hazeSource(contentSource, zIndex = 1f)
                         } else {
                             Modifier
