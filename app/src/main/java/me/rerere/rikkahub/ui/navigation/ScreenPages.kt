@@ -27,6 +27,7 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
+import me.rerere.rikkahub.ui.pages.fingerprint.ModelFingerprintPage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
@@ -146,6 +147,8 @@ fun ScreenContent(screen: Screen) {
                 accountId = screen.accountId,
             )
         }
+
+        Screen.ModelFingerprint -> { ModelFingerprintPage() }
 
         Screen.SettingAbout -> { SettingAboutPage() }
         Screen.SettingSearch -> { SettingSearchPage() }

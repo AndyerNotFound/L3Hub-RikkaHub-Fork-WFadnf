@@ -133,6 +133,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().modelFingerprintDao()
+    }
+
+    single {
         get<AppDatabase>().usageRecordDao()
     }
 

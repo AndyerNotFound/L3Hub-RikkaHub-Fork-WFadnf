@@ -123,6 +123,7 @@ class SettingsStore internal constructor(
         val FAST_MODEL_REASONING_LEVEL = stringPreferencesKey("fast_model_reasoning_level")
         val MEMORY_MODEL = stringPreferencesKey("memory_model")
         val MEMORY_MODEL_REASONING_LEVEL = stringPreferencesKey("memory_model_reasoning_level")
+        val MODEL_FINGERPRINT_MODEL = stringPreferencesKey("model_fingerprint_model")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val ENABLE_SUGGESTION = booleanPreferencesKey("enable_suggestion")
         val IMAGE_GENERATION_MODEL = stringPreferencesKey("image_generation_model")
@@ -145,6 +146,7 @@ class SettingsStore internal constructor(
         val PROVIDER_PROXY_USERNAMES = stringPreferencesKey("provider_proxy_usernames")
         val PROVIDER_PROXY_PASSWORDS = stringPreferencesKey("provider_proxy_passwords")
         val CUSTOM_CA_CERTIFICATES = stringPreferencesKey("custom_ca_certificates")
+        val MODEL_FINGERPRINT_STRICT_MODE = booleanPreferencesKey("model_fingerprint_strict_mode")
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")

@@ -1035,6 +1035,7 @@ private fun sourceLabel(source: String): String {
             UsageSource.TRANSLATION -> R.string.stats_page_source_translation
             UsageSource.MEMORY -> R.string.stats_page_source_memory
             UsageSource.OCR -> R.string.stats_page_source_ocr
+            UsageSource.MODEL_FINGERPRINT -> R.string.stats_page_source_model_fingerprint
         }
     )
 }

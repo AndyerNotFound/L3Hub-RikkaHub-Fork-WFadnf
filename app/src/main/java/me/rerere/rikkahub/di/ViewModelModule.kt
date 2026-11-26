@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.di
 
+import android.content.Context
 import me.rerere.rikkahub.ui.pages.assistant.AssistantVM
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -15,6 +16,7 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.ui.pages.favorite.FavoriteVM
+import me.rerere.rikkahub.ui.pages.fingerprint.ModelFingerprintVM
 import me.rerere.rikkahub.ui.pages.history.HistoryVM
 import me.rerere.rikkahub.ui.pages.imggen.ImgGenVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsVM
@@ -48,6 +50,16 @@ val viewModelModule = module {
     viewModelOf(::SettingVM)
     viewModelOf(::DebugVM)
     viewModelOf(::HistoryVM)
+    viewModel {
+        ModelFingerprintVM(
+            context = get<Context>(),
+            settingsStore = get(),
+            providerManager = get(),
+            usageRecorder = get(),
+            databaseStore = get(),
+            dao = get(),
+        )
+    }
     viewModelOf(::AssistantVM)
     viewModel<AssistantDetailVM> {
         AssistantDetailVM(

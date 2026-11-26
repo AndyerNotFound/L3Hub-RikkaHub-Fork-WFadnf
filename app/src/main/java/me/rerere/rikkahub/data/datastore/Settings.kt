@@ -52,6 +52,7 @@ data class Settings(
     val memoryModelId: Uuid? = null,
     val memoryModelReasoningLevel: ReasoningLevel = ReasoningLevel.AUTO,
     val imageGenerationModelId: Uuid = Uuid.random(),
+    val modelFingerprintModelId: Uuid? = null,
     val enableAutoTitle: Boolean = true,
     // 生成过程中发送的消息是否进入队列排队; 关闭后直接打断当前回复立即发送
     val enableMessageQueue: Boolean = true,
@@ -81,6 +82,8 @@ data class Settings(
     val appLockTimeoutMinutes: Int = 5,
     // 额外信任的自签 CA（PEM 文本）
     val customCaCertificates: List<String> = emptyList(),
+    // 不足三条有效回答时是否禁止给出临时排名
+    val modelFingerprintStrictMode: Boolean = true,
     // 同一时刻最多并行运行的子代理数（1..8，默认 3）；达到上限时派发会被拒绝
     val subAgentMaxParallel: Int = 3,
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,

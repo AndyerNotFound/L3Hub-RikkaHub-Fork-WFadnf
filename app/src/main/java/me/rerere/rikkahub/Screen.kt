@@ -137,6 +137,10 @@ sealed interface Screen {
         val accountId: String? = null,
     ) : Screen
 
+    /** 模型指纹：拿导入的指纹集合比对提供商实际返回的模型，只做手动检测，没有网络更新。 */
+    @Serializable
+    data object ModelFingerprint : Screen
+
     @Serializable
     data object SettingAbout : Screen
 

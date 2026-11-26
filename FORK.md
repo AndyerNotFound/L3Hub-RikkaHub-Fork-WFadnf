@@ -1800,3 +1800,50 @@ ui/.../crop/ImageCropDialog.kt, ImageCropState.kt, ImageCropImage.kt  裁剪结�
 
 这一轮没有编译、没有跑单测、没有上机（`PreferenceStoreV6MigrationTest` 是新增源码但没执行），
 也没有触发 CI。上面写的都是实现意图与静态事实，不是 CI 或真机结论。
+
+## 模型指纹检测
+
+当提供商实际返回的模型与配置名可能不符时，可用它对三条数字挑战的回答和参考库比对，查看最相近的候选。
+
+### 为什么是手动导入
+
+参考库会随模型和版本演进。手动导入让用户自己选择参考数据来源，并可以在应用发版之外单独替换数据。
+
+首次使用时，从同一套 lm-detector 数据手动选择 `unified_bank.json` 和 `shared_detector.bin`，两份文件的导入顺序不限。
+应用核对格式、构建时间、模型 ID 顺序和参考回答条数。参考库带 `reference_sha256` 时，还会与检测器记录的
+`source_reference_sha256` 比对。两个文件都校验通过后，应用才切换活动版本。配对失败时仍可使用此前的有效版本。
+参考数据保存在 `noBackupFilesDir/model_fingerprint`，APK 只包含挑战模板和实现。
+
+### 落在哪些文件里
+
+| 位置 | 作用 |
+|---|---|
+| `data/fingerprint/` | 配对导入与活动版本切换、上游挑战生成、流式回答采集、打分和闭集校准 |
+| `ui/pages/fingerprint/` | 独立页面和 `ModelFingerprintVM`，复用聊天模型选择器，展示检测进度、结果和历史 |
+| `Screen.kt`、`ui/navigation/ScreenPages.kt` | `Screen.ModelFingerprint` 和页面路由 |
+| `ui/pages/setting/SettingPage.kt`、`SettingRail.kt` | 设置首页和横屏左栏的「模型与服务」分组入口 |
+| `data/db/` | `Migration_38_39` 新建 `model_fingerprint_history`，`ModelFingerprintDAO` 提供 `recentFlow`、`insertRecent` 和 `deleteAll` |
+| `di/DataSourceModule.kt`、`di/RepositoryModule.kt`、`di/ViewModelModule.kt` | DAO、`FingerprintDatabaseStore` 与 `ModelFingerprintVM` 的 Koin 绑定 |
+| `data/datastore/` | 保存 `model_fingerprint_model`（可空）和 `model_fingerprint_strict_mode`（默认 `true`） |
+| `data/ai/UsageRecorder.kt`、`ui/pages/stats/StatsPage.kt` | 记录提供商返回的用量，统计来源为 `UsageSource.MODEL_FINGERPRINT` |
+
+### 探测、评分与历史
+
+- 每轮按上游协议从 `292..332` 抽三个不同的长度。每条挑战独立抽取中文、英语、日语、韩语、法语之一及其措辞，
+  要求输出 `1..355` 之间的整数。协议和模板内置。应用在用户确认费用提示后才串行发送三条挑战。
+- 每条挑战作为独立消息，通过当前模型配置路由。探测保留自定义请求头，跳过模型自定义请求体和工具。
+  提供商开启 cURL 请求覆写时，需要先关闭覆写。每次探测最多等 180 秒，可见文本限制为 65,536 个字符。
+- 单条门槛为 `max(80, ceil(0.55 × 要求条数))`。低于门槛的样本按缺失处理。严格模式保留正常完成回答的完整序列，
+  三条均有效时才排名。宽松模式截取前 `expectedCount` 个有效数字，流中凑够完整数字后最多再等 1.5 秒接收用量。
+  尚未达封顶数量、且终止原因不是 `stop`、`end_turn` 或 `completed` 的流按失败处理。提前结束时，可能只收到部分用量。
+- `PARTIAL` 表示宽松模式用一到两条有效回答生成的临时排名，概率不可用。样本不足时为 `UNSCORABLE`。
+  序列形状不符合参考模型时为 `NOT_LANGUAGE_MODEL`，不生成排名。三条均有效且通过形状检查时为 `RANKED`。
+- 校准概率只在导入的参考库内成立。库外模型也可能进入候选，概率只能作为比对参考。校准头与当前检测器、
+  参考版本和模型顺序匹配时才显示概率。
+- 页面显示排名前 10 的候选。数据库保存最近 50 条探测摘要，每条最多 10 个候选，保留当时的模型和提供商标签。
+  停止检测后，已收集的有效样本仍按所选模式处理。历史支持展开候选与确认清空，原始挑战和回答只用于当前检测。
+
+### 验证状态
+
+已静态核对上游挑战模板、参考文件结构、设置字段和 Room 迁移 SQL，并补充流式封顶、回答裁剪和二进制边界的单测源码。
+Android 构建、单测执行、真机上的导入与升级路径，以及实际提供商响应仍待验证。

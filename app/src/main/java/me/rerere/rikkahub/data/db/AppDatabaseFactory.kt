@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.db.migrations.Migration_30_31
 import me.rerere.rikkahub.data.db.migrations.Migration_35_36
 import me.rerere.rikkahub.data.db.migrations.Migration_36_37
 import me.rerere.rikkahub.data.db.migrations.Migration_37_38
+import me.rerere.rikkahub.data.db.migrations.Migration_38_39
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.sync.SyncTombstones
 import java.io.File
@@ -34,6 +35,7 @@ internal object AppDatabaseFactory {
                 Migration_35_36,
                 Migration_36_37,
                 Migration_37_38,
+                Migration_38_39,
             )
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {

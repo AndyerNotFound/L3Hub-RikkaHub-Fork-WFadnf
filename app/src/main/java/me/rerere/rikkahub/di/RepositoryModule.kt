@@ -4,6 +4,7 @@ import android.content.Context
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.subagent.SubAgentResultStore
 import me.rerere.rikkahub.data.chat.DraftStore
+import me.rerere.rikkahub.data.fingerprint.FingerprintDatabaseStore
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -27,6 +28,8 @@ import org.koin.dsl.onClose
 import java.io.File
 
 val repositoryModule = module {
+    single { FingerprintDatabaseStore(get<Context>()) }
+
     single {
         ConversationRepository(get(), get(), get(), get(), get(), get())
     }

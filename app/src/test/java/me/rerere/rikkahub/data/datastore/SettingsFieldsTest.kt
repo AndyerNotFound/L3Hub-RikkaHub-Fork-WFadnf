@@ -65,6 +65,8 @@ class SettingsFieldsTest {
         assertEquals(1.5f, stored["default_tts_playback_speed"])
         assertEquals("title", stored["title_prompt"])
         assertEquals("00000000-0000-0000-0000-000000000001", stored["chat_model"])
+        assertEquals(id(32).toString(), stored["model_fingerprint_model"])
+        assertEquals(false, stored["model_fingerprint_strict_mode"])
         assertEquals("LOW", stored["fast_model_reasoning_level"])
         assertEquals("""[{"id":"00000000-0000-0000-0000-000000000007","name":"tag"}]""", stored["assistant_tags"])
         assertEquals("""{"resultSize":3}""", stored["search_common"])
@@ -111,6 +113,8 @@ class SettingsFieldsTest {
         assertEquals(DEFAULT_SYSTEM_TTS_ID, settings.selectedTTSProviderId)
         assertEquals(null, settings.selectedASRProviderId)
         assertEquals(null, settings.memoryModelId)
+        assertEquals(null, settings.modelFingerprintModelId)
+        assertTrue(settings.modelFingerprintStrictMode)
         assertEquals(true, settings.dynamicColor)
         assertEquals(AdvancedAppearanceSetting(), settings.advancedAppearanceSetting)
         // 旧全局特效与「已经搬过」的标记：新装默认没有旧特效，标记默认就是 true，界面不读它们
@@ -513,6 +517,8 @@ private val SAMPLE = Settings(
     memoryModelId = id(6),
     memoryModelReasoningLevel = ReasoningLevel.HIGH,
     imageGenerationModelId = id(3),
+    modelFingerprintModelId = id(32),
+    modelFingerprintStrictMode = false,
     enableAutoTitle = false,
     enableMessageQueue = false,
     titlePrompt = "title",
@@ -607,6 +613,8 @@ private val STORED_KEYS = setOf(
     "enable_auto_title",
     "enable_message_queue",
     "image_generation_model",
+    "model_fingerprint_model",
+    "model_fingerprint_strict_mode",
     "title_prompt",
     "translation_prompt",
     "translate_thinking_budget",

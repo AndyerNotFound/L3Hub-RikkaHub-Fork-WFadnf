@@ -55,6 +55,7 @@ import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.FingerPrint
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageUpload
@@ -330,6 +331,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { CardGroupIcon(HugeIcons.Tools, containerColor = containerColor, contentColor = contentColor) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tool_override)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tool_override_desc)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.ModelFingerprint) },
+                        leadingContent = { CardGroupIcon(HugeIcons.FingerPrint, containerColor = containerColor, contentColor = contentColor) },
+                        headlineContent = { Text(stringResource(R.string.model_fingerprint_title)) },
+                        supportingContent = { Text(stringResource(R.string.model_fingerprint_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },

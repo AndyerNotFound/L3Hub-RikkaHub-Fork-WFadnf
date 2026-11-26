@@ -34,6 +34,7 @@ import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.FingerPrint
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.ImageUpload
@@ -72,6 +73,7 @@ internal enum class SettingSection(
     Media(R.string.setting_page_media, HugeIcons.Image02, Screen.SettingMedia),
     Mcp(R.string.setting_page_mcp, HugeIcons.McpServer, Screen.SettingMcp),
     ToolOverrides(R.string.setting_page_tool_override, HugeIcons.Tools, Screen.ToolOverrides),
+    Fingerprint(R.string.model_fingerprint_title, HugeIcons.FingerPrint, Screen.ModelFingerprint),
     Web(R.string.setting_page_web_server, HugeIcons.ServerStack01, Screen.SettingWeb),
     Backup(R.string.setting_page_data_backup, HugeIcons.Database02, Screen.Backup),
     Files(R.string.setting_page_chat_storage, HugeIcons.ImageUpload, Screen.SettingFiles),
@@ -93,6 +95,7 @@ private val SettingRailGroups: List<Pair<Int, List<SettingSection>>> = listOf(
         SettingSection.Media,
         SettingSection.Mcp,
         SettingSection.ToolOverrides,
+        SettingSection.Fingerprint,
         SettingSection.Web,
     ),
     R.string.setting_page_data_settings to listOf(
@@ -149,6 +152,7 @@ internal fun Screen.settingSection(): SettingSection? = when (this) {
     is Screen.SettingMedia, is Screen.SettingMediaProviderDetail -> SettingSection.Media
     is Screen.SettingMcp, is Screen.SettingMcpDetail -> SettingSection.Mcp
     is Screen.ToolOverrides -> SettingSection.ToolOverrides
+    is Screen.ModelFingerprint -> SettingSection.Fingerprint
     is Screen.SettingWeb -> SettingSection.Web
     is Screen.Backup -> SettingSection.Backup
     is Screen.SettingFiles -> SettingSection.Files
