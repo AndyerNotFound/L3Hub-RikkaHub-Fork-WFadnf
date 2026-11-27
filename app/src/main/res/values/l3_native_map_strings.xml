@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 原生对话地图（Java Canvas）用到的文案。前缀 l3_native_，与 Compose 侧资源分开存放。 -->
+<resources>
+    <string name="l3_native_map_empty_title">No messages yet</string>
+    <string name="l3_native_map_empty_body">The map grows as the conversation does.</string>
+
+    <string name="l3_native_map_role_user">You</string>
+    <string name="l3_native_map_role_assistant">Assistant</string>
+    <string name="l3_native_map_role_system">System</string>
+    <string name="l3_native_map_role_tool">Tool</string>
+    <string name="l3_native_map_role_notice">Notice</string>
+
+    <string name="l3_native_map_a11y_summary">Conversation map, %1$d nodes, %2$d branches. Pinch to zoom, drag to pan.</string>
+    <string name="l3_native_map_a11y_variant">branch %1$d of %2$d</string>
+    <string name="l3_native_map_a11y_running">replying</string>
+    <string name="l3_native_map_a11y_separator">", "</string>
+
+    <string name="l3_native_map_head_label">LIVE</string>
+    <string name="l3_native_map_badge_variant">%1$d/%2$d</string>
+
+    <plurals name="l3_native_map_meta_tools">
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <plurals name="l3_native_map_meta_reasoning">
+        <item quantity="one">%1$d thought</item>
+        <item quantity="other">%1$d thoughts</item>
+    </plurals>
+</resources>

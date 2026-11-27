@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,6 +51,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -58,6 +63,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -185,6 +191,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val androidRootView = LocalView.current
     val density = LocalDensity.current
     val imeInsets = WindowInsets.ime
     // 键盘开合不进组合：inset 每帧都在变，读进这一层等于整页跟着键盘重组一遍，
@@ -235,6 +242,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     LaunchedEffect(drawerState.isOpen) {
         if (drawerState.isOpen) {
             focusManager.clearFocus(force = true)
+            androidRootView.clearFocus()
             softwareKeyboardController?.hide()
         }
     }
@@ -463,7 +471,9 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 },
             ) {
                 ChatPageContent(
-                    state = pageState.copy(sidebarOpen = drawerState.isOpen),
+                    state = pageState.copy(
+                        sidebarOpen = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open,
+                    ),
                     actions = pageActions.copy(
                         onOpenSidebar = { requestDrawer(DrawerValue.Open) },
                     ),
@@ -481,6 +491,20 @@ private fun ChatPageContent(
 ) {
     val scope = rememberCoroutineScope()
     var previewMode by rememberSaveable { mutableStateOf(false) }
+    // Only the portrait chrome migrates in phase one; landscape keeps its existing three panes.
+    var portraitTab by rememberSaveable(state.conversationId) { mutableStateOf(0) }
+    val tabStateHolder = rememberSaveableStateHolder()
+    val chatTabVisible = state.threePane || portraitTab == 0
+    val nativeRootView = LocalView.current
+    val tabFocusManager = LocalFocusManager.current
+    val tabKeyboard = LocalSoftwareKeyboardController.current
+    fun selectPortraitTab(tab: Int) {
+        tabFocusManager.clearFocus(force = true)
+        nativeRootView.clearFocus()
+        tabKeyboard?.hide()
+        portraitTab = tab.coerceIn(0, 3)
+        previewMode = false
+    }
     val advanced = state.setting.advancedAppearanceSetting.enableAdvancedAppearance
     // 顶栏、配额条/看板、会话详情浮层都压在消息正文上：统一取 chrome 源（背景 + 正文）。
     // 只给 background 源的话，浮层底下滚过去的正文糊不出来，着色一淡就透字。
@@ -504,6 +528,9 @@ private fun ChatPageContent(
         derivedStateOf { state.conversationState.value.messageNodes.map { it.id } }
     }
     val todos by remember(state.conversationState) { derivedStateOf { state.conversationState.value.todos } }
+    val conversationTitle by remember(state.conversationState) {
+        derivedStateOf { state.conversationState.value.title }
+    }
 
     // 待回答的 ask_user 调用：抽屉关闭后显示在任务清单卡里，点击重新打开
     val pendingAskUserTools by remember(state.conversationState) {
@@ -598,7 +625,7 @@ private fun ChatPageContent(
     val imeInsets = WindowInsets.ime
     val inputLiftSpec = rememberSlideSpec<Float>(animated = !state.setting.displaySetting.disableAnimations)
     val emptyAnchorGapPx = with(density) { 16.dp.toPx() }
-    val animateInputToBottom = hasMessages && animateEmptyExit
+    val animateInputToBottom = state.threePane && hasMessages && animateEmptyExit
     // 首条消息发出后从空态位置滑到底部：空态落点每帧都是现算的，
     // 这里只推一个 0→1 的进度，发送后的第一帧还是发送前的位置，
     // 不会先落回底部、等下一帧再弹上来
@@ -613,7 +640,13 @@ private fun ChatPageContent(
     )
     val inputBlurSteps = rememberMotionBlurSteps(maxRadius = 6.dp)
     val inputBlur = remember { Animatable(0f) }
-    LaunchedEffect(hasMessages) {
+    LaunchedEffect(hasMessages, state.threePane) {
+        if (!state.threePane) {
+            inputExitProgress.snapTo(1f)
+            inputBlur.snapTo(0f)
+            inputExitRunning = false
+            return@LaunchedEffect
+        }
         if (!hasMessages) {
             inputExitProgress.snapTo(0f)
             inputExitRunning = false
@@ -854,8 +887,17 @@ private fun ChatPageContent(
     TTSAutoPlay(vm = state.vm, setting = state.setting)
 
     // 概览页按返回键先回聊天页，不再直接退出会话
-    BackHandler(previewMode) {
+    BackHandler(previewMode && !state.sidebarOpen) {
         previewMode = false
+    }
+    BackHandler(
+        !state.threePane && portraitTab != 0 && !state.sidebarOpen &&
+            !showDetails && !quotaExpanded,
+    ) {
+        selectPortraitTab(0)
+    }
+    BackHandler(!state.threePane && !state.sidebarOpen && (showDetails || quotaExpanded)) {
+        if (quotaExpanded) quotaExpanded = false else showDetails = false
     }
 
     @Composable
@@ -877,7 +919,8 @@ private fun ChatPageContent(
             onStopVoiceMode = state.vm.voiceSession::stop,
             // 空会话里输入区顶边钉在英雄卡下面，高度变化从顶部往下长；
             // 贴底之后再换回底部对齐
-            pinContentToTop = !hasMessages,
+            pinContentToTop = state.threePane && !hasMessages,
+            useNativeComposer = !state.threePane,
             state = state.inputState,
             messageQueue = messageQueue,
             onRemoveQueuedMessage = state.vm::removeQueuedMessage,
@@ -925,11 +968,15 @@ private fun ChatPageContent(
                 state.vm.stopGeneration()
             },
             onSendClick = {
+                if (!state.threePane) portraitTab = 0
+                previewMode = false
                 // 首条消息的滑落要先锁住底栏的键盘 inset 布局，滑完再交回
-                if (!hasMessages) inputExitRunning = true
+                if (state.threePane && !hasMessages) inputExitRunning = true
                 sendInput()
             },
             onInterjectClick = {
+                if (!state.threePane) portraitTab = 0
+                previewMode = false
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
                     if (!contextAllowsSend(contextLimitReached, contextLimitBlocksSend)) {
@@ -939,7 +986,9 @@ private fun ChatPageContent(
                 sendActions.send(interject = true)
             },
             onLongSendClick = {
-                if (!hasMessages) inputExitRunning = true
+                if (!state.threePane) portraitTab = 0
+                previewMode = false
+                if (state.threePane && !hasMessages) inputExitRunning = true
                 if (contextLimitReached) {
                     toaster.show(contextLimitMessage, type = ToastType.Error)
                     if (!contextAllowsSend(contextLimitReached, contextLimitBlocksSend)) {
@@ -1007,9 +1056,9 @@ private fun ChatPageContent(
             scrim = !state.threePane,
             animateGradient = state.loadingJob == null,
         )
-        // 横屏时清单与引导收进右栏，输入区不再重复渲染
+        // 右栏或 Mission 已展示同一份清单时，底部输入区不重复渲染第二张可编辑卡。
         CompositionLocalProvider(
-            LocalConversationStatusInSidePanel provides state.threePane,
+            LocalConversationStatusInSidePanel provides (state.threePane || portraitTab == 2),
         ) {
         Row(modifier = Modifier.fillMaxSize()) {
         // 横屏中列按定宽排，余量留给右栏；竖屏没有右栏，中列必须吃满整宽
@@ -1024,39 +1073,79 @@ private fun ChatPageContent(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
-                    TopBar(
-                        hazeState = overlayHazeState,
-                        settings = state.setting,
-                        assistant = state.assistant,
-                        chatModel = state.currentChatModel,
-                        folderId = state.folderId,
-                        folders = conversationFolders,
-                        hasMessages = hasMessages,
-                        threePane = state.threePane,
-                        sidebarOpen = state.sidebarOpen,
-                        onOpenSidebar = actions.onOpenSidebar,
-                        onNewChat = {
-                            navigateToChatPage(state.navController)
-                        },
-                        onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
-                        onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
-                        onSelectFolder = state.vm::updateFolder,
-                        onCreateFolder = { showCreateFolderDialog = true },
-                        onShowOverview = {
-                            selectionState.cancel()
-                            previewMode = true
-                        },
-                        onExport = {
-                            // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
-                            previewMode = false
-                            selectionState.start(state.conversationState.value.messageNodes.map { it.id })
-                        },
-                        onDelete = { showDeleteConfirm = true },
-                        // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
-                        // 这个提亮只在竖屏（顶栏底下展开）时看得见
-                        detailsExpanded = showDetails,
-                        onToggleDetails = { toggleDetailsPane() },
-                    )
+                    if (state.threePane) {
+                        TopBar(
+                            hazeState = overlayHazeState,
+                            settings = state.setting,
+                            assistant = state.assistant,
+                            chatModel = state.currentChatModel,
+                            folderId = state.folderId,
+                            folders = conversationFolders,
+                            hasMessages = hasMessages,
+                            threePane = state.threePane,
+                            sidebarOpen = state.sidebarOpen,
+                            onOpenSidebar = actions.onOpenSidebar,
+                            onNewChat = {
+                                navigateToChatPage(state.navController)
+                            },
+                            onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
+                            onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
+                            onSelectFolder = state.vm::updateFolder,
+                            onCreateFolder = { showCreateFolderDialog = true },
+                            onShowOverview = {
+                                selectionState.cancel()
+                                previewMode = true
+                            },
+                            onExport = {
+                                // 跟消息上的分享一样进入多选，默认全选，用户可以再挑
+                                previewMode = false
+                                selectionState.start(state.conversationState.value.messageNodes.map { it.id })
+                            },
+                            onDelete = { showDeleteConfirm = true },
+                            // 横屏的详情在右侧栏里，而侧栏是模态的、整高盖住顶栏：
+                            // 这个提亮只在竖屏（顶栏底下展开）时看得见
+                            detailsExpanded = showDetails,
+                            onToggleDetails = { toggleDetailsPane() },
+                        )
+                    } else {
+                        Surface(color = MaterialTheme.colorScheme.surface) {
+                            Box(
+                                Modifier.fillMaxWidth().windowInsetsPadding(
+                                    WindowInsets.safeDrawing.only(
+                                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                                    )
+                                )
+                            ) {
+                                NativeChatTopBar(
+                                    title = conversationTitle.ifBlank { state.assistant.name },
+                                    running = state.loadingJob != null || state.sessionActivity != null,
+                                    folderId = state.folderId,
+                                    folders = conversationFolders,
+                                    hasMessages = hasMessages,
+                                    selectedTab = portraitTab,
+                                    onSelectTab = { selectPortraitTab(it) },
+                                    onOpenSidebar = actions.onOpenSidebar,
+                                    onNewChat = actions.onCreateNewChat,
+                                    onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
+                                    onSelectFolder = state.vm::updateFolder,
+                                    onCreateFolder = { showCreateFolderDialog = true },
+                                    onToggleDetails = { toggleDetailsPane() },
+                                    onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
+                                    onShowOverview = {
+                                        selectPortraitTab(0)
+                                        selectionState.cancel()
+                                        previewMode = true
+                                    },
+                                    onExport = {
+                                        selectPortraitTab(0)
+                                        selectionState.start(state.conversationState.value.messageNodes.map { it.id })
+                                    },
+                                    onDelete = { showDeleteConfirm = true },
+                                    onOpenSettings = { state.navController.navigate(Screen.Setting) },
+                                )
+                            }
+                        }
+                    }
                     if (quotaProvider != null && quotaData != null) {
                         ChatQuotaStrip(
                             provider = quotaProvider,
@@ -1093,6 +1182,7 @@ private fun ChatPageContent(
                                 val emptyLift = (size.height + emptyHeroBottomPx +
                                     emptyAnchorGapPx - inputBarBottomPx).roundToInt() + heroShift
                                 translationY = when {
+                                    !state.threePane -> 0f
                                     !emptyLayoutReady -> 0f
                                     !hasMessages -> emptyLift
                                     // 只有新会话发出首条消息时才从这里滑下去；
@@ -1101,13 +1191,13 @@ private fun ChatPageContent(
                                         emptyLift * (1f - inputExitProgress.value)
                                     else -> 0f
                                 }
-                                alpha = if (hasMessages || emptyLayoutReady) 1f else 0f
-                                renderEffect = inputBlurSteps.at(inputBlur.value)
+                                alpha = if (!state.threePane || hasMessages || emptyLayoutReady) 1f else 0f
+                                renderEffect = if (state.threePane) inputBlurSteps.at(inputBlur.value) else null
                             },
                     ) {
                         ChatInputContent(
                             todos = todos,
-                            deferImeInset = !hasMessages || inputExitRunning,
+                            deferImeInset = state.threePane && (!hasMessages || inputExitRunning),
                             scrimAlpha = { inputScrimAlpha },
                         )
                     }
@@ -1116,108 +1206,159 @@ private fun ChatPageContent(
             containerColor = Color.Transparent,
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                if (hasMessages) {
-                    // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
-                    val deleteMessage: (UIMessage) -> Unit = { message ->
-                        if (state.loadingJob != null) {
-                            state.vm.showDeleteBlockedWhileGeneratingError()
-                        } else {
-                            state.vm.deleteMessage(message)
+                if (chatTabVisible) {
+                    tabStateHolder.SaveableStateProvider("chat") {
+                        if (hasMessages) {
+                            // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
+                            val deleteMessage: (UIMessage) -> Unit = { message ->
+                                if (state.loadingJob != null) {
+                                    state.vm.showDeleteBlockedWhileGeneratingError()
+                                } else {
+                                    state.vm.deleteMessage(message)
+                                }
+                            }
+                            ChatList(
+                                innerPadding = innerPadding,
+                                conversationState = state.conversationState,
+                                state = state.chatListState,
+                                previewListState = previewListState,
+                                selectionState = selectionState,
+                                loading = state.loadingJob != null,
+                                generationSpeed = generationSpeed,
+                                compressing = state.sessionActivity == SessionActivity.Compressing,
+                                onCreateNewChat = actions.onCreateNewChat,
+                                processingStatus = state.processingStatus,
+                                previewMode = previewMode, onPreviewModeChange = { previewMode = it },
+                                settings = state.setting,
+                                bubbleHazeState = state.backgroundHazeState,
+                                contentSource = state.chromeHazeState,
+                                retainContentSourceForTopBar = state.topBarSamplesMessages,
+                                errors = state.errors,
+                                onDismissError = actions.onDismissError,
+                                onClearAllErrors = actions.onClearAllErrors,
+                                onRegenerate = {
+                                    state.vm.regenerateAtMessage(it)
+                                },
+                                onEdit = {
+                                    state.inputState.editingMessage = it.id
+                                    state.inputState.setContents(it.parts)
+                                },
+                                onEditSubAgentNotice = { message, text ->
+                                    // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
+                                    state.vm.handleMessageEdit(
+                                        parts = listOf(UIMessagePart.Text(text)),
+                                        messageId = message.id,
+                                    )
+                                },
+                                onForkMessage = {
+                                    scope.launch {
+                                        val fork = state.vm.forkMessage(message = it)
+                                        navigateToChatPage(state.navController, chatId = fork.id)
+                                    }
+                                },
+                                onDelete = deleteMessage,
+                                onDeleteSubAgentNotice = deleteMessage,
+                                onUpdateMessage = { newNode ->
+                                    state.vm.selectMessageNode(newNode.id, newNode.selectIndex)
+                                },
+                                onClickSuggestion = { suggestion ->
+                                    state.inputState.editingMessage = null
+                                    state.inputState.setMessageText(suggestion)
+                                },
+                                onTranslate = { message, locale ->
+                                    state.vm.translateMessage(message, locale)
+                                },
+                                onClearTranslation = { message ->
+                                    state.vm.clearTranslationField(message.id)
+                                },
+                                onJumpToMessage = { index ->
+                                    previewMode = false
+                                    scope.launch {
+                                        // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
+                                        // 现在算距离用的是预览页那份还没挂上的布局
+                                        state.chatListState.requestScrollToItem(index)
+                                    }
+                                },
+                                onToolApproval = { toolCallId, approved, reason ->
+                                    state.vm.handleToolApproval(toolCallId, approved, reason)
+                                },
+                                onToolAnswer = { toolCallId, answer ->
+                                    state.vm.handleToolAnswer(toolCallId, answer)
+                                },
+                                onOpenAskUserSheet = openAskUserSheet,
+                                onToggleFavorite = { node ->
+                                    state.vm.toggleMessageFavorite(node)
+                                },
+                                onConversationSystemPromptChange = { newPrompt ->
+                                    state.vm.updateConversationSystemPrompt(newPrompt)
+                                },
+                                emptyHero = null,
+                                enteringMessageIds = enteringMessageIds,
+                                onMessageEnterFinished = consumeMessageEnter,
+                            )
+                        }
+                        // 空会话的英雄卡：列表挂上来之后它只负责退场（淡出 + 模糊收掉），
+                        // 输入框早在 bottomBar 上滑下去了，这里不再重复渲染输入区
+                        if (keepEmptyLayout) {
+                            EmptyChatContent(
+                                innerPadding = innerPadding,
+                                assistant = state.assistant,
+                                slogan = state.setting.displaySetting.emptyChatSlogan,
+                                hazeState = state.backgroundHazeState,
+                                visibleState = emptyHeroTransition,
+                                contentAlpha = if (hasMessages || emptyLayoutReady) 1f else 0f,
+                                scrollEnabled = !hasMessages,
+                                onHeroPlaced = { bottom -> emptyHeroBottomPx = bottom },
+                            )
                         }
                     }
-                    ChatList(
-                        innerPadding = innerPadding,
-                        conversationState = state.conversationState,
-                        state = state.chatListState,
-                        previewListState = previewListState,
-                        selectionState = selectionState,
-                        loading = state.loadingJob != null,
-                        generationSpeed = generationSpeed,
-                        compressing = state.sessionActivity == SessionActivity.Compressing,
-                        onCreateNewChat = actions.onCreateNewChat,
-                        processingStatus = state.processingStatus,
-                        previewMode = previewMode, onPreviewModeChange = { previewMode = it },
-                        settings = state.setting,
-                        bubbleHazeState = state.backgroundHazeState,
-                        contentSource = state.chromeHazeState,
-                        retainContentSourceForTopBar = state.topBarSamplesMessages,
-                        errors = state.errors,
-                        onDismissError = actions.onDismissError,
-                        onClearAllErrors = actions.onClearAllErrors,
-                        onRegenerate = {
-                            state.vm.regenerateAtMessage(it)
-                        },
-                        onEdit = {
-                            state.inputState.editingMessage = it.id
-                            state.inputState.setContents(it.parts)
-                        },
-                        onEditSubAgentNotice = { message, text ->
-                            // 子代理通知的正文改写：直接写回会话，不进输入框的编辑状态
-                            state.vm.handleMessageEdit(
-                                parts = listOf(UIMessagePart.Text(text)),
-                                messageId = message.id,
+                } else {
+                    // Auxiliary content is disposed on tab exit: no hidden animation or polling.
+                    tabStateHolder.SaveableStateProvider(portraitTab) {
+                        val tabModifier = Modifier.fillMaxSize().padding(innerPadding)
+                        when (portraitTab) {
+                            1 -> NativeConversationMap(
+                                conversationState = state.conversationState,
+                                running = state.loadingJob != null,
+                                onSelectMessage = { nodeId, messageIndex, nodeIndex ->
+                                    state.vm.selectMessageNode(nodeId, messageIndex)
+                                    selectPortraitTab(0)
+                                    state.chatListState.requestScrollToItem(nodeIndex)
+                                },
+                                modifier = tabModifier,
                             )
-                        },
-                        onForkMessage = {
-                            scope.launch {
-                                val fork = state.vm.forkMessage(message = it)
-                                navigateToChatPage(state.navController, chatId = fork.id)
-                            }
-                        },
-                        onDelete = deleteMessage,
-                        onDeleteSubAgentNotice = deleteMessage,
-                        onUpdateMessage = { newNode ->
-                            state.vm.selectMessageNode(newNode.id, newNode.selectIndex)
-                        },
-                        onClickSuggestion = { suggestion ->
-                            state.inputState.editingMessage = null
-                            state.inputState.setMessageText(suggestion)
-                        },
-                        onTranslate = { message, locale ->
-                            state.vm.translateMessage(message, locale)
-                        },
-                        onClearTranslation = { message ->
-                            state.vm.clearTranslationField(message.id)
-                        },
-                        onJumpToMessage = { index ->
-                            previewMode = false
-                            scope.launch {
-                                // 预览页滑出、主列表重新挂载都在这一帧，等下一次测量再定位，
-                                // 现在算距离用的是预览页那份还没挂上的布局
-                                state.chatListState.requestScrollToItem(index)
-                            }
-                        },
-                        onToolApproval = { toolCallId, approved, reason ->
-                            state.vm.handleToolApproval(toolCallId, approved, reason)
-                        },
-                        onToolAnswer = { toolCallId, answer ->
-                            state.vm.handleToolAnswer(toolCallId, answer)
-                        },
-                        onOpenAskUserSheet = openAskUserSheet,
-                        onToggleFavorite = { node ->
-                            state.vm.toggleMessageFavorite(node)
-                        },
-                        onConversationSystemPromptChange = { newPrompt ->
-                            state.vm.updateConversationSystemPrompt(newPrompt)
-                        },
-                        emptyHero = null,
-                        enteringMessageIds = enteringMessageIds,
-                        onMessageEnterFinished = consumeMessageEnter,
-                    )
-                }
-                // 空会话的英雄卡：列表挂上来之后它只负责退场（淡出 + 模糊收掉），
-                // 输入框早在 bottomBar 上滑下去了，这里不再重复渲染输入区
-                if (keepEmptyLayout) {
-                    EmptyChatContent(
-                        innerPadding = innerPadding,
-                        assistant = state.assistant,
-                        slogan = state.setting.displaySetting.emptyChatSlogan,
-                        hazeState = state.backgroundHazeState,
-                        visibleState = emptyHeroTransition,
-                        contentAlpha = if (hasMessages || emptyLayoutReady) 1f else 0f,
-                        scrollEnabled = !hasMessages,
-                        onHeroPlaced = { bottom -> emptyHeroBottomPx = bottom },
-                    )
+                            2 -> ChatMissionTab(
+                                assistant = state.assistant,
+                                todos = todos,
+                                guidances = messageQueue.guidances,
+                                pendingQuestions = pendingAskUserSummaries,
+                                workspaces = workspaces,
+                                workspaceCwds = workspaceCwds,
+                                folderWorkspaceName = state.folderWorkspaceName,
+                                running = state.loadingJob != null,
+                                backgroundTaskCount = backgroundTasks.count {
+                                    it.status == BackgroundShellStatus.RUNNING
+                                },
+                                onTodosChange = state.vm::updateTodos,
+                                onUpdateAssistant = state.vm::updateAssistant,
+                                onGuidanceToggleMode = state.vm::toggleGuidanceMode,
+                                onGuidanceRemove = state.vm::removeGuidance,
+                                onPendingQuestionClick = openAskUserSheet,
+                                onShowFiles = { openPane(ChatSidePane.Files) },
+                                onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
+                                onShowBackgroundTasks = { openPane(ChatSidePane.BackgroundTasks) },
+                                onOpenWorkspace = { state.navController.navigate(Screen.WorkspaceDetail(it)) },
+                                onOpenWorkspaces = { state.navController.navigate(Screen.Workspaces) },
+                                modifier = tabModifier,
+                            )
+                            3 -> ChatUsageTab(
+                                conversationState = state.conversationState,
+                                contextLength = state.currentChatModel?.effectiveContextWindow,
+                                onShowStatistics = { state.navController.navigate(Screen.Stats) },
+                                modifier = tabModifier,
+                            )
+                        }
+                    }
                 }
                 // 叠层浮层的外侧点击：展开状态下点空白处收起，和点标题栏的开关等价。
                 // 这一层盖住聊天内容，所以展开期间列表不跟着滚动——浮层是模态的，

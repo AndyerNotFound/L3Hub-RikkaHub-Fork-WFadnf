@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 原生输入卡（l3_native_chat_composer.xml / NativeChatComposer.java）的文案。 -->
+<resources>
+  <string name="l3_native_composer_attach">Attach</string>
+  <string name="l3_native_composer_quick_messages">Quick messages</string>
+  <string name="l3_native_composer_model_default">Model</string>
+  <string name="l3_native_composer_interject">Interject</string>
+  <string name="l3_native_composer_asr">Speech input</string>
+  <string name="l3_native_composer_send">Send</string>
+  <string name="l3_native_composer_stop">Stop</string>
+  <string name="l3_native_composer_fullscreen">Full screen editor</string>
+  <string name="l3_native_composer_edit_chip">Editing message</string>
+  <string name="l3_native_composer_edit_chip_reasoning">Editing message · reasoning</string>
+  <string name="l3_native_composer_edit_chip_close">Stop editing</string>
+  <string name="l3_native_composer_paste_failed">Couldn\'t add that content</string>
+</resources>

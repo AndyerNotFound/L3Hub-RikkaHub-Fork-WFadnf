@@ -13,6 +13,8 @@ lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 material3 = "1.5.0-rc01"
+materialViews = "1.14.0"
+appcompat = "1.7.1"
 media3 = "1.11.1"
 metadataExtractor = "2.22.0"
 # Decompose：ImageToolbox 同款导航引擎（转场打断安全、预测性返回自带）
@@ -70,6 +72,8 @@ snakeyaml = "2.7"
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-compose-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+google-material-views = { module = "com.google.android.material:material", version.ref = "materialViews" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-compose = { module = "androidx.camera:camera-compose", version.ref = "camerax" }

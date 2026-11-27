@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the native chat header (NativeChatHeader / l3_native_chat_header.xml).
+  Every key keeps the l3_native_ prefix so the ported views never collide with the
+  Compose app's own string table. Chinese copy lives in values-zh with the same keys.
+-->
+<resources>
+
+  <!-- Toolbar content descriptions -->
+  <string name="l3_native_cd_sidebar">Open sidebar</string>
+  <string name="l3_native_cd_folder">Conversation folder</string>
+  <string name="l3_native_cd_session">Open conversation details</string>
+  <string name="l3_native_cd_session_running">Open conversation details, generating a reply</string>
+  <string name="l3_native_cd_config">Conversation configuration</string>
+  <string name="l3_native_cd_new_chat">New chat</string>
+  <string name="l3_native_cd_more">Conversation menu</string>
+
+  <!-- Tab labels, index order matches NativeChatHeader.TAB_* -->
+  <string name="l3_native_tab_chat">Chat</string>
+  <string name="l3_native_tab_map">Map</string>
+  <string name="l3_native_tab_mission">Mission</string>
+  <string name="l3_native_tab_usage">Usage</string>
+
+  <!-- Folder popup menu -->
+  <string name="l3_native_folder_uncategorized">Uncategorized</string>
+  <string name="l3_native_folder_new">New folder</string>
+
+  <!-- Session title fallback -->
+  <string name="l3_native_session_untitled">Untitled</string>
+
+  <!-- Overflow menu -->
+  <string name="l3_native_menu_details">Details</string>
+  <string name="l3_native_menu_overview">Message preview</string>
+  <string name="l3_native_menu_task_tree">Task tree</string>
+  <string name="l3_native_menu_model">Model</string>
+  <string name="l3_native_menu_export">Export</string>
+  <string name="l3_native_menu_delete">Delete</string>
+  <string name="l3_native_menu_settings">Settings</string>
+</resources>

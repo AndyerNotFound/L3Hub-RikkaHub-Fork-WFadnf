@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="l3_native_mission_title">任务</string>
+    <string name="l3_native_mission_description">当前会话的任务清单、引导与工作区。</string>
+    <string name="l3_native_mission_open_workspace">打开工作区</string>
+    <string name="l3_native_mission_bindings">附件与绑定</string>
+    <string name="l3_native_mission_workspaces">管理工作区</string>
+    <string name="l3_native_mission_background_tasks">后台任务 · %1$d</string>
+    <string name="l3_native_usage_all_statistics">查看全部用量统计</string>
+</resources>

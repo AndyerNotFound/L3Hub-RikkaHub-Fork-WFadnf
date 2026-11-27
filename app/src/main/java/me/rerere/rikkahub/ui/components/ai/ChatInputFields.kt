@@ -140,7 +140,6 @@ internal fun TextInputRow(
             }
         }
         val inputOverflowed = oneLineHeight > 0 && fieldHeight >= oneLineHeight + lineHeightPx * 3.5f
-        var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
         val receiveContentListener = remember(
             settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
         ) {
@@ -178,52 +177,18 @@ internal fun TextInputRow(
             }
         }
 
-        LaunchedEffect(completionProviders, isFocused) {
-            if (!isFocused || completionProviders.isEmpty()) {
-                completionList = null
-                return@LaunchedEffect
-            }
+        // 补全收集与应用走共享实现：原生输入卡（NativeChatComposerHost）用的是同一份，
+        // 只是「有焦点」这个信号来自 native 的 EditText 而不是 Compose 的 TextField。
+        val completions = rememberChatCompletions(
+            state = state,
+            completionProviders = completionProviders,
+            enabled = isFocused,
+        )
 
-            snapshotFlow {
-                ChatCompletionContext(
-                    text = state.textContent.text.toString(),
-                    selection = state.textContent.selection,
-                )
-            }.collectLatest { context ->
-                val lists = completionProviders.mapNotNull { provider ->
-                    try {
-                        provider.complete(context)
-                            ?.takeIf { it.items.isNotEmpty() }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-                val primary = lists.firstOrNull()
-                completionList = primary?.let { list ->
-                    val mergedItems = lists
-                        .filter { it.replacementRange == list.replacementRange }
-                        .flatMap { it.items }
-                        .distinctBy { it.label to it.insertText }
-                        .sortedWith(
-                            compareByDescending<ChatCompletionItem> { it.sortScore }
-                                .thenBy { it.label.length }
-                                .thenBy { it.label.lowercase() }
-                        )
-                        .take(8)
-                    list.copy(items = mergedItems)
-                }
-            }
-        }
-
-        completionList?.takeIf { it.items.isNotEmpty() }?.let { list ->
+        completions.visible?.let { list ->
             CompletionPopup(
                 completionList = list,
-                onItemClick = { item ->
-                    state.applyCompletion(list.replacementRange, item)
-                    completionList = null
-                },
+                onItemClick = { item -> completions.apply(state, item) },
             )
         }
 
@@ -336,8 +301,89 @@ internal fun TextInputRow(
     }
 }
 
+/**
+ * 补全会话的持有者：collector 的输出、应用、关闭都在这里。
+ *
+ * 抽出来的原因是原生输入卡（NativeChatComposerHost）也要同一份补全：
+ * 输入来源换成 Java 的 EditText 之后，[ChatInputState.textContent] 仍然是唯一真相，
+ * 所以 context 的取样、多 provider 的合并规则、`state.applyCompletion` 的落点都不必分叉。
+ */
+internal class ChatCompletionController {
+    // 只在这里写：对外只暴露 visible / apply / dismiss，避免两处各自维护一份「当前列表」
+    private val currentState = mutableStateOf<ChatCompletionList?>(null)
+
+    /** provider 返回空列表等同于没有补全：不弹一个空面板。 */
+    val visible: ChatCompletionList?
+        get() = currentState.value?.takeIf { it.items.isNotEmpty() }
+
+    internal fun publish(list: ChatCompletionList?) {
+        currentState.value = list
+    }
+
+    fun apply(chatInput: ChatInputState, item: ChatCompletionItem) {
+        val list = currentState.value ?: return
+        chatInput.applyCompletion(list.replacementRange, item)
+        currentState.value = null
+    }
+
+    fun dismiss() {
+        currentState.value = null
+    }
+}
+
+/**
+ * 补全收集器。[enabled] 为 false（输入框没焦点、原生卡没焦点）时立刻清空并停掉采样，
+ * 避免面板留在一个已经没人打字的输入框旁边。
+ */
 @Composable
-private fun CompletionPopup(
+internal fun rememberChatCompletions(
+    state: ChatInputState,
+    completionProviders: List<ChatCompletionProvider>,
+    enabled: Boolean,
+): ChatCompletionController {
+    val controller = remember(state) { ChatCompletionController() }
+    LaunchedEffect(controller, completionProviders, enabled) {
+        if (!enabled || completionProviders.isEmpty()) {
+            controller.dismiss()
+            return@LaunchedEffect
+        }
+        snapshotFlow {
+            ChatCompletionContext(
+                text = state.textContent.text.toString(),
+                selection = state.textContent.selection,
+            )
+        }.collectLatest { context ->
+            val lists = completionProviders.mapNotNull { provider ->
+                try {
+                    provider.complete(context)
+                        ?.takeIf { it.items.isNotEmpty() }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            val primary = lists.firstOrNull()
+            controller.publish(primary?.let { list ->
+                val mergedItems = lists
+                    .filter { it.replacementRange == list.replacementRange }
+                    .flatMap { it.items }
+                    .distinctBy { it.label to it.insertText }
+                    .sortedWith(
+                        compareByDescending<ChatCompletionItem> { it.sortScore }
+                            .thenBy { it.label.length }
+                            .thenBy { it.label.lowercase() }
+                    )
+                    .take(8)
+                list.copy(items = mergedItems)
+            })
+        }
+    }
+    return controller
+}
+
+@Composable
+internal fun CompletionPopup(
     completionList: ChatCompletionList,
     onItemClick: (ChatCompletionItem) -> Unit,
 ) {
@@ -404,7 +450,11 @@ private fun CompletionPopup(
     }
 }
 
-private fun ChatInputState.applyCompletion(
+/**
+ * 把补全项落进 [ChatInputState]。原生输入卡点选项后也走这里（`state.applyCompletion`），
+ * 两条输入路径不会各自写一套 replace + 选区逻辑。
+ */
+internal fun ChatInputState.applyCompletion(
     replacementRange: TextRange,
     item: ChatCompletionItem,
 ) {
@@ -426,7 +476,6 @@ internal fun QuickMessageButton(
     onSendAsGuidance: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val hapticFeedback = LocalHapticFeedback.current
     Box {
         Box(
             modifier = Modifier
@@ -451,89 +500,116 @@ internal fun QuickMessageButton(
         ) {
             Icon(HugeIcons.Zap, null, modifier = Modifier.size(18.dp))
         }
-        DropdownMenu(
+        QuickMessageMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .widthIn(min = 200.dp, max = 360.dp)
-        ) {
-            if (quickMessages.isEmpty() && guideMessages.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.quick_messages_page_empty_title),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
+            quickMessages = quickMessages,
+            guideMessages = guideMessages,
+            state = state,
+            onAddGuidance = onAddGuidance,
+        )
+    }
+}
+
+/**
+ * 快捷消息下拉菜单。
+ *
+ * 从 [QuickMessageButton] 里抽出来，是因为原生输入卡（NativeChatComposerHost）的快捷按钮
+ * 也要开同一张菜单：原生侧只负责把「打开」抛回来，菜单本身仍是这一份 Compose 实现，
+ * 短按追加、长按替换、引导提示词点选这些行为不会因为换输入框而分叉。
+ */
+@Composable
+internal fun QuickMessageMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    quickMessages: List<QuickMessage>,
+    guideMessages: List<QuickMessage>,
+    state: ChatInputState,
+    onAddGuidance: (QuickMessage) -> Unit,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier
+            .widthIn(min = 200.dp, max = 360.dp)
+    ) {
+        if (quickMessages.isEmpty() && guideMessages.isEmpty()) {
+            Text(
+                text = stringResource(R.string.quick_messages_page_empty_title),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+        quickMessages.forEach { quickMessage ->
+            // 短按追加到输入框末尾，长按替换输入框内容
+            Surface(
+                color = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = {
+                            state.appendText(quickMessage.content)
+                            onDismissRequest()
+                        },
+                        onLongClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            state.setMessageText(quickMessage.content)
+                            onDismissRequest()
+                        },
+                    ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Text(
+                        text = quickMessage.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = quickMessage.content,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-            quickMessages.forEach { quickMessage ->
-                // 短按追加到输入框末尾，长按替换输入框内容
+        }
+        // 引导提示词单独一区：点选后不进输入框，直接加进本轮的工具间隙
+        if (guideMessages.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.quick_messages_guide_section),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 4.dp),
+            )
+            guideMessages.forEach { guide ->
                 Surface(
+                    onClick = {
+                        onAddGuidance(guide)
+                        onDismissRequest()
+                    },
                     color = Color.Transparent,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(
-                            onClick = {
-                                state.appendText(quickMessage.content)
-                                expanded = false
-                            },
-                            onLongClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                state.setMessageText(quickMessage.content)
-                                expanded = false
-                            },
-                        ),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
                         Text(
-                            text = quickMessage.title,
+                            text = guide.title,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = quickMessage.content,
+                            text = guide.content,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                }
-            }
-            // 引导提示词单独一区：点选后不进输入框，直接加进本轮的工具间隙
-            if (guideMessages.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.quick_messages_guide_section),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 4.dp),
-                )
-                guideMessages.forEach { guide ->
-                    Surface(
-                        onClick = {
-                            onAddGuidance(guide)
-                            expanded = false
-                        },
-                        color = Color.Transparent,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            Text(
-                                text = guide.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = guide.content,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
                 }
             }

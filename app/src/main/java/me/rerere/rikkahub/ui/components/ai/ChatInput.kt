@@ -194,6 +194,10 @@ fun ChatInput(
     // 否则一张卡片周围先多出一圈底色带。用取值函数而不是数值：
     // 滑动那几百毫秒里它每帧都在变，读在绘制阶段，别让整页跟着重组
     scrimAlpha: () -> Float = { 1f },
+    // 竖屏输入区是否换成 Demo 迁来的原生（Java/XML）输入卡。
+    // 默认关：横屏三栏和既有调用点仍走原来的 Compose 输入区，
+    // 打开后卡片内部的文字行与按钮行由 native view 渲染，状态仍归 ChatInputState。
+    useNativeComposer: Boolean = false,
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
@@ -222,11 +226,16 @@ fun ChatInput(
     )
     // 单行布局里模型胶囊兼任思考强度入口，点开的就是这张带模型行的面板
     var showReasoningPicker by remember { mutableStateOf(false) }
+    // 原生输入卡的两个入口：全屏编辑复用共享的 FullScreenEditor，快捷消息复用
+    // QuickMessageMenu。面板本体都还留在 Compose，原生卡只负责把「打开」抛回来。
+    var nativeFullscreen by remember { mutableStateOf(false) }
+    var nativeQuickMenu by remember { mutableStateOf(false) }
 
     // 单行输入框的展开状态提到卡片外面：空会话里要给卡片预留展开后的高度，
     // 底栏总高度在收放时保持不变，英雄卡和页面其余部分就不用跟着每帧重新量一遍
     val density = LocalDensity.current
-    val singleLine = settings.displaySetting.inputLayoutStyle == InputLayoutStyle.SINGLE
+    val singleLine = !useNativeComposer &&
+        settings.displaySetting.inputLayoutStyle == InputLayoutStyle.SINGLE
     var fieldFocused by remember { mutableStateOf(false) }
     var oneLineHeightPx by remember { mutableIntStateOf(0) }
     val hasContent by remember(state) {
@@ -679,9 +688,11 @@ fun ChatInput(
                                     MediaFileInputRow(state = state)
                                 }
                                 // 必须在 TextInputRow 外面：单行布局的按钮以 TextInputRow 整体高度居中，
-                                // 提示条排在 TextField 之前会把按钮顶到输入框上部
+                                // 提示条排在 TextField 之前会把按钮顶到输入框上部。
+                                // 原生输入卡自带「正在编辑」chip（含退出编辑与思考编辑入口），
+                                // 这里再挂一份就是同一件事显示两遍，所以 native 模式下不显示。
                                 AnimatedVisibility(
-                                    visible = state.isEditing(),
+                                    visible = state.isEditing() && !useNativeComposer,
                                     enter = rowEnter,
                                     exit = rowExit,
                                 ) {
@@ -695,28 +706,32 @@ fun ChatInput(
                                 val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
                                     settings.getQuickMessagesOfAssistant(assistant)
                                 }
+                                // 语音输入的开/关只此一份：Compose 的麦克风按钮和原生输入卡的麦克风按钮
+                                // 都走它，原生模式不会长出第二套录音判断
+                                fun toggleAsr() {
+                                    when (asrState.status) {
+                                        ASRStatus.Listening -> asr.stop()
+                                        ASRStatus.Idle, ASRStatus.Error -> {
+                                            if (!asrPermission.allRequiredPermissionsGranted) {
+                                                asrPermission.requestPermissions()
+                                            } else {
+                                                asrBaseText = state.textContent.text.toString()
+                                                asr.start { transcript ->
+                                                    val spacer =
+                                                        if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
+                                                    state.setMessageText(asrBaseText + spacer + transcript)
+                                                }
+                                            }
+                                        }
+
+                                        ASRStatus.Connecting, ASRStatus.Stopping -> {}
+                                    }
+                                }
                                 val asrButton: @Composable () -> Unit = {
                                     if (!voiceState.isActive && (asrState.isAvailable || asrState.isRecording)) {
                                         AsrButton(
                                             state = asrState,
-                                            onClick = {
-                                                when (asrState.status) {
-                                                    ASRStatus.Listening -> asr.stop()
-                                                    ASRStatus.Idle, ASRStatus.Error -> {
-                                                        if (!asrPermission.allRequiredPermissionsGranted) {
-                                                            asrPermission.requestPermissions()
-                                                        } else {
-                                                            asrBaseText = state.textContent.text.toString()
-                                                            asr.start { transcript ->
-                                                                val spacer =
-                                                                    if (asrBaseText.isBlank() || transcript.isBlank()) "" else " "
-                                                                state.setMessageText(asrBaseText + spacer + transcript)
-                                                            }
-                                                        }
-                                                    }
-                                                    ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                                }
-                                            }
+                                            onClick = { toggleAsr() }
                                         )
                                     }
                                 }
@@ -761,7 +776,10 @@ fun ChatInput(
                                     }
                                 }
 
-                                if (singleLine) {
+                                // 三个分支的次序：native 优先。设置里的 SINGLE 是多行布局的替代，
+                                // 不是「不要原生卡」——打开原生输入卡后，默认的 SINGLE 设置也必须走 native，
+                                // 否则竖屏下会悄悄退回 Compose 的单行布局，原生卡永远看不到。
+                                if (singleLine && !useNativeComposer) {
                                     // 文字带升到上一行，下一行的按钮组留在原地不动
                                     // 卡片左右内边距变大时，把输入框自己的内缩减回去，
                                     // 文字可用宽度保持不变，行数就不会因为拖滑块而变
@@ -861,6 +879,74 @@ fun ChatInput(
                                             trailingActions()
                                         }
                                     }
+                                } else if (useNativeComposer) {
+                                    // 原生（Java/XML）输入卡。文字与选区通过 ChatInputState 双向同步，
+                                    // 发送/停止、插话、ASR 都还调上面那几个既有回调，不在这里另起一套判断。
+                                    if (loading || asrState.isRecording) {
+                                        KeepScreenOn()
+                                    }
+                                    Box(modifier = Modifier.fillMaxWidth()) {
+                                        NativeChatComposerHost(
+                                            state = state,
+                                            chatModel = chatModel,
+                                            loading = loading,
+                                            // 内联 workspace 补全：和 TextInputRow 同一份 provider 列表、
+                                            // 同一个弹窗与 applyCompletion，原生卡不自带第二套
+                                            completionProviders = completionProviders,
+                                            asrState = asrState,
+                                            // 语音模式开着时藏麦克风：两条录音通路会抢同一个麦克风
+                                            voiceActive = voiceState.isActive,
+                                            // 和 Compose 的 SendButton 同一套语义：短按走 sendMessage()，
+                                            // 生成中且框里没内容时它会自己转成停止；长按不触发回答。
+                                            onSend = { sendMessage() },
+                                            onSendLong = { sendMessageWithoutAnswer() },
+                                            onAttachClick = onMoreClick,
+                                            onQuickClick = { nativeQuickMenu = true },
+                                            // 长按快捷：框里有文字就直接发成引导，空的时候退回展开选单，
+                                            // 和 QuickMessageButton 的长按规则一致
+                                            onQuickLongClick = {
+                                                if (state.textContent.text.isBlank()) {
+                                                    nativeQuickMenu = true
+                                                } else {
+                                                    onSendAsGuidance()
+                                                }
+                                            },
+                                            onFullscreenClick = { nativeFullscreen = true },
+                                            // 能思考的模型点开强度面板（面板首行就是模型选择），
+                                            // 不能思考的直接落到模型列表
+                                            onModelClick = {
+                                                if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+                                                    showReasoningPicker = true
+                                                } else {
+                                                    modelListState.open()
+                                                }
+                                            },
+                                            onAsrClick = { toggleAsr() },
+                                            onInterjectClick = onInterjectClick,
+                                            // 原生卡里没有 EditingBanner：退出编辑挂在 chip 的关闭图标上，
+                                            // 思考内容的编辑入口挂在 chip 本体上，两个入口都不能丢
+                                            onEditChipClose = { state.clearInput() },
+                                            onEditReasoningClick = { isEditingReasoning = true },
+                                            onFocusChange = { inputFocused = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        // 快捷消息菜单挂在卡片左下（快捷按钮上方）：菜单本体还是 Compose，
+                                        // 原生卡只把「打开」抛回来，item 行为不分叉
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .padding(start = 40.dp, bottom = 24.dp),
+                                        ) {
+                                            QuickMessageMenu(
+                                                expanded = nativeQuickMenu,
+                                                onDismissRequest = { nativeQuickMenu = false },
+                                                quickMessages = quickMessages,
+                                                guideMessages = guideMessages,
+                                                state = state,
+                                                onAddGuidance = onAddGuidance,
+                                            )
+                                        }
+                                    }
                                 } else {
                                     TextInputRow(
                                         state = state,
@@ -933,6 +1019,16 @@ fun ChatInput(
             placeholder = stringResource(R.string.chat_input_reasoning_placeholder),
         ) {
             isEditingReasoning = false
+        }
+    }
+
+    // 原生输入卡的全屏编辑走同一份 FullScreenEditor：只换了入口，编辑器不复制一份
+    if (nativeFullscreen) {
+        FullScreenEditor(
+            textState = state.textContent,
+            placeholder = stringResource(R.string.chat_input_placeholder),
+        ) {
+            nativeFullscreen = false
         }
     }
 

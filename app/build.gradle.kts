@@ -232,6 +232,10 @@ dependencies {
     }
     implementation(libs.guava.listenablefuture)
 
+    // Java/XML chat controls coexist with the Kotlin service and Compose message renderer.
+    implementation(libs.google.material.views)
+    implementation(libs.androidx.appcompat)
+
     // Compose
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

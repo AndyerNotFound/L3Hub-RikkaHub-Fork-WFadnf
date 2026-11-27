@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 原生输入卡（l3_native_chat_composer.xml / NativeChatComposer.java）的文案。 -->
+<resources>
+  <string name="l3_native_composer_attach">附件</string>
+  <string name="l3_native_composer_quick_messages">快捷消息</string>
+  <string name="l3_native_composer_model_default">模型</string>
+  <string name="l3_native_composer_interject">插话</string>
+  <string name="l3_native_composer_asr">语音输入</string>
+  <string name="l3_native_composer_send">发送</string>
+  <string name="l3_native_composer_stop">停止</string>
+  <string name="l3_native_composer_fullscreen">全屏编辑</string>
+  <string name="l3_native_composer_edit_chip">正在编辑消息</string>
+  <string name="l3_native_composer_edit_chip_reasoning">正在编辑消息 · 可改思考</string>
+  <string name="l3_native_composer_edit_chip_close">退出编辑</string>
+  <string name="l3_native_composer_paste_failed">附件处理失败</string>
+</resources>

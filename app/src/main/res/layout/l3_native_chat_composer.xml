@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  原生输入卡的卡片内容（Demo activity_main.xml 的 input_panel 内层）。
+  外层 Material 卡片、圆角、上下文进度条仍由 Compose 侧（ChatInput 的 Surface +
+  ContextMeterSwitcher）负责，这里只复刻卡片内部：编辑 chip、Filled 多行输入、
+  全屏入口、底部附件/快捷/模型/插话/语音/发送按钮。
+
+  根节点是 <merge>：宿主是 me.rerere.rikkahub.ui.views.chat.NativeChatComposer
+  （继承 LinearLayout，竖直方向），inflate 时直接挂到它自己身上。
+
+  TextInputLayout 故意不写 EditText 子项：输入框在 Java 里创建，才能覆写
+  onSelectionChanged 把选区同步回 Compose 的 TextFieldState。
+
+  迁移自 Demo 的 activity_main.xml（MIT，见 docs/licenses/neko-chat-demo-MIT.txt）。
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+  <com.google.android.material.chip.Chip
+      android:id="@+id/l3_native_edit_chip"
+      style="@style/Widget.Material3.Chip.Input"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginBottom="6dp"
+      android:text="@string/l3_native_composer_edit_chip"
+      android:visibility="gone"
+      app:chipIcon="@drawable/l3_native_ic_edit_note"
+      app:closeIconVisible="true" />
+
+  <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp">
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/l3_native_input_layout"
+        style="@style/Widget.Material3.TextInputLayout.FilledBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/chat_input_placeholder"
+        app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:boxStrokeWidth="0dp"
+        app:boxStrokeWidthFocused="0dp"
+        app:hintEnabled="true" />
+
+    <!--
+      全屏入口放在 TextInputLayout 外面：作为 end icon 会改变输入框的测量宽度，
+      按钮一出现/消失就重新折行，清空后还会留一个旧高度。
+    -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_fullscreen"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="2dp"
+        android:contentDescription="@string/l3_native_composer_fullscreen"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        android:visibility="gone"
+        app:icon="@drawable/l3_native_ic_open_in_full" />
+  </FrameLayout>
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:layout_marginTop="2dp"
+      android:baselineAligned="false"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_attach"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/l3_native_composer_attach"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_attach_file" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_quick"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/l3_native_composer_quick_messages"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_bolt" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_model"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="0dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="2dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:insetBottom="0dp"
+        android:insetTop="0dp"
+        android:maxLines="1"
+        android:minWidth="0dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="12dp"
+        android:textSize="11sp"
+        app:icon="@drawable/l3_native_ic_psychology"
+        app:iconGravity="textStart"
+        app:iconPadding="6dp"
+        app:iconSize="16dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_interject"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/l3_native_composer_interject"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        android:visibility="gone"
+        app:icon="@drawable/l3_native_ic_add_comment" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_asr"
+        style="?attr/materialIconButtonFilledTonalStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="2dp"
+        android:contentDescription="@string/l3_native_composer_asr"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        android:visibility="gone"
+        app:icon="@drawable/l3_native_ic_mic" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_send"
+        style="?attr/materialIconButtonFilledTonalStyle"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="4dp"
+        android:contentDescription="@string/l3_native_composer_send"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        android:paddingLeft="12dp"
+        android:paddingTop="12dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="12dp"
+        app:icon="@drawable/l3_native_ic_send" />
+  </LinearLayout>
+</merge>

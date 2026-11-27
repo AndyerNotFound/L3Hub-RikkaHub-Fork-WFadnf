@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="l3_native_mission_title">Mission</string>
+    <string name="l3_native_mission_description">Tasks, guidance and workspaces for this conversation.</string>
+    <string name="l3_native_mission_open_workspace">Open workspace</string>
+    <string name="l3_native_mission_bindings">Attachments and bindings</string>
+    <string name="l3_native_mission_workspaces">Manage workspaces</string>
+    <string name="l3_native_mission_background_tasks">Background tasks · %1$d</string>
+    <string name="l3_native_usage_all_statistics">All usage statistics</string>
+</resources>

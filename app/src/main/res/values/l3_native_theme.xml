@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adapted from Neko Chat (MIT); see docs/licenses/neko-chat-demo-MIT.txt. -->
+
+    <style name="Theme.L3Hub.NativeChat" parent="Theme.Material3Expressive.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/l3_native_primary</item>
+        <item name="colorOnPrimary">@color/l3_native_on_primary</item>
+        <item name="colorPrimaryContainer">@color/l3_native_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/l3_native_on_primary_container</item>
+        <item name="colorSecondary">@color/l3_native_secondary</item>
+        <item name="colorOnSecondary">@color/l3_native_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/l3_native_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/l3_native_on_secondary_container</item>
+        <item name="colorTertiary">@color/l3_native_tertiary</item>
+        <item name="colorOnTertiary">@color/l3_native_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/l3_native_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/l3_native_on_tertiary_container</item>
+        <item name="colorError">@color/l3_native_error</item>
+        <item name="colorOnError">@color/l3_native_on_error</item>
+        <item name="colorErrorContainer">@color/l3_native_error_container</item>
+        <item name="colorOnErrorContainer">@color/l3_native_on_error_container</item>
+        <item name="android:colorBackground">@color/l3_native_background</item>
+        <item name="colorOnBackground">@color/l3_native_on_background</item>
+        <item name="colorSurface">@color/l3_native_surface</item>
+        <item name="colorOnSurface">@color/l3_native_on_surface</item>
+        <item name="colorSurfaceVariant">@color/l3_native_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/l3_native_on_surface_variant</item>
+        <item name="colorOutline">@color/l3_native_outline</item>
+        <item name="colorOutlineVariant">@color/l3_native_outline_variant</item>
+        <item name="colorSurfaceInverse">@color/l3_native_surface_inverse</item>
+        <item name="colorOnSurfaceInverse">@color/l3_native_on_surface_inverse</item>
+        <item name="colorPrimaryInverse">@color/l3_native_primary_inverse</item>
+        <item name="colorSurfaceDim">@color/l3_native_surface_dim</item>
+        <item name="colorSurfaceBright">@color/l3_native_surface_bright</item>
+        <item name="colorSurfaceContainerLowest">@color/l3_native_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/l3_native_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/l3_native_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/l3_native_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/l3_native_surface_container_highest</item>
+
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowActivityTransitions">true</item>
+    </style>
+
+    <style name="Theme.L3Hub.NativeChat.FullscreenInput" parent="Theme.Material3Expressive.DayNight.Dialog">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="TextAppearance.L3Hub.NativeChat.Tab" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.L3Hub.NativeChat.Eyebrow" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.L3Hub.NativeChat.Code" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">11.5sp</item>
+        <item name="android:lineSpacingMultiplier">1.25</item>
+    </style>
+
+    <style name="TextAppearance.L3Hub.NativeChat.EffortLabel" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">8.5sp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="TextAppearance.L3Hub.NativeChat.Number" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.L3Hub.NativeChat.InputDock" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">28dp</item>
+        <item name="cornerSizeTopRight">28dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.L3Hub.NativeChat.SheetCard" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="Widget.L3Hub.NativeChat.WavyProgressIndicator" parent="Widget.Material3.LinearProgressIndicator">
+        <item name="trackThickness">5dp</item>
+        <item name="trackCornerRadius">50%</item>
+        <item name="waveAmplitude">2.5dp</item>
+        <item name="wavelength">40dp</item>
+        <item name="wavelengthIndeterminate">22dp</item>
+        <item name="indicatorColor">?attr/colorPrimary</item>
+        <item name="trackColor">?attr/colorSurfaceContainerHighest</item>
+    </style>
+
+    <style name="Widget.L3Hub.NativeChat.ThinProgressIndicator" parent="Widget.Material3.LinearProgressIndicator">
+        <item name="trackThickness">6dp</item>
+        <item name="trackCornerRadius">50%</item>
+        <item name="indicatorColor">?attr/colorPrimary</item>
+        <item name="trackColor">?attr/colorSurfaceContainerHighest</item>
+        <item name="trackStopIndicatorSize">0dp</item>
+    </style>
+
+    <style name="Widget.L3Hub.NativeChat.Chip" parent="Widget.Material3.Chip.Assist">
+        <item name="chipMinHeight">32dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="chipIconSize">16dp</item>
+        <item name="chipStartPadding">8dp</item>
+        <item name="chipEndPadding">10dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.L3Hub.NativeChat.Chip</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.L3Hub.NativeChat.Chip" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+
+    <!-- The removable chip that marks the message currently being edited in the composer. -->
+    <style name="Widget.L3Hub.NativeChat.Chip.Input" parent="Widget.Material3.Chip.Input">
+        <item name="android:textSize">12sp</item>
+        <item name="chipMinHeight">30dp</item>
+        <item name="chipIconSize">16dp</item>
+        <item name="closeIconSize">16dp</item>
+        <item name="chipStartPadding">6dp</item>
+        <item name="chipEndPadding">6dp</item>
+        <item name="textStartPadding">6dp</item>
+        <item name="textEndPadding">4dp</item>
+        <item name="iconStartPadding">2dp</item>
+        <item name="iconEndPadding">0dp</item>
+        <item name="closeIconStartPadding">2dp</item>
+        <item name="closeIconEndPadding">2dp</item>
+        <item name="android:checkable">false</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.L3Hub.NativeChat.Chip</item>
+        <item name="chipBackgroundColor">?attr/colorTertiaryContainer</item>
+        <item name="android:textColor">?attr/colorOnTertiaryContainer</item>
+        <item name="chipIconTint">?attr/colorOnTertiaryContainer</item>
+        <item name="closeIconTint">?attr/colorOnTertiaryContainer</item>
+        <item name="chipStrokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.L3Hub.NativeChat.Divider" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">1dp</item>
+        <item name="android:background">?attr/colorOutlineVariant</item>
+    </style>
+
+</resources>

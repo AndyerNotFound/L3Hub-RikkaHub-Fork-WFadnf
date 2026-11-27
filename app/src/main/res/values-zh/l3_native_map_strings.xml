@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 原生对话地图（Java Canvas）用到的文案。前缀 l3_native_，与 Compose 侧资源分开存放。 -->
+<resources>
+    <string name="l3_native_map_empty_title">还没有消息</string>
+    <string name="l3_native_map_empty_body">对话开始后，这里会长出地图。</string>
+
+    <string name="l3_native_map_role_user">你</string>
+    <string name="l3_native_map_role_assistant">助手</string>
+    <string name="l3_native_map_role_system">系统</string>
+    <string name="l3_native_map_role_tool">工具</string>
+    <string name="l3_native_map_role_notice">通知</string>
+
+    <string name="l3_native_map_a11y_summary">对话地图，%1$d 个节点，%2$d 个分支。双指缩放，拖动平移。</string>
+    <string name="l3_native_map_a11y_variant">第 %1$d 个分支，共 %2$d 个</string>
+    <string name="l3_native_map_a11y_running">正在回复</string>
+    <string name="l3_native_map_a11y_separator">"，"</string>
+
+    <string name="l3_native_map_head_label">当前</string>
+    <string name="l3_native_map_badge_variant">%1$d/%2$d</string>
+
+    <plurals name="l3_native_map_meta_tools">
+        <item quantity="one">%1$d 次工具调用</item>
+        <item quantity="other">%1$d 次工具调用</item>
+    </plurals>
+    <plurals name="l3_native_map_meta_reasoning">
+        <item quantity="one">%1$d 段思考</item>
+        <item quantity="other">%1$d 段思考</item>
+    </plurals>
+</resources>

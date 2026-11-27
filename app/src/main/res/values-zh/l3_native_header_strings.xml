@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 原生聊天顶栏文案（NativeChatHeader / l3_native_chat_header.xml），键名与 values/ 一致。 -->
+<resources>
+
+  <!-- 工具栏无障碍描述 -->
+  <string name="l3_native_cd_sidebar">展开侧边栏</string>
+  <string name="l3_native_cd_folder">会话文件夹</string>
+  <string name="l3_native_cd_session">打开会话详情</string>
+  <string name="l3_native_cd_session_running">打开会话详情，正在生成</string>
+  <string name="l3_native_cd_config">会话配置</string>
+  <string name="l3_native_cd_new_chat">新建对话</string>
+  <string name="l3_native_cd_more">会话菜单</string>
+
+  <!-- 标签文案，顺序对应 NativeChatHeader.TAB_* -->
+  <string name="l3_native_tab_chat">对话</string>
+  <string name="l3_native_tab_map">地图</string>
+  <string name="l3_native_tab_mission">任务</string>
+  <string name="l3_native_tab_usage">用量</string>
+
+  <!-- 文件夹菜单 -->
+  <string name="l3_native_folder_uncategorized">未归类</string>
+  <string name="l3_native_folder_new">新建文件夹</string>
+
+  <!-- 会话标题兜底 -->
+  <string name="l3_native_session_untitled">未命名</string>
+
+  <!-- 溢出菜单 -->
+  <string name="l3_native_menu_details">详情</string>
+  <string name="l3_native_menu_overview">消息预览</string>
+  <string name="l3_native_menu_task_tree">任务树</string>
+  <string name="l3_native_menu_model">模型</string>
+  <string name="l3_native_menu_export">导出</string>
+  <string name="l3_native_menu_delete">删除</string>
+  <string name="l3_native_menu_settings">设置</string>
+</resources>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Neko: a teal / clay Material 3 tonal scheme. -->
+    <color name="l3_native_primary">#2C6A63</color>
+    <color name="l3_native_on_primary">#FFFFFF</color>
+    <color name="l3_native_primary_container">#B2ECE2</color>
+    <color name="l3_native_on_primary_container">#00201C</color>
+    <color name="l3_native_secondary">#4A635F</color>
+    <color name="l3_native_on_secondary">#FFFFFF</color>
+    <color name="l3_native_secondary_container">#CCE8E3</color>
+    <color name="l3_native_on_secondary_container">#06201C</color>
+    <color name="l3_native_tertiary">#7C5635</color>
+    <color name="l3_native_on_tertiary">#FFFFFF</color>
+    <color name="l3_native_tertiary_container">#F3DCC6</color>
+    <color name="l3_native_on_tertiary_container">#2C1600</color>
+    <color name="l3_native_error">#BA1A1A</color>
+    <color name="l3_native_on_error">#FFFFFF</color>
+    <color name="l3_native_error_container">#FFDAD6</color>
+    <color name="l3_native_on_error_container">#410002</color>
+    <color name="l3_native_background">#F5FBF8</color>
+    <color name="l3_native_on_background">#171D1B</color>
+    <color name="l3_native_surface">#F5FBF8</color>
+    <color name="l3_native_on_surface">#171D1B</color>
+    <color name="l3_native_surface_variant">#DAE5E1</color>
+    <color name="l3_native_on_surface_variant">#3F4947</color>
+    <color name="l3_native_outline">#6F7977</color>
+    <color name="l3_native_outline_variant">#BEC9C7</color>
+    <color name="l3_native_scrim">#000000</color>
+    <color name="l3_native_surface_inverse">#2B3230</color>
+    <color name="l3_native_on_surface_inverse">#ECF2EF</color>
+    <color name="l3_native_primary_inverse">#96D0C7</color>
+    <color name="l3_native_surface_dim">#D5DBD8</color>
+    <color name="l3_native_surface_bright">#F5FBF8</color>
+    <color name="l3_native_surface_container_lowest">#FFFFFF</color>
+    <color name="l3_native_surface_container_low">#EFF5F2</color>
+    <color name="l3_native_surface_container">#E9EFEC</color>
+    <color name="l3_native_surface_container_high">#E4EAE7</color>
+    <color name="l3_native_surface_container_highest">#DEE4E1</color>
+
+    <color name="l3_native_on_primary_container_track">#3300201C</color>
+    <color name="l3_native_launcher_background">#2C6A63</color>
+    <color name="l3_native_code_background">#12201C</color>
+    <color name="l3_native_code_text">#D6EAE4</color>
+    <color name="l3_native_code_dim">#8FB5AC</color>
+    <color name="l3_native_thumb_start">#2C6A63</color>
+    <color name="l3_native_thumb_end">#B98559</color>
+    <color name="l3_native_scrim_soft">#33000000</color>
+</resources>

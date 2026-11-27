@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Native Material 3 Expressive chat header: a 56dp toolbar row plus a 48dp fixed tab strip.
+  Ported from the demo sample's activity_main.xml (MIT, see the license appendix).
+
+  Deliberate differences from the demo markup:
+  * No ViewPager2 / FragmentStateAdapter here. Page content stays in Compose on the main
+    thread; this header only reports tab taps through NativeChatHeader.Callbacks.
+  * No ?attr/color* references. A plain activity theme can fail to resolve those at inflate
+    time, so every colour, icon tint and the tab indicator colour is applied from
+    NativeChatTheme through NativeChatHeader.applyTheme() before the first frame.
+  * No window-inset handling. The Compose bridge owns insets; nothing in this file consumes
+    or applies them, so they are not consumed twice.
+  * Icon buttons keep a 48dp touch target with 4dp insets, i.e. the demo's 40dp visual size
+    inside an accessible hit area.
+
+  The root is <merge>: NativeChatHeader inflates it into itself with attachToRoot = true.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+  <LinearLayout
+      android:id="@+id/l3_native_toolbar_row"
+      android:layout_width="match_parent"
+      android:layout_height="56dp"
+      android:baselineAligned="false"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:paddingStart="4dp"
+      android:paddingEnd="4dp">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_sidebar"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/l3_native_cd_sidebar"
+        android:insetBottom="4dp"
+        android:insetLeft="4dp"
+        android:insetRight="4dp"
+        android:insetTop="4dp"
+        android:minWidth="0dp"
+        app:icon="@drawable/l3_native_ic_left_panel_open"
+        app:iconSize="22dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_folder"
+        style="?attr/materialButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginEnd="4dp"
+        android:contentDescription="@string/l3_native_cd_folder"
+        android:ellipsize="end"
+        android:gravity="start|center_vertical"
+        android:insetTop="4dp"
+        android:insetBottom="4dp"
+        android:maxLines="1"
+        android:maxWidth="96dp"
+        android:minWidth="0dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="14dp"
+        android:textSize="13sp"
+        app:icon="@drawable/l3_native_ic_folder"
+        app:iconGravity="textStart"
+        app:iconPadding="6dp"
+        app:iconSize="16dp" />
+
+    <!--
+      The session title is the details entry: tapping it opens the real conversation details.
+      It is also the only elastic member of the row (width 0dp + weight 1), so a long folder
+      name or a narrow screen truncates the title instead of pushing buttons off the edge.
+    -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_session"
+        style="@style/Widget.Material3Expressive.Button.TextButton"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="4dp"
+        android:layout_weight="1"
+        android:contentDescription="@string/l3_native_cd_session"
+        android:ellipsize="end"
+        android:gravity="start|center_vertical"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="4dp"
+        android:insetBottom="4dp"
+        android:maxLines="1"
+        android:minWidth="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="6dp"
+        android:textSize="13sp"
+        app:icon="@drawable/l3_native_ic_check_circle"
+        app:iconGravity="textStart"
+        app:iconPadding="5dp"
+        app:iconSize="16dp" />
+
+    <!--
+      Configuration entry. It opens the same real conversation details as the title button;
+      it is not the demo's fake preset cycle (which only rewrote its own icon and posted a
+      notice) and it never keeps local selection state.
+    -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_config"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/l3_native_cd_config"
+        android:insetBottom="4dp"
+        android:insetLeft="4dp"
+        android:insetRight="4dp"
+        android:insetTop="4dp"
+        android:minWidth="0dp"
+        app:icon="@drawable/l3_native_ic_tune"
+        app:iconSize="22dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_new_chat"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/l3_native_cd_new_chat"
+        android:insetBottom="4dp"
+        android:insetLeft="4dp"
+        android:insetRight="4dp"
+        android:insetTop="4dp"
+        android:minWidth="0dp"
+        app:icon="@drawable/l3_native_ic_add_comment"
+        app:iconSize="22dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_btn_more"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/l3_native_cd_more"
+        android:insetBottom="4dp"
+        android:insetLeft="4dp"
+        android:insetRight="4dp"
+        android:insetTop="4dp"
+        android:minWidth="0dp"
+        app:icon="@drawable/l3_native_ic_more_vert"
+        app:iconSize="22dp" />
+  </LinearLayout>
+
+  <me.rerere.rikkahub.ui.views.chat.NativeChatTabs
+      android:id="@+id/l3_native_tabs"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:background="@android:color/transparent"
+      app:tabGravity="fill"
+      app:tabIndicator="@drawable/l3_native_tab_indicator_rounded"
+      app:tabIndicatorAnimationMode="elastic"
+      app:tabIndicatorFullWidth="true"
+      app:tabInlineLabel="true"
+      app:tabMode="fixed"
+      app:tabPaddingEnd="2dp"
+      app:tabPaddingStart="2dp"
+      app:tabTextAppearance="@style/TextAppearance.L3Hub.NativeChat.Tab" />
+</merge>
