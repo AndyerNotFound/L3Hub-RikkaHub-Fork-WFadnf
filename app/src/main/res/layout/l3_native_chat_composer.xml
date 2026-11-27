@@ -3,7 +3,14 @@
   原生输入卡的卡片内容（Demo activity_main.xml 的 input_panel 内层）。
   外层 Material 卡片、圆角、上下文进度条仍由 Compose 侧（ChatInput 的 Surface +
   ContextMeterSwitcher）负责，这里只复刻卡片内部：编辑 chip、Filled 多行输入、
-  全屏入口、底部附件/快捷/模型/插话/语音/发送按钮。
+  全屏入口、底部按钮行。
+
+  底部按钮行按 M3 标准按钮组（standard button group）组织：
+  - 左侧组：附件(+) 与 快捷消息；
+  - 中间是模型胶囊，单独占满剩余宽度，不属于任何组；
+  - 右侧组：插话、语音、发送。
+  标准组不设 innerCornerSize，MaterialButtonGroup.updateChildShapes() 因此提前返回，
+  每个子按钮保留自己的圆形 —— 这不是 connected 组，按钮之间不会连成一体。
 
   根节点是 <merge>：宿主是 me.rerere.rikkahub.ui.views.chat.NativeChatComposer
   （继承 LinearLayout，竖直方向），inflate 时直接挂到它自己身上。
@@ -72,29 +79,46 @@
       android:gravity="center_vertical"
       android:orientation="horizontal">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/l3_native_btn_attach"
-        style="?attr/materialIconButtonStyle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:contentDescription="@string/l3_native_composer_attach"
-        android:insetBottom="0dp"
-        android:insetLeft="0dp"
-        android:insetRight="0dp"
-        android:insetTop="0dp"
-        app:icon="@drawable/l3_native_ic_attach_file" />
+    <!--
+      左侧标准按钮组：附件(+) 与 快捷消息。spacing 用 4dp（官方 icon-only 组档位），而非 token 默认的 12dp，
+      好让这一对紧贴后面的模型胶囊。
+      buttonSizeChange 清成 @null：组默认的 15% 按压拉伸会在每次点击时挤压相邻按钮，
+      连带把加权撑满的模型胶囊挤窄一档（Demo 的 assistant_actions 同样清掉这一项）。
+    -->
+    <com.google.android.material.button.MaterialButtonGroup
+        android:id="@+id/l3_native_leading_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="2dp"
+        android:gravity="center_vertical"
+        android:spacing="4dp"
+        app:buttonSizeChange="@null"
+        app:overflowMode="none">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/l3_native_btn_quick"
-        style="?attr/materialIconButtonStyle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:contentDescription="@string/l3_native_composer_quick_messages"
-        android:insetBottom="0dp"
-        android:insetLeft="0dp"
-        android:insetRight="0dp"
-        android:insetTop="0dp"
-        app:icon="@drawable/l3_native_ic_bolt" />
+      <com.google.android.material.button.MaterialButton
+          android:id="@+id/l3_native_btn_attach"
+          style="?attr/materialIconButtonStyle"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:contentDescription="@string/l3_native_composer_attach"
+          android:insetBottom="0dp"
+          android:insetLeft="0dp"
+          android:insetRight="0dp"
+          android:insetTop="0dp"
+          app:icon="@drawable/l3_native_ic_attach_file" />
+
+      <com.google.android.material.button.MaterialButton
+          android:id="@+id/l3_native_btn_quick"
+          style="?attr/materialIconButtonStyle"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:contentDescription="@string/l3_native_composer_quick_messages"
+          android:insetBottom="0dp"
+          android:insetLeft="0dp"
+          android:insetRight="0dp"
+          android:insetTop="0dp"
+          app:icon="@drawable/l3_native_ic_bolt" />
+    </com.google.android.material.button.MaterialButtonGroup>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/l3_native_btn_model"
@@ -117,48 +141,61 @@
         app:iconPadding="6dp"
         app:iconSize="16dp" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/l3_native_btn_interject"
-        style="?attr/materialIconButtonStyle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:contentDescription="@string/l3_native_composer_interject"
-        android:insetBottom="0dp"
-        android:insetLeft="0dp"
-        android:insetRight="0dp"
-        android:insetTop="0dp"
-        android:visibility="gone"
-        app:icon="@drawable/l3_native_ic_add_comment" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/l3_native_btn_asr"
-        style="?attr/materialIconButtonFilledTonalStyle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+    <!--
+      右侧标准按钮组：插话、语音、发送。插话与语音默认 GONE，MaterialButtonGroup 会跳过
+      GONE 的子项，所以平时这一组只剩发送一个。buttonSizeChange 同样清掉，理由见左侧组。
+    -->
+    <com.google.android.material.button.MaterialButtonGroup
+        android:id="@+id/l3_native_trailing_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="2dp"
-        android:contentDescription="@string/l3_native_composer_asr"
-        android:insetBottom="0dp"
-        android:insetLeft="0dp"
-        android:insetRight="0dp"
-        android:insetTop="0dp"
-        android:visibility="gone"
-        app:icon="@drawable/l3_native_ic_mic" />
+        android:gravity="center_vertical"
+        android:spacing="4dp"
+        app:buttonSizeChange="@null"
+        app:overflowMode="none">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/l3_native_btn_send"
-        style="?attr/materialIconButtonFilledTonalStyle"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_marginStart="4dp"
-        android:contentDescription="@string/l3_native_composer_send"
-        android:insetBottom="0dp"
-        android:insetLeft="0dp"
-        android:insetRight="0dp"
-        android:insetTop="0dp"
-        android:paddingLeft="12dp"
-        android:paddingTop="12dp"
-        android:paddingRight="12dp"
-        android:paddingBottom="12dp"
-        app:icon="@drawable/l3_native_ic_send" />
+      <com.google.android.material.button.MaterialButton
+          android:id="@+id/l3_native_btn_interject"
+          style="?attr/materialIconButtonStyle"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:contentDescription="@string/l3_native_composer_interject"
+          android:insetBottom="0dp"
+          android:insetLeft="0dp"
+          android:insetRight="0dp"
+          android:insetTop="0dp"
+          android:visibility="gone"
+          app:icon="@drawable/l3_native_ic_add_comment" />
+
+      <com.google.android.material.button.MaterialButton
+          android:id="@+id/l3_native_btn_asr"
+          style="?attr/materialIconButtonFilledTonalStyle"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:contentDescription="@string/l3_native_composer_asr"
+          android:insetBottom="0dp"
+          android:insetLeft="0dp"
+          android:insetRight="0dp"
+          android:insetTop="0dp"
+          android:visibility="gone"
+          app:icon="@drawable/l3_native_ic_mic" />
+
+      <com.google.android.material.button.MaterialButton
+          android:id="@+id/l3_native_btn_send"
+          style="?attr/materialIconButtonFilledTonalStyle"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:contentDescription="@string/l3_native_composer_send"
+          android:insetBottom="0dp"
+          android:insetLeft="0dp"
+          android:insetRight="0dp"
+          android:insetTop="0dp"
+          android:paddingLeft="12dp"
+          android:paddingTop="12dp"
+          android:paddingRight="12dp"
+          android:paddingBottom="12dp"
+          app:icon="@drawable/l3_native_ic_send" />
+    </com.google.android.material.button.MaterialButtonGroup>
   </LinearLayout>
 </merge>
