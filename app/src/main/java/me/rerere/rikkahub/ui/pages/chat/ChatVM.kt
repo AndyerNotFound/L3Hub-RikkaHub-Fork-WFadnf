@@ -12,18 +12,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -53,13 +41,27 @@ import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.SessionActivity
-import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.UpdateChecker
 import me.rerere.rikkahub.web.ApiException
 import java.util.Locale
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 private const val TAG = "ChatVM"
 
@@ -74,8 +76,25 @@ class ChatVM(
     private val folderRepository: FolderRepository,
     private val backgroundShellManager: BackgroundShellManager,
 ) : ViewModel() {
-    private val _conversationId: Uuid = Uuid.parse(id)
-    val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
+    /**
+     * 当前会话 id。
+     *
+     * 以前是 `val`，跟着 ViewModel 一辈子。改成可切换的之后，同一个 ChatPage 能换会话，
+     * 顶栏、输入框、悬浮栏都不用重建——只有消息区跟着这个值换内容。
+     *
+     * 下面所有按会话取的流都用 [flatMapLatest] 跟着它走：切换时会退订旧会话的流、
+     * 订阅新的，中间不会有两份同时活着。
+     */
+    private val _conversationId = MutableStateFlow(Uuid.parse(id))
+    val conversationId: StateFlow<Uuid> = _conversationId.asStateFlow()
+
+    val conversation: StateFlow<Conversation> = _conversationId
+        .flatMapLatest { chatService.getConversationFlow(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            chatService.getConversationFlow(_conversationId.value).value,
+        )
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
     /**
@@ -93,45 +112,75 @@ class ChatVM(
     val inputState = ChatInputState()
 
     val voiceSession = VoiceSessionController(viewModelScope, context::getString) {
-        chatService.enqueueVoiceMessage(_conversationId, it)
+        chatService.enqueueVoiceMessage(_conversationId.value, it)
     }
 
     // 异步任务 (从ChatService获取，响应式)
+    // 这三个都跟着 _conversationId 走：换会话时退订旧的、订阅新的
     val conversationJob: StateFlow<Job?> =
-        chatService
-            .getGenerationJobStateFlow(_conversationId)
+        _conversationId
+            .flatMapLatest { chatService.getGenerationJobStateFlow(it) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val sessionActivity: StateFlow<SessionActivity?> =
-        chatService
-            .getActivityFlow(_conversationId)
+        _conversationId
+            .flatMapLatest { chatService.getActivityFlow(it) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val processingStatus: StateFlow<String?> =
-        chatService
-            .getProcessingStatusFlow(_conversationId)
+        _conversationId
+            .flatMapLatest { chatService.getProcessingStatusFlow(it) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // 会话列表的「谁在生成」不在这里：侧边栏整页化之后它不需要会话 VM，
     // 那份流搬到了 ConversationListActions（见那个文件）。
 
     init {
         // 添加对话引用
-        chatService.addConversationReference(_conversationId)
+        chatService.addConversationReference(_conversationId.value)
 
         // 初始化对话
         viewModelScope.launch {
-            chatService.initializeConversation(_conversationId)
+            chatService.initializeConversation(_conversationId.value)
         }
 
         // 记住对话ID, 方便下次启动恢复
-        context.writeStringPreference("lastConversationId", _conversationId.toString())
+        context.writeStringPreference("lastConversationId", _conversationId.value.toString())
+
+        // 换会话时把引用和初始化补上：旧会话的引用要还回去，
+        // 否则 ChatService 那边会一直以为它还在前台开着
+        viewModelScope.launch {
+            _conversationId.drop(1).collect { id ->
+                chatService.initializeConversation(id)
+                context.writeStringPreference("lastConversationId", id.toString())
+            }
+        }
+    }
+
+    /**
+     * 切到另一条会话。
+     *
+     * 不重建页面：顶栏、输入框、悬浮栏都是同一个实例，只有消息区跟着 [conversationId] 换。
+     * 旧会话的引用在这里还掉，新的补上；输入框的草稿和编辑态一起清掉——
+     * 那是上一条会话的内容，带到新会话里去是错的。
+     */
+    fun switchConversation(id: Uuid) {
+        if (id == _conversationId.value) return
+        val previous = _conversationId.value
+        // 先清输入态再换：切换动画里卡片不该还挂着上一条会话的草稿
+        inputState.clearText()
+        inputState.editingMessage = null
+        chatListInitialized = false
+        _conversationId.value = id
+        chatService.addConversationReference(id)
+        chatService.removeConversationReference(previous)
     }
 
     override fun onCleared() {
         voiceSession.stop()
         super.onCleared()
         // 移除对话引用
-        chatService.removeConversationReference(_conversationId)
+        chatService.removeConversationReference(_conversationId.value)
     }
 
     // 用户设置
@@ -184,21 +233,22 @@ class ChatVM(
 
     fun clearAllErrors() = chatService.clearAllErrors()
 
-    val messageQueue = chatService.getInboxFlow(_conversationId)
+    val messageQueue = _conversationId.flatMapLatest { chatService.getInboxFlow(it) }
 
-    fun removeQueuedMessage(id: Uuid) = chatService.removeInboxItem(_conversationId, id)
+    fun removeQueuedMessage(id: Uuid) = chatService.removeInboxItem(_conversationId.value, id)
 
-    fun beginEditQueuedMessage(id: Uuid) = chatService.beginEditQueuedMessage(_conversationId, id)
+    fun beginEditQueuedMessage(id: Uuid) = chatService.beginEditQueuedMessage(_conversationId.value, id)
 
     fun finishEditQueuedMessage(id: Uuid, parts: List<UIMessagePart>?) =
-        chatService.finishEditQueuedMessage(_conversationId, id, parts)
+        chatService.finishEditQueuedMessage(_conversationId.value, id, parts)
 
-    fun resumeMessageQueue() = chatService.resumeInbox(_conversationId)
+    fun resumeMessageQueue() = chatService.resumeInbox(_conversationId.value)
 
-    // 这个会话启动的后台命令，按启动时间排序
-    val backgroundTasks: StateFlow<List<BackgroundShellTask>> = backgroundShellManager.tasks
-        .map { tasks -> tasks.values.filter { it.conversationId == _conversationId }.sortedBy { it.startedAt } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    // 这个会话启动的后台命令，按启动时间排序；换会话时跟着换
+    val backgroundTasks: StateFlow<List<BackgroundShellTask>> =
+        combine(backgroundShellManager.tasks, _conversationId) { tasks, conversationId ->
+            tasks.values.filter { it.conversationId == conversationId }.sortedBy { it.startedAt }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     suspend fun stopBackgroundTask(id: String) = backgroundShellManager.stop(id)
 
@@ -209,7 +259,7 @@ class ChatVM(
     fun updateTodos(todos: List<TodoItem>) {
         // keepOwner：手改的清单不属于任何一条消息，别把归属挪到最新节点上，
         // 否则重新生成那条消息会连清单一起清掉
-        viewModelScope.launch { chatService.updateTodos(_conversationId, todos, keepOwner = true) }
+        viewModelScope.launch { chatService.updateTodos(_conversationId.value, todos, keepOwner = true) }
     }
 
     // 生成完成
@@ -248,7 +298,7 @@ class ChatVM(
     // 聊天页对助手的修改：新会话直接改助手，会话开始后只改当前会话
     fun updateAssistant(assistant: Assistant) {
         viewModelScope.launch {
-            chatService.updateChatAssistant(_conversationId) { assistant }
+            chatService.updateChatAssistant(_conversationId.value) { assistant }
         }
     }
 
@@ -264,7 +314,7 @@ class ChatVM(
     fun updateFolder(folderId: Uuid?) {
         if (conversation.value.folderId == folderId) return
         viewModelScope.launch {
-            chatService.updateConversationFolder(_conversationId, folderId)
+            chatService.updateConversationFolder(_conversationId.value, folderId)
         }
     }
 
@@ -274,21 +324,21 @@ class ChatVM(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             val folder = folderRepository.createFolder(conversation.value.assistantId, trimmed)
-            chatService.updateConversationFolder(_conversationId, folder.id)
+            chatService.updateConversationFolder(_conversationId.value, folder.id)
         }
     }
 
     // 设置聊天模型
     fun setChatModel(model: Model) {
         viewModelScope.launch {
-            chatService.updateChatAssistant(_conversationId) { it.copy(chatModelId = model.id) }
+            chatService.updateChatAssistant(_conversationId.value) { it.copy(chatModelId = model.id) }
         }
     }
 
     // 切换搜索方式
     fun updateSearch(enableWebSearch: Boolean, builtInSearch: Boolean) {
         viewModelScope.launch {
-            chatService.updateChatSearch(_conversationId, enableWebSearch, builtInSearch)
+            chatService.updateChatSearch(_conversationId.value, enableWebSearch, builtInSearch)
         }
     }
 
@@ -325,13 +375,13 @@ class ChatVM(
     ): Boolean {
         if (content.isEmptyInputMessage()) return false
 
-        return chatService.sendMessage(_conversationId, content, answer, interject)
+        return chatService.sendMessage(_conversationId.value, content, answer, interject)
     }
 
     /** 加入一条引导；预设用多轮，手输的用单轮，卡片上还能再切 */
     fun addGuidance(title: String, content: String, mode: GuidanceMode) {
         chatService.addGuidance(
-            conversationId = _conversationId,
+            conversationId = _conversationId.value,
             content = content,
             title = title,
             mode = mode,
@@ -340,30 +390,30 @@ class ChatVM(
 
     fun toggleGuidanceMode(guidance: Guidance) {
         chatService.setGuidanceMode(
-            conversationId = _conversationId,
+            conversationId = _conversationId.value,
             guidanceId = guidance.id,
             mode = if (guidance.mode == GuidanceMode.SINGLE) GuidanceMode.REPEAT else GuidanceMode.SINGLE,
         )
     }
 
     fun removeGuidance(guidance: Guidance) {
-        chatService.removeGuidance(_conversationId, guidance.id)
+        chatService.removeGuidance(_conversationId.value, guidance.id)
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
         if (parts.isEmptyInputMessage()) return
 
         viewModelScope.launch {
-            chatService.editMessage(_conversationId, messageId, parts)
+            chatService.editMessage(_conversationId.value, messageId, parts)
         }
     }
 
     fun handleCompressContext(additionalPrompt: String, keepRecentMessages: Int) {
         viewModelScope.launch {
-            chatService.compressConversation(_conversationId, additionalPrompt, keepRecentMessages).onFailure {
+            chatService.compressConversation(_conversationId.value, additionalPrompt, keepRecentMessages).onFailure {
                 chatService.addError(
                     it,
-                    _conversationId,
+                    _conversationId.value,
                     title = context.getString(R.string.error_title_compress_conversation)
                 )
             }
@@ -371,25 +421,25 @@ class ChatVM(
     }
 
     suspend fun forkMessage(message: UIMessage): Conversation {
-        return chatService.forkConversationAtMessage(_conversationId, message.id)
+        return chatService.forkConversationAtMessage(_conversationId.value, message.id)
     }
 
     fun deleteMessage(message: UIMessage) {
         viewModelScope.launch {
-            chatService.deleteMessage(_conversationId, message)
+            chatService.deleteMessage(_conversationId.value, message)
         }
     }
 
     fun showDeleteBlockedWhileGeneratingError() {
         chatService.addError(
             error = IllegalStateException(context.getString(R.string.chat_page_stop_generating_to_delete)),
-            conversationId = _conversationId,
+            conversationId = _conversationId.value,
             title = context.getString(R.string.error_title_operation)
         )
     }
 
     fun regenerateAtMessage(message: UIMessage) {
-        chatService.regenerateAtMessage(_conversationId, message.id)
+        chatService.regenerateAtMessage(_conversationId.value, message.id)
     }
 
     fun handleToolApproval(
@@ -397,24 +447,24 @@ class ChatVM(
         approved: Boolean,
         reason: String = ""
     ) {
-        chatService.handleToolApproval(_conversationId, toolCallId, approved, reason)
+        chatService.handleToolApproval(_conversationId.value, toolCallId, approved, reason)
     }
 
     fun handleToolAnswer(
         toolCallId: String,
         answer: String,
     ) {
-        chatService.handleToolApproval(_conversationId, toolCallId, approved = true, answer = answer)
+        chatService.handleToolApproval(_conversationId.value, toolCallId, approved = true, answer = answer)
     }
 
     fun stopGeneration() {
         viewModelScope.launch {
-            chatService.stopGeneration(_conversationId)
+            chatService.stopGeneration(_conversationId.value)
         }
     }
 
     fun updateTitle(title: String) {
-        listActions.updateTitle(_conversationId, title)
+        listActions.updateTitle(_conversationId.value, title)
     }
 
     fun updateTitle(conversationId: Uuid, title: String) {
@@ -433,12 +483,12 @@ class ChatVM(
             conversation = conversation,
             targetAssistantId = targetAssistantId,
             // 被挪的正好是当前会话时，把当前助手也切过去（原来就有的行为）
-            currentConversationId = _conversationId,
+            currentConversationId = _conversationId.value,
         )
     }
 
     fun translateMessage(message: UIMessage, targetLanguage: Locale) {
-        chatService.translateMessage(_conversationId, message, targetLanguage)
+        chatService.translateMessage(_conversationId.value, message, targetLanguage)
     }
 
     fun generateTitle(conversation: Conversation, force: Boolean = false) {
@@ -447,14 +497,14 @@ class ChatVM(
 
     fun clearTranslationField(messageId: Uuid) {
         viewModelScope.launch {
-            chatService.clearTranslationField(_conversationId, messageId)
+            chatService.clearTranslationField(_conversationId.value, messageId)
         }
     }
 
     fun selectMessageNode(nodeId: Uuid, selectIndex: Int) {
         viewModelScope.launch {
             try {
-                chatService.selectMessageNode(_conversationId, nodeId, selectIndex)
+                chatService.selectMessageNode(_conversationId.value, nodeId, selectIndex)
             } catch (e: ApiException) {
                 // 界面上的分支已经过时（比如刚被清理掉），切换不了就算了
                 Log.w(TAG, "selectMessageNode: ${e.message}")
@@ -464,29 +514,29 @@ class ChatVM(
 
     fun updateConversationSystemPrompt(systemPrompt: String?) {
         viewModelScope.launch {
-            chatService.updateConversationSystemPrompt(_conversationId, systemPrompt)
+            chatService.updateConversationSystemPrompt(_conversationId.value, systemPrompt)
         }
     }
 
     /** 会话详情打开时读一次模型视角的请求快照；工具和 MCP 列表可能要等一会儿，由 ChatService 放到 IO 线程 */
     suspend fun buildRequestPreview(): ChatRequestPreview =
-        chatService.buildRequestPreview(_conversationId)
+        chatService.buildRequestPreview(_conversationId.value)
 
     fun updateWorkspaceCwd(workspaceId: Uuid, workspaceCwd: String?) {
         viewModelScope.launch {
-            chatService.updateWorkspaceCwd(_conversationId, workspaceId, workspaceCwd)
+            chatService.updateWorkspaceCwd(_conversationId.value, workspaceId, workspaceCwd)
         }
     }
 
     fun toggleMessageFavorite(node: MessageNode) {
         viewModelScope.launch {
-            val currentlyFavorited = favoriteRepository.isNodeFavorited(_conversationId, node.id)
+            val currentlyFavorited = favoriteRepository.isNodeFavorited(_conversationId.value, node.id)
             if (currentlyFavorited) {
-                favoriteRepository.removeNodeFavorite(_conversationId, node.id)
+                favoriteRepository.removeNodeFavorite(_conversationId.value, node.id)
             } else {
                 favoriteRepository.addNodeFavorite(
                     NodeFavoriteTarget(
-                        conversationId = _conversationId,
+                        conversationId = _conversationId.value,
                         conversationTitle = conversation.value.title,
                         nodeId = node.id,
                         node = node
@@ -494,7 +544,7 @@ class ChatVM(
                 )
             }
 
-            chatService.setNodeFavorite(_conversationId, node.id, favorite = !currentlyFavorited)
+            chatService.setNodeFavorite(_conversationId.value, node.id, favorite = !currentlyFavorited)
         }
     }
 

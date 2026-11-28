@@ -450,7 +450,7 @@ public final class NativeChatHeader extends LinearLayout {
         }
         entries.add(new NativeChatPopup.Entry(getContext().getString(R.string.l3_native_folder_new),
                 true, false, false, () -> { if (callbacks != null) callbacks.onCreateFolder(); }));
-        openPopup = NativeChatPopup.show(anchor, theme, entries);
+        openPopup = NativeChatPopup.show(anchor, theme, entries, animationsEnabled);
     }
 
     private void showSessionMenu(View anchor) {
@@ -471,7 +471,7 @@ public final class NativeChatHeader extends LinearLayout {
                 hasMessages, false, true, () -> { if (callbacks != null && hasMessages) callbacks.onDelete(); }));
         entries.add(new NativeChatPopup.Entry(getContext().getString(R.string.l3_native_menu_settings),
                 true, false, false, () -> { if (callbacks != null) callbacks.onOpenSettings(); }));
-        openPopup = NativeChatPopup.show(anchor, theme, entries);
+        openPopup = NativeChatPopup.show(anchor, theme, entries, animationsEnabled);
     }
 
     private void dismissPopup() {

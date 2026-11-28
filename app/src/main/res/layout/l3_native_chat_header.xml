@@ -97,9 +97,9 @@
         app:iconSize="16dp" />
 
     <!--
-      Configuration entry. It opens the real conversation details; it is not the demo's fake
-      preset cycle (which only rewrote its own icon and posted a notice) and it never keeps
-      local selection state.
+      Conversation details entry: opens the real conversation details surface.
+      It is not the demo's fake preset cycle (which only rewrote its own icon and posted a
+      notice) and it never keeps local selection state.
     -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/l3_native_btn_config"
@@ -112,7 +112,7 @@
         android:insetRight="4dp"
         android:insetTop="4dp"
         android:minWidth="0dp"
-        app:icon="@drawable/l3_native_ic_tune"
+        app:icon="@drawable/l3_native_ic_info"
         app:iconSize="22dp" />
 
     <com.google.android.material.button.MaterialButton

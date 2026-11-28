@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  菜单卡片的入场：Fade through 的「新内容进来」那一段。
+  M3 的 fade through 是旧内容先淡出（约 90ms）、新内容再缩放淡入（scale 0.92 → 1），
+  中间不重叠。PopupWindow 是一次性弹出的，没有旧内容可淡出，
+  所以这里只做后一段：从 0.92 放大到 1，同时淡入。
+  时长 210ms 对应 M3 的 medium2 duration。
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:interpolator/fast_out_slow_in">
+    <alpha
+        android:duration="210"
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0" />
+    <scale
+        android:duration="210"
+        android:fromXScale="0.92"
+        android:fromYScale="0.92"
+        android:pivotX="50%"
+        android:pivotY="0%"
+        android:toXScale="1.0"
+        android:toYScale="1.0" />
+</set>

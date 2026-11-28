@@ -35,7 +35,8 @@ final class NativeChatPopup {
         }
     }
 
-    static PopupWindow show(View anchor, NativeChatTheme theme, List<Entry> entries) {
+    static PopupWindow show(View anchor, NativeChatTheme theme, List<Entry> entries,
+            boolean animationsEnabled) {
         float density = anchor.getResources().getDisplayMetrics().density;
         int padding = Math.round(8 * density);
         LinearLayout rows = new LinearLayout(anchor.getContext());
@@ -53,8 +54,11 @@ final class NativeChatPopup {
         popup.setElevation(8 * density);
         popup.setOutsideTouchable(true);
         popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
-        // Motion is not independently timed here; no entrance animation to bypass reduced motion.
-        popup.setAnimationStyle(0);
+        // Fade through：入场缩放淡入、退场纯淡出（见 res/values/l3_native_popup_anim.xml）。
+        // 原来这里是 0，菜单硬切出现。用户关掉动效时这里退回 0，不做动画。
+        popup.setAnimationStyle(animationsEnabled
+                ? R.style.Animation_L3Hub_NativeChatPopup
+                : 0);
         for (Entry entry : entries) {
             MaterialButton row = (MaterialButton) LayoutInflater.from(anchor.getContext())
                     .inflate(R.layout.l3_native_popup_row, rows, false);

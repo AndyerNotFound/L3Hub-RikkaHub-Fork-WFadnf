@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  菜单卡片的退场：Fade through 的「旧内容出去」那一段。
+  M3 的 fade through 旧内容只淡出、不缩放（缩放留给进来的那一层），
+  时长也更短（约 90ms），这样两段接起来才不是一次对称的缩放。
+-->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="90"
+    android:fromAlpha="1.0"
+    android:interpolator="@android:interpolator/linear_out_slow_in"
+    android:toAlpha="0.0" />

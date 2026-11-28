@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      菜单卡片（三点菜单 / 文件夹选择）的进出场。
+      走 PopupWindow.setAnimationStyle：它只认 style 里的 windowEnterAnimation /
+      windowExitAnimation 这两个属性，所以只能在这一层挂。
+
+      为什么是 Fade through 而不是普通淡入：M3 里 fade through 表达「这一层内容换掉了，
+      层级没变」。菜单是一次性弹出的，没有旧内容可淡出，所以入场取它的后半段
+      （缩放 + 淡入），退场取它的前半段（纯淡出）——两段拼起来就是同一个节奏。
+    -->
+    <style name="Animation.L3Hub.NativeChatPopup" parent="">
+        <item name="android:windowEnterAnimation">@anim/l3_native_popup_enter</item>
+        <item name="android:windowExitAnimation">@anim/l3_native_popup_exit</item>
+    </style>
+</resources>

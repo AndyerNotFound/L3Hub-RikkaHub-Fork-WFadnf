@@ -1,9 +1,17 @@
 package me.rerere.rikkahub.ui.navigation
 
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.IntOffset
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.FaultyDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.animation.Direction
@@ -22,6 +30,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.theme.AlphaEasing
 import me.rerere.rikkahub.ui.theme.FancyTransitionEasing
 import me.rerere.rikkahub.ui.theme.PointToPointEasing
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -124,3 +134,29 @@ private fun Modifier.sharedAxisOffset(factor: Float): Modifier =
 /** 这一对页面里只要有一边是侧边栏，就走 Shared Axis X。 */
 internal fun isSidebarPair(newScreen: Screen, oldScreen: Screen): Boolean =
     newScreen is Screen.Sidebar || oldScreen is Screen.Sidebar
+
+/**
+ * Shared Axis Y：竖向的两段内容交替。
+ *
+ * 和 [sharedAxisX] 同一条定义，只是轴换成竖向——用于「同一个页面里换内容」，
+ * 比如切换会话时只换消息区。Z 轴不动，所以两段内容不会互相遮挡，
+ * 观感是「这一层内容换掉了，层级没变」。
+ *
+ * 方向按 Material 的 SharedAxis：
+ * - 新内容从下方进入（`slideInVertically` 起点 +1/4 屏高），旧内容往上方退（-1/4）；
+ * - 两者都同时淡入淡出，位移和透明度用同一条曲线。
+ *
+ * 位移量取 1/4 而不是整屏：整屏位移在消息这种长列表上会显得太快、
+ * 像翻页而不是换内容；1/4 是 Material 里 fade through / shared axis 的常规幅度。
+ */
+@Composable
+internal fun sharedAxisYTransition(): ContentTransform {
+    // 时长不在这里写死：两条 spec 都来自主题的动效档位，用户调「动画速度」时一起变。
+    val spec = rememberSpatialSpec<IntOffset>()
+    val fadeSpec = rememberEffectsSpec<Float>()
+    return (
+        slideInVertically(spec) { height -> height / 4 } + fadeIn(fadeSpec)
+    ) togetherWith (
+        slideOutVertically(spec) { height -> -height / 4 } + fadeOut(fadeSpec)
+    )
+}

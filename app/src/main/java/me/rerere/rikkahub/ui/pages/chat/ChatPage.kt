@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import me.rerere.rikkahub.ui.navigation.sharedAxisYTransition
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
@@ -128,7 +130,6 @@ import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
 import me.rerere.rikkahub.utils.base64Decode
-import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
 import me.rerere.ui.components.AppModalSheet
@@ -211,7 +212,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         navController.navigate(Screen.Setting)
     }
     // 新会话直接换掉栈底那一页；侧边栏如果开着，它会跟着整条栈一起退场
-    val startNewChat: () -> Unit = { navigateToChatPage(navController, Uuid.random()) }
+    val startNewChat: () -> Unit = { vm.switchConversation(Uuid.random()) }
 
     val startVoiceMode = rememberVoiceModeStarter(vm, setting)
 
@@ -1009,7 +1010,7 @@ private fun ChatPageContent(
                             sidebarOpen = state.sidebarOpen,
                             onOpenSidebar = actions.onOpenSidebar,
                             onNewChat = {
-                                navigateToChatPage(state.navController)
+                                state.vm.switchConversation(Uuid.random())
                             },
                             onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
                             onShowModelPicker = { openPane(ChatSidePane.ModelPicker) },
@@ -1132,6 +1133,16 @@ private fun ChatPageContent(
             Box(modifier = Modifier.fillMaxSize()) {
                 if (chatTabVisible) {
                     tabStateHolder.SaveableStateProvider("chat") {
+                        // 切换会话时只有消息区做 Shared Axis Y：新会话从下方进、旧会话往上方退。
+                        // 顶栏、输入框、悬浮栏都在这个 AnimatedContent 外面，所以它们不动。
+                        //
+                        // 用 conversationId 当 key：vm.switchConversation 改的是同一个
+                        // ChatPage 实例里的 id，页面不重建，所以这里能拿到前后两个值。
+                        AnimatedContent(
+                            targetState = state.conversationId,
+                            transitionSpec = { sharedAxisYTransition() },
+                            label = "conversationSwitch",
+                        ) { animatedConversationId ->
                         if (hasMessages) {
                             // 普通消息和子代理通知共用同一段删除判断，生成中一律拦下
                             val deleteMessage: (UIMessage) -> Unit = { message ->
@@ -1177,7 +1188,7 @@ private fun ChatPageContent(
                                 onForkMessage = {
                                     scope.launch {
                                         val fork = state.vm.forkMessage(message = it)
-                                        navigateToChatPage(state.navController, chatId = fork.id)
+                                        state.vm.switchConversation(fork.id)
                                     }
                                 },
                                 onDelete = deleteMessage,
@@ -1234,6 +1245,7 @@ private fun ChatPageContent(
                                 scrollEnabled = !hasMessages,
                                 onHeroPlaced = { bottom -> emptyHeroBottomPx = bottom },
                             )
+                        }
                         }
                     }
                 } else {
@@ -1360,7 +1372,7 @@ private fun ChatPageContent(
                 onClosePane = { closePane() },
                 onOpenConversation = { id ->
                     closePane()
-                    navigateToChatPage(state.navController, chatId = id)
+                    state.vm.switchConversation(id)
                 },
                 onResize = actions.onChatResize,
                 // 右栏吃掉剩余宽度：左栏收起时中列左移，空出来的位置全给它
@@ -1456,7 +1468,7 @@ private fun ChatPageContent(
             onDismiss = { showTaskTree = false },
             onOpenConversation = { id ->
                 showTaskTree = false
-                navigateToChatPage(state.navController, chatId = id)
+                state.vm.switchConversation(id)
             },
         )
 
@@ -1485,7 +1497,7 @@ private fun ChatPageContent(
                 showDeleteConfirm = false
                 scope.launch {
                     state.vm.deleteConversation(state.conversationState.value).join()
-                    navigateToChatPage(state.navController)
+                    state.vm.switchConversation(Uuid.random())
                 }
             },
             onDismiss = { showDeleteConfirm = false },

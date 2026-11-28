@@ -11,7 +11,7 @@
   <string name="l3_native_cd_folder">Conversation folder</string>
   <string name="l3_native_cd_session">Rename conversation</string>
   <string name="l3_native_cd_session_running">Rename conversation, generating a reply</string>
-  <string name="l3_native_cd_config">Conversation configuration</string>
+  <string name="l3_native_cd_config">Conversation details</string>
   <string name="l3_native_cd_new_chat">New chat</string>
   <string name="l3_native_cd_more">Conversation menu</string>
 
