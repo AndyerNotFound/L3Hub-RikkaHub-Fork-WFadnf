@@ -5,7 +5,6 @@ import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -14,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -137,7 +137,7 @@ internal fun rememberNativeSelectMenu(
         menu.setIconBinder(object : NativeSelectMenu.IconBinder {
             override fun hasIcon(index: Int): Boolean = icons.getOrNull(index) != null
 
-            override fun bindIcon(container: ViewGroup, index: Int) {
+            override fun bindIcon(container: ViewGroup, index: Int, tint: Int) {
                 val imageVector = icons.getOrNull(index) ?: return
                 container.addView(
                     ComposeView(container.context).apply {
@@ -148,7 +148,8 @@ internal fun rememberNativeSelectMenu(
                             Icon(
                                 imageVector = imageVector,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                // 危险项是 error 色，其余是次要色 —— 由 Java 侧算好传进来
+                                tint = Color(tint),
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(1.dp),

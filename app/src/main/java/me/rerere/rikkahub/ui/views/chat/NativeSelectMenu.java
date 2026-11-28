@@ -93,8 +93,9 @@ public final class NativeSelectMenu {
         /**
          * @param container 目标容器（菜单项里那个 20dp 的图标位）
          * @param index     第几项（按 {@link #addItem} 的添加顺序，不含 header 与 divider）
+         * @param tint      图标着色。危险项是 error 色，其余是 onSurfaceVariant
          */
-        void bindIcon(@NonNull ViewGroup container, int index);
+        void bindIcon(@NonNull ViewGroup container, int index, int tint);
     }
 
     /** 菜单里的一行。分组标题与分隔线也用它表示，{@code kind} 区分。 */
@@ -105,6 +106,8 @@ public final class NativeSelectMenu {
         @Nullable public final String label;
         @Nullable public final Integer iconRes;
         public final boolean selected;
+        public final boolean enabled;
+        public final boolean destructive;
         @Nullable public final Runnable action;
         /** 第几项（只数 ENTRY），给 {@link IconBinder} 用。 */
         public final int entryIndex;
@@ -114,6 +117,8 @@ public final class NativeSelectMenu {
                 @Nullable String label,
                 @Nullable Integer iconRes,
                 boolean selected,
+                boolean enabled,
+                boolean destructive,
                 @Nullable Runnable action,
                 int entryIndex
         ) {
@@ -121,6 +126,8 @@ public final class NativeSelectMenu {
             this.label = label;
             this.iconRes = iconRes;
             this.selected = selected;
+            this.enabled = enabled;
+            this.destructive = destructive;
             this.action = action;
             this.entryIndex = entryIndex;
         }
@@ -189,23 +196,41 @@ public final class NativeSelectMenu {
             boolean selected,
             @Nullable Runnable action
     ) {
+        return addItem(label, iconRes, selected, true, false, action);
+    }
+
+    /**
+     * 加一个项，带禁用与危险色。
+     *
+     * @param enabled     false 时置灰且不可点
+     * @param destructive true 时文字与图标用 error 色（删除这类不可逆操作）
+     */
+    public NativeSelectMenu addItem(
+            @NonNull String label,
+            @Nullable Integer iconRes,
+            boolean selected,
+            boolean enabled,
+            boolean destructive,
+            @Nullable Runnable action
+    ) {
         int entryIndex = 0;
         for (Item existing : items) {
             if (existing.kind == Item.Kind.ENTRY) entryIndex++;
         }
-        items.add(new Item(Item.Kind.ENTRY, label, iconRes, selected, action, entryIndex));
+        items.add(new Item(
+                Item.Kind.ENTRY, label, iconRes, selected, enabled, destructive, action, entryIndex));
         return this;
     }
 
     /** 加一个分组标题：不可点、字号更小。 */
     public NativeSelectMenu addHeader(@NonNull String label) {
-        items.add(new Item(Item.Kind.HEADER, label, null, false, null, -1));
+        items.add(new Item(Item.Kind.HEADER, label, null, false, true, false, null, -1));
         return this;
     }
 
     /** 加一条分隔线。 */
     public NativeSelectMenu addDivider() {
-        items.add(new Item(Item.Kind.DIVIDER, null, null, false, null, -1));
+        items.add(new Item(Item.Kind.DIVIDER, null, null, false, true, false, null, -1));
         return this;
     }
 
@@ -465,6 +490,17 @@ public final class NativeSelectMenu {
                     ImageView check = row.findViewById(R.id.l3_native_select_item_check);
 
                     text.setText(item.label);
+
+                    int iconTint = colorAttr(item.destructive
+                            ? com.google.android.material.R.attr.colorError
+                            : com.google.android.material.R.attr.colorOnSurfaceVariant);
+
+                    if (item.destructive) {
+                        // 危险色：文字与图标走 error，删除这类不可逆操作用
+                        text.setTextColor(colorAttr(
+                                com.google.android.material.R.attr.colorError));
+                    }
+
                     if (iconBinder != null && iconBinder.hasIcon(item.entryIndex)) {
                         // 图标交给 Compose 画：HugeIcons 的 pathData 是编译后的
                         // ImageVector.Builder 字节码，Java 侧取不到，只能靠 ComposeView
@@ -479,18 +515,33 @@ public final class NativeSelectMenu {
                         iconSlot.setLayoutParams(slotLp);
                         iconSlot.setGravity(Gravity.CENTER);
                         parent.addView(iconSlot, slotIndex);
-                        iconBinder.bindIcon(iconSlot, item.entryIndex);
+                        iconBinder.bindIcon(iconSlot, item.entryIndex, iconTint);
                     } else if (item.iconRes != null) {
                         icon.setImageResource(item.iconRes);
+                        icon.setImageTintList(android.content.res.ColorStateList.valueOf(iconTint));
                         icon.setVisibility(View.VISIBLE);
                     }
-                    check.setVisibility(item.selected ? View.VISIBLE : View.GONE);
 
-                    row.setOnClickListener(v -> {
-                        if (listener != null) listener.onItemClick(item);
-                        Runnable action = item.action;
-                        dismissWithAnimation(action);
-                    });
+                    // 禁用：整体压到 38% 不透明度，与 M3 的 disabled 一致。
+                    // 放在图标之后，否则 icon 已被移除、setEnabled 落空
+                    if (!item.enabled) {
+                        row.setEnabled(false);
+                        row.setClickable(false);
+                        row.setAlpha(0.38f);
+                        text.setEnabled(false);
+                        check.setEnabled(false);
+                    }
+                    // 危险项不显示对勾：它是动作，不是选项
+                    check.setVisibility(
+                            item.selected && !item.destructive ? View.VISIBLE : View.GONE);
+
+                    if (item.enabled) {
+                        row.setOnClickListener(v -> {
+                            if (listener != null) listener.onItemClick(item);
+                            Runnable action = item.action;
+                            dismissWithAnimation(action);
+                        });
+                    }
                     itemContainer.addView(row);
                     break;
                 }

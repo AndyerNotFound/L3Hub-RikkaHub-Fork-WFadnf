@@ -16,12 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +54,8 @@ import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.model.Guidance
 import me.rerere.rikkahub.data.model.GuidanceMode
 import me.rerere.rikkahub.data.model.MAX_TODO_ITEMS
@@ -489,52 +488,45 @@ private fun TodoRowMenu(
     onRemove: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        // 这里不用 IconButton：它自带 48dp 的最小触摸区，会把每一行都撑成 48dp，卡片立刻变胖
-        SmallIconAction(
-            icon = HugeIcons.MoreVertical,
-            contentDescription = stringResource(R.string.todo_actions),
-            onClick = { expanded = true },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            TodoMenuItem(
-                text = stringResource(R.string.todo_mark_in_progress),
-                icon = HugeIcons.Play,
-                enabled = status != TodoStatus.IN_PROGRESS,
-                onClick = {
-                    expanded = false
-                    onSetStatus(TodoStatus.IN_PROGRESS)
-                },
-            )
-            TodoMenuItem(
-                text = stringResource(R.string.todo_mark_not_started),
-                icon = HugeIcons.Refresh01,
-                enabled = status != TodoStatus.PENDING,
-                onClick = {
-                    expanded = false
-                    onSetStatus(TodoStatus.PENDING)
-                },
-            )
-            TodoMenuItem(
-                text = stringResource(R.string.todo_cancel_task),
-                icon = HugeIcons.Cancel01,
-                enabled = status != TodoStatus.CANCELLED,
-                onClick = {
-                    expanded = false
-                    onSetStatus(TodoStatus.CANCELLED)
-                },
-            )
-            TodoMenuItem(
-                text = stringResource(R.string.todo_remove_task),
-                icon = HugeIcons.Delete02,
-                destructive = true,
-                onClick = {
-                    expanded = false
-                    onRemove()
-                },
-            )
+    val anchor = rememberSelectMenuAnchor()
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val inProgressLabel = stringResource(R.string.todo_mark_in_progress)
+    val notStartedLabel = stringResource(R.string.todo_mark_not_started)
+    val cancelLabel = stringResource(R.string.todo_cancel_task)
+    val removeLabel = stringResource(R.string.todo_remove_task)
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = listOf(
+            HugeIcons.Play,
+            HugeIcons.Refresh01,
+            HugeIcons.Cancel01,
+            HugeIcons.Delete02,
+        ),
+    ) {
+        addItem(inProgressLabel, null, false, status != TodoStatus.IN_PROGRESS, false) {
+            onSetStatus(TodoStatus.IN_PROGRESS)
         }
+        addItem(notStartedLabel, null, false, status != TodoStatus.PENDING, false) {
+            onSetStatus(TodoStatus.PENDING)
+        }
+        addItem(cancelLabel, null, false, status != TodoStatus.CANCELLED, false) {
+            onSetStatus(TodoStatus.CANCELLED)
+        }
+        addDivider()
+        addItem(removeLabel, null, false, true, true) { onRemove() }
     }
+
+    // 这里不用 IconButton：它自带 48dp 的最小触摸区，会把每一行都撑成 48dp，卡片立刻变胖
+    SmallIconAction(
+        icon = HugeIcons.MoreVertical,
+        contentDescription = stringResource(R.string.todo_actions),
+        onClick = { expanded = true },
+        modifier = anchor.modifier,
+    )
 }
 
 /** 卡片里的小图标按钮：比 IconButton 小一圈，触摸区还是 28dp 见方 */
@@ -562,28 +554,6 @@ private fun SmallIconAction(
             tint = if (enabled) base else base.copy(alpha = 0.38f),
         )
     }
-}
-
-@Composable
-private fun TodoMenuItem(
-    text: String,
-    icon: ImageVector,
-    enabled: Boolean = true,
-    destructive: Boolean = false,
-    onClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(text) },
-        leadingIcon = { Icon(icon, contentDescription = null) },
-        enabled = enabled,
-        colors = if (destructive) {
-            val errorColor = MaterialTheme.colorScheme.error
-            MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-        } else {
-            MenuDefaults.itemColors()
-        },
-        onClick = onClick,
-    )
 }
 
 @Composable

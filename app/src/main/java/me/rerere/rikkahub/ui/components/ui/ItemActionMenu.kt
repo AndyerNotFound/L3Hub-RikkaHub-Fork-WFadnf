@@ -1,12 +1,8 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -19,14 +15,9 @@ import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.style.DropdownMenu
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
 
-/**
- * 列表 item 的次要操作（复制、导出、重命名、删除等）。
- *
- * 约定：点击 item 本身执行主操作（进入详情/编辑），其余操作统一放进 [ItemActionMenu]；
- * 破坏性操作（删除）放在最后并标记 [destructive]，由调用方负责二次确认或提供撤销。
- */
 @Immutable
 data class ItemAction(
     val text: String,
@@ -36,40 +27,46 @@ data class ItemAction(
     val onClick: () -> Unit,
 )
 
+/**
+ * 一颗「更多」按钮，点开是一组操作。
+ *
+ * 展开 / 收起走容器变换：从按钮那一小块原地长成菜单卡，不是淡入淡出。
+ * 起点由 [rememberSelectMenuAnchor] 给出 —— 它记的是这颗按钮的窗口矩形。
+ */
 @Composable
 fun ItemActionMenu(
     actions: List<ItemAction>,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val anchor = rememberSelectMenuAnchor()
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = actions.map { it.icon },
+    ) {
+        actions.forEach { action ->
+            addItem(
+                action.text,
+                null,
+                /* selected = */ false,
+                /* enabled = */ action.enabled,
+                /* destructive = */ action.destructive,
+            ) { action.onClick() }
+        }
+    }
+
     Box(modifier = modifier) {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.then(anchor.modifier),
+        ) {
             Icon(
                 imageVector = HugeIcons.MoreVertical,
                 contentDescription = stringResource(R.string.more_options),
             )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            actions.forEach { action ->
-                DropdownMenuItem(
-                    text = { Text(action.text) },
-                    leadingIcon = { Icon(action.icon, contentDescription = null) },
-                    enabled = action.enabled,
-                    colors = if (action.destructive) {
-                        val errorColor = MaterialTheme.colorScheme.error
-                        MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-                    } else {
-                        MenuDefaults.itemColors()
-                    },
-                    onClick = {
-                        expanded = false
-                        action.onClick()
-                    },
-                )
-            }
         }
     }
 }
