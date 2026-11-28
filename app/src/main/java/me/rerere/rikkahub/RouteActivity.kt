@@ -117,7 +117,7 @@ import me.rerere.rikkahub.ui.navigation.RouteAppearance
 import me.rerere.rikkahub.ui.navigation.SettingRailAppearance
 import me.rerere.rikkahub.ui.navigation.NavigationBackHandler
 import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
-import me.rerere.rikkahub.ui.navigation.isSidebarPair
+import me.rerere.rikkahub.ui.navigation.sidebarAxisMode
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
@@ -452,10 +452,12 @@ class RouteActivity : ComponentActivity() {
                                 backHandler = rootComponent.backHandler,
                                 onBack = rootComponent::pop,
                                 durationMillis = pageAnimMillis,
-                                // 侧边栏在聊天页左边：这一对页面沿同一条水平轴一起移动，
+                                // 侧边栏相关的页面沿同一条水平轴移动：
+                                // 聊天↔侧边栏 反向（侧边栏在左，从左边推入），
+                                // 侧边栏↔其他页 正向（往里走一层）。
                                 // 其余页面保持原来的 fade + slide + scale
-                                useSharedAxisX = { newScreen, oldScreen, _ ->
-                                    isSidebarPair(newScreen, oldScreen)
+                                sharedAxisMode = { newScreen, oldScreen, _ ->
+                                    sidebarAxisMode(newScreen, oldScreen)
                                 },
                             )
                         }

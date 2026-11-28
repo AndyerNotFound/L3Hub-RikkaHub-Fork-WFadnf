@@ -49,7 +49,8 @@ import kotlin.math.roundToInt
  * 这里没有任何逐页簿记和全局前进/返回分类：转场打断、快速连续切换全部由
  * decompose 内置实现处理，行为与 ImageToolbox 完全一致。
  *
- * 唯一的例外是侧边栏：[Screen.Sidebar] 与聊天页之间走 [sharedAxisX]，理由见那个函数。
+ * 唯一的例外是侧边栏：[Screen.Sidebar] 相关的页面之间走 [sharedAxisX]，
+ * 方向按 [SharedAxisMode] 分两种，理由见那个枚举。
  */
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
 fun <C : Any, T : Any> l3HubStackAnimation(
@@ -57,12 +58,12 @@ fun <C : Any, T : Any> l3HubStackAnimation(
     onBack: () -> Unit,
     durationMillis: Int = 300,
     /**
-     * 这一对页面是否走 Shared Axis X 而不是默认的 fade + slide + scale。
+     * 这一对页面走哪种横向转场。
      *
      * 判据留在调用侧（那里才知道哪两个配置是聊天页与侧边栏），这里只负责把选中的
      * 动画交给 Decompose。入参是（新页配置、旧页配置、方向）。
      */
-    useSharedAxisX: (C, C, Direction) -> Boolean = { _, _, _ -> false },
+    sharedAxisMode: (C, C, Direction) -> SharedAxisMode = { _, _, _ -> SharedAxisMode.NONE },
 ): StackAnimation<C, T> = predictiveBackAnimation(
     backHandler = backHandler,
     onBack = onBack,
@@ -72,18 +73,52 @@ fun <C : Any, T : Any> l3HubStackAnimation(
     fallbackAnimation = stackAnimation(
         disableInputDuringAnimation = true,
         selector = { child, otherChild, direction ->
-            if (useSharedAxisX(child.configuration, otherChild.configuration, direction)) {
-                sharedAxisXAnimator(durationMillis = durationMillis)
-            } else {
-                // 默认三件套：透明度 Alpha、位移 FancyTransition、变形 PointToPoint
-                fade(tween(durationMillis, easing = AlphaEasing)) +
-                    slide(tween(durationMillis, easing = FancyTransitionEasing)) +
-                    scale(tween(durationMillis, easing = PointToPointEasing))
+            when (sharedAxisMode(child.configuration, otherChild.configuration, direction)) {
+                SharedAxisMode.INVERTED -> sharedAxisXAnimator(
+                    durationMillis = durationMillis,
+                    invert = true,
+                )
+
+                SharedAxisMode.FORWARD -> sharedAxisXAnimator(
+                    durationMillis = durationMillis,
+                    invert = false,
+                )
+
+                SharedAxisMode.NONE -> {
+                    // 默认三件套：透明度 Alpha、位移 FancyTransition、变形 PointToPoint
+                    fade(tween(durationMillis, easing = AlphaEasing)) +
+                        slide(tween(durationMillis, easing = FancyTransitionEasing)) +
+                        scale(tween(durationMillis, easing = PointToPointEasing))
+                }
             }
         },
     ),
     selector = { backEvent, _, _ -> androidPredictiveBackAnimatableV1(backEvent) },
 )
+
+
+/**
+ * 一对页面该走哪种横向转场。
+ *
+ * 为什么不复用 Boolean：侧边栏与不同页面之间的关系不是「是/否」两态。
+ * 侧边栏与聊天页是左右相邻的一对（侧边栏在左），方向要反；侧边栏与设置之类的页
+ * 是上下层级关系，方向与普通前进一致。用一个 Boolean 表达不了这两种。
+ */
+enum class SharedAxisMode {
+    /** 不走 Shared Axis，交给默认的 fade + slide + scale。 */
+    NONE,
+
+    /** 标准前进/返回：前进时新页从右进、旧页往左退。 */
+    FORWARD,
+
+    /**
+     * 反方向：新页从左进、旧页往右退。
+     *
+     * 只用于「聊天页 ↔ 侧边栏」这一对 —— 侧边栏在聊天页左边，
+     * 打开它是从左边推入，而不是从右边进来。
+     */
+    INVERTED,
+}
 
 /**
  * 设置右列详情栈用：同一套 fade + slide + scale，但不接预测性返回——
@@ -101,8 +136,7 @@ fun <C : Any, T : Any> l3HubDetailAnimation(
 /**
  * Shared Axis X：两页沿同一条水平轴一起移动，用位移表达「它们在同一条层级序列上」。
  *
- * 和 Material 的 `MaterialSharedAxis(X, forward)` 是同一条定义。侧边栏在聊天页左边，
- * 所以打开它是 backward——侧边栏从左侧进入、聊天页向右退。
+ * 和 Material 的 `MaterialSharedAxis(X, forward)` 是同一条定义。
  *
  * 为什么手写而不直接用 material3 的 `HorizontalSharedAxisNavigationTransitions`：
  * 那个返回 `ContentTransform`（给 `AnimatedContent` 用的），而 Decompose 的
@@ -111,11 +145,17 @@ fun <C : Any, T : Any> l3HubDetailAnimation(
  *
  * 方向不用判：Decompose 把方向编码进了 factor 的符号——
  * `ENTER_FRONT` 1→0、`EXIT_FRONT` 0→1、`ENTER_BACK` -1→0、`EXIT_BACK` 0→-1。
- * 对左侧页面整体取负即可：进场从左边来、退场往左边走，另一页反向。
+ *
+ * @param invert 是否整体取反。
+ *   侧边栏在聊天页左边，打开它是「从左侧推入」，所以要反；
+ *   其余页面之间是正常的上下层级，前进时新页从右进，不反。
  */
-private fun sharedAxisXAnimator(durationMillis: Int): StackAnimator =
+private fun sharedAxisXAnimator(
+    durationMillis: Int,
+    invert: Boolean,
+): StackAnimator =
     stackAnimator(animationSpec = tween(durationMillis, easing = FancyTransitionEasing)) { factor, _, content ->
-        content(Modifier.sharedAxisOffset(factor = -factor))
+        content(Modifier.sharedAxisOffset(factor = if (invert) -factor else factor))
     }
 
 /**
@@ -134,9 +174,28 @@ private fun Modifier.sharedAxisOffset(factor: Float): Modifier =
         alpha = (1f - abs(factor)).coerceIn(0f, 1f)
     }
 
-/** 这一对页面里只要有一边是侧边栏，就走 Shared Axis X。 */
-internal fun isSidebarPair(newScreen: Screen, oldScreen: Screen): Boolean =
-    newScreen is Screen.Sidebar || oldScreen is Screen.Sidebar
+/**
+ * 这一对页面该走哪种横向转场。
+ *
+ * 三种情况分开判，因为方向不同：
+ *
+ * - **聊天页 ↔ 侧边栏**：两者左右相邻，侧边栏在左。打开侧边栏是从左边推入，
+ *   所以方向要反（[SharedAxisMode.INVERTED]）。
+ * - **侧边栏 ↔ 其他页**（设置、助手、历史…）：这些是从侧边栏往里走的下一层，
+ *   方向与普通前进一致 —— 新页从右进、侧边栏往左退（[SharedAxisMode.FORWARD]）。
+ *   早先这里和上面那种混在一起，结果从侧边栏进设置时设置从左边进来，看起来像后退。
+ * - **其余页面之间**：不干预，交给默认的 fade + slide + scale。
+ */
+internal fun sidebarAxisMode(newScreen: Screen, oldScreen: Screen): SharedAxisMode {
+    val newIsSidebar = newScreen is Screen.Sidebar
+    val oldIsSidebar = oldScreen is Screen.Sidebar
+    if (!newIsSidebar && !oldIsSidebar) return SharedAxisMode.NONE
+
+    // 一边是侧边栏，另一边是不是聊天页
+    val otherIsChat = if (newIsSidebar) oldScreen is Screen.Chat else newScreen is Screen.Chat
+
+    return if (otherIsChat) SharedAxisMode.INVERTED else SharedAxisMode.FORWARD
+}
 
 /**
  * Fade through：旧内容先淡出，新内容再淡入，两段不重叠。
