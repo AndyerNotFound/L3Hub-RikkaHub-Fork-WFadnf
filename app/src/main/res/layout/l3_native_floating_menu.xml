@@ -1,21 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  快捷菜单的容器。
+  快捷入口按钮的容器。
 
-  两个子 View 在同一个 FrameLayout 里、都贴右下角：这是 MaterialContainerTransform
-  的硬性要求 —— 起点和终点必须共享父容器，动画期间两者都会被绘制到父容器的 overlay。
-  （它不需要 Fragment，也不需要 Activity 之间的共享元素。）
+  只剩一颗 M3 FAB：点开后的面板由 NativeSelectMenu 画（通用选择菜单），
+  不再在这里摆一排横向槽位。
 
-  ## 为什么 root 不跟着内容缩
-  收起时按钮 56dp、展开时面板可能 200dp 宽。如果 root 用 wrap_content，
-  收起时它的尺寸只有按钮那么大 —— 容器变换拿不到「面板该占多大」这个信息，
-  动画会从按钮长到按钮，看起来就是没动。
-  所以 root 固定占满可用宽度，高度取按钮高度：按钮和面板都靠 layout_gravity
-  贴右下角，实际尺寸由各自的 LayoutParams 决定。
-
-  ## 尺寸
-  按钮尺寸由 Java 侧按 scale 设置（见 NativeFloatingMenu.applyButtonSize），
-  XML 这里给的是默认值，避免布局预览时空掉。
+  root 用 match_parent 宽度、内容靠右下角 —— 这样它与输入卡右边界对齐，
+  面板展开时往左长，不会顶出屏幕。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -25,11 +16,6 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-  <!--
-    收起态：M3 FloatingActionButton。
-    用 FAB 而不是自绘 shape —— 形状、色调、涟漪、elevation 都由 M3 给，
-    scale 只改尺寸，不改外观。
-  -->
   <com.google.android.material.floatingactionbutton.FloatingActionButton
       android:id="@+id/l3_native_floating_menu_button"
       android:layout_width="wrap_content"
@@ -44,18 +30,4 @@
       app:rippleColor="?attr/colorPrimary"
       app:shapeAppearanceOverlay="@style/ShapeAppearance.L3Hub.FloatingMenu"
       app:tint="?attr/colorOnSurfaceVariant" />
-
-  <!--
-    展开态：面板。贴右下角，与按钮同一条右下边界，所以容器变换看起来是「往左上长」。
-    初始 invisible：它不参与测量，避免撑大 root。
-  -->
-  <LinearLayout
-      android:id="@+id/l3_native_floating_menu_panel"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:layout_gravity="bottom|end"
-      android:background="@drawable/l3_native_floating_menu_panel"
-      android:orientation="horizontal"
-      android:padding="6dp"
-      android:visibility="invisible" />
 </FrameLayout>

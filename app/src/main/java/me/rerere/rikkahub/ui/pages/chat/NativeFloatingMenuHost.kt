@@ -1,20 +1,18 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import android.graphics.Rect
+import android.view.View
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.unit.dp
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.rikkahub.data.model.FloatingBarItem
-import me.rerere.rikkahub.ui.components.ai.FloatingBarSizing
 import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
@@ -23,18 +21,23 @@ import me.rerere.rikkahub.ui.views.chat.NativeFloatingMenu
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
 
 /**
- * 快捷菜单的 Compose 桥接层。
+ * 快捷入口：一颗 M3 FAB，点开是通用选择菜单。
  *
- * 容器与容器变换归 Java（[NativeFloatingMenu]），图标归 Compose —— HugeIcons 是
- * `ImageVector` 的 Kotlin 代码，没有 vector drawable，Java 侧取不到。
- * 所以每个槽位里塞一个 [ComposeView]，只画那一颗图标。
+ * ## 为什么不自己画面板
  *
- * 这不影响容器变换：`MaterialContainerTransform` 是对整块 View 截图后缩放，
- * 里面嵌的是 ComposeView 还是普通 View 都一样。
+ * 早先这里有一份横向槽位面板 + 自绘容器变换，与 [rememberNativeSelectMenu] 那套
+ * 是两份实现。结果是同一屏里「点会话」和「点快捷入口」弹出两种不同的菜单 ——
+ * 圆角、间距、项高都对不上，而且快捷入口只有图标没有文字。
  *
- * @param visible 键盘弹起时传 false：收起并把上方那一条留给内容
- * @param expanded 由页面持有 —— 菜单展开时宿主需要知道（比如收起输入卡的其他浮层）
- * @param onExpandedChange 展开 / 收起时回调
+ * 现在按钮归 Java（[NativeFloatingMenu]，只有那颗 FAB），面板归通用菜单，
+ * 容器变换也归它：从按钮的窗口矩形长成菜单卡，与文件夹、排序、会话操作同一套观感。
+ *
+ * ## 状态流向
+ *
+ * 菜单的显隐由这里持有（`expanded`），Java 侧只负责「按钮被点了」这一个通知。
+ * 不反向下发，免得两边各推一次打架。
+ *
+ * @param visible 键盘弹起时传 false：收起按钮，把上方那一条留给内容
  */
 @Composable
 internal fun NativeFloatingMenuHost(
@@ -46,53 +49,45 @@ internal fun NativeFloatingMenuHost(
     onItemClick: (FloatingBarItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (items.isEmpty()) return
-
     val context = rememberNativeChatContext()
     val animationsEnabled = LocalAnimationsEnabled.current
-    val iconExtent = FloatingBarSizing.iconExtent(scale)
-    // 档位在组合层读，Java 侧读不到 motionScheme。容器变换与淡入淡出共用这一档。
-    val durationMillis = slideDurationMillis()
+    val duration = slideDurationMillis()
 
-    // 回调每帧都是新闭包，但装在 View 上的 listener 只建一次 —— 通过这个读最新那份
-    val latest = rememberUpdatedState(
-        FloatingMenuHandler(
-            items = items,
-            onExpandedChange = onExpandedChange,
-            onItemClick = onItemClick,
-        )
-    )
+    // 菜单的锚点：FAB 的窗口矩形。按钮被点时才填。
+    // 窗口 token 由 rememberNativeSelectMenu 内部处理（它拿 LocalView），
+    // 这里只管起点矩形。
+    var anchorBounds by remember { mutableStateOf<Rect?>(null) }
 
-    val iconBinder = remember(context, items, iconExtent) {
-        NativeFloatingMenu.IconBinder { container, index ->
-            val item = if (index < 0) null else items.getOrNull(index)
-            container.addView(
-                ComposeView(container.context).apply {
-                    setContent {
-                        Icon(
-                            imageVector = item?.icon ?: HugeIcons.Menu03,
-                            contentDescription = item?.label(),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(2.dp),
-                        )
-                    }
-                }
-            )
+    // 文案与图标在组合里读好：菜单的 content lambda 在 LaunchedEffect 里跑，
+    // 那里没有 Composition，直接调 stringResource 会崩
+    val labels = items.map { it.label() }
+    val icons: List<ImageVector> = items.map { it.icon }
+
+    val latestOnItemClick = rememberUpdatedState(onItemClick)
+    val latestOnExpandedChange = rememberUpdatedState(onExpandedChange)
+
+    // 菜单本体：通用选择菜单，容器变换从 FAB 长出来
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { latestOnExpandedChange.value(false) },
+        anchorBounds = anchorBounds,
+        icons = icons,
+    ) {
+        items.forEachIndexed { index, item ->
+            addItem(labels[index], null, selected = false) {
+                latestOnItemClick.value(item)
+            }
         }
     }
 
-    val listener = remember {
-        object : NativeFloatingMenu.Listener {
-            override fun onSlotClick(index: Int) {
-                latest.value.onSlotClick(index)
-            }
-
-            override fun onExpandChange(expanded: Boolean) {
-                latest.value.onExpandedChange(expanded)
-            }
-        }
+    // 一个入口都没配时连按钮都不画。
+    //
+    // 但先把菜单收掉：用户可能是在菜单开着的时候去设置里把入口全关了，
+    // 那时 expanded 还是 true，而 NativeSelectMenu.show() 对空列表直接 return，
+    // 已经弹出来的那份会留在屏幕上关不掉。
+    if (items.isEmpty()) {
+        LaunchedEffect(Unit) { latestOnExpandedChange.value(false) }
+        return
     }
 
     AndroidView(
@@ -101,32 +96,15 @@ internal fun NativeFloatingMenuHost(
         onRelease = { menu -> menu.setListener(null) },
         update = { menu ->
             menu.setAnimationsEnabled(animationsEnabled)
-            menu.setTransformDuration(durationMillis)
-            menu.setListener(listener)
-            menu.setIconBinder(iconBinder)
-            // 尺寸跟着设置里的「大小」滑块走 —— 早先只在 Compose 侧算图标大小，
-            // 按钮本身写死，滑块拖动时没反应
+            menu.setFadeDuration(duration)
             menu.setScale(scale)
-            menu.setSlotCount(items.size)
-            // 页面可能从别处把它收起来（比如键盘弹起），这里对齐一次
-            if (menu.isExpanded != expanded) menu.setExpanded(expanded, true)
             menu.setVisible(visible)
+            menu.setListener(object : NativeFloatingMenu.Listener {
+                override fun onOpenRequested(anchor: View) {
+                    anchorBounds = anchor.windowRect()
+                    latestOnExpandedChange.value(true)
+                }
+            })
         },
     )
-}
-
-/**
- * 菜单回调的持有者。
- *
- * 只读最新那份，避免 Java 侧的 listener 拿到两次重组之前捕获的 items。
- * 槽位序号在这里翻译成枚举 —— Java 不认识 Kotlin 的 enum，也不需要认识。
- */
-private class FloatingMenuHandler(
-    private val items: List<FloatingBarItem>,
-    val onExpandedChange: (Boolean) -> Unit,
-    val onItemClick: (FloatingBarItem) -> Unit,
-) {
-    fun onSlotClick(index: Int) {
-        items.getOrNull(index)?.let(onItemClick)
-    }
 }
