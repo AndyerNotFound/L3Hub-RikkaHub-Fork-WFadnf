@@ -1,17 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  底部那排圆形按钮：助手 / 菜单 / 收藏 / 统计 / 设置。
+  底部那排按钮：助手 / 菜单 / 收藏 / 统计 靠左，设置被 spacer 推到最右。
 
-  原版这里是 5 颗 primaryContainer 实心圆，图标 20dp、内边距 10dp。
-  改成 Java 之后结构不变，只是把 Compose 的 Surface + Tooltip 换成
-  MaterialCardView + 长按 toast 式的提示（Tooltip 在 View 体系里没有对应物，
-  这里用 android:contentDescription 保证无障碍，视觉上不再弹气泡）。
+  两个 MaterialButtonGroup 而不是一个：组会把子项的宽度互相挤压，中间那个
+  weight=1 的 spacer 不是 MaterialButton，塞进组里会在
+  getChildButton() 的硬 cast 上炸掉，所以按 spacer 切成左右两组。
+
+  挤压效果（M3 Expressive 的 child size change）不写属性：
+  Widget.Material3Expressive.MaterialButtonGroup 默认就带
+  @xml/m3_button_group_child_size_change —— 按下 15%、其余 0%，
+  按下时那一颗撑开、把旁边的挤窄，就是「挤压」。写 app:buttonSizeChange="@null"
+  才会关掉它（composer 那两组是故意关的，因为旁边挂着 weight 撑满的模型胶囊）。
+
+  子按钮用 ?attr/materialIconButtonFilledStyle：primary 容器、onPrimary 内容、
+  没有描边。容器色和图标色由 NativeSidebar#bindActionButton 从运行期调色板覆写，
+  XML 里拿到的只是静态主题的 baseline 紫。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/l3_native_sidebar_actions"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingHorizontal="8dp"
-    android:paddingVertical="6dp" />
+    android:paddingVertical="6dp">
+
+  <com.google.android.material.button.MaterialButtonGroup
+      android:id="@+id/l3_native_action_group"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:spacing="4dp"
+      app:overflowMode="none">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_action_assistant"
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/assistant_page_title"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_psychology" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_action_menu"
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/menu"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_menu" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_action_favorite"
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/favorite_page_title"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_favorite" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_action_stats"
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/chat_page_stats"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_bar_chart" />
+  </com.google.android.material.button.MaterialButtonGroup>
+
+  <!-- 撑开，把设置推到最右 —— 与原版的 Spacer(weight(1f)) 一致 -->
+  <View
+      android:layout_width="0dp"
+      android:layout_height="1dp"
+      android:layout_weight="1" />
+
+  <com.google.android.material.button.MaterialButtonGroup
+      android:id="@+id/l3_native_settings_group"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:spacing="4dp"
+      app:overflowMode="none">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/l3_native_action_settings"
+        style="?attr/materialIconButtonFilledStyle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/settings"
+        android:insetBottom="0dp"
+        android:insetLeft="0dp"
+        android:insetRight="0dp"
+        android:insetTop="0dp"
+        app:icon="@drawable/l3_native_ic_settings" />
+  </com.google.android.material.button.MaterialButtonGroup>
+</LinearLayout>

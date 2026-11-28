@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
 import java.util.ArrayList;
@@ -106,11 +107,6 @@ public final class NativeSidebar extends LinearLayout {
     private static final String ICON_TRANSLATE = "translate";
     private static final String ICON_SORT = "sort";
     private static final String ICON_PENCIL = "pencil";
-    private static final String ICON_ASSISTANT = "assistant";
-    private static final String ICON_MENU = "menu";
-    private static final String ICON_FAVORITE = "favorite";
-    private static final String ICON_STATS = "stats";
-    private static final String ICON_SETTINGS = "settings";
     private static final String ICON_FOLDER = "folder";
 
     private final LinearLayout header;
@@ -680,71 +676,71 @@ public final class NativeSidebar extends LinearLayout {
         pickerSlot.setTag(SLOT_ASSISTANT_PICKER);
         bottom.addView(pickerSlot, matchWrap());
 
-        // 一排圆形按钮
+        // 一排按钮：两个 MaterialButtonGroup 夹一个 spacer，中间隔着设置那颗
         View actions = LayoutInflater.from(getContext())
                 .inflate(R.layout.l3_native_sidebar_bottom_actions, bottom, false);
         bottom.addView(actions, matchWrap());
-        LinearLayout actionRow = (LinearLayout) actions;
 
-        actionRow.addView(buildCircleAction(ICON_ASSISTANT,
-                getContext().getString(R.string.assistant_page_title),
+        bindActionButton(actions.findViewById(R.id.l3_native_action_assistant),
+                R.string.assistant_page_title,
                 () -> {
                     if (listener != null) listener.onOpenAssistant();
-                }));
+                });
 
         // 「菜单」那颗：点开是图生入口
-        actionRow.addView(buildCircleAction(ICON_MENU,
-                getContext().getString(R.string.menu),
+        bindActionButton(actions.findViewById(R.id.l3_native_action_menu),
+                R.string.menu,
                 () -> {
                     if (listener != null) listener.onOpenImageGen();
-                }));
+                });
 
-        actionRow.addView(buildCircleAction(ICON_FAVORITE,
-                getContext().getString(R.string.favorite_page_title),
+        bindActionButton(actions.findViewById(R.id.l3_native_action_favorite),
+                R.string.favorite_page_title,
                 () -> {
                     if (listener != null) listener.onOpenFavorite();
-                }));
+                });
 
-        actionRow.addView(buildCircleAction(ICON_STATS,
-                getContext().getString(R.string.chat_page_stats),
+        bindActionButton(actions.findViewById(R.id.l3_native_action_stats),
+                R.string.chat_page_stats,
                 () -> {
                     if (listener != null) listener.onOpenStats();
-                }));
+                });
 
-        // 撑开，把设置推到最右 —— 与原版的 Spacer(weight(1f)) 一致
-        View spacer = new View(getContext());
-        actionRow.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
-
-        actionRow.addView(buildCircleAction(ICON_SETTINGS,
-                getContext().getString(R.string.settings),
+        bindActionButton(actions.findViewById(R.id.l3_native_action_settings),
+                R.string.settings,
                 () -> {
                     if (listener != null) listener.onOpenSettings();
-                }));
+                });
 
         rebuildSlots();
     }
 
-    @NonNull
-    private View buildCircleAction(
-            @NonNull String iconKey,
-            @NonNull String description,
+    /**
+     * 底栏的一颗 Filled 图标按钮。
+     *
+     * <p>形状、尺寸、状态层都由 {@code ?attr/materialIconButtonFilledStyle} 给，
+     * 这里只把颜色从运行期调色板灌进去 —— 布局里的 {@code ?attr} 解析的是静态的
+     * {@code Theme.L3Hub.NativeChat}，那是 baseline 紫，跟界面对不上。
+     *
+     * <p>按下时的「挤压」不用在这里做：{@code MaterialButtonGroup} 默认带
+     * {@code @xml/m3_button_group_child_size_change}，按下 15%、其余 0%，
+     * 组会把宽度变化分给相邻的按钮。
+     */
+    private void bindActionButton(
+            @Nullable MaterialButton button,
+            int descriptionRes,
             @NonNull Runnable onClick
     ) {
-        View card = LayoutInflater.from(getContext())
-                .inflate(R.layout.l3_native_sidebar_circle_action, bottom, false);
-        // Filled：容器色 primary、无描边，图标走 onPrimary。
-        // 同样从调色板灌 —— 布局里的 ?attr/colorPrimary 只是静态主题的兜底。
-        MaterialCardView filled = (MaterialCardView) card;
-        filled.setCardBackgroundColor(colorAttr(
-                com.google.android.material.R.attr.colorPrimary));
-        filled.setStrokeWidth(0);
-        filled.setRippleColor(stateLayer(colorAttr(
+        if (button == null) return;
+        button.setContentDescription(getContext().getString(descriptionRes));
+        button.setBackgroundTintList(ColorStateList.valueOf(colorAttr(
+                com.google.android.material.R.attr.colorPrimary)));
+        button.setIconTint(ColorStateList.valueOf(colorAttr(
                 com.google.android.material.R.attr.colorOnPrimary)));
-        card.setContentDescription(description);
-        card.setOnClickListener(v -> onClick.run());
-        bindIconNow(card.findViewById(R.id.l3_native_action_icon), iconKey,
-                colorAttr(com.google.android.material.R.attr.colorOnPrimary));
-        return card;
+        button.setStrokeWidth(0);
+        button.setRippleColor(stateLayer(colorAttr(
+                com.google.android.material.R.attr.colorOnPrimary)));
+        button.setOnClickListener(v -> onClick.run());
     }
 
     // endregion
@@ -755,12 +751,6 @@ public final class NativeSidebar extends LinearLayout {
 
     // region 图标与插槽
 
-    /**
-     * 把一个图标位交给 Compose，并登记下来。
-     *
-     * <p>登记是为了 {@link #setIconBinder} 之后能重挂：绑定器通常在视图建好之后
-     * 才设进来，那时这些容器还是空的。
-     */
     /**
      * 挂上窗口后再补一次图标。
      *
@@ -774,6 +764,12 @@ public final class NativeSidebar extends LinearLayout {
         rebuildIcons();
     }
 
+    /**
+     * 把一个图标位交给 Compose，并登记下来。
+     *
+     * <p>登记是为了 {@link #setIconBinder} 之后能重挂：绑定器通常在视图建好之后
+     * 才设进来，那时这些容器还是空的。
+     */
     private void bindIconNow(
             @Nullable ViewGroup container,
             @NonNull String iconKey,
