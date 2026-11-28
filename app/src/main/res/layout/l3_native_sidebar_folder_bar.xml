@@ -21,6 +21,18 @@
     android:orientation="horizontal"
     android:paddingHorizontal="4dp">
 
+  <!--
+    只覆盖三件事，其余全用 Widget.Material3.TabLayout 的默认值：
+    - tabMode="scrollable"：横向滚动
+    - tabIndicatorFullWidth="true"：指示线占满整个 Tab
+    - tabTextAppearance：侧栏窄，用 13sp 而不是默认的 titleSmall
+
+    默认样式里已经有的、不用再写：
+    - tabIndicator = @drawable/m3_tabs_rounded_line_indicator（3dp 高、上两角 3dp 圆角）
+    - tabIndicatorAnimationMode = elastic（拉伸再回弹）
+    - tabIndicatorColor = primary
+    - tabUnboundedRipple = false
+  -->
   <com.google.android.material.tabs.TabLayout
       android:id="@+id/l3_native_folder_tabs"
       android:layout_width="0dp"
@@ -28,21 +40,13 @@
       android:layout_weight="1"
       android:background="@android:color/transparent"
       app:tabGravity="start"
-      app:tabIndicator="@drawable/l3_native_tab_indicator"
-      app:tabIndicatorAnimationMode="elastic"
-      app:tabIndicatorColor="?attr/colorPrimary"
       app:tabIndicatorFullWidth="true"
-      app:tabIndicatorHeight="3dp"
       app:tabMaxWidth="200dp"
       app:tabMinWidth="72dp"
       app:tabMode="scrollable"
       app:tabPaddingEnd="12dp"
       app:tabPaddingStart="12dp"
-      app:tabRippleColor="?attr/colorPrimary"
-      app:tabSelectedTextColor="?attr/colorPrimary"
-      app:tabTextAppearance="@style/TextAppearance.L3Hub.SidebarTab"
-      app:tabTextColor="?attr/colorOnSurfaceVariant"
-      app:tabUnboundedRipple="false" />
+      app:tabTextAppearance="@style/TextAppearance.L3Hub.SidebarTab" />
 
   <!-- 排序按钮：圆形，图标由 ComposeView 填 -->
   <com.google.android.material.card.MaterialCardView

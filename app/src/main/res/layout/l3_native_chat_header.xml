@@ -151,7 +151,6 @@
       android:background="@android:color/transparent"
       app:tabGravity="fill"
       app:tabIndicator="@drawable/l3_native_tab_indicator_rounded"
-      app:tabIndicatorAnimationMode="elastic"
       app:tabIndicatorFullWidth="true"
       app:tabInlineLabel="true"
       app:tabMode="fixed"
