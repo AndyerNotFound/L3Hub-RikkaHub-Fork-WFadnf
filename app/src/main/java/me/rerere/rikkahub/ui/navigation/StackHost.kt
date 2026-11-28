@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.navigation
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -136,7 +138,23 @@ internal fun isSidebarPair(newScreen: Screen, oldScreen: Screen): Boolean =
     newScreen is Screen.Sidebar || oldScreen is Screen.Sidebar
 
 /**
- * Shared Axis Y：竖向的两段内容交替。
+ * Fade through：旧内容先淡出，新内容再淡入，两段不重叠。
+ *
+ * 用在「同一层里换内容」的场合——四个 Tab 之间没有前后方向关系，
+ * 用横向或竖向位移会暗示一条并不存在的序列。fade through 只表达「这块内容换掉了」。
+ *
+ * 两段时长按 M3 的比例：淡出短（约 90ms）、淡入长（约 210ms），
+ * 中间有一小段两边都不可见的空档，这样不会看成一次交叉淡入。
+ */
+@Composable
+internal fun fadeThroughTransition(): ContentTransform {
+    // 两段的时长按 M3 的 fade through 比例：淡出 90ms、淡入 210ms，
+    // 淡入用 delay 压到淡出结束之后才开始，中间留一小段两边都不可见的空档。
+    // 不延迟的话两个淡变会在时间上重叠，看起来就是普通的交叉淡入。
+    val outSpec = tween<Float>(durationMillis = 90, easing = LinearOutSlowInEasing)
+    val inSpec = tween<Float>(durationMillis = 210, delayMillis = 90, easing = FastOutSlowInEasing)
+    return fadeOut(outSpec) togetherWith fadeIn(inSpec)
+}
  *
  * 和 [sharedAxisX] 同一条定义，只是轴换成竖向——用于「同一个页面里换内容」，
  * 比如切换会话时只换消息区。Z 轴不动，所以两段内容不会互相遮挡，

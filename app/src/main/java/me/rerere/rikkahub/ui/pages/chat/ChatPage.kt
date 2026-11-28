@@ -4,6 +4,11 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import me.rerere.rikkahub.ui.navigation.sharedAxisYTransition
 import androidx.compose.animation.AnimatedContent
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.navigation.fadeThroughTransition
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
@@ -416,7 +421,6 @@ private fun ChatPageContent(
     // Only the portrait chrome migrates in phase one; landscape keeps its existing three panes.
     var portraitTab by rememberSaveable(state.conversationId) { mutableStateOf(0) }
     val tabStateHolder = rememberSaveableStateHolder()
-    val chatTabVisible = state.threePane || portraitTab == 0
     val nativeRootView = LocalView.current
     val tabFocusManager = LocalFocusManager.current
     val tabKeyboard = LocalSoftwareKeyboardController.current
@@ -1083,6 +1087,22 @@ private fun ChatPageContent(
                 }
             },
             bottomBar = {
+                // 输入框只跟着 Chat 页：切到地图/任务/用量时它淡出并让出位置。
+                // 原来它常驻在 bottomBar，四个 Tab 都挂着，切走以后底栏还占着一块高度。
+                //
+                // 入场淡入 + 从下方轻推 1/8 高度，退场只淡出（位置不动）。
+                // 这里不是 fade through：fade through 是「同层换内容」，适合 Tab 本体；
+                // 输入框是「这一层在不在」的开关，退场位移会看成收起而不是换掉。
+                // 竖屏才受 Tab 影响；横屏三栏没有 Tab，始终显示。
+                val inputVisible = state.threePane || portraitTab == 0
+                AnimatedVisibility(
+                    visible = inputVisible,
+                    // 入场：淡入 + 从下方轻推 1/8 高度（不是整块滑入，Tab 切换不该像换页）
+                    enter = fadeIn(animationSpec = rememberEffectsSpec()) +
+                        slideInVertically(animationSpec = rememberSpatialSpec()) { it / 8 },
+                    // 退场只淡出：淡出时位置不动，位置一动就成了「收起来」而不是「换掉」
+                    exit = fadeOut(animationSpec = rememberEffectsSpec()),
+                ) {
                 // 输入框常驻在 bottomBar：空会话时只是一层位移把它抬到英雄卡下面，
                 // 发送首条消息时它自己滑下去，列表的底部留白也始终按它的实际高度算。
                 // 测量放在外层，位移加在里层，免得抬升量把自己量进去形成反馈。
@@ -1127,11 +1147,22 @@ private fun ChatPageContent(
                         )
                     }
                 }
+                }
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                if (chatTabVisible) {
+                // 四个 Tab 之间走 Fade through：旧内容先淡出、新内容再淡入，
+                // 两段不重叠。用 fade through 而不是横向位移，是因为这四个 Tab
+                // 不是「同一条序列上的前后两页」，彼此没有方向关系。
+                AnimatedContent(
+                    targetState = if (state.threePane) 0 else portraitTab,
+                    transitionSpec = { fadeThroughTransition() },
+                    label = "portraitTab",
+                ) { animatedTab ->
+                // 用 animatedTab 判断走哪一支：动画期间两个 Tab 同时在场，
+                // 各自要按自己的 tab 走分支，否则退场那一份会渲染成新 Tab 的内容
+                if (state.threePane || animatedTab == 0) {
                     tabStateHolder.SaveableStateProvider("chat") {
                         // 切换会话时只有消息区做 Shared Axis Y：新会话从下方进、旧会话往上方退。
                         // 顶栏、输入框、悬浮栏都在这个 AnimatedContent 外面，所以它们不动。
@@ -1250,9 +1281,11 @@ private fun ChatPageContent(
                     }
                 } else {
                     // Auxiliary content is disposed on tab exit: no hidden animation or polling.
-                    tabStateHolder.SaveableStateProvider(portraitTab) {
+                    // 用 animatedTab 而不是 portraitTab：动画期间两个 Tab 会同时存在，
+                    // 各自要拿到自己的状态槽，否则退场那一份会用上新 Tab 的状态
+                    tabStateHolder.SaveableStateProvider(animatedTab) {
                         val tabModifier = Modifier.fillMaxSize().padding(innerPadding)
-                        when (portraitTab) {
+                        when (animatedTab) {
                             1 -> NativeConversationMap(
                                 conversationState = state.conversationState,
                                 running = state.loadingJob != null,
@@ -1295,6 +1328,7 @@ private fun ChatPageContent(
                             )
                         }
                     }
+                }
                 }
                 // 叠层浮层的外侧点击：展开状态下点空白处收起，和点标题栏的开关等价。
                 // 这一层盖住聊天内容，所以展开期间列表不跟着滚动——浮层是模态的，
