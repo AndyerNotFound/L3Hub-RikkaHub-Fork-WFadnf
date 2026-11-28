@@ -734,7 +734,7 @@ public final class NativeSidebar extends LinearLayout {
         if (button == null) return;
         button.setContentDescription(getContext().getString(descriptionRes));
         button.setBackgroundTintList(ColorStateList.valueOf(colorAttr(
-                com.google.android.material.R.attr.colorPrimary)));
+                androidx.appcompat.R.attr.colorPrimary)));
         button.setIconTint(ColorStateList.valueOf(colorAttr(
                 com.google.android.material.R.attr.colorOnPrimary)));
         button.setStrokeWidth(0);
