@@ -15,11 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
@@ -191,27 +189,41 @@ fun ChatInput(
     onFullscreenAttach: (() -> Unit)? = null,
 ) {
     val toaster = LocalToaster.current
-    val containerColor = LocalUiSlots.current.inputBar
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // 输入区是一块贴底的底板，不是悬浮卡。
+    // 输入区的形状与描边来自 Kai（composeApp/.../QuestionInput.kt）：
     //
-    // 原来四角全圆 + 四周 8dp 外缩 + 2dp 投影，看起来像浮在页面上的一张卡。
-    // 现在四角都不圆：左右外缩是 0、底边贴到屏幕底，上边是一条横贯的直角。
-    // 这块面不是「浮起来的东西」，它就是页面底部的一块区域，
-    // 圆角会把它重新读成一张卡。分界交给上方那道 1dp 描边。
+    // Kai 那边没有外层容器 —— TextField 自己就是那个框：用页面底色填充、
+    // 2dp 渐变描边、大圆角，看上去像「页面被挖了个洞又描了道边」。
+    // 这里把这套搬到外层，因为 L3Hub 的输入卡要放两行（文字 + 按钮），
+    // 单靠 TextField 包不住。
     //
-    // 形状仍走 adaptiveStyledShape（而不是 RectangleShape）：全宽模式要跟着
-    // 别的组件一起切成方角，这里传 0 就是同一个结果，只是保持同一条路径。
+    // 圆角跟 uiCornerRadius 走（设置里可调），全宽模式下 adaptiveStyledShape
+    // 会把它切成方角，和别的组件一致。
+    val cornerRadius = settings.displaySetting.uiCornerRadius.dp
     val containerShape = adaptiveStyledShape(
-        topRadius = 0.dp,
-        bottomRadius = 0.dp,
+        topRadius = cornerRadius,
+        bottomRadius = cornerRadius,
     )
-    // 左右与底部外缩归零：底板贴边。顶部也不留 —— 与消息区的间距由外层
-    // 的 padding(top = 8.dp) 给，这里再留一份会变成 16dp，比原版松一倍。
-    val cardInset = 0.dp
-    val cardInsetTop = 0.dp
+    // 2dp 渐变描边。Kai 用的是一个写死的紫→浅紫品牌渐变；这里换成主题里的
+    // primary → tertiary，跟着用户选的 palette 走，不另引一套色。
+    val containerBorder = BorderStroke(
+        2.dp,
+        Brush.linearGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.tertiary,
+            )
+        ),
+    )
+    // 四周留白：和上面几张卡（清单 / 队列 / 上下文条）的 12dp 对齐，
+    // 免得输入区比它们宽出一截。
+    //
+    // 顶部只给 4dp：外层 Column 已经有 padding(top = 8.dp)，
+    // 上面有别的卡时还叠一个 spacedBy(8.dp)，两种情况下加起来都是 12dp。
+    val cardInset = 12.dp
+    val cardInsetTop = 4.dp
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -394,17 +406,16 @@ fun ChatInput(
             modifier = modifier
                 // 竖直方向的 inset 分两段处理：
                 //
-                // - 键盘：留在这一层。整条底栏跟着键盘上移，上面的卡片也跟着一起让。
-                // - 导航栏：交给输入卡自己（见下面底板的内容列）。底板要一直铺到屏幕底边，
-                //   把那一让留在底板内部，颜色才能盖住系统导航条，而内容仍停在它上面。
+                // 输入卡四周有 12dp 外缩，不再贴屏幕边缘，所以两段 inset 都留在这一层：
+                // 整条底栏让开键盘和导航栏，卡片自己只管画圆角。
                 //
-                // 空会话例外（deferImeInset）：那时输入卡被抬到页面中间，底板不贴底，
-                // 导航栏那一让放回这一层，免得卡片底下多出一截空白。
+                // 空会话（deferImeInset）只让导航栏：那时输入卡被抬到页面中间，
+                // 键盘位移由页面在绘制期平移，底栏不该跟着改高度。
                 .then(
                     when {
                         !applyWindowInsets -> Modifier
                         deferImeInset -> Modifier.navigationBarsPadding()
-                        else -> Modifier.imePadding()
+                        else -> Modifier.imePadding().navigationBarsPadding()
                     }
                 )
                 // 左右不再统一收 12dp。底板要贴屏幕左右边缘，上面那几张卡
@@ -595,45 +606,26 @@ fun ChatInput(
                                     if (expandProgress.value == 0f) collapsedCardHeightPx = size.height
                                     cardHeightPx = size.height
                                 }
-                                // 贴底底板不要投影：它不是一个浮起来的物体，
-                                // 而是页面的一部分。留着投影会在底边压出一道灰边。
+                                // 不投影：分界靠那道 2dp 渐变描边，再加一层阴影就重了
                                 .clip(containerShape),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 底板是唯一一层容器，所以描边要它自己给：
-                            // 输入框那边已经退回裸文字，不再有自己的容器色和指示线，
-                            // 没有这道线，底板和消息区就只剩一点底色差。
-                            //
-                            // 左右和底边贴在屏幕边缘，那三条线上的 1dp 只有一半在内侧，
-                            // 看起来就是屏幕边界本身，不会变成多余的接缝。
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            ),
-                            color = containerColor,
+                            // 2dp 渐变描边，照 Kai 的做法用 Surface 自己的 border 画
+                            // （BorderStroke 支持 Brush，不必自己 drawBehind）
+                            border = containerBorder,
+                            // 底色用页面底色而不是 surfaceContainerLow：
+                            // 这样它读起来是「页面被挖了一块」，而不是又叠了一张卡
+                            color = LocalUiSlots.current.pageBackground,
                         ) {
                             Column(
                                 modifier = Modifier
-                                    // 导航栏那一让放在底板内部：底板铺到屏幕底边，
-                                    // 内容停在导航条上方。放在外层的话，底板会跟着缩上去，
-                                    // 底边露出一条页面底色，看着像底板没到底。
-                                    //
-                                    // 键盘弹起时 navigationBars 的底边是 0（被键盘盖住），
-                                    // 这里不会和外层的 imePadding 叠成两份。
-                                    // 空会话（deferImeInset）走的是外层那份导航栏 padding，
-                                    // 这里已经被消费掉，算出来是 0，不会重复。
-                                    .then(
-                                        if (applyWindowInsets) {
-                                            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                                        } else {
-                                            Modifier
-                                        }
-                                    )
+                                    // 卡片四周有 12dp 外缩，inset 都归外层，
+                                    // 这里只留内容自己的内边距
                                     .padding(
                                         horizontal = settings.displaySetting.inputPadding.dp,
-                                        // 输入框退回裸文字之后，底板就是唯一容器，
-                                        // 上下按原版的 4dp 收，8dp 会显得中间空一块
-                                        vertical = 4.dp,
+                                        // 两行（文字 + 按钮）装在一个框里，上下各留 6dp，
+                                        // 太贴边会让圆角和内容撞在一起
+                                        vertical = 6.dp,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
