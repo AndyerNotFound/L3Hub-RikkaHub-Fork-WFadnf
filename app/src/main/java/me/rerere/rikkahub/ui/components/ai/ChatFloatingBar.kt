@@ -10,7 +10,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -20,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -256,7 +257,16 @@ internal fun ChatFloatingBar(
     }
 }
 
-/** 收起态：贴角的一颗按钮。 */
+/**
+ * 收起态：贴角的一颗按钮。
+ *
+ * 用 M3 的 [FloatingActionButton] 而不是自己拼 Surface + clickable：
+ * 它自带 ripple、按压态与 role=Button 的无障碍语义，elevation 也是状态化的
+ * （按下会自己降一档），手写这几样只会漏掉一部分。
+ *
+ * 默认形状是 FabBaselineTokens.ContainerShape = CornerLarge（16dp），
+ * 和菜单面板的 [MenuShape] 同一档，所以容器变换过程中圆角不会跳。
+ */
 @Composable
 private fun FloatingMenuButton(
     iconExtent: Dp,
@@ -264,27 +274,25 @@ private fun FloatingMenuButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier
-            .size(itemExtent)
-            .clickable(onClick = onClick),
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.size(itemExtent),
         shape = MenuShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp,
-        shadowElevation = 3.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        elevation = FloatingActionButtonDefaults.elevation(
+            // 比默认的 primary FAB 低一档：它是次要入口，不该抢视觉重心
+            defaultElevation = 3.dp,
+            pressedElevation = 1.dp,
+            focusedElevation = 3.dp,
+            hoveredElevation = 4.dp,
         ),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = HugeIcons.Menu03,
-                contentDescription = stringResource(R.string.floating_bar_open_menu),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(iconExtent),
-            )
-        }
+        Icon(
+            imageVector = HugeIcons.Menu03,
+            contentDescription = stringResource(R.string.floating_bar_open_menu),
+            modifier = Modifier.size(iconExtent),
+        )
     }
 }
 
