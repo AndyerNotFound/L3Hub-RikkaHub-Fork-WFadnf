@@ -18,6 +18,7 @@ import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
+import me.rerere.rikkahub.ui.views.chat.nativeChatTheme
 import me.rerere.rikkahub.ui.views.chat.NativeFloatingMenu
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
 
@@ -99,6 +100,8 @@ internal fun NativeFloatingMenuHost(
             factory = { NativeFloatingMenu(context) },
             onRelease = { menu -> menu.setListener(null) },
             update = { menu ->
+                // 按钮底色 / 图标色 / 涟漪色跟界面其余部分走同一份运行期调色板
+                menu.setTheme(nativeChatTheme())
                 menu.setAnimationsEnabled(animationsEnabled)
                 menu.setFadeDuration(duration)
                 menu.setScale(scale)

@@ -48,6 +48,7 @@ import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSidebar
 import me.rerere.rikkahub.ui.views.chat.SidebarRow
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
+import me.rerere.rikkahub.ui.views.chat.nativeChatTheme
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import java.time.LocalDate
@@ -77,6 +78,8 @@ internal fun NativeSidebarHost(
     val settings = LocalSettings.current
     val appContext = LocalContext.current
     val themedContext = rememberNativeChatContext()
+    // 运行期调色板：侧边栏是 Java View，颜色不走 Compose，得显式喂进去
+    val theme = nativeChatTheme()
     // ChatDrawerVM 要 SavedStateHandle（记滚动位置与折叠状态），
     // 而 SavedStateHandle 只有能提供 SavedStateRegistry 的 owner 才给得出来。
     // 用默认 owner 会抛 InstanceCreationException: Could not create instance for ChatDrawerVM。
@@ -140,6 +143,9 @@ internal fun NativeSidebarHost(
             modifier = modifier,
             factory = {
                 NativeSidebar(themedContext).apply {
+                    // 强调色跟界面其余部分走同一份运行期调色板
+                    setTheme(theme)
+
                     setIconBinder { container, iconKey, tint ->
                         container.addView(
                             ComposeView(container.context).apply {
@@ -279,6 +285,8 @@ internal fun NativeSidebarHost(
                 }
             },
             update = { sidebar ->
+                // 换配色时 factory 不会重跑，这里每次都推一遍
+                sidebar.setTheme(theme)
                 sidebar.setAnimationsEnabled(animationsEnabled)
                 sidebar.setTransformDuration(duration)
                 sidebar.setSelectionMode(selectionMode)

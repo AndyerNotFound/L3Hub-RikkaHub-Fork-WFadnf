@@ -485,16 +485,28 @@ public final class NativeSidebarAdapter
         // 只能依赖 Application context 的主题，见 NativeSidebar 注入的 theme 主题）
         android.util.TypedValue value = new android.util.TypedValue();
         android.content.Context ctx = appContext;
+        int fallback = android.graphics.Color.GRAY;
         if (ctx != null && ctx.getTheme().resolveAttribute(attr, value, true)) {
-            if (value.resourceId != 0) return ContextCompat.getColor(ctx, value.resourceId);
-            return value.data;
+            fallback = value.resourceId != 0
+                    ? ContextCompat.getColor(ctx, value.resourceId)
+                    : value.data;
         }
-        return android.graphics.Color.GRAY;
+        // 优先取运行期调色板：静态主题那套是 baseline 紫灰，和界面其余部分对不上
+        NativeChatTheme current = theme;
+        return current != null ? current.colorFor(attr, fallback) : fallback;
     }
 
     /** 由 {@link NativeSidebar} 在构造时注入，给 {@link #colorAttr} 解析主题用。 */
     @Nullable
     private android.content.Context appContext;
+
+    /** 运行期调色板，见 {@link NativeChatTheme#colorFor}。 */
+    @Nullable
+    private NativeChatTheme theme;
+
+    void setTheme(@Nullable NativeChatTheme theme) {
+        this.theme = theme;
+    }
 
     void attachContext(@NonNull android.content.Context context) {
         this.appContext = context;

@@ -120,6 +120,8 @@ public final class NativeSidebar extends LinearLayout {
     @Nullable private IconBinder iconBinder;
     @Nullable private SlotBinder slotBinder;
     @Nullable private Listener listener;
+    /** 运行期调色板，见 {@link NativeChatTheme#colorFor}。 */
+    @Nullable private NativeChatTheme theme;
 
     // 顶栏里那些需要在数据变化时改文字 / 重挂图标的 View
     @Nullable private TextView userName;
@@ -208,6 +210,15 @@ public final class NativeSidebar extends LinearLayout {
 
     public void setListener(@Nullable Listener listener) {
         this.listener = listener;
+    }
+
+    /**
+     * 运行期调色板。侧边栏是用静态的 {@code Theme.L3Hub.NativeChat} inflate 的，
+     * 那套是 Material3 baseline 紫灰；不接这一份，侧边栏的强调色就跟界面其余部分对不上。
+     */
+    public void setTheme(@Nullable NativeChatTheme theme) {
+        this.theme = theme;
+        adapter.setTheme(theme);
     }
 
     /**
@@ -769,13 +780,17 @@ public final class NativeSidebar extends LinearLayout {
 
     private int colorAttr(int attr) {
         TypedValue value = new TypedValue();
+        int fallback = Color.GRAY;
         if (getContext().getTheme().resolveAttribute(attr, value, true)) {
             if (value.resourceId != 0) {
-                return ContextCompat.getColor(getContext(), value.resourceId);
+                fallback = ContextCompat.getColor(getContext(), value.resourceId);
+            } else {
+                fallback = value.data;
             }
-            return value.data;
         }
-        return Color.GRAY;
+        // 优先取运行期调色板：静态主题那套是 baseline 紫灰，和界面其余部分对不上
+        NativeChatTheme current = theme;
+        return current != null ? current.colorFor(attr, fallback) : fallback;
     }
 
     // endregion

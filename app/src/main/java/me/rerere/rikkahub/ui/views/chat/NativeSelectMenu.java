@@ -169,11 +169,21 @@ public final class NativeSelectMenu {
     private OnItemClickListener listener;
     @Nullable
     private IconBinder iconBinder;
+    @Nullable
+    private NativeChatTheme theme;
     private int transformDurationMillis = 300;
     private boolean animationsEffective = true;
 
     public NativeSelectMenu(@NonNull Context context) {
         this.context = context;
+    }
+
+    /**
+     * 运行期调色板。菜单是用静态的 {@code Theme.L3Hub.NativeChat} inflate 的，
+     * 那套是 Material3 baseline 紫灰；不接这一份，菜单配色就跟界面其余部分对不上。
+     */
+    public void setTheme(@Nullable NativeChatTheme theme) {
+        this.theme = theme;
     }
 
     public void setOnItemClickListener(@Nullable OnItemClickListener listener) {
@@ -826,10 +836,12 @@ public final class NativeSelectMenu {
     private int colorAttr(int attr) {
         TypedValue value = new TypedValue();
         context.getTheme().resolveAttribute(attr, value, true);
-        if (value.resourceId != 0) {
-            return ContextCompat.getColor(context, value.resourceId);
-        }
-        return value.data;
+        int fallback = value.resourceId != 0
+                ? ContextCompat.getColor(context, value.resourceId)
+                : value.data;
+        // 优先取运行期调色板：静态主题那套是 baseline 紫灰，和界面其余部分对不上
+        NativeChatTheme current = theme;
+        return current != null ? current.colorFor(attr, fallback) : fallback;
     }
 
     // endregion

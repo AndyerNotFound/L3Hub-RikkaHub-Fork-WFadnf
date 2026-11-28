@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.views.chat;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -72,6 +73,20 @@ public final class NativeFloatingMenu extends FrameLayout {
 
     public void setListener(@Nullable Listener listener) {
         this.listener = listener;
+    }
+
+    /**
+     * 运行期调色板。
+     *
+     * <p>按钮的底色 / 图标色 / 涟漪色在 XML 里写的是 {@code ?attr/colorSurfaceContainerHigh}
+     * 这类静态主题属性，那套是 Material3 baseline 紫灰；不接这一份，
+     * 悬浮按钮就跟界面其余部分不是一个配色。
+     */
+    public void setTheme(@Nullable NativeChatTheme theme) {
+        if (theme == null) return;
+        button.setBackgroundTintList(ColorStateList.valueOf(theme.surfaceContainerHigh));
+        button.setImageTintList(ColorStateList.valueOf(theme.onSurfaceVariant));
+        button.setRippleColor(ColorStateList.valueOf(theme.primary));
     }
 
     /** 系统关掉动画时直接切。 */

@@ -31,6 +31,7 @@ import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSelectMenu
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
+import me.rerere.rikkahub.ui.views.chat.nativeChatTheme
 
 /**
  * 记住一个组件的窗口矩形，喂给 [rememberNativeSelectMenu] 当容器变换的起点。
@@ -131,6 +132,9 @@ internal fun rememberNativeSelectMenu(
         context, hostView, parentComposition,
         hostLifecycleOwner, hostSavedStateOwner, hostViewModelStoreOwner,
     ) { NativeSelectMenu(context) }
+
+    // 菜单的强调色跟界面其余部分走同一份运行期调色板
+    menu.setTheme(nativeChatTheme())
 
     // 图标走 ComposeView 嵌进 Java 的菜单行：HugeIcons 的 pathData 在 Java 侧取不到
     //
