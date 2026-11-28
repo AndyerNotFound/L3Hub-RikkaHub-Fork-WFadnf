@@ -198,13 +198,14 @@ fun ChatInput(
     // 输入区是一块贴底的底板，不是悬浮卡。
     //
     // 原来四角全圆 + 四周 8dp 外缩 + 2dp 投影，看起来像浮在页面上的一张卡。
-    // 现在只有上方两个角圆（uiCornerRadius），下方两角是 0、左右外缩是 0 ——
-    // 底板一直铺到屏幕左右边缘和底边，与页面连成一体。
+    // 现在四角都不圆：左右外缩是 0、底边贴到屏幕底，上边是一条横贯的直角。
+    // 这块面不是「浮起来的东西」，它就是页面底部的一块区域，
+    // 圆角会把它重新读成一张卡。分界交给上方那道 1dp 描边。
     //
-    // 圆角只留上方，是因为底边与导航栏相接，那里不该有圆角；
-    // 上方的圆角是这块面与消息区的分界，保留一点弧度比直角柔和。
+    // 形状仍走 adaptiveStyledShape（而不是 RectangleShape）：全宽模式要跟着
+    // 别的组件一起切成方角，这里传 0 就是同一个结果，只是保持同一条路径。
     val containerShape = adaptiveStyledShape(
-        topRadius = settings.displaySetting.uiCornerRadius.dp,
+        topRadius = 0.dp,
         bottomRadius = 0.dp,
     )
     // 左右与底部外缩归零：底板贴边。顶部也不留 —— 与消息区的间距由外层
