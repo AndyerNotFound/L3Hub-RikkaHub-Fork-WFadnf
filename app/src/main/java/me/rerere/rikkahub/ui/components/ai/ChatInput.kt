@@ -283,12 +283,15 @@ fun ChatInput(
     // 卡片当前的实际高度：多行文字、附件都会让它比「收起 + 一档展开」更高
     var cardHeightPx by remember { mutableIntStateOf(0) }
 
+    // 输入框是否拿着输入法焦点。只驱动一件事：键盘弹起时把悬浮菜单收起来，
+    // 把键盘上方那一条留给内容；焦点离开再放出来。
+    var inputFocused by remember { mutableStateOf(false) }
+
     // 悬浮菜单：开关打开且至少配了一个槽位才出现。
     //
-    // 原来这里有一整套显隐状态机：首次入场、焦点进出收放、静默 5 秒自动隐藏、
-    // 上滑输入框重新拉起、点按重置计时。现在收起态只是一颗 44dp 的贴角按钮，
-    // 它不挡输入框也不占地方，没有「藏起来」的理由——自动隐藏与上滑唤起
-    // 一起交给 ChatFloatingBar 内部处理（展开的菜单才有超时）。
+    // 显隐只有焦点这一条：键盘弹起时淡出，收起键盘再淡入。
+    // 原来还有「静默 5 秒自动隐藏 + 上滑输入框拉起 + 点按重置计时」那一套，
+    // 现在收起态只是一颗 44dp 的贴角按钮、不挡输入框，不需要为了省地方藏它。
     val floatingBarEnabled = settings.displaySetting.enableFloatingBar && floatingBarItems.isNotEmpty()
     val floatingBarAutoHide = settings.displaySetting.floatingBarAutoHide
 
@@ -563,6 +566,7 @@ fun ChatInput(
                         // 始终是它自己的高度加内边距，位置不动、也不会被菜单压住。
                         if (floatingBarEnabled) {
                             ChatFloatingBar(
+                                visible = !inputFocused,
                                 items = floatingBarItems,
                                 onItemClick = onFloatingBarItemClick,
                                 displaySetting = settings.displaySetting,
@@ -820,6 +824,7 @@ fun ChatInput(
                                             },
                                             onFocusChange = { focused ->
                                                 fieldFocused = focused
+                                                inputFocused = focused
                                             },
                                             onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
                                         )
@@ -901,7 +906,7 @@ fun ChatInput(
                                             // 思考内容的编辑入口挂在 chip 本体上，两个入口都不能丢
                                             onEditChipClose = { state.clearInput() },
                                             onEditReasoningClick = { isEditingReasoning = true },
-                                            onFocusChange = {},
+                                            onFocusChange = { inputFocused = it },
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                         // 快捷消息菜单挂在卡片左下（快捷按钮上方）：菜单本体还是 Compose，
@@ -930,7 +935,7 @@ fun ChatInput(
                                         guideMessages = guideMessages,
                                         onAddGuidance = onAddGuidance,
                                         onSendAsGuidance = onSendAsGuidance,
-                                        onFocusChange = {},
+                                        onFocusChange = { inputFocused = it },
                                     )
 
                                     Row(

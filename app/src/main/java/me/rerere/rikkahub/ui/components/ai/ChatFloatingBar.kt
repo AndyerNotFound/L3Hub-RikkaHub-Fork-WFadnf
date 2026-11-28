@@ -149,6 +149,7 @@ private const val MENU_KEY = "l3_floating_menu"
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun ChatFloatingBar(
+    visible: Boolean,
     items: List<FloatingBarItem>,
     onItemClick: (FloatingBarItem) -> Unit,
     displaySetting: DisplaySetting,
@@ -173,62 +174,83 @@ internal fun ChatFloatingBar(
     // 菜单是浮层，返回键先收菜单，而不是退出会话
     BackHandler(enabled = expanded) { expanded = false }
 
+    // 整块被藏起来时（键盘弹起）要连展开的菜单一起收掉：
+    // 否则下次露出来的会是一个已经展开的面板，看着像没关过。
+    //
+    // 等退出淡出走完再重置：visible 一变成 false，外层立刻开始淡出，
+    // 这时把 expanded 打回 false，面板会先缩回按钮再淡出，看着像闪了一下。
+    // 重置只是内部状态，不在场时改它不会触发任何绘制。
+    LaunchedEffect(visible) {
+        if (visible) return@LaunchedEffect
+        delay(400)
+        expanded = false
+    }
+
     val fadeSpec = rememberEffectsSpec<Float>()
     val boundsSpec = rememberSpatialSpec<Rect>()
 
-    SharedTransitionLayout(modifier = modifier.fillMaxWidth()) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            AnimatedVisibility(
-                visible = !expanded,
-                // 进出场一律交给 sharedBounds 演：这里再淡一次就是双份
-                enter = EnterTransition.None,
-                exit = ExitTransition.None,
-            ) {
-                FloatingMenuButton(
-                    iconExtent = iconExtent,
-                    itemExtent = itemExtent,
-                    onClick = {
-                        activity++
-                        expanded = true
-                    },
-                    modifier = Modifier.sharedBounds(
-                        rememberSharedContentState(key = MENU_KEY),
-                        this@AnimatedVisibility,
-                        enter = fadeIn(fadeSpec),
-                        exit = fadeOut(fadeSpec),
-                        boundsTransform = { _, _ -> boundsSpec },
-                        // 让外层跟着动画尺寸重新量，面板是往上长的，
-                        // 不跟着长就会被底栏的边界裁掉
-                        placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
-                    ),
-                )
-            }
-            AnimatedVisibility(
-                visible = expanded,
-                enter = EnterTransition.None,
-                exit = ExitTransition.None,
-            ) {
-                FloatingMenuPanel(
-                    items = items,
-                    iconExtent = iconExtent,
-                    itemExtent = itemExtent,
-                    onItemClick = { item ->
-                        activity++
-                        expanded = false
-                        onItemClick(item)
-                    },
-                    modifier = Modifier.sharedBounds(
-                        rememberSharedContentState(key = MENU_KEY),
-                        this@AnimatedVisibility,
-                        enter = fadeIn(fadeSpec),
-                        exit = fadeOut(fadeSpec),
-                        boundsTransform = { _, _ -> boundsSpec },
-                        // 面板的圆角、描边、底色都画在容器自身上，
-                        // 只有真的按动画尺寸重新量一遍，这些才不会跟着被拉伸
-                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                        placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
-                    ),
-                )
+    // 整体显隐走 Fade：它只是「这一层在不在」的开关，
+    // 位置不动，所以不做位移。容器变换管的是内部两个状态之间的长大/缩回。
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(fadeSpec),
+        exit = fadeOut(fadeSpec),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        SharedTransitionLayout(modifier = Modifier.fillMaxWidth()) {
+            Box(contentAlignment = Alignment.BottomEnd) {
+                AnimatedVisibility(
+                    visible = !expanded,
+                    // 进出场一律交给 sharedBounds 演：这里再淡一次就是双份
+                    enter = EnterTransition.None,
+                    exit = ExitTransition.None,
+                ) {
+                    FloatingMenuButton(
+                        iconExtent = iconExtent,
+                        itemExtent = itemExtent,
+                        onClick = {
+                            activity++
+                            expanded = true
+                        },
+                        modifier = Modifier.sharedBounds(
+                            rememberSharedContentState(key = MENU_KEY),
+                            this@AnimatedVisibility,
+                            enter = fadeIn(fadeSpec),
+                            exit = fadeOut(fadeSpec),
+                            boundsTransform = { _, _ -> boundsSpec },
+                            // 让外层跟着动画尺寸重新量，面板是往上长的，
+                            // 不跟着长就会被底栏的边界裁掉
+                            placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        ),
+                    )
+                }
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = EnterTransition.None,
+                    exit = ExitTransition.None,
+                ) {
+                    FloatingMenuPanel(
+                        items = items,
+                        iconExtent = iconExtent,
+                        itemExtent = itemExtent,
+                        onItemClick = { item ->
+                            activity++
+                            expanded = false
+                            onItemClick(item)
+                        },
+                        modifier = Modifier.sharedBounds(
+                            rememberSharedContentState(key = MENU_KEY),
+                            this@AnimatedVisibility,
+                            enter = fadeIn(fadeSpec),
+                            exit = fadeOut(fadeSpec),
+                            boundsTransform = { _, _ -> boundsSpec },
+                            // 面板的圆角、描边、底色都画在容器自身上，
+                            // 只有真的按动画尺寸重新量一遍，这些才不会跟着被拉伸
+                            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                            placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                        ),
+                    )
+                }
             }
         }
     }
