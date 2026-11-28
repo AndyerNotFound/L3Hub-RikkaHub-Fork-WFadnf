@@ -2,8 +2,9 @@
 <!--
   底部那排圆形按钮里的一颗。
 
-  原版是 Surface(CircleShape, primaryContainer) + Box(padding 10dp, size 20dp) + icon()。
-  这里用 MaterialCardView 拿圆角与点击涟漪，图标位留一个 FrameLayout 给 ComposeView。
+  形态是 M3 的 Filled —— 有容器色、没有描边（strokeWidth 0dp）。
+  容器色与图标色都由 NativeSidebar#buildCircleAction 从 NativeChatTheme 灌进来；
+  XML 里的 colorPrimary 只是兜底，静态主题那套是 baseline 紫。
 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -13,10 +14,11 @@
     android:layout_marginHorizontal="4dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="?attr/colorPrimaryContainer"
+    app:cardBackgroundColor="?attr/colorPrimary"
     app:cardCornerRadius="100dp"
     app:cardElevation="0dp"
-    app:rippleColor="?attr/colorOnSurface">
+    app:rippleColor="?attr/colorOnSurface"
+    app:strokeWidth="0dp">
 
   <FrameLayout
       android:id="@+id/l3_native_action_icon"

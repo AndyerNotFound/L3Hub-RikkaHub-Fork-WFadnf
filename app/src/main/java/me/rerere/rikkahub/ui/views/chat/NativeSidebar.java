@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.views.chat;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -551,7 +552,7 @@ public final class NativeSidebar extends LinearLayout {
                 () -> {
                     if (listener != null) listener.onOpenMessageSearch();
                 }
-        ), matchWrap());
+        ), entryLp());
         header.addView(buildEntry(
                 ICON_MEDIA,
                 getContext().getString(R.string.media_creation_title),
@@ -561,7 +562,7 @@ public final class NativeSidebar extends LinearLayout {
                     if (listener != null) listener.onOpenMediaCreation();
                 },
                 null
-        ), matchWrap());
+        ), entryLp());
         header.addView(buildEntry(
                 ICON_TRANSLATE,
                 getContext().getString(R.string.chat_page_menu_ai_translator),
@@ -571,7 +572,7 @@ public final class NativeSidebar extends LinearLayout {
                     if (listener != null) listener.onOpenTranslator();
                 },
                 null
-        ), matchWrap());
+        ), entryLp());
 
         // 文件夹条 + 排序
         View folderBar = LayoutInflater.from(getContext())
@@ -634,7 +635,16 @@ public final class NativeSidebar extends LinearLayout {
     ) {
         View row = LayoutInflater.from(getContext())
                 .inflate(R.layout.l3_native_sidebar_entry, header, false);
-        ((TextView) row.findViewById(R.id.l3_native_entry_text)).setText(text);
+        // Standard：不要容器、不要描边，只剩状态层。
+        // 颜色从运行期调色板灌进来 —— 布局里那些 ?attr 走的是静态主题的 baseline 紫灰。
+        MaterialCardView card = (MaterialCardView) row;
+        card.setCardBackgroundColor(Color.TRANSPARENT);
+        card.setStrokeWidth(0);
+        card.setRippleColor(stateLayer(colorAttr(
+                com.google.android.material.R.attr.colorOnSurface)));
+        TextView label = row.findViewById(R.id.l3_native_entry_text);
+        label.setText(text);
+        label.setTextColor(colorAttr(com.google.android.material.R.attr.colorOnSurface));
         row.setOnClickListener(v -> onClick.run());
 
         bindIconNow(row.findViewById(R.id.l3_native_entry_icon), iconKey,
@@ -722,10 +732,18 @@ public final class NativeSidebar extends LinearLayout {
     ) {
         View card = LayoutInflater.from(getContext())
                 .inflate(R.layout.l3_native_sidebar_circle_action, bottom, false);
+        // Filled：容器色 primary、无描边，图标走 onPrimary。
+        // 同样从调色板灌 —— 布局里的 ?attr/colorPrimary 只是静态主题的兜底。
+        MaterialCardView filled = (MaterialCardView) card;
+        filled.setCardBackgroundColor(colorAttr(
+                com.google.android.material.R.attr.colorPrimary));
+        filled.setStrokeWidth(0);
+        filled.setRippleColor(stateLayer(colorAttr(
+                com.google.android.material.R.attr.colorOnPrimary)));
         card.setContentDescription(description);
         card.setOnClickListener(v -> onClick.run());
         bindIconNow(card.findViewById(R.id.l3_native_action_icon), iconKey,
-                colorAttr(com.google.android.material.R.attr.colorOnSurface));
+                colorAttr(com.google.android.material.R.attr.colorOnPrimary));
         return card;
     }
 
@@ -848,6 +866,23 @@ public final class NativeSidebar extends LinearLayout {
     private LinearLayout.LayoutParams matchWrap() {
         return new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    /**
+     * 快捷入口那一行的外边距。
+     *
+     * <p>Standard 没有容器色，行与行之间只能靠外边距分开；左右那 8dp 由布局里的
+     * {@code layout_marginHorizontal} 负责，这里只管行距。
+     */
+    private LinearLayout.LayoutParams entryLp() {
+        LinearLayout.LayoutParams lp = matchWrap();
+        lp.topMargin = dp(4);
+        return lp;
+    }
+
+    /** M3 的状态层：把颜色压到 12% 透明度当涟漪，跟 Compose 那边的 stateLayer 对齐。 */
+    private ColorStateList stateLayer(int color) {
+        return ColorStateList.valueOf((color & 0x00FFFFFF) | 0x1F000000);
     }
 
     private int dp(int value) {

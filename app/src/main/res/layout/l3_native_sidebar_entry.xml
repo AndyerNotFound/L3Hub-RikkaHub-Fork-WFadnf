@@ -2,21 +2,24 @@
 <!--
   快捷入口的一行：图标 + 文字，可选右侧一个附属按钮（历史记录那行的搜索入口）。
 
-  整行是一个 MaterialCardView，圆角 medium、底色 surfaceContainerLow —— 与原版
-  DrawerEntry 的 Surface 一致。
+  形态是 M3 的 Standard —— 没有容器、没有描边，只剩状态层（涟漪）。
+  底色写 transparent、描边 0dp 是硬要求：这里是静态的 Theme.L3Hub.NativeChat，
+  写 ?attr/colorSurfaceContainerLow 会拿到 baseline 灰，跟运行期调色板对不上。
+  颜色由 NativeSidebar#buildEntry 从 NativeChatTheme 里灌进来。
 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/l3_native_entry_card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="4dp"
+    android:layout_marginHorizontal="8dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-    app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
-    app:rippleColor="?attr/colorOnSurface">
+    app:rippleColor="?attr/colorOnSurface"
+    app:strokeWidth="0dp">
 
   <LinearLayout
       android:layout_width="match_parent"
@@ -31,7 +34,7 @@
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
+        android:paddingHorizontal="12dp"
         android:paddingVertical="10dp">
 
       <!-- 图标位：由 Kotlin 侧塞一个 ComposeView 进来 -->
@@ -56,7 +59,7 @@
         android:id="@+id/l3_native_entry_trailing"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:layout_marginEnd="4dp"
+        android:layout_marginEnd="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:clickable="true"
         android:focusable="true"
