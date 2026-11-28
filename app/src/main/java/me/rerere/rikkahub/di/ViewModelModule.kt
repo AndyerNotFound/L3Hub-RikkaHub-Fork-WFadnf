@@ -7,6 +7,7 @@ import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.VersionSyncVM
 import me.rerere.rikkahub.ui.pages.chat.ChatDrawerVM
 import me.rerere.rikkahub.ui.pages.chat.ChatVM
+import me.rerere.rikkahub.ui.pages.chat.ConversationListVM
 import me.rerere.rikkahub.ui.pages.debug.DebugVM
 import me.rerere.rikkahub.ui.pages.extensions.PromptVM
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesVM
@@ -47,6 +48,8 @@ val viewModelModule = module {
         )
     }
     viewModelOf(::ChatDrawerVM)
+    // 侧边栏整页自己拿一份：它不挂在任何会话上，所以不能借 ChatVM
+    viewModelOf(::ConversationListVM)
     viewModelOf(::SettingVM)
     viewModelOf(::DebugVM)
     viewModelOf(::HistoryVM)

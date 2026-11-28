@@ -30,15 +30,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowDpSize
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -148,6 +145,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             parametersOf(id.toString())
         }
     )
+    // 横屏左栏和竖屏侧边栏都要用列表动作；侧边栏整页时是它自己拿的
+    val listVm: ConversationListVM = koinViewModel()
     val filesManager: FilesManager = koinInject()
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
@@ -186,8 +185,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             else -> null
         }
     }
-    // 竖屏的侧边栏：Material 的模态抽屉，开关、边缘手势与手势仲裁都交给 DrawerState
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -202,51 +199,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             .collect { focusManager.clearFocus(force = true) }
     }
 
-    // 抽屉的开关只走这一条入口。同一个目标在动画途中再点一次，原来的写法会把第二个
-    // close / open 排到动画之后再跑一遍空动画；空的这一遍不移动位移，却把 settledValue
-    // 与外层读到的 isOpen 错开一帧，之后点外部、返回、拖动都落在一个「已经关掉」的状态上，
-    // 抽屉看起来就是卡在原地。
-    fun requestDrawer(value: DrawerValue) {
-        if (drawerState.targetValue == value) return
-        scope.launch {
-            if (value == DrawerValue.Open) drawerState.open() else drawerState.close()
-        }
-    }
-
-    // 抽屉还开着（含打开动画途中、关闭动画途中）就接管返回键：
-    // 正在关的时候再发一次 close 只会空转，所以那一下直接把剩下的动画落地，
-    // 返回键不至于按下去什么也不发生，也不会漏到导航把页面退掉
-    BackHandler(
-        enabled = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open,
-    ) {
-        if (drawerState.targetValue == DrawerValue.Closed) {
-            scope.launch { drawerState.snapTo(DrawerValue.Closed) }
-        } else {
-            requestDrawer(DrawerValue.Closed)
-        }
-    }
-
-    // 收尾校正：动画结束、状态判定为关闭，位移却还停在打开位置时，说明这一轮 close 没落到
-    // Closed 锚点（ModalNavigationDrawer 在布局阶段重算锚点会把进行中的动画改投到最近锚点）。
-    // 不补这一下，抽屉从此停在原地，而所有入口都按「已关闭」短路失效
-    LaunchedEffect(drawerState) {
-        snapshotFlow { drawerState.isAnimationRunning to drawerState.isOpen }
-            .distinctUntilChanged()
-            .collect { (running, open) ->
-                if (running || open) return@collect
-                if (drawerState.currentOffset > -1f) drawerState.snapTo(DrawerValue.Closed)
-            }
-    }
-
-    // Clear input focus so popup transitions cannot reopen the keyboard.
-    LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen) {
-            focusManager.clearFocus(force = true)
-            androidRootView.clearFocus()
-            softwareKeyboardController?.hide()
-        }
-    }
-
     val windowDpSize = currentWindowDpSize()
     // 横屏三栏：宽度够同时放下聊天区和左右两列才启用（见 ChatSidePanel.kt）
     val threePaneLayout = windowDpSize.width > windowDpSize.height && windowDpSize.width >= 600.dp
@@ -256,31 +208,11 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     var sidebarWidthDp by rememberSaveable { mutableStateOf(LANDSCAPE_SIDEBAR_WIDTH.value) }
     var chatWidthDp by rememberSaveable { mutableStateOf(0f) }
     var sidebarResizing by remember { mutableStateOf(false) }
-    // 转进横屏时把模态抽屉收掉，免得转回竖屏后它还开着（#1304）
-    LaunchedEffect(threePaneLayout) {
-        if (threePaneLayout && drawerState.targetValue != DrawerValue.Closed) {
-            drawerState.close()
-        }
-    }
-
     val openSettingsFromDrawer: () -> Unit = {
-        // 不先收抽屉：设置页整屏盖上来时它跟着一起退场，
-        // 先滑回去再推设置页等于两段动画，反而拖
         navController.navigate(Screen.Setting)
     }
-    val startNewChat: () -> Unit = {
-        // 横屏三栏没有模态抽屉可收；竖屏收一下，免得新会话页还被挡着。
-        // 先收再换会话，两段动画分开走，不叠在一起
-        if (!threePaneLayout) {
-            scope.launch {
-                // 已经在收的时候别再排一遍空动画，直接等这一轮收完
-                if (drawerState.targetValue != DrawerValue.Closed) drawerState.close()
-                navigateToChatPage(navController, Uuid.random())
-            }
-        } else {
-            navigateToChatPage(navController, Uuid.random())
-        }
-    }
+    // 新会话直接换掉栈底那一页；侧边栏如果开着，它会跟着整条栈一起退场
+    val startNewChat: () -> Unit = { navigateToChatPage(navController, Uuid.random()) }
 
     val startVoiceMode = rememberVoiceModeStarter(vm, setting)
 
@@ -419,8 +351,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                         ) {
                             ChatDrawerContent(
                                 navController = navController,
+                                listVm = listVm,
                                 currentConversationId = conversationId,
-                                vm = vm,
                                 settings = setting,
                                 onNewChat = startNewChat,
                                 onOpenSettings = openSettingsFromDrawer,
@@ -456,29 +388,19 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                 }
             }
         } else {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    ChatDrawerContent(
-                        navController = navController,
-                        currentConversationId = conversationId,
-                        vm = vm,
-                        settings = setting,
-                        onNewChat = startNewChat,
-                        onOpenSettings = openSettingsFromDrawer,
-                        hazeState = backgroundHazeState,
-                    )
-                },
-            ) {
-                ChatPageContent(
-                    state = pageState.copy(
-                        sidebarOpen = drawerState.isOpen || drawerState.targetValue == DrawerValue.Open,
-                    ),
-                    actions = pageActions.copy(
-                        onOpenSidebar = { requestDrawer(DrawerValue.Open) },
-                    ),
-                )
-            }
+            // 竖屏侧边栏不再是浮在聊天页上的抽屉：它是历史里的一页，从左侧推开。
+            // 这样返回、转场、生命周期都回到导航栈这一层，不用再单独维护抽屉的
+            // 边缘手势与返回键优先级（那套逻辑原来在 ChatPage 顶部）。
+            ChatPageContent(
+                state = pageState.copy(sidebarOpen = false),
+                actions = pageActions.copy(
+                    onOpenSidebar = {
+                        navController.navigate(
+                            Screen.Sidebar(fromChatId = conversationId.toString())
+                        )
+                    },
+                ),
+            )
         }
         ToolDetailSidePanel(host = toolDetailHost, hazeState = chromeHazeState)
         }

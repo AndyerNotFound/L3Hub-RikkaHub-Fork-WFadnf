@@ -24,6 +24,19 @@ sealed interface Screen {
     @Serializable
     data class ShareHandler(val text: String, val streamUri: String? = null) : Screen
 
+    /**
+     * 侧边栏整页。
+     *
+     * 竖屏原来是 `ModalNavigationDrawer`，现在改成历史里的一页：从聊天页向左推开，
+     * 返回键/侧滑回到聊天页。这样它和其余页面共用同一条栈、同一套转场，
+     * 也不必再为一个覆盖层维护自己的返回键优先级。
+     *
+     * [fromChatId] 记录是从哪个会话打开来的，用于高亮和「删掉的是不是当前这条」的判断；
+     * 从别处（如新会话页）打开时为 null。
+     */
+    @Serializable
+    data class Sidebar(val fromChatId: String? = null) : Screen
+
     @Serializable
     data object History : Screen
 

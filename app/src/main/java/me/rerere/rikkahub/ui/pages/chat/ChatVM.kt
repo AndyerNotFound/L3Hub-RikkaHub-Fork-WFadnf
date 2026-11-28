@@ -78,6 +78,17 @@ class ChatVM(
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
+    /**
+     * 列表动作与会话页共用同一份实现（见 ConversationListActions）。
+     * 侧边栏整页化之后它自己也要一份，所以实现不能只挂在 ChatVM 上。
+     */
+    private val listActions = ConversationListActions(
+        settingsStore = settingsStore,
+        chatService = chatService,
+        scope = viewModelScope,
+    )
+
+
     // 聊天输入状态 - 保存在 ViewModel 中避免 TransactionTooLargeException
     val inputState = ChatInputState()
 
@@ -100,9 +111,8 @@ class ChatVM(
         chatService
             .getProcessingStatusFlow(_conversationId)
 
-    val conversationJobs = chatService
-        .getConversationJobs()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+    // 会话列表的「谁在生成」不在这里：侧边栏整页化之后它不需要会话 VM，
+    // 那份流搬到了 ConversationListActions（见那个文件）。
 
     init {
         // 添加对话引用
@@ -404,35 +414,27 @@ class ChatVM(
     }
 
     fun updateTitle(title: String) {
-        viewModelScope.launch {
-            chatService.updateTitle(_conversationId, title)
-        }
+        listActions.updateTitle(_conversationId, title)
     }
 
     fun updateTitle(conversationId: Uuid, title: String) {
-        viewModelScope.launch {
-            chatService.updateTitle(conversationId, title)
-        }
+        listActions.updateTitle(conversationId, title)
     }
 
     fun deleteConversation(conversation: Conversation): Job =
-        viewModelScope.launch {
-            chatService.deleteConversation(conversation.id)
-        }
+        listActions.deleteConversation(conversation)
 
     fun updatePinnedStatus(conversation: Conversation) {
-        viewModelScope.launch {
-            chatService.toggleConversationPinned(conversation.id)
-        }
+        listActions.updatePinnedStatus(conversation)
     }
 
     fun moveConversationToAssistant(conversation: Conversation, targetAssistantId: Uuid) {
-        viewModelScope.launch {
-            chatService.moveConversationToAssistant(conversation.id, targetAssistantId)
-            if (conversation.id == _conversationId) {
-                settingsStore.selectAssistant(targetAssistantId)
-            }
-        }
+        listActions.moveConversationToAssistant(
+            conversation = conversation,
+            targetAssistantId = targetAssistantId,
+            // 被挪的正好是当前会话时，把当前助手也切过去（原来就有的行为）
+            currentConversationId = _conversationId,
+        )
     }
 
     fun translateMessage(message: UIMessage, targetLanguage: Locale) {
@@ -440,9 +442,7 @@ class ChatVM(
     }
 
     fun generateTitle(conversation: Conversation, force: Boolean = false) {
-        viewModelScope.launch {
-            chatService.generateTitle(conversation.id, force)
-        }
+        listActions.generateTitle(conversation, force)
     }
 
     fun clearTranslationField(messageId: Uuid) {

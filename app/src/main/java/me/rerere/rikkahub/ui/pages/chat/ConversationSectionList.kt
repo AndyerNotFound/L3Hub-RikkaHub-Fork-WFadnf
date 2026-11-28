@@ -55,7 +55,7 @@ import kotlin.uuid.Uuid
  */
 @Composable
 fun ColumnScope.ConversationSectionList(
-    currentConversationId: Uuid,
+    currentConversationId: Uuid?,
     items: List<ConversationListItem>,
     conversationJobs: Collection<Uuid> = emptyList(),
     listState: LazyListState,

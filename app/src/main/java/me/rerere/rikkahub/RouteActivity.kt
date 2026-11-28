@@ -117,6 +117,7 @@ import me.rerere.rikkahub.ui.navigation.RouteAppearance
 import me.rerere.rikkahub.ui.navigation.SettingRailAppearance
 import me.rerere.rikkahub.ui.navigation.NavigationBackHandler
 import me.rerere.rikkahub.ui.navigation.l3HubDetailAnimation
+import me.rerere.rikkahub.ui.navigation.isSidebarPair
 import me.rerere.rikkahub.ui.navigation.l3HubStackAnimation
 import me.rerere.rikkahub.ui.pages.setting.SettingRail
 import me.rerere.rikkahub.ui.pages.setting.isSettingBoard
@@ -451,6 +452,11 @@ class RouteActivity : ComponentActivity() {
                                 backHandler = rootComponent.backHandler,
                                 onBack = rootComponent::pop,
                                 durationMillis = pageAnimMillis,
+                                // 侧边栏在聊天页左边：这一对页面沿同一条水平轴一起移动，
+                                // 其余页面保持原来的 fade + slide + scale
+                                useSharedAxisX = { newScreen, oldScreen, _ ->
+                                    isSidebarPair(newScreen, oldScreen)
+                                },
                             )
                         }
                     val sideAnimation: StackAnimation<DetailDestination, NavChild> =

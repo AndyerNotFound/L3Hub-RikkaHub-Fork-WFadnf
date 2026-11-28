@@ -15,6 +15,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
+import me.rerere.rikkahub.ui.pages.chat.SidebarPage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
 import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage
@@ -88,6 +89,12 @@ fun ScreenContent(screen: Screen) {
             ShareHandlerPage(
                 text = screen.text,
                 image = screen.streamUri,
+            )
+        }
+
+        is Screen.Sidebar -> {
+            SidebarPage(
+                fromChatId = screen.fromChatId?.let { Uuid.parse(it) },
             )
         }
 

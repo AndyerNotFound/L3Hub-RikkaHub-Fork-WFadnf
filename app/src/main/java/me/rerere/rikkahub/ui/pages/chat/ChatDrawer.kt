@@ -136,15 +136,29 @@ private fun Int.toListItemIndex(headerCount: Int): Int =
 @Composable
 fun ChatDrawerContent(
     navController: Navigator,
-    vm: ChatVM,
+    /**
+     * 会话列表的读写动作。
+     *
+     * 早先这里是 `vm: ChatVM`，但抽屉只用到它那几个「按会话 id 操作」的方法；
+     * 侧边栏整页化之后那一页可能根本没有打开的会话，所以改吃 [ConversationListVM]。
+     */
+    listVm: ConversationListVM,
     settings: Settings,
-    currentConversationId: Uuid,
+    /** 当前打开的会话，用于高亮；侧边栏整页里可能为 null（没有会话在下面） */
+    currentConversationId: Uuid?,
     onNewChat: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     // 抽屉底板使用页面背景取样源；没有源或关闭高级外观时底板退回实色
     hazeState: HazeState? = null,
     // 横屏三栏的左栏宽度由列宽决定，不再按窗口比例算
     widthOverride: Dp? = null,
+    /**
+     * 整页形态：侧边栏作为历史里的一页时传 true。
+     *
+     * 抽屉形态的外壳是 [ModalDrawerSheet]（自带宽度、圆角、玻璃底板），整页形态下这些
+     * 都由页面自己负责，套上去会变成"页面里又浮着一张卡片"。内容本身两边完全一样。
+     */
+    fullPage: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -178,13 +192,13 @@ fun ChatDrawerContent(
         )
     }
 
-    val conversationJobs by vm.conversationJobs.collectAsStateWithLifecycle(
+    val conversationJobs by listVm.conversationJobs.collectAsStateWithLifecycle(
         initialValue = emptyMap(),
     )
 
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
-        vm.updateSettings {
+        listVm.updateSettings {
             it.copy(
                 displaySetting = it.displaySetting.copy(
                     userNickname = newNickname
@@ -214,16 +228,16 @@ fun ChatDrawerContent(
 
     val onDeleteConversation: (Conversation) -> Unit = { conversation ->
         scope.launch {
-            vm.deleteConversation(conversation).join()
+            listVm.deleteConversation(conversation).join()
             if (conversation.id == currentConversationId) {
                 navigateToChatPage(navController)
             }
         }
     }
     val onRenameConversation: (Conversation, String) -> Unit = { conversation, title ->
-        vm.updateTitle(conversation.id, title)
+        listVm.updateTitle(conversation.id, title)
     }
-    val onPinConversation: (Conversation) -> Unit = { vm.updatePinnedStatus(it) }
+    val onPinConversation: (Conversation) -> Unit = { listVm.updatePinnedStatus(it) }
     val onMoveConversationToAssistant: (Conversation) -> Unit = {
         conversationToMove = it
         showMoveToAssistantSheet = true
@@ -234,7 +248,7 @@ fun ChatDrawerContent(
     }
     val onDeleteSelectedConversations: (List<Conversation>) -> Unit = { list ->
         scope.launch {
-            list.forEach { vm.deleteConversation(it).join() }
+            list.forEach { listVm.deleteConversation(it).join() }
             if (list.any { it.id == currentConversationId }) {
                 navigateToChatPage(navController)
             }
@@ -243,7 +257,7 @@ fun ChatDrawerContent(
     val onPinSelectedConversations: (List<Conversation>) -> Unit = { list ->
         // 有未置顶的就全部置顶，否则全部取消置顶
         val target = list.any { !it.isPinned }
-        list.filter { it.isPinned != target }.forEach { vm.updatePinnedStatus(it) }
+        list.filter { it.isPinned != target }.forEach { listVm.updatePinnedStatus(it) }
     }
 
     val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
@@ -296,7 +310,7 @@ fun ChatDrawerContent(
                 ConversationSortButton(
                     sortOrder = settings.displaySetting.conversationSortOrder,
                     onSortOrderChange = { sortOrder ->
-                        vm.updateSettings {
+                        listVm.updateSettings {
                             it.copy(
                                 displaySetting = it.displaySetting.copy(
                                     conversationSortOrder = sortOrder
@@ -319,31 +333,9 @@ fun ChatDrawerContent(
     val drawerMaterial = LocalSettings.current.advancedAppearanceSetting
         .takeIf { it.enableAdvancedAppearance }
         ?.navigationMaterial()
-    // 底板只取页面背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
-    ModalDrawerSheet(
-        modifier = Modifier
-            .width(drawerWidth)
-            .then(
-                if (drawerMaterial != null) {
-                    Modifier.advancedMaterial(
-                        shape = drawerShape,
-                        base = MaterialTheme.colorScheme.surfaceContainerLow,
-                        material = drawerMaterial,
-                        hazeState = hazeState,
-                        // 抽屉压在会话列表上，着色不能掉到 0.65 以下：再低正文会透上来
-                        readableFloor = .65f,
-                    )
-                } else {
-                    Modifier
-                }
-            ),
-        drawerShape = drawerShape,
-        // 着色由材质层统一铺，这里保持透明；没有源时它会退化成半透明色
-        drawerContainerColor = if (drawerMaterial != null) Color.Transparent
-        else MaterialTheme.colorScheme.surfaceContainerLow,
-        // 底色交给玻璃层以后 contentColorFor 推不出内容色，这里显式钉住（= surfaceContainerLow 的默认值）
-        drawerContentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
+
+    // 内容本体：抽屉、横屏左栏、整页侧边栏三种形态共用这一份
+    val panel: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -382,7 +374,7 @@ fun ChatDrawerContent(
                 onClick = { conversation ->
                     openConversation(conversation)
                 },
-                onRegenerateTitle = { vm.generateTitle(it, true) },
+                onRegenerateTitle = { listVm.generateTitle(it, true) },
                 onRename = onRenameConversation,
                 onDelete = onDeleteConversation,
                 onPin = onPinConversation,
@@ -415,7 +407,7 @@ fun ChatDrawerContent(
             AssistantPicker(
                 settings = settings,
                 onSelectAssistant = { assistant ->
-                    val updateJob = vm.updateSettings { it.copy(assistantId = assistant.id) }
+                    val updateJob = listVm.updateSettings { it.copy(assistantId = assistant.id) }
                     scope.launch {
                         updateJob.join()
                         val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
@@ -442,6 +434,59 @@ fun ChatDrawerContent(
                 onNewChat = onNewChat,
                 onOpenSettings = onOpenSettings,
             )
+        }
+    }
+
+    // 三种形态共用同一份内容，只有外壳不同：
+    // - fullPage：整页侧边栏，内容直接铺满，底板由页面负责
+    // - 其余：抽屉 / 横屏左栏，套 ModalDrawerSheet
+    if (fullPage) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (drawerMaterial != null) {
+                        Modifier.advancedMaterial(
+                            shape = drawerShape,
+                            base = MaterialTheme.colorScheme.surfaceContainerLow,
+                            material = drawerMaterial,
+                            hazeState = hazeState,
+                            readableFloor = .65f,
+                        )
+                    } else {
+                        Modifier
+                    }
+                ),
+        ) {
+            panel()
+        }
+    } else {
+        // 底板只取页面背景层，不取会话列表，抽屉滑出来时列表内容不会跟着糊成一团
+        ModalDrawerSheet(
+            modifier = Modifier
+                .width(drawerWidth)
+                .then(
+                    if (drawerMaterial != null) {
+                        Modifier.advancedMaterial(
+                            shape = drawerShape,
+                            base = MaterialTheme.colorScheme.surfaceContainerLow,
+                            material = drawerMaterial,
+                            hazeState = hazeState,
+                            // 抽屉压在会话列表上，着色不能掉到 0.65 以下：再低正文会透上来
+                            readableFloor = .65f,
+                        )
+                    } else {
+                        Modifier
+                    }
+                ),
+            drawerShape = drawerShape,
+            // 着色由材质层统一铺，这里保持透明；没有源时它会退化成半透明色
+            drawerContainerColor = if (drawerMaterial != null) Color.Transparent
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+            // 底色交给玻璃层以后 contentColorFor 推不出内容色，这里显式钉住（= surfaceContainerLow 的默认值）
+            drawerContentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            panel()
         }
     }
 
@@ -672,7 +717,12 @@ fun ChatDrawerContent(
                         isCurrentAssistant = assistant.id == conversationToMove?.assistantId,
                         onClick = {
                             conversationToMove?.let { conversation ->
-                                vm.moveConversationToAssistant(conversation, assistant.id)
+                                listVm.moveConversationToAssistant(
+                                    conversation = conversation,
+                                    targetAssistantId = assistant.id,
+                                    // 挪的正好是当前打开的会话时，把当前助手也切过去
+                                    currentConversationId = currentConversationId,
+                                )
                                 showMoveToAssistantSheet = false
                                 conversationToMove = null
                             }
