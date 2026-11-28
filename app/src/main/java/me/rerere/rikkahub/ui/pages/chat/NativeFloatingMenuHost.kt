@@ -54,6 +54,9 @@ internal fun NativeFloatingMenuHost(
     val context = rememberNativeChatContext()
     val animationsEnabled = LocalAnimationsEnabled.current
     val duration = slideDurationMillis()
+    // 调色板只能在组合里读：nativeChatTheme() 是 @Composable，而 AndroidView 的 update
+    // lambda 不在组合环境里，写进去编译不过（COMPOSABLE_INVOCATION）。
+    val chatTheme = nativeChatTheme()
 
     // 菜单的锚点：FAB 的窗口矩形。按钮被点时才填。
     // 窗口 token 由 rememberNativeSelectMenu 内部处理（它拿 LocalView），
@@ -101,7 +104,7 @@ internal fun NativeFloatingMenuHost(
             onRelease = { menu -> menu.setListener(null) },
             update = { menu ->
                 // 按钮底色 / 图标色 / 涟漪色跟界面其余部分走同一份运行期调色板
-                menu.setTheme(nativeChatTheme())
+                menu.setTheme(chatTheme)
                 menu.setAnimationsEnabled(animationsEnabled)
                 menu.setFadeDuration(duration)
                 menu.setScale(scale)
