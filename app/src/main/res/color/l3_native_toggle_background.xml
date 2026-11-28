@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Outline Toggle 按钮的底色。
+
+  未选中透明（露出侧栏底板），选中换主色 —— 这是 M3 outlined toggle 的默认行为，
+  只是样式里的 selector 走的是 theme overlay，这里显式写一份更好读。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_checked="true" android:color="?attr/colorPrimary" />
+  <item android:color="@android:color/transparent" />
+</selector>

@@ -292,21 +292,17 @@ public final class NativeSidebarAdapter
 
             toggle.setText(row.title);
             toggle.setChecked(row.checked);
-            // 图标按勾选态换：MaterialButton 没有 checkedIcon 属性
-            // （那是 MaterialCardView 的），只能代码换
+
+            // 只换图标，底色与文字色交给样式自带的 checked 配色 ——
+            // 手工 setBackgroundTintList / setTextColor 会和
+            // Widget.Material3.Button.OutlinedButton.Icon 的 state list 打架，
+            // 结果是选中态在深色主题下对比度不够。
+            // 图标本身没有 checked 变体（checkedIcon 是 MaterialCardView 的属性），
+            // 所以这一个还得按状态换。
             toggle.setIconResource(row.checked
                     ? R.drawable.l3_native_ic_toggle_on
                     : R.drawable.l3_native_ic_toggle_off);
-            toggle.setIconTint(android.content.res.ColorStateList.valueOf(row.checked
-                    ? colorAttr(com.google.android.material.R.attr.colorOnPrimary)
-                    : colorAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)));
-            // 选中时底色换主色，未选中透明 —— 与 M3 的 toggle 观感一致
-            toggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(row.checked
-                    ? colorAttr(com.google.android.material.R.attr.colorPrimary)
-                    : android.graphics.Color.TRANSPARENT));
-            toggle.setTextColor(row.checked
-                    ? colorAttr(com.google.android.material.R.attr.colorOnPrimary)
-                    : colorAttr(com.google.android.material.R.attr.colorOnSurface));
+
             applyIndent(toggleRoot, row.depth);
 
             // 点击切换勾选，不直接进会话 —— 多选态下点一行是选它

@@ -128,6 +128,29 @@ public final class NativeSidebar extends LinearLayout {
     @Nullable private LinearLayout folderChips;
     @Nullable private View updateCardSlot;
     @Nullable private View backupCardSlot;
+    /**
+     * 已登记的图标位。
+     *
+     * <p>图标绑定器可能在视图建好之后才设进来，那时要把已建的图标位重挂一遍。
+     * 早先的做法是整棵顶栏底栏重建 —— 那会把多选工具条一起换掉、计数指向旧实例，
+     * 也会丢掉文件夹条的选中态。现在只记下「哪个容器要画哪个图标」，
+     * 重挂时逐个刷新，不动结构。
+     */
+    private final List<IconSlot> iconSlots = new ArrayList<>();
+
+    /** 一个图标位的登记项。 */
+    private static final class IconSlot {
+        @NonNull final ViewGroup container;
+        @NonNull final String iconKey;
+        int tint;
+
+        IconSlot(@NonNull ViewGroup container, @NonNull String iconKey, int tint) {
+            this.container = container;
+            this.iconKey = iconKey;
+            this.tint = tint;
+        }
+    }
+
     @Nullable private LinearLayout selectionBar;
     @Nullable private TextView selectionCount;
     /** 非多选态时顶栏里那几块，多选时整组隐藏。 */
@@ -626,13 +649,23 @@ public final class NativeSidebar extends LinearLayout {
 
     // region 图标与插槽
 
-    /** 把一个图标位交给 Compose。容器先清空，避免重复挂。 */
+    /**
+     * 把一个图标位交给 Compose，并登记下来。
+     *
+     * <p>登记是为了 {@link #setIconBinder} 之后能重挂：绑定器通常在视图建好之后
+     * 才设进来，那时这些容器还是空的。
+     */
     private void bindIconNow(
             @Nullable ViewGroup container,
             @NonNull String iconKey,
             int tint
     ) {
         if (container == null) return;
+        // 同一个容器可能被反复 bind（比如列表滚动），先摘掉旧登记
+        for (int i = iconSlots.size() - 1; i >= 0; i--) {
+            if (iconSlots.get(i).container == container) iconSlots.remove(i);
+        }
+        iconSlots.add(new IconSlot(container, iconKey, tint));
         container.removeAllViews();
         if (iconBinder != null) {
             iconBinder.bindIcon(container, iconKey, tint);
@@ -640,38 +673,23 @@ public final class NativeSidebar extends LinearLayout {
     }
 
     /**
-     * 已经建好的图标位全部重挂一遍。绑定器换过之后要调。
+     * 已登记的图标位全部重挂一遍。绑定器换过之后要调。
      *
-     * <p>直接重建顶栏与底栏 —— 图标位分散在十几处，逐个找回来重挂比重建更容易漏。
-     * 重建前把文件夹条的数据留一份，建完填回去，否则选中态会丢。
+     * <p>只刷新图标内容，不重建结构 —— 重建会把多选工具条、文件夹选中态
+     * 和 Compose 插槽一起换掉。
      */
     private void rebuildIcons() {
-        if (userName == null) return;
-
-        List<String> ids = new ArrayList<>();
-        List<String> names = new ArrayList<>();
-        if (folderChips != null) {
-            for (int i = 0; i < folderChips.getChildCount(); i++) {
-                View child = folderChips.getChildAt(i);
-                if (child instanceof TextView) {
-                    ids.add((String) child.getTag());
-                    names.add(((TextView) child).getText().toString());
-                }
+        if (iconBinder == null) return;
+        // 先摘掉已经不在视图树上的登记：文件夹条重建过、行被回收过都会留下死引用
+        for (int i = iconSlots.size() - 1; i >= 0; i--) {
+            IconSlot slot = iconSlots.get(i);
+            if (!slot.container.isAttachedToWindow()) {
+                iconSlots.remove(i);
+                continue;
             }
+            slot.container.removeAllViews();
+            iconBinder.bindIcon(slot.container, slot.iconKey, slot.tint);
         }
-
-        buildHeader();
-        buildBottom();
-
-        if (!names.isEmpty()) {
-            // 第一颗是「默认」，最后一颗是「新建」，去掉再填
-            List<String> realIds = ids.subList(1, Math.max(1, ids.size() - 1));
-            List<String> realNames = names.subList(1, Math.max(1, names.size() - 1));
-            setFolders(realIds, realNames, selectedFolderId);
-        }
-
-        // 顶栏底栏是新建出来的，插槽也跟着换了新实例，得重新把 ComposeView 挂进去
-        rebuildSlots();
     }
 
     /**

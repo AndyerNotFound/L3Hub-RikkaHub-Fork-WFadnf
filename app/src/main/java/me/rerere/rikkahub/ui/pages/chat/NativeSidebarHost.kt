@@ -27,22 +27,11 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.CheckmarkCircle02
 import me.rerere.hugeicons.stroke.Favorite
-import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.ImageToVideo
-import me.rerere.hugeicons.stroke.LanguageCircle
-import me.rerere.hugeicons.stroke.LookTop
-import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.Refresh01
-import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -409,124 +398,4 @@ private fun SidebarSlot(
 
         else -> Unit
     }
-}
-
-/** 把 VM 的分区项摊平成 Java 侧的 [SidebarRow]，顺手按折叠状态过滤掉收起的段。 */
-private fun buildSidebarRows(
-    items: List<ConversationListItem>,
-    collapsedDates: Set<LocalDate>,
-    collapsedFolders: Set<String>,
-    runningIds: Set<String>,
-    checkedIds: Set<String>,
-    defaultLabel: String,
-    pinnedLabel: String,
-): List<SidebarRow> {
-    val rows = ArrayList<SidebarRow>(items.size)
-    // 当前是否处在收起的段里。收起时只跳过它下面的会话，标题本身留着 ——
-    // 否则收起来就找不到展开它的入口了
-    var skipSection = false
-    // 当前所在段的层级：文件夹标题 0，它下面的会话 1；有日期段时日期 1、会话 2
-    var sectionDepth = 0
-
-    items.forEach { item ->
-        when (item) {
-            is ConversationListItem.FolderHeader -> {
-                val key = item.folderId?.toString()
-                val collapsed = key != null && key in collapsedFolders
-                skipSection = collapsed
-                sectionDepth = 0
-                // 会话数：数后面属于这一段的会话，直到下一个文件夹标题
-                val count = countConversationsInSection(items, item)
-                rows += SidebarRow.folderHeader(
-                    key = "f:" + (key ?: "unfiled"),
-                    label = item.label.ifBlank { defaultLabel },
-                    count = count,
-                    collapsed = collapsed,
-                    folderId = key,
-                )
-            }
-
-            is ConversationListItem.DateHeader -> {
-                val collapsed = item.date in collapsedDates
-                skipSection = collapsed
-                // 日期段嵌在文件夹段里，所以比文件夹标题深一级
-                sectionDepth = 1
-                rows += SidebarRow.dateHeader(
-                    key = "d:" + item.date.toString(),
-                    label = item.label,
-                    collapsed = collapsed,
-                    isoDate = item.date.toString(),
-                )
-            }
-
-            ConversationListItem.PinnedHeader -> {
-                skipSection = false
-                // 置顶段与日期段同级：都在文件夹段里面
-                sectionDepth = 1
-                rows += SidebarRow.pinnedHeader(pinnedLabel)
-            }
-
-            is ConversationListItem.Item -> {
-                if (skipSection) return@forEach
-                val conversation = item.conversation
-                val id = conversation.id.toString()
-                rows += SidebarRow.conversation(
-                    conversationId = id,
-                    title = conversation.title.ifBlank { defaultLabel },
-                    pinned = conversation.isPinned,
-                    loading = id in runningIds,
-                    checked = id in checkedIds,
-                    // 会话比它所属的标题再深一级
-                    depth = sectionDepth + 1,
-                )
-            }
-        }
-    }
-    return rows
-}
-
-/** 数一个文件夹段里有多少条会话：从它后面数起，遇到下一个文件夹标题就停。 */
-private fun countConversationsInSection(
-    items: List<ConversationListItem>,
-    header: ConversationListItem.FolderHeader,
-): Int {
-    val start = items.indexOf(header)
-    if (start < 0) return 0
-    var count = 0
-    for (i in start + 1 until items.size) {
-        when (items[i]) {
-            is ConversationListItem.FolderHeader -> return count
-            is ConversationListItem.Item -> count++
-            else -> Unit
-        }
-    }
-    return count
-}
-
-/** 图标 key 到 HugeIcons 的映射。key 由 [NativeSidebar] 决定。 */
-private fun sidebarIcon(key: String): ImageVector = when (key) {
-    "history" -> HugeIcons.TransactionHistory
-    "search" -> HugeIcons.Search01
-    "media" -> HugeIcons.ImageToVideo
-    "translate" -> HugeIcons.LanguageCircle
-    "sort" -> HugeIcons.Sorting01
-    "pencil" -> HugeIcons.PencilEdit01
-    "assistant" -> HugeIcons.LookTop
-    "menu" -> HugeIcons.Menu03
-    "favorite" -> HugeIcons.Favorite
-    "stats" -> HugeIcons.ChartColumn
-    "settings" -> HugeIcons.Settings03
-    "folder" -> HugeIcons.Folder01
-    "pin" -> HugeIcons.Pin
-    "chevron_down" -> HugeIcons.ArrowDown01
-    "chevron_up" -> HugeIcons.ArrowUp01
-    "check" -> HugeIcons.CheckmarkCircle02
-    else -> HugeIcons.Menu03
-}
-
-/** 取一个 View 在窗口里的矩形，给容器变换当起点。 */
-private fun View.windowRect(): Rect {
-    val location = IntArray(2)
-    getLocationInWindow(location)
-    return Rect(location[0], location[1], location[0] + width, location[1] + height)
 }

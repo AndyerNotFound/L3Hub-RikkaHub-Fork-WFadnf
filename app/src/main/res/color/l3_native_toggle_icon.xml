@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Outline Toggle 按钮的图标色。
+
+  与文字色同一条规则：选中压在主色底上，未选中走次要色。
+  图标本身由代码按 checked 换 drawable（空心圆 / 实心勾），这里只管着色。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_enabled="false" android:color="?attr/colorOnSurfaceVariant" android:alpha="0.38" />
+  <item android:state_checked="true" android:color="?attr/colorOnPrimary" />
+  <item android:color="?attr/colorOnSurfaceVariant" />
+</selector>
