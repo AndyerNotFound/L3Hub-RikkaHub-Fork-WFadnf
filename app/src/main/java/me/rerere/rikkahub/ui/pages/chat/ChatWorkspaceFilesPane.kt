@@ -325,7 +325,7 @@ internal fun WorkspaceName(
         icons = bound.map { null },
     ) {
         bound.forEach { item ->
-            addItem(item.name, null, selected = item.id == current.id) { onSelect(item) }
+            addItem(item.name, null, item.id == current.id) { onSelect(item) }
         }
     }
 

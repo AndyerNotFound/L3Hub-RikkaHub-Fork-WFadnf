@@ -556,7 +556,7 @@ internal fun QuickMessageMenu(
     ) {
         if (quickMessages.isEmpty() && guideMessages.isEmpty()) {
             // 空状态：一条不可点的说明
-            addItem(emptyLabel, null, selected = false, enabled = false, destructive = false) {}
+            addItem(emptyLabel, null, false, false, false) {}
         }
         quickMessages.forEach { quickMessage ->
             // 短按追加到输入框末尾，长按替换输入框内容 —— 双行项 + 长按
@@ -581,9 +581,8 @@ internal fun QuickMessageMenu(
             startGroup()
             addHeader(guideSectionLabel)
             guideMessages.forEach { guide ->
-                addItem(guide.title, guide.content, null, false, true, false) {
-                    onAddGuidance(guide)
-                }
+                // 八参重载：末位是长按动作，这里只接短按，故显式传 null
+                addItem(guide.title, guide.content, null, false, true, false, { onAddGuidance(guide) }, null)
             }
         }
     }

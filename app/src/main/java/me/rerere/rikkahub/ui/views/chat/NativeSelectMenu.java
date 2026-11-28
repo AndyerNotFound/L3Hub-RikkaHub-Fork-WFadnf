@@ -265,6 +265,19 @@ public final class NativeSelectMenu {
         return this;
     }
 
+    /**
+     * 加一条分隔线。
+     *
+     * <p>用于把破坏性操作与普通项隔开；与 {@link #startGroup()} 的区别是它不出新卡片，
+     * 只在同一张卡里画一条细线。
+     */
+    public NativeSelectMenu addDivider() {
+        items.add(new Item(
+                Item.Kind.DIVIDER, null, null, null, false, true, false, null, null,
+                currentGroup, -1));
+        return this;
+    }
+
     /** 加一个分组标题：不可点、字号更小。 */
     public NativeSelectMenu addHeader(@NonNull String label) {
         items.add(new Item(

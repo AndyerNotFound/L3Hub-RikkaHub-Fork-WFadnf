@@ -371,19 +371,19 @@ private fun ChatFolderMenu(
         },
     ) {
         addHeader(headerLabel)
-        addItem(unfiledLabel, null, selected = selectedFolderId == null) {
+        addItem(unfiledLabel, null, selectedFolderId == null) {
             onSelect(null)
         }
         folders.forEach { folder ->
-            addItem(folder.name, null, selected = folder.id == selectedFolderId) {
+            addItem(folder.name, null, folder.id == selectedFolderId) {
                 onSelect(folder.id)
             }
         }
         if (folders.isEmpty()) {
-            addItem(emptyLabel, null, selected = false) { }
+            addItem(emptyLabel, null, false) { }
         }
         addDivider()
-        addItem(createLabel, null, selected = false) { onCreateFolder() }
+        addItem(createLabel, null, false) { onCreateFolder() }
     }
 }
 

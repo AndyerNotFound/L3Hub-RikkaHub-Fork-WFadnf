@@ -456,7 +456,7 @@ private fun TranslateToolbar(
             icons = TranslationLanguages.map { null },
         ) {
             TranslationLanguages.forEachIndexed { index, language ->
-                addItem(languageNames[index], null, selected = language == targetLanguage) {
+                addItem(languageNames[index], null, language == targetLanguage) {
                     onLanguageSelected(language)
                 }
             }

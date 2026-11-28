@@ -464,7 +464,7 @@ private fun WorkspaceActionButton(
         icons = workspaces.map { null },
     ) {
         workspaces.forEach { workspace ->
-            addItem(workspace.name, null, selected = false) { onNavigate(workspace.id) }
+            addItem(workspace.name, null, false) { onNavigate(workspace.id) }
         }
     }
 

@@ -277,7 +277,7 @@ private fun SortMenuButton(
     ) {
         // 原来是左侧单选圆点，这里换成右侧对勾：语义一样，视觉更轻
         MessageSearchSort.entries.forEachIndexed { index, sort ->
-            addItem(labels[index], null, selected = sort == current) { onSortChange(sort) }
+            addItem(labels[index], null, sort == current) { onSortChange(sort) }
         }
     }
 

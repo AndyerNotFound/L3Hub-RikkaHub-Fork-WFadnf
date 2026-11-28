@@ -120,7 +120,7 @@ internal fun WorkspaceTerminalPane(
                 icons = state.tabs.map { null },
             ) {
                 state.tabs.forEachIndexed { index, tab ->
-                    addItem(tabLabels[index], null, selected = tab.id == selectedTab?.id) {
+                    addItem(tabLabels[index], null, tab.id == selectedTab?.id) {
                         manager.selectTab(root, tab.id)
                     }
                 }

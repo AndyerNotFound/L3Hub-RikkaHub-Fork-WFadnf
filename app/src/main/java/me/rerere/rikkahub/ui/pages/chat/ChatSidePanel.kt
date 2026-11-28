@@ -247,7 +247,7 @@ private fun ChatSidePanelTabStrip(
         ) {
             ChatSidePane.entries.forEachIndexed { index, pane ->
                 // 已经开着的看板打勾，点了等于切过去
-                addItem(paneTitles[index], null, selected = pane in panes) {
+                addItem(paneTitles[index], null, pane in panes) {
                     onOpen(pane)
                 }
             }

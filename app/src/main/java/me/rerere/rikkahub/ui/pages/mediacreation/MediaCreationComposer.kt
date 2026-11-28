@@ -599,11 +599,11 @@ private fun AssetTile(
         },
     ) {
         roleOptions.forEachIndexed { index, role ->
-            addItem(roleLabels[index], null, selected = false) { onSetRole(role) }
+            addItem(roleLabels[index], null, false) { onSetRole(role) }
         }
         if (onDraw != null) {
             addDivider()
-            addItem(drawLabel, null, selected = false) { onDraw() }
+            addItem(drawLabel, null, false) { onDraw() }
         }
     }
 

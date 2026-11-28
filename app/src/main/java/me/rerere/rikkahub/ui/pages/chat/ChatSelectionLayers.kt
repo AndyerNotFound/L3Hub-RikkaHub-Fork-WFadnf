@@ -12,13 +12,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.model.WorkspaceEntity
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.model.effectiveContextWindow
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatAttachmentPickerActions
-import me.rerere.rikkahub.ui.components.ai.ConversationUsageDetails
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
+import me.rerere.rikkahub.ui.components.ai.ModelListState
 import me.rerere.rikkahub.ui.components.message.AskUserSheet
-import me.rerere.rikkahub.ui.components.ui.AppModalSheet
+import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
+import me.rerere.ui.components.AppModalSheet
 import kotlin.uuid.Uuid
 
 /**
