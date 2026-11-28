@@ -35,6 +35,13 @@ internal fun buildSidebarRows(
     checkedIds: Set<String>,
     defaultLabel: String,
     pinnedLabel: String,
+    /**
+     * 只看某个文件夹。null 表示「默认」—— 全部文件夹按段列出。
+     *
+     * 非 null 时只保留那一段的内容，并且不再画文件夹标题：
+     * 标题已经在 Tab 上了，列表里再来一行是重复。
+     */
+    filterFolderId: String? = null,
 ): List<SidebarRow> {
     val rows = ArrayList<SidebarRow>(items.size)
     // 当前是否处在收起的段里。收起时只跳过它下面的会话，标题本身留着 ——
@@ -42,21 +49,35 @@ internal fun buildSidebarRows(
     var skipSection = false
     // 当前所在段的层级：文件夹标题 0，它下面的会话 1；有日期段时日期 1、会话 2
     var sectionDepth = 0
+    // 过滤模式下：当前这段是不是选中的那个文件夹
+    var currentFolderMatches = false
 
     items.forEach { item ->
+        // 按 Tab 过滤：只看某一段时跳过其它文件夹的标题与会话。
+        // 顺序很重要 —— 先更新「当前在哪个文件夹」，再判断要不要画这一条
+        if (filterFolderId != null) {
+            if (item is ConversationListItem.FolderHeader) {
+                currentFolderMatches = item.folderId?.toString() == filterFolderId
+            }
+            if (!currentFolderMatches) return@forEach
+        }
+
         when (item) {
             is ConversationListItem.FolderHeader -> {
                 val key = item.folderId?.toString()
                 val collapsed = key != null && key in collapsedFolders
                 skipSection = collapsed
                 sectionDepth = 0
-                rows += SidebarRow.folderHeader(
-                    "f:" + (key ?: "unfiled"),
-                    item.label.ifBlank { defaultLabel },
-                    countConversationsInSection(items, item),
-                    collapsed,
-                    key,
-                )
+                // 过滤模式下不画文件夹标题：它已经在 Tab 上了
+                if (filterFolderId == null) {
+                    rows += SidebarRow.folderHeader(
+                        "f:" + (key ?: "unfiled"),
+                        item.label.ifBlank { defaultLabel },
+                        countConversationsInSection(items, item),
+                        collapsed,
+                        key,
+                    )
+                }
             }
 
             is ConversationListItem.DateHeader -> {

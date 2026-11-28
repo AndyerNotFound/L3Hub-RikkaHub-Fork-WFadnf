@@ -96,6 +96,12 @@ internal fun NativeSidebarHost(
 
     // 长按某一行时弹出的操作菜单。状态放在这一层：菜单不在 RecyclerView 里，
     // 跟着行一起回收会丢
+    // 当前选中的文件夹 Tab。null 表示「默认」—— 全部文件夹按段列出
+    var selectedFolderId by remember { mutableStateOf<String?>(null) }
+    // 上一次已经推给列表的文件夹。用来判断这一次是「换文件夹」还是「同文件夹内刷新」：
+    // 前者要 fade through，后者只做 DiffUtil 增量
+    var lastSubmittedFolder by remember { mutableStateOf<String?>(null) }
+
     // 多选模式：进入后每行变成 Outline Toggle 按钮
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -111,6 +117,7 @@ internal fun NativeSidebarHost(
         conversationJobs,
         currentConversationId,
         selectedIds,
+        selectedFolderId,
     ) {
         buildSidebarRows(
             items = verticalItems,
@@ -120,6 +127,7 @@ internal fun NativeSidebarHost(
             checkedIds = selectedIds,
             defaultLabel = appContext.getString(R.string.chat_page_folder_default),
             pinnedLabel = appContext.getString(R.string.pinned_chats),
+            filterFolderId = selectedFolderId,
         )
     }
 
@@ -222,7 +230,10 @@ internal fun NativeSidebarHost(
 
                     override fun onOpenTranslator() = navController.navigate(Screen.Translator)
                     override fun onEditNickname() = Unit
-                    override fun onSelectFolder(folderId: String?) = Unit
+                    override fun onSelectFolder(folderId: String?) {
+                        if (selectedFolderId == folderId) return
+                        selectedFolderId = folderId
+                    }
                     override fun onCreateFolder() = Unit
                     override fun onRenameFolder(folderId: String) = Unit
                     override fun onDeleteFolder(folderId: String) = Unit
@@ -267,7 +278,14 @@ internal fun NativeSidebarHost(
             sidebar.setTransformDuration(duration)
             sidebar.setSelectionMode(selectionMode)
             sidebar.updateSelectionCount(selectedIds.size)
-            sidebar.submitRows(rows)
+            // 换文件夹时整批换内容，走 fade through；
+            // 其余情况（流式输出刷新标题、勾选变化）走 DiffUtil 增量，不播转场
+            if (lastSubmittedFolder != selectedFolderId) {
+                lastSubmittedFolder = selectedFolderId
+                sidebar.submitRowsWithFadeThrough(rows)
+            } else {
+                sidebar.submitRows(rows)
+            }
             sidebar.setCurrentConversationId(currentConversationId?.toString())
             sidebar.setUser(
                 settings.displaySetting.userNickname

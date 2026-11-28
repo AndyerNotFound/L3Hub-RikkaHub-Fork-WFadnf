@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 文件夹胶囊的底：全圆角，颜色由 Java 侧按选中态刷成 secondaryContainer / surfaceContainerLow -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-  <corners android:radius="100dp" />
-  <solid android:color="?attr/colorSurfaceContainerLow" />
-</shape>

@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  文件夹条：一排横向滚动的胶囊，末尾是排序按钮。
+  会话文件夹 Tab 条，末尾是排序按钮。
 
-  原版是 LazyRow + FolderChip + ConversationSortButton。这里换成
-  HorizontalScrollView + LinearLayout，胶囊由 Java 侧动态加。
+  为什么用 TabLayout 而不是自己排一排胶囊：
+  Material 的 TabLayout 自带三件我们要的东西 ——
+  - `tabMode="scrollable"`：横向滚动，文件夹多了不挤；
+  - `tabIndicatorFullWidth="true"`：指示线占满整个 Tab（Rounded line Full width）；
+  - `tabIndicatorAnimationMode="elastic"`：指示线在目标之间拉伸再回弹。
+  这最后一条正是 M3 Expressive 那条弹簧曲线，Material 库直接给了
+  （TabLayout.INDICATOR_ANIMATION_MODE_ELASTIC），不用自己写。
+
+  指示线本身是 3dp 高、3dp 圆角的圆头线条，颜色走 primary ——
+  与 M3 的 PrimaryNavigationTab 规格一致（ActiveIndicatorHeight / ActiveIndicatorShape）。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -13,21 +21,28 @@
     android:orientation="horizontal"
     android:paddingHorizontal="4dp">
 
-  <HorizontalScrollView
-      android:id="@+id/l3_native_folder_scroll"
+  <com.google.android.material.tabs.TabLayout
+      android:id="@+id/l3_native_folder_tabs"
       android:layout_width="0dp"
-      android:layout_height="wrap_content"
+      android:layout_height="48dp"
       android:layout_weight="1"
-      android:clipToPadding="false"
-      android:scrollbars="none">
-
-    <LinearLayout
-        android:id="@+id/l3_native_folder_chips"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal" />
-  </HorizontalScrollView>
+      android:background="@android:color/transparent"
+      app:tabGravity="start"
+      app:tabIndicator="@drawable/l3_native_tab_indicator"
+      app:tabIndicatorAnimationMode="elastic"
+      app:tabIndicatorColor="?attr/colorPrimary"
+      app:tabIndicatorFullWidth="true"
+      app:tabIndicatorHeight="3dp"
+      app:tabMaxWidth="200dp"
+      app:tabMinWidth="72dp"
+      app:tabMode="scrollable"
+      app:tabPaddingEnd="12dp"
+      app:tabPaddingStart="12dp"
+      app:tabRippleColor="?attr/colorPrimary"
+      app:tabSelectedTextColor="?attr/colorPrimary"
+      app:tabTextAppearance="@style/TextAppearance.L3Hub.SidebarTab"
+      app:tabTextColor="?attr/colorOnSurfaceVariant"
+      app:tabUnboundedRipple="false" />
 
   <!-- 排序按钮：圆形，图标由 ComposeView 填 -->
   <com.google.android.material.card.MaterialCardView

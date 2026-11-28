@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.views.chat;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -125,7 +124,15 @@ public final class NativeSidebar extends LinearLayout {
     // 顶栏里那些需要在数据变化时改文字 / 重挂图标的 View
     @Nullable private TextView userName;
     @Nullable private TextView greeting;
-    @Nullable private LinearLayout folderChips;
+    @Nullable private com.google.android.material.tabs.TabLayout folderTabs;
+    /**
+     * Tab 与文件夹 id 的对应表。第 0 项固定是「默认」（null）。
+     *
+     * <p>TabLayout 的 Tab 只存文字，不认 id，所以另存一份顺序表按 index 查。
+     */
+    private final List<String> folderTabIds = new ArrayList<>();
+    /** 程序化选中 Tab 时用来抑制回调，避免和桥接层各推一次。 */
+    private boolean suppressTabCallback;
     @Nullable private View updateCardSlot;
     @Nullable private View backupCardSlot;
     /**
@@ -227,10 +234,48 @@ public final class NativeSidebar extends LinearLayout {
         return transformDurationMillis;
     }
 
-    /** 换一批会话行。 */
+    /** 换一批会话行。DiffUtil 增量更新，不播转场。 */
     public void submitRows(@NonNull List<SidebarRow> rows) {
         adapter.submitList(rows);
     }
+
+    /**
+     * 换一批会话行，并播一次 Fade Through。
+     *
+     * <p>切换文件夹 Tab 时用这个：内容是整批换掉，没有「哪一行变成哪一行」的对应关系，
+     * 用 DiffUtil 的增删动画会看到一堆行各自飞出飞入，很乱。
+     * M3 对这种情况的规定是 fade through —— 旧内容先淡出，新内容再淡入，
+     * 两段不重叠，中间有一小段两边都看不见。
+     *
+     * <p>时长按 M3 的 fade through 比例：淡出 90ms、淡入 210ms。
+     * 淡入用 delay 压在淡出结束之后，避免两段重叠成普通交叉淡入。
+     */
+    public void submitRowsWithFadeThrough(@NonNull List<SidebarRow> rows) {
+        if (!animationsEnabled) {
+            adapter.submitList(rows);
+            return;
+        }
+        list.animate().cancel();
+        list.animate()
+                .alpha(0f)
+                .setDuration(FADE_THROUGH_OUT_MS)
+                .withEndAction(() -> {
+                    adapter.submitList(rows);
+                    // 数据落定后再淡入：立刻淡入会看到旧内容最后那一帧
+                    list.post(() -> {
+                        list.animate()
+                                .alpha(1f)
+                                .setDuration(FADE_THROUGH_IN_MS)
+                                .start();
+                    });
+                })
+                .start();
+    }
+
+    /** Fade through 的淡出时长。与 M3 的比例一致（90ms）。 */
+    private static final long FADE_THROUGH_OUT_MS = 90L;
+    /** Fade through 的淡入时长。与 M3 的比例一致（210ms）。 */
+    private static final long FADE_THROUGH_IN_MS = 210L;
 
     /**
      * 进出多选模式。
@@ -285,28 +330,54 @@ public final class NativeSidebar extends LinearLayout {
     }
 
     /**
-     * 文件夹条。每次都整条重建：文件夹数量少，重建比增量维护省事，也不会残留旧胶囊。
+     * 文件夹 Tab。每次都整条重建：文件夹数量少，重建比增量维护省事，
+     * 也不会残留上一轮的 Tab。
+     *
+     * <p>第一项固定是「默认」，代表不筛文件夹。选中项按 {@code selectedId} 对齐；
+     * 对不上时退回「默认」—— 比如刚删掉了一个正被选中的文件夹。
      */
     public void setFolders(
             @NonNull List<String> ids,
             @NonNull List<String> names,
             @Nullable String selectedId
     ) {
-        this.selectedFolderId = selectedId;
-        if (folderChips == null) return;
-        folderChips.removeAllViews();
+        if (folderTabs == null) return;
 
-        // 「默认」永远排第一，代表不筛文件夹
-        addChip(null, getContext().getString(R.string.chat_page_folder_default), false);
+        this.selectedFolderId = selectedId;
+
+        // 重建 Tab：先摘监听，否则 removeAllTabs 会触发一堆 onTabUnselected
+        suppressTabCallback = true;
+        folderTabs.removeAllTabs();
+        folderTabIds.clear();
+
+        // 「默认」永远排第一
+        folderTabIds.add(null);
+        folderTabs.addTab(folderTabs.newTab().setText(
+                getContext().getString(R.string.chat_page_folder_default)));
 
         for (int i = 0; i < ids.size(); i++) {
             String id = ids.get(i);
             String name = i < names.size() ? names.get(i) : "";
-            addChip(id, name, true);
+            folderTabIds.add(id);
+            folderTabs.addTab(folderTabs.newTab().setText(name));
         }
 
-        // 末尾一颗「新建文件夹」
-        addChip("__create__", getContext().getString(R.string.chat_page_folder_add), false);
+        // 对齐选中项
+        int target = 0;
+        if (selectedId != null) {
+            int index = folderTabIds.indexOf(selectedId);
+            if (index >= 0) target = index;
+        }
+        com.google.android.material.tabs.TabLayout.Tab tab = folderTabs.getTabAt(target);
+        if (tab != null) tab.select();
+
+        suppressTabCallback = false;
+    }
+
+    /** 当前选中的文件夹 id，null 表示「默认」。 */
+    @Nullable
+    public String selectedFolderId() {
+        return selectedFolderId;
     }
 
     /** 滚动到指定行。用于恢复上次的位置。 */
@@ -466,7 +537,29 @@ public final class NativeSidebar extends LinearLayout {
         LinearLayout.LayoutParams folderLp = matchWrap();
         folderLp.topMargin = dp(4);
         header.addView(folderBar, folderLp);
-        folderChips = folderBar.findViewById(R.id.l3_native_folder_chips);
+        folderTabs = folderBar.findViewById(R.id.l3_native_folder_tabs);
+        folderTabs.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
+                // 程序化选中时不上报：那是桥接层同步下来的结果，再报回去会绕一圈
+                if (suppressTabCallback || listener == null) return;
+                int index = tab.getPosition();
+                if (index < 0 || index >= folderTabIds.size()) return;
+                listener.onSelectFolder(folderTabIds.get(index));
+            }
+
+            @Override
+            public void onTabUnselected(com.google.android.material.tabs.TabLayout.Tab tab) { }
+
+            @Override
+            public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {
+                // 再点一次当前 Tab：回到「默认」的筛选状态
+                if (suppressTabCallback || listener == null) return;
+                int index = tab.getPosition();
+                if (index < 0 || index >= folderTabIds.size()) return;
+                listener.onSelectFolder(folderTabIds.get(index));
+            }
+        });
 
         MaterialCardView sortCard = folderBar.findViewById(R.id.l3_native_sort_card);
         sortCard.setOnClickListener(v -> {
@@ -589,67 +682,6 @@ public final class NativeSidebar extends LinearLayout {
     // endregion
 
     // region 文件夹胶囊
-
-    private void addChip(@Nullable String folderId, @NonNull String label, boolean withIcon) {
-        if (folderChips == null) return;
-
-        // 根是 LinearLayout：图标位要能装 ComposeView，TextView 装不了子 View
-        View chip = LayoutInflater.from(getContext())
-                .inflate(R.layout.l3_native_sidebar_folder_chip, folderChips, false);
-        TextView chipText = chip.findViewById(R.id.l3_native_chip_text);
-        chipText.setText(label);
-        // 重建文件夹条时靠这个 tag 取回 id
-        chip.setTag(folderId);
-
-        boolean isCreate = "__create__".equals(folderId);
-        boolean selected = !isCreate
-                && (folderId == null
-                ? selectedFolderId == null
-                : folderId.equals(selectedFolderId));
-
-        // 底色：选中 secondaryContainer，其余 surfaceContainerLow
-        GradientDrawable bg = new GradientDrawable();
-        bg.setShape(GradientDrawable.RECTANGLE);
-        bg.setCornerRadius(dp(100));
-        bg.setColor(colorAttr(selected
-                ? com.google.android.material.R.attr.colorSecondaryContainer
-                : com.google.android.material.R.attr.colorSurfaceContainerLow));
-        chip.setBackground(bg);
-
-        ViewGroup chipIcon = chip.findViewById(R.id.l3_native_chip_icon);
-        if (withIcon) {
-            chipIcon.setVisibility(View.VISIBLE);
-            bindIconNow(chipIcon, ICON_FOLDER, colorAttr(
-                    com.google.android.material.R.attr.colorOnSurface));
-        } else {
-            chipIcon.setVisibility(View.GONE);
-        }
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMarginEnd(dp(8));
-        chip.setLayoutParams(lp);
-
-        if (isCreate) {
-            chip.setOnClickListener(v -> {
-                if (listener != null) listener.onCreateFolder();
-            });
-        } else {
-            chip.setOnClickListener(v -> {
-                if (listener != null) listener.onSelectFolder(folderId);
-            });
-            if (folderId != null) {
-                chip.setOnLongClickListener(v -> {
-                    if (listener == null) return true;
-                    // 长按开编辑菜单：改名 / 删除。菜单锚点就是这颗胶囊
-                    listener.onRenameFolder(folderId);
-                    return true;
-                });
-            }
-        }
-
-        folderChips.addView(chip);
-    }
 
     // endregion
 

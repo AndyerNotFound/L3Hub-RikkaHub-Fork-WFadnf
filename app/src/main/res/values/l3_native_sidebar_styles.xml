@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  侧栏 Tab 的文字样式。
+
+  用 labelLarge 而不是默认的 titleSmall：侧栏一共 300dp 宽，
+  titleSmall（14sp）在四个汉字时会把 Tab 撑得很宽，一屏只放得下两个。
+-->
+<resources>
+  <style name="TextAppearance.L3Hub.SidebarTab" parent="TextAppearance.Material3.LabelLarge">
+    <item name="android:textSize">13sp</item>
+    <item name="android:textAllCaps">false</item>
+  </style>
+</resources>
