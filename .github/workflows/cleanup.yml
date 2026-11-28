@@ -78,14 +78,16 @@ jobs:
           case "$keep_releases" in
             ''|*[!0-9]*) echo "keep_releases 必须是整数：[${keep_releases}]" >&2; exit 1 ;;
           esac
+          # 先算到局部变量：set -u 下直接写进 GITHUB_ENV 再引用 CUTOFF 会报 unbound
+          cutoff=$(date -u -d "${max_age_days} days ago" +%Y-%m-%dT%H:%M:%SZ)
           {
             echo "DRY_RUN=$dry_run"
             echo "KEEP_RELEASES=$keep_releases"
             echo "MAX_AGE_DAYS=$max_age_days"
             echo "EXTRA_KEEP=$extra_keep"
-            echo "CUTOFF=$(date -u -d "${max_age_days} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            echo "CUTOFF=$cutoff"
           } >> "$GITHUB_ENV"
-          echo "dry_run=${dry_run} 保留正式版=${keep_releases} 记录保留=${max_age_days}天 cutoff=${CUTOFF}"
+          echo "dry_run=${dry_run} 保留正式版=${keep_releases} 记录保留=${max_age_days}天 cutoff=${cutoff}"
 
       # 记录按创建时间从旧到新清：只删已完成的 run，正在跑的那条不动。
       # 删除后分页会整体前移，故每轮都从第一页重取，直到第一页再没有过期记录。
