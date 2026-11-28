@@ -155,6 +155,9 @@ internal fun fadeThroughTransition(): ContentTransform {
     val inSpec = tween<Float>(durationMillis = 210, delayMillis = 90, easing = FastOutSlowInEasing)
     return fadeOut(outSpec) togetherWith fadeIn(inSpec)
 }
+
+/**
+ * Shared Axis Y：新内容从下方进来、旧内容往上方退。
  *
  * 和 [sharedAxisX] 同一条定义，只是轴换成竖向——用于「同一个页面里换内容」，
  * 比如切换会话时只换消息区。Z 轴不动，所以两段内容不会互相遮挡，
