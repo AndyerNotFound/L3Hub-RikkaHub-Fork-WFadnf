@@ -337,6 +337,15 @@ public final class NativeChatComposer extends LinearLayout {
                 dp(46f),
                 padV
         );
+        // 提示文字用 EditText 自己的 hint，不用 TextInputLayout 的 placeholder。
+        //
+        // MDC 的 placeholder 只在「label 已收起」时才显示（hintExpanded=false，
+        // 也就是聚焦或已有文字时）；静止的空态下 label 是展开的，placeholder 被压着
+        // 一直不出现 —— 关掉 hint 之后这里就成了一块什么都没有的空白。
+        //
+        // hintEnabled=false 之后 TextInputLayout 不再代管 hint（isProvidingHint=false），
+        // EditText 的 hint 由它自己画，空态就在框内显示，一打字自动消失。
+        field.setHint(R.string.chat_input_placeholder);
         field.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -742,11 +751,11 @@ public final class NativeChatComposer extends LinearLayout {
      * 形状仍来自主题 attr 里的 drawable（只读 attr），这里只改 tint。
      */
     private void applyInputTextColors(@NonNull NativeChatTheme theme) {
-        if (inputLayout != null) {
-            // 输入框是「无标题 Filled」：关掉了 hint，提示文字走 placeholder。
-            // 所以这里设的是 placeholderTextColor —— 原来设 hintTextColor 现在没东西可着色。
-            // 聚焦时提到 primary，平时 onSurfaceVariant，与 M3 的 placeholder 一致
-            inputLayout.setPlaceholderTextColor(new ColorStateList(
+        if (field != null) {
+            // 输入框是「无标题 Filled」：TextInputLayout 的 hint 关着，
+            // 提示文字是 EditText 自己的 hint，所以着的是 hintTextColor。
+            // 聚焦时提到 primary，平时 onSurfaceVariant，与 M3 的提示文字一致
+            field.setHintTextColor(new ColorStateList(
                     new int[][] {
                             new int[] {android.R.attr.state_focused},
                             new int[] {}
