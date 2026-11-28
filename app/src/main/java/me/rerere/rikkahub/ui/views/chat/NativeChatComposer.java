@@ -8,7 +8,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
@@ -519,10 +518,10 @@ public final class NativeChatComposer extends LinearLayout {
         editChip.setChipIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         editChip.setCloseIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         field.setTextColor(theme.onSurface);
-        // 输入框底色透明：卡片自己已经铺了 surfaceContainerLow，
-        // 输入框再叠一层 surfaceContainerHigh 会在卡片里多出一块明显的方块。
-        // M3 的推荐也是容器色交给外层卡片，输入框不铺第二层。
-        inputLayout.setBoxBackgroundColor(Color.TRANSPARENT);
+        // 底色与指示线不覆盖：FilledBox 的默认值就是 M3 的 Filled 外观
+        // （surfaceContainerHighest + 1dp/2dp active indicator）。
+        // 早先这里设过 Color.TRANSPARENT，那等于把 Filled 的容器抹掉，
+        // 剩下的只是一块无框文字区。
         applyInputTextColors(theme);
         applySendColors();
         applyAsrColors();

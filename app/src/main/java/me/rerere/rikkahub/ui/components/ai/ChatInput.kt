@@ -622,7 +622,9 @@ fun ChatInput(
                                     )
                                     .padding(
                                         horizontal = settings.displaySetting.inputPadding.dp,
-                                        vertical = 4.dp,
+                                        // 输入框自己有容器色和上方圆角了，
+                                        // 上下留 8dp 才不至于贴着底板的边
+                                        vertical = 8.dp,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {

@@ -40,27 +40,23 @@
       android:layout_marginTop="4dp">
 
     <!--
-      无标题的 Filled Text field，全部走 M3 原版属性。
+      无标题的 Filled Text field：M3 原版样式 + 只去掉浮动 label。
 
-      - hintEnabled=false + placeholderText：M3 自己提供的「无标题」写法。
-        hint 会变成一条浮动 label（聚焦时升到框上方，像「有标题的输入框」）；
-        placeholder 只在空态时出现在框内，一打字就消失。
-      - boxBackgroundColor 透明：底板已经由外层卡片铺了 surfaceContainerLow，
-        输入框再叠一层 surfaceContainerHigh 会在卡片里多出一块方块。
-      - boxStrokeWidth 归零：不要 Filled 那条下划线，底板本身就是一块面。
-
-      形状不写 overlay：Widget.Material3.TextInputLayout.FilledBox 自带
-      ShapeAppearanceOverlay.Material3.Corner.Top（上圆下直），正是贴底该有的形状。
-      而且底色透明 + 描边 0，这里的形状本来就画不出来，多写一层只是盖掉默认值。
+      - hintEnabled=false + placeholderText：hint 会变成一条浮动 label
+        （聚焦时升到框上方，看起来像「有标题的输入框」）；关掉 hint 改用 placeholder，
+        提示文字只在空态时出现在框内，一打字就消失。
+      - 底色与指示线都保留 M3 默认：
+        boxBackgroundColor = m3_textfield_filled_background_color（surfaceContainerHighest），
+        boxStrokeWidth = 1dp / 聚焦 2dp，就是 Filled 那条 active indicator。
+        这两个别覆盖 —— 盖掉之后它就不是 Filled，只是一块无框文字区。
+      - 形状走 FilledBox 自带的 ShapeAppearanceOverlay.Material3.Corner.Top
+        （上圆下直），不自己写 overlay。
     -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/l3_native_input_layout"
         style="@style/Widget.Material3.TextInputLayout.FilledBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeWidth="0dp"
-        app:boxStrokeWidthFocused="0dp"
         app:hintEnabled="false"
         app:placeholderText="@string/chat_input_placeholder" />
 
