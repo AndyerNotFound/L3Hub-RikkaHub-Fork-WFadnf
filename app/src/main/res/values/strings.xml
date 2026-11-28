@@ -2982,11 +2982,11 @@
   <string name="chat_quota_bar_expand">Expand dashboard</string>
   <string name="chat_quota_bar_collapse">Collapse dashboard</string>
 
-  <string name="setting_display_page_floating_bar_title">Floating bar</string>
-  <string name="setting_display_page_floating_bar_switch">Show floating bar</string>
-  <string name="setting_display_page_floating_bar_desc">Show a bar under the chat input. It collapses while the input has focus and comes back when focus leaves. At least one slot is required.</string>
+  <string name="setting_display_page_floating_bar_title">Shortcut menu</string>
+  <string name="setting_display_page_floating_bar_switch">Show shortcut menu</string>
+  <string name="setting_display_page_floating_bar_desc">Put a shortcut button above the input card. Tapping it expands the menu towards the top-left; the button itself never covers the input. At least one slot is required.</string>
   <string name="setting_display_page_floating_bar_auto_hide_title">Auto-hide</string>
-  <string name="setting_display_page_floating_bar_auto_hide_desc">Collapse the bar after five seconds of inactivity; swipe up on the input to bring it back. When off, the bar stays on screen except while the input has focus.</string>
+  <string name="setting_display_page_floating_bar_auto_hide_desc">Collapse the expanded menu after five seconds of inactivity. When off, the menu stays open until you tap outside or pick an item.</string>
   <string name="setting_display_page_floating_bar_slot">Slot %1$d</string>
   <string name="setting_display_page_floating_bar_add_slot">Add slot</string>
   <string name="setting_display_page_floating_bar_slots_count">Configured slots: %1$d of %2$d</string>
@@ -2996,6 +2996,7 @@
   <string name="setting_display_page_floating_bar_clear">Clear slot</string>
   <string name="setting_display_page_floating_bar_size_title">Floating bar size</string>
   <string name="setting_display_page_floating_bar_size_desc">Scale the bar height and icons proportionally.</string>
+  <string name="floating_bar_open_menu">Open shortcuts</string>
   <string name="floating_bar_item_chat">Chat</string>
   <string name="floating_bar_item_media_creation">Media creation</string>
   <string name="floating_bar_item_translator">Translator</string>

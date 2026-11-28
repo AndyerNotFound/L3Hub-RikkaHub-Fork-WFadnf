@@ -12,9 +12,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.content.consume
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +28,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,7 +43,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,8 +50,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -120,11 +113,7 @@ import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
-import kotlin.math.abs
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 
 @Composable
@@ -219,10 +208,6 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度。
-    // 注意它不再驱动任何尺寸/形状变化——卡片常驻悬浮，见下。
-    var inputFocused by remember { mutableStateOf(false) }
-
     // 输入卡常驻悬浮：四角 uiCornerRadius（默认 24dp）+ 四周 8dp 外缩 + 2dp 投影。
     //
     // 原来这里按焦点插值成「贴键盘的 sheet」（圆角 24→28/0、外缩 8→0、投影 2→0）。
@@ -298,82 +283,14 @@ fun ChatInput(
     // 卡片当前的实际高度：多行文字、附件都会让它比「收起 + 一档展开」更高
     var cardHeightPx by remember { mutableIntStateOf(0) }
 
-    // 悬浮栏：开启后先露出来；输入框拿着焦点时收起，离开再展开；
-    // 自动隐藏开启时静默 5 秒收起，上滑输入框重新拉起。
+    // 悬浮菜单：开关打开且至少配了一个槽位才出现。
     //
-    // 它现在浮在底栏之上（Overlay），不再占流内高度：显隐不会改动输入框的位置。
-    // 原来这里还算了 floatingBarFullHeight 塞进卡片槽位，一露出来就把卡片往上顶，
-    // 那条耦合已经删掉了。
+    // 原来这里有一整套显隐状态机：首次入场、焦点进出收放、静默 5 秒自动隐藏、
+    // 上滑输入框重新拉起、点按重置计时。现在收起态只是一颗 44dp 的贴角按钮，
+    // 它不挡输入框也不占地方，没有「藏起来」的理由——自动隐藏与上滑唤起
+    // 一起交给 ChatFloatingBar 内部处理（展开的菜单才有超时）。
     val floatingBarEnabled = settings.displaySetting.enableFloatingBar && floatingBarItems.isNotEmpty()
     val floatingBarAutoHide = settings.displaySetting.floatingBarAutoHide
-    var floatingBarVisible by remember { mutableStateOf(false) }
-    var floatingBarActivity by remember { mutableIntStateOf(0) }
-    LaunchedEffect(floatingBarEnabled, state) {
-        if (!floatingBarEnabled) {
-            floatingBarVisible = false
-            return@LaunchedEffect
-        }
-        // 先按「收起」布局一帧，再拉起，首次进入也走同一条滑动模糊过渡
-        floatingBarVisible = false
-        withFrameNanos { }
-        floatingBarVisible = !inputFocused
-    }
-    // 焦点进出输入框：进去就收起，把键盘上方的高度留给内容；离开再展开。
-    // 首帧的那次由上面的入场动画负责，这里跳过
-    LaunchedEffect(floatingBarEnabled) {
-        if (!floatingBarEnabled) return@LaunchedEffect
-        snapshotFlow { inputFocused }
-            .drop(1)
-            .collectLatest { focused -> floatingBarVisible = !focused }
-    }
-    // 自动隐藏：显示期间静默 5 秒收起
-    LaunchedEffect(floatingBarEnabled, floatingBarAutoHide) {
-        if (!floatingBarEnabled || !floatingBarAutoHide) return@LaunchedEffect
-        snapshotFlow {
-            Triple(state.textContent.text.length, floatingBarActivity, floatingBarVisible)
-        }.collectLatest { (_, _, visible) ->
-            if (!visible) return@collectLatest
-            delay(5_000)
-            floatingBarVisible = false
-        }
-    }
-    val revealFloatingBarModifier = if (floatingBarEnabled && !floatingBarVisible) {
-        Modifier.pointerInput(floatingBarEnabled, floatingBarVisible) {
-            val threshold = 24.dp.toPx()
-            awaitEachGesture {
-                val down = awaitFirstDown(
-                    requireUnconsumed = false,
-                    pass = PointerEventPass.Initial,
-                )
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) break
-                    val dx = change.position.x - down.position.x
-                    val dy = change.position.y - down.position.y
-                    if (dy < -threshold && abs(dy) > abs(dx)) {
-                        // 认成上滑后吃掉这一次移动，输入框内部不再跟着滚一截
-                        change.consume()
-                        floatingBarVisible = true
-                        floatingBarActivity++
-                        break
-                    }
-                }
-            }
-        }
-    } else {
-        Modifier
-    }
-    val resetFloatingBarTimerModifier = if (floatingBarEnabled) {
-        Modifier.pointerInput(floatingBarEnabled) {
-            awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false)
-                floatingBarActivity++
-            }
-        }
-    } else {
-        Modifier
-    }
 
     fun sendMessage() {
         focusManager.clearFocus(force = true)
@@ -580,9 +497,7 @@ fun ChatInput(
                 )
             }
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(resetFloatingBarTimerModifier),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 // 空会话里输入区顶边钉在英雄卡下面，卡片向下展开；槽位不变，底栏总高度就不变，
                 // 英雄卡和 Scaffold 的底部内边距也不用跟着每帧重新布局。
@@ -637,6 +552,23 @@ fun ChatInput(
                             ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        // 悬浮菜单贴在卡片上方、右对齐，收起态只是一颗按钮。
+                        //
+                        // 走流式布局而不是 offset / 负偏移的 layout：offset 挪出父边界
+                        // 会被外层 Surface 的 clip 裁掉，画到父边界外也收不到触摸
+                        // （NodeCoordinator.isPointerInBounds 要求坐标落在 0..measuredHeight）。
+                        //
+                        // 菜单展开时这一列会往上长，底栏跟着长高。底栏是 Scaffold 的
+                        // bottomBar，摆放位置是「容器高 - 底栏高」，所以卡片离底边的距离
+                        // 始终是它自己的高度加内边距，位置不动、也不会被菜单压住。
+                        if (floatingBarEnabled) {
+                            ChatFloatingBar(
+                                items = floatingBarItems,
+                                onItemClick = onFloatingBarItemClick,
+                                displaySetting = settings.displaySetting,
+                                autoHide = floatingBarAutoHide,
+                            )
+                        }
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -645,7 +577,6 @@ fun ChatInput(
                                     if (expandProgress.value == 0f) collapsedCardHeightPx = size.height
                                     cardHeightPx = size.height
                                 }
-                                .then(revealFloatingBarModifier)
                                 // 悬浮卡片的投影（Demo 的 cardElevation=2dp），常量。
                                 // 放在 clip 之前，否则阴影会被圆角裁掉。
                                 .appButtonShadow(
@@ -889,7 +820,6 @@ fun ChatInput(
                                             },
                                             onFocusChange = { focused ->
                                                 fieldFocused = focused
-                                                inputFocused = focused
                                             },
                                             onMeasure = { _, oneLine -> oneLineHeightPx = oneLine },
                                         )
@@ -971,7 +901,7 @@ fun ChatInput(
                                             // 思考内容的编辑入口挂在 chip 本体上，两个入口都不能丢
                                             onEditChipClose = { state.clearInput() },
                                             onEditReasoningClick = { isEditingReasoning = true },
-                                            onFocusChange = { inputFocused = it },
+                                            onFocusChange = {},
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                         // 快捷消息菜单挂在卡片左下（快捷按钮上方）：菜单本体还是 Compose，
@@ -1000,7 +930,7 @@ fun ChatInput(
                                         guideMessages = guideMessages,
                                         onAddGuidance = onAddGuidance,
                                         onSendAsGuidance = onSendAsGuidance,
-                                        onFocusChange = { inputFocused = it },
+                                        onFocusChange = {},
                                     )
 
                                     Row(
@@ -1038,21 +968,6 @@ fun ChatInput(
                                 }
                             }
                         }
-                    }
-                    // 悬浮工具栏叠在输入卡之上，不参与这一列的布局：
-                    // 它显隐不会改动卡片位置（原来它排在 Column 里，一露出来就把卡片往上顶）。
-                    // 用 TopCenter 对齐到输入卡的顶边，往下压出 ScreenOffset 的外距，
-                    // 看起来就是浮在卡片上方的一条独立胶囊。
-                    if (floatingBarEnabled) {
-                        ChatFloatingBar(
-                            visible = floatingBarVisible,
-                            items = floatingBarItems,
-                            onItemClick = onFloatingBarItemClick,
-                            displaySetting = settings.displaySetting,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(y = -FloatingToolbarDefaults.ScreenOffset - 8.dp),
-                        )
                     }
                 }
             }

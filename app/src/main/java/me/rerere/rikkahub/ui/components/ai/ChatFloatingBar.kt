@@ -1,33 +1,47 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FloatingToolbarDefaults
-import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.ChartColumn
@@ -38,12 +52,15 @@ import me.rerere.hugeicons.stroke.ImageToVideo
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.model.FloatingBarItem
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
@@ -102,81 +119,194 @@ internal fun FloatingBarItem.label(): String = stringResource(
     }
 )
 
+/** 菜单一行的列数。7 个槽位排成两行。 */
+private const val MENU_COLUMNS = 4
+
+/** 按钮与面板共用的圆角：容器变换时形状不跳。 */
+private val MenuShape = RoundedCornerShape(16.dp)
+
+/** 两个状态共用的共享元素 key。 */
+private const val MENU_KEY = "l3_floating_menu"
+
 /**
- * 输入框下方的悬浮工具栏。
+ * 输入卡右上角的悬浮菜单。
  *
- * 用 M3 的 [HorizontalFloatingToolbar]：容器宽度跟着内容走、四周留出
- * [FloatingToolbarDefaults.ScreenOffset] 的外距、圆角来自
- * [FloatingToolbarDefaults.ContainerShape]（全圆角胶囊），elevation 也由它给。
+ * 原来是一条横着铺在输入卡上方的工具栏：在 Column 里占一整行流式高度，再用 offset
+ * 往上挪去叠卡片，结果既挡输入框又把底栏撑高。
  *
- * 这里不再自己画胶囊：原来的实现是通栏贴底 + 手画投影 + 玻璃底板，
- * 换成 M3 之后材质统一由 [FloatingToolbarDefaults.standardFloatingToolbarColors] 决定，
- * 不再接 advancedMaterial / haze。
+ * 现在只剩一颗贴角的小按钮，点开时菜单从按钮那一小块长成整张面板。两者都贴右下角
+ * 对齐，右边界与底边钉住，视觉上就是往左上角推开。
  *
- * 关键一点：它是**浮层**，不占流内高度。调用方把它放在底栏的 Box 里叠加，
- * 显隐不会改动输入框的位置——原来它参与布局，一露出来就把卡片往上顶。
+ * 容器变换走 [SharedTransitionScope.sharedBounds]。两个状态各是一个
+ * [AnimatedVisibility]，共用同一个 key —— 这是官方 nested shared bounds 的写法：
+ * 同时只有一个在场，bounds 从退出者的位置插值到进入者的位置。
+ *
+ * 位置必须是流式布局、不能用 offset 或负偏移的 layout 挪出去：
+ * Compose 的命中测试用 `isPointerInBounds`（见 `NodeCoordinator.kt`），
+ * 画到父节点边界外的内容收不到触摸。所以底栏跟着菜单一起往上长——
+ * 底栏是 bottomBar，底边固定，长高只会往聊天区里长，输入卡的位置不动。
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun ChatFloatingBar(
-    visible: Boolean,
     items: List<FloatingBarItem>,
     onItemClick: (FloatingBarItem) -> Unit,
     displaySetting: DisplaySetting,
     modifier: Modifier = Modifier,
+    autoHide: Boolean = true,
 ) {
+    if (items.isEmpty()) return
+
     val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
     val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
 
-    // 容器最宽能到多少：屏宽扣掉两处固定留白。
-    // - M3 的 ScreenOffset 左右各 16dp（胶囊和屏幕边之间的呼吸）
-    // - 底栏自己的 12dp 内缩左右各一份（外层 adaptiveHorizontalPadding）
-    // 7 个槽位在 100% 缩放下是 316dp，360dp 屏刚好；调大缩放或小屏时
-    // 靠这个上限把容器收住，内容改成横向滚动。
-    val maxBarWidth = LocalConfiguration.current.screenWidthDp.dp -
-        FloatingToolbarDefaults.ScreenOffset * 2 - 24.dp
+    var expanded by remember { mutableStateOf(false) }
+    // 静默计时：每次点按算一次活动，一段时间没再动就自动收起
+    var activity by remember { mutableIntStateOf(0) }
 
-    // 显隐走 M3 自己的展开/收起曲线，不再自己算位移和模糊：
-    // 容器高度、透明度、圆角都由 FloatingToolbar 内部处理。
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
+    // 只在菜单开着时计时，收起态不占一个协程
+    LaunchedEffect(expanded, autoHide, activity) {
+        if (!expanded || !autoHide) return@LaunchedEffect
+        delay(5_000)
+        expanded = false
+    }
+    // 菜单是浮层，返回键先收菜单，而不是退出会话
+    BackHandler(enabled = expanded) { expanded = false }
+
+    val fadeSpec = rememberEffectsSpec<Float>()
+    val boundsSpec = rememberSpatialSpec<Rect>()
+
+    SharedTransitionLayout(modifier = modifier.fillMaxWidth()) {
+        Box(contentAlignment = Alignment.BottomEnd) {
+            AnimatedVisibility(
+                visible = !expanded,
+                // 进出场一律交给 sharedBounds 演：这里再淡一次就是双份
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
+            ) {
+                FloatingMenuButton(
+                    iconExtent = iconExtent,
+                    itemExtent = itemExtent,
+                    onClick = {
+                        activity++
+                        expanded = true
+                    },
+                    modifier = Modifier.sharedBounds(
+                        rememberSharedContentState(key = MENU_KEY),
+                        this@AnimatedVisibility,
+                        enter = fadeIn(fadeSpec),
+                        exit = fadeOut(fadeSpec),
+                        boundsTransform = { _, _ -> boundsSpec },
+                        // 让外层跟着动画尺寸重新量，面板是往上长的，
+                        // 不跟着长就会被底栏的边界裁掉
+                        placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                    ),
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
+            ) {
+                FloatingMenuPanel(
+                    items = items,
+                    iconExtent = iconExtent,
+                    itemExtent = itemExtent,
+                    onItemClick = { item ->
+                        activity++
+                        expanded = false
+                        onItemClick(item)
+                    },
+                    modifier = Modifier.sharedBounds(
+                        rememberSharedContentState(key = MENU_KEY),
+                        this@AnimatedVisibility,
+                        enter = fadeIn(fadeSpec),
+                        exit = fadeOut(fadeSpec),
+                        boundsTransform = { _, _ -> boundsSpec },
+                        // 面板的圆角、描边、底色都画在容器自身上，
+                        // 只有真的按动画尺寸重新量一遍，这些才不会跟着被拉伸
+                        resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                        placeholderSize = SharedTransitionScope.PlaceholderSize.AnimatedSize,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/** 收起态：贴角的一颗按钮。 */
+@Composable
+private fun FloatingMenuButton(
+    iconExtent: Dp,
+    itemExtent: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .size(itemExtent)
+            .clickable(onClick = onClick),
+        shape = MenuShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 0.dp,
+        shadowElevation = 3.dp,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        ),
     ) {
-        HorizontalFloatingToolbar(
-            expanded = true,
-            // 容器高度跟着设置里的缩放走，但只给下限：M3 的容器自带 8dp 内边距，
-            // 硬写 height 会把图标压扁。关掉 IconButton 的 48dp 最小触控，
-            // 否则它会撑破容器（图标本身 36dp 左右，触控区由容器高度兜住）。
-            //
-            // 宽度要自己兜：M3 的容器是个居中的 Row，没有宽度上限，
-            // 7 个槽位在 140% 缩放下要 439dp，任何手机都会溢出到屏幕外。
-            // 这里限制不超过可用宽度，内容放不下时改成横向滚动。
-            modifier = Modifier
-                .heightIn(min = itemExtent)
-                .widthIn(max = maxBarWidth),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-        ) {
-            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                // 放得下就居中（M3 默认），放不下就能滚：7 个槽位在 100% 缩放下
-                // 是 316dp，360dp 屏刚好，320dp 小屏或调大缩放时要靠这一层。
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    items.forEach { item ->
-                        val label = item.label()
-                        Tooltip(tooltip = { Text(label) }) {
-                            IconButton(
-                                onClick = { onItemClick(item) },
-                                modifier = Modifier.size(itemExtent),
-                            ) {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = label,
-                                    modifier = Modifier.size(iconExtent),
-                                )
-                            }
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = HugeIcons.Menu03,
+                contentDescription = stringResource(R.string.floating_bar_open_menu),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(iconExtent),
+            )
+        }
+    }
+}
+
+/** 展开态：按钮长成的那张面板。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FloatingMenuPanel(
+    items: List<FloatingBarItem>,
+    iconExtent: Dp,
+    itemExtent: Dp,
+    onItemClick: (FloatingBarItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.widthIn(max = 240.dp),
+        shape = MenuShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 0.dp,
+        shadowElevation = 6.dp,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        ),
+    ) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            FlowRow(
+                modifier = Modifier.padding(6.dp),
+                maxItemsInEachRow = MENU_COLUMNS,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                items.forEach { item ->
+                    val label = item.label()
+                    Tooltip(tooltip = { Text(label) }) {
+                        IconButton(
+                            onClick = { onItemClick(item) },
+                            modifier = Modifier.size(itemExtent),
+                        ) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = label,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(iconExtent),
+                            )
                         }
                     }
                 }

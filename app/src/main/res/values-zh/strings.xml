@@ -2976,11 +2976,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_quota_bar_expand">展开看板</string>
   <string name="chat_quota_bar_collapse">收起看板</string>
 
-  <string name="setting_display_page_floating_bar_title">悬浮栏</string>
-  <string name="setting_display_page_floating_bar_switch">显示悬浮栏</string>
-  <string name="setting_display_page_floating_bar_desc">在聊天输入框下方显示悬浮栏；输入框获得焦点时收起，离开后展开。至少需要一个槽位。</string>
+  <string name="setting_display_page_floating_bar_title">快捷菜单</string>
+  <string name="setting_display_page_floating_bar_switch">显示快捷菜单</string>
+  <string name="setting_display_page_floating_bar_desc">在输入卡右上方放一颗快捷按钮，点开后菜单往左上角展开，按钮本身不遮挡输入框。至少需要一个槽位。</string>
   <string name="setting_display_page_floating_bar_auto_hide_title">自动隐藏</string>
-  <string name="setting_display_page_floating_bar_auto_hide_desc">静默五秒后自动收起，上滑输入框可重新拉起；关闭后悬浮栏常驻，仅在输入框获得焦点时收起。</string>
+  <string name="setting_display_page_floating_bar_auto_hide_desc">展开的菜单静默五秒后自动收起；关闭后菜单一直开着，直到点空白处或选中一项。</string>
   <string name="setting_display_page_floating_bar_slot">槽位 %1$d</string>
   <string name="setting_display_page_floating_bar_add_slot">添加槽位</string>
   <string name="setting_display_page_floating_bar_slots_count">已设置 %1$d / %2$d 个槽位</string>
@@ -2990,6 +2990,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_floating_bar_clear">清除槽位</string>
   <string name="setting_display_page_floating_bar_size_title">悬浮栏大小</string>
   <string name="setting_display_page_floating_bar_size_desc">按比例缩放悬浮栏的高度与图标。</string>
+  <string name="floating_bar_open_menu">打开快捷入口</string>
   <string name="floating_bar_item_chat">聊天</string>
   <string name="floating_bar_item_media_creation">媒体创作</string>
   <string name="floating_bar_item_translator">翻译</string>
