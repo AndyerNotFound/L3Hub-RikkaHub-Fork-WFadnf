@@ -4,8 +4,8 @@
 
   三种形态共用一个布局，由 Java 侧按需显示 / 隐藏：
   - 普通项：leading 图标 + 文字
+  - 双行项：文字下方多一行副标题（快捷消息的「标题 + 内容预览」）
   - 选中项：右侧出现对勾
-  - 分组标题：只留文字，字号更小、颜色更淡（itemSelectMenuHeader 样式）
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -29,15 +29,35 @@
       android:visibility="gone"
       app:tint="?attr/colorOnSurfaceVariant" />
 
-  <TextView
-      android:id="@+id/l3_native_select_item_text"
+  <!-- 文字区：单行时只有主标题，双行时下方多一行副标题 -->
+  <LinearLayout
       android:layout_width="0dp"
       android:layout_height="wrap_content"
       android:layout_weight="1"
-      android:ellipsize="end"
-      android:maxLines="1"
-      android:textAppearance="?attr/textAppearanceBodyLarge"
-      android:textColor="?attr/colorOnSurface" />
+      android:orientation="vertical"
+      android:paddingTop="10dp"
+      android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/l3_native_select_item_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:textColor="?attr/colorOnSurface" />
+
+    <TextView
+        android:id="@+id/l3_native_select_item_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:visibility="gone" />
+  </LinearLayout>
 
   <ImageView
       android:id="@+id/l3_native_select_item_check"

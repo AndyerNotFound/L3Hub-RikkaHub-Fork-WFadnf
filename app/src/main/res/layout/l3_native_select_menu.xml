@@ -3,15 +3,17 @@
   公用选择菜单的 Popup 内容。
 
   结构是为容器变换服务的：
-  - anchorView 是一块透明的占位，尺寸 = 触发按钮的大小，位置 = 触发按钮在屏幕上的位置。
+  - anchor 是一块透明的占位，尺寸 = 触发按钮的大小，位置 = 触发按钮的屏幕位置。
     它不画任何东西，只提供一个「起点矩形」。
-  - card 是真正的菜单，起点也从 anchorView 那里长出来。
+  - card 是真正参与容器变换的那张卡（第一组）。展开时从 anchor 长到这里。
 
   两者在同一个 FrameLayout 里 —— MaterialContainerTransform 要求起点和终点共享父容器，
   因为动画期间两者都会被绘制到父容器的 overlay 层。
 
-  Popup 本身铺满整个窗口（windowIsFloating=false + 透明背景），
-  所以这里的坐标就是屏幕坐标，不需要再做窗口偏移换算。
+  为什么外层还有一层 groups：
+  菜单可能分成多段（比如「概览/导出」一段、「删除」单独一段），每段是独立的一张卡，
+  段间留 2dp 空隙。容器变换只作用在第一段上 —— 多张卡同时做变换会各自缩放，
+  看起来很乱；其余几段跟着第一段一起淡入就行。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -20,7 +22,7 @@
     android:layout_height="match_parent">
 
   <!--
-    起点占位：透明、不接收触摸。位置与尺寸由 Java 侧按触发按钮的屏幕矩形设置。
+    起点占位：透明、不接收触摸。位置与尺寸由 Java 侧按触发按钮的窗口矩形设置。
   -->
   <View
       android:id="@+id/l3_native_select_anchor"
@@ -28,28 +30,35 @@
       android:layout_height="1dp"
       android:visibility="invisible" />
 
-  <!--
-    菜单卡：MaterialCardView 提供圆角与投影。内容由 Java 动态填充（每项一行）。
-    初始不可见，展开时由容器变换从 anchorView 长到这里。
-  -->
-  <com.google.android.material.card.MaterialCardView
-      android:id="@+id/l3_native_select_card"
+  <!-- 所有分组竖排；每段一张卡，段间 2dp -->
+  <LinearLayout
+      android:id="@+id/l3_native_select_groups"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:minWidth="200dp"
-      android:visibility="invisible"
-      app:cardBackgroundColor="?attr/colorSurfaceContainer"
-      app:cardCornerRadius="16dp"
-      app:cardElevation="3dp"
-      app:strokeColor="?attr/colorOutlineVariant"
-      app:strokeWidth="1dp">
+      android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/l3_native_select_items"
-        android:layout_width="match_parent"
+    <!--
+      第一组：容器变换的终点。后面几组由 Java 侧动态插入到这个容器之后。
+    -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/l3_native_select_card"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp" />
-  </com.google.android.material.card.MaterialCardView>
+        android:minWidth="200dp"
+        android:visibility="invisible"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="3dp"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp">
+
+      <LinearLayout
+          android:id="@+id/l3_native_select_items"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:paddingTop="6dp"
+          android:paddingBottom="6dp" />
+    </com.google.android.material.card.MaterialCardView>
+  </LinearLayout>
 </FrameLayout>

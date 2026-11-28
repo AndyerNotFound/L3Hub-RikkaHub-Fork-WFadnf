@@ -13,14 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -35,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,8 +63,6 @@ import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
 import me.rerere.rikkahub.ui.theme.appButtonShadow
-import me.rerere.ui.components.LocalSeparateWindowColors
-import me.rerere.ui.components.SeparateWindowContent
 import kotlin.uuid.Uuid
 
 // 顶栏按钮统一尺寸：45dp 的按钮配 22.5dp 的图标（原来是 40dp/20dp，等比放大 12.5%），
@@ -394,7 +387,10 @@ private fun ChatFolderMenu(
     }
 }
 
-// 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰
+// 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰。
+//
+// 分成两组：概览与导出是一组，删除单独一组 —— 破坏性操作隔开，避免误触。
+// 每组是独立的一张卡，组间留 2dp，圆角按 M3 的分组规则算。
 @Composable
 private fun ChatPageMenu(
     enabled: Boolean,
@@ -403,85 +399,40 @@ private fun ChatPageMenu(
     onDelete: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val anchor = rememberSelectMenuAnchor()
 
-    @Composable
-    fun MenuItem(
-        text: String,
-        icon: ImageVector,
-        index: Int,
-        count: Int,
-        destructive: Boolean = false,
-        onClick: () -> Unit,
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val overviewLabel = stringResource(R.string.chat_page_conversation_map)
+    val exportLabel = stringResource(R.string.export_title)
+    val deleteLabel = stringResource(R.string.delete)
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = listOf(
+            HugeIcons.LeftToRightListBullet,
+            HugeIcons.Share04,
+            HugeIcons.Delete01,
+        ),
     ) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            onClick = {
-                expanded = false
-                onClick()
-            },
-            shape = MenuDefaults.itemShape(index = index, count = count).shape,
-            leadingIcon = { Icon(icon, contentDescription = null) },
-            enabled = enabled,
-            colors = if (destructive) {
-                val errorColor = MaterialTheme.colorScheme.error
-                MenuDefaults.itemColors(textColor = errorColor, leadingIconColor = errorColor)
-            } else {
-                MenuDefaults.itemColors()
-            },
+        addItem(overviewLabel, null, false, enabled, false) { onShowOverview() }
+        addItem(exportLabel, null, false, enabled, false) { onExport() }
+        startGroup()
+        addItem(deleteLabel, null, false, enabled, true) { onDelete() }
+    }
+
+    IconButton(
+        onClick = { expanded = true },
+        modifier = Modifier
+            .size(TopBarButtonSize)
+            .then(anchor.modifier),
+    ) {
+        Icon(
+            HugeIcons.MoreVertical,
+            stringResource(R.string.more_options),
+            modifier = Modifier.size(TopBarButtonIconSize),
         )
     }
-
-    Box {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(TopBarButtonSize)) {
-            Icon(
-                HugeIcons.MoreVertical,
-                stringResource(R.string.more_options),
-                modifier = Modifier.size(TopBarButtonIconSize),
-            )
-        }
-        DropdownMenuPopup(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            val overlay = LocalSeparateWindowColors.current
-            val color = overlay?.menuGroup ?: MenuDefaults.groupStandardContainerColor
-            SeparateWindowContent {
-                DropdownMenuGroup(
-                    shapes = MenuDefaults.groupShape(index = 0, count = 2),
-                    containerColor = color,
-                    border = overlay?.menuBorder,
-                ) {
-                    MenuItem(
-                        text = stringResource(R.string.chat_page_conversation_map),
-                        icon = HugeIcons.LeftToRightListBullet,
-                        index = 0,
-                        count = 2,
-                        onClick = onShowOverview,
-                    )
-                    MenuItem(
-                        text = stringResource(R.string.export_title),
-                        icon = HugeIcons.Share04,
-                        index = 1,
-                        count = 2,
-                        onClick = onExport,
-                    )
-                }
-                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(
-                    shapes = MenuDefaults.groupShape(index = 1, count = 1),
-                    containerColor = color,
-                    border = overlay?.menuBorder,
-                ) {
-                    MenuItem(
-                        text = stringResource(R.string.delete),
-                        icon = HugeIcons.Delete01,
-                        index = 0,
-                        count = 1,
-                        destructive = true,
-                        onClick = onDelete,
-                    )
-                }
-            }
-        }
-    }
 }
+

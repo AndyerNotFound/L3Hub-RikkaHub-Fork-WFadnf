@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import android.graphics.Rect
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -24,7 +26,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -79,6 +80,8 @@ import me.rerere.hugeicons.stroke.Attachment01
 import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
@@ -89,7 +92,6 @@ import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
-import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -485,12 +487,14 @@ internal fun QuickMessageButton(
     onSendAsGuidance: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val anchor = rememberSelectMenuAnchor()
     Box {
         Box(
             modifier = Modifier
                 .size(30.dp)
                 .clip(CircleShape)
                 .testTag("chat_quick_message_button")
+                .then(anchor.modifier)
                 .combinedClickable(
                     onClick = { expanded = !expanded },
                     // 长按：输入框里的内容不进这一轮的消息，直接作为引导插进正在跑的工具间隙。
@@ -516,6 +520,7 @@ internal fun QuickMessageButton(
             guideMessages = guideMessages,
             state = state,
             onAddGuidance = onAddGuidance,
+            anchorBounds = anchor.value.value,
         )
     }
 }
@@ -535,91 +540,49 @@ internal fun QuickMessageMenu(
     guideMessages: List<QuickMessage>,
     state: ChatInputState,
     onAddGuidance: (QuickMessage) -> Unit,
+    anchorBounds: Rect? = null,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
-    DropdownMenu(
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val emptyLabel = stringResource(R.string.quick_messages_page_empty_title)
+    val guideSectionLabel = stringResource(R.string.quick_messages_guide_section)
+
+    rememberNativeSelectMenu(
         expanded = expanded,
-        onDismissRequest = onDismissRequest,
-        modifier = Modifier
-            .widthIn(min = 200.dp, max = 360.dp)
+        onDismiss = onDismissRequest,
+        anchorBounds = anchorBounds,
+        icons = List(quickMessages.size + guideMessages.size) { null },
     ) {
         if (quickMessages.isEmpty() && guideMessages.isEmpty()) {
-            Text(
-                text = stringResource(R.string.quick_messages_page_empty_title),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            )
+            // 空状态：一条不可点的说明
+            addItem(emptyLabel, null, selected = false, enabled = false, destructive = false) {}
         }
         quickMessages.forEach { quickMessage ->
-            // 短按追加到输入框末尾，长按替换输入框内容
-            Surface(
-                color = Color.Transparent,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(
-                        onClick = {
-                            state.appendText(quickMessage.content)
-                            onDismissRequest()
-                        },
-                        onLongClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            state.setMessageText(quickMessage.content)
-                            onDismissRequest()
-                        },
-                    ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text(
-                        text = quickMessage.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = quickMessage.content,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            // 短按追加到输入框末尾，长按替换输入框内容 —— 双行项 + 长按
+            addItem(
+                quickMessage.title,
+                quickMessage.content,
+                null,
+                /* selected = */ false,
+                /* enabled = */ true,
+                /* destructive = */ false,
+                /* action = */ {
+                    state.appendText(quickMessage.content)
+                },
+                /* longAction = */ {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    state.setMessageText(quickMessage.content)
+                },
+            )
         }
         // 引导提示词单独一区：点选后不进输入框，直接加进本轮的工具间隙
         if (guideMessages.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.quick_messages_guide_section),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 4.dp),
-            )
+            startGroup()
+            addHeader(guideSectionLabel)
             guideMessages.forEach { guide ->
-                Surface(
-                    onClick = {
-                        onAddGuidance(guide)
-                        onDismissRequest()
-                    },
-                    color = Color.Transparent,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Text(
-                            text = guide.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = guide.content,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                addItem(guide.title, guide.content, null, false, true, false) {
+                    onAddGuidance(guide)
                 }
             }
         }

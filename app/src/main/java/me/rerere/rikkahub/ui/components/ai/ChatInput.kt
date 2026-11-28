@@ -901,7 +901,11 @@ fun ChatInput(
                                             modifier = Modifier.fillMaxWidth(),
                                         )
                                         // 快捷消息菜单挂在卡片左下（快捷按钮上方）：菜单本体还是 Compose，
-                                        // 原生卡只把「打开」抛回来，item 行为不分叉
+                                        // 原生卡只把「打开」抛回来，item 行为不分叉。
+                                        //
+                                        // 不传 anchorBounds：触发按钮在 NativeChatComposerHost 内部，
+                                        // Compose 侧拿不到它的矩形。这里退化成原地淡入 ——
+                                        // 要容器变换得让原生卡把按钮矩形一起抛回来。
                                         Box(
                                             modifier = Modifier
                                                 .align(Alignment.BottomStart)

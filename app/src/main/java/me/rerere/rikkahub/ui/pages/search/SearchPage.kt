@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.style.LargeFlexibleTopAppBar
@@ -48,13 +46,14 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.db.fts.MessageSearchResult
 import me.rerere.rikkahub.data.db.fts.MessageSearchSort
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.glassSegmentedButtonColors
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.style.IconButton
-import me.rerere.rikkahub.ui.style.RadioButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
@@ -257,43 +256,39 @@ private fun SortMenuButton(
     onSortChange: (MessageSearchSort) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                HugeIcons.Sorting01,
-                contentDescription = stringResource(R.string.search_page_sort)
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            MessageSearchSort.entries.forEach { sort ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                when (sort) {
-                                    MessageSearchSort.RELEVANCE -> R.string.search_page_sort_relevance
-                                    MessageSearchSort.NEWEST_FIRST -> R.string.search_page_sort_newest
-                                    MessageSearchSort.OLDEST_FIRST -> R.string.search_page_sort_oldest
-                                }
-                            )
-                        )
-                    },
-                    leadingIcon = {
-                        RadioButton(
-                            selected = sort == current,
-                            onClick = null,
-                        )
-                    },
-                    onClick = {
-                        expanded = false
-                        onSortChange(sort)
-                    },
-                )
+    val anchor = rememberSelectMenuAnchor()
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val labels = MessageSearchSort.entries.map {
+        stringResource(
+            when (it) {
+                MessageSearchSort.RELEVANCE -> R.string.search_page_sort_relevance
+                MessageSearchSort.NEWEST_FIRST -> R.string.search_page_sort_newest
+                MessageSearchSort.OLDEST_FIRST -> R.string.search_page_sort_oldest
             }
+        )
+    }
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = MessageSearchSort.entries.map { null },
+    ) {
+        // 原来是左侧单选圆点，这里换成右侧对勾：语义一样，视觉更轻
+        MessageSearchSort.entries.forEachIndexed { index, sort ->
+            addItem(labels[index], null, selected = sort == current) { onSortChange(sort) }
         }
+    }
+
+    IconButton(
+        onClick = { expanded = true },
+        modifier = Modifier.then(anchor.modifier),
+    ) {
+        Icon(
+            HugeIcons.Sorting01,
+            contentDescription = stringResource(R.string.search_page_sort)
+        )
     }
 }
 

@@ -104,31 +104,43 @@ public final class NativeSelectMenu {
 
         public final Kind kind;
         @Nullable public final String label;
+        /** 第二行小字。null 表示单行项。 */
+        @Nullable public final String subtitle;
         @Nullable public final Integer iconRes;
         public final boolean selected;
         public final boolean enabled;
         public final boolean destructive;
         @Nullable public final Runnable action;
+        /** 长按时的动作。null 表示不支持长按。 */
+        @Nullable public final Runnable longAction;
+        /** 属于第几组。同组的项连成一张卡。 */
+        public final int groupIndex;
         /** 第几项（只数 ENTRY），给 {@link IconBinder} 用。 */
         public final int entryIndex;
 
         private Item(
                 @NonNull Kind kind,
                 @Nullable String label,
+                @Nullable String subtitle,
                 @Nullable Integer iconRes,
                 boolean selected,
                 boolean enabled,
                 boolean destructive,
                 @Nullable Runnable action,
+                @Nullable Runnable longAction,
+                int groupIndex,
                 int entryIndex
         ) {
             this.kind = kind;
             this.label = label;
+            this.subtitle = subtitle;
             this.iconRes = iconRes;
             this.selected = selected;
             this.enabled = enabled;
             this.destructive = destructive;
             this.action = action;
+            this.longAction = longAction;
+            this.groupIndex = groupIndex;
             this.entryIndex = entryIndex;
         }
     }
@@ -140,6 +152,8 @@ public final class NativeSelectMenu {
 
     private final Context context;
     private final List<Item> items = new ArrayList<>();
+    /** 当前分组序号，{@link #startGroup()} 递增。 */
+    private int currentGroup;
 
     @Nullable
     private PopupWindow popup;
@@ -147,6 +161,8 @@ public final class NativeSelectMenu {
     private MaterialCardView card;
     @Nullable
     private LinearLayout itemContainer;
+    @Nullable
+    private LinearLayout groupsContainer;
     @Nullable
     private Rect anchorBounds;
     @Nullable
@@ -186,6 +202,7 @@ public final class NativeSelectMenu {
     /** 清空已加的项。桥接层在每次展开前重建内容时调用。 */
     public NativeSelectMenu clearItems() {
         items.clear();
+        currentGroup = 0;
         return this;
     }
 
@@ -213,25 +230,66 @@ public final class NativeSelectMenu {
             boolean destructive,
             @Nullable Runnable action
     ) {
-        int entryIndex = 0;
-        for (Item existing : items) {
-            if (existing.kind == Item.Kind.ENTRY) entryIndex++;
-        }
+        return addItem(label, null, iconRes, selected, enabled, destructive, action, null);
+    }
+
+    /**
+     * 加一个双行项：标题 + 副标题。
+     *
+     * <p>{@code longAction} 非空时支持长按 —— 快捷消息菜单用的就是这种：
+     * 短按追加到输入框，长按替换输入框内容。
+     */
+    public NativeSelectMenu addItem(
+            @NonNull String label,
+            @Nullable String subtitle,
+            @Nullable Integer iconRes,
+            boolean selected,
+            boolean enabled,
+            boolean destructive,
+            @Nullable Runnable action,
+            @Nullable Runnable longAction
+    ) {
         items.add(new Item(
-                Item.Kind.ENTRY, label, iconRes, selected, enabled, destructive, action, entryIndex));
+                Item.Kind.ENTRY,
+                label,
+                subtitle,
+                iconRes,
+                selected,
+                enabled,
+                destructive,
+                action,
+                longAction,
+                currentGroup,
+                nextEntryIndex()
+        ));
         return this;
     }
 
     /** 加一个分组标题：不可点、字号更小。 */
     public NativeSelectMenu addHeader(@NonNull String label) {
-        items.add(new Item(Item.Kind.HEADER, label, null, false, true, false, null, -1));
+        items.add(new Item(
+                Item.Kind.HEADER, label, null, null, false, true, false, null, null,
+                currentGroup, -1));
         return this;
     }
 
-    /** 加一条分隔线。 */
-    public NativeSelectMenu addDivider() {
-        items.add(new Item(Item.Kind.DIVIDER, null, null, false, true, false, null, -1));
+    /**
+     * 起一个新分组。之后的项会放进另一张卡，与上一组之间留 2dp 空隙。
+     *
+     * <p>对应 M3 的 {@code DropdownMenuGroup}：把删除这类破坏性操作单独隔开，避免误触。
+     * 每组的圆角按位置算（首组上圆下平、末组上平下圆、中间四角小）。
+     */
+    public NativeSelectMenu startGroup() {
+        currentGroup++;
         return this;
+    }
+
+    private int nextEntryIndex() {
+        int entryIndex = 0;
+        for (Item existing : items) {
+            if (existing.kind == Item.Kind.ENTRY) entryIndex++;
+        }
+        return entryIndex;
     }
 
     public boolean isShowing() {
@@ -256,6 +314,7 @@ public final class NativeSelectMenu {
         View anchorPlaceholder = content.findViewById(R.id.l3_native_select_anchor);
         card = content.findViewById(R.id.l3_native_select_card);
         itemContainer = content.findViewById(R.id.l3_native_select_items);
+        groupsContainer = content.findViewById(R.id.l3_native_select_groups);
 
         bindItems();
         placeAnchor(anchorBounds, anchorPlaceholder);
@@ -328,7 +387,10 @@ public final class NativeSelectMenu {
      */
     private void positionCard(@Nullable Rect anchor) {
         if (card == null) return;
-        View root = (View) card.getParent();
+        // 多组时高度是所有组之和，所以要量最外层那个竖排容器，不是第一张卡
+        View measured = groupsContainer != null ? groupsContainer : card;
+        View root = (View) measured.getParent();
+        if (root == null) root = (View) card.getParent();
         if (root == null) return;
 
         int margin = dp(EDGE_MARGIN_DP);
@@ -345,12 +407,12 @@ public final class NativeSelectMenu {
         targetWidth = Math.min(targetWidth, availableWidth);
 
         // 先按目标宽度量一遍，拿到真实高度
-        card.measure(
+        measured.measure(
                 View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         );
-        int cardWidth = card.getMeasuredWidth();
-        int cardHeight = card.getMeasuredHeight();
+        int cardWidth = measured.getMeasuredWidth();
+        int cardHeight = measured.getMeasuredHeight();
 
         // 垂直：优先下方，放不下翻到上方，都不行就贴边并让内部滚动
         int spaceBelow = root.getHeight() - (anchorTop + anchorHeight) - margin;
@@ -364,12 +426,12 @@ public final class NativeSelectMenu {
             // 两边都放不下：选空间大的一侧，高度收到该侧可用空间
             boolean below = spaceBelow >= spaceAbove;
             int limit = Math.max(dp(96), below ? spaceBelow : spaceAbove);
-            card.measure(
+            measured.measure(
                     View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST)
             );
-            cardWidth = card.getMeasuredWidth();
-            cardHeight = card.getMeasuredHeight();
+            cardWidth = measured.getMeasuredWidth();
+            cardHeight = measured.getMeasuredHeight();
             y = below ? anchorTop + anchorHeight : anchorTop - cardHeight;
         }
 
@@ -380,17 +442,33 @@ public final class NativeSelectMenu {
         }
         if (x < margin) x = margin;
 
-        card.setX(x);
-        card.setY(y);
-        ViewGroup.LayoutParams lp = card.getLayoutParams();
+        measured.setX(x);
+        measured.setY(y);
+        ViewGroup.LayoutParams lp = measured.getLayoutParams();
         lp.width = cardWidth;
         lp.height = cardHeight;
-        card.setLayoutParams(lp);
+        measured.setLayoutParams(lp);
+
+        // 后续分组与第一组同宽：每张卡按 wrap 量出来的宽度可能不一样，
+        // 宽度不齐看起来像错位
+        alignGroupWidths(cardWidth);
+    }
+
+    /** 让所有分组卡同宽。第一张卡是容器变换的终点，宽度以它为准。 */
+    private void alignGroupWidths(int width) {
+        if (groupsContainer == null) return;
+        for (int i = 1; i < groupsContainer.getChildCount(); i++) {
+            View child = groupsContainer.getChildAt(i);
+            ViewGroup.LayoutParams lp = child.getLayoutParams();
+            lp.width = width;
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            child.setLayoutParams(lp);
+        }
     }
 
     /** 展开：从占位 View 长成菜单卡。 */
     private void playOpenTransform(@NonNull View start, @NonNull View end) {
-        View root = (View) end.getParent();
+        View root = findPopupRoot();
         if (root == null) return;
 
         if (!animationsEffective) {
@@ -420,7 +498,9 @@ public final class NativeSelectMenu {
             afterDismiss.run();
             return;
         }
-        View root = (View) card.getParent();
+        // card 的父是 groupsContainer（第一组那张卡），不是 Popup 根。
+        // 要往上找到 Popup 根，anchor 才在它里面
+        View root = findPopupRoot();
         if (root == null) {
             afterDismiss.run();
             return;
@@ -455,96 +535,177 @@ public final class NativeSelectMenu {
         if (itemContainer == null) return;
         itemContainer.removeAllViews();
 
+        // 按 groupIndex 切成若干段，每段一张卡
+        List<List<Item>> groups = new ArrayList<>();
         for (Item item : items) {
-            switch (item.kind) {
-                case DIVIDER: {
-                    View divider = new View(context);
-                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
-                    lp.topMargin = dp(8);
-                    lp.bottomMargin = dp(8);
-                    divider.setLayoutParams(lp);
-                    divider.setBackgroundColor(colorAttr(
-                            com.google.android.material.R.attr.colorOutlineVariant));
-                    itemContainer.addView(divider);
-                    break;
+            while (groups.size() <= item.groupIndex) {
+                groups.add(new ArrayList<>());
+            }
+            groups.get(item.groupIndex).add(item);
+        }
+
+        for (int g = 0; g < groups.size(); g++) {
+            LinearLayout container = g == 0 ? itemContainer : createGroupContainer(g, groups.size());
+            if (container == null) continue;
+            for (Item item : groups.get(g)) {
+                addItemView(container, item, groups.get(g));
+            }
+        }
+    }
+
+    /**
+     * 第一组之后的分组：新建一张卡插到 groups 容器里，与前一组留 2dp。
+     *
+     * <p>圆角按 M3 的 {@code MenuDefaults.groupShape} 规则：
+     * 只有一组时四角 16dp；首组上 16 下 8；末组上 8 下 16；中间四角 8。
+     */
+    @Nullable
+    private LinearLayout createGroupContainer(int groupIndex, int groupCount) {
+        if (groupsContainer == null || card == null) return null;
+
+        MaterialCardView groupCard = new MaterialCardView(context);
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.topMargin = dp(2);
+        groupCard.setLayoutParams(cardLp);
+        groupCard.setCardBackgroundColor(colorAttr(
+                com.google.android.material.R.attr.colorSurfaceContainer));
+        groupCard.setCardElevation(dp(3));
+        groupCard.setStrokeColor(colorAttr(
+                com.google.android.material.R.attr.colorOutlineVariant));
+        groupCard.setStrokeWidth(dp(1));
+        groupCard.setRadius(groupCornerRadius(groupIndex, groupCount));
+
+        LinearLayout inner = new LinearLayout(context);
+        inner.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(6);
+        inner.setPadding(0, pad, 0, pad);
+        groupCard.addView(inner, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // 保持与第一张卡同宽：等第一张卡量完之后再对齐，这里先按 wrap 放进去
+        groupsContainer.addView(groupCard);
+        return inner;
+    }
+
+    /** M3 的分组圆角：首组上大下小、末组上小下大、中间一致、单独一组四角大。 */
+    private float groupCornerRadius(int index, int count) {
+        if (count <= 1) return dp(16);
+        if (index == 0) return dp(16);
+        if (index == count - 1) return dp(16);
+        return dp(8);
+    }
+
+    /** 往某个分组里放一项。 */
+    private void addItemView(
+            @NonNull LinearLayout container,
+            @NonNull Item item,
+            @NonNull List<Item> group
+    ) {
+        switch (item.kind) {
+            case DIVIDER: {
+                View divider = new View(context);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+                lp.topMargin = dp(6);
+                lp.bottomMargin = dp(6);
+                divider.setLayoutParams(lp);
+                divider.setBackgroundColor(colorAttr(
+                        com.google.android.material.R.attr.colorOutlineVariant));
+                container.addView(divider);
+                break;
+            }
+            case HEADER: {
+                TextView header = new TextView(context);
+                header.setText(item.label);
+                header.setTextAppearance(
+                        com.google.android.material.R.style.TextAppearance_Material3_LabelMedium);
+                header.setTextColor(colorAttr(
+                        com.google.android.material.R.attr.colorOnSurfaceVariant));
+                int hPad = dp(16);
+                header.setPadding(hPad, dp(6), hPad, dp(4));
+                container.addView(header);
+                break;
+            }
+            case ENTRY:
+            default: {
+                View row = LayoutInflater.from(context)
+                        .inflate(R.layout.l3_native_select_menu_item, container, false);
+                TextView text = row.findViewById(R.id.l3_native_select_item_text);
+                TextView subtitle = row.findViewById(R.id.l3_native_select_item_subtitle);
+                ImageView icon = row.findViewById(R.id.l3_native_select_item_icon);
+                ImageView check = row.findViewById(R.id.l3_native_select_item_check);
+
+                text.setText(item.label);
+
+                // 双行项：第二行小字
+                if (item.subtitle != null) {
+                    subtitle.setText(item.subtitle);
+                    subtitle.setVisibility(View.VISIBLE);
+                } else {
+                    subtitle.setVisibility(View.GONE);
                 }
-                case HEADER: {
-                    TextView header = new TextView(context);
-                    header.setText(item.label);
-                    header.setTextAppearance(
-                            com.google.android.material.R.style.TextAppearance_Material3_LabelMedium);
-                    header.setTextColor(colorAttr(
-                            com.google.android.material.R.attr.colorOnSurfaceVariant));
-                    int hPad = dp(16);
-                    header.setPadding(hPad, dp(8), hPad, dp(4));
-                    itemContainer.addView(header);
-                    break;
+
+                int iconTint = colorAttr(item.destructive
+                        ? com.google.android.material.R.attr.colorError
+                        : com.google.android.material.R.attr.colorOnSurfaceVariant);
+
+                if (item.destructive) {
+                    // 危险色：文字与图标走 error，删除这类不可逆操作用
+                    text.setTextColor(colorAttr(
+                            com.google.android.material.R.attr.colorError));
                 }
-                case ENTRY:
-                default: {
-                    View row = LayoutInflater.from(context)
-                            .inflate(R.layout.l3_native_select_menu_item, itemContainer, false);
-                    TextView text = row.findViewById(R.id.l3_native_select_item_text);
-                    ImageView icon = row.findViewById(R.id.l3_native_select_item_icon);
-                    ImageView check = row.findViewById(R.id.l3_native_select_item_check);
 
-                    text.setText(item.label);
+                if (iconBinder != null && iconBinder.hasIcon(item.entryIndex)) {
+                    // 图标交给 Compose 画：HugeIcons 的 pathData 是编译后的
+                    // ImageVector.Builder 字节码，Java 侧取不到，只能靠 ComposeView
+                    ViewGroup parent = (ViewGroup) icon.getParent();
+                    int slotIndex = parent.indexOfChild(icon);
+                    parent.removeView(icon);
 
-                    int iconTint = colorAttr(item.destructive
-                            ? com.google.android.material.R.attr.colorError
-                            : com.google.android.material.R.attr.colorOnSurfaceVariant);
+                    LinearLayout iconSlot = new LinearLayout(context);
+                    LinearLayout.LayoutParams slotLp =
+                            new LinearLayout.LayoutParams(dp(20), dp(20));
+                    slotLp.setMarginEnd(dp(12));
+                    iconSlot.setLayoutParams(slotLp);
+                    iconSlot.setGravity(Gravity.CENTER);
+                    parent.addView(iconSlot, slotIndex);
+                    iconBinder.bindIcon(iconSlot, item.entryIndex, iconTint);
+                } else if (item.iconRes != null) {
+                    icon.setImageResource(item.iconRes);
+                    icon.setImageTintList(android.content.res.ColorStateList.valueOf(iconTint));
+                    icon.setVisibility(View.VISIBLE);
+                }
 
-                    if (item.destructive) {
-                        // 危险色：文字与图标走 error，删除这类不可逆操作用
-                        text.setTextColor(colorAttr(
-                                com.google.android.material.R.attr.colorError));
-                    }
+                // 禁用：整体压到 38% 不透明度，与 M3 的 disabled 一致。
+                // 放在图标之后，否则 icon 已被移除、setEnabled 落空
+                if (!item.enabled) {
+                    row.setEnabled(false);
+                    row.setClickable(false);
+                    row.setAlpha(0.38f);
+                    text.setEnabled(false);
+                    check.setEnabled(false);
+                }
+                // 危险项不显示对勾：它是动作，不是选项
+                check.setVisibility(
+                        item.selected && !item.destructive ? View.VISIBLE : View.GONE);
 
-                    if (iconBinder != null && iconBinder.hasIcon(item.entryIndex)) {
-                        // 图标交给 Compose 画：HugeIcons 的 pathData 是编译后的
-                        // ImageVector.Builder 字节码，Java 侧取不到，只能靠 ComposeView
-                        ViewGroup parent = (ViewGroup) icon.getParent();
-                        int slotIndex = parent.indexOfChild(icon);
-                        parent.removeView(icon);
-
-                        LinearLayout iconSlot = new LinearLayout(context);
-                        LinearLayout.LayoutParams slotLp =
-                                new LinearLayout.LayoutParams(dp(20), dp(20));
-                        slotLp.setMarginEnd(dp(12));
-                        iconSlot.setLayoutParams(slotLp);
-                        iconSlot.setGravity(Gravity.CENTER);
-                        parent.addView(iconSlot, slotIndex);
-                        iconBinder.bindIcon(iconSlot, item.entryIndex, iconTint);
-                    } else if (item.iconRes != null) {
-                        icon.setImageResource(item.iconRes);
-                        icon.setImageTintList(android.content.res.ColorStateList.valueOf(iconTint));
-                        icon.setVisibility(View.VISIBLE);
-                    }
-
-                    // 禁用：整体压到 38% 不透明度，与 M3 的 disabled 一致。
-                    // 放在图标之后，否则 icon 已被移除、setEnabled 落空
-                    if (!item.enabled) {
-                        row.setEnabled(false);
-                        row.setClickable(false);
-                        row.setAlpha(0.38f);
-                        text.setEnabled(false);
-                        check.setEnabled(false);
-                    }
-                    // 危险项不显示对勾：它是动作，不是选项
-                    check.setVisibility(
-                            item.selected && !item.destructive ? View.VISIBLE : View.GONE);
-
-                    if (item.enabled) {
-                        row.setOnClickListener(v -> {
+                if (item.enabled) {
+                    row.setOnClickListener(v -> {
+                        if (listener != null) listener.onItemClick(item);
+                        dismissWithAnimation(item.action);
+                    });
+                    // 长按：快捷消息菜单用来「替换」而不是「追加」
+                    if (item.longAction != null) {
+                        row.setOnLongClickListener(v -> {
                             if (listener != null) listener.onItemClick(item);
-                            Runnable action = item.action;
-                            dismissWithAnimation(action);
+                            dismissWithAnimation(item.longAction);
+                            return true;
                         });
                     }
-                    itemContainer.addView(row);
-                    break;
                 }
+                container.addView(row);
+                break;
             }
         }
     }
@@ -557,10 +718,23 @@ public final class NativeSelectMenu {
         });
     }
 
+    /** 往上找到 Popup 的根（id = l3_native_select_root）。 */
+    @Nullable
+    private View findPopupRoot() {
+        View current = card;
+        while (current != null) {
+            if (current.getId() == R.id.l3_native_select_root) return current;
+            View parent = (View) current.getParent();
+            current = parent;
+        }
+        return null;
+    }
+
     private void onDismissed() {
         popup = null;
         card = null;
         itemContainer = null;
+        groupsContainer = null;
         anchorBounds = null;
     }
 

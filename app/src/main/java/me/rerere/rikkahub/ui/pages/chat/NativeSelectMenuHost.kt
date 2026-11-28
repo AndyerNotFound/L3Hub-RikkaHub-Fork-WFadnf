@@ -114,8 +114,7 @@ internal fun rememberNativeSelectMenu(
     anchorBounds: Rect? = null,
     icons: List<ImageVector?> = emptyList(),
     content: NativeSelectMenu.() -> Unit,
-): NativeSelectMenu {
-    val context = rememberNativeChatContext()
+): NativeSelectMenu {    val context = rememberNativeChatContext()
     val animationsEnabled = LocalAnimationsEnabled.current
     val duration = slideDurationMillis()
     val latestDismiss = rememberUpdatedState(onDismiss)
