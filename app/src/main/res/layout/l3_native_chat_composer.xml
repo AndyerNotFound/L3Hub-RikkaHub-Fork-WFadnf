@@ -39,17 +39,30 @@
       android:layout_height="wrap_content"
       android:layout_marginTop="4dp">
 
+    <!--
+      无标题的 Filled Text field，全部走 M3 原版属性。
+
+      - hintEnabled=false + placeholderText：M3 自己提供的「无标题」写法。
+        hint 会变成一条浮动 label（聚焦时升到框上方，像「有标题的输入框」）；
+        placeholder 只在空态时出现在框内，一打字就消失。
+      - boxBackgroundColor 透明：底板已经由外层卡片铺了 surfaceContainerLow，
+        输入框再叠一层 surfaceContainerHigh 会在卡片里多出一块方块。
+      - boxStrokeWidth 归零：不要 Filled 那条下划线，底板本身就是一块面。
+
+      形状不写 overlay：Widget.Material3.TextInputLayout.FilledBox 自带
+      ShapeAppearanceOverlay.Material3.Corner.Top（上圆下直），正是贴底该有的形状。
+      而且底色透明 + 描边 0，这里的形状本来就画不出来，多写一层只是盖掉默认值。
+    -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/l3_native_input_layout"
         style="@style/Widget.Material3.TextInputLayout.FilledBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/chat_input_placeholder"
         app:boxBackgroundColor="@android:color/transparent"
         app:boxStrokeWidth="0dp"
         app:boxStrokeWidthFocused="0dp"
-        app:hintEnabled="true"
-        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.L3Hub.NativeChat.InputField" />
+        app:hintEnabled="false"
+        app:placeholderText="@string/chat_input_placeholder" />
 
     <!--
       全屏入口放在 TextInputLayout 外面：作为 end icon 会改变输入框的测量宽度，

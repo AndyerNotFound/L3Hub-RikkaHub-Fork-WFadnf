@@ -85,17 +85,6 @@
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
-    <!--
-      输入框自己的形状：底色透明之后它不再是一块独立的 Filled 面，
-      只剩文字的容器，所以圆角跟卡片走（四角 uiCornerRadius，默认 24dp），
-      而不是 FilledBox 默认的「上圆下直」——那个形状是给「输入框本身就是一张卡片」
-      的场合用的，套在已经有圆角的卡片里，底部两个直角会很突兀。
-    -->
-    <style name="ShapeAppearanceOverlay.L3Hub.NativeChat.InputField" parent="">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">24dp</item>
-    </style>
-
     <style name="ShapeAppearanceOverlay.L3Hub.NativeChat.SheetCard" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">16dp</item>

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,9 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
@@ -95,7 +96,6 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
-import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.rowEnter
@@ -201,19 +201,21 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // 输入卡常驻悬浮：四角 uiCornerRadius（默认 24dp）+ 四周 8dp 外缩 + 2dp 投影。
+    // 输入区是一块贴底的底板，不是悬浮卡。
     //
-    // 原来这里按焦点插值成「贴键盘的 sheet」（圆角 24→28/0、外缩 8→0、投影 2→0）。
-    // 那套动画每帧都在改 margin、圆角、投影，等于每帧重排 + 重绘一次卡片，
-    // 键盘弹出时尤其明显。改成常驻悬浮之后，尺寸和形状是常量，
-    // 只剩「整块跟着键盘上移」这一条位移，重绘范围小得多。
+    // 原来四角全圆 + 四周 8dp 外缩 + 2dp 投影，看起来像浮在页面上的一张卡。
+    // 现在只有上方两个角圆（uiCornerRadius），下方两角是 0、左右外缩是 0 ——
+    // 底板一直铺到屏幕左右边缘和底边，与页面连成一体。
+    //
+    // 圆角只留上方，是因为底边与导航栏相接，那里不该有圆角；
+    // 上方的圆角是这块面与消息区的分界，保留一点弧度比直角柔和。
     val containerShape = adaptiveStyledShape(
         topRadius = settings.displaySetting.uiCornerRadius.dp,
-        bottomRadius = settings.displaySetting.uiCornerRadius.dp,
+        bottomRadius = 0.dp,
     )
-    // 卡片四周的外缩，常量。
-    val cardInset = 8.dp
-    val cardInsetTop = 4.dp
+    // 左右与底部外缩归零：底板贴边。顶部留一点，与消息区拉开距离。
+    val cardInset = 0.dp
+    val cardInsetTop = 8.dp
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -394,21 +396,25 @@ fun ChatInput(
     ) {
         Column(
             modifier = modifier
+                // 竖直方向的 inset 分两段处理：
+                //
+                // - 键盘：留在这一层。整条底栏跟着键盘上移，上面的卡片也跟着一起让。
+                // - 导航栏：交给输入卡自己（见下面底板的内容列）。底板要一直铺到屏幕底边，
+                //   把那一让留在底板内部，颜色才能盖住系统导航条，而内容仍停在它上面。
+                //
+                // 空会话例外（deferImeInset）：那时输入卡被抬到页面中间，底板不贴底，
+                // 导航栏那一让放回这一层，免得卡片底下多出一截空白。
                 .then(
-                    if (applyWindowInsets) {
-                        if (deferImeInset) {
-                            Modifier.navigationBarsPadding()
-                        } else {
-                            Modifier.imePadding().navigationBarsPadding()
-                        }
-                    } else {
-                        Modifier
-                    },
+                    when {
+                        !applyWindowInsets -> Modifier
+                        deferImeInset -> Modifier.navigationBarsPadding()
+                        else -> Modifier.imePadding()
+                    }
                 )
-                // 这一层管的是整条底栏（待办卡、消息队列、上下文条、输入卡）。
-                // 左右 12dp 是给上面那几张卡的；输入卡自己在下面那列里再收 8dp 做悬浮。
-                .adaptiveHorizontalPadding(12.dp)
-                .padding(top = 8.dp, bottom = 8.dp + liftedBy)
+                // 左右不再统一收 12dp。底板要贴屏幕左右边缘，上面那几张卡
+                // （清单、消息队列、上下文条、悬浮按钮）各自带自己的 12dp，
+                // 谁需要留白谁自己加，底栏这一层只管竖直方向的间距。
+                .padding(top = 8.dp, bottom = liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
                 // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
                 // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
@@ -469,13 +475,17 @@ fun ChatInput(
                 onBeginEdit = onBeginEditQueuedMessage,
                 onFinishEdit = onFinishEditQueuedMessage,
                 onResume = onResumeMessageQueue,
+                // 底栏这一层不再统一收边，浮在底板上的卡片各自带 12dp
+                modifier = Modifier.adaptiveHorizontalPadding(12.dp),
             )
             if (injectedLorebookCount > 0) {
                 Text(
                     text = stringResource(R.string.chat_page_worldbook_injected, injectedLorebookCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    modifier = Modifier
+                        .adaptiveHorizontalPadding(12.dp)
+                        .padding(horizontal = 8.dp),
                 )
             }
             // 悬浮菜单贴在上下文进度条上方、右对齐，收起态只是一颗按钮。
@@ -501,7 +511,9 @@ fun ChatInput(
                     onItemClick = onFloatingBarItemClick,
                     // 贴右：与输入卡右边对齐。整块占满宽度、内容靠右，
                     // 这样面板展开时往左长，不会顶出屏幕
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .adaptiveHorizontalPadding(12.dp),
                 )
             }
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
@@ -512,6 +524,8 @@ fun ChatInput(
                     onStyleChange = onUpdateContextMeterStyle,
                     onShowUsage = onShowUsage,
                     running = loading,
+                    // 进度条和上面几张卡一样收 12dp；底板才是贴边的
+                    modifier = Modifier.adaptiveHorizontalPadding(12.dp),
                     speedIndicator = {
                         TokenSpeedGauge(
                             generationSpeed = generationSpeed,
@@ -585,12 +599,8 @@ fun ChatInput(
                                     if (expandProgress.value == 0f) collapsedCardHeightPx = size.height
                                     cardHeightPx = size.height
                                 }
-                                // 悬浮卡片的投影（Demo 的 cardElevation=2dp），常量。
-                                // 放在 clip 之前，否则阴影会被圆角裁掉。
-                                .appButtonShadow(
-                                    shape = containerShape,
-                                    elevation = 2.dp,
-                                )
+                                // 贴底底板不要投影：它不是一个浮起来的物体，
+                                // 而是页面的一部分。留着投影会在底边压出一道灰边。
                                 .clip(containerShape)
                                 .then(
                                     if (composerStyle != null) {
@@ -609,17 +619,11 @@ fun ChatInput(
                                 ),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 悬浮卡片要有一圈轮廓，否则和页面背景糊在一起。常量。
-                            border = if (composerStyle == null || composerStyle.needsFlatOutline()) {
-                                BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                )
-                            } else {
-                                null
-                            },
-                            // 卡片自己铺色：它是浮在页面上的，不是底栏里的一块平板。
-                            // 高级外观开着时底色交给材质层（advancedMaterial），这里保持透明。
+                            // 贴底底板不要描边：左右和底边都贴屏幕边缘，
+                            // 一圈线会在边缘画出三条多余的接缝。分界靠上方圆角与底色差表达。
+                            border = null,
+                            // 底板自己铺色。高级外观开着时底色交给材质层（advancedMaterial），
+                            // 这里保持透明。
                             color = if (composerStyle != null) {
                                 Color.Transparent
                             } else {
@@ -627,10 +631,26 @@ fun ChatInput(
                             },
                         ) {
                             Column(
-                                modifier = Modifier.padding(
-                                    horizontal = settings.displaySetting.inputPadding.dp,
-                                    vertical = 4.dp,
-                                ),
+                                modifier = Modifier
+                                    // 导航栏那一让放在底板内部：底板铺到屏幕底边，
+                                    // 内容停在导航条上方。放在外层的话，底板会跟着缩上去，
+                                    // 底边露出一条页面底色，看着像底板没到底。
+                                    //
+                                    // 键盘弹起时 navigationBars 的底边是 0（被键盘盖住），
+                                    // 这里不会和外层的 imePadding 叠成两份。
+                                    // 空会话（deferImeInset）走的是外层那份导航栏 padding，
+                                    // 这里已经被消费掉，算出来是 0，不会重复。
+                                    .then(
+                                        if (applyWindowInsets) {
+                                            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .padding(
+                                        horizontal = settings.displaySetting.inputPadding.dp,
+                                        vertical = 4.dp,
+                                    ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 // 内容行（语音 / 附件 / 编辑横幅）的出现与收起：

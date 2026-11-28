@@ -326,11 +326,17 @@ public final class NativeChatComposer extends LinearLayout {
         );
         // 全屏按钮浮在输入框右上角，文字要提前让出这一块；addView 之后设，免得被
         // TextInputLayout 自己的 box 内边距算回去。
+        //
+        // 上下内边距取平均：FilledBox 的 EditText 样式是 24dp 上 / 10dp 下，
+        // 那个不对称是给浮动 label 留的位置。这里关掉了 hint，label 不会出现，
+        // 24dp 就变成文字上方一块空白，字看着往下掉。取平均之后总高度不变，
+        // 文字回到垂直居中。
+        int padV = (field.getPaddingTop() + field.getPaddingBottom()) / 2;
         field.setPadding(
                 field.getPaddingLeft(),
-                field.getPaddingTop(),
+                padV,
                 dp(46f),
-                field.getPaddingBottom()
+                padV
         );
         field.addTextChangedListener(new TextWatcher() {
             @Override
@@ -738,8 +744,10 @@ public final class NativeChatComposer extends LinearLayout {
      */
     private void applyInputTextColors(@NonNull NativeChatTheme theme) {
         if (inputLayout != null) {
-            // 与 Material 3 的 hint 一致：聚焦 primary，平时 onSurfaceVariant
-            inputLayout.setHintTextColor(new ColorStateList(
+            // 输入框是「无标题 Filled」：关掉了 hint，提示文字走 placeholder。
+            // 所以这里设的是 placeholderTextColor —— 原来设 hintTextColor 现在没东西可着色。
+            // 聚焦时提到 primary，平时 onSurfaceVariant，与 M3 的 placeholder 一致
+            inputLayout.setPlaceholderTextColor(new ColorStateList(
                     new int[][] {
                             new int[] {android.R.attr.state_focused},
                             new int[] {}

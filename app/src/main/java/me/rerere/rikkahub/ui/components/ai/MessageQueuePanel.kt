@@ -47,13 +47,14 @@ internal fun MessageQueuePanel(
     onBeginEdit: (Uuid) -> QueuedMessage?,
     onFinishEdit: (Uuid, List<UIMessagePart>?) -> Unit,
     onResume: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<QueuedMessage?>(null) }
     if (state.items.isNotEmpty()) {
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .testTag("chat_message_queue"),
         ) {
