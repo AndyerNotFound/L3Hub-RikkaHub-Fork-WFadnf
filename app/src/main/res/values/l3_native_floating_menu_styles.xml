@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  快捷菜单按钮的形状。
+
+  M3 的 FAB 默认是 16dp 圆角方块（CornerLarge）。这里显式写一份，
+  理由：面板也是 16dp 圆角，两者圆角一致，容器变换期间形状不跳。
+
+  不用全圆（50%）是因为面板是圆角矩形 —— 按钮全圆、面板圆角，
+  动画中段会出现「圆形变成圆角矩形」的形变，看起来不干净。
+-->
+<resources>
+  <style name="ShapeAppearance.L3Hub.FloatingMenu" parent="">
+    <item name="cornerFamily">rounded</item>
+    <item name="cornerSize">16dp</item>
+  </style>
+</resources>

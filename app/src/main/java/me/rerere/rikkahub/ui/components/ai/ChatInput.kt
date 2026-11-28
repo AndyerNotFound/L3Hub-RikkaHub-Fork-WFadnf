@@ -478,6 +478,32 @@ fun ChatInput(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
+            // 悬浮菜单贴在上下文进度条上方、右对齐，收起态只是一颗按钮。
+            //
+            // 位置放在进度条之前（也就是视觉上更高一层）：
+            // 早先它在输入卡上方、进度条下方，展开时会盖住进度条。
+            //
+            // 走流式布局而不是 offset / 负偏移的 layout：offset 挪出父边界
+            // 会被外层 Surface 的 clip 裁掉，画到父边界外也收不到触摸
+            // （NodeCoordinator.isPointerInBounds 要求坐标落在 0..measuredHeight）。
+            if (floatingBarEnabled) {
+                // 菜单本体是 Java（NativeFloatingMenu），容器变换用
+                // MaterialContainerTransform；图标仍由 Compose 渲染。
+                //
+                // 展开状态由 Java 侧自己维护（点按钮、点槽位、按返回都在那边），
+                // 这里只收一个通知：不反向下发，免得两边各推一次打架。
+                NativeFloatingMenuHost(
+                    items = floatingBarItems,
+                    scale = settings.displaySetting.floatingBarScale,
+                    visible = !inputFocused,
+                    expanded = floatingMenuExpanded,
+                    onExpandedChange = { floatingMenuExpanded = it },
+                    onItemClick = onFloatingBarItemClick,
+                    // 贴右：与输入卡右边对齐。整块占满宽度、内容靠右，
+                    // 这样面板展开时往左长，不会顶出屏幕
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (chatModel != null && settings.displaySetting.contextMeterStyle != ContextMeterStyle.OFF) {
                 ContextMeterSwitcher(
                     tokens = contextTokens,
@@ -551,30 +577,6 @@ fun ChatInput(
                             ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        // 悬浮菜单贴在卡片上方、右对齐，收起态只是一颗按钮。
-                        //
-                        // 走流式布局而不是 offset / 负偏移的 layout：offset 挪出父边界
-                        // 会被外层 Surface 的 clip 裁掉，画到父边界外也收不到触摸
-                        // （NodeCoordinator.isPointerInBounds 要求坐标落在 0..measuredHeight）。
-                        //
-                        // 菜单展开时这一列会往上长，底栏跟着长高。底栏是 Scaffold 的
-                        // bottomBar，摆放位置是「容器高 - 底栏高」，所以卡片离底边的距离
-                        // 始终是它自己的高度加内边距，位置不动、也不会被菜单压住。
-                        if (floatingBarEnabled) {
-                            // 菜单本体是 Java（NativeFloatingMenu），容器变换用
-                            // MaterialContainerTransform；图标仍由 Compose 渲染。
-                            //
-                            // 展开状态由 Java 侧自己维护（点按钮、点槽位、按返回都在那边），
-                            // 这里只收一个通知：不反向下发，免得两边各推一次打架。
-                            NativeFloatingMenuHost(
-                                items = floatingBarItems,
-                                scale = settings.displaySetting.floatingBarScale,
-                                visible = !inputFocused,
-                                expanded = floatingMenuExpanded,
-                                onExpandedChange = { floatingMenuExpanded = it },
-                                onItemClick = onFloatingBarItemClick,
-                            )
-                        }
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()

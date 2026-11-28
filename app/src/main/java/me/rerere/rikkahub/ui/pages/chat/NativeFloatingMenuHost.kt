@@ -104,6 +104,9 @@ internal fun NativeFloatingMenuHost(
             menu.setTransformDuration(durationMillis)
             menu.setListener(listener)
             menu.setIconBinder(iconBinder)
+            // 尺寸跟着设置里的「大小」滑块走 —— 早先只在 Compose 侧算图标大小，
+            // 按钮本身写死，滑块拖动时没反应
+            menu.setScale(scale)
             menu.setSlotCount(items.size)
             // 页面可能从别处把它收起来（比如键盘弹起），这里对齐一次
             if (menu.isExpanded != expanded) menu.setExpanded(expanded, true)

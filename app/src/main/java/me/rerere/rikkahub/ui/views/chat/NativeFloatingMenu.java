@@ -2,9 +2,7 @@ package me.rerere.rikkahub.ui.views.chat;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.util.AttributeSet;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.transition.TransitionManager;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.transition.MaterialContainerTransform;
 
 import me.rerere.rikkahub.R;
@@ -63,13 +62,17 @@ public final class NativeFloatingMenu extends FrameLayout {
         void bindIcon(@NonNull ViewGroup container, int index);
     }
 
-    /** 收起态的按钮直径。与 Compose 版一致：44dp 是 M3 FAB 的最小触控。 */
-    private static final int COLLAPSED_SIZE_DP = 44;
+    /** 收起态按钮的基准直径。实际尺寸由 {@link #setButtonSize} 按 scale 算。 */
+    private static final int BASE_BUTTON_DP = 56;
+    /** 基准图标尺寸。 */
+    private static final int BASE_ICON_DP = 24;
 
     private final FrameLayout root;
-    private final View button;
+    private final FloatingActionButton button;
     private final LinearLayout panel;
-    private final ViewGroup buttonIconHost;
+
+    /** 当前 scale，由桥接层从设置里读出来传进来。 */
+    private float scale = 1f;
 
     @Nullable
     private Listener listener;
@@ -93,11 +96,12 @@ public final class NativeFloatingMenu extends FrameLayout {
         root = findViewById(R.id.l3_native_floating_menu_root);
         button = findViewById(R.id.l3_native_floating_menu_button);
         panel = findViewById(R.id.l3_native_floating_menu_panel);
-        buttonIconHost = findViewById(R.id.l3_native_floating_menu_button_icon);
 
         button.setOnClickListener(v -> setExpanded(true, true));
         // 面板自己吃掉点击，免得穿透到底下的输入卡
         panel.setOnClickListener(v -> { });
+
+        applyButtonSize();
     }
 
     public void setListener(@Nullable Listener listener) {
@@ -240,7 +244,7 @@ public final class NativeFloatingMenu extends FrameLayout {
             return;
         }
 
-        int size = Math.round(44 * getResources().getDisplayMetrics().density);
+        int size = buttonSizePx();
         int gap = Math.round(2 * getResources().getDisplayMetrics().density);
 
         for (int i = 0; i < slotCount; i++) {
@@ -261,8 +265,11 @@ public final class NativeFloatingMenu extends FrameLayout {
 
     private void bindIcons() {
         if (iconBinder == null) return;
-        buttonIconHost.removeAllViews();
-        iconBinder.bindIcon(buttonIconHost, -1);
+
+        // 收起态按钮的图标由 XML 的 android:src 给（固定的菜单图标）——
+        // FAB 的图标位是 setImageDrawable，塞不进 ComposeView，
+        // 而 HugeIcons 是 Kotlin 的 ImageVector，没有对应的 vector drawable。
+        // 槽位里的图标仍然走 ComposeView（那是自己 new 的 FrameLayout，能塞）。
         for (int i = 0; i < panel.getChildCount(); i++) {
             View child = panel.getChildAt(i);
             if (child instanceof FrameLayout) {
@@ -270,6 +277,50 @@ public final class NativeFloatingMenu extends FrameLayout {
                 iconBinder.bindIcon((FrameLayout) child, i);
             }
         }
+    }
+
+    /** 收起态按钮的边长（像素）。 */
+    public int buttonSizePx() {
+        return Math.round(BASE_BUTTON_DP * clampScale(scale)
+                * getResources().getDisplayMetrics().density);
+    }
+
+    /** 图标边长（像素）。 */
+    public int iconSizePx() {
+        return Math.round(BASE_ICON_DP * clampScale(scale)
+                * getResources().getDisplayMetrics().density);
+    }
+
+    /**
+     * 设置整体缩放。按钮尺寸、图标尺寸、面板槽位尺寸都跟着走。
+     *
+     * <p>早先这个值只在 Compose 侧算出来定图标大小，按钮本身写死 44dp ——
+     * 设置里拖动「大小」滑块时按钮纹丝不动。现在从 Java 侧统一算。
+     */
+    public void setScale(float value) {
+        float next = clampScale(value);
+        if (Math.abs(next - scale) < 0.001f) return;
+        scale = next;
+        applyButtonSize();
+        // 只在收起态重建槽位：展开时重建会把面板整个换掉，
+        // 容器变换正在播的那份截图就对不上了
+        if (!expanded) rebuildSlots();
+    }
+
+    private static float clampScale(float value) {
+        if (Float.isNaN(value)) return 1f;
+        return Math.max(0.8f, Math.min(1.4f, value));
+    }
+
+    /** 把 scale 落到按钮的尺寸上。 */
+    private void applyButtonSize() {
+        int size = buttonSizePx();
+        ViewGroup.LayoutParams lp = button.getLayoutParams();
+        lp.width = size;
+        lp.height = size;
+        button.setLayoutParams(lp);
+        button.setCustomSize(size);
+        button.setMaxImageSize(iconSizePx());
     }
 
     // endregion
