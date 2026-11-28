@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -206,9 +207,10 @@ fun ChatInput(
         topRadius = settings.displaySetting.uiCornerRadius.dp,
         bottomRadius = 0.dp,
     )
-    // 左右与底部外缩归零：底板贴边。顶部留一点，与消息区拉开距离。
+    // 左右与底部外缩归零：底板贴边。顶部也不留 —— 与消息区的间距由外层
+    // 的 padding(top = 8.dp) 给，这里再留一份会变成 16dp，比原版松一倍。
     val cardInset = 0.dp
-    val cardInsetTop = 8.dp
+    val cardInsetTop = 0.dp
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -597,10 +599,16 @@ fun ChatInput(
                                 .clip(containerShape),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 贴底底板不要描边：左右和底边都贴屏幕边缘，
-                            // 一圈线会在边缘画出三条多余的接缝。分界靠上方圆角与底色差表达。
-                            border = null,
-                            // 底板自己铺色：朴素外观下只有这一层实色底。
+                            // 底板是唯一一层容器，所以描边要它自己给：
+                            // 输入框那边已经退回裸文字，不再有自己的容器色和指示线，
+                            // 没有这道线，底板和消息区就只剩一点底色差。
+                            //
+                            // 左右和底边贴在屏幕边缘，那三条线上的 1dp 只有一半在内侧，
+                            // 看起来就是屏幕边界本身，不会变成多余的接缝。
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            ),
                             color = containerColor,
                         ) {
                             Column(
@@ -622,9 +630,9 @@ fun ChatInput(
                                     )
                                     .padding(
                                         horizontal = settings.displaySetting.inputPadding.dp,
-                                        // 输入框自己有容器色和上方圆角了，
-                                        // 上下留 8dp 才不至于贴着底板的边
-                                        vertical = 8.dp,
+                                        // 输入框退回裸文字之后，底板就是唯一容器，
+                                        // 上下按原版的 4dp 收，8dp 会显得中间空一块
+                                        vertical = 4.dp,
                                     ),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {

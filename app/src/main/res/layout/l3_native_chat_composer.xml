@@ -40,11 +40,17 @@
       android:layout_marginTop="4dp">
 
     <!--
-      无标题的 Filled Text field：M3 原版样式，提示文字交给 EditText 自己的 hint。
+      输入框不画自己的容器。
 
-      - 样式仍是 Widget.Material3.TextInputLayout.FilledBox：容器色
-        （m3_textfield_filled_background_color）和底部 1dp / 聚焦 2dp 的
-        active indicator 都保留，形状走自带的 Corner.Top（上圆下直）。
+      底板（Compose 那层 Surface）是唯一的容器：它有圆角、有 1dp 描边、有底色。
+      输入框再画一遍容器，就成了「盒子套盒子」—— 这是之前看着丑的根因。
+      所以这里把 FilledBox 的两样可见特征都关掉：
+        - boxBackgroundColor 透明：不铺 surfaceContainerHighest
+        - boxStrokeWidth / Focused 归零：不画底部那条 active indicator
+
+      样式本身仍留着 Widget.Material3.TextInputLayout.FilledBox：它的 EditText
+      内边距、光标位置、文字排版都是按 Filled 调的，这些还要。
+
       - hintEnabled=false 关掉浮动 label。M3 的 Filled 默认把 hint 做成一条
         label，聚焦时升到框上方 —— 那是「有标题」的输入框。
       - 提示文字不走 placeholderText：MDC 的 placeholder 只在 label 收起
@@ -57,6 +63,9 @@
         style="@style/Widget.Material3.TextInputLayout.FilledBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeWidth="0dp"
+        app:boxStrokeWidthFocused="0dp"
         app:hintEnabled="false" />
 
     <!--

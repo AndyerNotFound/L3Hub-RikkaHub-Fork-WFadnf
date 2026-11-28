@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -527,23 +528,13 @@ public final class NativeChatComposer extends LinearLayout {
         editChip.setChipIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         editChip.setCloseIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         field.setTextColor(theme.onSurface);
-        // Filled 的容器色与指示线也走运行期调色板。
+        // 输入框不画自己的容器：底板（Compose 那层 Surface）已经有圆角、描边和底色，
+        // 这里再铺一层 surfaceContainerHighest 就成了「盒子套盒子」。
         //
-        // Theme.L3Hub.NativeChat 是静态的 Material3 主题（baseline 紫灰配色），
-        // 拿不到用户在 Compose 里选的 palette；不显式接一遍，输入框就会是
-        // 一套和界面无关的颜色 —— 之前底色被写死 TRANSPARENT，这条接线断着也看不出来。
-        //
-        // 两个值对应 M3 的 token：
-        //   container = m3_comp_filled_text_field_container_color → surfaceContainerHighest
-        //   indicator = m3_comp_outlined_text_field_outline_color → outline（聚焦 primary）
-        inputLayout.setBoxBackgroundColor(theme.surfaceContainerHighest);
-        inputLayout.setBoxStrokeColorStateList(new ColorStateList(
-                new int[][] {
-                        new int[] {android.R.attr.state_focused},
-                        new int[] {}
-                },
-                new int[] {theme.primary, theme.outline}
-        ));
+        // 底色透明 + 指示线宽度 0（XML 里那两条），所以这里不需要再给
+        // boxBackgroundColor / boxStrokeColor 接调色板 —— 没有东西可着色。
+        // 文字色与 hint 色仍在 applyInputTextColors 里接。
+        inputLayout.setBoxBackgroundColor(Color.TRANSPARENT);
         applyInputTextColors(theme);
         applySendColors();
         applyAsrColors();
