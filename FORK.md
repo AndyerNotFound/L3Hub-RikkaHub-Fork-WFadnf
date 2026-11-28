@@ -35,6 +35,47 @@ Android 用 `applicationId` 识别应用，不是 Kotlin 包名：
 - 就算补上，analytics / crashlytics 也会把数据发到原作者的项目
 - 需要自己的埋点或崩溃收集时：注册自己的 Firebase 项目、放回 `app/google-services.json`、恢复上面删掉的 4 处即可
 
+## 动手前先查库里的默认值（约定）
+
+用 Material 组件、Compose 组件、或系统 View 之前，先去源码确认**默认给了什么**，再决定要覆盖哪几项。
+本项目连续踩过两次同一个坑：写了自建实现，结果库里早有现成的。
+
+### Material Views（`~/WorkSpace/material-components-android`）
+
+每个组件的默认配置在 `lib/java/com/google/android/material/<module>/res/values/styles.xml` 的
+`Base.Widget.Material3.<组件>` 里。要看某个属性有没有默认值，先查那里，再查 `attrs.xml` 确认属性名。
+
+实例：`Widget.Material3.TabLayout` 的默认值
+
+| 属性 | 默认 | 说明 |
+|---|---|---|
+| `tabIndicator` | `@drawable/m3_tabs_rounded_line_indicator` | 3dp 高、上两角 3dp 圆角、左右各缩 2dp |
+| `tabIndicatorAnimationMode` | `elastic` | 拉伸再回弹，就是 M3 Expressive 那条弹簧 |
+| `tabIndicatorColor` | `primary` | |
+| `tabIndicatorFullWidth` | **`false`** | 要占满整个 Tab 时必须显式设 `true` |
+| `tabUnboundedRipple` | `false` | |
+
+所以侧栏的文件夹 Tab 只需要覆盖三件事：`tabMode="scrollable"`、`tabIndicatorFullWidth="true"`、
+`tabTextAppearance`（侧栏窄，13sp 而不是默认的 titleSmall）。其余全部继承。
+
+顶栏的 `NativeChatTabs` 是唯一保留自建 indicator 的地方：它是 `tabMode="fixed"`、四个 Tab 平分宽度，
+用 M3 默认的左右各缩 2dp 会让线条两端留白，与「Full width」的观感不符。
+
+### Compose（`~/WorkSpace/androidx`）
+
+`compose/material3/.../tokens/` 下是各组件的尺寸、形状、颜色 token，命名与设计文档一致
+（如 `PrimaryNavigationTabTokens.ActiveIndicatorHeight = 3.0.dp`）。
+`TabRowDefaults.PrimaryIndicator` 的参数默认值直接引这些 token。
+
+动效曲线不要自己写 tween：`MaterialTheme.motionScheme` 已经分好 spatial（位移）与 effects（透明度）两档，
+项目里对应 `rememberSpatialSpec()` / `rememberEffectsSpec()`（`ui/theme/MotionSpecs.kt`）。
+
+### 判断标准
+
+- 库里有的默认值 → 直接用，不复制一份到本项目的 `res/`
+- 默认值与设计不符 → 只覆盖差的那几项，并在注释里写清「为什么覆盖」
+- 库里确实没有 → 才自己写，并在注释里写明查过哪些地方
+
 ## 上下文预警进度条（fork 新增）
 
 输入框上方一条进度条，以模型上的 MAX 门限为分母：
