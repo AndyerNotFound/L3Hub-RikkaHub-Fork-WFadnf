@@ -243,6 +243,7 @@ private fun ChatSidePanelTabStrip(
             expanded = menuExpanded,
             onDismiss = { menuExpanded = false },
             anchorBounds = anchor.value.value,
+            icons = ChatSidePane.entries.map { it.icon },
         ) {
             ChatSidePane.entries.forEachIndexed { index, pane ->
                 // 已经开着的看板打勾，点了等于切过去

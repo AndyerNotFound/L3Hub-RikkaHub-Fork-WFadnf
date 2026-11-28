@@ -70,6 +70,33 @@ public final class NativeSelectMenu {
         void onItemClick(@NonNull Item item);
     }
 
+    /**
+     * 往菜单项的图标位里填东西。
+     *
+     * <p>抽成接口而不是直接 import {@code ComposeView}：这个类要保持纯 View，
+     * 不依赖 Compose 运行时，方便单独预览和测试。
+     *
+     * <p>为什么需要它：菜单项的图标在调用方是 Compose 的 {@code ImageVector}
+     * （HugeIcons），Java 侧拿不到 pathData —— 那些图标是编译后的
+     * {@code ImageVector.Builder} 字节码调用序列，不是资源文件。
+     * 所以图标交给 Compose 渲染，容器与动画归 Java。
+     */
+    public interface IconBinder {
+        /**
+         * 这一项有没有图标。没有就不占位，文字直接靠左 ——
+         * 否则空槽会留下 20dp + 12dp 的空白。
+         *
+         * @param index 第几项（按 {@link #addItem} 的添加顺序，不含 header 与 divider）
+         */
+        boolean hasIcon(int index);
+
+        /**
+         * @param container 目标容器（菜单项里那个 20dp 的图标位）
+         * @param index     第几项（按 {@link #addItem} 的添加顺序，不含 header 与 divider）
+         */
+        void bindIcon(@NonNull ViewGroup container, int index);
+    }
+
     /** 菜单里的一行。分组标题与分隔线也用它表示，{@code kind} 区分。 */
     public static final class Item {
         public enum Kind { ENTRY, HEADER, DIVIDER }
@@ -79,19 +106,23 @@ public final class NativeSelectMenu {
         @Nullable public final Integer iconRes;
         public final boolean selected;
         @Nullable public final Runnable action;
+        /** 第几项（只数 ENTRY），给 {@link IconBinder} 用。 */
+        public final int entryIndex;
 
         private Item(
                 @NonNull Kind kind,
                 @Nullable String label,
                 @Nullable Integer iconRes,
                 boolean selected,
-                @Nullable Runnable action
+                @Nullable Runnable action,
+                int entryIndex
         ) {
             this.kind = kind;
             this.label = label;
             this.iconRes = iconRes;
             this.selected = selected;
             this.action = action;
+            this.entryIndex = entryIndex;
         }
     }
 
@@ -113,6 +144,8 @@ public final class NativeSelectMenu {
     private Rect anchorBounds;
     @Nullable
     private OnItemClickListener listener;
+    @Nullable
+    private IconBinder iconBinder;
     private int transformDurationMillis = 300;
     private boolean animationsEffective = true;
 
@@ -122,6 +155,10 @@ public final class NativeSelectMenu {
 
     public void setOnItemClickListener(@Nullable OnItemClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setIconBinder(@Nullable IconBinder binder) {
+        this.iconBinder = binder;
     }
 
     /** 系统关掉动画时直接切。 */
@@ -152,19 +189,23 @@ public final class NativeSelectMenu {
             boolean selected,
             @Nullable Runnable action
     ) {
-        items.add(new Item(Item.Kind.ENTRY, label, iconRes, selected, action));
+        int entryIndex = 0;
+        for (Item existing : items) {
+            if (existing.kind == Item.Kind.ENTRY) entryIndex++;
+        }
+        items.add(new Item(Item.Kind.ENTRY, label, iconRes, selected, action, entryIndex));
         return this;
     }
 
     /** 加一个分组标题：不可点、字号更小。 */
     public NativeSelectMenu addHeader(@NonNull String label) {
-        items.add(new Item(Item.Kind.HEADER, label, null, false, null));
+        items.add(new Item(Item.Kind.HEADER, label, null, false, null, -1));
         return this;
     }
 
     /** 加一条分隔线。 */
     public NativeSelectMenu addDivider() {
-        items.add(new Item(Item.Kind.DIVIDER, null, null, false, null));
+        items.add(new Item(Item.Kind.DIVIDER, null, null, false, null, -1));
         return this;
     }
 
@@ -424,7 +465,22 @@ public final class NativeSelectMenu {
                     ImageView check = row.findViewById(R.id.l3_native_select_item_check);
 
                     text.setText(item.label);
-                    if (item.iconRes != null) {
+                    if (iconBinder != null && iconBinder.hasIcon(item.entryIndex)) {
+                        // 图标交给 Compose 画：HugeIcons 的 pathData 是编译后的
+                        // ImageVector.Builder 字节码，Java 侧取不到，只能靠 ComposeView
+                        ViewGroup parent = (ViewGroup) icon.getParent();
+                        int slotIndex = parent.indexOfChild(icon);
+                        parent.removeView(icon);
+
+                        LinearLayout iconSlot = new LinearLayout(context);
+                        LinearLayout.LayoutParams slotLp =
+                                new LinearLayout.LayoutParams(dp(20), dp(20));
+                        slotLp.setMarginEnd(dp(12));
+                        iconSlot.setLayoutParams(slotLp);
+                        iconSlot.setGravity(Gravity.CENTER);
+                        parent.addView(iconSlot, slotIndex);
+                        iconBinder.bindIcon(iconSlot, item.entryIndex);
+                    } else if (item.iconRes != null) {
                         icon.setImageResource(item.iconRes);
                         icon.setVisibility(View.VISIBLE);
                     }

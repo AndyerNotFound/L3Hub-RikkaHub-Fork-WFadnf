@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import android.graphics.Rect
+import android.view.ViewGroup
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -9,8 +14,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSelectMenu
@@ -88,6 +103,8 @@ internal fun rememberSelectMenuAnchor(): SelectMenuAnchor {
  * @param expanded 显隐。true 展开，false 收起
  * @param onDismiss 菜单自己关掉时回调（点外面、按返回键、点中某项之后）
  * @param anchorBounds 容器变换的起点矩形（窗口坐标）。为 null 时退化成菜单原地淡入
+ * @param icons 每项的图标，按 [NativeSelectMenu.addItem] 的调用顺序。null 表示该项没有图标。
+ *   图标必须是 Compose 的 [ImageVector] —— HugeIcons 的 pathData 在 Java 侧取不到
  * @param content 往菜单里加项
  */
 @Composable
@@ -95,6 +112,7 @@ internal fun rememberNativeSelectMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     anchorBounds: Rect? = null,
+    icons: List<ImageVector?> = emptyList(),
     content: NativeSelectMenu.() -> Unit,
 ): NativeSelectMenu {
     val context = rememberNativeChatContext()
@@ -104,6 +122,44 @@ internal fun rememberNativeSelectMenu(
     val latestContent = rememberUpdatedState(content)
 
     val menu = remember(context) { NativeSelectMenu(context) }
+
+    // 图标走 ComposeView 嵌进 Java 的菜单行：HugeIcons 的 pathData 在 Java 侧取不到
+    //
+    // 这里必须把宿主的 ViewTree 所有者搬进 Popup：Popup 有自己的 Window，
+    // 不继承 Compose 的 ViewTree。缺了 lifecycle owner，ComposeView.setContent()
+    // 会抛 "ViewTreeLifecycleOwner not found from ..."（WindowRecomposer.android.kt）。
+    val hostView = LocalView.current
+    val hostLifecycleOwner = hostView.findViewTreeLifecycleOwner()
+    val hostSavedStateOwner = hostView.findViewTreeSavedStateRegistryOwner()
+    val hostViewModelStoreOwner = hostView.findViewTreeViewModelStoreOwner()
+
+    DisposableEffect(menu, icons) {
+        menu.setIconBinder(object : NativeSelectMenu.IconBinder {
+            override fun hasIcon(index: Int): Boolean = icons.getOrNull(index) != null
+
+            override fun bindIcon(container: ViewGroup, index: Int) {
+                val imageVector = icons.getOrNull(index) ?: return
+                container.addView(
+                    ComposeView(container.context).apply {
+                        if (hostLifecycleOwner != null) setViewTreeLifecycleOwner(hostLifecycleOwner)
+                        if (hostSavedStateOwner != null) setViewTreeSavedStateRegistryOwner(hostSavedStateOwner)
+                        if (hostViewModelStoreOwner != null) setViewTreeViewModelStoreOwner(hostViewModelStoreOwner)
+                        setContent {
+                            Icon(
+                                imageVector = imageVector,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(1.dp),
+                            )
+                        }
+                    }
+                )
+            }
+        })
+        onDispose { menu.setIconBinder(null) }
+    }
 
     // 点中一项：Java 侧会先播收起动画再执行那一项自己的 action，
     // 这里只负责把 expanded 同步回 false，让下一帧不再要求它展开

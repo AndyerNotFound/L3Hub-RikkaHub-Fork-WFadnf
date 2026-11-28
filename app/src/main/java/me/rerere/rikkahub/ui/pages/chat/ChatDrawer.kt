@@ -1040,6 +1040,7 @@ private fun ConversationSortButton(
         expanded = menuExpanded,
         onDismiss = { menuExpanded = false },
         anchorBounds = anchor.value.value,
+        icons = ConversationSortOrder.entries.map { null },
     ) {
         ConversationSortOrder.entries.forEach { option ->
             val label = when (option) {

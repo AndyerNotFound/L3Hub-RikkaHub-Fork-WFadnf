@@ -13,8 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,12 +32,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.hugeicons.stroke.Codesandbox
-import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
@@ -374,79 +372,68 @@ private fun FolderSectionHeader(
 ) {
     // 长按标题打开编辑菜单；「未归类」不是真实的文件夹，没有可编辑的内容
     var menuExpanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .combinedClickable(
-                    onClick = onToggle,
-                    onLongClick = { if (folderId != null) menuExpanded = true },
-                )
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+    // 容器变换的起点：这一行标题。长按之后菜单从整行塌缩成卡片
+    val anchor = rememberSelectMenuAnchor()
+
+    if (folderId != null) {
+        // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+        val renameLabel = stringResource(R.string.chat_page_rename)
+        val bindLabel = stringResource(R.string.chat_page_folder_bind_workspace)
+        val deleteLabel = stringResource(R.string.chat_page_delete)
+        rememberNativeSelectMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            anchorBounds = anchor.value.value,
+            icons = listOf(HugeIcons.PencilEdit01, HugeIcons.Codesandbox, HugeIcons.Delete01),
         ) {
-            Icon(
-                imageVector = HugeIcons.Folder01,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary,
+            addItem(renameLabel, null, selected = false) { onRename(folderId) }
+            addItem(bindLabel, null, selected = false) { onBindWorkspace(folderId) }
+            addDivider()
+            addItem(deleteLabel, null, selected = false) { onDelete(folderId) }
+        }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .then(anchor.modifier)
+            .combinedClickable(
+                onClick = onToggle,
+                onLongClick = { if (folderId != null) menuExpanded = true },
             )
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = HugeIcons.Folder01,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (count > 0) {
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (count > 0) {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (folderId != null) {
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_rename)) },
-                    leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
-                    onClick = {
-                        menuExpanded = false
-                        onRename(folderId)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_folder_bind_workspace)) },
-                    leadingIcon = { Icon(HugeIcons.Codesandbox, null) },
-                    onClick = {
-                        menuExpanded = false
-                        onBindWorkspace(folderId)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_delete)) },
-                    leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                    onClick = {
-                        menuExpanded = false
-                        onDelete(folderId)
-                    },
-                )
-            }
-        }
+        Icon(
+            imageVector = if (collapsed) HugeIcons.ArrowDown01 else HugeIcons.ArrowUp01,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
     }
 }

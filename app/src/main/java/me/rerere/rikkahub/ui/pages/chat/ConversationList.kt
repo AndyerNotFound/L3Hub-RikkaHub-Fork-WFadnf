@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -62,7 +60,6 @@ import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.revealEnter
 import me.rerere.rikkahub.ui.theme.revealExit
-import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.ui.components.AnimatedAlertDialog
 import java.time.LocalDate
 import kotlin.uuid.Uuid
@@ -211,9 +208,46 @@ internal fun ConversationItem(
     var renameTarget by remember {
         mutableStateOf<Conversation?>(null)
     }
+    // 容器变换的起点：这一整行。长按之后菜单从整行塌缩成卡片
+    val anchor = rememberSelectMenuAnchor()
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val selectMultipleLabel = stringResource(R.string.chat_page_select_multiple)
+    val pinLabel = stringResource(if (conversation.isPinned) R.string.unpin_chat else R.string.pin_chat)
+    val renameLabel = stringResource(R.string.chat_page_rename)
+    val regenerateLabel = stringResource(R.string.chat_page_regenerate_title)
+    val moveToAssistantLabel = stringResource(R.string.chat_page_move_to_assistant)
+    val moveToFolderLabel = stringResource(R.string.chat_page_move_to_folder)
+    val deleteLabel = stringResource(R.string.chat_page_delete)
+
+    rememberNativeSelectMenu(
+        expanded = showDropdownMenu,
+        onDismiss = { showDropdownMenu = false },
+        anchorBounds = anchor.value.value,
+        icons = listOf(
+            HugeIcons.Tick01,
+            if (conversation.isPinned) HugeIcons.PinOff else HugeIcons.Pin,
+            HugeIcons.PencilEdit01,
+            HugeIcons.Refresh01,
+            HugeIcons.Forward02,
+            HugeIcons.Folder01,
+            HugeIcons.Delete01,
+        ),
+    ) {
+        addItem(selectMultipleLabel, null, selected = false) { onEnterSelection() }
+        addItem(pinLabel, null, selected = false) { onPin(conversation) }
+        addItem(renameLabel, null, selected = false) { renameTarget = conversation }
+        addItem(regenerateLabel, null, selected = false) { onRegenerateTitle(conversation) }
+        addItem(moveToAssistantLabel, null, selected = false) { onMoveToAssistant(conversation) }
+        addItem(moveToFolderLabel, null, selected = false) { onMoveToFolder(conversation) }
+        addDivider()
+        addItem(deleteLabel, null, selected = false) { onDelete(conversation) }
+    }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(50f))
+            .then(anchor.modifier)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -296,101 +330,6 @@ internal fun ConversationItem(
                         .semantics {
                             contentDescription = "Loading"
                         }
-                )
-            }
-            DropdownMenu(
-                expanded = showDropdownMenu,
-                onDismissRequest = { showDropdownMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_select_multiple)) },
-                    onClick = {
-                        onEnterSelection()
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = { Icon(HugeIcons.Tick01, null) },
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            if (conversation.isPinned) stringResource(R.string.unpin_chat) else stringResource(R.string.pin_chat)
-                        )
-                    },
-                    onClick = {
-                        onPin(conversation)
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (conversation.isPinned) HugeIcons.PinOff else HugeIcons.Pin,
-                            null
-                        )
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(R.string.chat_page_rename))
-                    },
-                    onClick = {
-                        renameTarget = conversation
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(HugeIcons.PencilEdit01, null)
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(id = R.string.chat_page_regenerate_title))
-                    },
-                    onClick = {
-                        onRegenerateTitle(conversation)
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(HugeIcons.Refresh01, null)
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(R.string.chat_page_move_to_assistant))
-                    },
-                    onClick = {
-                        onMoveToAssistant(conversation)
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(HugeIcons.Forward02, null, modifier = Modifier.mirrorForRtl())
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(R.string.chat_page_move_to_folder))
-                    },
-                    onClick = {
-                        onMoveToFolder(conversation)
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(HugeIcons.Folder01, null)
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = {
-                        Text(stringResource(id = R.string.chat_page_delete))
-                    },
-                    onClick = {
-                        onDelete(conversation)
-                        showDropdownMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(HugeIcons.Delete01, null)
-                    }
                 )
             }
         }

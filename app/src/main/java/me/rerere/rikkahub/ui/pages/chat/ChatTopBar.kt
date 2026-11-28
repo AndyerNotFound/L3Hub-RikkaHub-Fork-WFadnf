@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.provider.Model
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.Folder01
@@ -368,6 +369,13 @@ private fun ChatFolderMenu(
         expanded = expanded,
         onDismiss = onDismissRequest,
         anchorBounds = anchorBounds,
+        // 顺序与下面的 addItem 一一对应：未归类 → 各文件夹 →（空时占位）→ 新建
+        icons = buildList {
+            add(HugeIcons.Folder01)
+            folders.forEach { add(HugeIcons.Folder01) }
+            if (folders.isEmpty()) add(null)
+            add(HugeIcons.FolderAdd)
+        },
     ) {
         addHeader(headerLabel)
         addItem(unfiledLabel, null, selected = selectedFolderId == null) {
@@ -382,9 +390,7 @@ private fun ChatFolderMenu(
             addItem(emptyLabel, null, selected = false) { }
         }
         addDivider()
-        addItem(createLabel, R.drawable.l3_native_ic_folder, selected = false) {
-            onCreateFolder()
-        }
+        addItem(createLabel, null, selected = false) { onCreateFolder() }
     }
 }
 
