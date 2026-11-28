@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  侧栏里那几个「运行时才创建、但需要一个稳定 id」的容器。
+
+  这些容器是 ComposeView 的落点（更新卡 / 备份卡 / 助手选择器），
+  在 Java 里 new 出来再 setId —— 放进 values 是为了 id 唯一且不与别处撞。
+-->
+<resources>
+  <item name="l3_native_sidebar_update_slot" type="id" />
+  <item name="l3_native_sidebar_backup_slot" type="id" />
+  <item name="l3_native_sidebar_assistant_slot" type="id" />
+</resources>

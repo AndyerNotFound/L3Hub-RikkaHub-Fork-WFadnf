@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  快捷入口的一行：图标 + 文字，可选右侧一个附属按钮（历史记录那行的搜索入口）。
+
+  整行是一个 MaterialCardView，圆角 medium、底色 surfaceContainerLow —— 与原版
+  DrawerEntry 的 Surface 一致。
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/l3_native_entry_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="4dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:rippleColor="?attr/colorOnSurface">
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical">
+
+    <LinearLayout
+        android:id="@+id/l3_native_entry_main"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="10dp">
+
+      <!-- 图标位：由 Kotlin 侧塞一个 ComposeView 进来 -->
+      <FrameLayout
+          android:id="@+id/l3_native_entry_icon"
+          android:layout_width="18dp"
+          android:layout_height="18dp"
+          android:layout_marginEnd="12dp" />
+
+      <TextView
+          android:id="@+id/l3_native_entry_text"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:textAppearance="?attr/textAppearanceBodyMedium"
+          android:textColor="?attr/colorOnSurface"
+          android:maxLines="1"
+          android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- 行尾附属按钮（搜索）。没有时 GONE，不占宽 -->
+    <FrameLayout
+        android:id="@+id/l3_native_entry_trailing"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+  </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

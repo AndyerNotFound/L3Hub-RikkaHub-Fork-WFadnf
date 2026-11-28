@@ -353,15 +353,13 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                                 .fillMaxHeight()
                                 .clipToBounds(),
                         ) {
-                            ChatDrawerContent(
-                                navController = navController,
+                            // 横屏三栏的左栏：与整页侧边栏同一份内容
+                            NativeSidebarHost(
                                 listVm = listVm,
                                 currentConversationId = conversationId,
-                                settings = setting,
                                 onNewChat = startNewChat,
                                 onOpenSettings = openSettingsFromDrawer,
-                                hazeState = backgroundHazeState,
-                                widthOverride = sidebarWidthDp.dp,
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
                         ColumnResizeHandle(

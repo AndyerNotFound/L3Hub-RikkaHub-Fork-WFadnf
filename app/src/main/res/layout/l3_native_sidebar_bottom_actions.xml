@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  底部那排圆形按钮：助手 / 菜单 / 收藏 / 统计 / 设置。
+
+  原版这里是 5 颗 primaryContainer 实心圆，图标 20dp、内边距 10dp。
+  改成 Java 之后结构不变，只是把 Compose 的 Surface + Tooltip 换成
+  MaterialCardView + 长按 toast 式的提示（Tooltip 在 View 体系里没有对应物，
+  这里用 android:contentDescription 保证无障碍，视觉上不再弹气泡）。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/l3_native_sidebar_actions"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="6dp" />

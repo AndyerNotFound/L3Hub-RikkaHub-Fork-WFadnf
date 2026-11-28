@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  侧边栏的骨架。
+
+  竖着三段：
+  - header：更新提醒、备份提醒、用户信息、快捷入口、文件夹条。固定在顶部不跟着滚。
+    矮屏（< 640dp）时把快捷入口折起来，否则会话列表会被挤没。
+  - list：会话列表。RecyclerView，分区标题与会话行都是它的一项。
+  - bottom：助手选择器 + 一行圆形按钮（助手/菜单/收藏/统计/设置）。
+
+  布局对齐原版 RikkaHub 的 ChatDrawer：会话历史以外的部分保持原版形态。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/l3_native_sidebar_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+  <!-- 顶部固定区 -->
+  <LinearLayout
+      android:id="@+id/l3_native_sidebar_header"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical" />
+
+  <!-- 会话列表 -->
+  <androidx.recyclerview.widget.RecyclerView
+      android:id="@+id/l3_native_sidebar_list"
+      android:layout_width="match_parent"
+      android:layout_height="0dp"
+      android:layout_weight="1"
+      android:clipToPadding="false"
+      android:scrollbars="none" />
+
+  <!-- 底部固定区 -->
+  <LinearLayout
+      android:id="@+id/l3_native_sidebar_bottom"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical" />
+</LinearLayout>

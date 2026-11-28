@@ -234,6 +234,7 @@ dependencies {
 
     // Java/XML chat controls coexist with the Kotlin service and Compose message renderer.
     implementation(libs.google.material.views)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.appcompat)
 
     // Compose

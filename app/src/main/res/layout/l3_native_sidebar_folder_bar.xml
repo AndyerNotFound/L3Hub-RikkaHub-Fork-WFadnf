@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件夹条：一排横向滚动的胶囊，末尾是排序按钮。
+
+  原版是 LazyRow + FolderChip + ConversationSortButton。这里换成
+  HorizontalScrollView + LinearLayout，胶囊由 Java 侧动态加。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="4dp">
+
+  <HorizontalScrollView
+      android:id="@+id/l3_native_folder_scroll"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:clipToPadding="false"
+      android:scrollbars="none">
+
+    <LinearLayout
+        android:id="@+id/l3_native_folder_chips"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+  </HorizontalScrollView>
+
+  <!-- 排序按钮：圆形，图标由 ComposeView 填 -->
+  <com.google.android.material.card.MaterialCardView
+      android:id="@+id/l3_native_sort_card"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="8dp"
+      android:clickable="true"
+      android:focusable="true"
+      app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+      app:cardCornerRadius="100dp"
+      app:cardElevation="0dp"
+      app:rippleColor="?attr/colorOnSurface">
+
+    <FrameLayout
+        android:id="@+id/l3_native_sort_icon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_margin="8dp" />
+  </com.google.android.material.card.MaterialCardView>
+</LinearLayout>

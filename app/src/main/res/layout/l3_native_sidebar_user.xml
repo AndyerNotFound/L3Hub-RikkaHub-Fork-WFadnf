@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  顶部用户区：左边头像，右边昵称（可点开改）+ 问候语。
+
+  头像本身是 Compose 的 UIAvatar（要读 koin 里的 FilesManager 与视频封面），
+  所以这里只留一个容器，由 Kotlin 侧塞 ComposeView。
+  昵称与问候语是纯文字，Java 直接写。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="8dp">
+
+  <FrameLayout
+      android:id="@+id/l3_native_user_avatar"
+      android:layout_width="50dp"
+      android:layout_height="50dp"
+      android:layout_marginEnd="16dp" />
+
+  <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/l3_native_user_name_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+      <TextView
+          android:id="@+id/l3_native_user_name"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:textAppearance="?attr/textAppearanceTitleMedium"
+          android:textColor="?attr/colorOnSurface" />
+
+      <FrameLayout
+          android:id="@+id/l3_native_user_name_edit"
+          android:layout_width="16dp"
+          android:layout_height="16dp"
+          android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/l3_native_user_greeting"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceLabelMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+  </LinearLayout>
+</LinearLayout>

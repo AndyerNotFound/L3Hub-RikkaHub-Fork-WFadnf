@@ -1,0 +1,450 @@
+package me.rerere.rikkahub.ui.pages.chat
+
+import android.graphics.Rect
+import android.view.View
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.CheckmarkCircle02
+import me.rerere.hugeicons.stroke.Favorite
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.ImageToVideo
+import me.rerere.hugeicons.stroke.LanguageCircle
+import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Pin
+import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sorting01
+import me.rerere.hugeicons.stroke.TransactionHistory
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.ui.components.ai.AssistantPicker
+import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.navigation.LocalNavController
+import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.slideDurationMillis
+import me.rerere.rikkahub.ui.views.chat.NativeSidebar
+import me.rerere.rikkahub.ui.views.chat.SidebarRow
+import me.rerere.rikkahub.utils.navigateToChatPage
+import org.koin.androidx.compose.koinViewModel
+import java.time.LocalDate
+import kotlin.uuid.Uuid
+
+/**
+ * 侧边栏的 Compose 入口。
+ *
+ * 布局本体是 Java（[NativeSidebar]）：外壳、快捷入口、文件夹条、底部按钮、会话列表
+ * 全在 View 体系里。这个文件只做三件事：
+ *
+ * 1. **数据摊平** —— 把 VM 的 `ConversationListItem` 流翻成 [SidebarRow] 推给 Java；
+ * 2. **图标** —— HugeIcons 的 pathData 是编译后的 `ImageVector.Builder` 字节码，
+ *    Java 侧取不到，所以图标一律用 `ComposeView` 渲染；
+ * 3. **整块 Compose 组件** —— 备份卡、头像、问候语、助手选择器要读 koin 与
+ *    CompositionLocal，整块嵌进去比在 Java 里重建依赖链省事。
+ */
+@Composable
+internal fun NativeSidebarHost(
+    listVm: ConversationListVM,
+    currentConversationId: Uuid?,
+    onNewChat: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val navController = LocalNavController.current
+    val settings = LocalSettings.current
+    val drawerVm: ChatDrawerVM = koinViewModel()
+    val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current
+    val hostView = LocalView.current
+
+    val verticalItems by drawerVm.verticalItems.collectAsStateWithLifecycle()
+    val folders by drawerVm.folders.collectAsStateWithLifecycle()
+    val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
+    val collapsedFolders by drawerVm.collapsedFolders.collectAsStateWithLifecycle()
+    val conversationJobs by listVm.conversationJobs.collectAsStateWithLifecycle(
+        initialValue = emptyMap(),
+    )
+
+    val animationsEnabled = LocalAnimationsEnabled.current
+    val duration = slideDurationMillis()
+
+    // 长按某一行时弹出的操作菜单。状态放在这一层：菜单不在 RecyclerView 里，
+    // 跟着行一起回收会丢
+    var menuRow by remember { mutableStateOf<SidebarRow?>(null) }
+    var menuAnchor by remember { mutableStateOf<Rect?>(null) }
+    var renameTarget by remember { mutableStateOf<Conversation?>(null) }
+
+    val rows = remember(
+        verticalItems,
+        collapsedDates,
+        collapsedFolders,
+        conversationJobs,
+        currentConversationId,
+    ) {
+        buildSidebarRows(
+            items = verticalItems,
+            collapsedDates = collapsedDates,
+            collapsedFolders = collapsedFolders,
+            runningIds = conversationJobs.keys.map { it.toString() }.toSet(),
+            defaultLabel = appContext.getString(R.string.chat_page_folder_default),
+            pinnedLabel = appContext.getString(R.string.pinned_chats),
+        )
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            NativeSidebar(ctx).apply {
+                setIconBinder { container, iconKey, tint ->
+                    container.addView(
+                        ComposeView(container.context).apply {
+                            setContent {
+                                Icon(
+                                    imageVector = sidebarIcon(iconKey),
+                                    contentDescription = null,
+                                    tint = Color(tint),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(1.dp),
+                                )
+                            }
+                        }
+                    )
+                }
+
+                setSlotBinder { container, slot ->
+                    container.addView(
+                        ComposeView(container.context).apply {
+                            // 整块组件要读 koin 与 CompositionLocal，把宿主那套搬进来
+                            hostView.findViewTreeLifecycleOwner()?.let(::setViewTreeLifecycleOwner)
+                            hostView.findViewTreeSavedStateRegistryOwner()
+                                ?.let(::setViewTreeSavedStateRegistryOwner)
+                            hostView.findViewTreeViewModelStoreOwner()
+                                ?.let(::setViewTreeViewModelStoreOwner)
+                            setContent {
+                                SidebarSlot(
+                                    slot = slot,
+                                    listVm = listVm,
+                                    onNavigateSettings = onOpenSettings,
+                                )
+                            }
+                        }
+                    )
+                }
+
+                setConversationListListener(object : NativeSidebar.ConversationListListener {
+                    override fun onConversationClick(conversationId: String) {
+                        val id = NativeSidebar.toUuid(conversationId) ?: return
+                        navigateToChatPage(navController, id)
+                    }
+
+                    override fun onConversationLongClick(rowView: View, row: SidebarRow) {
+                        menuRow = row
+                        menuAnchor = rowView.windowRect()
+                    }
+
+                    override fun onHeaderClick(row: SidebarRow) {
+                        when (row.kind) {
+                            SidebarRow.Kind.FOLDER_HEADER ->
+                                drawerVm.toggleFolderCollapsed(
+                                    row.folderUuid()?.let { Uuid.parse(it.toString()) }
+                                )
+
+                            SidebarRow.Kind.DATE_HEADER ->
+                                row.date?.let { iso ->
+                                    runCatching { LocalDate.parse(iso) }.getOrNull()
+                                        ?.let { drawerVm.toggleDateCollapsed(it) }
+                                }
+
+                            else -> Unit
+                        }
+                    }
+
+                    override fun onFolderHeaderLongClick(rowView: View, row: SidebarRow) {
+                        // 文件夹的编辑菜单暂时不开：它要改名 / 删除 / 绑工作区三件事，
+                        // 与已完成的 NativeSelectMenu 结构一致，但回调还没接过来
+                    }
+                })
+
+                setListener(object : NativeSidebar.Listener {
+                    override fun onNewChat() = onNewChat()
+                    override fun onOpenSettings() = onOpenSettings()
+                    override fun onOpenAssistant() = navController.navigate(Screen.Assistant)
+                    override fun onOpenImageGen() = navController.navigate(Screen.ImageGen)
+                    override fun onOpenFavorite() = navController.navigate(Screen.Favorite)
+                    override fun onOpenStats() = navController.navigate(Screen.Stats)
+                    override fun onOpenHistory() = navController.navigate(Screen.History)
+                    override fun onOpenMessageSearch() =
+                        navController.navigate(Screen.MessageSearch)
+
+                    override fun onOpenMediaCreation() =
+                        navController.navigate(Screen.MediaCreationSessions)
+
+                    override fun onOpenTranslator() = navController.navigate(Screen.Translator)
+                    override fun onEditNickname() = Unit
+                    override fun onSelectFolder(folderId: String?) = Unit
+                    override fun onCreateFolder() = Unit
+                    override fun onRenameFolder(folderId: String) = Unit
+                    override fun onDeleteFolder(folderId: String) = Unit
+                    override fun onSortClick(anchorView: View) = Unit
+                    override fun onAssistantPickerClick(anchorView: View) = Unit
+
+                    override fun onAssistantSettingClick() {
+                        navController.navigate(
+                            Screen.AssistantDetail(id = settings.assistantId.toString())
+                        )
+                    }
+                })
+            }
+        },
+        update = { sidebar ->
+            sidebar.setAnimationsEnabled(animationsEnabled)
+            sidebar.setTransformDuration(duration)
+            sidebar.submitRows(rows)
+            sidebar.setCurrentConversationId(currentConversationId?.toString())
+            sidebar.setUser(
+                name = settings.displaySetting.userNickname
+                    .ifBlank { appContext.getString(R.string.user_default_name) },
+                greetingText = "",
+            )
+            sidebar.setFolders(
+                ids = folders.map { it.id.toString() },
+                names = folders.map { it.name },
+                selectedId = null,
+            )
+        },
+    )
+
+    // 会话操作菜单
+    val target = menuRow
+    if (target != null) {
+        val conversation = verticalItems
+            .filterIsInstance<ConversationListItem.Item>()
+            .firstOrNull { it.conversation.id.toString() == target.conversationId }
+            ?.conversation
+
+        if (conversation == null) {
+            menuRow = null
+        } else {
+            val labels = SidebarMenuLabels(
+                pin = appContext.getString(
+                    if (conversation.isPinned) R.string.unpin_chat else R.string.pin_chat
+                ),
+                rename = appContext.getString(R.string.chat_page_rename),
+                regenerate = appContext.getString(R.string.chat_page_regenerate_title),
+                delete = appContext.getString(R.string.chat_page_delete),
+            )
+            rememberNativeSelectMenu(
+                expanded = true,
+                onDismiss = { menuRow = null },
+                anchorBounds = menuAnchor,
+                icons = listOf(
+                    HugeIcons.Pin,
+                    HugeIcons.PencilEdit01,
+                    HugeIcons.Refresh01,
+                    HugeIcons.TransactionHistory,
+                ),
+            ) {
+                addItem(labels.pin, null, false) { listVm.updatePinnedStatus(conversation) }
+                addItem(labels.rename, null, false) { renameTarget = conversation }
+                addItem(labels.regenerate, null, false) { listVm.generateTitle(conversation, true) }
+                addDivider()
+                addItem(labels.delete, null, false, true, true) {
+                    scope.launch {
+                        listVm.deleteConversation(conversation).join()
+                        if (conversation.id == currentConversationId) {
+                            navigateToChatPage(navController)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 重命名对话框：沿用 Compose 那份，不必在 View 里重写一遍
+    renameTarget?.let { conversation ->
+        RenameConversationDialog(
+            initialTitle = conversation.title,
+            onDismissRequest = { renameTarget = null },
+            onConfirm = { title ->
+                listVm.updateTitle(conversation.id, title)
+                renameTarget = null
+            },
+        )
+    }
+}
+
+/** 菜单文案一次读齐：content lambda 在 LaunchedEffect 里跑，那里没有 Composition。 */
+private data class SidebarMenuLabels(
+    val pin: String,
+    val rename: String,
+    val regenerate: String,
+    val delete: String,
+)
+
+/** 侧栏里那几块「整块交给 Compose」的组件。 */
+@Composable
+private fun SidebarSlot(
+    slot: String,
+    listVm: ConversationListVM,
+    onNavigateSettings: () -> Unit,
+) {
+    val settings = LocalSettings.current
+    val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current
+
+    when (slot) {
+        NativeSidebar.SLOT_BACKUP_CARD -> BackupReminderCard(
+            settings = settings,
+            onClick = onNavigateSettings,
+        )
+
+        NativeSidebar.SLOT_USER_AVATAR -> UIAvatar(
+            name = settings.displaySetting.userNickname
+                .ifBlank { appContext.getString(R.string.user_default_name) },
+            value = settings.displaySetting.userAvatar,
+            avatarSize = 50.dp,
+            videoPlayback = true,
+            onUpdate = { avatar ->
+                scope.launch {
+                    listVm.updateSettings {
+                        it.copy(
+                            displaySetting = it.displaySetting.copy(userAvatar = avatar)
+                        )
+                    }
+                }
+            },
+        )
+
+        NativeSidebar.SLOT_ASSISTANT_PICKER -> AssistantPicker(
+            settings = settings,
+            onSelectAssistant = { assistant ->
+                scope.launch {
+                    listVm.updateSettings { it.copy(assistantId = assistant.id) }.join()
+                }
+            },
+            modifier = Modifier,
+            onClickSetting = onNavigateSettings,
+        )
+
+        else -> Unit
+    }
+}
+
+/** 把 VM 的分区项摊平成 Java 侧的 [SidebarRow]，顺手按折叠状态过滤掉收起的段。 */
+private fun buildSidebarRows(
+    items: List<ConversationListItem>,
+    collapsedDates: Set<LocalDate>,
+    collapsedFolders: Set<String>,
+    runningIds: Set<String>,
+    defaultLabel: String,
+    pinnedLabel: String,
+): List<SidebarRow> {
+    val rows = ArrayList<SidebarRow>(items.size)
+    var skipSection = false
+
+    items.forEach { item ->
+        when (item) {
+            is ConversationListItem.FolderHeader -> {
+                val key = item.folderId?.toString()
+                val collapsed = key != null && key in collapsedFolders
+                skipSection = collapsed
+                rows += SidebarRow.folderHeader(
+                    key = "f:" + (key ?: "unfiled"),
+                    label = item.label.ifBlank { defaultLabel },
+                    count = 0,
+                    collapsed = collapsed,
+                    folderId = key,
+                )
+            }
+
+            is ConversationListItem.DateHeader -> {
+                val collapsed = item.date in collapsedDates
+                skipSection = collapsed
+                rows += SidebarRow.dateHeader(
+                    key = "d:" + item.date.toString(),
+                    label = item.label,
+                    collapsed = collapsed,
+                    isoDate = item.date.toString(),
+                )
+            }
+
+            ConversationListItem.PinnedHeader -> {
+                skipSection = false
+                rows += SidebarRow.pinnedHeader(pinnedLabel)
+            }
+
+            is ConversationListItem.Item -> {
+                if (skipSection) return@forEach
+                val conversation = item.conversation
+                rows += SidebarRow.conversation(
+                    conversationId = conversation.id.toString(),
+                    title = conversation.title.ifBlank { defaultLabel },
+                    pinned = conversation.isPinned,
+                    loading = conversation.id.toString() in runningIds,
+                    checked = false,
+                )
+            }
+        }
+    }
+    return rows
+}
+
+/** 图标 key 到 HugeIcons 的映射。key 由 [NativeSidebar] 决定。 */
+private fun sidebarIcon(key: String): ImageVector = when (key) {
+    "history" -> HugeIcons.TransactionHistory
+    "search" -> HugeIcons.Search01
+    "media" -> HugeIcons.ImageToVideo
+    "translate" -> HugeIcons.LanguageCircle
+    "sort" -> HugeIcons.Sorting01
+    "pencil" -> HugeIcons.PencilEdit01
+    "assistant" -> HugeIcons.LookTop
+    "menu" -> HugeIcons.Menu03
+    "favorite" -> HugeIcons.Favorite
+    "stats" -> HugeIcons.ChartColumn
+    "settings" -> HugeIcons.Settings03
+    "folder" -> HugeIcons.Folder01
+    "pin" -> HugeIcons.Pin
+    "chevron_down" -> HugeIcons.ArrowDown01
+    "chevron_up" -> HugeIcons.ArrowUp01
+    "check" -> HugeIcons.CheckmarkCircle02
+    else -> HugeIcons.Menu03
+}
+
+/** 取一个 View 在窗口里的矩形，给容器变换当起点。 */
+private fun View.windowRect(): Rect {
+    val location = IntArray(2)
+    getLocationInWindow(location)
+    return Rect(location[0], location[1], location[0] + width, location[1] + height)
+}
