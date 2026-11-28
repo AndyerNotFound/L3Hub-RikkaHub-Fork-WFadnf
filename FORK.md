@@ -1201,6 +1201,7 @@ secret 没人读，已经从流程里去掉，仓库设置里可以一并删掉�
 几点：
 
 - `ci.yml` 只跑单测、只跟分支；tag 触发的构建由 `build-apk.yml` 负责，同一份代码不重复跑
+- `cleanup.yml` 每天清一次旧记录与旧 Release，规则见下一节「清理」
 - `:terminal` / `:workspace` 带 CMake，配置阶段需要 NDK 28.2.13676358（约 700MB）。两个 workflow 都缓存了这个目录；
   不缓存的话每次现下，下坏过一次（`Error reading Zip content from a SeekableByteChannel`），整轮直接红
 - 同一个 tag 重跑不会失败：release 已存在时覆盖资产、刷新说明，prerelease 标记也跟着 tag 走
@@ -1208,6 +1209,24 @@ secret 没人读，已经从流程里去掉，仓库设置里可以一并删掉�
   也可以在 inputs 的 `variant` 里手动指定出哪个变体
 - 正式版是 R8 全量混淆出来的，`proguard-rules.pro` 覆盖不到的反射装配（sshd、Koin、serialization 之类）
   只有装到真机才看得出来，发版前先自己装一遍跑核心功能
+
+### 清理：Actions 记录与 Release（`cleanup.yml`）
+
+发布历史只留近期的，避免列表越堆越长。`cleanup.yml` 每天 20:30 UTC 自动跑一次，也可以手动触发：
+
+| 参数 | 默认 | 作用 |
+|---|---|---|
+| `max_age_days` | 3 | Actions 运行记录保留天数，更早的整条 run 连同 artifact 与日志一起删 |
+| `keep_releases` | 5 | 保留的正式版 Release 数量 |
+| `dry_run` | 手动触发时为 `true` | 只打印清单不删；定时任务按 `false` 跑 |
+| `extra_keep` | 空 | 额外保留的 tag（空格分隔），同步点之类不想被清掉的填这里 |
+
+保留规则固定三条，不随参数变化：滚动通道 `Canary-Build` / `Nightly-Build` 始终保留；
+`DB-v*`（数据中心独立应用）只留最新的一个；其余 `v*` 按创建时间倒序留 `keep_releases` 个。
+删 Release 时连同 tag 一起删，之后再扫一遍远端 tag，把没有对应 Release 的孤儿 `v*` / `DB-v*` 也清掉。
+
+想留旧包的话，先手动触发一次 `dry_run=true` 看清单，确认没问题再关掉。删除不可逆：
+旧安装包和旧 tag 都拿不回来，只能按 tag 重新构建。
 
 ## 会话详情：工具与提示词（2026-11-12）
 

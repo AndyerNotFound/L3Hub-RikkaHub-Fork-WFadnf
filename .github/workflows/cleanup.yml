@@ -1,0 +1,241 @@
+name: Cleanup
+
+# 仓库只留近期的构建记录与发布，避免列表越堆越长：
+#   1. Actions 运行记录：超过 N 天（默认 3 天）的整条 run 连同 artifact 与日志一并删除。
+#   2. Release：只保留最新 N 个（默认 5 个）正式版，外加两个滚动通道
+#      Canary-Build / Nightly-Build，以及数据中心通道最新的一个 DB-v*。
+#      删 Release 时连同 tag 一起删（--cleanup-tag）。
+#   3. 孤儿 tag：形如 v* / DB-v* 但没有对应 Release 的 tag，一并清掉。
+#
+# 删除不可逆：发版历史、旧安装包与旧 tag 都拿不回来。因此手动触发默认 dry_run=true，
+# 先看清单确认，再把 dry_run 关掉。定时任务按 dry_run=false 执行。
+# 需要临时保住的 tag（同步点、临时验证分支等）填进 extra_keep。
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '只打印将删除的内容，不实际删除'
+        type: boolean
+        default: true
+      keep_releases:
+        description: '保留的正式版数量'
+        required: false
+        default: '5'
+      max_age_days:
+        description: 'Actions 记录的保留天数'
+        required: false
+        default: '3'
+      extra_keep:
+        description: '额外保留的 tag（空格分隔）'
+        required: false
+        default: ''
+  schedule:
+    # 每天 20:30 UTC（北京时间次日 04:30）执行；与 Nightly（19:00 UTC）错开，
+    # 免得把当夜刚产出的记录当成过期清掉。
+    - cron: '30 20 * * *'
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 三个参数都收敛到环境变量：后续步骤只读 env，不再区分手动触发与定时触发
+      - name: Resolve parameters
+        env:
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_KEEP_RELEASES: ${{ inputs.keep_releases }}
+          INPUT_MAX_AGE_DAYS: ${{ inputs.max_age_days }}
+          INPUT_EXTRA_KEEP: ${{ inputs.extra_keep }}
+        run: |
+          set -euo pipefail
+          # schedule 触发时 inputs 全为空：按定时任务的既定值执行，且是真的删
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            dry_run=false
+            keep_releases=5
+            max_age_days=3
+            extra_keep=""
+          else
+            dry_run="${INPUT_DRY_RUN:-true}"
+            keep_releases="${INPUT_KEEP_RELEASES:-5}"
+            max_age_days="${INPUT_MAX_AGE_DAYS:-3}"
+            extra_keep="${INPUT_EXTRA_KEEP:-}"
+          fi
+          # 天数直接进 date 的参数位，非数字会让 date 报错退出；这里先行拦截给出可读的提示
+          case "$max_age_days" in
+            ''|*[!0-9]*) echo "max_age_days 必须是整数：[${max_age_days}]" >&2; exit 1 ;;
+          esac
+          case "$keep_releases" in
+            ''|*[!0-9]*) echo "keep_releases 必须是整数：[${keep_releases}]" >&2; exit 1 ;;
+          esac
+          {
+            echo "DRY_RUN=$dry_run"
+            echo "KEEP_RELEASES=$keep_releases"
+            echo "MAX_AGE_DAYS=$max_age_days"
+            echo "EXTRA_KEEP=$extra_keep"
+            echo "CUTOFF=$(date -u -d "${max_age_days} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_ENV"
+          echo "dry_run=${dry_run} 保留正式版=${keep_releases} 记录保留=${max_age_days}天 cutoff=${CUTOFF}"
+
+      # 记录按创建时间从旧到新清：只删已完成的 run，正在跑的那条不动。
+      # 删除后分页会整体前移，故每轮都从第一页重取，直到第一页再没有过期记录。
+      - name: Purge old workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          # 收集当前所有过期 run 的 id。列表按创建时间倒序，故过期记录集中在尾部：
+          # 一直翻到某页为空（已过末尾）为止，每页把早于 cutoff 的已完成 run 挑出来。
+          # 上限 50 页（5000 条），避免仓库历史极长时无限翻页。
+          collect() {
+            local page resp ids
+            for page in $(seq 1 50); do
+              resp=$(gh api "repos/${repo}/actions/runs?per_page=100&page=${page}") || break
+              # 空页：已翻过最后一页
+              if [ "$(printf '%s' "$resp" | jq -r '.workflow_runs | length')" = "0" ]; then
+                break
+              fi
+              ids=$(printf '%s' "$resp" | jq -r --arg c "$CUTOFF" \
+                '.workflow_runs[] | select(.created_at < $c and .status == "completed") | .id')
+              [ -n "$ids" ] && printf '%s\n' "$ids"
+            done
+          }
+          total=0
+          deleted=0
+          while :; do
+            mapfile -t ids < <(collect)
+            [ "${#ids[@]}" -eq 0 ] && break
+            total=$((total + ${#ids[@]}))
+            echo "本轮命中 ${#ids[@]} 条过期记录"
+            round_deleted=0
+            for id in "${ids[@]}"; do
+              if [ "$DRY_RUN" = "true" ]; then continue; fi
+              # 404 视为已删除：上一次请求成功但响应丢失时，重试会落到这里
+              if gh api -X DELETE "repos/${repo}/actions/runs/${id}" --silent 2>/dev/null; then
+                round_deleted=$((round_deleted + 1))
+              elif ! gh api "repos/${repo}/actions/runs/${id}" >/dev/null 2>&1; then
+                round_deleted=$((round_deleted + 1))
+              else
+                echo "::warning::删除 run ${id} 失败"
+              fi
+            done
+            deleted=$((deleted + round_deleted))
+            # dry_run 下记录不会被真正删掉，再循环会永远取到同一批
+            [ "$DRY_RUN" = "true" ] && break
+            # 一整轮一条都没删掉（权限不足、API 异常）：再循环同样取到这批，直接报错退出，
+            # 否则 total 会无限增长而循环永不结束
+            if [ "$round_deleted" -eq 0 ]; then
+              echo "::error::本轮 ${#ids[@]} 条过期记录全部删除失败，中止"
+              exit 1
+            fi
+          done
+          echo "过期记录 ${total} 条，已删除 ${deleted} 条"
+          if [ "$DRY_RUN" != "true" ] && [ "$deleted" -eq 0 ] && [ "$total" -gt 0 ]; then
+            echo "::error::有 ${total} 条过期记录但一条也没删掉"
+            exit 1
+          fi
+
+      # 保留清单按创建时间倒序挑选：
+      #   Canary-Build / Nightly-Build  滚动通道，始终保留（tag 每次指向最新构建）
+      #   DB-v*                         数据中心独立应用，只留最新的一个
+      #   其余（正式版 v*）              留最新 keep_releases 个
+      # 落进 del.txt 的连同 tag 一起删：只删 Release 会留下同名 tag，列表看着还是旧的
+      - name: Prune releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          : > keep.txt
+          : > del.txt
+          seen_db=0
+          seen_stable=0
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            case "$tag" in
+              Canary-Build|Nightly-Build) echo "$tag" >> keep.txt ;;
+              DB-v*)
+                if [ "$seen_db" -lt 1 ]; then
+                  seen_db=$((seen_db + 1)); echo "$tag" >> keep.txt
+                else
+                  echo "$tag" >> del.txt
+                fi ;;
+              *)
+                if [ "$seen_stable" -lt "$KEEP_RELEASES" ]; then
+                  seen_stable=$((seen_stable + 1)); echo "$tag" >> keep.txt
+                else
+                  echo "$tag" >> del.txt
+                fi ;;
+            esac
+          done < <(gh release list --limit 300 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+          for tag in $EXTRA_KEEP; do
+            echo "$tag" >> keep.txt
+            grep -vxF "$tag" del.txt > del.tmp || true
+            mv del.tmp del.txt
+          done
+          echo "== 保留 =="; cat keep.txt
+          echo "== 待删 =="; cat del.txt
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "（dry_run）将删除 release ${tag}"
+              continue
+            fi
+            # 已不存在时 gh 以非零退出，但仍算达成目标
+            gh release delete "$tag" --yes --cleanup-tag >/dev/null 2>&1 || true
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "::warning::release ${tag} 仍然存在"
+            else
+              echo "已删除 release ${tag}"
+            fi
+          done < del.txt
+
+      # 没有 Release 的旧 tag 不占 Release 列表，但会出现在 tag 列表里，发版时也干扰
+      # 「上一个 tag」的推算。只处理本仓库发版用的两种前缀，其余 tag 不动。
+      - name: Prune orphan tags
+        run: |
+          set -euo pipefail
+          git fetch --tags --prune --force origin >/dev/null 2>&1 || true
+          # 远端 tag 形如 refs/tags/v3.1.1；^{} 是附注 tag 的展开行，需排除
+          remote_tags=$(git ls-remote --tags origin 2>/dev/null \
+            | sed 's#.*refs/tags/##' | grep -v '\^{}$' | sort -u || true)
+          kept=$(cat keep.txt | sort -u)
+          echo "== 待删孤儿 tag =="
+          for tag in $remote_tags; do
+            case "$tag" in
+              v[0-9]*|DB-v[0-9]*) ;;
+              *) continue ;;
+            esac
+            printf '%s\n' "$kept" | grep -qxF "$tag" && continue
+            echo "$tag"
+            if [ "$DRY_RUN" = "true" ]; then continue; fi
+            git push origin --delete "$tag" >/dev/null 2>&1 || true
+          done
+          echo "（以上为无对应 Release 的 tag，已按 dry_run=${DRY_RUN} 处理）"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Cleanup 结果"
+            echo
+            echo "- dry_run: \`${DRY_RUN}\`"
+            echo "- Actions 记录保留: \`${MAX_AGE_DAYS}\` 天（cutoff \`${CUTOFF}\`）"
+            echo "- 正式版保留: \`${KEEP_RELEASES}\` 个"
+            echo
+            echo "**保留的 Release**"
+            echo '```'
+            cat keep.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
