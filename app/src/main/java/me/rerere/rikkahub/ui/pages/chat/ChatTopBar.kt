@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.foundation.clickable
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -12,11 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import me.rerere.rikkahub.ui.style.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -37,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,14 +46,12 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Flowchart01
 import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Layers01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Share04
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
@@ -276,6 +274,9 @@ private fun ChatModelFolderPill(
 ) {
     val folder = folders.firstOrNull { it.id == folderId }
     var menuExpanded by remember { mutableStateOf(false) }
+    // 容器变换的起点：胶囊左半边那块可点区域。菜单从它的屏幕矩形长出来，
+    // 所以视觉上是「这块胶囊变成了菜单」，而不是旁边冒出一张卡。
+    val anchorView = LocalView.current
 
     ChatCapsule(
         hazeState = hazeState,
@@ -323,6 +324,7 @@ private fun ChatModelFolderPill(
                     menuExpanded = false
                     onCreateFolder()
                 },
+                anchorView = anchorView,
             )
         }
 
@@ -340,7 +342,10 @@ private fun ChatModelFolderPill(
     }
 }
 
-// 胶囊里的文件夹选单：未归类排在最上面，当前归属打勾
+// 胶囊里的文件夹选单：未归类排在最上面，当前归属打勾。
+//
+// 展开 / 收起走容器变换（NativeSelectMenu）：从胶囊那一小块原地长成菜单卡，
+// 不是淡入淡出。起点由 anchorView 决定，所以传的是胶囊本身。
 @Composable
 private fun ChatFolderMenu(
     expanded: Boolean,
@@ -349,80 +354,37 @@ private fun ChatFolderMenu(
     selectedFolderId: Uuid?,
     onSelect: (Uuid?) -> Unit,
     onCreateFolder: () -> Unit,
+    anchorView: View?,
 ) {
-    DropdownMenu(
+    // 文案必须在组合里读好：content lambda 在 LaunchedEffect 里执行，
+    // 那里没有 Composition，直接调 stringResource 会崩
+    val headerLabel = stringResource(R.string.chat_page_folder_pill)
+    val unfiledLabel = stringResource(R.string.chat_page_folder_unfiled)
+    val emptyLabel = stringResource(R.string.chat_page_folder_empty)
+    val createLabel = stringResource(R.string.chat_page_create_folder)
+
+    rememberNativeSelectMenu(
         expanded = expanded,
-        onDismissRequest = onDismissRequest,
+        onDismiss = onDismissRequest,
+        anchorView = anchorView,
     ) {
-        Text(
-            text = stringResource(R.string.chat_page_folder_pill),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        FolderMenuItem(
-            label = stringResource(R.string.chat_page_folder_unfiled),
-            selected = selectedFolderId == null,
-            onClick = { onSelect(null) },
-        )
+        addHeader(headerLabel)
+        addItem(unfiledLabel, null, selected = selectedFolderId == null) {
+            onSelect(null)
+        }
         folders.forEach { folder ->
-            FolderMenuItem(
-                label = folder.name,
-                selected = folder.id == selectedFolderId,
-                onClick = { onSelect(folder.id) },
-            )
+            addItem(folder.name, null, selected = folder.id == selectedFolderId) {
+                onSelect(folder.id)
+            }
         }
         if (folders.isEmpty()) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_page_folder_empty)) },
-                onClick = {},
-                enabled = false,
-            )
+            addItem(emptyLabel, null, selected = false) { }
         }
-        HorizontalDivider()
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.chat_page_create_folder)) },
-            leadingIcon = { Icon(HugeIcons.FolderAdd, contentDescription = null) },
-            onClick = onCreateFolder,
-        )
-    }
-}
-
-@Composable
-private fun FolderMenuItem(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val trailingIcon: (@Composable () -> Unit)? = if (selected) {
-        {
-            Icon(
-                HugeIcons.Tick01,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
+        addDivider()
+        addItem(createLabel, R.drawable.l3_native_ic_folder, selected = false) {
+            onCreateFolder()
         }
-    } else {
-        null
     }
-    DropdownMenuItem(
-        text = {
-            Text(
-                text = label,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        onClick = onClick,
-        leadingIcon = {
-            Icon(
-                HugeIcons.Folder01,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-        },
-        trailingIcon = trailingIcon,
-    )
 }
 
 // 顶栏右侧的会话菜单；空对话没有内容可概览、导出或删除，菜单项全部置灰

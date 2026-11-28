@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  选择菜单里的一行。
+
+  三种形态共用一个布局，由 Java 侧按需显示 / 隐藏：
+  - 普通项：leading 图标 + 文字
+  - 选中项：右侧出现对勾
+  - 分组标题：只留文字，字号更小、颜色更淡（itemSelectMenuHeader 样式）
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="48dp"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+  <ImageView
+      android:id="@+id/l3_native_select_item_icon"
+      android:layout_width="20dp"
+      android:layout_height="20dp"
+      android:layout_marginEnd="12dp"
+      android:importantForAccessibility="no"
+      android:visibility="gone"
+      app:tint="?attr/colorOnSurfaceVariant" />
+
+  <TextView
+      android:id="@+id/l3_native_select_item_text"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:ellipsize="end"
+      android:maxLines="1"
+      android:textAppearance="?attr/textAppearanceBodyLarge"
+      android:textColor="?attr/colorOnSurface" />
+
+  <ImageView
+      android:id="@+id/l3_native_select_item_check"
+      android:layout_width="20dp"
+      android:layout_height="20dp"
+      android:layout_marginStart="12dp"
+      android:importantForAccessibility="no"
+      android:src="@drawable/l3_native_ic_check_circle"
+      android:visibility="gone"
+      app:tint="?attr/colorPrimary" />
+</LinearLayout>
