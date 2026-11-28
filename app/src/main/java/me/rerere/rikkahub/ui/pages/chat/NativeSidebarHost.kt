@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.graphics.Rect
 import android.view.View
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -29,7 +30,6 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.CheckmarkCircle02
-import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.Refresh01
@@ -73,9 +73,14 @@ internal fun NativeSidebarHost(
 ) {
     val navController = LocalNavController.current
     val settings = LocalSettings.current
-    val drawerVm: ChatDrawerVM = koinViewModel()
-    val scope = rememberCoroutineScope()
     val appContext = LocalContext.current
+    // ChatDrawerVM 要 SavedStateHandle（记滚动位置与折叠状态），
+    // 而 SavedStateHandle 只有能提供 SavedStateRegistry 的 owner 才给得出来。
+    // 用默认 owner 会抛 InstanceCreationException: Could not create instance for ChatDrawerVM。
+    // 这里钉到 Activity：它一定是 ComponentActivity，注册表齐全。
+    val activity = appContext as ComponentActivity
+    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
+    val scope = rememberCoroutineScope()
     val hostView = LocalView.current
 
     val verticalItems by drawerVm.verticalItems.collectAsStateWithLifecycle()
