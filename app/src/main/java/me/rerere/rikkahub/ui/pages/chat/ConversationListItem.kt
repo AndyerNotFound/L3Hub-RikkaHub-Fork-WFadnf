@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.model.Conversation
 import java.time.LocalDate
 import kotlin.uuid.Uuid

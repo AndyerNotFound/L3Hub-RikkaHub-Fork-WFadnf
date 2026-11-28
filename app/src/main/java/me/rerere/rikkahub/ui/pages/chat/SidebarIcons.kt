@@ -8,7 +8,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.CheckmarkCircle02
-import me.rerere.hugeicons.stroke.Favorite
+import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.ImageToVideo
 import me.rerere.hugeicons.stroke.LanguageCircle
@@ -47,7 +47,7 @@ internal fun sidebarIcon(key: String): ImageVector = when (key) {
     // 底部那排圆按钮
     "assistant" -> HugeIcons.LookTop
     "menu" -> HugeIcons.Menu03
-    "favorite" -> HugeIcons.Favorite
+    "favorite" -> HugeIcons.Favourite
     "stats" -> HugeIcons.ChartColumn
     "settings" -> HugeIcons.Settings03
 

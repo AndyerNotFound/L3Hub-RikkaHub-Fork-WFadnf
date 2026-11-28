@@ -26,9 +26,10 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.CheckmarkCircle02
-import me.rerere.hugeicons.stroke.Favorite
+import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.Refresh01
@@ -40,7 +41,7 @@ import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.navigation.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSidebar
@@ -161,7 +162,7 @@ internal fun NativeSidebarHost(
                 setConversationListListener(object : NativeSidebar.ConversationListListener {
                     override fun onConversationClick(conversationId: String) {
                         val id = NativeSidebar.toUuid(conversationId) ?: return
-                        navigateToChatPage(navController, id)
+                        navigateToChatPage(navController, Uuid.parse(id.toString()))
                     }
 
                     override fun onConversationLongClick(rowView: View, row: SidebarRow) {
@@ -264,14 +265,14 @@ internal fun NativeSidebarHost(
             sidebar.submitRows(rows)
             sidebar.setCurrentConversationId(currentConversationId?.toString())
             sidebar.setUser(
-                name = settings.displaySetting.userNickname
+                settings.displaySetting.userNickname
                     .ifBlank { appContext.getString(R.string.user_default_name) },
-                greetingText = "",
+                "",
             )
             sidebar.setFolders(
-                ids = folders.map { it.id.toString() },
-                names = folders.map { it.name },
-                selectedId = null,
+                folders.map { it.id.toString() },
+                folders.map { it.name },
+                null,
             )
         },
     )

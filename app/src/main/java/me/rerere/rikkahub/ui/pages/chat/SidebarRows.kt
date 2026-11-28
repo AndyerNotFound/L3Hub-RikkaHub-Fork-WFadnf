@@ -51,11 +51,11 @@ internal fun buildSidebarRows(
                 skipSection = collapsed
                 sectionDepth = 0
                 rows += SidebarRow.folderHeader(
-                    key = "f:" + (key ?: "unfiled"),
-                    label = item.label.ifBlank { defaultLabel },
-                    count = countConversationsInSection(items, item),
-                    collapsed = collapsed,
-                    folderId = key,
+                    "f:" + (key ?: "unfiled"),
+                    item.label.ifBlank { defaultLabel },
+                    countConversationsInSection(items, item),
+                    collapsed,
+                    key,
                 )
             }
 
@@ -65,10 +65,10 @@ internal fun buildSidebarRows(
                 // 日期段嵌在文件夹段里，所以比文件夹标题深一级
                 sectionDepth = 1
                 rows += SidebarRow.dateHeader(
-                    key = "d:" + item.date.toString(),
-                    label = item.label,
-                    collapsed = collapsed,
-                    isoDate = item.date.toString(),
+                    "d:" + item.date.toString(),
+                    item.label,
+                    collapsed,
+                    item.date.toString(),
                 )
             }
 
@@ -84,13 +84,13 @@ internal fun buildSidebarRows(
                 val conversation = item.conversation
                 val id = conversation.id.toString()
                 rows += SidebarRow.conversation(
-                    conversationId = id,
-                    title = conversation.title.ifBlank { defaultLabel },
-                    pinned = conversation.isPinned,
-                    loading = id in runningIds,
-                    checked = id in checkedIds,
+                    id,
+                    conversation.title.ifBlank { defaultLabel },
+                    conversation.isPinned,
+                    id in runningIds,
+                    id in checkedIds,
                     // 会话比它所属的标题再深一级
-                    depth = sectionDepth + 1,
+                    sectionDepth + 1,
                 )
             }
         }
