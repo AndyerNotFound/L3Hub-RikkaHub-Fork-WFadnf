@@ -45,10 +45,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/chat_input_placeholder"
-        app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:boxBackgroundColor="@android:color/transparent"
         app:boxStrokeWidth="0dp"
         app:boxStrokeWidthFocused="0dp"
-        app:hintEnabled="true" />
+        app:hintEnabled="true"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.L3Hub.NativeChat.InputField" />
 
     <!--
       全屏入口放在 TextInputLayout 外面：作为 end icon 会改变输入框的测量宽度，
