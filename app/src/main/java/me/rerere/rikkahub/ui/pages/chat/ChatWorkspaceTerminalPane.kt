@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,12 +32,13 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalReadiness
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionManager
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalTabContent
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalTabsState
-import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import org.koin.compose.koinInject
@@ -107,34 +107,36 @@ internal fun WorkspaceTerminalPane(
                 onSelect = { selectedId = it.id },
                 modifier = Modifier.weight(1f),
             )
-            Box {
-                Text(
-                    text = stringResource(
-                        R.string.workspace_terminal_tab,
-                        selectedTab?.number ?: 1,
-                    ) + " ▾",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier
-                        .clickable(enabled = state.tabs.size > 1) { tabMenuExpanded = true }
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
-                )
-                DropdownMenu(
-                    expanded = tabMenuExpanded,
-                    onDismissRequest = { tabMenuExpanded = false },
-                ) {
-                    state.tabs.forEach { tab ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(stringResource(R.string.workspace_terminal_tab, tab.number))
-                            },
-                            onClick = {
-                                tabMenuExpanded = false
-                                manager.selectTab(root, tab.id)
-                            },
-                        )
+            val tabAnchor = rememberSelectMenuAnchor()
+            // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+            val tabLabels = state.tabs.map {
+                stringResource(R.string.workspace_terminal_tab, it.number)
+            }
+
+            rememberNativeSelectMenu(
+                expanded = tabMenuExpanded,
+                onDismiss = { tabMenuExpanded = false },
+                anchorBounds = tabAnchor.value.value,
+                icons = state.tabs.map { null },
+            ) {
+                state.tabs.forEachIndexed { index, tab ->
+                    addItem(tabLabels[index], null, selected = tab.id == selectedTab?.id) {
+                        manager.selectTab(root, tab.id)
                     }
                 }
             }
+
+            Text(
+                text = stringResource(
+                    R.string.workspace_terminal_tab,
+                    selectedTab?.number ?: 1,
+                ) + " ▾",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .then(tabAnchor.modifier)
+                    .clickable(enabled = state.tabs.size > 1) { tabMenuExpanded = true }
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+            )
             IconButton(
                 onClick = { manager.createTab(workspace) },
                 enabled = !state.isCreating,

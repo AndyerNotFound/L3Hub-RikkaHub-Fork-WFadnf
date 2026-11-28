@@ -29,8 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ButtonDefaults
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -76,6 +74,8 @@ import me.rerere.hugeicons.stroke.Stop
 import me.rerere.hugeicons.stroke.Translate
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.ai.TranslationLanguages
@@ -445,41 +445,42 @@ private fun TranslateToolbar(
             }
         },
     ) {
-        Box {
-            TextButton(
-                onClick = { menuExpanded = true },
-                // 默认是 primary，在 vibrant 工具栏上看不清
-                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.LanguageCircle,
-                    contentDescription = null,
-                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                )
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text(translationLanguageName(targetLanguage))
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Icon(
-                    imageVector = HugeIcons.ArrowDown01,
-                    contentDescription = null,
-                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                )
-            }
+        val anchor = rememberSelectMenuAnchor()
+        // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+        val languageNames = TranslationLanguages.map { translationLanguageName(it) }
 
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                TranslationLanguages.forEach { language ->
-                    DropdownMenuItem(
-                        text = { Text(translationLanguageName(language)) },
-                        onClick = {
-                            onLanguageSelected(language)
-                            menuExpanded = false
-                        },
-                    )
+        rememberNativeSelectMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            anchorBounds = anchor.value.value,
+            icons = TranslationLanguages.map { null },
+        ) {
+            TranslationLanguages.forEachIndexed { index, language ->
+                addItem(languageNames[index], null, selected = language == targetLanguage) {
+                    onLanguageSelected(language)
                 }
             }
+        }
+
+        TextButton(
+            onClick = { menuExpanded = true },
+            // 默认是 primary，在 vibrant 工具栏上看不清
+            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+            modifier = Modifier.then(anchor.modifier),
+        ) {
+            Icon(
+                imageVector = HugeIcons.LanguageCircle,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(translationLanguageName(targetLanguage))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Icon(
+                imageVector = HugeIcons.ArrowDown01,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
         }
     }
 }

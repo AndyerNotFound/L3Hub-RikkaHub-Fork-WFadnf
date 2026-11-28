@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +32,8 @@ import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.style.DropdownMenu
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -112,36 +112,27 @@ fun WebViewPage(url: String, contentId: String, offlineMessagePreview: Boolean =
                     }
 
                     val urlHandler = LocalUriHandler.current
+                    val anchor = rememberSelectMenuAnchor()
+
+                    rememberNativeSelectMenu(
+                        expanded = showDropdown,
+                        onDismiss = { showDropdown = false },
+                        anchorBounds = anchor.value.value,
+                        icons = listOf(HugeIcons.Earth, HugeIcons.Bug01),
+                    ) {
+                        addItem("Open in Browser", null, false) {
+                            state.currentUrl?.let { url ->
+                                if (url.isNotBlank()) urlHandler.openUri(url)
+                            }
+                        }
+                        addItem("Console Logs", null, false) { showConsoleSheet = true }
+                    }
+
                     IconButton(
-                        onClick = { showDropdown = true }
+                        onClick = { showDropdown = true },
+                        modifier = Modifier.then(anchor.modifier),
                     ) {
                         Icon(HugeIcons.MoreVertical, contentDescription = "More options")
-
-                        DropdownMenu(
-                            expanded = showDropdown,
-                            onDismissRequest = { showDropdown = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Open in Browser") },
-                                leadingIcon = { Icon(HugeIcons.Earth, contentDescription = null) },
-                                onClick = {
-                                    showDropdown = false
-                                    state.currentUrl?.let { url ->
-                                        if (url.isNotBlank()) {
-                                            urlHandler.openUri(url)
-                                        }
-                                    }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Console Logs") },
-                                leadingIcon = { Icon(HugeIcons.Bug01, contentDescription = null) },
-                                onClick = {
-                                    showDropdown = false
-                                    showConsoleSheet = true
-                                }
-                            )
-                        }
                     }
                 }
             )

@@ -26,8 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
@@ -69,6 +67,8 @@ import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.Settings
@@ -455,38 +455,31 @@ private fun WorkspaceActionButton(
     onNavigate: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(
-            onClick = {
-                if (workspaces.size == 1) {
-                    onNavigate(workspaces.first().id)
-                } else {
-                    expanded = true
-                }
-            },
-        ) {
-            Icon(imageVector = icon, contentDescription = contentDescription)
+    val anchor = rememberSelectMenuAnchor()
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = workspaces.map { null },
+    ) {
+        workspaces.forEach { workspace ->
+            addItem(workspace.name, null, selected = false) { onNavigate(workspace.id) }
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            workspaces.forEach { workspace ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = workspace.name,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    onClick = {
-                        expanded = false
-                        onNavigate(workspace.id)
-                    },
-                )
+    }
+
+    IconButton(
+        onClick = {
+            // 只有一个工作区时直接进去，不弹菜单
+            if (workspaces.size == 1) {
+                onNavigate(workspaces.first().id)
+            } else {
+                expanded = true
             }
-        }
+        },
+        modifier = Modifier.then(anchor.modifier),
+    ) {
+        Icon(imageVector = icon, contentDescription = contentDescription)
     }
 }
 

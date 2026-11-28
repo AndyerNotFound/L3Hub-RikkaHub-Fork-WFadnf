@@ -15,8 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +40,8 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -316,32 +316,33 @@ internal fun WorkspaceName(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = bound.size > 1) { expanded = true },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = current.name,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+    val anchor = rememberSelectMenuAnchor()
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = bound.map { null },
+    ) {
+        bound.forEach { item ->
+            addItem(item.name, null, selected = item.id == current.id) { onSelect(item) }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            bound.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.name) },
-                    onClick = {
-                        expanded = false
-                        onSelect(item)
-                    },
-                )
-            }
-        }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(anchor.modifier)
+            .clickable(enabled = bound.size > 1) { expanded = true },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = current.name,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
