@@ -52,8 +52,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -71,10 +69,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import dev.chrisbanes.haze.HazeState
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.filter
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -97,8 +91,8 @@ import me.rerere.rikkahub.data.model.TodoStatus
 import me.rerere.rikkahub.service.InboxState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionProvider
-import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
 import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
+import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
@@ -118,16 +112,21 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
+import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
+import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
 import kotlin.math.abs
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 
 @Composable
 fun ChatInput(
@@ -218,9 +217,9 @@ fun ChatInput(
     // 同时驱动卡片在「悬浮」与「贴键盘的 sheet」之间连续变形。
     var inputFocused by remember { mutableStateOf(false) }
 
-    // 贴底时使用 demo 的平整底板；空会话抬升到英雄卡下方时保留独立圆角。
-    val docked = !pinContentToTop
-    // 焦点态：输入卡从「悬浮卡片」连续变形成「贴住键盘的 sheet」。
+    // 非焦点态 = Demo 的 composer_resting：四角 uiCornerRadius（默认 24dp）+ 四周 8dp 内缩，
+    // 是一张真的浮在页面上的卡片。
+    // 焦点态 = Demo 的 composer_sheet：零内缩、顶部 28dp、底部 0，贴住键盘的一条 sheet。
     //
     // 这里刻意不用 MaterialContainerTransform，也不用 Compose 的 sharedBounds：
     // - MaterialContainerTransform 要求两个 View 分处两个场景（两个 Fragment / Activity），
@@ -229,24 +228,24 @@ fun ChatInput(
     //   AnimatedContent/AnimatedVisibility，那会把输入卡变成两个实例——原生卡是
     //   AndroidView 里的 EditText，实例一换输入法连接就断，光标、composing、选区全丢。
     //
-    // 所以走「同一实例 + 属性插值」：圆角、内缩、底色、轮廓一起连续插值，
-    // 视觉上与 Container Transform 同一条路径（同一块面从 A 位置连续变形到 B），
-    // 但没有第二个场景，输入法状态一直是同一份。
+    // 所以走「同一实例 + 属性插值」：圆角、内缩、底色一起连续插值，
+    // 和 Demo 那两个实例之间的 Container Transform 走同一条视觉路径。
     val focusProgress by animateFloatAsState(
-        // 横屏三栏空态（pinContentToTop）里输入卡是抬到英雄卡下方的独立卡片，
-        // 焦点时同样该长成贴键盘的 sheet，所以这里不排除它。
         targetValue = if (inputFocused) 1f else 0f,
         animationSpec = rememberSpatialSpec(),
         label = "composerFocusProgress",
     )
-    // 焦点态顶部圆角 28dp、底部贴住键盘不留圆角（Demo InputDock 的 28/28/0/0 同款）；
-    // 非焦点态回到「贴底平整 / 空态独立圆角」这两档。
-    val restingRadius = if (docked) 0.dp else settings.displaySetting.uiCornerRadius.dp
-    val focusedRadius = 28.dp
+    // 圆角：resting 四角同值 → focused 上 28 / 下 0
+    val restingRadius = settings.displaySetting.uiCornerRadius.dp
+    val focusedTopRadius = 28.dp
     val containerShape = adaptiveStyledShape(
-        topRadius = lerp(restingRadius, focusedRadius, focusProgress),
+        topRadius = lerp(restingRadius, focusedTopRadius, focusProgress),
         bottomRadius = lerp(restingRadius, 0.dp, focusProgress),
     )
+    // 卡片四周的外缩：resting 8dp（悬浮），focused 0（贴边成 sheet）。
+    // 顶部同样从 4dp 收到 0，这样贴键盘时卡片上边界紧挨着内容。
+    val cardInset = lerp(8.dp, 0.dp, focusProgress)
+    val cardInsetTop = lerp(4.dp, 0.dp, focusProgress)
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -446,11 +445,10 @@ fun ChatInput(
         }
     }
 
-    // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏
+    // 底部渐变遮罩：从输入区顶部一直过渡到屏幕底部（键盘弹出时到键盘上沿），避免消息透到系统导航栏。
+    // 底板去掉之后它变成唯一一层底衬，所以不再分贴底/抬升两种情况，一律铺。
     val scrimColor = LocalUiSlots.current.pageBackground
-    val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f)
-    // 贴底时由整块底板遮住消息，只在透明的抬升态保留渐变路径。
-    val scrimModifier = if (!docked && applyWindowInsets && showScrim) {
+    val scrimModifier = if (applyWindowInsets && showScrim) {
         Modifier.drawBehind {
             val endY = if (deferImeInset) {
                 // 空态底栏本来就不含键盘 inset，不必再读它，免得跟着键盘每帧重画遮罩
@@ -471,22 +469,15 @@ fun ChatInput(
     } else {
         Modifier
     }
-    // 整条底栏的外壳：贴底态铺实色底板 + 顶部分隔线。
-    // 焦点变形不在这里做——这条线是底栏与消息列表的边界，跟着输入框焦点消失
-    // 会让待办卡、消息队列一起失去边界。变形全部落在下面输入卡那一列。
+    // 整条底栏只是布局容器，不画底板、不画分隔线。
+    //
+    // 原来这里铺满全宽实色 + 顶部分隔线，把输入卡当底栏里的一块平板。
+    // 但输入卡本身是一张悬浮卡片（四角 24dp + 四周 8dp 外缩），
+    // 底下再垫一块铺满的实色底板，悬浮感就没了——像白纸上放白卡。
+    // 待办卡、消息队列、上下文条各自有自己的 Surface，不依赖这一层。
     Surface(
-        color = if (docked) containerColor else Color.Transparent,
-        modifier = scrimModifier.then(
-            if (docked) Modifier.drawWithContent {
-                drawContent()
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, 0.5.dp.toPx()),
-                    end = Offset(size.width, 0.5.dp.toPx()),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            } else Modifier,
-        ),
+        color = Color.Transparent,
+        modifier = scrimModifier,
     ) {
         Column(
             modifier = modifier
@@ -501,11 +492,10 @@ fun ChatInput(
                         Modifier
                     },
                 )
-                // 底板铺满宽度，文字与工具栏保留 demo 的 12dp 内缩及系统 inset。
-                // 这一层管的是整条底栏（待办卡、消息队列、上下文条、输入卡），
-                // 内缩必须是常量：焦点变形只属于输入卡，在下面那一列里做。
+                // 这一层管的是整条底栏（待办卡、消息队列、上下文条、输入卡）。
+                // 左右 12dp 是给上面那几张卡的；输入卡自己在下面那列里再收 8dp 做悬浮。
                 .adaptiveHorizontalPadding(12.dp)
-                .padding(top = if (docked) 8.dp else 0.dp, bottom = 8.dp + liftedBy)
+                .padding(top = 8.dp, bottom = 8.dp + liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
                 // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
                 // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
@@ -633,29 +623,21 @@ fun ChatInput(
                             },
                         ),
                 ) {
-                    // 输入卡这一列单独做焦点变形：非焦点态和原来一样（外层已经给了 12dp
-                    // 内缩），焦点态往左右各外扩 12dp 把整条宽度吃满——卡片长成贴住
-                    // 屏幕两侧的 sheet。
+                    // 输入卡四周的外缩：resting 8dp（悬浮卡片），focused 0（贴边成 sheet）。
+                    // 这就是 Demo 里 composer_resting 的 marginStart/End/Bottom=8dp，
+                    // 以及 composer_sheet 的零 margin —— 两者之间的 morph。
                     //
-                    // 不能改外层那层内缩：它还管着待办卡、消息队列、上下文条，
-                    // 动它会把上面那几张卡一起拉宽。也不能用负 padding——Compose 的
-                    // padding 会 constrainWidth 夹回父宽度，负值不会外扩。
-                    // 这里在测量阶段放宽约束、放置阶段左移，父容器不裁剪所以能画出来。
-                    // 注意不能叠 fillMaxWidth：它按原约束把宽度钉死，后面的放宽就没用了。
-                    val focusSpreadPx = with(density) { (12.dp * focusProgress).roundToPx() }
+                    // 不用 layout 手改约束：这里是往内收，普通 padding 就够
+                    // （只有往外扩才需要放宽约束）。
                     Column(
                         modifier = Modifier
-                            .layout { measurable, constraints ->
-                                val placeable = measurable.measure(
-                                    constraints.copy(
-                                        minWidth = constraints.maxWidth,
-                                        maxWidth = constraints.maxWidth + focusSpreadPx * 2,
-                                    )
-                                )
-                                layout(constraints.maxWidth, placeable.height) {
-                                    placeable.placeRelative(-focusSpreadPx, 0)
-                                }
-                            },
+                            .fillMaxWidth()
+                            .padding(
+                                start = cardInset,
+                                end = cardInset,
+                                top = cardInsetTop,
+                                bottom = cardInset,
+                            ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Surface(
@@ -667,6 +649,13 @@ fun ChatInput(
                                     cardHeightPx = size.height
                                 }
                                 .then(revealFloatingBarModifier)
+                                // 悬浮卡片的投影（Demo 的 cardElevation=2dp）。
+                                // 焦点态收到 0：贴住键盘的 sheet 不该浮起来。
+                                // 放在 clip 之前，否则阴影会被圆角裁掉。
+                                .appButtonShadow(
+                                    shape = containerShape,
+                                    elevation = lerp(2.dp, 0.dp, focusProgress),
+                                )
                                 .clip(containerShape)
                                 .then(
                                     if (composerStyle != null) {
@@ -685,9 +674,9 @@ fun ChatInput(
                                 ),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 贴底输入区只保留顶部细线；抬升的空态输入卡才需要四周轮廓。
-                            // 焦点态轮廓跟着淡出：贴住键盘的 sheet 不该再有一圈浮起的描边。
-                            border = if (!docked && (composerStyle == null || composerStyle.needsFlatOutline())) {
+                            // 悬浮卡片要有一圈轮廓，否则和页面背景糊在一起。
+                            // 焦点态淡出：贴住键盘的 sheet 不该再有一圈浮起的描边。
+                            border = if (composerStyle == null || composerStyle.needsFlatOutline()) {
                                 BorderStroke(
                                     1.dp,
                                     MaterialTheme.colorScheme.outlineVariant.copy(
@@ -697,13 +686,12 @@ fun ChatInput(
                             } else {
                                 null
                             },
-                            // 贴底底色由外层铺满，避免半透明主题在输入框内叠成两倍浓度。
-                            // 抬升的空态输入卡仍由自己的 Surface 着色；焦点态同样渐显，
-                            // 否则卡片的底色会在变形途中突然出现。
-                            color = if (docked || composerStyle != null) {
+                            // 卡片自己铺色：它是浮在页面上的，不是底栏里的一块平板。
+                            // 高级外观开着时底色交给材质层（advancedMaterial），这里保持透明。
+                            color = if (composerStyle != null) {
                                 Color.Transparent
                             } else {
-                                containerColor.copy(alpha = containerColor.alpha * focusProgress)
+                                containerColor
                             },
                         ) {
                             Column(
