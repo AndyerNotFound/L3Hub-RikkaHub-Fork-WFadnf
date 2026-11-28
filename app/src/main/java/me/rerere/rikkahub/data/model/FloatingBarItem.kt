@@ -47,11 +47,26 @@ enum class FloatingBarItem {
     SETTINGS,
 }
 
-/** 悬浮栏最多能放下的槽位数。 */
-const val MAX_FLOATING_BAR_ITEMS = 5
+/**
+ * 悬浮栏最多能放下的槽位数。
+ *
+ * 7 个是可用宽度的上限：100% 缩放下 7 × 44dp + 内边距 = 316dp，
+ * 360dp 屏刚好放得下（再宽就要横向滚动了）。调大缩放时会自动滚动。
+ */
+const val MAX_FLOATING_BAR_ITEMS = 7
 
-/** 默认槽位：聊天与媒体创作。 */
+/**
+ * 默认槽位：装满 7 个。
+ *
+ * 顺序按「从输入框往外」的常用度排：会话列表、历史、搜索、助手、收藏、
+ * 翻译、设置。用户可以在设置页里增删和调序。
+ */
 val DEFAULT_FLOATING_BAR_ITEMS: List<FloatingBarItem> = listOf(
     FloatingBarItem.CHAT,
-    FloatingBarItem.MEDIA_CREATION,
+    FloatingBarItem.HISTORY,
+    FloatingBarItem.SEARCH,
+    FloatingBarItem.ASSISTANT,
+    FloatingBarItem.FAVORITE,
+    FloatingBarItem.TRANSLATOR,
+    FloatingBarItem.SETTINGS,
 )

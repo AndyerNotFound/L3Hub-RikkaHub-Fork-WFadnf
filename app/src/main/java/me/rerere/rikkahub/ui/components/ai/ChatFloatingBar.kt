@@ -5,9 +5,14 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -121,6 +127,14 @@ internal fun ChatFloatingBar(
     val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
     val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
 
+    // 容器最宽能到多少：屏宽扣掉两处固定留白。
+    // - M3 的 ScreenOffset 左右各 16dp（胶囊和屏幕边之间的呼吸）
+    // - 底栏自己的 12dp 内缩左右各一份（外层 adaptiveHorizontalPadding）
+    // 7 个槽位在 100% 缩放下是 316dp，360dp 屏刚好；调大缩放或小屏时
+    // 靠这个上限把容器收住，内容改成横向滚动。
+    val maxBarWidth = LocalConfiguration.current.screenWidthDp.dp -
+        FloatingToolbarDefaults.ScreenOffset * 2 - 24.dp
+
     // 显隐走 M3 自己的展开/收起曲线，不再自己算位移和模糊：
     // 容器高度、透明度、圆角都由 FloatingToolbar 内部处理。
     AnimatedVisibility(
@@ -134,22 +148,35 @@ internal fun ChatFloatingBar(
             // 容器高度跟着设置里的缩放走，但只给下限：M3 的容器自带 8dp 内边距，
             // 硬写 height 会把图标压扁。关掉 IconButton 的 48dp 最小触控，
             // 否则它会撑破容器（图标本身 36dp 左右，触控区由容器高度兜住）。
-            modifier = Modifier.heightIn(min = itemExtent),
+            //
+            // 宽度要自己兜：M3 的容器是个居中的 Row，没有宽度上限，
+            // 7 个槽位在 140% 缩放下要 439dp，任何手机都会溢出到屏幕外。
+            // 这里限制不超过可用宽度，内容放不下时改成横向滚动。
+            modifier = Modifier
+                .heightIn(min = itemExtent)
+                .widthIn(max = maxBarWidth),
             contentPadding = PaddingValues(horizontal = 4.dp),
         ) {
             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                items.forEach { item ->
-                    val label = item.label()
-                    Tooltip(tooltip = { Text(label) }) {
-                        IconButton(
-                            onClick = { onItemClick(item) },
-                            modifier = Modifier.size(itemExtent),
-                        ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = label,
-                                modifier = Modifier.size(iconExtent),
-                            )
+                // 放得下就居中（M3 默认），放不下就能滚：7 个槽位在 100% 缩放下
+                // 是 316dp，360dp 屏刚好，320dp 小屏或调大缩放时要靠这一层。
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    items.forEach { item ->
+                        val label = item.label()
+                        Tooltip(tooltip = { Text(label) }) {
+                            IconButton(
+                                onClick = { onItemClick(item) },
+                                modifier = Modifier.size(itemExtent),
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = label,
+                                    modifier = Modifier.size(iconExtent),
+                                )
+                            }
                         }
                     }
                 }
