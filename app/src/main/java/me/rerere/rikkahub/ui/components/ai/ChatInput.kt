@@ -66,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -113,6 +114,7 @@ import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPadding
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
@@ -209,9 +211,39 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
+    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度，
+    // 同时驱动卡片在「悬浮」与「贴键盘的 sheet」之间连续变形。
+    var inputFocused by remember { mutableStateOf(false) }
+
     // 贴底时使用 demo 的平整底板；空会话抬升到英雄卡下方时保留独立圆角。
     val docked = !pinContentToTop
-    val containerShape = adaptiveShape(if (docked) 0.dp else settings.displaySetting.uiCornerRadius.dp)
+    // 焦点态：输入卡从「悬浮卡片」连续变形成「贴住键盘的 sheet」。
+    //
+    // 这里刻意不用 MaterialContainerTransform，也不用 Compose 的 sharedBounds：
+    // - MaterialContainerTransform 要求两个 View 分处两个场景（两个 Fragment / Activity），
+    //   本仓库是单 Activity + Decompose + Compose，全仓零 Fragment；
+    // - sharedBounds 的公开重载要 AnimatedVisibilityScope，也就是必须包进
+    //   AnimatedContent/AnimatedVisibility，那会把输入卡变成两个实例——原生卡是
+    //   AndroidView 里的 EditText，实例一换输入法连接就断，光标、composing、选区全丢。
+    //
+    // 所以走「同一实例 + 属性插值」：圆角、内缩、底色、轮廓一起连续插值，
+    // 视觉上与 Container Transform 同一条路径（同一块面从 A 位置连续变形到 B），
+    // 但没有第二个场景，输入法状态一直是同一份。
+    val focusProgress by animateFloatAsState(
+        // 横屏三栏空态（pinContentToTop）里输入卡是抬到英雄卡下方的独立卡片，
+        // 焦点时同样该长成贴键盘的 sheet，所以这里不排除它。
+        targetValue = if (inputFocused) 1f else 0f,
+        animationSpec = rememberSpatialSpec(),
+        label = "composerFocusProgress",
+    )
+    // 焦点态顶部圆角 28dp、底部贴住键盘不留圆角（Demo InputDock 的 28/28/0/0 同款）；
+    // 非焦点态回到「贴底平整 / 空态独立圆角」这两档。
+    val restingRadius = if (docked) 0.dp else settings.displaySetting.uiCornerRadius.dp
+    val focusedRadius = 28.dp
+    val containerShape = adaptiveStyledShape(
+        topRadius = lerp(restingRadius, focusedRadius, focusProgress),
+        bottomRadius = lerp(restingRadius, 0.dp, focusProgress),
+    )
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -280,8 +312,6 @@ fun ChatInput(
     }
     var floatingBarVisible by remember { mutableStateOf(false) }
     var floatingBarActivity by remember { mutableIntStateOf(0) }
-    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度
-    var inputFocused by remember { mutableStateOf(false) }
     LaunchedEffect(floatingBarEnabled, state) {
         if (!floatingBarEnabled) {
             floatingBarVisible = false
@@ -441,17 +471,26 @@ fun ChatInput(
     } else {
         Modifier
     }
+    // 焦点态的底板：卡片要「贴住键盘」而不是浮在一条缝隙上，
+    // 所以底色从透明渐显到实色，顶部那条细线同时淡出（贴键盘的 sheet 没有上边界）。
+    //
+    // 贴底常态（docked）本来就是实色平板，底色不变；它的焦点态变化在下面那层——
+    // 卡片左右收窄到贴边、圆角长出来、顶部细线淡出，三者一起构成「变形成 sheet」。
     Surface(
         color = if (docked) containerColor else Color.Transparent,
         modifier = scrimModifier.then(
             if (docked) Modifier.drawWithContent {
                 drawContent()
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, 0.5.dp.toPx()),
-                    end = Offset(size.width, 0.5.dp.toPx()),
-                    strokeWidth = 1.dp.toPx(),
-                )
+                // 顶部细线随焦点淡出：变形成 sheet 之后它不是一张浮起的卡片
+                val lineAlpha = dividerColor.alpha * (1f - focusProgress)
+                if (lineAlpha > 0.01f) {
+                    drawLine(
+                        color = dividerColor.copy(alpha = lineAlpha),
+                        start = Offset(0f, 0.5.dp.toPx()),
+                        end = Offset(size.width, 0.5.dp.toPx()),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                }
             } else Modifier,
         ),
     ) {
@@ -469,8 +508,15 @@ fun ChatInput(
                     },
                 )
                 // 底板铺满宽度，文字与工具栏保留 demo 的 12dp 内缩及系统 inset。
-                .adaptiveHorizontalPadding(12.dp)
-                .padding(top = if (docked) 8.dp else 0.dp, bottom = 8.dp + liftedBy)
+                // 焦点态时左右内缩连续收窄到贴边：卡片横向长成整条 sheet，
+                // 这是「悬浮卡片 → bottom sheet」变形里最容易被看见的一段。
+                .adaptiveHorizontalPadding(lerp(12.dp, 0.dp, focusProgress))
+                .padding(
+                    top = lerp(if (docked) 8.dp else 0.dp, 6.dp, focusProgress),
+                    // 焦点态贴住键盘：抬升量（空态把输入区托到屏幕中间的那一段）
+                    // 必须归零，否则卡片会被顶到键盘上方悬着，不像 sheet
+                    bottom = lerp(8.dp + liftedBy, 0.dp, focusProgress),
+                )
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
                 // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
                 // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
@@ -627,20 +673,24 @@ fun ChatInput(
                             shape = containerShape,
                             tonalElevation = 0.dp,
                             // 贴底输入区只保留顶部细线；抬升的空态输入卡才需要四周轮廓。
+                            // 焦点态轮廓跟着淡出：贴住键盘的 sheet 不该再有一圈浮起的描边。
                             border = if (!docked && (composerStyle == null || composerStyle.needsFlatOutline())) {
                                 BorderStroke(
                                     1.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    MaterialTheme.colorScheme.outlineVariant.copy(
+                                        alpha = 0.5f * (1f - focusProgress),
+                                    ),
                                 )
                             } else {
                                 null
                             },
                             // 贴底底色由外层铺满，避免半透明主题在输入框内叠成两倍浓度。
-                            // 抬升的空态输入卡仍由自己的 Surface 着色。
+                            // 抬升的空态输入卡仍由自己的 Surface 着色；焦点态同样渐显，
+                            // 否则卡片的底色会在变形途中突然出现。
                             color = if (docked || composerStyle != null) {
                                 Color.Transparent
                             } else {
-                                containerColor
+                                containerColor.copy(alpha = containerColor.alpha * focusProgress)
                             },
                         ) {
                             Column(

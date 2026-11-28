@@ -642,10 +642,12 @@ internal fun FullScreenEditor(
                 modifier = Modifier
                     .widthIn(max = 800.dp)
                     .fillMaxHeight(0.9f),
+                // 和焦点态输入卡同一档顶部圆角：从卡片点进来时，视觉上还是「同一条 sheet
+                // 继续往上长」，不是换了一张别的面。底部贴住屏幕，不留圆角。
                 shape = if (LocalFullWidthComponents.current) {
                     RoundedCornerShape(0.dp)
                 } else {
-                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                 }
             ) {
                 Column(
