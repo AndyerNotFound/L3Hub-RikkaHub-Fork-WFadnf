@@ -5,6 +5,7 @@ import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -91,21 +92,24 @@ internal fun NativeFloatingMenuHost(
         return
     }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { NativeFloatingMenu(context) },
-        onRelease = { menu -> menu.setListener(null) },
-        update = { menu ->
-            menu.setAnimationsEnabled(animationsEnabled)
-            menu.setFadeDuration(duration)
-            menu.setScale(scale)
-            menu.setVisible(visible)
-            menu.setListener(object : NativeFloatingMenu.Listener {
-                override fun onOpenRequested(anchor: View) {
-                    anchorBounds = anchor.windowRect()
-                    latestOnExpandedChange.value(true)
-                }
-            })
-        },
-    )
+    // 主题或缩放变化时，用新的 Material Context 重建 FAB。
+    key(context) {
+        AndroidView(
+            modifier = modifier,
+            factory = { NativeFloatingMenu(context) },
+            onRelease = { menu -> menu.setListener(null) },
+            update = { menu ->
+                menu.setAnimationsEnabled(animationsEnabled)
+                menu.setFadeDuration(duration)
+                menu.setScale(scale)
+                menu.setVisible(visible)
+                menu.setListener(object : NativeFloatingMenu.Listener {
+                    override fun onOpenRequested(anchor: View) {
+                        anchorBounds = anchor.windowRect()
+                        latestOnExpandedChange.value(true)
+                    }
+                })
+            },
+        )
+    }
 }
