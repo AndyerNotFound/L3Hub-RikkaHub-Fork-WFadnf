@@ -21,6 +21,12 @@ import org.junit.Test
 class ChatMessageMaterialTest {
     private val scheme = lightColorScheme()
 
+    /**
+     * Compose 的 Color 把 alpha 按 8 位量化存储：.66 落到 168/255 = 0.6588，.3 落到
+     * 77/255 = 0.3020。断言按一个量化步长（1/255）留余量，而不是用 1e-3 硬比。
+     */
+    private val alphaStep = 1f / 255f
+
     @Test
     fun `default message style leaves the preset untouched`() {
         val display = DisplaySetting(
@@ -36,8 +42,8 @@ class ChatMessageMaterialTest {
         val frosted = resolveBubbleStyle(scheme, ChatMessageBackgroundStyle.FROSTED, ChatBubbleStyleOverrides())
         val solid = resolveBubbleStyle(scheme, ChatMessageBackgroundStyle.SOLID, ChatBubbleStyleOverrides())
 
-        assertEquals(.66f, frosted.background.alpha, .001f)
-        assertEquals(1f, solid.background.alpha, 1e-6f)
+        assertEquals(.66f, frosted.background.alpha, alphaStep)
+        assertEquals(1f, solid.background.alpha, alphaStep)
         assertEquals(16f, frosted.radius.value, 1e-6f)
     }
 
@@ -53,7 +59,7 @@ class ChatMessageMaterialTest {
         )
 
         val resolved = requireNotNull(resolveMessageStyle(scheme, display, ChatBubbleStyleTarget.ASSISTANT))
-        assertEquals(.3f, resolved.background.alpha, .001f)
+        assertEquals(.3f, resolved.background.alpha, alphaStep)
         assertEquals(2f, resolved.borderWidth.value, 1e-6f)
         assertEquals(8f, resolved.radius.value, 1e-6f)
     }
