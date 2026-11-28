@@ -27,8 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +72,8 @@ import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.mediagen.model.ImageRole
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.model.MediaCreationAsset
 import me.rerere.rikkahub.data.model.MediaCreationAssetType
 import me.rerere.rikkahub.data.model.MediaCreationNode
@@ -472,82 +472,90 @@ private fun OutputMenu(
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
+    val anchor = rememberSelectMenuAnchor()
 
-    @Composable
-    fun MenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
-        DropdownMenuItem(
-            text = { Text(text) },
-            leadingIcon = { Icon(icon, contentDescription = null) },
-            onClick = {
-                expanded = false
-                onClick()
-            },
-        )
+    // 保存到相册这一项三处共用，抽出来免得写两遍
+    val saveToGallery: () -> Unit = {
+        scope.launch {
+            runCatching { saveMediaToGallery(context, file, output.mimeType) }
+                .onSuccess {
+                    toaster.show(
+                        context.getString(R.string.media_creation_page_saved_to_gallery),
+                        type = ToastType.Success,
+                    )
+                }
+                .onFailure {
+                    toaster.show(
+                        it.message ?: context.getString(R.string.media_creation_page_save_failed),
+                        type = ToastType.Error,
+                    )
+                }
+        }
+    }
+    val share: () -> Unit = {
+        runCatching { shareMedia(context, file, output.mimeType) }
+            .onFailure {
+                toaster.show(
+                    it.message ?: context.getString(R.string.media_creation_page_share_failed),
+                    type = ToastType.Error,
+                )
+            }
     }
 
-    Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .padding(6.dp)
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.45f))
-                .clickable { expanded = true },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = HugeIcons.MoreVertical,
-                contentDescription = stringResource(R.string.more_options),
-                tint = Color.White,
-                modifier = Modifier.size(16.dp),
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val continueVideoLabel = stringResource(R.string.media_creation_page_continue_video_long)
+    val referenceVideoLabel = stringResource(R.string.media_creation_page_use_as_reference_video)
+    val referenceImageLabel = stringResource(R.string.media_creation_page_use_as_reference_image)
+    val firstFrameLabel = stringResource(R.string.media_creation_page_use_as_first_frame)
+    val lastFrameLabel = stringResource(R.string.media_creation_page_use_as_last_frame)
+    val saveLabel = stringResource(R.string.media_creation_page_save_to_gallery)
+    val shareLabel = stringResource(R.string.share)
+
+    rememberNativeSelectMenu(
+        expanded = expanded,
+        onDismiss = { expanded = false },
+        anchorBounds = anchor.value.value,
+        icons = if (output.isVideo) {
+            listOf(HugeIcons.Video01, HugeIcons.ImageAdd01, HugeIcons.Download01, HugeIcons.Share01)
+        } else {
+            listOf(
+                HugeIcons.ImageAdd01,
+                HugeIcons.ImageToVideo,
+                HugeIcons.ImageToVideo,
+                HugeIcons.Download01,
+                HugeIcons.Share01,
             )
+        },
+    ) {
+        if (output.isVideo) {
+            addItem(continueVideoLabel, null, false) { vm.continueVideo(output) }
+            addItem(referenceVideoLabel, null, false) { vm.useVideo(output) }
+        } else {
+            addItem(referenceImageLabel, null, false) { vm.useImage(output, ImageRole.REFERENCE) }
+            addItem(firstFrameLabel, null, false) { vm.useImage(output, ImageRole.FIRST_FRAME) }
+            addItem(lastFrameLabel, null, false) { vm.useImage(output, ImageRole.LAST_FRAME) }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (output.isVideo) {
-                MenuItem(stringResource(R.string.media_creation_page_continue_video_long), HugeIcons.Video01) {
-                    vm.continueVideo(output)
-                }
-                MenuItem(stringResource(R.string.media_creation_page_use_as_reference_video), HugeIcons.ImageAdd01) {
-                    vm.useVideo(output)
-                }
-            } else {
-                MenuItem(stringResource(R.string.media_creation_page_use_as_reference_image), HugeIcons.ImageAdd01) {
-                    vm.useImage(output, ImageRole.REFERENCE)
-                }
-                MenuItem(stringResource(R.string.media_creation_page_use_as_first_frame), HugeIcons.ImageToVideo) {
-                    vm.useImage(output, ImageRole.FIRST_FRAME)
-                }
-                MenuItem(stringResource(R.string.media_creation_page_use_as_last_frame), HugeIcons.ImageToVideo) {
-                    vm.useImage(output, ImageRole.LAST_FRAME)
-                }
-            }
-            MenuItem(stringResource(R.string.media_creation_page_save_to_gallery), HugeIcons.Download01) {
-                scope.launch {
-                    runCatching { saveMediaToGallery(context, file, output.mimeType) }
-                        .onSuccess {
-                            toaster.show(
-                                context.getString(R.string.media_creation_page_saved_to_gallery),
-                                type = ToastType.Success,
-                            )
-                        }
-                        .onFailure {
-                            toaster.show(
-                                it.message ?: context.getString(R.string.media_creation_page_save_failed),
-                                type = ToastType.Error,
-                            )
-                        }
-                }
-            }
-            MenuItem(stringResource(R.string.share), HugeIcons.Share01) {
-                runCatching { shareMedia(context, file, output.mimeType) }
-                    .onFailure {
-                        toaster.show(
-                            it.message ?: context.getString(R.string.media_creation_page_share_failed),
-                            type = ToastType.Error,
-                        )
-                    }
-            }
-        }
+        addDivider()
+        addItem(saveLabel, null, false) { saveToGallery() }
+        addItem(shareLabel, null, false) { share() }
+    }
+
+    Box(
+        modifier = modifier
+            .padding(6.dp)
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.45f))
+            .then(anchor.modifier)
+            .clickable { expanded = true },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = HugeIcons.MoreVertical,
+            contentDescription = stringResource(R.string.more_options),
+            tint = Color.White,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 

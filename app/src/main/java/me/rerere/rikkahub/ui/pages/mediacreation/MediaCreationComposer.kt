@@ -45,8 +45,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
@@ -104,6 +102,8 @@ import me.rerere.mediagen.provider.MediaGenerationParameter
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.mediagen.provider.capabilities
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.pages.chat.rememberSelectMenuAnchor
+import me.rerere.rikkahub.ui.pages.chat.rememberNativeSelectMenu
 import me.rerere.rikkahub.data.model.MediaCreationAsset
 import me.rerere.rikkahub.data.model.MediaCreationAssetType
 import me.rerere.rikkahub.data.model.MediaCreationDraft
@@ -574,6 +574,39 @@ private fun AssetTile(
     onRemove: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    // 容器变换的起点：这张缩略图。菜单从它的窗口矩形长出来
+    val anchor = rememberSelectMenuAnchor()
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val roleLabels = roleOptions.map {
+        stringResource(
+            when (it) {
+                ImageRole.FIRST_FRAME -> R.string.media_creation_page_set_as_first_frame
+                ImageRole.LAST_FRAME -> R.string.media_creation_page_set_as_last_frame
+                ImageRole.REFERENCE -> R.string.media_creation_page_set_as_reference
+            }
+        )
+    }
+    val drawLabel = stringResource(R.string.sketch_draw_on_image)
+
+    rememberNativeSelectMenu(
+        expanded = showMenu,
+        onDismiss = { showMenu = false },
+        anchorBounds = anchor.value.value,
+        icons = buildList {
+            roleOptions.forEach { add(null) }
+            if (onDraw != null) add(HugeIcons.PencilEdit01)
+        },
+    ) {
+        roleOptions.forEachIndexed { index, role ->
+            addItem(roleLabels[index], null, selected = false) { onSetRole(role) }
+        }
+        if (onDraw != null) {
+            addDivider()
+            addItem(drawLabel, null, selected = false) { onDraw() }
+        }
+    }
+
     Box(modifier = Modifier.size(AssetTileSize)) {
         MediaThumbnail(
             file = file,
@@ -582,6 +615,7 @@ private fun AssetTile(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(AssetTileShape)
+                .then(anchor.modifier)
                 .clickable(enabled = roleOptions.isNotEmpty() || onDraw != null) { showMenu = true },
         )
         if (label != null) {
@@ -614,36 +648,6 @@ private fun AssetTile(
                 tint = Color.White,
                 modifier = Modifier.size(12.dp),
             )
-        }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            roleOptions.forEach { role ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                when (role) {
-                                    ImageRole.FIRST_FRAME -> R.string.media_creation_page_set_as_first_frame
-                                    ImageRole.LAST_FRAME -> R.string.media_creation_page_set_as_last_frame
-                                    ImageRole.REFERENCE -> R.string.media_creation_page_set_as_reference
-                                }
-                            )
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onSetRole(role)
-                    },
-                )
-            }
-            if (onDraw != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sketch_draw_on_image)) },
-                    onClick = {
-                        showMenu = false
-                        onDraw()
-                    },
-                )
-            }
         }
     }
 }
